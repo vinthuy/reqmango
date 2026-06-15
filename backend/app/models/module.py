@@ -1,0 +1,21 @@
+from uuid import UUID
+from sqlalchemy import String, ForeignKey, Integer
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from .base import Base, AuditMixin, SoftDeleteMixin
+
+class Module(Base, AuditMixin, SoftDeleteMixin):
+    __tablename__ = "modules"
+    
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    sequence: Mapped[int] = mapped_column(Integer, default=1)
+    
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    parent_id: Mapped[UUID | None] = mapped_column(ForeignKey("modules.id"), nullable=True)
+    
+    project: Mapped["Project"] = relationship(back_populates="modules")
+    workspace: Mapped["Workspace"] = relationship()
+    sub_modules: Mapped[list["Module"]] = relationship(back_populates="parent")
+    parent: Mapped["Module | None"] = relationship(remote_side="Module.id", back_populates="sub_modules")
+    issue_links: Mapped[list["IssueModule"]] = relationship(back_populates="module")

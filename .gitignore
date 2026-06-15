@@ -1,0 +1,60 @@
+# Python
+backend/__pycache__/
+backend/*.pyc
+backend/build/
+backend/dist/
+backend/*.egg-info/
+backend/.venv/
+backend/venv/
+backend/ENV/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.nuxt/
+frontend/.output/
+frontend/.cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+
+# Claude
+.claude/
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
