@@ -42,16 +42,18 @@ export interface IssueBase {
 // ==================== Issue Create ====================
 
 export interface IssueCreate extends IssueBase {
-  parent_id?: string
-  state_id?: string
-  assignee_ids?: string[]
-  label_ids?: string[]
-  cycle_id?: string
-  module_ids?: string[]
-  estimate_point_id?: string
-  type_id?: string
+  parent_id?: number
+  state_id?: number
+  assignee_ids?: number[]
+  label_ids?: number[]
+  cycle_id?: number
+  module_ids?: number[]
+  estimate_point_id?: number
+  type_id?: number
   external_id?: string
   external_source?: string
+  project_id?: number
+  workspace_id?: number
 }
 
 // ==================== Issue Update ====================
@@ -60,30 +62,30 @@ export interface IssueUpdate {
   name?: string
   description_html?: string
   priority?: IssuePriority
-  state_id?: string
-  assignee_ids?: string[]
-  label_ids?: string[]
+  state_id?: number
+  assignee_ids?: number[]
+  label_ids?: number[]
   start_date?: string
   target_date?: string
-  estimate_point_id?: string
-  cycle_id?: string
-  module_ids?: string[]
+  estimate_point_id?: number
+  cycle_id?: number
+  module_ids?: number[]
 }
 
 // ==================== Issue Response ====================
 
 export interface IssueResponse extends IssueBase {
-  id: string
+  id: number
   sequence_id: number
   sort_order: number
   completed_at?: string
   is_draft: boolean
   archived_at?: string
   
-  project_id: string
-  workspace_id: string
-  parent_id?: string
-  state_id: string
+  project_id: number
+  workspace_id: number
+  parent_id?: number
+  state_id: number
   state_name?: string
   state_group?: string
   
@@ -97,50 +99,50 @@ export interface IssueResponse extends IssueBase {
   link_count?: number
   attachment_count?: number
   
-  estimate_point_id?: string
-  module_ids?: string[]
+  estimate_point_id?: number
+  module_ids?: number[]
   
   // 时间戳
   created_at: string
   updated_at: string
-  created_by: string
-  updated_by?: string
+  created_by: number
+  updated_by?: number
 }
 
 // ==================== Issue Lite ====================
 
 export interface IssueLite {
-  id: string
+  id: number
   name: string
   sequence_id: number
   priority: IssuePriority
-  state_id: string
-  project_id: string
+  state_id: number
+  project_id: number
   project_identifier: string
 }
 
 // ==================== Issue Search Result ====================
 
 export interface IssueSearchResult {
-  id: string
+  id: number
   name: string
   sequence_id: number
   project_identifier: string
-  project_id: string
+  project_id: number
   workspace_slug: string
 }
 
 // ==================== Issue Activity ====================
 
 export interface IssueActivity {
-  id: string
-  issue_id: string
+  id: number
+  issue_id: number
   verb: string
   field?: string
   old_value?: string
   new_value?: string
   comment?: string
-  actor_id: string
+  actor_id: number
   created_at: string
 }
 
@@ -244,7 +246,7 @@ export function formatIssueIdentifier(projectIdentifier: string, sequenceId: num
 /**
  * 创建空工作项对象
  */
-export function createEmptyIssue(projectId: string, workspaceId: string): IssueCreate {
+export function createEmptyIssue(projectId: number, workspaceId: number): IssueCreate {
   return {
     name: '',
     description_html: '<p></p>',
@@ -303,3 +305,10 @@ export function calculateIssueProgress(issue: IssueResponse): number {
   if (issue.state_group === IssueStateGroup.IN_PROGRESS) return 50
   return 0
 }
+
+// ==================== Type Alias ====================
+
+/**
+ * Issue 类型别名 - 用于简化导入
+ */
+export type Issue = IssueResponse
