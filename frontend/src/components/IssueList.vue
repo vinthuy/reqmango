@@ -9,7 +9,7 @@
             v-model="filters.state_id"
             class="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">所有状态</option>
+            <option value="0">所有状态</option>
             <option v-for="state in states" :key="state.id" :value="state.id">
               {{ state.name }}
             </option>
@@ -33,7 +33,7 @@
             v-model="filters.cycle_id"
             class="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">所有周期</option>
+            <option value="0">所有周期</option>
             <option v-for="cycle in cycles" :key="cycle.id" :value="cycle.id">
               {{ cycle.name }}
             </option>
@@ -56,7 +56,7 @@
 
           <!-- 新建按钮 -->
           <button
-            @click="$emit('create')"
+            @click="goToCreate"
             class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 flex items-center space-x-1"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,7 +85,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
         <p class="mt-2 text-gray-500">暂无工作项</p>
-        <button @click="$emit('create')" class="mt-3 text-indigo-600 hover:text-indigo-800 text-sm">
+        <button @click="goToCreate" class="mt-3 text-indigo-600 hover:text-indigo-800 text-sm">
           创建第一个工作项
         </button>
       </div>
@@ -103,7 +103,10 @@
       </div>
 
       <!-- 分页 -->
-      <div v-if="totalPages > 1" class="mt-4 flex justify-center">
+      <div v-if="totalPages > 1" class="mt-4 flex items-center justify-between">
+        <div class="text-sm text-gray-500">
+          显示 {{ issues.length }} / {{ totalIssues }} 条
+        </div>
         <nav class="flex items-center space-x-1">
           <button
             @click="page--"
@@ -129,15 +132,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import IssueCard from './IssueCard.vue'
 import issueApi from '@/api/issue'
+import type { IssueListResponse } from '@/api/issue'
 
 // Props
 const props = defineProps<{
-  projectId: string
-  workspaceId: string
+  projectId: number
+  workspaceId: number
 }>()
+
+const router = useRouter()
 
 // Emits
 defineEmits<{
@@ -153,15 +160,21 @@ const states = ref<any[]>([])
 const cycles = ref<any[]>([])
 const loading = ref(false)
 const page = ref(1)
-const limit = ref(20)
-const totalPages = ref(1)
+const pageSize = ref(20)
+const totalIssues = ref(0)
+const totalPages = ref(0)
 
 const filters = ref({
-  state_id: '',
+  state_id: 0,
   priority: '',
-  cycle_id: '',
+  cycle_id: 0,
   search: ''
 })
+
+// Navigation
+function goToCreate() {
+  router.push(`/workspaces/${props.workspaceId}/projects/${props.projectId}/issues/new`)
+}
 
 // Load data
 onMounted(async () => {
@@ -187,8 +200,8 @@ async function loadIssues() {
   loading.value = true
   try {
     const params: any = {
-      limit: limit.value,
-      offset: (page.value - 1) * limit.value
+      page: page.value,
+      pageSize: pageSize.value
     }
 
     if (filters.value.state_id) params.state_id = filters.value.state_id
@@ -196,9 +209,10 @@ async function loadIssues() {
     if (filters.value.cycle_id) params.cycle_id = filters.value.cycle_id
     if (filters.value.search) params.search = filters.value.search
 
-    const response = await issueApi.listIssues(props.projectId, params)
-    issues.value = response.items || response
-    totalPages.value = Math.ceil((response.total || issues.value.length) / limit.value)
+    const response: IssueListResponse = await issueApi.listIssues(props.projectId, props.workspaceId, params)
+    issues.value = response.issues
+    totalIssues.value = response.total
+    totalPages.value = response.total_pages
   } catch (error) {
     console.error('Failed to load issues:', error)
   } finally {

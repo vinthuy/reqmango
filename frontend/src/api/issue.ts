@@ -6,12 +6,24 @@ import type {
   IssueCreate,
   IssueUpdate,
   IssueResponse,
-  IssueLite,
   IssueSearchResult,
   IssueActivity,
   IssueStatistics,
   IssuePriority
 } from '@/types/issue'
+
+// ==================== Types ====================
+
+/**
+ * 工作项列表响应（包含分页信息）
+ */
+export interface IssueListResponse {
+  issues: IssueResponse[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
 
 // ==================== Issue CRUD ====================
 
@@ -19,12 +31,12 @@ import type {
  * 创建工作项
  */
 export async function createIssue(
-  projectId: string,
-  workspaceId: string,
+  projectId: number,
+  workspaceId: number,
   data: IssueCreate
 ): Promise<IssueResponse> {
   const response = await api.post(
-    `/issues?project_id=${projectId}&workspace_id=${workspaceId}`,
+    `/issues/?project_id=${projectId}&workspace_id=${workspaceId}`,
     data
   )
   return response.data
@@ -34,46 +46,46 @@ export async function createIssue(
  * 列出项目的工作项
  */
 export async function listIssues(
-  projectId: string,
-  workspaceId: string,
-  filters?: {
-    state_id?: string
+  projectId: number,
+  workspaceId: number,
+  options?: {
+    page?: number
+    pageSize?: number
+    state_id?: number
     priority?: IssuePriority
-    assignee_id?: string
-    parent_id?: string
-    cycle_id?: string
-    module_id?: string
+    assignee_id?: number
+    parent_id?: number
+    cycle_id?: number
+    module_id?: number
     search?: string
     is_draft?: boolean
-    limit?: number
-    offset?: number
   }
-): Promise<IssueResponse[]> {
+): Promise<IssueListResponse> {
   const params = new URLSearchParams()
-  params.append('project_id', projectId)
-  params.append('workspace_id', workspaceId)
-  
-  if (filters) {
-    if (filters.state_id) params.append('state_id', filters.state_id)
-    if (filters.priority) params.append('priority', filters.priority)
-    if (filters.assignee_id) params.append('assignee_id', filters.assignee_id)
-    if (filters.parent_id) params.append('parent_id', filters.parent_id)
-    if (filters.cycle_id) params.append('cycle_id', filters.cycle_id)
-    if (filters.module_id) params.append('module_id', filters.module_id)
-    if (filters.search) params.append('search', filters.search)
-    if (filters.is_draft !== undefined) params.append('is_draft', filters.is_draft.toString())
-    if (filters.limit) params.append('limit', filters.limit.toString())
-    if (filters.offset) params.append('offset', filters.offset.toString())
+  params.append('project_id', projectId.toString())
+  params.append('workspace_id', workspaceId.toString())
+
+  if (options) {
+    if (options.page) params.append('page', options.page.toString())
+    if (options.pageSize) params.append('page_size', options.pageSize.toString())
+    if (options.state_id) params.append('state_id', options.state_id.toString())
+    if (options.priority) params.append('priority', options.priority)
+    if (options.assignee_id) params.append('assignee_id', options.assignee_id.toString())
+    if (options.parent_id) params.append('parent_id', options.parent_id.toString())
+    if (options.cycle_id) params.append('cycle_id', options.cycle_id.toString())
+    if (options.module_id) params.append('module_id', options.module_id.toString())
+    if (options.search) params.append('search', options.search)
+    if (options.is_draft !== undefined) params.append('is_draft', options.is_draft.toString())
   }
-  
-  const response = await api.get(`/issues?${params.toString()}`)
+
+  const response = await api.get(`/issues/?${params.toString()}`)
   return response.data
 }
 
 /**
  * 获取工作项详情
  */
-export async function getIssue(issueId: string): Promise<IssueResponse> {
+export async function getIssue(issueId: number): Promise<IssueResponse> {
   const response = await api.get(`/issues/${issueId}`)
   return response.data
 }
@@ -82,7 +94,7 @@ export async function getIssue(issueId: string): Promise<IssueResponse> {
  * 更新工作项
  */
 export async function updateIssue(
-  issueId: string,
+  issueId: number,
   data: IssueUpdate
 ): Promise<IssueResponse> {
   const response = await api.put(`/issues/${issueId}`, data)
@@ -92,21 +104,21 @@ export async function updateIssue(
 /**
  * 删除工作项
  */
-export async function deleteIssue(issueId: string): Promise<void> {
+export async function deleteIssue(issueId: number): Promise<void> {
   await api.delete(`/issues/${issueId}`)
 }
 
 /**
  * 归档工作项
  */
-export async function archiveIssue(issueId: string): Promise<void> {
+export async function archiveIssue(issueId: number): Promise<void> {
   await api.post(`/issues/${issueId}/archive`)
 }
 
 /**
  * 恢复工作项
  */
-export async function restoreIssue(issueId: string): Promise<IssueResponse> {
+export async function restoreIssue(issueId: number): Promise<IssueResponse> {
   const response = await api.post(`/issues/${issueId}/restore`)
   return response.data
 }
@@ -117,7 +129,7 @@ export async function restoreIssue(issueId: string): Promise<IssueResponse> {
  * 获取工作项活动历史
  */
 export async function getIssueActivities(
-  issueId: string,
+  issueId: number,
   limit?: number,
   offset?: number
 ): Promise<IssueActivity[]> {
@@ -134,7 +146,7 @@ export async function getIssueActivities(
 /**
  * 获取项目工作项统计
  */
-export async function getIssueStatistics(projectId: string): Promise<IssueStatistics> {
+export async function getIssueStatistics(projectId: number): Promise<IssueStatistics> {
   const response = await api.get(`/issues/statistics?project_id=${projectId}`)
   return response.data
 }
@@ -145,16 +157,16 @@ export async function getIssueStatistics(projectId: string): Promise<IssueStatis
  * 搜索工作项
  */
 export async function searchIssues(
-  workspaceId: string,
+  workspaceId: number,
   query: string,
-  projectId?: string,
+  projectId?: number,
   limit?: number
 ): Promise<IssueSearchResult[]> {
   const params = new URLSearchParams()
-  params.append('workspace_id', workspaceId)
+  params.append('workspace_id', workspaceId.toString())
   params.append('query', query)
   
-  if (projectId) params.append('project_id', projectId)
+  if (projectId) params.append('project_id', projectId.toString())
   if (limit) params.append('limit', limit.toString())
   
   const response = await api.get(`/issues/search?${params.toString()}`)
@@ -167,8 +179,8 @@ export async function searchIssues(
  * 批量更新工作项
  */
 export async function bulkUpdateIssues(
-  projectId: string,
-  issueIds: string[],
+  projectId: number,
+  issueIds: number[],
   data: IssueUpdate
 ): Promise<IssueResponse[]> {
   const response = await api.post(
@@ -181,7 +193,7 @@ export async function bulkUpdateIssues(
 /**
  * 批量删除工作项
  */
-export async function bulkDeleteIssues(issueIds: string[]): Promise<void> {
+export async function bulkDeleteIssues(issueIds: number[]): Promise<void> {
   await api.post('/issues/bulk/delete', { issue_ids: issueIds })
 }
 
@@ -191,9 +203,9 @@ export async function bulkDeleteIssues(issueIds: string[]): Promise<void> {
  * 添加工作项负责人
  */
 export async function addIssueAssignee(
-  issueId: string,
-  userId: string
-): Promise<{ issue_id: string; user_id: string; action: string }> {
+  issueId: number,
+  userId: number
+): Promise<{ issue_id: number; user_id: number; action: string }> {
   const response = await api.post(`/issues/${issueId}/assignees?user_id=${userId}`)
   return response.data
 }
@@ -202,9 +214,9 @@ export async function addIssueAssignee(
  * 移除工作项负责人
  */
 export async function removeIssueAssignee(
-  issueId: string,
-  userId: string
-): Promise<{ issue_id: string; user_id: string; action: string }> {
+  issueId: number,
+  userId: number
+): Promise<{ issue_id: number; user_id: number; action: string }> {
   const response = await api.delete(`/issues/${issueId}/assignees/${userId}`)
   return response.data
 }
@@ -215,9 +227,9 @@ export async function removeIssueAssignee(
  * 添加工作项标签
  */
 export async function addIssueLabel(
-  issueId: string,
-  labelId: string
-): Promise<{ issue_id: string; label_id: string; action: string }> {
+  issueId: number,
+  labelId: number
+): Promise<{ issue_id: number; label_id: number; action: string }> {
   const response = await api.post(`/issues/${issueId}/labels?label_id=${labelId}`)
   return response.data
 }
@@ -226,9 +238,9 @@ export async function addIssueLabel(
  * 移除工作项标签
  */
 export async function removeIssueLabel(
-  issueId: string,
-  labelId: string
-): Promise<{ issue_id: string; label_id: string; action: string }> {
+  issueId: number,
+  labelId: number
+): Promise<{ issue_id: number; label_id: number; action: string }> {
   const response = await api.delete(`/issues/${issueId}/labels/${labelId}`)
   return response.data
 }
@@ -239,9 +251,9 @@ export async function removeIssueLabel(
  * 设置工作项周期
  */
 export async function setIssueCycle(
-  issueId: string,
-  cycleId: string
-): Promise<{ issue_id: string; cycle_id: string; action: string }> {
+  issueId: number,
+  cycleId: number
+): Promise<{ issue_id: number; cycle_id: number; action: string }> {
   const response = await api.post(`/issues/${issueId}/cycle?cycle_id=${cycleId}`)
   return response.data
 }
@@ -250,8 +262,8 @@ export async function setIssueCycle(
  * 移除工作项周期
  */
 export async function removeIssueCycle(
-  issueId: string
-): Promise<{ issue_id: string; cycle_id: null; action: string }> {
+  issueId: number
+): Promise<{ issue_id: number; cycle_id: null; action: string }> {
   const response = await api.delete(`/issues/${issueId}/cycle`)
   return response.data
 }
