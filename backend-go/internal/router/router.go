@@ -19,6 +19,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	issueSvc := service.NewIssueService(db)
 	cycleSvc := service.NewCycleService(db)
 	moduleSvc := service.NewModuleService(db)
+	issueTypeSvc := service.NewIssueTypeService(db)
+	customFieldSvc := service.NewCustomFieldService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -28,6 +30,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	issueH := handler.NewIssueHandler(issueSvc)
 	cycleH := handler.NewCycleHandler(cycleSvc)
 	moduleH := handler.NewModuleHandler(moduleSvc)
+	issueTypeH := handler.NewIssueTypeHandler(issueTypeSvc)
+	customFieldH := handler.NewCustomFieldHandler(customFieldSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -162,6 +166,39 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			cycles.GET("/:cycleId/progress", cycleH.GetProgress)
 			cycles.GET("/:cycleId/statistics", cycleH.GetStatistics)
 			cycles.GET("/:cycleId/burndown", cycleH.GetBurndown)
+			}
+
+			// ---- Issue Types (protected) ----
+			issueTypes := v1.Group("/issue-types", authMiddleware)
+			{
+				issueTypes.POST("", issueTypeH.Create)
+				issueTypes.GET("", issueTypeH.List)
+				issueTypes.GET("/:typeId", issueTypeH.Get)
+				issueTypes.PUT("/:typeId", issueTypeH.Update)
+				issueTypes.DELETE("/:typeId", issueTypeH.Delete)
+				issueTypes.PATCH("/:typeId/disable", issueTypeH.Disable)
+				issueTypes.GET("/:typeId/fields", issueTypeH.ListFields)
+				issueTypes.POST("/:typeId/fields", issueTypeH.AddField)
+				issueTypes.DELETE("/:typeId/fields/:fieldId", issueTypeH.RemoveField)
+			}
+
+			// ---- Custom Fields (protected) ----
+			customFields := v1.Group("/custom-fields", authMiddleware)
+			{
+				customFields.POST("", customFieldH.Create)
+				customFields.GET("", customFieldH.List)
+				customFields.GET("/:fieldId", customFieldH.Get)
+				customFields.PUT("/:fieldId", customFieldH.Update)
+				customFields.DELETE("/:fieldId", customFieldH.Delete)
+				customFields.POST("/:fieldId/options", customFieldH.CreateOption)
+				customFields.PUT("/:fieldId/options/:optionId", customFieldH.UpdateOption)
+				customFields.DELETE("/:fieldId/options/:optionId", customFieldH.DeleteOption)
+				customFields.POST("/issues/:issueId/values", customFieldH.SetIssueValue)
+				customFields.GET("/issues/:issueId/values", customFieldH.ListIssueValues)
+				customFields.POST("/issues/:issueId/values/bulk", customFieldH.BulkSetIssueValues)
+				customFields.PUT("/issues/:issueId/values/:fieldId", customFieldH.UpdateIssueValue)
+				customFields.DELETE("/issues/:issueId/values/:fieldId", customFieldH.DeleteIssueValue)
+				customFields.GET("/issues/:issueId/fields", customFieldH.GetIssueFieldsWithValues)
 		}
 	}
 }

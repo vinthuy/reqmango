@@ -54,6 +54,13 @@
                   </select>
                 </div>
               </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">类型</label>
+                <select v-model="editForm.type_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                  <option :value="0">未设置</option>
+                  <option v-for="t in issueTypeOptions" :key="t.id" :value="t.id">{{ t.name }}</option>
+                </select>
+              </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-xs text-gray-500 mb-1">开始日期</label>
@@ -73,7 +80,19 @@
               </div>
               <div>
                 <label class="block text-xs text-gray-500 mb-2">描述</label>
-                <textarea v-model="editForm.description_html" rows="6" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="输入工作项描述..."></textarea>
+                <RichTextEditor v-model="editForm.description_html" placeholder="输入工作项描述..." />
+              </div>
+              <div v-if="issue">
+                <label class="block text-xs text-gray-500 mb-2">自定义属性</label>
+                <CustomFieldManager
+                  ref="panelCustomFieldRef"
+                  :workspace-id="workspaceId"
+                  :project-id="projectId"
+                  :issue-id="issue.id"
+                  :issue-type-id="issue.issue_type?.id"
+                  mode="display"
+                  :members="[]"
+                />
               </div>
             </template>
 
@@ -95,6 +114,15 @@
                   </span>
                 </div>
               </div>
+              <div v-if="issue.issue_type" class="grid grid-cols-1 gap-3">
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">类型</label>
+                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                    <span class="w-2 h-2 rounded-full mr-1.5" :style="{ backgroundColor: issue.issue_type.color }"></span>
+                    {{ issue.issue_type.name }}
+                  </span>
+                </div>
+              </div>
               <div v-if="issue.assignees && issue.assignees.length > 0">
                 <label class="block text-xs text-gray-500 mb-1">负责人</label>
                 <div class="flex flex-wrap gap-1.5">
@@ -107,14 +135,14 @@
                 <div><label class="block text-xs text-gray-500 mb-1">开始日期</label><span class="text-sm text-gray-800">{{ issue.start_date || '-' }}</span></div>
                 <div><label class="block text-xs text-gray-500 mb-1">截止日期</label><span class="text-sm text-gray-800">{{ issue.target_date || '-' }}</span></div>
               </div>
-              <div v-if="issue.cycle">
+              <div v-if="issue.cycle_id">
                 <label class="block text-xs text-gray-500 mb-1">周期</label>
-                <span class="inline-flex items-center px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-sm">{{ issue.cycle.name }}</span>
+                <span class="inline-flex items-center px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-sm">Cycle #{{ issue.cycle_id }}</span>
               </div>
-              <div v-if="issue.modules && issue.modules.length > 0">
+              <div v-if="issue.module_ids && issue.module_ids.length > 0">
                 <label class="block text-xs text-gray-500 mb-1">模块</label>
                 <div class="flex flex-wrap gap-1.5">
-                  <span v-for="m in issue.modules" :key="m.id" class="inline-flex items-center px-2 py-0.5 bg-gray-100 rounded text-sm text-gray-700">{{ m.name }}</span>
+                  <span v-for="mid in issue.module_ids" :key="mid" class="inline-flex items-center px-2 py-0.5 bg-gray-100 rounded text-sm text-gray-700">#{{ mid }}</span>
                 </div>
               </div>
               <div>
@@ -155,8 +183,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import issueApi from '@/api/issue'
+import * as issueTypeApi from '@/api/issue-type'
 import api from '@/api'
 import { useConfirm } from '@/composables/useConfirm'
+import RichTextEditor from '@/components/RichTextEditor.vue'
+import CustomFieldManager from '@/components/CustomFieldManager.vue'
 
 const { confirm } = useConfirm()
 
@@ -180,11 +211,14 @@ const saving = ref(false)
 
 const stateOptions = ref<any[]>([])
 const cycleOptions = ref<any[]>([])
+const issueTypeOptions = ref<any[]>([])
+const panelCustomFieldRef = ref<InstanceType<typeof CustomFieldManager> | null>(null)
 
 const editForm = ref({
   name: '',
   state_id: 0,
   priority: '',
+  type_id: 0,
   start_date: '',
   target_date: '',
   cycle_id: 0,
@@ -215,12 +249,14 @@ async function startEdit() {
 
   if (!stateOptions.value.length || !cycleOptions.value.length) {
     try {
-      const [statesRes, cyclesRes] = await Promise.all([
+      const [statesRes, cyclesRes, typesRes] = await Promise.all([
         api.get(`/projects/${props.projectId}/settings/states`),
-        api.get(`/projects/${props.projectId}/cycles`)
+        api.get(`/projects/${props.projectId}/cycles`),
+        issueTypeApi.getIssueTypes(props.workspaceId, props.projectId)
       ])
       stateOptions.value = Array.isArray(statesRes.data) ? statesRes.data : (statesRes.data?.states || [])
-      cycleOptions.value = Array.isArray(cyclesRes.data) ? cyclesRes.data : (cyclesRes.data?.cycles || [])
+      cycleOptions.value = Array.isArray(cyclesRes.data) ? cyclesRes.data : (cyclesRes.data?.items || cyclesRes.data?.cycles || [])
+      issueTypeOptions.value = typesRes
     } catch (e) {
       console.error('Failed to load options:', e)
     }
@@ -231,8 +267,9 @@ async function startEdit() {
     name: i.name || '',
     state_id: i.state_id || 0,
     priority: i.priority || '',
-    start_date: i.start_date || '',
-    target_date: i.target_date || '',
+    type_id: i.issue_type?.id || 0,
+    start_date: i.start_date?.split('T')[0] || '',
+    target_date: i.target_date?.split('T')[0] || '',
     cycle_id: i.cycle_id || 0,
     description_html: i.description_html || ''
   }
@@ -250,15 +287,20 @@ async function saveEdit() {
       name: editForm.value.name,
       priority: editForm.value.priority,
       state_id: editForm.value.state_id,
-      start_date: editForm.value.start_date || undefined,
-      target_date: editForm.value.target_date || undefined,
       cycle_id: editForm.value.cycle_id || undefined,
-      description_html: editForm.value.description_html
+      description_html: editForm.value.description_html || undefined,
     }
+    if (editForm.value.type_id) data.type_id = editForm.value.type_id
+    if (editForm.value.start_date) data.start_date = editForm.value.start_date + 'T00:00:00Z'
+    if (editForm.value.target_date) data.target_date = editForm.value.target_date + 'T00:00:00Z'
     const updated = await issueApi.updateIssue(issue.value.id, data)
+    if (panelCustomFieldRef.value) {
+      await panelCustomFieldRef.value.saveValues()
+    }
     issue.value = { ...issue.value, ...updated }
     editing.value = false
     emit('refresh')
+    emit('close')
   } catch (e) {
     console.error('Failed to save issue:', e)
     alert('保存失败')

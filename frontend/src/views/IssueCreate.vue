@@ -169,6 +169,7 @@ import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
 import projectApi from '@/api/project'
+import customFieldApi from '@/api/custom-field'
 
 const route = useRoute()
 const router = useRouter()
@@ -239,7 +240,7 @@ async function loadData() {
   try {
     // 加载工作项类型 - 如果 API 不可用则使用默认类型
     try {
-      const typesRes = await issueTypeApi.getIssueTypes(projectId.value)
+      const typesRes = await issueTypeApi.getIssueTypes(workspaceId.value, projectId.value)
       issueTypes.value = typesRes
       
       // 设置默认类型
@@ -296,7 +297,7 @@ async function loadData() {
 // 加载类型的关联字段
 async function loadLinkedFields(typeId: number) {
   try {
-    const fields = await issueTypeApi.getIssueTypeFields(projectId.value, typeId)
+    const fields = await issueTypeApi.getIssueTypeFields(typeId)
     linkedFields.value = fields
   } catch (error) {
     console.error('Failed to load linked fields:', error)
@@ -368,11 +369,32 @@ async function submitForm() {
     const issue = await issueApi.createIssue(projectId.value, workspaceId.value, data)
     console.log('Created issue:', issue)
 
+    // 保存自定义字段值
+    if (Object.keys(customFieldValues.value).length > 0) {
+      try {
+        const values = Object.entries(customFieldValues.value)
+          .filter(([_, v]) => v)
+          .map(([fieldId, v]) => ({
+            field_id: parseInt(fieldId),
+            value: (v as any).text_value ?? (v as any).date_value ?? (v as any).url_value ??
+                   ((v as any).number_value !== undefined ? String((v as any).number_value) : '') ??
+                   ((v as any).boolean_value !== undefined ? String((v as any).boolean_value) : '') ??
+                   ((v as any).json_value?.length ? JSON.stringify((v as any).json_value) : '') ?? ''
+          }))
+          .filter((v: any) => v.value !== '')
+        if (values.length > 0) {
+          await customFieldApi.bulkUpdateIssueCustomFieldValues(issue.id, values as any)
+        }
+      } catch (e) {
+        console.error('Failed to save custom field values:', e)
+      }
+    }
+
     // 刷新工作项列表
     emit('created', issue)
 
     // 返回到项目页面，并保持当前的视图状态
-    router.push(`/workspace/demo/project/${projectId.value}?view=${returnView.value}`)
+    router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}?view=${returnView.value}`)
   } catch (error: any) {
     console.error('Failed to create issue:', error)
     const errorMsg = error.response?.data?.message || error.message || '未知错误'

@@ -38,6 +38,8 @@ type IssueResponse struct {
 	ExternalID        *string       `json:"external_id"`
 	ExternalSource    *string       `json:"external_source"`
 
+	IssueType         *IssueTypeLite `json:"issue_type,omitempty"`
+
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 	CreatedByID       *uint64        `json:"created_by_id"`

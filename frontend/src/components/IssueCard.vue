@@ -20,6 +20,10 @@
             <span v-if="issue.state_name" class="px-1.5 py-0.5 text-xs rounded" :class="getStateClass(issue.state_group)">
               {{ issue.state_name }}
             </span>
+            <span v-if="issue.issue_type" class="inline-flex items-center space-x-0.5 px-1.5 py-0.5 text-xs rounded bg-gray-100 text-gray-600">
+              <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: issue.issue_type.color }"></span>
+              <span>{{ issue.issue_type.name }}</span>
+            </span>
           </div>
           <h3 class="text-sm font-medium text-gray-900 mt-0.5 truncate">
             {{ issue.name }}
@@ -156,6 +160,7 @@ defineProps<{
     start_date?: string
     target_date?: string
     module_ids?: string[]
+    issue_type?: { id: number; name: string; color: string; icon: string }
   }
 }>()
 

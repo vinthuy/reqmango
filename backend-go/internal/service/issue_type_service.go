@@ -1,0 +1,275 @@
+package service
+
+import (
+	"github.com/reqmanpy/backend-go/internal/common"
+	"github.com/reqmanpy/backend-go/internal/dto/request"
+	"github.com/reqmanpy/backend-go/internal/dto/response"
+	"github.com/reqmanpy/backend-go/internal/model"
+	"gorm.io/gorm"
+)
+
+type IssueTypeService struct {
+	db *gorm.DB
+}
+
+func NewIssueTypeService(db *gorm.DB) *IssueTypeService {
+	return &IssueTypeService{db: db}
+}
+
+func (s *IssueTypeService) buildResponse(t model.IssueType) *response.IssueTypeResponse {
+	return &response.IssueTypeResponse{
+		ID:          t.ID,
+		Name:        t.Name,
+		Color:       t.Color,
+		Icon:        t.Icon,
+		IsDefault:   t.IsDefault,
+		Sequence:    t.Sequence,
+		IsActive:    t.IsActive,
+		ProjectID:   t.ProjectID,
+		WorkspaceID: t.WorkspaceID,
+		CreatedAt:   t.CreatedAt,
+		UpdatedAt:   t.UpdatedAt,
+	}
+}
+
+// ensureOneDefault ensures only one default type exists in the given scope.
+func (s *IssueTypeService) ensureOneDefault(workspaceID, excludeID uint64, projectID *uint64) error {
+	query := s.db.Model(&model.IssueType{}).Where("workspace_id = ? AND is_default = ?", workspaceID, true)
+	if projectID != nil {
+		query = query.Where("project_id = ?", *projectID)
+	} else {
+		query = query.Where("project_id IS NULL")
+	}
+	if excludeID > 0 {
+		query = query.Where("id != ?", excludeID)
+	}
+	return query.Update("is_default", false).Error
+}
+
+// ==================== CRUD ====================
+
+func (s *IssueTypeService) Create(workspaceID, userID uint64, req request.IssueTypeCreate) (*response.IssueTypeResponse, error) {
+	if req.IsDefault {
+		if err := s.ensureOneDefault(workspaceID, 0, req.ProjectID); err != nil {
+			return nil, common.Internal("Failed to update defaults")
+		}
+	}
+	if req.Sequence == 0 {
+		req.Sequence = 1
+	}
+	if req.Color == "" {
+		req.Color = "#6366F1"
+	}
+	if req.Icon == "" {
+		req.Icon = "circle"
+	}
+
+	t := model.IssueType{
+		Name:        req.Name,
+		Color:       req.Color,
+		Icon:        req.Icon,
+		IsDefault:   req.IsDefault,
+		Sequence:    req.Sequence,
+		IsActive:    true,
+		ProjectID:   req.ProjectID,
+		WorkspaceID: workspaceID,
+	}
+	t.CreatedByID = &userID
+
+	if err := s.db.Create(&t).Error; err != nil {
+		return nil, common.Internal("Failed to create issue type")
+	}
+
+	return s.buildResponse(t), nil
+}
+
+func (s *IssueTypeService) List(workspaceID uint64, projectID *uint64) ([]response.IssueTypeResponse, error) {
+	query := s.db.Model(&model.IssueType{}).Where("workspace_id = ?", workspaceID)
+
+	if projectID != nil {
+		// Return types scoped to the project OR shared (project_id IS NULL)
+		query = query.Where("project_id = ? OR project_id IS NULL", *projectID)
+	} else {
+		query = query.Where("project_id IS NULL")
+	}
+
+	var types []model.IssueType
+	if err := query.Order("sequence, created_at").Find(&types).Error; err != nil {
+		return nil, common.Internal("Failed to list issue types")
+	}
+
+	result := make([]response.IssueTypeResponse, len(types))
+	for i, t := range types {
+		result[i] = *s.buildResponse(t)
+	}
+	if result == nil {
+		result = []response.IssueTypeResponse{}
+	}
+	return result, nil
+}
+
+func (s *IssueTypeService) Get(typeID uint64) (*response.IssueTypeResponse, error) {
+	var t model.IssueType
+	if err := s.db.First(&t, typeID).Error; err != nil {
+		return nil, common.NotFound("Issue type not found")
+	}
+	return s.buildResponse(t), nil
+}
+
+func (s *IssueTypeService) Update(typeID, userID uint64, req request.IssueTypeUpdate) (*response.IssueTypeResponse, error) {
+	var t model.IssueType
+	if err := s.db.First(&t, typeID).Error; err != nil {
+		return nil, common.NotFound("Issue type not found")
+	}
+
+	if req.Name != nil {
+		t.Name = *req.Name
+	}
+	if req.Color != nil {
+		t.Color = *req.Color
+	}
+	if req.Icon != nil {
+		t.Icon = *req.Icon
+	}
+	if req.IsDefault != nil {
+		if *req.IsDefault {
+			if err := s.ensureOneDefault(t.WorkspaceID, t.ID, t.ProjectID); err != nil {
+				return nil, common.Internal("Failed to update defaults")
+			}
+		}
+		t.IsDefault = *req.IsDefault
+	}
+	if req.Sequence != nil {
+		t.Sequence = *req.Sequence
+	}
+	if req.IsActive != nil {
+		t.IsActive = *req.IsActive
+	}
+	if req.ProjectID != nil {
+		t.ProjectID = req.ProjectID
+	}
+
+	t.UpdatedByID = &userID
+	if err := s.db.Save(&t).Error; err != nil {
+		return nil, common.Internal("Failed to update issue type")
+	}
+
+	return s.buildResponse(t), nil
+}
+
+func (s *IssueTypeService) Delete(typeID uint64) error {
+	var t model.IssueType
+	if err := s.db.First(&t, typeID).Error; err != nil {
+		return common.NotFound("Issue type not found")
+	}
+
+	// Clean up join table entries
+	s.db.Where("type_id = ?", typeID).Delete(&model.IssueTypeField{})
+
+	return s.db.Delete(&t).Error
+}
+
+func (s *IssueTypeService) Disable(typeID uint64, isActive bool) error {
+	var t model.IssueType
+	if err := s.db.First(&t, typeID).Error; err != nil {
+		return common.NotFound("Issue type not found")
+	}
+	return s.db.Model(&t).Update("is_active", isActive).Error
+}
+
+// ==================== Field Association ====================
+
+func (s *IssueTypeService) AddField(typeID, fieldID uint64, isRequired bool, sequence int) (*response.IssueTypeFieldResponse, error) {
+	// Verify type exists
+	var t model.IssueType
+	if err := s.db.First(&t, typeID).Error; err != nil {
+		return nil, common.NotFound("Issue type not found")
+	}
+
+	// Verify field exists
+	var f model.CustomField
+	if err := s.db.First(&f, fieldID).Error; err != nil {
+		return nil, common.NotFound("Custom field not found")
+	}
+
+	// Check for duplicate
+	var count int64
+	s.db.Model(&model.IssueTypeField{}).Where("type_id = ? AND field_id = ?", typeID, fieldID).Count(&count)
+	if count > 0 {
+		return nil, common.Conflict("Field is already associated with this issue type")
+	}
+
+	link := model.IssueTypeField{
+		TypeID:     typeID,
+		FieldID:    fieldID,
+		IsRequired: isRequired,
+		Sequence:   sequence,
+	}
+
+	if err := s.db.Create(&link).Error; err != nil {
+		return nil, common.Internal("Failed to add field to issue type")
+	}
+
+	return &response.IssueTypeFieldResponse{
+		FieldID:    fieldID,
+		TypeID:     typeID,
+		IsRequired: isRequired,
+		Sequence:   sequence,
+		Name:       f.Name,
+		FieldType:  f.FieldType,
+		Description: f.Description,
+	}, nil
+}
+
+func (s *IssueTypeService) RemoveField(typeID, fieldID uint64) error {
+	result := s.db.Where("type_id = ? AND field_id = ?", typeID, fieldID).Delete(&model.IssueTypeField{})
+	if result.RowsAffected == 0 {
+		return common.NotFound("Field association not found")
+	}
+	return nil
+}
+
+func (s *IssueTypeService) ListFields(typeID uint64) ([]response.IssueTypeFieldResponse, error) {
+	var t model.IssueType
+	if err := s.db.First(&t, typeID).Error; err != nil {
+		return nil, common.NotFound("Issue type not found")
+	}
+
+	var links []model.IssueTypeField
+	if err := s.db.Preload("Field").Where("type_id = ?", typeID).Order("sequence").Find(&links).Error; err != nil {
+		return nil, common.Internal("Failed to list fields")
+	}
+
+	result := make([]response.IssueTypeFieldResponse, len(links))
+	for i, link := range links {
+		fr := response.IssueTypeFieldResponse{
+			FieldID:     link.FieldID,
+			TypeID:      link.TypeID,
+			IsRequired:  link.IsRequired,
+			Sequence:    link.Sequence,
+			Name:        link.Field.Name,
+			FieldType:   link.Field.FieldType,
+			Description: link.Field.Description,
+			Options:     make([]response.CustomFieldOptionResponse, 0),
+		}
+		// Load options for dropdown fields
+		if link.Field.FieldType == "dropdown" {
+			var opts []model.CustomFieldOption
+			s.db.Where("field_id = ?", link.FieldID).Order("sequence").Find(&opts)
+			for _, o := range opts {
+				fr.Options = append(fr.Options, response.CustomFieldOptionResponse{
+					ID:       o.ID,
+					FieldID:  o.FieldID,
+					Value:    o.Value,
+					Color:    o.Color,
+					Sequence: o.Sequence,
+				})
+			}
+		}
+		result[i] = fr
+	}
+	if result == nil {
+		result = []response.IssueTypeFieldResponse{}
+	}
+	return result, nil
+}

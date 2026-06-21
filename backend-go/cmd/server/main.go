@@ -47,6 +47,11 @@ func main() {
 		&model.Cycle{},
 		&model.Module{},
 		&model.ModuleIssue{},
+		&model.IssueType{},
+		&model.IssueTypeField{},
+		&model.CustomField{},
+		&model.CustomFieldOption{},
+		&model.IssueCustomFieldValue{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

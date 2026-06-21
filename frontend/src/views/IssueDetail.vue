@@ -43,12 +43,10 @@
           <!-- 描述 -->
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h3 class="text-sm font-medium text-gray-700 mb-3">描述</h3>
-            <textarea
+            <RichTextEditor
               v-model="issueForm.description"
-              rows="6"
               placeholder="添加描述..."
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            ></textarea>
+            />
           </div>
 
           <!-- 自定义字段区域 -->
@@ -59,6 +57,7 @@
               :workspace-id="workspaceId"
               :project-id="projectId"
               :issue-id="issueId"
+              :issue-type-id="issue?.issue_type?.id"
               mode="display"
               :members="projectMembers"
               @update:values="handleValuesUpdate"
@@ -98,6 +97,20 @@
             >
               <option v-for="state in states" :key="state.id" :value="state.id">
                 {{ state.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- 类型 -->
+          <div class="bg-white rounded-lg shadow-sm p-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">类型</label>
+            <select
+              v-model="issueForm.type_id"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">未设置</option>
+              <option v-for="it in issueTypes" :key="it.id" :value="it.id">
+                {{ it.name }}
               </option>
             </select>
           </div>
@@ -209,7 +222,13 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
-import api from '@/api/index'
+import RichTextEditor from '@/components/RichTextEditor.vue'
+import * as issueApi from '@/api/issue'
+import * as issueTypeApi from '@/api/issue-type'
+import * as stateApi from '@/api/project-settings'
+import * as cycleApi from '@/api/cycle'
+import * as moduleApi from '@/api/module'
+import projectApi from '@/api/project'
 
 // Route params
 const route = useRoute()
@@ -224,6 +243,7 @@ const states = ref<any[]>([])
 const cycles = ref<any[]>([])
 const modules = ref<any[]>([])
 const projectMembers = ref<any[]>([])
+const issueTypes = ref<any[]>([])
 const subIssues = ref<any[]>([])
 const saving = ref(false)
 const newLabel = ref('')
@@ -236,6 +256,7 @@ const issueForm = ref({
   description: '',
   state_id: '',
   priority: 'none',
+  type_id: '' as number | string,
   assignee_id: '',
   cycle_id: '',
   module_id: '',
@@ -251,28 +272,30 @@ onMounted(async () => {
     loadStates(),
     loadCycles(),
     loadModules(),
-    loadProjectMembers()
+    loadProjectMembers(),
+    loadIssueTypes()
   ])
 })
 
 // Load issue
 async function loadIssue() {
   try {
-    const response = await api.get(`/projects/${projectId}/issues/${issueId}`)
-    issue.value = response.data
-    
+    const issueData = await issueApi.getIssue(issueId)
+    issue.value = issueData
+
     // Populate form
     issueForm.value = {
       name: issue.value.name,
-      description: issue.value.description || '',
+      description: issue.value.description_html || '',
       state_id: issue.value.state_id,
       priority: issue.value.priority,
-      assignee_id: issue.value.assignee_id || '',
+      type_id: issue.value.issue_type?.id || '',
+      assignee_id: issue.value.assignees?.[0]?.id || '',
       cycle_id: issue.value.cycle_id || '',
-      module_id: issue.value.module_id || '',
-      start_date: issue.value.start_date || '',
-      target_date: issue.value.target_date || '',
-      labels: issue.value.labels || []
+      module_id: issue.value.module_ids?.[0] || '',
+      start_date: issue.value.start_date?.split('T')[0] || '',
+      target_date: issue.value.target_date?.split('T')[0] || '',
+      labels: issue.value.label_details?.map((l: any) => l.name) || []
     }
     
     // Load sub issues
@@ -287,8 +310,8 @@ async function loadIssue() {
 // Load states
 async function loadStates() {
   try {
-    const response = await api.get(`/projects/${projectId}/states`)
-    states.value = response.data
+    const data = await stateApi.listStates(projectId)
+    states.value = data
   } catch (error) {
     console.error('Failed to load states:', error)
   }
@@ -297,8 +320,8 @@ async function loadStates() {
 // Load cycles
 async function loadCycles() {
   try {
-    const response = await api.get(`/projects/${projectId}/cycles`)
-    cycles.value = response.data
+    const data = await cycleApi.listCycles(projectId)
+    cycles.value = data.items || data
   } catch (error) {
     console.error('Failed to load cycles:', error)
   }
@@ -307,18 +330,28 @@ async function loadCycles() {
 // Load modules
 async function loadModules() {
   try {
-    const response = await api.get(`/projects/${projectId}/modules`)
-    modules.value = response.data
+    const data = await moduleApi.listModules(projectId, workspaceId)
+    modules.value = data
   } catch (error) {
     console.error('Failed to load modules:', error)
+  }
+}
+
+// Load issue types
+async function loadIssueTypes() {
+  try {
+    const types = await issueTypeApi.getIssueTypes(workspaceId, projectId)
+    issueTypes.value = types
+  } catch (error) {
+    console.error('Failed to load issue types:', error)
   }
 }
 
 // Load project members
 async function loadProjectMembers() {
   try {
-    const response = await api.get(`/projects/${projectId}/members`)
-    projectMembers.value = response.data
+    const data = await projectApi.listProjectMembers(projectId)
+    projectMembers.value = data.map((m: any) => m.user || m)
   } catch (error) {
     console.error('Failed to load project members:', error)
   }
@@ -333,15 +366,26 @@ function handleValuesUpdate(values: Record<string, any>) {
 async function saveIssue() {
   saving.value = true
   try {
-    // Update issue basic info
-    await api.put(`/projects/${projectId}/issues/${issueId}`, issueForm.value)
-    
+    // Build update payload
+    const data: any = {
+      name: issueForm.value.name,
+      priority: issueForm.value.priority,
+      description_html: issueForm.value.description || undefined,
+    }
+    if (issueForm.value.state_id) data.state_id = Number(issueForm.value.state_id)
+    if (issueForm.value.type_id) data.type_id = Number(issueForm.value.type_id)
+    if (issueForm.value.assignee_id) data.assignee_ids = [Number(issueForm.value.assignee_id)]
+    if (issueForm.value.cycle_id) data.cycle_id = Number(issueForm.value.cycle_id)
+    if (issueForm.value.start_date) data.start_date = issueForm.value.start_date + 'T00:00:00Z'
+    if (issueForm.value.target_date) data.target_date = issueForm.value.target_date + 'T00:00:00Z'
+
+    await issueApi.updateIssue(issueId, data)
+
     // Save custom field values
     if (customFieldManagerRef.value) {
       await customFieldManagerRef.value.saveValues()
     }
-    
-    // Show success message
+
     alert('保存成功')
   } catch (error) {
     console.error('Failed to save issue:', error)

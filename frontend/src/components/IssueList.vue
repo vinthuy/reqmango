@@ -144,6 +144,14 @@
               <!-- 优先级 -->
               <span v-else-if="col.key === 'priority'" :class="priorityClass(issue.priority)" class="text-xs px-1.5 py-0.5 rounded whitespace-nowrap">{{ priorityLabel(issue.priority) }}</span>
               <!-- 状态 -->
+              <!-- 类型 -->
+              <span v-else-if="col.key === 'issue_type'" class="text-xs whitespace-nowrap">
+                <span v-if="issue.issue_type" class="inline-flex items-center space-x-0.5">
+                  <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: issue.issue_type.color }"></span>
+                  <span>{{ issue.issue_type.name }}</span>
+                </span>
+                <span v-else class="text-gray-400">-</span>
+              </span>
               <span v-else-if="col.key === 'state'" class="text-xs text-gray-600 whitespace-nowrap">{{ getStateName(issue.state_id) }}</span>
               <!-- 负责人 -->
               <div v-else-if="col.key === 'assignees'" class="flex -space-x-1">
@@ -207,6 +215,7 @@ const allColumns: ColumnDef[] = [
   { key: 'sequence_id', label: '编号', width: 'w-20', defaultVisible: true },
   { key: 'name',         label: '标题', width: '',       defaultVisible: true },
   { key: 'priority',     label: '优先级', width: 'w-20', defaultVisible: true },
+  { key: 'issue_type',   label: '类型', width: 'w-20', defaultVisible: true },
   { key: 'state',        label: '状态',   width: 'w-28', defaultVisible: true },
   { key: 'assignees',    label: '负责人', width: 'w-28', defaultVisible: true },
   { key: 'cycle',        label: '周期',   width: 'w-24', defaultVisible: true },

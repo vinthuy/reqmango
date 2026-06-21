@@ -100,14 +100,7 @@ export async function updateFieldOption(
     is_active?: boolean
   }
 ): Promise<CustomFieldOption> {
-  const params = new URLSearchParams()
-  if (data.value) params.append('value', data.value)
-  if (data.color) params.append('color', data.color)
-  if (data.sequence !== undefined) params.append('sequence', data.sequence.toString())
-  if (data.is_default !== undefined) params.append('is_default', data.is_default.toString())
-  if (data.is_active !== undefined) params.append('is_active', data.is_active.toString())
-  
-  const response = await api.put(`/custom-fields/${fieldId}/options/${optionId}?${params.toString()}`)
+  const response = await api.put(`/custom-fields/${fieldId}/options/${optionId}`, data)
   return response.data
 }
 

@@ -33,6 +33,7 @@ type IssueUpdateRequest struct {
 	CycleID          *uint64  `json:"cycle_id"`
 	ModuleIDs        []uint64 `json:"module_ids"`
 	ParentID         *uint64  `json:"parent_id"`
+	TypeID           *uint64  `json:"type_id"`
 }
 
 // BulkUpdateRequest is the request body for bulk issue updates.

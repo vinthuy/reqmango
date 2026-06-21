@@ -49,6 +49,7 @@ export async function listIssues(
     module_id?: number
     search?: string
     is_draft?: boolean
+    issue_type_id?: number
     limit?: number
     offset?: number
   }
@@ -66,6 +67,7 @@ export async function listIssues(
     if (filters.module_id) params.append('module_id', filters.module_id.toString())
     if (filters.search) params.append('search', filters.search)
     if (filters.is_draft !== undefined) params.append('is_draft', filters.is_draft.toString())
+    if (filters.issue_type_id) params.append('issue_type_id', filters.issue_type_id.toString())
     if (filters.limit) params.append('limit', filters.limit.toString())
     if (filters.offset) params.append('offset', filters.offset.toString())
   }

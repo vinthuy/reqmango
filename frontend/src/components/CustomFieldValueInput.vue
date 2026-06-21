@@ -218,7 +218,7 @@ watch(() => props.value, (newValue) => {
 
 // Active options for dropdown
 const activeOptions = computed(() => {
-  return props.field.options.filter(opt => opt.is_active)
+  return (props.field.options || []).filter((opt: any) => opt.is_active !== false)
 })
 
 // Value update methods

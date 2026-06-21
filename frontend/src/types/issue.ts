@@ -70,6 +70,7 @@ export interface IssueUpdate {
   estimate_point_id?: number
   cycle_id?: number
   module_ids?: number[]
+  type_id?: number
 }
 
 // ==================== Issue Response ====================
@@ -88,25 +89,35 @@ export interface IssueResponse extends IssueBase {
   state_id: number
   state_name?: string
   state_group?: string
-  
-  project_identifier?: string
-  
+
+  project?: { id: number; name: string; identifier: string }
+
   // 关联信息
   assignees?: UserLite[]
-  labels?: LabelLite[]
-  cycle?: CycleLite
+  labels?: number[]
+  label_details?: { id: number; name: string; color: string }[]
+  cycle_id?: number
   sub_issues_count?: number
   link_count?: number
   attachment_count?: number
   
   estimate_point_id?: number
   module_ids?: number[]
-  
+  type_id?: number
+  issue_type?: {
+    id: number
+    name: string
+    color: string
+    icon: string
+  }
+
   // 时间戳
   created_at: string
   updated_at: string
-  created_by: number
-  updated_by?: number
+  created_by_id?: number
+  updated_by_id?: number
+  deleted_at?: string
+  is_deleted: boolean
 }
 
 // ==================== Issue Lite ====================
@@ -157,10 +168,10 @@ export interface IssueStatistics {
 // ==================== User Lite ====================
 
 export interface UserLite {
-  id: string
+  id: number
   display_name: string
-  username: string
-  avatar?: string
+  email: string
+  avatar_url?: string
 }
 
 // ==================== Label Lite ====================

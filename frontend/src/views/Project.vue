@@ -92,6 +92,7 @@
 
         <IssueList
           v-if="issueView === 'list'"
+          :key="'list-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
           @select="openDetailPanel"
@@ -99,6 +100,7 @@
         />
         <IssueKanban
           v-else
+          :key="'kanban-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
           @select="openDetailPanel"
@@ -198,6 +200,7 @@ const project = ref<ProjectResponse | null>(null)
 const loading = ref(false)
 const activeTab = ref((route.query.tab as string) || 'issues')
 const issueView = ref((route.query.view as string) || 'list')
+const issueRefreshKey = ref(0)
 
 const detailIssueId = ref<number | null>(null)
 const detailPanelVisible = ref(false)
@@ -226,8 +229,7 @@ function handleDetailDelete(issue: any) {
 }
 
 function handleDetailRefresh() {
-  // 刷新当前视图
-  window.location.reload()
+  issueRefreshKey.value++
 }
 
 function openCyclePanel(cycle: CycleResponse) {

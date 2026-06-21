@@ -30,6 +30,7 @@ export interface IssueTypeField {
   is_readonly?: boolean
   is_unique?: boolean
   is_active?: boolean
+  options?: Array<{ id: number; field_id: number; value: string; color: string; sequence: number }>
 }
 
 export interface IssueTypeCreate {

@@ -22,6 +22,7 @@ type Issue struct {
 	ProjectID      uint64  `gorm:"not null;index" json:"project_id"`
 	WorkspaceID    uint64  `gorm:"not null" json:"workspace_id"`
 	ParentID       *uint64 `json:"parent_id"`
+	IssueTypeID    *uint64 `json:"issue_type_id"`
 	StateID        uint64  `gorm:"not null;index" json:"state_id"`
 	ExternalID     *string `gorm:"size:255" json:"external_id"`
 	ExternalSource *string `gorm:"size:255" json:"external_source"`
@@ -29,6 +30,7 @@ type Issue struct {
 	// Relationships
 	Project        Project         `gorm:"foreignKey:ProjectID" json:"-"`
 	State          State           `gorm:"foreignKey:StateID" json:"-"`
+	IssueType      IssueType       `gorm:"foreignKey:IssueTypeID" json:"-"`
 	Parent         *Issue          `gorm:"foreignKey:ParentID" json:"-"`
 	SubIssues      []Issue         `gorm:"foreignKey:ParentID" json:"-"`
 	AssigneeLinks  []IssueAssignee `gorm:"foreignKey:IssueID" json:"-"`

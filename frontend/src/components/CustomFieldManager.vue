@@ -295,6 +295,7 @@ const props = defineProps<{
   workspaceId: number
   projectId?: number
   issueId?: number
+  issueTypeId?: number
   mode?: 'display' | 'manage'  // display: 显示字段值, manage: 管理字段定义
   members?: Array<{ id: number; display_name?: string; email: string }>
 }>()
@@ -341,6 +342,13 @@ watch(() => props.projectId, async () => {
   await loadFields()
 })
 
+watch(() => props.issueTypeId, async () => {
+  await loadFields()
+  if (props.issueId && props.mode === 'display') {
+    await loadFieldValues()
+  }
+})
+
 watch(() => props.issueId, async () => {
   if (props.issueId && props.mode === 'display') {
     await loadFieldValues()
@@ -353,10 +361,10 @@ async function loadFields() {
     fields.value = await customFieldApi.listCustomFields(
       props.workspaceId,
       props.projectId,
-      undefined,
+      props.issueTypeId,  // filter by issue type
       props.mode === 'manage'  // 管理模式下显示所有字段
     )
-    
+
     if (props.mode === 'display') {
       // 转换为 fieldsWithValues 格式
       fieldsWithValues.value = fields.value.map(field => ({
@@ -379,51 +387,67 @@ async function loadFields() {
 // Load field values for issue
 async function loadFieldValues() {
   if (!props.issueId) return
-  
+
   try {
     const response = await customFieldApi.getIssueCustomFieldsWithDefinitions(props.issueId)
-    fieldsWithValues.value = response.fields
-    
-    // 更新 fieldValues
-    response.fields.forEach(item => {
-      if (item.value) {
-        fieldValues.value[item.field.id] = convertValueToUpdate(item)
+    // Go returns flat: [{id, name, field_type, ..., value}, ...]
+    // Convert to wrapped format: [{field: {id, name, ...}, value: ...}, ...]
+    const items = (response.fields || response || []).map((item: any) => {
+      const wrapped: CustomFieldWithValues = {
+        field: {
+          id: item.id,
+          name: item.name,
+          field_type: item.field_type,
+          is_required: item.is_required,
+          is_readonly: item.is_readonly,
+          options: item.options || [],
+        },
+        value: item.value
       }
+      if (item.value) {
+        fieldValues.value[item.id] = convertValueToUpdate(item)
+      }
+      return wrapped
     })
+    fieldsWithValues.value = items
   } catch (error) {
     console.error('Failed to load field values:', error)
   }
 }
 
 // Convert display value to update format
-function convertValueToUpdate(item: CustomFieldWithValues): IssueCustomFieldValueUpdate {
-  const field = item.field
-  const value = item.value
-  
+function convertValueToUpdate(item: any): IssueCustomFieldValueUpdate {
+  const rawValue: string = item.value ?? ''
+  const fieldType = item.field_type
+
   const update: IssueCustomFieldValueUpdate = {}
-  
-  switch (field.field_type) {
+
+  switch (fieldType) {
     case 'text':
-      update.text_value = value as string
+      update.text_value = rawValue
       break
     case 'number':
-      update.number_value = value as number
+      update.number_value = rawValue ? parseFloat(rawValue) : undefined
       break
     case 'boolean':
-      update.boolean_value = value as boolean
+      update.boolean_value = rawValue === 'true'
       break
     case 'date':
-      update.date_value = value as string
+      update.date_value = rawValue
       break
     case 'url':
-      update.url_value = value as string
+      update.url_value = rawValue
       break
     case 'dropdown':
     case 'member':
-      update.json_value = value as number[]
+      try {
+        update.json_value = rawValue ? JSON.parse(rawValue) : []
+      } catch {
+        update.json_value = rawValue ? [parseInt(rawValue)] : []
+      }
       break
   }
-  
+
   return update
 }
 
@@ -557,14 +581,20 @@ function closeModal() {
 defineExpose({
   saveValues: async () => {
     if (!props.issueId) return
-    
-    const values = Object.entries(fieldValues.value).map(([fieldId, value]) => ({
-      field_id: fieldId,
-      ...value
-    }))
-    
+
+    const values = Object.entries(fieldValues.value)
+      .filter(([_, v]) => v)
+      .map(([fieldId, v]) => ({
+        field_id: parseInt(fieldId),
+        value: v.text_value ?? v.date_value ?? v.url_value ??
+               (v.number_value !== undefined ? String(v.number_value) : '') ??
+               (v.boolean_value !== undefined ? String(v.boolean_value) : '') ??
+               (v.json_value?.length ? JSON.stringify(v.json_value) : '') ?? ''
+      }))
+      .filter(v => v.value !== '')
+
     if (values.length > 0) {
-      await customFieldApi.bulkUpdateIssueCustomFieldValues(props.issueId, values)
+      await customFieldApi.bulkUpdateIssueCustomFieldValues(props.issueId, values as any)
     }
   },
   getValues: () => fieldValues.value

@@ -97,6 +97,11 @@ func (h *IssueHandler) List(c *gin.Context) {
 			filters["cycle_id"] = id
 		}
 	}
+	if v := c.Query("issue_type_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["issue_type_id"] = id
+		}
+	}
 	if v := c.Query("module_id"); v != "" {
 		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
 			filters["module_id"] = id

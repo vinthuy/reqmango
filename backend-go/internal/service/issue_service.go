@@ -68,6 +68,7 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		ParentID:          req.ParentID,
 		ExternalID:        req.ExternalID,
 		ExternalSource:    req.ExternalSource,
+		IssueTypeID:       req.TypeID,
 	}
 
 	// Parse dates
@@ -144,6 +145,9 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 		baseQuery = baseQuery.Where("issues.name ILIKE ? OR COALESCE(issues.description_stripped, '') ILIKE ?",
 			searchStr, searchStr)
 	}
+	if issueTypeID, ok := filters["issue_type_id"]; ok && issueTypeID != nil {
+		baseQuery = baseQuery.Where("issues.issue_type_id = ?", issueTypeID)
+	}
 
 	// Count total (before limit/offset)
 	var total int64
@@ -154,6 +158,7 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 	var issues []model.Issue
 	if err := baseQuery.
 		Preload("State").
+		Preload("IssueType").
 		Preload("AssigneeLinks.User").
 		Preload("LabelLinks.Label").
 		Preload("CycleLink").
@@ -259,17 +264,26 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		hasChanges = true
 	}
 
+	// Handle issue type
+	if req.TypeID != nil {
+		issue.IssueTypeID = req.TypeID
+		tx.Save(&issue)
+		hasChanges = true
+	}
+
 	// Parse dates
 	if req.StartDate != nil {
 		if t, err := time.Parse(time.RFC3339, *req.StartDate); err == nil {
 			issue.StartDate = &t
 			tx.Save(&issue)
+			hasChanges = true
 		}
 	}
 	if req.TargetDate != nil {
 		if t, err := time.Parse(time.RFC3339, *req.TargetDate); err == nil {
 			issue.TargetDate = &t
 			tx.Save(&issue)
+			hasChanges = true
 		}
 	}
 
@@ -545,6 +559,7 @@ func (s *IssueService) buildResponse(issueID uint64) (*response.IssueResponse, e
 	if err := s.db.
 		Preload("State").
 		Preload("Project").
+		Preload("IssueType").
 		Preload("AssigneeLinks.User").
 		Preload("LabelLinks.Label").
 		Preload("CycleLink").
@@ -595,6 +610,16 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 			ID:         issue.Project.ID,
 			Name:       issue.Project.Name,
 			Identifier: issue.Project.Identifier,
+		}
+	}
+
+	// Issue Type info
+	if issue.IssueType.ID != 0 {
+		resp.IssueType = &response.IssueTypeLite{
+			ID:    issue.IssueType.ID,
+			Name:  issue.IssueType.Name,
+			Color: issue.IssueType.Color,
+			Icon:  issue.IssueType.Icon,
 		}
 	}
 

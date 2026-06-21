@@ -288,7 +288,7 @@ async function loadData() {
   loading.value = true
   try {
     const [typesRes, fieldsRes] = await Promise.all([
-      issueTypeApi.getIssueTypes(projectId.value),
+      issueTypeApi.getIssueTypes(workspaceId.value, projectId.value),
       customFieldApi.listCustomFields(workspaceId.value)
     ])
     issueTypes.value = typesRes
@@ -317,7 +317,7 @@ function openEditModal(type: IssueType) {
 async function openFieldsModal(type: IssueType) {
   selectedType.value = type
   try {
-    const fields = await issueTypeApi.getIssueTypeFields(projectId.value, type.id)
+    const fields = await issueTypeApi.getIssueTypeFields(type.id)
     typeFields.value = fields
     showFieldsModal.value = true
   } catch (error) {
@@ -338,9 +338,9 @@ async function submitForm() {
 
   try {
     if (showEditModal.value && selectedType.value) {
-      await issueTypeApi.updateIssueType(projectId.value, selectedType.value.id, formData.value)
+      await issueTypeApi.updateIssueType(selectedType.value.id, formData.value)
     } else {
-      await issueTypeApi.createIssueType(projectId.value, formData.value)
+      await issueTypeApi.createIssueType(workspaceId.value, formData.value)
     }
     closeModals()
     await loadData()
@@ -352,7 +352,7 @@ async function submitForm() {
 // 切换启用状态
 async function toggleActive(type: IssueType) {
   try {
-    await issueTypeApi.disableIssueType(projectId.value, type.id, !type.is_active)
+    await issueTypeApi.disableIssueType(type.id, !type.is_active)
     await loadData()
   } catch (error) {
     console.error('Failed to toggle active:', error)
@@ -369,7 +369,7 @@ async function confirmDelete(type: IssueType) {
 // 删除类型
 async function deleteType(type: IssueType) {
   try {
-    await issueTypeApi.deleteIssueType(projectId.value, type.id)
+    await issueTypeApi.deleteIssueType(type.id)
     await loadData()
   } catch (error) {
     console.error('Failed to delete type:', error)
@@ -380,7 +380,7 @@ async function deleteType(type: IssueType) {
 async function addField(field: CustomField) {
   if (!selectedType.value) return
   try {
-    await issueTypeApi.addFieldToIssueType(projectId.value, selectedType.value.id, {
+    await issueTypeApi.addFieldToIssueType(selectedType.value.id, {
       field_id: field.id,
       is_required: false,
       sequence: typeFields.value.length + 1
@@ -395,7 +395,7 @@ async function addField(field: CustomField) {
 async function removeField(fieldId: number) {
   if (!selectedType.value) return
   try {
-    await issueTypeApi.removeFieldFromIssueType(projectId.value, selectedType.value.id, fieldId)
+    await issueTypeApi.removeFieldFromIssueType(selectedType.value.id, fieldId)
     await openFieldsModal(selectedType.value)
   } catch (error) {
     console.error('Failed to remove field:', error)
@@ -417,7 +417,6 @@ function goBack() {
 
 onMounted(() => {
   loadData()
-  showCreateModal.value = true
 })
 </script>
 
