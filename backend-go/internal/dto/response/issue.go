@@ -25,6 +25,7 @@ type IssueResponse struct {
 	StateGroup        string        `json:"state_group"`
 
 	ParentID          *uint64       `json:"parent_id"`
+	Depth             int           `json:"depth"`
 	Assignees         []UserLite    `json:"assignees"`
 	Labels            []uint64      `json:"labels"`
 	LabelDetails      []LabelLite   `json:"label_details"`

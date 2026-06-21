@@ -71,6 +71,34 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		IssueTypeID:       req.TypeID,
 	}
 
+	// Hierarchy validation
+	if req.ParentID != nil && *req.ParentID > 0 {
+		var parent model.Issue
+		if err := s.db.Preload("IssueType").First(&parent, *req.ParentID).Error; err != nil {
+			return nil, common.NotFound("Parent issue not found")
+		}
+		if parent.Depth >= 5 {
+			return nil, common.BadRequest("Maximum hierarchy depth (6 levels) exceeded")
+		}
+		issue.Depth = parent.Depth + 1
+		// Validate type hierarchy
+		if req.TypeID != nil && *req.TypeID > 0 {
+			var childType model.IssueType
+			if s.db.First(&childType, *req.TypeID).Error == nil {
+				if parent.IssueType.ID != 0 && childType.Level > 0 {
+					if childType.Level != parent.IssueType.Level+1 {
+						return nil, common.BadRequest("Invalid hierarchy: child type level must be parent type level + 1")
+					}
+				}
+				if childType.ParentTypeID != nil && parent.IssueTypeID != nil {
+					if *childType.ParentTypeID != *parent.IssueTypeID {
+						return nil, common.BadRequest("Invalid hierarchy: parent type does not allow this child type")
+					}
+				}
+			}
+		}
+	}
+
 	// Parse dates
 	if req.StartDate != nil {
 		if t, err := time.Parse(time.RFC3339, *req.StartDate); err == nil {
@@ -643,6 +671,7 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 		WorkspaceID:     issue.WorkspaceID,
 		StateID:         issue.StateID,
 		ParentID:        issue.ParentID,
+		Depth:           issue.Depth,
 		ExternalID:      issue.ExternalID,
 		ExternalSource:  issue.ExternalSource,
 		LinkCount:       0,
