@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router';
 import TypeTemplateManager from '@/components/TypeTemplateManager.vue';
 import ProjectTemplateManager from '@/components/ProjectTemplateManager.vue';
+import RelationTypeManager from '@/components/RelationTypeManager.vue';
 import type { WorkItemType, CustomField, State, Workflow, Automation, Label } from '@/types';
 
 const router = useRouter();
@@ -319,6 +320,7 @@ const handleViewWorkflow = (workflowId: number) => {
             { id: 'workflows', label: 'Workflows', icon: '⚙️', count: workflows.length },
             { id: 'automations', label: 'Automations', icon: '🤖', count: automations.length },
             { id: 'type-templates', label: 'Type Templates', icon: '📋', count: 0 },
+            { id: 'relations', label: 'Relations', icon: '🔗', count: 0 },
             { id: 'templates', label: 'Templates', icon: '📄', count: templates.length },
           ]"
           :key="item.id"
@@ -675,6 +677,10 @@ const handleViewWorkflow = (workflowId: number) => {
       </div>
 
       <!-- Templates Section -->
+      <div v-if="activeSection === 'relations'" class="p-0">
+        <RelationTypeManager :workspace-id="1" />
+      </div>
+
       <div v-if="activeSection === 'type-templates'" class="p-0">
         <TypeTemplateManager :workspace-id="1" />
       </div>
