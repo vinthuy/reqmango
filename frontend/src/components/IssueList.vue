@@ -16,6 +16,19 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
+            <div class="w-80 flex items-center">
+              <RQLInput
+                v-model="rqlQuery"
+                placeholder="RQL 查询..."
+                :error="rqlError"
+                show-history
+                @search="onRQLSearch"
+              />
+              <svg v-if="rqlLoading" class="animate-spin h-5 w-5 text-indigo-600 ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            </div>
             <select v-model="filters.state_id" @change="search" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
               <option value="0">所有状态</option>
               <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
@@ -223,6 +236,8 @@ import issueApi from '@/api/issue'
 import customFieldApi from '@/api/custom-field'
 import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
+import { RQLInput } from '@/components/RQL'
+import { useRQL } from '@/composables/useRQL'
 
 const props = defineProps<{ projectId: number; workspaceId: number }>()
 const router = useRouter()
@@ -296,6 +311,23 @@ function toggleColumn(key: string) {
 
 function saveColumnPrefs() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...visibleColumnKeys.value]))
+}
+
+// ---- RQL Search ----
+const {
+  rql: rqlQuery,
+  loading: rqlLoading,
+  error: rqlError,
+  search: doRQLSearch,
+  results: rqlResults
+} = useRQL()
+
+// 处理 RQL 搜索
+const onRQLSearch = async () => {
+  await doRQLSearch(props.projectId, 'issue')
+  if (!rqlError.value && rqlResults.value.length > 0) {
+    issues.value = rqlResults.value
+  }
 }
 
 // ---- State ----
