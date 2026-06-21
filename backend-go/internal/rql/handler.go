@@ -5,15 +5,21 @@ package rql
 import (
 	"net/http"
 
-	"github.com/reqmanpy/backend-go/internal/dto/request"
-
 	"github.com/gin-gonic/gin"
+	"github.com/reqmanpy/backend-go/internal/dto/request"
+	"gorm.io/gorm"
 )
 
-type RQLHandler struct{}
+type RQLHandler struct {
+	db          *gorm.DB
+	rqlService *RQLService
+}
 
-func NewRQLHandler() *RQLHandler {
-	return &RQLHandler{}
+func NewRQLHandler(db *gorm.DB) *RQLHandler {
+	return &RQLHandler{
+		db:          db,
+		rqlService: NewRQLService(),
+	}
 }
 
 func (h *RQLHandler) Search(c *gin.Context) {
@@ -37,7 +43,42 @@ func (h *RQLHandler) Search(c *gin.Context) {
 		req.PageSize = 20
 	}
 
-	// 词法分析
+	// 根据 entity 类型执行不同的查询
+	switch req.Entity {
+	case "issue":
+		h.searchIssues(c, req)
+	case "cycle":
+		h.searchCycles(c, req)
+	case "module":
+		h.searchModules(c, req)
+	default:
+		c.JSON(http.StatusBadRequest, request.RQLSearchResponse{
+			Success: false,
+			Error: &request.RQLError{
+				Code:    "INVALID_ENTITY",
+				Message: "不支持的实体类型: " + req.Entity,
+			},
+		})
+	}
+}
+
+func (h *RQLHandler) searchIssues(c *gin.Context, req request.RQLSearchRequest) {
+	// 如果 RQL 为空，返回所有工作项
+	if req.RQL == "" {
+		// TODO: 实现空查询的默认行为
+		c.JSON(http.StatusOK, request.RQLSearchResponse{
+			Success: true,
+			Data: map[string]interface{}{
+				"items":     []interface{}{},
+				"total":     0,
+				"page":      req.Page,
+				"page_size": req.PageSize,
+			},
+		})
+		return
+	}
+
+	// 验证 RQL 语法（只做验证，不执行）
 	lexer := NewLexer(req.RQL)
 	tokens, lexErr := lexer.Tokenize()
 	if lexErr != nil {
@@ -51,9 +92,8 @@ func (h *RQLHandler) Search(c *gin.Context) {
 		return
 	}
 
-	// 语法分析
 	parser := NewParser(tokens)
-	ast, parseErr := parser.Parse()
+	_, parseErr := parser.Parse()
 	if parseErr != nil {
 		c.JSON(http.StatusOK, request.RQLSearchResponse{
 			Success: false,
@@ -65,32 +105,74 @@ func (h *RQLHandler) Search(c *gin.Context) {
 		return
 	}
 
-	// 构建查询
-	builder := NewQueryBuilder()
-	whereClause, args, buildErr := builder.Build(ast)
-	if buildErr != nil {
+	// 执行查询
+	issues, total, err := h.rqlService.SearchIssues(h.db, req.ProjectID, req.RQL, req.Page, req.PageSize)
+	if err != nil {
 		c.JSON(http.StatusOK, request.RQLSearchResponse{
 			Success: false,
 			Error: &request.RQLError{
-				Code:    "RQL_BUILD_ERROR",
-				Message: buildErr.Error(),
+				Code:    "QUERY_ERROR",
+				Message: err.Error(),
 			},
 		})
 		return
 	}
 
-	// TODO: 根据 entity 类型执行不同的查询
-	// 这里先返回模拟数据，实际需要接入数据库
+	c.JSON(http.StatusOK, request.RQLSearchResponse{
+		Success: true,
+		Data: map[string]interface{}{
+			"items":     issues,
+			"total":     total,
+			"page":      req.Page,
+			"page_size": req.PageSize,
+		},
+	})
+}
+
+func (h *RQLHandler) searchCycles(c *gin.Context, req request.RQLSearchRequest) {
+	cycles, total, err := h.rqlService.SearchCycles(h.db, req.ProjectID, req.RQL, req.Page, req.PageSize)
+	if err != nil {
+		c.JSON(http.StatusOK, request.RQLSearchResponse{
+			Success: false,
+			Error: &request.RQLError{
+				Code:    "QUERY_ERROR",
+				Message: err.Error(),
+			},
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, request.RQLSearchResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"items":     []interface{}{},
-			"total":     0,
+			"items":     cycles,
+			"total":     total,
 			"page":      req.Page,
 			"page_size": req.PageSize,
-			"where":     whereClause,
-			"args":      args,
+		},
+	})
+}
+
+func (h *RQLHandler) searchModules(c *gin.Context, req request.RQLSearchRequest) {
+	modules, total, err := h.rqlService.SearchModules(h.db, req.ProjectID, req.RQL, req.Page, req.PageSize)
+	if err != nil {
+		c.JSON(http.StatusOK, request.RQLSearchResponse{
+			Success: false,
+			Error: &request.RQLError{
+				Code:    "QUERY_ERROR",
+				Message: err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, request.RQLSearchResponse{
+		Success: true,
+		Data: map[string]interface{}{
+			"items":     modules,
+			"total":     total,
+			"page":      req.Page,
+			"page_size": req.PageSize,
 		},
 	})
 }

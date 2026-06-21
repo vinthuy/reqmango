@@ -1,41 +1,40 @@
-package service
+package rql
 
 import (
 	"github.com/reqmanpy/backend-go/internal/model"
-	"github.com/reqmanpy/backend-go/internal/rql"
 	"gorm.io/gorm"
 )
 
 // RQLService 处理 RQL 查询服务
 type RQLService struct {
-	executor *rql.GORMExecutor
+	executor *GORMExecutor
 }
 
 // NewRQLService 创建 RQL Service
 func NewRQLService() *RQLService {
 	return &RQLService{
-		executor: rql.NewGORMExecutor(),
+		executor: NewGORMExecutor(),
 	}
 }
 
 // SearchIssues 搜索工作项
 func (s *RQLService) SearchIssues(db *gorm.DB, projectID uint64, rqlQuery string, page, pageSize int) ([]model.Issue, int64, error) {
 	// 词法分析
-	lexer := rql.NewLexer(rqlQuery)
+	lexer := NewLexer(rqlQuery)
 	tokens, err := lexer.Tokenize()
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// 语法分析
-	parser := rql.NewParser(tokens)
+	parser := NewParser(tokens)
 	ast, parseErr := parser.Parse()
 	if parseErr != nil {
 		return nil, 0, parseErr
 	}
 
 	// 构建查询上下文
-	ctx := rql.NewIssueQueryContext()
+	ctx := NewIssueQueryContext()
 
 	// 基础查询：只查询该项目的未归档工作项
 	query := db.Model(&model.Issue{}).
@@ -70,14 +69,14 @@ func (s *RQLService) SearchIssues(db *gorm.DB, projectID uint64, rqlQuery string
 // SearchCycles 搜索周期
 func (s *RQLService) SearchCycles(db *gorm.DB, projectID uint64, rqlQuery string, page, pageSize int) ([]model.Cycle, int64, error) {
 	// 词法分析
-	lexer := rql.NewLexer(rqlQuery)
+	lexer := NewLexer(rqlQuery)
 	tokens, err := lexer.Tokenize()
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// 语法分析
-	parser := rql.NewParser(tokens)
+	parser := NewParser(tokens)
 	ast, parseErr := parser.Parse()
 	if parseErr != nil {
 		return nil, 0, parseErr
@@ -111,14 +110,14 @@ func (s *RQLService) SearchCycles(db *gorm.DB, projectID uint64, rqlQuery string
 // SearchModules 搜索模块
 func (s *RQLService) SearchModules(db *gorm.DB, projectID uint64, rqlQuery string, page, pageSize int) ([]model.Module, int64, error) {
 	// 词法分析
-	lexer := rql.NewLexer(rqlQuery)
+	lexer := NewLexer(rqlQuery)
 	tokens, err := lexer.Tokenize()
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// 语法分析
-	parser := rql.NewParser(tokens)
+	parser := NewParser(tokens)
 	ast, parseErr := parser.Parse()
 	if parseErr != nil {
 		return nil, 0, parseErr

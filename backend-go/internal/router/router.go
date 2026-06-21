@@ -271,7 +271,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				comments.POST("/:commentId/unresolve", commentH.Unresolve)
 			}
 			// ---- RQL (protected) ----
-			rqlHandler := rql.NewRQLHandler()
+			rqlHandler := rql.NewRQLHandler(db)
 			rqlGroup := v1.Group("/rql", authMiddleware)
 			{
 				rqlGroup.POST("/search", rqlHandler.Search)
