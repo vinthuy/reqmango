@@ -1,6 +1,7 @@
 package service
 
 import (
+	"log"
 	"time"
 
 	"github.com/reqmanpy/backend-go/internal/common"
@@ -63,7 +64,10 @@ func (s *CycleService) countIssues(cycleID uint64) (total, completed int64, err 
 
 // buildResponse constructs a CycleResponse from a Cycle model.
 func (s *CycleService) buildResponse(cycle *model.Cycle) *response.CycleResponse {
-	total, completed, _ := s.countIssues(cycle.ID)
+	total, completed, err := s.countIssues(cycle.ID)
+	if err != nil {
+		log.Printf("cycle: error counting issues for cycle %d: %v", cycle.ID, err)
+	}
 	progress := 0.0
 	if total > 0 {
 		progress = float64(completed) / float64(total) * 100
@@ -257,7 +261,9 @@ func (s *CycleService) Delete(cycleID uint64) error {
 	if err := s.db.First(&cycle, cycleID).Error; err != nil {
 		return common.NotFound("Cycle not found")
 	}
-	s.db.Where("cycle_id = ?", cycleID).Delete(&model.IssueCycle{})
+	if err := s.db.Where("cycle_id = ?", cycleID).Delete(&model.IssueCycle{}).Error; err != nil {
+		return common.Internal("Failed to cleanup cycle issues")
+	}
 	return s.db.Delete(&cycle).Error
 }
 
@@ -371,6 +377,9 @@ func (s *CycleService) AddIssue(cycleID, issueID uint64) error {
 		return common.BadRequest("Issue is already in this cycle")
 	}
 
+	// Remove issue from any existing cycle first (one-cycle-per-issue constraint)
+	s.db.Where("issue_id = ?", issueID).Delete(&model.IssueCycle{})
+
 	if err := s.db.Create(&model.IssueCycle{IssueID: issueID, CycleID: cycleID}).Error; err != nil {
 		return common.Internal("Failed to add issue to cycle")
 	}
@@ -442,7 +451,10 @@ func (s *CycleService) GetProgress(cycleID uint64) (*response.CycleProgress, err
 		return nil, common.NotFound("Cycle not found")
 	}
 
-	total, completed, _ := s.countIssues(cycleID)
+	total, completed, err := s.countIssues(cycleID)
+	if err != nil {
+		log.Printf("cycle: error counting issues for cycle %d: %v", cycleID, err)
+	}
 	progress := 0.0
 	if total > 0 {
 		progress = float64(completed) / float64(total) * 100
@@ -454,13 +466,15 @@ func (s *CycleService) GetProgress(cycleID uint64) (*response.CycleProgress, err
 		Count int64
 	}
 	var rows []stateRow
-	s.db.Table("issue_cycles").
+	if err := s.db.Table("issue_cycles").
 		Select("states.name, states.group, COUNT(*) as count").
 		Joins("JOIN issues ON issues.id = issue_cycles.issue_id").
 		Joins("JOIN states ON states.id = issues.state_id").
 		Where("issue_cycles.cycle_id = ?", cycleID).
 		Group("states.name, states.group").
-		Scan(&rows)
+		Scan(&rows).Error; err != nil {
+		log.Printf("cycle: error scanning state breakdown for cycle %d: %v", cycleID, err)
+	}
 
 	breakdown := make([]response.StateBreakdown, len(rows))
 	for i, r := range rows {
@@ -497,12 +511,14 @@ func (s *CycleService) GetStatistics(cycleID uint64) (*response.CycleStatistics,
 		Count    int64
 	}
 	var pRows []priorityRow
-	s.db.Table("issue_cycles").
+	if err := s.db.Table("issue_cycles").
 		Select("issues.priority, COUNT(*) as count").
 		Joins("JOIN issues ON issues.id = issue_cycles.issue_id").
 		Where("issue_cycles.cycle_id = ?", cycleID).
 		Group("issues.priority").
-		Scan(&pRows)
+		Scan(&pRows).Error; err != nil {
+		log.Printf("cycle: error scanning priority breakdown for cycle %d: %v", cycleID, err)
+	}
 
 	priorityBreakdown := make(map[string]int64)
 	for _, r := range pRows {
@@ -542,7 +558,10 @@ func (s *CycleService) GetBurndown(cycleID uint64) (*response.BurndownData, erro
 		return nil, common.BadRequest("Cycle does not have end date")
 	}
 
-	total, completed, _ := s.countIssues(cycleID)
+	total, completed, err := s.countIssues(cycleID)
+	if err != nil {
+		log.Printf("cycle: error counting issues for cycle %d: %v", cycleID, err)
+	}
 
 	totalDays := int(cycle.EndDate.Sub(cycle.StartDate).Hours() / 24)
 	if totalDays <= 0 {
