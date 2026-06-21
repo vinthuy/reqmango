@@ -23,6 +23,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	customFieldSvc := service.NewCustomFieldService(db)
 	templateSvc := service.NewProjectTemplateService(db)
 	typeTemplateSvc := service.NewTypeTemplateService(db)
+	relationSvc := service.NewRelationService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -36,6 +37,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	customFieldH := handler.NewCustomFieldHandler(customFieldSvc)
 	templateH := handler.NewProjectTemplateHandler(templateSvc)
 	typeTemplateH := handler.NewTypeTemplateHandler(typeTemplateSvc)
+	relationH := handler.NewRelationHandler(relationSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -227,5 +229,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				typeTemplates.POST("/:id/fields", typeTemplateH.BindField)
 				typeTemplates.DELETE("/:id/fields/:fieldId", typeTemplateH.UnbindField)
 			}
+// ---- Relations (Workspace-level) ----
+			relations := v1.Group("/relations", authMiddleware)
+			{
+				relations.POST("/types", relationH.CreateType)
+				relations.GET("/types", relationH.ListTypes)
+				relations.PUT("/types/:id", relationH.UpdateType)
+				relations.DELETE("/types/:id", relationH.DeleteType)
+			}
+			// ---- Issue Relations ----
+			issues.POST("/:issueId/relations", relationH.CreateRelation)
+			issues.GET("/:issueId/relations", relationH.ListRelations)
+			v1.DELETE("/relations/:relationId", authMiddleware, relationH.DeleteRelation)
 	}
 }

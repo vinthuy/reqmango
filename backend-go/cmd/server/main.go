@@ -56,6 +56,8 @@ func main() {
 		&model.ProjectTemplateType{},
 		&model.IssueTypeTemplate{},
 		&model.IssueTypeTemplateField{},
+		&model.RelationType{},
+		&model.IssueRelation{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
