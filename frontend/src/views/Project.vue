@@ -148,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi } from '@/api/project'
@@ -178,6 +178,11 @@ const detailPanelVisible = ref(false)
 
 const selectedCycle = ref<CycleResponse | null>(null)
 const cyclePanelVisible = ref(false)
+
+watch(activeTab, () => {
+  detailPanelVisible.value = false
+  cyclePanelVisible.value = false
+})
 
 function openDetailPanel(issue: any) {
   detailIssueId.value = issue.id
