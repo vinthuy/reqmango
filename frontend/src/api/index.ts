@@ -75,3 +75,6 @@ export { default as commentApi } from './comment'
 
 // Re-export attachment API
 export { default as attachmentApi } from './attachment'
+
+// Re-export RQL API
+export { rqlApi } from './rql'
