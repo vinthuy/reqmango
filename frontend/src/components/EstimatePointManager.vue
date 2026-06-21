@@ -121,6 +121,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import estimatePointApi from '@/api/estimate-point'
+import { useConfirm } from '@/composables/useConfirm'
 import type { EstimatePoint } from '@/types/estimate-point'
 
 // Props
@@ -135,6 +136,7 @@ defineEmits<{
 }>()
 
 // State
+const { confirm } = useConfirm()
 const points = ref<EstimatePoint[]>([])
 const loading = ref(false)
 
@@ -178,7 +180,7 @@ async function setDefault(point: EstimatePoint) {
 
 // Delete point
 async function deletePoint(point: EstimatePoint) {
-  if (!confirm(`确定要删除估算点 "${point.name}" 吗？`)) return
+  if (!(await confirm(`确定要删除估算点 "${point.name}" 吗？`))) return
 
   try {
     await estimatePointApi.deleteEstimatePoint(props.projectId, point.id)

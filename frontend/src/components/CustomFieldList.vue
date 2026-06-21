@@ -117,6 +117,7 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import customFieldApi from '@/api/custom-field'
+import { useConfirm } from '@/composables/useConfirm'
 import type { CustomField } from '@/types/custom-field'
 
 // Props
@@ -131,6 +132,7 @@ defineEmits<{
 }>()
 
 // State
+const { confirm } = useConfirm()
 const fields = ref<CustomField[]>([])
 const loading = ref(false)
 
@@ -152,7 +154,7 @@ async function loadFields() {
 
 // Delete field
 async function deleteField(field: CustomField) {
-  if (!confirm(`确定要删除字段 "${field.name}" 吗？此操作不可恢复。`)) return
+  if (!(await confirm(`确定要删除字段 "${field.name}" 吗？此操作不可恢复。`))) return
 
   try {
     await customFieldApi.deleteCustomField(field.id)

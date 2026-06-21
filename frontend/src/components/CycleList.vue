@@ -75,6 +75,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useCycleStore } from '@/stores/cycle'
 import CycleCard from './CycleCard.vue'
+import { useConfirm } from '@/composables/useConfirm'
 import type { CycleResponse } from '@/types/cycle'
 
 const props = defineProps<{
@@ -89,6 +90,7 @@ defineEmits<{
 }>()
 
 const cycleStore = useCycleStore()
+const { confirm } = useConfirm()
 
 const filters = ref({
   status: ''
@@ -104,17 +106,17 @@ async function handleStart(cycle: CycleResponse) {
 }
 
 async function handleEnd(cycle: CycleResponse) {
-  if (!confirm(`确定要结束周期 "${cycle.name}" 吗？`)) return
+  if (!(await confirm(`确定要结束周期 "${cycle.name}" 吗？`))) return
   await cycleStore.endCycle(cycle.id)
 }
 
 async function handleCancel(cycle: CycleResponse) {
-  if (!confirm(`确定要取消周期 "${cycle.name}" 吗？`)) return
+  if (!(await confirm(`确定要取消周期 "${cycle.name}" 吗？`))) return
   await cycleStore.cancelCycle(cycle.id)
 }
 
 async function handleDelete(cycle: CycleResponse) {
-  if (!confirm(`确定要删除周期 "${cycle.name}" 吗？此操作不可撤销。`)) return
+  if (!(await confirm(`确定要删除周期 "${cycle.name}" 吗？此操作不可撤销。`))) return
   await cycleStore.deleteCycleAction(cycle.id)
 }
 

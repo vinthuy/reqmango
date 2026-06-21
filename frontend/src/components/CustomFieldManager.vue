@@ -287,6 +287,7 @@ import type {
   CustomFieldWithValues,
   CustomFieldTypeEnum
 } from '@/types/custom-field'
+import { useConfirm } from '@/composables/useConfirm'
 import { getFieldTypeName } from '@/types/custom-field'
 
 // Props
@@ -307,6 +308,7 @@ const emit = defineEmits<{
 }>()
 
 // State
+const { confirm } = useConfirm()
 const fields = ref<CustomField[]>([])
 const fieldsWithValues = ref<CustomFieldWithValues[]>([])
 const fieldValues = ref<Record<string, IssueCustomFieldValueUpdate>>({})
@@ -478,7 +480,7 @@ function editField(field: CustomField) {
 
 // Delete field
 async function deleteField(fieldId: number) {
-  if (!confirm('确定要删除此字段吗？')) return
+  if (!(await confirm('确定要删除此字段吗？'))) return
   
   try {
     await customFieldApi.deleteCustomField(fieldId)

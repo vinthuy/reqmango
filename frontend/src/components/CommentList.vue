@@ -135,6 +135,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import commentApi from '@/api/comment'
+import { useConfirm } from '@/composables/useConfirm'
 import type { Comment, CommentCreate } from '@/types/comment'
 
 // Props
@@ -143,6 +144,7 @@ const props = defineProps<{
 }>()
 
 // State
+const { confirm } = useConfirm()
 const comments = ref<Comment[]>([])
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -214,7 +216,7 @@ function replyTo(comment: Comment) {
 }
 
 async function deleteComment(comment: Comment) {
-  if (!confirm('确定要删除这条评论吗？')) return
+  if (!(await confirm('确定要删除这条评论吗？'))) return
 
   try {
     await commentApi.deleteComment(comment.id)

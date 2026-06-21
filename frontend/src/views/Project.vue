@@ -176,6 +176,7 @@ import { projectApi } from '@/api/project'
 import { issueApi } from '@/api/issue'
 import type { Workspace } from '@/types'
 import type { ProjectResponse } from '@/types/project'
+import { useConfirm } from '@/composables/useConfirm'
 
 import IssueList from '@/components/IssueList.vue'
 import IssueKanban from '@/components/IssueKanban.vue'
@@ -250,9 +251,10 @@ function handleModuleEdit(module: ModuleResponse) {
 }
 
 const moduleStore = useModuleStore()
+const { confirm } = useConfirm()
 
 async function handleModuleDelete(module: ModuleResponse | any) {
-  if (confirm(`确定要删除模块 "${module.name}" 吗？`)) {
+  if (await confirm(`确定要删除模块 "${module.name}" 吗？`)) {
     try {
       await moduleStore.deleteModuleAction(module.id)
     } catch (err) {
@@ -280,7 +282,7 @@ function goToSettings() {
 }
 
 async function handleDeleteIssue(issue: any) {
-  if (confirm(`确定要删除工作项 "${issue.name}" 吗？`)) {
+  if (await confirm(`确定要删除工作项 "${issue.name}" 吗？`)) {
     try {
       await issueApi.deleteIssue(issue.id)
       // 刷新列表

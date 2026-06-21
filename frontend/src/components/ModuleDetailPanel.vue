@@ -76,6 +76,7 @@
 import { ref, computed, watch } from 'vue'
 import { useModuleStore } from '@/stores/module'
 import { issueApi } from '@/api/issue'
+import { useConfirm } from '@/composables/useConfirm'
 import type { ModuleResponse } from '@/types/module'
 
 const props = defineProps<{
@@ -88,6 +89,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: []; edit: [module: ModuleResponse] }>()
 
 const moduleStore = useModuleStore()
+const { confirm } = useConfirm()
 const loading = computed(() => moduleStore.isLoading)
 const showAddIssue = ref(false)
 const searchQuery = ref('')
@@ -130,7 +132,7 @@ async function handleRemoveIssue(issueId: number) {
 
 async function handleDelete() {
   if (!props.module) return
-  if (!confirm(`确定要删除模块 "${props.module.name}" 吗？此操作不可撤销。`)) return
+  if (!(await confirm(`确定要删除模块 "${props.module.name}" 吗？此操作不可撤销。`))) return
   await moduleStore.deleteModuleAction(props.module.id)
   emit('close')
 }

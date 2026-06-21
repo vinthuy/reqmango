@@ -182,6 +182,7 @@ import { ref, onMounted, computed } from 'vue'
 import projectApi from '@/api/project'
 import { authApi } from '@/api/auth'
 import type { ProjectMember } from '@/types/project'
+import { useConfirm } from '@/composables/useConfirm'
 import type { UserLite } from '@/types'
 
 // Props
@@ -196,6 +197,7 @@ const emit = defineEmits<{
 }>()
 
 // State
+const { confirm } = useConfirm()
 const members = ref<ProjectMember[]>([])
 const allUsers = ref<UserLite[]>([])
 const loading = ref(false)
@@ -350,7 +352,7 @@ async function updateMemberRole(memberId: number, role: string) {
 
 // Remove member
 async function removeMember(memberId: number) {
-  if (!confirm('确定要移除此成员吗？')) return
+  if (!(await confirm('确定要移除此成员吗？'))) return
 
   try {
     await projectApi.removeProjectMember(props.projectId, memberId)

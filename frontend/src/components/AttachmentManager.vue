@@ -106,6 +106,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import attachmentApi from '@/api/attachment'
+import { useConfirm } from '@/composables/useConfirm'
 import type { Attachment } from '@/types/attachment'
 
 // Props
@@ -115,6 +116,7 @@ const props = defineProps<{
 }>()
 
 // State
+const { confirm } = useConfirm()
 const attachments = ref<Attachment[]>([])
 const uploadingFiles = ref<File[]>([])
 const isDragging = ref(false)
@@ -173,7 +175,7 @@ async function uploadFiles(files: File[]) {
 }
 
 async function deleteAttachment(attachment: Attachment) {
-  if (!confirm(`确定要删除 "${attachment.name}" 吗？`)) return
+  if (!(await confirm(`确定要删除 "${attachment.name}" 吗？`))) return
 
   try {
     await attachmentApi.deleteAttachment(attachment.id)

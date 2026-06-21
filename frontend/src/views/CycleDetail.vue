@@ -98,10 +98,12 @@ import { useCycleStore } from '@/stores/cycle'
 import { issueApi } from '@/api/issue'
 import CycleProgressCard from '@/components/CycleProgressCard.vue'
 import CycleBurndownChart from '@/components/CycleBurndownChart.vue'
+import { useConfirm } from '@/composables/useConfirm'
 
 const route = useRoute()
 const router = useRouter()
 const cycleStore = useCycleStore()
+const { confirm } = useConfirm()
 
 const cycleId = Number(route.params.cycleId)
 const cycle = computed(() => cycleStore.currentCycle)
@@ -177,17 +179,17 @@ async function handleStart() {
   await cycleStore.fetchCycle(cycleId)
 }
 async function handleEnd() {
-  if (!confirm('确定要结束这个周期吗？')) return
+  if (!(await confirm('确定要结束这个周期吗？'))) return
   await cycleStore.endCycle(cycleId)
   await cycleStore.fetchCycle(cycleId)
 }
 async function handleCancel() {
-  if (!confirm('确定要取消这个周期吗？')) return
+  if (!(await confirm('确定要取消这个周期吗？'))) return
   await cycleStore.cancelCycle(cycleId)
   await cycleStore.fetchCycle(cycleId)
 }
 async function handleDelete() {
-  if (!confirm('确定要删除这个周期吗？此操作不可撤销。')) return
+  if (!(await confirm('确定要删除这个周期吗？此操作不可撤销。'))) return
   await cycleStore.deleteCycleAction(cycleId)
   router.back()
 }

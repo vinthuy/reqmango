@@ -156,6 +156,9 @@
 import { ref, watch } from 'vue'
 import issueApi from '@/api/issue'
 import api from '@/api'
+import { useConfirm } from '@/composables/useConfirm'
+
+const { confirm } = useConfirm()
 
 const props = defineProps<{
   issueId: number | null
@@ -268,8 +271,8 @@ function close() {
   emit('close')
 }
 
-function deleteIssue() {
-  if (issue.value && confirm(`确定要删除工作项 "${issue.value.name}" 吗？`)) {
+async function deleteIssue() {
+  if (issue.value && await confirm(`确定要删除工作项 "${issue.value.name}" 吗？`)) {
     emit('delete', issue.value)
   }
 }

@@ -206,6 +206,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import workflowApi from '@/api/workflow'
+import { useConfirm } from '@/composables/useConfirm'
 import type { StateTransition, StateTransitionCreate } from '@/types/workflow'
 
 // Props
@@ -223,6 +224,7 @@ const emit = defineEmits<{
 }>()
 
 // State
+const { confirm } = useConfirm()
 const transitions = ref<StateTransition[]>([])
 const loading = ref(false)
 const showCreateModal = ref(false)
@@ -274,7 +276,7 @@ function editTransition(transition: StateTransition) {
 
 // Delete transition
 async function deleteTransition(transition: StateTransition) {
-  if (!confirm('确定要删除此转换规则吗？')) return
+  if (!(await confirm('确定要删除此转换规则吗？'))) return
 
   try {
     await workflowApi.deleteStateTransition(transition.id)

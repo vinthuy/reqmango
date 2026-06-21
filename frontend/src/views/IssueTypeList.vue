@@ -247,11 +247,13 @@ import type { IssueType, IssueTypeCreate, IssueTypeUpdate, IssueTypeField } from
 import { ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS, getIconName } from '@/types/issue-type'
 import type { CustomField } from '@/types/custom-field'
 import { getFieldTypeName } from '@/types/custom-field'
+import { useConfirm } from '@/composables/useConfirm'
 import * as issueTypeApi from '@/api/issue-type'
 import * as customFieldApi from '@/api/custom-field'
 
 const route = useRoute()
 const router = useRouter()
+const { confirm } = useConfirm()
 
 const projectId = computed(() => parseInt(route.params.projectId as string, 10))
 const workspaceId = computed(() => parseInt(route.params.workspaceId as string, 10))
@@ -358,8 +360,8 @@ async function toggleActive(type: IssueType) {
 }
 
 // 确认删除
-function confirmDelete(type: IssueType) {
-  if (confirm(`确定要删除类型 "${type.name}" 吗？此操作不可撤销。`)) {
+async function confirmDelete(type: IssueType) {
+  if (await confirm(`确定要删除类型 "${type.name}" 吗？此操作不可撤销。`)) {
     deleteType(type)
   }
 }
