@@ -61,10 +61,10 @@
           :key="cycle.id"
           :cycle="cycle"
           @click="$emit('select', cycle)"
-          @start="$emit('start', cycle)"
-          @end="$emit('end', cycle)"
-          @cancel="$emit('cancel', cycle)"
-          @delete="$emit('delete', cycle)"
+          @start="handleStart(cycle)"
+          @end="handleEnd(cycle)"
+          @cancel="handleCancel(cycle)"
+          @delete="handleDelete(cycle)"
         />
       </div>
     </div>
@@ -86,10 +86,6 @@ const props = defineProps<{
 defineEmits<{
   'create': []
   'select': [cycle: CycleResponse]
-  'start': [cycle: CycleResponse]
-  'end': [cycle: CycleResponse]
-  'cancel': [cycle: CycleResponse]
-  'delete': [cycle: CycleResponse]
 }>()
 
 const cycleStore = useCycleStore()
@@ -102,6 +98,25 @@ const filteredCycles = computed(() => {
   // Server-side filtering via store — the store's cycles ref is already filtered
   return cycleStore.cycles
 })
+
+async function handleStart(cycle: CycleResponse) {
+  await cycleStore.startCycle(cycle.id)
+}
+
+async function handleEnd(cycle: CycleResponse) {
+  if (!confirm(`确定要结束周期 "${cycle.name}" 吗？`)) return
+  await cycleStore.endCycle(cycle.id)
+}
+
+async function handleCancel(cycle: CycleResponse) {
+  if (!confirm(`确定要取消周期 "${cycle.name}" 吗？`)) return
+  await cycleStore.cancelCycle(cycle.id)
+}
+
+async function handleDelete(cycle: CycleResponse) {
+  if (!confirm(`确定要删除周期 "${cycle.name}" 吗？此操作不可撤销。`)) return
+  await cycleStore.deleteCycleAction(cycle.id)
+}
 
 onMounted(async () => {
   await cycleStore.fetchCycles(props.projectId)

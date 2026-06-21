@@ -96,8 +96,6 @@ const cycleStore = useCycleStore()
 
 const workspaceId = Number(route.params.workspaceId)
 const projectId = Number(route.params.projectId)
-const slug = route.query.slug as string || route.params.workspaceId as string
-
 const steps = ['基本信息', '选择工作项', '确认']
 const currentStep = ref(0)
 const submitting = ref(false)
@@ -132,7 +130,7 @@ function nextStep() {
 }
 
 function goBack() {
-  router.push(`/workspace/${slug}/project/${projectId}`)
+  router.back()
 }
 
 async function submitCycle() {
@@ -155,6 +153,6 @@ async function submitCycle() {
   }
 
   submitting.value = false
-  router.push(`/workspace/${slug}/project/${projectId}`)
+  router.back()
 }
 </script>

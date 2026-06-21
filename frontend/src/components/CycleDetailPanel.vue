@@ -3,11 +3,17 @@
     <div v-if="visible" class="fixed inset-y-0 right-0 w-96 bg-white shadow-xl border-l border-gray-200 z-50 overflow-y-auto">
       <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-10">
         <h3 class="text-lg font-semibold text-gray-900 truncate">{{ cycle?.name }}</h3>
-        <button @click="$emit('close')" class="p-1 text-gray-400 hover:text-gray-600">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div class="flex items-center space-x-1">
+          <button v-if="cycle?.status === 'upcoming'" @click="handleStart" class="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">开始</button>
+          <button v-if="cycle?.status === 'active'" @click="handleEnd" class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">结束</button>
+          <button v-if="cycle?.status !== 'completed' && cycle?.status !== 'cancelled'" @click="handleCancel" class="px-2 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-50">取消</button>
+          <button @click="handleDelete" class="px-2 py-1 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50">删除</button>
+          <button @click="$emit('close')" class="p-1 text-gray-400 hover:text-gray-600 ml-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="flex justify-center py-12">
@@ -60,6 +66,7 @@ const props = defineProps<{
 
 defineEmits<{
   close: []
+  closed: []
 }>()
 
 const cycleStore = useCycleStore()
@@ -89,6 +96,34 @@ async function handleRemoveIssue(issueId: number) {
   if (props.cycle) {
     await cycleStore.removeIssueFromCycle(props.cycle.id, issueId)
   }
+}
+
+async function handleStart() {
+  if (!props.cycle) return
+  await cycleStore.startCycle(props.cycle.id)
+  await cycleStore.fetchCycle(props.cycle.id)
+}
+
+async function handleEnd() {
+  if (!props.cycle) return
+  if (!confirm('确定要结束这个周期吗？')) return
+  await cycleStore.endCycle(props.cycle.id)
+  await cycleStore.fetchCycle(props.cycle.id)
+}
+
+async function handleCancel() {
+  if (!props.cycle) return
+  if (!confirm('确定要取消这个周期吗？')) return
+  await cycleStore.cancelCycle(props.cycle.id)
+  await cycleStore.fetchCycle(props.cycle.id)
+}
+
+async function handleDelete() {
+  if (!props.cycle) return
+  if (!confirm('确定要删除这个周期吗？此操作不可撤销。')) return
+  await cycleStore.deleteCycleAction(props.cycle.id)
+  // Also remove from the list that's displayed — emit close to hide panel
+  // Then the parent should refresh the cycle list
 }
 </script>
 
