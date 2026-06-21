@@ -4,17 +4,20 @@ import "time"
 
 // IssueTypeResponse is the API response for a single issue type.
 type IssueTypeResponse struct {
-	ID          uint64    `json:"id"`
-	Name        string    `json:"name"`
-	Color       string    `json:"color"`
-	Icon        string    `json:"icon"`
-	IsDefault   bool      `json:"is_default"`
-	Sequence    int       `json:"sequence"`
-	IsActive    bool      `json:"is_active"`
-	ProjectID   *uint64   `json:"project_id"`
-	WorkspaceID uint64    `json:"workspace_id"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID           uint64    `json:"id"`
+	Name         string    `json:"name"`
+	Color        string    `json:"color"`
+	Icon         string    `json:"icon"`
+	Description  string    `json:"description"`
+	Level        int       `json:"level"`
+	ParentTypeID *uint64   `json:"parent_type_id"`
+	IsDefault    bool      `json:"is_default"`
+	Sequence     int       `json:"sequence"`
+	IsActive     bool      `json:"is_active"`
+	ProjectID    *uint64   `json:"project_id"`
+	WorkspaceID  uint64    `json:"workspace_id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // IssueTypeLite is a minimal issue type reference used in issue responses.

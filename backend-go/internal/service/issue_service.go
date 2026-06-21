@@ -149,6 +149,7 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 		baseQuery = baseQuery.Where("issues.issue_type_id = ?", issueTypeID)
 	}
 	needDedup := false
+	// Single CF filter (legacy)
 	if cfFieldID, ok := filters["cf_field_id"]; ok && cfFieldID != nil {
 		alias := fmt.Sprintf("cfv_%d", cfFieldID)
 		baseQuery = baseQuery.Joins(
@@ -158,6 +159,25 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 			baseQuery = baseQuery.Where(fmt.Sprintf("%s.value ILIKE ?", alias), "%"+cfValue.(string)+"%")
 		}
 		needDedup = true
+	}
+	// Multi-CF AND filter
+	if cfAndConditions, ok := filters["cf_and"]; ok && cfAndConditions != nil {
+		if conditions, ok2 := cfAndConditions.([]map[string]interface{}); ok2 {
+			for i, cond := range conditions {
+				fid, _ := cond["field_id"].(float64)
+				val, _ := cond["value"].(string)
+				if fid > 0 {
+					alias := fmt.Sprintf("cfv_and_%d", i)
+					baseQuery = baseQuery.Joins(
+						fmt.Sprintf("JOIN issue_custom_field_values %s ON %s.issue_id = issues.id AND %s.field_id = ?",
+							alias, alias, alias), uint64(fid))
+					if val != "" {
+						baseQuery = baseQuery.Where(fmt.Sprintf("%s.value ILIKE ?", alias), "%"+val+"%")
+					}
+				}
+			}
+			needDedup = true
+		}
 	}
 
 	// Count total (before limit/offset)

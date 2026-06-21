@@ -21,6 +21,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	moduleSvc := service.NewModuleService(db)
 	issueTypeSvc := service.NewIssueTypeService(db)
 	customFieldSvc := service.NewCustomFieldService(db)
+	templateSvc := service.NewProjectTemplateService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -32,6 +33,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	moduleH := handler.NewModuleHandler(moduleSvc)
 	issueTypeH := handler.NewIssueTypeHandler(issueTypeSvc)
 	customFieldH := handler.NewCustomFieldHandler(customFieldSvc)
+	templateH := handler.NewProjectTemplateHandler(templateSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -200,5 +202,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				customFields.DELETE("/issues/:issueId/values/:fieldId", customFieldH.DeleteIssueValue)
 				customFields.GET("/issues/:issueId/fields", customFieldH.GetIssueFieldsWithValues)
 		}
+// ---- Project Templates (protected) ----
+			templates := v1.Group("/templates", authMiddleware)
+			{
+				templates.POST("", templateH.Create)
+				templates.GET("", templateH.List)
+				templates.GET("/:templateId", templateH.Get)
+				templates.PUT("/:templateId", templateH.Update)
+				templates.DELETE("/:templateId", templateH.Delete)
+				templates.POST("/:templateId/types", templateH.AddType)
+				templates.DELETE("/:templateId/types/:typeId", templateH.RemoveType)
+				templates.POST("/:templateId/apply", templateH.Apply)
+			}
 	}
 }

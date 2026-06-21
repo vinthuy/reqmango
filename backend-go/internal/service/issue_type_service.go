@@ -18,17 +18,20 @@ func NewIssueTypeService(db *gorm.DB) *IssueTypeService {
 
 func (s *IssueTypeService) buildResponse(t model.IssueType) *response.IssueTypeResponse {
 	return &response.IssueTypeResponse{
-		ID:          t.ID,
-		Name:        t.Name,
-		Color:       t.Color,
-		Icon:        t.Icon,
-		IsDefault:   t.IsDefault,
-		Sequence:    t.Sequence,
-		IsActive:    t.IsActive,
-		ProjectID:   t.ProjectID,
-		WorkspaceID: t.WorkspaceID,
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
+		ID:           t.ID,
+		Name:         t.Name,
+		Color:        t.Color,
+		Icon:         t.Icon,
+		Description:  t.Description,
+		Level:        t.Level,
+		ParentTypeID: t.ParentTypeID,
+		IsDefault:    t.IsDefault,
+		Sequence:     t.Sequence,
+		IsActive:     t.IsActive,
+		ProjectID:    t.ProjectID,
+		WorkspaceID:  t.WorkspaceID,
+		CreatedAt:    t.CreatedAt,
+		UpdatedAt:    t.UpdatedAt,
 	}
 }
 
@@ -65,14 +68,17 @@ func (s *IssueTypeService) Create(workspaceID, userID uint64, req request.IssueT
 	}
 
 	t := model.IssueType{
-		Name:        req.Name,
-		Color:       req.Color,
-		Icon:        req.Icon,
-		IsDefault:   req.IsDefault,
-		Sequence:    req.Sequence,
-		IsActive:    true,
-		ProjectID:   req.ProjectID,
-		WorkspaceID: workspaceID,
+		Name:         req.Name,
+		Color:        req.Color,
+		Icon:         req.Icon,
+		Description:  req.Description,
+		Level:        req.Level,
+		ParentTypeID: req.ParentTypeID,
+		IsDefault:    req.IsDefault,
+		Sequence:     req.Sequence,
+		IsActive:     true,
+		ProjectID:    req.ProjectID,
+		WorkspaceID:  workspaceID,
 	}
 	t.CreatedByID = &userID
 
@@ -147,6 +153,15 @@ func (s *IssueTypeService) Update(typeID, userID uint64, req request.IssueTypeUp
 	}
 	if req.ProjectID != nil {
 		t.ProjectID = req.ProjectID
+	}
+	if req.Description != nil {
+		t.Description = *req.Description
+	}
+	if req.Level != nil {
+		t.Level = *req.Level
+	}
+	if req.ParentTypeID != nil {
+		t.ParentTypeID = req.ParentTypeID
 	}
 
 	t.UpdatedByID = &userID

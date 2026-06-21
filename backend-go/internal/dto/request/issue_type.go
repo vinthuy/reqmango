@@ -2,24 +2,29 @@ package request
 
 // IssueTypeCreate request for creating a new issue type.
 type IssueTypeCreate struct {
-	Name      string  `json:"name" binding:"required"`
-	Color     string  `json:"color"`
-	Icon      string  `json:"icon"`
-	IsDefault bool    `json:"is_default"`
-	Sequence  int     `json:"sequence"`
-	ProjectID *uint64 `json:"project_id"` // nil = workspace-shared
+	Name         string  `json:"name" binding:"required"`
+	Color        string  `json:"color"`
+	Icon         string  `json:"icon"`
+	Description  string  `json:"description"`
+	Level        int     `json:"level"`           // hierarchy level 0-5
+	ParentTypeID *uint64 `json:"parent_type_id"`  // parent type in hierarchy
+	IsDefault    bool    `json:"is_default"`
+	Sequence     int     `json:"sequence"`
+	ProjectID    *uint64 `json:"project_id"`      // nil = workspace-shared
 }
 
 // IssueTypeUpdate request for updating an issue type.
-// Uses pointer types to distinguish between "not provided" and "set to zero".
 type IssueTypeUpdate struct {
-	Name      *string  `json:"name"`
-	Color     *string  `json:"color"`
-	Icon      *string  `json:"icon"`
-	IsDefault *bool    `json:"is_default"`
-	Sequence  *int     `json:"sequence"`
-	IsActive  *bool    `json:"is_active"`
-	ProjectID *uint64  `json:"project_id"`
+	Name         *string `json:"name"`
+	Color        *string `json:"color"`
+	Icon         *string `json:"icon"`
+	Description  *string `json:"description"`
+	Level        *int    `json:"level"`
+	ParentTypeID *uint64 `json:"parent_type_id"`
+	IsDefault    *bool   `json:"is_default"`
+	Sequence     *int    `json:"sequence"`
+	IsActive     *bool   `json:"is_active"`
+	ProjectID    *uint64 `json:"project_id"`
 }
 
 // IssueTypeDisable request for toggling active status.

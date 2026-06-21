@@ -55,17 +55,18 @@
           <div><label class="block text-xs text-gray-500 mb-1">截止日期</label>
             <input v-model="filters.filter_target_date" type="date" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
         </div>
-          <div v-if="customFields.length > 0" class="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-200">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">自定义字段</label>
-              <select v-model="filters.cf_field_id" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
-                <option :value="0">全部</option>
+          <div v-if="customFields.length > 0" class="mt-3 pt-3 border-t border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs text-gray-500">自定义字段筛选 (AND)</span>
+              <button @click="addCFCondition" class="text-xs text-indigo-600 hover:text-indigo-800">+ 添加条件</button>
+            </div>
+            <div v-for="(cond, idx) in cfConditions" :key="idx" class="flex gap-2 mb-2">
+              <select v-model="cond.field_id" @change="reload" class="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm">
+                <option :value="0">选择字段</option>
                 <option v-for="cf in customFields" :key="cf.id" :value="cf.id">{{ cf.name }}</option>
               </select>
-            </div>
-            <div v-if="filters.cf_field_id > 0">
-              <label class="block text-xs text-gray-500 mb-1">字段值</label>
-              <input type="text" v-model="filters.cf_value" @input="reload" placeholder="输入值模糊搜索..." class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
+              <input type="text" v-model="cond.value" @input="reload" placeholder="值" class="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm" />
+              <button @click="removeCFCondition(idx)" class="px-2 py-1.5 text-xs text-red-500 border border-red-200 rounded hover:bg-red-50">×</button>
             </div>
           </div>
         <div class="mt-2 flex justify-end"><button @click="resetFilters" class="text-sm text-gray-500 hover:text-indigo-600">重置筛选</button></div>
@@ -147,6 +148,9 @@ const loading = ref(false)
 const showAdvanced = ref(false)
 
 const customFields = ref<any[]>([])
+const cfConditions = ref<Array<{ field_id: number; value: string }>>([])
+function addCFCondition() { cfConditions.value.push({ field_id: 0, value: '' }) }
+function removeCFCondition(idx: number) { cfConditions.value.splice(idx, 1); reload() }
 const filters = ref({ search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, filter_start_date: '', filter_target_date: '', cf_field_id: 0, cf_value: '' })
 
 const memberOptions = computed(() => members.value.map(m => ({
@@ -191,6 +195,7 @@ function onDragStart(e: DragEvent, issue: any) {
 function reload() { loadIssues() }
 function resetFilters() {
   filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, filter_start_date: '', filter_target_date: '', cf_field_id: 0, cf_value: '' }
+  cfConditions.value = []
   reload()
 }
 
@@ -210,9 +215,9 @@ async function loadIssues() {
     if (filters.value.search) params.search = filters.value.search
     if (filters.value.filter_start_date) params.start_date = filters.value.filter_start_date
     if (filters.value.filter_target_date) params.target_date = filters.value.filter_target_date
-    if (filters.value.cf_field_id && filters.value.cf_field_id > 0) {
-      params.cf_field_id = filters.value.cf_field_id
-      if (filters.value.cf_value) params.cf_value = filters.value.cf_value
+    const activeCF = cfConditions.value.filter(c => c.field_id > 0)
+    if (activeCF.length > 0) {
+      params.cf_and = JSON.stringify(activeCF)
     }
     const result = await issueApi.listIssues(props.projectId, props.workspaceId, params)
     issues.value = result.items

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -120,6 +121,12 @@ func (h *IssueHandler) List(c *gin.Context) {
 	}
 	if v := c.Query("cf_value"); v != "" {
 		filters["cf_value"] = v
+	}
+	if v := c.Query("cf_and"); v != "" {
+		var conditions []map[string]interface{}
+		if err := json.Unmarshal([]byte(v), &conditions); err == nil && len(conditions) > 0 {
+			filters["cf_and"] = conditions
+		}
 	}
 
 	issues, total, svcErr := h.svc.List(projectID, filters, p.Limit, p.Offset)

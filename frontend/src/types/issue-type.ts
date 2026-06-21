@@ -7,10 +7,13 @@ export interface IssueType {
   name: string
   color: string
   icon: string
+  description?: string
+  level?: number
+  parent_type_id?: number
   is_default: boolean
   sequence: number
   is_active: boolean
-  project_id: number
+  project_id?: number
   workspace_id: number
   created_at: string
   updated_at: string
@@ -37,6 +40,9 @@ export interface IssueTypeCreate {
   name: string
   color?: string
   icon?: string
+  description?: string
+  level?: number
+  parent_type_id?: number
   is_default?: boolean
   sequence?: number
 }
@@ -45,6 +51,9 @@ export interface IssueTypeUpdate {
   name?: string
   color?: string
   icon?: string
+  description?: string
+  level?: number
+  parent_type_id?: number
   is_default?: boolean
   sequence?: number
 }

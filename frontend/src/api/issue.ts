@@ -52,6 +52,7 @@ export async function listIssues(
     issue_type_id?: number
     cf_field_id?: number
     cf_value?: string
+    cf_and?: string
     limit?: number
     offset?: number
   }
@@ -72,6 +73,7 @@ export async function listIssues(
     if (filters.issue_type_id) params.append('issue_type_id', filters.issue_type_id.toString())
     if (filters.cf_field_id) params.append('cf_field_id', filters.cf_field_id.toString())
     if (filters.cf_value) params.append('cf_value', filters.cf_value)
+    if (filters.cf_and) params.append('cf_and', filters.cf_and)
     if (filters.limit) params.append('limit', filters.limit.toString())
     if (filters.offset) params.append('offset', filters.offset.toString())
   }

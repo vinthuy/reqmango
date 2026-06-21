@@ -71,17 +71,24 @@
           <div><label class="block text-xs text-gray-500 mb-1">截止日期</label>
             <input type="date" v-model="filters.end_date" @change="search" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
         </div>
-        <div v-if="customFields.length > 0" class="grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-200">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">自定义字段</label>
-              <select v-model="filters.cf_field_id" @change="search" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
-                <option :value="0">全部</option>
-                <option v-for="cf in customFields" :key="cf.id" :value="cf.id">{{ cf.name }}</option>
-              </select>
+        <div v-if="customFields.length > 0" class="mt-3 pt-3 border-t border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs text-gray-500">自定义字段筛选 (AND)</span>
+              <button @click="addCFCondition" class="text-xs text-indigo-600 hover:text-indigo-800">+ 添加条件</button>
             </div>
-            <div v-if="filters.cf_field_id > 0">
-              <label class="block text-xs text-gray-500 mb-1">字段值</label>
-              <input type="text" v-model="filters.cf_value" @input="search" placeholder="输入值模糊搜索..." class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
+            <div v-for="(cond, idx) in cfConditions" :key="idx" class="grid grid-cols-8 gap-2 mb-2">
+              <div class="col-span-3">
+                <select v-model="cond.field_id" @change="search" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                  <option :value="0">选择字段</option>
+                  <option v-for="cf in customFields" :key="cf.id" :value="cf.id">{{ cf.name }}</option>
+                </select>
+              </div>
+              <div class="col-span-4">
+                <input type="text" v-model="cond.value" @input="search" placeholder="值 (模糊搜索)" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
+              </div>
+              <div class="col-span-1">
+                <button @click="removeCFCondition(idx)" class="w-full px-2 py-1.5 text-xs text-red-500 border border-red-200 rounded hover:bg-red-50">×</button>
+              </div>
             </div>
           </div>
           <div class="mt-2 flex justify-end"><button @click="resetFilters" class="text-sm text-gray-500 hover:text-indigo-600">重置筛选</button></div>
@@ -243,6 +250,15 @@ const staticColumns: ColumnDef[] = [
 const STORAGE_KEY = 'issuelist_columns'
 
 const customFields = ref<any[]>([])
+const cfConditions = ref<Array<{ field_id: number; value: string }>>([])
+
+function addCFCondition() {
+  cfConditions.value.push({ field_id: 0, value: '' })
+}
+function removeCFCondition(idx: number) {
+  cfConditions.value.splice(idx, 1)
+  search()
+}
 
 // Dynamic columns: static + custom fields
 const effectiveColumns = computed(() => {
@@ -346,6 +362,7 @@ function goToCreate() { router.push(`/workspaces/${props.workspaceId}/projects/$
 function search() { page.value = 1; loadIssues() }
 function resetFilters() {
   filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, start_date: '', end_date: '', cf_field_id: 0, cf_value: '' }
+  cfConditions.value = []
   search()
 }
 function toggleSelectAll() {
@@ -383,9 +400,9 @@ async function loadIssues() {
     if (filters.value.cycle_id && filters.value.cycle_id > 0) params.cycle_id = filters.value.cycle_id
     if (filters.value.assignee_id && filters.value.assignee_id > 0) params.assignee_id = filters.value.assignee_id
     if (filters.value.search) params.search = filters.value.search
-    if (filters.value.cf_field_id && filters.value.cf_field_id > 0) {
-      params.cf_field_id = filters.value.cf_field_id
-      if (filters.value.cf_value) params.cf_value = filters.value.cf_value
+    const activeConditions = cfConditions.value.filter(c => c.field_id > 0)
+    if (activeConditions.length > 0) {
+      params.cf_and = JSON.stringify(activeConditions)
     }
     const result = await issueApi.listIssues(props.projectId, props.workspaceId, params)
     issues.value = result.items; totalCount.value = result.total; totalPages.value = Math.max(1, Math.ceil(result.total / limit.value))
