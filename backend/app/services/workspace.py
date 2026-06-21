@@ -1,5 +1,4 @@
 from typing import Optional
-from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.workspace import Workspace, WorkspaceMember
@@ -7,7 +6,7 @@ from app.models.user import User
 from app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate
 from app.core.exceptions import NotFoundException, ConflictException
 
-async def create_workspace(db: AsyncSession, workspace_data: WorkspaceCreate, owner_id: UUID) -> Workspace:
+async def create_workspace(db: AsyncSession, workspace_data: WorkspaceCreate, owner_id: int) -> Workspace:
     existing = await db.execute(select(Workspace).where(Workspace.slug == workspace_data.slug))
     if existing.scalar_one_or_none():
         raise ConflictException("Workspace slug already exists")
@@ -45,7 +44,7 @@ async def get_workspace_by_slug(db: AsyncSession, slug: str) -> Workspace:
     
     return workspace
 
-async def update_workspace(db: AsyncSession, workspace_id: UUID, update_data: WorkspaceUpdate) -> Workspace:
+async def update_workspace(db: AsyncSession, workspace_id: int, update_data: WorkspaceUpdate) -> Workspace:
     workspace = await db.get(Workspace, workspace_id)
     if not workspace:
         raise NotFoundException("Workspace not found")
@@ -62,7 +61,7 @@ async def update_workspace(db: AsyncSession, workspace_id: UUID, update_data: Wo
     
     return workspace
 
-async def delete_workspace(db: AsyncSession, workspace_id: UUID):
+async def delete_workspace(db: AsyncSession, workspace_id: int):
     workspace = await db.get(Workspace, workspace_id)
     if not workspace:
         raise NotFoundException("Workspace not found")
@@ -70,7 +69,7 @@ async def delete_workspace(db: AsyncSession, workspace_id: UUID):
     workspace.is_deleted = True
     await db.commit()
 
-async def list_workspaces(db: AsyncSession, user_id: UUID) -> list[Workspace]:
+async def list_workspaces(db: AsyncSession, user_id: int) -> list[Workspace]:
     result = await db.execute(
         select(Workspace)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)

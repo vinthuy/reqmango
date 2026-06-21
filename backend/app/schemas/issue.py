@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
-from uuid import UUID
 from datetime import datetime, date
 from enum import Enum
 from .base import AuditSchema, SoftDeleteSchema
@@ -30,12 +29,12 @@ class IssueBase(BaseModel):
     target_date: Optional[date] = None
 
 class IssueCreate(IssueBase):
-    parent_id: Optional[UUID] = None
-    state_id: Optional[UUID] = None
-    assignee_ids: Optional[List[UUID]] = []
-    label_ids: Optional[List[UUID]] = []
-    estimate_point_id: Optional[UUID] = None
-    type_id: Optional[UUID] = None
+    parent_id: Optional[int] = None
+    state_id: Optional[int] = None
+    assignee_ids: Optional[List[int]] = []
+    label_ids: Optional[List[int]] = []
+    estimate_point_id: Optional[int] = None
+    type_id: Optional[int] = None
     external_id: Optional[str] = None
     external_source: Optional[str] = None
 
@@ -43,46 +42,46 @@ class IssueUpdate(BaseModel):
     name: Optional[str] = None
     description_html: Optional[str] = None
     priority: Optional[IssuePriority] = None
-    state_id: Optional[UUID] = None
-    assignee_ids: Optional[List[UUID]] = None
-    label_ids: Optional[List[UUID]] = None
+    state_id: Optional[int] = None
+    assignee_ids: Optional[List[int]] = None
+    label_ids: Optional[List[int]] = None
     start_date: Optional[date] = None
     target_date: Optional[date] = None
-    estimate_point_id: Optional[UUID] = None
-    cycle_id: Optional[UUID] = None
-    module_ids: Optional[List[UUID]] = None
+    estimate_point_id: Optional[int] = None
+    cycle_id: Optional[int] = None
+    module_ids: Optional[List[int]] = None
 
 class IssueResponse(AuditSchema, SoftDeleteSchema, IssueBase):
     project: ProjectLite
     sequence_id: int
-    state_id: UUID
+    state_id: int
     state_name: str
     state_group: str
     assignees: List[UserLite]
-    labels: List[UUID]
+    labels: List[int]
     sub_issues_count: int
     link_count: int
     attachment_count: int
     completed_at: Optional[datetime] = None
     is_draft: bool = False
-    parent_id: Optional[UUID] = None
-    estimate_point_id: Optional[UUID] = None
-    cycle_id: Optional[UUID] = None
-    module_ids: List[UUID] = []
+    parent_id: Optional[int] = None
+    estimate_point_id: Optional[int] = None
+    cycle_id: Optional[int] = None
+    module_ids: List[int] = []
 
 class IssueLite(BaseModel):
-    id: UUID
+    id: int
     name: str
     sequence_id: int
     priority: IssuePriority
-    state_id: UUID
-    project_id: UUID
+    state_id: int
+    project_id: int
     project_identifier: str
 
 class IssueSearchResult(BaseModel):
-    id: UUID
+    id: int
     name: str
     sequence_id: int
     project_identifier: str
-    project_id: UUID
+    project_id: int
     workspace_slug: str

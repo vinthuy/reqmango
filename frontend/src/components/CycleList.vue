@@ -79,8 +79,8 @@ import type { CycleResponse } from '@/types/cycle'
 
 // Props
 const props = defineProps<{
-  projectId: string
-  workspaceId: string
+  projectId: number
+  workspaceId: number
 }>()
 
 // Emits

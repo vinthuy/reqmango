@@ -3,16 +3,16 @@
  */
 
 export interface Attachment {
-  id: string
+  id: number
   name: string
   file_name: string
   file_size: number
   mime_type: string
   file_url?: string
   is_protected: boolean
-  issue_id?: string
-  project_id?: string
-  uploaded_by_id: string
+  issue_id?: number
+  project_id?: number
+  uploaded_by_id: number
   access_url?: string
   thumbnail_url?: string
   created_at: string
@@ -21,8 +21,8 @@ export interface Attachment {
 
 export interface AttachmentCreate {
   name?: string
-  issue_id?: string
-  project_id?: string
+  issue_id?: number
+  project_id?: number
   is_protected?: boolean
 }
 
@@ -32,7 +32,7 @@ export interface AttachmentUpdate {
 }
 
 export interface AttachmentUploadResponse {
-  id: string
+  id: number
   name: string
   file_url: string
   file_size: number

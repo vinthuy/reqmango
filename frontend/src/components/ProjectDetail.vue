@@ -199,8 +199,8 @@ import type { ProjectResponse } from '@/types/project'
 
 // Props
 const props = defineProps<{
-  projectId: string
-  workspaceId: string
+  projectId: number
+  workspaceId: number
 }>()
 
 // Emits
@@ -227,7 +227,7 @@ onMounted(() => {
 async function loadProject() {
   loading.value = true
   try {
-    project.value = await projectApi.getProject(props.projectId, props.workspaceId)
+    project.value = await projectApi.getProject(props.projectId)
     const stats = await projectApi.getProjectStatistics(props.projectId)
     statistics.value = {
       total_issues: stats.total_issues || 0,
@@ -245,7 +245,7 @@ async function loadProject() {
 // Archive project
 async function archiveProject() {
   try {
-    await projectApi.archiveProject(props.projectId, props.workspaceId)
+    await projectApi.archiveProject(props.projectId)
     await loadProject()
   } catch (error) {
     console.error('Failed to archive project:', error)
@@ -255,7 +255,7 @@ async function archiveProject() {
 // Restore project
 async function restoreProject() {
   try {
-    await projectApi.restoreProject(props.projectId, props.workspaceId)
+    await projectApi.restoreProject(props.projectId)
     await loadProject()
   } catch (error) {
     console.error('Failed to restore project:', error)

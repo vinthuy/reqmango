@@ -2,7 +2,6 @@
 Comment Schemas - 评论Schema定义
 """
 from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -15,8 +14,8 @@ class CommentBase(BaseModel):
 
 class CommentCreate(CommentBase):
     """创建评论"""
-    issue_id: UUID
-    parent_id: Optional[UUID] = None
+    issue_id: int
+    parent_id: Optional[int] = None
 
 
 class CommentUpdate(BaseModel):
@@ -27,12 +26,12 @@ class CommentUpdate(BaseModel):
 
 class CommentResponse(CommentBase):
     """评论响应"""
-    id: UUID
-    issue_id: UUID
-    author_id: UUID
-    parent_id: Optional[UUID] = None
+    id: int
+    issue_id: int
+    author_id: int
+    parent_id: Optional[int] = None
     is_resolved: bool
-    resolved_by_id: Optional[UUID] = None
+    resolved_by_id: Optional[int] = None
     resolved_at: Optional[datetime] = None
     reaction_count: int
     created_at: datetime

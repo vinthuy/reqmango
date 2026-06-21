@@ -2,7 +2,6 @@
 Estimate Point Schemas - 估算点Schema定义
 """
 from typing import Optional, List
-from uuid import UUID
 from pydantic import BaseModel, Field
 
 
@@ -16,7 +15,7 @@ class EstimatePointBase(BaseModel):
 
 class EstimatePointCreate(EstimatePointBase):
     """创建估算点"""
-    project_id: UUID
+    project_id: int
 
 
 class EstimatePointUpdate(BaseModel):
@@ -29,8 +28,8 @@ class EstimatePointUpdate(BaseModel):
 
 class EstimatePointResponse(EstimatePointBase):
     """估算点响应"""
-    id: UUID
-    project_id: UUID
+    id: int
+    project_id: int
     created_at: str
     updated_at: str
 
@@ -45,4 +44,4 @@ class EstimatePointBulkCreate(BaseModel):
 
 class EstimatePointReorder(BaseModel):
     """重新排序估算点"""
-    point_ids: List[UUID]
+    point_ids: List[int]

@@ -2,7 +2,6 @@
 Custom Field Services - 自定义字段业务逻辑层
 """
 from typing import Optional, List, Dict, Any, Union
-from uuid import UUID
 from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,8 +32,8 @@ from app.core.exceptions import NotFoundException, ValidationException
 async def create_custom_field(
     db: AsyncSession,
     field_data: CustomFieldCreate,
-    workspace_id: UUID,
-    user_id: UUID
+    workspace_id: int,
+    user_id: int
 ) -> CustomField:
     """创建自定义字段"""
     # 验证项目存在（如果提供了 project_id）
@@ -100,7 +99,7 @@ async def create_custom_field(
     return result.scalar_one()
 
 
-async def get_custom_field_by_id(db: AsyncSession, field_id: UUID) -> CustomField:
+async def get_custom_field_by_id(db: AsyncSession, field_id: int) -> CustomField:
     """获取自定义字段"""
     result = await db.execute(
         select(CustomField)
@@ -115,8 +114,8 @@ async def get_custom_field_by_id(db: AsyncSession, field_id: UUID) -> CustomFiel
 
 async def get_project_custom_fields(
     db: AsyncSession,
-    project_id: UUID,
-    issue_type_id: Optional[UUID] = None,
+    project_id: int,
+    issue_type_id: Optional[int] = None,
     include_inactive: bool = False
 ) -> List[CustomField]:
     """获取项目的所有自定义字段"""
@@ -142,7 +141,7 @@ async def get_project_custom_fields(
 
 async def get_workspace_custom_fields(
     db: AsyncSession,
-    workspace_id: UUID,
+    workspace_id: int,
     include_project_fields: bool = True
 ) -> List[CustomField]:
     """获取工作区的所有自定义字段（项目级和全局）"""
@@ -163,7 +162,7 @@ async def get_workspace_custom_fields(
 
 async def update_custom_field(
     db: AsyncSession,
-    field_id: UUID,
+    field_id: int,
     update_data: CustomFieldUpdate
 ) -> CustomField:
     """更新自定义字段"""
@@ -207,7 +206,7 @@ async def update_custom_field(
     return field
 
 
-async def delete_custom_field(db: AsyncSession, field_id: UUID):
+async def delete_custom_field(db: AsyncSession, field_id: int):
     """删除自定义字段（软删除）"""
     field = await get_custom_field_by_id(db, field_id)
     field.is_deleted = True
@@ -218,9 +217,9 @@ async def delete_custom_field(db: AsyncSession, field_id: UUID):
 
 async def create_field_option(
     db: AsyncSession,
-    field_id: UUID,
+    field_id: int,
     option_data: CustomFieldOptionCreate,
-    user_id: UUID
+    user_id: int
 ) -> CustomFieldOption:
     """为下拉字段创建选项"""
     field = await get_custom_field_by_id(db, field_id)
@@ -246,7 +245,7 @@ async def create_field_option(
 
 async def update_field_option(
     db: AsyncSession,
-    option_id: UUID,
+    option_id: int,
     value: Optional[str] = None,
     color: Optional[str] = None,
     sequence: Optional[int] = None,
@@ -274,7 +273,7 @@ async def update_field_option(
     return option
 
 
-async def delete_field_option(db: AsyncSession, option_id: UUID):
+async def delete_field_option(db: AsyncSession, option_id: int):
     """删除字段选项"""
     option = await db.get(CustomFieldOption, option_id)
     if not option:
@@ -287,10 +286,10 @@ async def delete_field_option(db: AsyncSession, option_id: UUID):
 
 async def set_issue_custom_field_value(
     db: AsyncSession,
-    issue_id: UUID,
-    field_id: UUID,
+    issue_id: int,
+    field_id: int,
     value_data: IssueCustomFieldValueUpdate,
-    user_id: UUID
+    user_id: int
 ) -> IssueCustomFieldValue:
     """设置工作项的自定义字段值"""
     # 验证 Issue 存在
@@ -356,7 +355,7 @@ async def set_issue_custom_field_value(
 
 async def get_issue_custom_field_values(
     db: AsyncSession,
-    issue_id: UUID
+    issue_id: int
 ) -> List[IssueCustomFieldValue]:
     """获取工作项的所有自定义字段值"""
     result = await db.execute(
@@ -368,8 +367,8 @@ async def get_issue_custom_field_values(
 
 async def get_issue_custom_field_value(
     db: AsyncSession,
-    issue_id: UUID,
-    field_id: UUID
+    issue_id: int,
+    field_id: int
 ) -> Optional[IssueCustomFieldValue]:
     """获取工作项的特定自定义字段值"""
     result = await db.execute(
@@ -383,8 +382,8 @@ async def get_issue_custom_field_value(
 
 async def delete_issue_custom_field_value(
     db: AsyncSession,
-    issue_id: UUID,
-    field_id: UUID
+    issue_id: int,
+    field_id: int
 ):
     """删除工作项的自定义字段值"""
     result = await db.execute(
@@ -401,9 +400,9 @@ async def delete_issue_custom_field_value(
 
 async def bulk_update_issue_custom_field_values(
     db: AsyncSession,
-    issue_id: UUID,
+    issue_id: int,
     values: List[IssueCustomFieldValueUpdate],
-    user_id: UUID
+    user_id: int
 ) -> List[IssueCustomFieldValue]:
     """批量更新工作项的自定义字段值"""
     results = []

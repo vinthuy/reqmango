@@ -24,7 +24,7 @@ export interface CycleBase {
 // ==================== Cycle Create ====================
 
 export interface CycleCreate extends CycleBase {
-  project_id: string
+  project_id: number
 }
 
 // ==================== Cycle Update ====================
@@ -40,13 +40,13 @@ export interface CycleUpdate {
 // ==================== Cycle Response ====================
 
 export interface CycleResponse extends CycleBase {
-  id: string
+  id: number
   status: CycleStatus
   progress: number
   total_issues: number
   completed_issues: number
-  project_id: string
-  workspace_id: string
+  project_id: number
+  workspace_id: number
   owned_by?: UserLite
   total_issues_count?: number
   completed_issues_count?: number
@@ -59,7 +59,7 @@ export interface CycleResponse extends CycleBase {
 // ==================== Cycle Lite ====================
 
 export interface CycleLite {
-  id: string
+  id: number
   name: string
   start_date?: string
   end_date?: string
@@ -68,7 +68,7 @@ export interface CycleLite {
 // ==================== Cycle Progress ====================
 
 export interface CycleProgress {
-  cycle_id: string
+  cycle_id: number
   cycle_name: string
   total_issues: number
   completed_issues: number
@@ -100,7 +100,7 @@ export interface CycleStatistics extends CycleProgress {
 // ==================== Burndown Chart ====================
 
 export interface BurndownData {
-  cycle_id: string
+  cycle_id: number
   cycle_name: string
   start_date: string
   end_date: string
@@ -117,7 +117,7 @@ export interface BurndownData {
 // ==================== User Lite ====================
 
 export interface UserLite {
-  id: string
+  id: number
   name: string
   email: string
   avatar_url?: string
@@ -200,7 +200,7 @@ export function formatProgress(progress: number): string {
 /**
  * 创建空周期对象
  */
-export function createEmptyCycle(projectId: string): CycleCreate {
+export function createEmptyCycle(projectId: number): CycleCreate {
   return {
     name: '',
     description: '',

@@ -3,12 +3,12 @@
  */
 
 export interface EstimatePoint {
-  id: string
+  id: number
   name: string
   value: number
   is_default: boolean
   sequence: number
-  project_id: string
+  project_id: number
   created_at: string
   updated_at: string
 }
@@ -32,7 +32,7 @@ export interface EstimatePointBulkCreate {
 }
 
 export interface EstimatePointReorder {
-  point_ids: string[]
+  point_ids: number[]
 }
 
 // 常用估算点选项

@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from uuid import UUID
 from jose import JWTError, jwt
 import bcrypt
 from app.core.config import settings

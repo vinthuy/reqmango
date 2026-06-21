@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import ModuleCard from './ModuleCard.vue'
 import ModuleTree from './ModuleTree.vue'
 import moduleApi from '@/api/module'
@@ -96,15 +96,15 @@ import type { ModuleResponse, ModuleTreeNode } from '@/types/module'
 
 // Props
 const props = defineProps<{
-  projectId: string
-  workspaceId: string
+  projectId: number
+  workspaceId: number
 }>()
 
 // Emits
 defineEmits<{
   (e: 'create'): void
-  (e: 'select', module: ModuleResponse): void
-  (e: 'delete', module: ModuleResponse): void
+  (e: 'select', module: ModuleResponse | ModuleTreeNode): void
+  (e: 'delete', module: ModuleResponse | ModuleTreeNode): void
 }>()
 
 // State

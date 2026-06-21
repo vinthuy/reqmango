@@ -3,7 +3,6 @@ Custom Field API Endpoints - 自定义字段管理接口
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 from typing import Optional, List
 
 from app.db.session import get_db
@@ -35,7 +34,7 @@ router = APIRouter()
 
 @router.post("/", response_model=CustomFieldResponse, status_code=201)
 async def create_custom_field(
-    workspace_id: UUID,
+    workspace_id: int,
     field_data: CustomFieldCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -65,9 +64,9 @@ async def create_custom_field(
 
 @router.get("/", response_model=List[CustomFieldResponse])
 async def list_custom_fields(
-    workspace_id: UUID,
-    project_id: Optional[UUID] = None,
-    issue_type_id: Optional[UUID] = None,
+    workspace_id: int,
+    project_id: Optional[int] = None,
+    issue_type_id: Optional[int] = None,
     include_inactive: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -98,7 +97,7 @@ async def list_custom_fields(
 
 @router.get("/{field_id}", response_model=CustomFieldResponse)
 async def get_custom_field(
-    field_id: UUID,
+    field_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -111,7 +110,7 @@ async def get_custom_field(
 
 @router.put("/{field_id}", response_model=CustomFieldResponse)
 async def update_custom_field(
-    field_id: UUID,
+    field_id: int,
     update_data: CustomFieldUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -129,7 +128,7 @@ async def update_custom_field(
 
 @router.delete("/{field_id}", status_code=204)
 async def delete_custom_field(
-    field_id: UUID,
+    field_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -144,7 +143,7 @@ async def delete_custom_field(
 
 @router.post("/{field_id}/options", response_model=CustomFieldOptionResponse, status_code=201)
 async def create_field_option(
-    field_id: UUID,
+    field_id: int,
     option_data: CustomFieldOptionCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -163,8 +162,8 @@ async def create_field_option(
 
 @router.put("/{field_id}/options/{option_id}", response_model=CustomFieldOptionResponse)
 async def update_field_option(
-    field_id: UUID,
-    option_id: UUID,
+    field_id: int,
+    option_id: int,
     value: Optional[str] = None,
     color: Optional[str] = None,
     sequence: Optional[int] = None,
@@ -190,8 +189,8 @@ async def update_field_option(
 
 @router.delete("/{field_id}/options/{option_id}", status_code=204)
 async def delete_field_option(
-    field_id: UUID,
-    option_id: UUID,
+    field_id: int,
+    option_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -206,7 +205,7 @@ async def delete_field_option(
 
 @router.post("/issues/{issue_id}/values", response_model=IssueCustomFieldValueResponse, status_code=201)
 async def set_issue_custom_field_value(
-    issue_id: UUID,
+    issue_id: int,
     value_data: IssueCustomFieldValueCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -255,7 +254,7 @@ async def set_issue_custom_field_value(
 
 @router.get("/issues/{issue_id}/values", response_model=List[IssueCustomFieldValueResponse])
 async def list_issue_custom_field_values(
-    issue_id: UUID,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -287,8 +286,8 @@ async def list_issue_custom_field_values(
 
 @router.put("/issues/{issue_id}/values/{field_id}", response_model=IssueCustomFieldValueResponse)
 async def update_issue_custom_field_value(
-    issue_id: UUID,
-    field_id: UUID,
+    issue_id: int,
+    field_id: int,
     value_data: IssueCustomFieldValueUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -325,8 +324,8 @@ async def update_issue_custom_field_value(
 
 @router.delete("/issues/{issue_id}/values/{field_id}", status_code=204)
 async def delete_issue_custom_field_value(
-    issue_id: UUID,
-    field_id: UUID,
+    issue_id: int,
+    field_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -339,7 +338,7 @@ async def delete_issue_custom_field_value(
 
 @router.post("/issues/{issue_id}/values/bulk", response_model=List[IssueCustomFieldValueResponse])
 async def bulk_update_issue_custom_field_values(
-    issue_id: UUID,
+    issue_id: int,
     bulk_data: BulkCustomFieldValueUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -379,7 +378,7 @@ async def bulk_update_issue_custom_field_values(
 
 @router.get("/issues/{issue_id}/fields", response_model=IssueCustomFieldsResponse)
 async def get_issue_custom_fields_with_definitions(
-    issue_id: UUID,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -405,7 +404,7 @@ async def get_issue_custom_fields_with_definitions(
     
     # 获取工作项的字段值
     values = await cf_service.get_issue_custom_field_values(db, issue_id)
-    values_map = {str(v.field_id): v for v in values}
+    values_map = {v.field_id: v for v in values}
     
     # 组装结果
     fields_with_values = []
@@ -429,7 +428,7 @@ async def get_issue_custom_fields_with_definitions(
             ]
         )
         
-        value_instance = values_map.get(str(field.id))
+        value_instance = values_map.get(field.id)
         value = cf_service.get_field_value_as_display(value_instance, field) if value_instance else None
         
         fields_with_values.append(CustomFieldWithValues(

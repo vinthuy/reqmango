@@ -10,7 +10,7 @@ const BASE_URL = '/api/v1/projects'
  * 创建估算点
  */
 export async function createEstimatePoint(
-  projectId: string,
+  projectId: number,
   data: EstimatePointCreate
 ): Promise<EstimatePoint> {
   const response = await api.post(
@@ -24,7 +24,7 @@ export async function createEstimatePoint(
  * 列出项目的估算点
  */
 export async function listEstimatePoints(
-  projectId: string
+  projectId: number
 ): Promise<EstimatePoint[]> {
   const response = await api.get(
     `${BASE_URL}/${projectId}/estimate-points`
@@ -36,7 +36,7 @@ export async function listEstimatePoints(
  * 获取默认估算点
  */
 export async function getDefaultEstimatePoint(
-  projectId: string
+  projectId: number
 ): Promise<EstimatePoint> {
   const response = await api.get(
     `${BASE_URL}/${projectId}/estimate-points/default`
@@ -48,8 +48,8 @@ export async function getDefaultEstimatePoint(
  * 获取估算点详情
  */
 export async function getEstimatePoint(
-  projectId: string,
-  pointId: string
+  projectId: number,
+  pointId: number
 ): Promise<EstimatePoint> {
   const response = await api.get(
     `${BASE_URL}/${projectId}/estimate-points/${pointId}`
@@ -61,8 +61,8 @@ export async function getEstimatePoint(
  * 更新估算点
  */
 export async function updateEstimatePoint(
-  projectId: string,
-  pointId: string,
+  projectId: number,
+  pointId: number,
   data: EstimatePointUpdate
 ): Promise<EstimatePoint> {
   const response = await api.patch(
@@ -76,8 +76,8 @@ export async function updateEstimatePoint(
  * 删除估算点
  */
 export async function deleteEstimatePoint(
-  projectId: string,
-  pointId: string
+  projectId: number,
+  pointId: number
 ): Promise<void> {
   await api.delete(
     `${BASE_URL}/${projectId}/estimate-points/${pointId}`
@@ -88,7 +88,7 @@ export async function deleteEstimatePoint(
  * 重新排序估算点
  */
 export async function reorderEstimatePoints(
-  projectId: string,
+  projectId: number,
   data: EstimatePointReorder
 ): Promise<EstimatePoint[]> {
   const response = await api.post(
@@ -102,7 +102,7 @@ export async function reorderEstimatePoints(
  * 批量创建估算点
  */
 export async function bulkCreateEstimatePoints(
-  projectId: string,
+  projectId: number,
   data: EstimatePointBulkCreate
 ): Promise<EstimatePoint[]> {
   const response = await api.post(
@@ -116,7 +116,7 @@ export async function bulkCreateEstimatePoints(
  * 创建默认估算点
  */
 export async function createDefaultEstimatePoints(
-  projectId: string
+  projectId: number
 ): Promise<EstimatePoint[]> {
   const response = await api.post(
     `${BASE_URL}/${projectId}/estimate-points/defaults`

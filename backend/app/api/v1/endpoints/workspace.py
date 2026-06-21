@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 from app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate, WorkspaceResponse, WorkspaceLite
 from app.services.workspace import create_workspace, get_workspace_by_slug, update_workspace, delete_workspace, list_workspaces
 from app.api.deps import get_db, get_current_user
@@ -33,7 +32,7 @@ async def get(
 
 @router.patch("/{workspace_id}", response_model=WorkspaceResponse)
 async def update(
-    workspace_id: UUID = Path(..., description="Workspace ID"),
+    workspace_id: int = Path(..., description="Workspace ID"),
     update_data: WorkspaceUpdate = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -42,7 +41,7 @@ async def update(
 
 @router.delete("/{workspace_id}", status_code=204)
 async def delete(
-    workspace_id: UUID = Path(..., description="Workspace ID"),
+    workspace_id: int = Path(..., description="Workspace ID"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

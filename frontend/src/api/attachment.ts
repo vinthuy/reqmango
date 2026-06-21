@@ -2,7 +2,7 @@
  * Attachment API - 附件API模块
  */
 import api from './index'
-import type { Attachment, AttachmentCreate, AttachmentUpdate, AttachmentUploadResponse } from '@/types/attachment'
+import type { Attachment, AttachmentCreate, AttachmentUpdate } from '@/types/attachment'
 
 const BASE_URL = '/api/v1/attachments'
 
@@ -16,8 +16,8 @@ export async function uploadAttachment(
   const formData = new FormData()
   formData.append('file', file)
   if (data.name) formData.append('name', data.name)
-  if (data.issue_id) formData.append('issue_id', data.issue_id)
-  if (data.project_id) formData.append('project_id', data.project_id)
+  if (data.issue_id) formData.append('issue_id', data.issue_id.toString())
+  if (data.project_id) formData.append('project_id', data.project_id.toString())
   if (data.is_protected !== undefined) formData.append('is_protected', String(data.is_protected))
 
   const response = await api.post(BASE_URL, formData, {
@@ -30,7 +30,7 @@ export async function uploadAttachment(
  * 获取工作项的附件列表
  */
 export async function listIssueAttachments(
-  issueId: string
+  issueId: number
 ): Promise<Attachment[]> {
   const response = await api.get(`${BASE_URL}/issue/${issueId}`)
   return response.data
@@ -40,7 +40,7 @@ export async function listIssueAttachments(
  * 获取项目的附件列表
  */
 export async function listProjectAttachments(
-  projectId: string
+  projectId: number
 ): Promise<Attachment[]> {
   const response = await api.get(`${BASE_URL}/project/${projectId}`)
   return response.data
@@ -50,7 +50,7 @@ export async function listProjectAttachments(
  * 获取附件详情
  */
 export async function getAttachment(
-  attachmentId: string
+  attachmentId: number
 ): Promise<Attachment> {
   const response = await api.get(`${BASE_URL}/${attachmentId}`)
   return response.data
@@ -60,7 +60,7 @@ export async function getAttachment(
  * 下载附件
  */
 export async function downloadAttachment(
-  attachmentId: string
+  attachmentId: number
 ): Promise<Blob> {
   const response = await api.get(`${BASE_URL}/${attachmentId}/download`, {
     responseType: 'blob'
@@ -72,7 +72,7 @@ export async function downloadAttachment(
  * 更新附件
  */
 export async function updateAttachment(
-  attachmentId: string,
+  attachmentId: number,
   data: AttachmentUpdate
 ): Promise<Attachment> {
   const response = await api.patch(`${BASE_URL}/${attachmentId}`, data)
@@ -83,7 +83,7 @@ export async function updateAttachment(
  * 删除附件
  */
 export async function deleteAttachment(
-  attachmentId: string
+  attachmentId: number
 ): Promise<void> {
   await api.delete(`${BASE_URL}/${attachmentId}`)
 }
@@ -91,7 +91,7 @@ export async function deleteAttachment(
 /**
  * 获取附件下载URL
  */
-export function getAttachmentDownloadUrl(attachmentId: string): string {
+export function getAttachmentDownloadUrl(attachmentId: number): string {
   return `/api/v1/attachments/${attachmentId}/download`
 }
 

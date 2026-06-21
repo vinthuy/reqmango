@@ -206,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
 import api from '@/api/index'
@@ -214,9 +214,9 @@ import api from '@/api/index'
 // Route params
 const route = useRoute()
 const router = useRouter()
-const workspaceId = route.params.workspaceId as string
-const projectId = route.params.projectId as string
-const issueId = route.params.issueId as string
+const workspaceId = parseInt(route.params.workspaceId as string, 10)
+const projectId = parseInt(route.params.projectId as string, 10)
+const issueId = parseInt(route.params.issueId as string, 10)
 
 // State
 const issue = ref<any>(null)

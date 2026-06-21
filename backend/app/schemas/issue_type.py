@@ -3,7 +3,6 @@ Issue Type Schemas - 工作项类型数据验证模型
 """
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from uuid import UUID
 from enum import Enum
 
 from .base import AuditSchema, SoftDeleteSchema
@@ -40,9 +39,9 @@ class IssueTypeBase(BaseModel):
 
 class IssueTypeCreate(IssueTypeBase):
     """创建工作项类型"""
-    project_id: UUID
+    project_id: int
     # 关联的自定义字段ID列表
-    custom_fields: Optional[List[UUID]] = None
+    custom_fields: Optional[List[int]] = None
 
 
 class IssueTypeUpdate(BaseModel):
@@ -53,14 +52,14 @@ class IssueTypeUpdate(BaseModel):
     is_default: Optional[bool] = None
     sequence: Optional[int] = Field(None, ge=0)
     is_active: Optional[bool] = None
-    custom_fields: Optional[List[UUID]] = None
+    custom_fields: Optional[List[int]] = None
 
 
 class IssueTypeResponse(AuditSchema, SoftDeleteSchema, IssueTypeBase):
     """工作项类型响应"""
-    id: UUID
-    project_id: UUID
-    workspace_id: UUID  # 通过 project 获取
+    id: int
+    project_id: int
+    workspace_id: int  # 通过 project 获取
     
     class Config:
         from_attributes = True
@@ -68,7 +67,7 @@ class IssueTypeResponse(AuditSchema, SoftDeleteSchema, IssueTypeBase):
 
 class IssueTypeLite(BaseModel):
     """轻量级工作项类型响应"""
-    id: UUID
+    id: int
     name: str
     color: str
     icon: str
@@ -91,7 +90,7 @@ class StateBase(BaseModel):
 
 class StateCreate(StateBase):
     """创建状态"""
-    project_id: UUID
+    project_id: int
 
 
 class StateUpdate(BaseModel):
@@ -106,9 +105,9 @@ class StateUpdate(BaseModel):
 
 class StateResponse(AuditSchema, SoftDeleteSchema, StateBase):
     """状态响应"""
-    id: UUID
-    project_id: UUID
-    workspace_id: UUID
+    id: int
+    project_id: int
+    workspace_id: int
     
     class Config:
         from_attributes = True
@@ -116,7 +115,7 @@ class StateResponse(AuditSchema, SoftDeleteSchema, StateBase):
 
 class StateLite(BaseModel):
     """轻量级状态响应"""
-    id: UUID
+    id: int
     name: str
     color: str
     group: str
@@ -135,7 +134,7 @@ class LabelBase(BaseModel):
 
 class LabelCreate(LabelBase):
     """创建标签"""
-    project_id: UUID
+    project_id: int
 
 
 class LabelUpdate(BaseModel):
@@ -147,8 +146,8 @@ class LabelUpdate(BaseModel):
 
 class LabelResponse(AuditSchema, SoftDeleteSchema, LabelBase):
     """标签响应"""
-    id: UUID
-    project_id: UUID
+    id: int
+    project_id: int
     
     class Config:
         from_attributes = True
@@ -156,7 +155,7 @@ class LabelResponse(AuditSchema, SoftDeleteSchema, LabelBase):
 
 class LabelLite(BaseModel):
     """轻量级标签响应"""
-    id: UUID
+    id: int
     name: str
     color: str
     

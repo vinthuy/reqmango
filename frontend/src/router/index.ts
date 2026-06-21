@@ -33,6 +33,18 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/workspace/:slug/settings',
+      name: 'WorkspaceSettings',
+      component: () => import('@/views/WorkspaceSettings.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/settings/workflows/:workflowId',
+      name: 'WorkflowDetail',
+      component: () => import('@/views/WorkflowDetail.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/workspaces/:workspaceId/projects/:projectId/issues/:issueId',
       name: 'IssueDetail',
       component: () => import('@/views/IssueDetail.vue'),
@@ -42,6 +54,18 @@ const router = createRouter({
       path: '/workspaces/:workspaceId/projects/:projectId/custom-fields',
       name: 'CustomFields',
       component: () => import('@/views/CustomFields.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspaces/:workspaceId/projects/:projectId/issue-types',
+      name: 'IssueTypeList',
+      component: () => import('@/views/IssueTypeList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspaces/:workspaceId/projects/:projectId/issues/new',
+      name: 'IssueCreate',
+      component: () => import('@/views/IssueCreate.vue'),
       meta: { requiresAuth: true }
     }
   ]

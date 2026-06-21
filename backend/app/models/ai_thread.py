@@ -2,10 +2,9 @@
 AI Thread Model - AI 对话线程持久化模型
 """
 from datetime import datetime
-from uuid import UUID
-from sqlalchemy import String, ForeignKey, DateTime, Text, JSON, Boolean
+from sqlalchemy import String, ForeignKey, DateTime, Text, JSON, Boolean, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base import Base, AuditMixin, SoftDeleteMixin
+from .base import Base, AuditMixin
 
 
 class AIThread(Base, AuditMixin):
@@ -15,9 +14,9 @@ class AIThread(Base, AuditMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="New Conversation")
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     
-    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
-    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
     
@@ -31,7 +30,7 @@ class AIMessage(Base, AuditMixin):
     """AI 对话消息"""
     __tablename__ = "ai_messages"
     
-    thread_id: Mapped[UUID] = mapped_column(ForeignKey("ai_threads.id"), nullable=False)
+    thread_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("ai_threads.id"), nullable=False)
     
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # user, assistant, system
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -61,12 +60,12 @@ class AIActionLog(Base, AuditMixin):
     """AI 操作日志 - 记录 AI 执行的操作"""
     __tablename__ = "ai_action_logs"
     
-    thread_id: Mapped[UUID | None] = mapped_column(ForeignKey("ai_threads.id"), nullable=True)
-    message_id: Mapped[UUID | None] = mapped_column(ForeignKey("ai_messages.id"), nullable=True)
+    thread_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("ai_threads.id"), nullable=True)
+    message_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("ai_messages.id"), nullable=True)
     
     action_type: Mapped[str] = mapped_column(String(50), nullable=False)
     target_type: Mapped[str] = mapped_column(String(50), nullable=False)  # issue, project, etc.
-    target_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    target_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     
     changes: Mapped[JSON | None] = mapped_column(JSON, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

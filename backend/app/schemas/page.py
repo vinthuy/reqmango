@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from typing import Optional
-from uuid import UUID
 from .base import AuditSchema, SoftDeleteSchema
 from .project import ProjectLite
 
@@ -10,7 +9,7 @@ class PageBase(BaseModel):
     is_locked: bool = False
 
 class PageCreate(PageBase):
-    project_id: UUID
+    project_id: int
 
 class PageUpdate(BaseModel):
     name: Optional[str] = None
@@ -22,5 +21,5 @@ class PageResponse(AuditSchema, SoftDeleteSchema, PageBase):
     version: int = 1
 
 class PageLite(BaseModel):
-    id: UUID
+    id: int
     name: str

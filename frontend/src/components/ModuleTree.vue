@@ -113,7 +113,7 @@ interface ModuleTreeNodeWithLevel extends ModuleTreeNode {
   level?: number
 }
 
-const props = defineProps<{
+defineProps<{
   tree: ModuleTreeNodeWithLevel[]
 }>()
 
@@ -124,7 +124,7 @@ defineEmits<{
 }>()
 
 // State
-const expandedIds = ref<Set<string>>(new Set())
+const expandedIds = ref<Set<number>>(new Set())
 
 // Check if node has children
 function hasChildren(node: ModuleTreeNode): boolean {
@@ -132,7 +132,7 @@ function hasChildren(node: ModuleTreeNode): boolean {
 }
 
 // Toggle expand
-function toggleExpand(id: string) {
+function toggleExpand(id: number) {
   if (expandedIds.value.has(id)) {
     expandedIds.value.delete(id)
   } else {

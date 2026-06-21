@@ -2,7 +2,6 @@
 Project Settings Services - 项目设置相关服务（IssueType、State、Label）
 """
 from typing import Optional, List
-from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -30,8 +29,8 @@ from app.core.exceptions import NotFoundException, ValidationException
 async def create_issue_type(
     db: AsyncSession,
     type_data: IssueTypeCreate,
-    workspace_id: UUID,
-    user_id: UUID
+    workspace_id: int,
+    user_id: int
 ) -> IssueType:
     """创建工作项类型"""
     # 验证项目存在
@@ -60,9 +59,9 @@ async def create_issue_type(
 
 async def create_default_issue_types(
     db: AsyncSession,
-    project_id: UUID,
-    workspace_id: UUID,
-    user_id: UUID
+    project_id: int,
+    workspace_id: int,
+    user_id: int
 ) -> List[IssueType]:
     """创建默认的工作项类型"""
     types = []
@@ -81,7 +80,7 @@ async def create_default_issue_types(
     return types
 
 
-async def get_issue_type_by_id(db: AsyncSession, type_id: UUID) -> IssueType:
+async def get_issue_type_by_id(db: AsyncSession, type_id: int) -> IssueType:
     """获取工作项类型"""
     result = await db.execute(
         select(IssueType).where(IssueType.id == type_id)
@@ -94,7 +93,7 @@ async def get_issue_type_by_id(db: AsyncSession, type_id: UUID) -> IssueType:
 
 async def get_project_issue_types(
     db: AsyncSession,
-    project_id: UUID,
+    project_id: int,
     include_inactive: bool = False
 ) -> List[IssueType]:
     """获取项目的工作项类型列表"""
@@ -114,7 +113,7 @@ async def get_project_issue_types(
 
 async def update_issue_type(
     db: AsyncSession,
-    type_id: UUID,
+    type_id: int,
     update_data: IssueTypeUpdate
 ) -> IssueType:
     """更新工作项类型"""
@@ -141,7 +140,7 @@ async def update_issue_type(
     return issue_type
 
 
-async def _unset_other_defaults(db: AsyncSession, project_id: UUID):
+async def _unset_other_defaults(db: AsyncSession, project_id: int):
     """取消项目中其他类型的默认状态"""
     result = await db.execute(
         select(IssueType).where(
@@ -154,7 +153,7 @@ async def _unset_other_defaults(db: AsyncSession, project_id: UUID):
     await db.flush()
 
 
-async def delete_issue_type(db: AsyncSession, type_id: UUID):
+async def delete_issue_type(db: AsyncSession, type_id: int):
     """删除工作项类型（软删除）"""
     issue_type = await get_issue_type_by_id(db, type_id)
     issue_type.is_deleted = True
@@ -166,8 +165,8 @@ async def delete_issue_type(db: AsyncSession, type_id: UUID):
 async def create_state(
     db: AsyncSession,
     state_data: StateCreate,
-    workspace_id: UUID,
-    user_id: UUID
+    workspace_id: int,
+    user_id: int
 ) -> State:
     """创建状态"""
     # 验证项目存在
@@ -194,9 +193,9 @@ async def create_state(
 
 async def create_default_states(
     db: AsyncSession,
-    project_id: UUID,
-    workspace_id: UUID,
-    user_id: UUID
+    project_id: int,
+    workspace_id: int,
+    user_id: int
 ) -> List[State]:
     """创建默认状态"""
     states = []
@@ -215,7 +214,7 @@ async def create_default_states(
     return states
 
 
-async def get_state_by_id(db: AsyncSession, state_id: UUID) -> State:
+async def get_state_by_id(db: AsyncSession, state_id: int) -> State:
     """获取状态"""
     result = await db.execute(
         select(State).where(State.id == state_id)
@@ -228,7 +227,7 @@ async def get_state_by_id(db: AsyncSession, state_id: UUID) -> State:
 
 async def get_project_states(
     db: AsyncSession,
-    project_id: UUID,
+    project_id: int,
     include_inactive: bool = False
 ) -> List[State]:
     """获取项目的状态列表"""
@@ -248,7 +247,7 @@ async def get_project_states(
 
 async def update_state(
     db: AsyncSession,
-    state_id: UUID,
+    state_id: int,
     update_data: StateUpdate
 ) -> State:
     """更新状态"""
@@ -272,7 +271,7 @@ async def update_state(
     return state
 
 
-async def delete_state(db: AsyncSession, state_id: UUID):
+async def delete_state(db: AsyncSession, state_id: int):
     """删除状态（软删除）"""
     state = await get_state_by_id(db, state_id)
     state.is_deleted = True
@@ -284,8 +283,8 @@ async def delete_state(db: AsyncSession, state_id: UUID):
 async def create_label(
     db: AsyncSession,
     label_data: LabelCreate,
-    workspace_id: UUID,
-    user_id: UUID
+    workspace_id: int,
+    user_id: int
 ) -> Label:
     """创建标签"""
     # 验证项目存在
@@ -308,7 +307,7 @@ async def create_label(
     return label
 
 
-async def get_label_by_id(db: AsyncSession, label_id: UUID) -> Label:
+async def get_label_by_id(db: AsyncSession, label_id: int) -> Label:
     """获取标签"""
     result = await db.execute(
         select(Label).where(Label.id == label_id)
@@ -321,7 +320,7 @@ async def get_label_by_id(db: AsyncSession, label_id: UUID) -> Label:
 
 async def get_project_labels(
     db: AsyncSession,
-    project_id: UUID
+    project_id: int
 ) -> List[Label]:
     """获取项目的标签列表"""
     query = select(Label).where(
@@ -335,7 +334,7 @@ async def get_project_labels(
 
 async def update_label(
     db: AsyncSession,
-    label_id: UUID,
+    label_id: int,
     update_data: LabelUpdate
 ) -> Label:
     """更新标签"""
@@ -353,7 +352,7 @@ async def update_label(
     return label
 
 
-async def delete_label(db: AsyncSession, label_id: UUID):
+async def delete_label(db: AsyncSession, label_id: int):
     """删除标签（软删除）"""
     label = await get_label_by_id(db, label_id)
     label.is_deleted = True

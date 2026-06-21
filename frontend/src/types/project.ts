@@ -15,7 +15,7 @@ export interface ProjectBase {
 // ==================== Project Create ====================
 
 export interface ProjectCreate extends ProjectBase {
-  default_assignee_id?: string
+  default_assignee_id?: number
 }
 
 // ==================== Project Update ====================
@@ -25,33 +25,39 @@ export interface ProjectUpdate {
   description?: string
   is_public?: boolean
   archived_at?: string
-  default_assignee_id?: string
+  default_assignee_id?: number
 }
 
 // ==================== Project Response ====================
 
 export interface ProjectResponse extends ProjectBase {
-  id: string
+  id: number
   archived_at?: string
-  workspace_id: string
-  default_assignee_id?: string
+  workspace_id: number
+  default_assignee_id?: number
   created_at: string
   updated_at: string
+  color?: string
+  is_archived?: boolean
 }
 
 // ==================== Project Member ====================
 
 export interface ProjectMember {
-  id: string
-  user_id: string
+  id: number
+  user_id: number
   role: number
   is_active: boolean
   user?: UserLite
+  display_name?: string
+  username?: string
+  email?: string
 }
 
 export interface ProjectMemberCreate {
-  user_id: string
+  user_id?: number
   role?: number
+  email?: string
 }
 
 export interface ProjectMemberUpdate {
@@ -67,7 +73,7 @@ export interface StateBreakdown {
 }
 
 export interface ProjectStatistics {
-  project_id: string
+  project_id: number
   project_name: string
   total_issues: number
   completed_issues: number
@@ -75,12 +81,14 @@ export interface ProjectStatistics {
   state_breakdown: StateBreakdown[]
   active_members: number
   is_archived: boolean
+  in_progress_issues?: number
+  member_count?: number
 }
 
 // ==================== Project Issues Summary ====================
 
 export interface ProjectIssuesSummary {
-  project_id: string
+  project_id: number
   project_name: string
   issues: {
     todo: number
@@ -93,7 +101,7 @@ export interface ProjectIssuesSummary {
 // ==================== User Lite ====================
 
 export interface UserLite {
-  id: string
+  id: number
   display_name: string
   username: string
   avatar?: string
@@ -162,7 +170,7 @@ export function isProjectPublic(project: ProjectResponse): boolean {
 /**
  * 创建空项目对象
  */
-export function createEmptyProject(workspaceId: string): ProjectCreate {
+export function createEmptyProject(): ProjectCreate {
   return {
     name: '',
     identifier: '',

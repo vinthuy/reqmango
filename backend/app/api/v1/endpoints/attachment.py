@@ -2,7 +2,6 @@
 Attachment API - 附件API端点
 """
 from typing import List
-from uuid import UUID
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
@@ -31,8 +30,8 @@ ATTACHMENT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os
 async def upload_attachment(
     file: UploadFile = File(...),
     name: str = Form(None),
-    issue_id: UUID = Form(None),
-    project_id: UUID = Form(None),
+    issue_id: int = Form(None),
+    project_id: int = Form(None),
     is_protected: bool = Form(False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -60,7 +59,7 @@ async def upload_attachment(
 
 @router.get("/issue/{issue_id}", response_model=List[AttachmentResponse])
 async def list_issue_attachments(
-    issue_id: UUID,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -74,7 +73,7 @@ async def list_issue_attachments(
 
 @router.get("/project/{project_id}", response_model=List[AttachmentResponse])
 async def list_project_attachments(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -88,7 +87,7 @@ async def list_project_attachments(
 
 @router.get("/{attachment_id}", response_model=AttachmentResponse)
 async def get_attachment(
-    attachment_id: UUID,
+    attachment_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -99,7 +98,7 @@ async def get_attachment(
 
 @router.get("/{attachment_id}/download")
 async def download_attachment(
-    attachment_id: UUID,
+    attachment_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -118,7 +117,7 @@ async def download_attachment(
 
 @router.patch("/{attachment_id}", response_model=AttachmentResponse)
 async def update_attachment(
-    attachment_id: UUID,
+    attachment_id: int,
     update_data: AttachmentUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -135,7 +134,7 @@ async def update_attachment(
 
 @router.delete("/{attachment_id}", status_code=204)
 async def delete_attachment(
-    attachment_id: UUID,
+    attachment_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

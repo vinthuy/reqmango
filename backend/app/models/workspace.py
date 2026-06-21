@@ -1,5 +1,4 @@
-from uuid import UUID
-from sqlalchemy import String, Integer, ForeignKey, Boolean
+from sqlalchemy import String, Integer, ForeignKey, Boolean, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin, SoftDeleteMixin
 
@@ -11,7 +10,7 @@ class Workspace(Base, AuditMixin, SoftDeleteMixin):
     logo_url: Mapped[str | None] = mapped_column(String(800), nullable=True)
     organization_size: Mapped[str | None] = mapped_column(String(50), nullable=True)
     timezone: Mapped[str] = mapped_column(String(255), default="UTC")
-    owner_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    owner_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     
     owner: Mapped["User"] = relationship(foreign_keys=[owner_id])
     members: Mapped[list["WorkspaceMember"]] = relationship(back_populates="workspace")
@@ -20,8 +19,8 @@ class Workspace(Base, AuditMixin, SoftDeleteMixin):
 class WorkspaceMember(Base, AuditMixin, SoftDeleteMixin):
     __tablename__ = "workspace_members"
     
-    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspaces.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     role: Mapped[int] = mapped_column(Integer, default=15)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     

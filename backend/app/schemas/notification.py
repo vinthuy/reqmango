@@ -2,7 +2,6 @@
 Notification Schemas - 通知Schema定义
 """
 from typing import Optional, List
-from uuid import UUID
 from pydantic import BaseModel, Field
 
 
@@ -17,10 +16,10 @@ class NotificationBase(BaseModel):
 
 class NotificationCreate(NotificationBase):
     """创建通知"""
-    recipient_id: UUID
-    sender_id: Optional[UUID] = None
-    project_id: Optional[UUID] = None
-    issue_id: Optional[UUID] = None
+    recipient_id: int
+    sender_id: Optional[int] = None
+    project_id: Optional[int] = None
+    issue_id: Optional[int] = None
 
 
 class NotificationUpdate(BaseModel):
@@ -32,11 +31,11 @@ class NotificationUpdate(BaseModel):
 
 class NotificationResponse(NotificationBase):
     """通知响应"""
-    id: UUID
-    recipient_id: UUID
-    sender_id: Optional[UUID] = None
-    project_id: Optional[UUID] = None
-    issue_id: Optional[UUID] = None
+    id: int
+    recipient_id: int
+    sender_id: Optional[int] = None
+    project_id: Optional[int] = None
+    issue_id: Optional[int] = None
     is_read: bool
     read_at: Optional[str] = None
     created_at: str
@@ -48,7 +47,7 @@ class NotificationResponse(NotificationBase):
 
 class NotificationMarkRead(BaseModel):
     """标记已读"""
-    notification_ids: List[UUID]
+    notification_ids: List[int]
 
 
 class NotificationSummary(BaseModel):

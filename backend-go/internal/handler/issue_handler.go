@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -69,17 +70,7 @@ func (h *IssueHandler) List(c *gin.Context) {
 		return
 	}
 
-	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
-	if err != nil || page < 1 {
-		page = 1
-	}
-	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	if err != nil || pageSize < 1 {
-		pageSize = 20
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
+	p := common.ParsePagination(c.Query("limit"), c.Query("offset"), 50, 100)
 
 	filters := make(map[string]interface{})
 
@@ -118,7 +109,7 @@ func (h *IssueHandler) List(c *gin.Context) {
 		filters["is_draft"] = v == "true"
 	}
 
-	issues, total, svcErr := h.svc.List(projectID, filters, page, pageSize)
+	issues, total, svcErr := h.svc.List(projectID, filters, p.Limit, p.Offset)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -128,18 +119,12 @@ func (h *IssueHandler) List(c *gin.Context) {
 		return
 	}
 
-	totalPages := int(total / int64(pageSize))
-	if total%int64(pageSize) > 0 {
-		totalPages++
+	if issues == nil {
+		issues = make([]response.IssueResponse, 0)
 	}
 
-	c.JSON(http.StatusOK, response.IssueListResponse{
-		Issues:     issues,
-		Total:      total,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: totalPages,
-	})
+	c.Header("X-Total-Count", fmt.Sprintf("%d", total))
+	c.JSON(http.StatusOK, issues)
 }
 
 // Get handles GET /issues/:id

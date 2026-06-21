@@ -2,7 +2,6 @@
 Notification API - 通知API端点
 """
 from typing import List
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,7 +70,7 @@ async def get_notification_summary(
 
 @router.get("/{notification_id}", response_model=NotificationResponse)
 async def get_notification(
-    notification_id: UUID,
+    notification_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -86,7 +85,7 @@ async def get_notification(
 
 @router.patch("/{notification_id}/read", response_model=NotificationResponse)
 async def mark_as_read(
-    notification_id: UUID,
+    notification_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -114,7 +113,7 @@ async def mark_all_as_read(
 
 @router.delete("/{notification_id}", status_code=204)
 async def delete_notification(
-    notification_id: UUID,
+    notification_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -129,7 +128,7 @@ async def delete_notification(
 @router.post("/bulk", response_model=List[NotificationResponse])
 async def create_bulk_notification(
     notification_data: NotificationCreate,
-    recipient_ids: List[UUID],
+    recipient_ids: List[int],
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

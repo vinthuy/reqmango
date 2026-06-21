@@ -125,7 +125,7 @@ import type { EstimatePoint } from '@/types/estimate-point'
 
 // Props
 const props = defineProps<{
-  projectId: string
+  projectId: number
 }>()
 
 // Emits

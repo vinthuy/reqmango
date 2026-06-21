@@ -1,5 +1,5 @@
 <template>
-  <div class="project-page">
+  <div class="project-page min-h-screen bg-gray-50">
     <!-- 加载状态 -->
     <div v-if="loading" class="flex items-center justify-center h-64">
       <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -14,21 +14,29 @@
       <div class="bg-white rounded-lg border border-gray-200 p-6">
         <div class="flex items-start justify-between">
           <div class="flex items-center space-x-4">
+            <button @click="goBack" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
             <div
               class="w-12 h-12 rounded-lg flex items-center justify-center text-white text-xl font-bold"
-              :style="{ backgroundColor: project.color || '#6366f1' }"
+              style="background-color: #6366f1"
             >
               {{ project.name?.charAt(0)?.toUpperCase() || 'P' }}
             </div>
             <div>
               <h1 class="text-xl font-semibold text-gray-900">{{ project.name }}</h1>
-              <p v-if="project.description" class="text-sm text-gray-500 mt-1">{{ project.description }}</p>
+              <div class="flex items-center space-x-3 mt-1">
+                <span class="text-xs text-gray-500">{{ project.identifier }}</span>
+                <span v-if="project.description" class="text-sm text-gray-500">{{ project.description }}</span>
+              </div>
             </div>
           </div>
 
           <div class="flex items-center space-x-2">
             <button
-              @click="$emit('settings')"
+              @click="goToSettings"
               class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
             >
               设置
@@ -36,9 +44,9 @@
           </div>
         </div>
 
-        <!-- 标签页 -->
+        <!-- 标签页导航 -->
         <div class="mt-6 border-b border-gray-200">
-          <nav class="-mb-px flex space-x-4">
+          <nav class="-mb-px flex space-x-6">
             <button
               v-for="tab in tabs"
               :key="tab.id"
@@ -56,57 +64,67 @@
 
       <!-- 标签页内容 -->
       <div v-if="activeTab === 'issues'">
+        <!-- 视图切换 -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
+            <button
+              @click="issueView = 'list'"
+              class="px-3 py-1.5 text-sm rounded-md transition-colors"
+              :class="issueView === 'list' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+            >
+              列表视图
+            </button>
+            <button
+              @click="issueView = 'kanban'"
+              class="px-3 py-1.5 text-sm rounded-md transition-colors"
+              :class="issueView === 'kanban' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+            >
+              看板视图
+            </button>
+          </div>
+          <button
+            @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)"
+            class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700"
+          >
+            新建工作项
+          </button>
+        </div>
+
         <IssueList
+          v-if="issueView === 'list'"
           :project-id="projectId"
           :workspace-id="workspaceId"
-          @create="showIssueModal = true"
-          @select="selectIssue"
+          @select="openDetailPanel"
+          @delete="handleDeleteIssue"
+        />
+        <IssueKanban
+          v-else
+          :project-id="projectId"
+          :workspace-id="workspaceId"
+          @select="openDetailPanel"
         />
       </div>
+
+      <!-- 侧滑详情面板 -->
+      <IssueDetailPanel
+        :issue-id="detailIssueId"
+        :visible="detailPanelVisible"
+        :workspace-id="workspaceId"
+        :project-id="projectId"
+        @close="detailPanelVisible = false"
+        @delete="handleDetailDelete"
+        @refresh="handleDetailRefresh"
+      />
 
       <div v-if="activeTab === 'cycles'">
         <CycleList
           :project-id="projectId"
           :workspace-id="workspaceId"
-          @create="showCycleModal = true"
-          @select="selectCycle"
         />
       </div>
 
       <div v-if="activeTab === 'modules'">
         <ModuleList
-          :project-id="projectId"
-          :workspace-id="workspaceId"
-          @create="showModuleModal = true"
-          @select="selectModule"
-        />
-      </div>
-
-      <div v-if="activeTab === 'workflow'">
-        <WorkflowRuleList
-          :project-id="projectId"
-          :workspace-id="workspaceId"
-          @create="showRuleForm = true"
-          @open-templates="showTemplates = true"
-        />
-      </div>
-
-      <div v-if="activeTab === 'custom-fields'">
-        <CustomFieldList
-          :project-id="projectId"
-          @create="showFieldForm = true"
-        />
-      </div>
-
-      <div v-if="activeTab === 'estimate-points'">
-        <EstimatePointManager
-          :project-id="projectId"
-          @create="showEstimateForm = true"
-        />
-      </div>
-
-      <div v-if="activeTab === 'members'">
-        <ProjectMemberList
           :project-id="projectId"
           :workspace-id="workspaceId"
         />
@@ -115,94 +133,99 @@
 
     <!-- 空状态 -->
     <div v-else class="text-center py-12">
-      <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-      <p class="mt-2 text-gray-500">项目不存在或加载失败</p>
-      <a href="/" class="mt-4 text-indigo-600 hover:text-indigo-800 text-sm">返回首页</a>
+      <p class="text-gray-500">项目不存在或加载失败</p>
+      <button @click="goBack" class="mt-4 text-indigo-600 hover:text-indigo-800 text-sm">返回</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import projectApi from '@/api/project'
+import { useRoute, useRouter } from 'vue-router'
+import { workspaceApi } from '@/api/workspace'
+import { projectApi } from '@/api/project'
+import { issueApi } from '@/api/issue'
+import type { Workspace } from '@/types'
 import type { ProjectResponse } from '@/types/project'
 
-// Components
 import IssueList from '@/components/IssueList.vue'
+import IssueKanban from '@/components/IssueKanban.vue'
+import IssueDetailPanel from '@/components/IssueDetailPanel.vue'
 import CycleList from '@/components/CycleList.vue'
 import ModuleList from '@/components/ModuleList.vue'
-import WorkflowRuleList from '@/components/WorkflowRuleList.vue'
-import CustomFieldList from '@/components/CustomFieldList.vue'
-import EstimatePointManager from '@/components/EstimatePointManager.vue'
-import ProjectMemberList from '@/components/ProjectMemberList.vue'
 
-// Props
-const props = defineProps<{
-  projectId: string
-  workspaceId: string
-}>()
+const route = useRoute()
+const router = useRouter()
 
-// Emits
-defineEmits<{
-  (e: 'settings'): void
-}>()
-
-// State
+const workspace = ref<Workspace | null>(null)
 const project = ref<ProjectResponse | null>(null)
 const loading = ref(false)
 const activeTab = ref('issues')
+const issueView = ref((route.query.view as string) || 'list')
 
-// Tabs
+const detailIssueId = ref<number | null>(null)
+const detailPanelVisible = ref(false)
+
+function openDetailPanel(issue: any) {
+  detailIssueId.value = issue.id
+  detailPanelVisible.value = true
+}
+
+function handleDetailDelete(issue: any) {
+  handleDeleteIssue(issue)
+}
+
+function handleDetailRefresh() {
+  // 刷新当前视图
+  window.location.reload()
+}
+
+const workspaceId = ref(0)
+const projectId = ref(0)
+
 const tabs = [
-  { id: 'issues', name: '工作项' },
+  { id: 'issues', name: '工作项管理' },
   { id: 'cycles', name: '周期' },
   { id: 'modules', name: '模块' },
-  { id: 'workflow', name: '自动化' },
-  { id: 'custom-fields', name: '自定义字段' },
-  { id: 'estimate-points', name: '估算点' },
-  { id: 'members', name: '成员' }
 ]
 
-// Modals
-const showIssueModal = ref(false)
-const showCycleModal = ref(false)
-const showModuleModal = ref(false)
-const showRuleForm = ref(false)
-const showTemplates = ref(false)
-const showFieldForm = ref(false)
-const showEstimateForm = ref(false)
+function goBack() {
+  router.push(`/workspace/${route.params.slug}`)
+}
 
-// Load project
-onMounted(() => {
-  loadProject()
-})
+function goToSettings() {
+  router.push(`/workspace/${route.params.slug}/settings`)
+}
 
-async function loadProject() {
-  loading.value = true
-  try {
-    project.value = await projectApi.getProject(props.projectId, props.workspaceId)
-  } catch (error) {
-    console.error('Failed to load project:', error)
-  } finally {
-    loading.value = false
+async function handleDeleteIssue(issue: any) {
+  if (confirm(`确定要删除工作项 "${issue.name}" 吗？`)) {
+    try {
+      await issueApi.deleteIssue(issue.id)
+      // 刷新列表
+      window.location.reload()
+    } catch (err) {
+      console.error('Failed to delete issue:', err)
+      alert('删除失败')
+    }
   }
 }
 
-// Selectors
-function selectIssue(issue: any) {
-  console.log('Selected issue:', issue)
-}
+onMounted(async () => {
+  loading.value = true
+  const slug = route.params.slug as string
+  const id = parseInt(route.params.id as string)
 
-function selectCycle(cycle: any) {
-  console.log('Selected cycle:', cycle)
-}
-
-function selectModule(module: any) {
-  console.log('Selected module:', module)
-}
+  try {
+    workspace.value = await workspaceApi.getBySlug(slug)
+    workspaceId.value = workspace.value.id
+    projectId.value = id
+    project.value = await projectApi.getProject(id)
+  } catch (err) {
+    console.error('Failed to load project:', err)
+  } finally {
+    loading.value = false
+  }
+})
 </script>
 
 <style scoped>

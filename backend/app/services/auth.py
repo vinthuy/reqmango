@@ -1,6 +1,5 @@
 from datetime import timedelta
 from typing import Optional
-from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.user import User
@@ -55,5 +54,5 @@ async def login(db: AsyncSession, login_data: LoginRequest) -> Token:
         expires_at=expires_at
     )
 
-async def get_user_by_id(db: AsyncSession, user_id: UUID) -> Optional[User]:
+async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
     return await db.get(User, user_id)

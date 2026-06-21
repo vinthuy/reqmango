@@ -12,19 +12,6 @@ import type {
   IssuePriority
 } from '@/types/issue'
 
-// ==================== Types ====================
-
-/**
- * 工作项列表响应（包含分页信息）
- */
-export interface IssueListResponse {
-  issues: IssueResponse[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
-}
-
 // ==================== Issue CRUD ====================
 
 /**
@@ -43,14 +30,17 @@ export async function createIssue(
 }
 
 /**
- * 列出项目的工作项
+ * 列出项目的工作项（带分页信息）
  */
+export interface IssueListResult {
+  items: IssueResponse[]
+  total: number
+}
+
 export async function listIssues(
   projectId: number,
   workspaceId: number,
-  options?: {
-    page?: number
-    pageSize?: number
+  filters?: {
     state_id?: number
     priority?: IssuePriority
     assignee_id?: number
@@ -59,27 +49,30 @@ export async function listIssues(
     module_id?: number
     search?: string
     is_draft?: boolean
+    limit?: number
+    offset?: number
   }
-): Promise<IssueListResponse> {
+): Promise<IssueListResult> {
   const params = new URLSearchParams()
   params.append('project_id', projectId.toString())
   params.append('workspace_id', workspaceId.toString())
-
-  if (options) {
-    if (options.page) params.append('page', options.page.toString())
-    if (options.pageSize) params.append('page_size', options.pageSize.toString())
-    if (options.state_id) params.append('state_id', options.state_id.toString())
-    if (options.priority) params.append('priority', options.priority)
-    if (options.assignee_id) params.append('assignee_id', options.assignee_id.toString())
-    if (options.parent_id) params.append('parent_id', options.parent_id.toString())
-    if (options.cycle_id) params.append('cycle_id', options.cycle_id.toString())
-    if (options.module_id) params.append('module_id', options.module_id.toString())
-    if (options.search) params.append('search', options.search)
-    if (options.is_draft !== undefined) params.append('is_draft', options.is_draft.toString())
+  
+  if (filters) {
+    if (filters.state_id) params.append('state_id', filters.state_id.toString())
+    if (filters.priority) params.append('priority', filters.priority)
+    if (filters.assignee_id) params.append('assignee_id', filters.assignee_id.toString())
+    if (filters.parent_id) params.append('parent_id', filters.parent_id.toString())
+    if (filters.cycle_id) params.append('cycle_id', filters.cycle_id.toString())
+    if (filters.module_id) params.append('module_id', filters.module_id.toString())
+    if (filters.search) params.append('search', filters.search)
+    if (filters.is_draft !== undefined) params.append('is_draft', filters.is_draft.toString())
+    if (filters.limit) params.append('limit', filters.limit.toString())
+    if (filters.offset) params.append('offset', filters.offset.toString())
   }
-
+  
   const response = await api.get(`/issues/?${params.toString()}`)
-  return response.data
+  const total = parseInt(response.headers['x-total-count'] || '0', 10)
+  return { items: response.data || [], total }
 }
 
 /**

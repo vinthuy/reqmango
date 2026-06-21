@@ -1,7 +1,5 @@
 from datetime import datetime
-from uuid import uuid4, UUID
-from sqlalchemy import DateTime, Boolean, func
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import DateTime, Boolean, BigInteger, Integer, func
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -20,11 +18,15 @@ class SoftDeleteMixin:
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
-class UUIDMixin:
-    id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid4
+class BigIntMixin:
+    """使用 BigInteger 作为主键，与 Go 后端保持一致"""
+    # 使用Integer.with_variant实现跨数据库兼容
+    # SQLite: INTEGER (支持自增)
+    # PostgreSQL: BIGINT
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
     )
 
-class AuditMixin(UUIDMixin, TimestampMixin):
-    created_by_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
-    updated_by_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+class AuditMixin(BigIntMixin, TimestampMixin):
+    created_by_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    updated_by_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

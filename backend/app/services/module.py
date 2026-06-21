@@ -2,7 +2,6 @@
 Module Services - 模块管理业务逻辑层
 """
 from typing import Optional, List, Dict, Any
-from uuid import UUID
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,8 +26,8 @@ from app.core.exceptions import NotFoundException, ValidationException
 async def create_module(
     db: AsyncSession,
     module_data: ModuleCreate,
-    workspace_id: UUID,
-    user_id: UUID
+    workspace_id: int,
+    user_id: int
 ) -> Module:
     """创建模块"""
     # 验证项目存在
@@ -53,7 +52,7 @@ async def create_module(
     return module
 
 
-async def get_module_by_id(db: AsyncSession, module_id: UUID) -> Module:
+async def get_module_by_id(db: AsyncSession, module_id: int) -> Module:
     """获取模块详情"""
     result = await db.execute(
         select(Module)
@@ -72,8 +71,8 @@ async def get_module_by_id(db: AsyncSession, module_id: UUID) -> Module:
 
 async def list_project_modules(
     db: AsyncSession,
-    project_id: UUID,
-    parent_id: Optional[UUID] = None,
+    project_id: int,
+    parent_id: Optional[int] = None,
     include_archived: bool = False,
     limit: int = 50,
     offset: int = 0
@@ -104,9 +103,9 @@ async def list_project_modules(
 
 async def update_module(
     db: AsyncSession,
-    module_id: UUID,
+    module_id: int,
     update_data: ModuleUpdate,
-    user_id: UUID
+    user_id: int
 ) -> Module:
     """更新模块"""
     module = await get_module_by_id(db, module_id)
@@ -125,7 +124,7 @@ async def update_module(
     return module
 
 
-async def delete_module(db: AsyncSession, module_id: UUID):
+async def delete_module(db: AsyncSession, module_id: int):
     """删除模块（软删除）"""
     module = await get_module_by_id(db, module_id)
     module.is_deleted = True
@@ -136,9 +135,9 @@ async def delete_module(db: AsyncSession, module_id: UUID):
 
 async def add_issue_to_module(
     db: AsyncSession,
-    module_id: UUID,
-    issue_id: UUID,
-    user_id: UUID
+    module_id: int,
+    issue_id: int,
+    user_id: int
 ) -> Dict[str, Any]:
     """将工作项添加到模块"""
     # 验证模块存在
@@ -177,17 +176,17 @@ async def add_issue_to_module(
     await db.commit()
     
     return {
-        "module_id": str(module_id),
-        "issue_id": str(issue_id),
+        "module_id": module_id,
+        "issue_id": issue_id,
         "action": "added"
     }
 
 
 async def remove_issue_from_module(
     db: AsyncSession,
-    module_id: UUID,
-    issue_id: UUID,
-    user_id: UUID
+    module_id: int,
+    issue_id: int,
+    user_id: int
 ) -> Dict[str, Any]:
     """从模块移除工作项"""
     # 验证模块存在
@@ -210,16 +209,16 @@ async def remove_issue_from_module(
     await db.commit()
     
     return {
-        "module_id": str(module_id),
-        "issue_id": str(issue_id),
+        "module_id": module_id,
+        "issue_id": issue_id,
         "action": "removed"
     }
 
 
 async def get_module_issues(
     db: AsyncSession,
-    module_id: UUID,
-    state_id: Optional[UUID] = None,
+    module_id: int,
+    state_id: Optional[int] = None,
     priority: Optional[str] = None,
     limit: int = 50,
     offset: int = 0
@@ -260,7 +259,7 @@ async def get_module_issues(
 
 async def get_module_progress(
     db: AsyncSession,
-    module_id: UUID
+    module_id: int
 ) -> Dict[str, Any]:
     """获取模块进度"""
     module = await get_module_by_id(db, module_id)
@@ -309,7 +308,7 @@ async def get_module_progress(
     ]
     
     return {
-        "module_id": str(module_id),
+        "module_id": module_id,
         "module_name": module.name,
         "total_issues": total_issues,
         "completed_issues": completed_issues,
@@ -320,7 +319,7 @@ async def get_module_progress(
 
 async def get_module_statistics(
     db: AsyncSession,
-    module_id: UUID
+    module_id: int
 ) -> Dict[str, Any]:
     """获取模块详细统计"""
     progress = await get_module_progress(db, module_id)
@@ -370,7 +369,7 @@ async def get_module_statistics(
 
 async def get_module_tree(
     db: AsyncSession,
-    project_id: UUID
+    project_id: int
 ) -> List[Dict[str, Any]]:
     """获取模块树形结构"""
     # 获取所有顶级模块（无父模块）
@@ -401,7 +400,7 @@ async def _build_module_tree_node(
     progress = await get_module_progress(db, module.id)
     
     node = {
-        "id": str(module.id),
+        "id": module.id,
         "name": module.name,
         "description": module.description,
         "sequence": module.sequence,
@@ -427,7 +426,7 @@ def build_module_response(module: Module, total_issues: int = 0, completed_issue
     progress = (completed_issues / total_issues * 100) if total_issues > 0 else 0
     
     return {
-        "id": str(module.id),
+        "id": module.id,
         "name": module.name,
         "description": module.description,
         "sequence": module.sequence,
@@ -435,9 +434,9 @@ def build_module_response(module: Module, total_issues: int = 0, completed_issue
         "progress": round(progress, 2),
         "total_issues": total_issues,
         "completed_issues": completed_issues,
-        "project_id": str(module.project_id),
-        "workspace_id": str(module.workspace_id),
-        "parent_id": str(module.parent_id) if module.parent_id else None,
+        "project_id": module.project_id,
+        "workspace_id": module.workspace_id,
+        "parent_id": module.parent_id if module.parent_id else None,
         "created_at": module.created_at,
         "updated_at": module.updated_at,
     }

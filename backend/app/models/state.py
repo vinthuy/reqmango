@@ -1,5 +1,4 @@
-from uuid import UUID
-from sqlalchemy import String, Integer, ForeignKey, Boolean
+from sqlalchemy import String, Integer, ForeignKey, Boolean, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin, SoftDeleteMixin
 
@@ -13,8 +12,8 @@ class State(Base, AuditMixin, SoftDeleteMixin):
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
-    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=False)
+    workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspaces.id"), nullable=False)
     
     project: Mapped["Project"] = relationship(back_populates="states")
     workspace: Mapped["Workspace"] = relationship()

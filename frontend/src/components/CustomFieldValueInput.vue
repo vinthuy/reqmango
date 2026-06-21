@@ -6,7 +6,7 @@
         v-if="field.text_type === 'single'"
         type="text"
         :value="localValue.text_value"
-        @input="updateTextValue($event.target.value)"
+        @input="updateTextValue(($event.target as HTMLInputElement).value)"
         :placeholder="field.placeholder || '请输入' + field.name"
         :disabled="field.is_readonly"
         :required="field.is_required"
@@ -15,7 +15,7 @@
       <textarea
         v-else
         :value="localValue.text_value"
-        @input="updateTextValue($event.target.value)"
+        @input="updateTextValue(($event.target as HTMLTextAreaElement).value)"
         :placeholder="field.placeholder || '请输入' + field.name"
         :disabled="field.is_readonly"
         :required="field.is_required"
@@ -29,7 +29,7 @@
       <input
         type="number"
         :value="localValue.number_value"
-        @input="updateNumberValue($event.target.value)"
+        @input="updateNumberValue(($event.target as HTMLInputElement).value)"
         :min="field.number_min"
         :max="field.number_max"
         :disabled="field.is_readonly"
@@ -48,7 +48,7 @@
       <select
         v-if="!field.is_multi_select"
         :value="localValue.json_value?.[0] || ''"
-        @change="updateDropdownValue($event.target.value)"
+        @change="updateDropdownValue(($event.target as HTMLSelectElement).value)"
         :disabled="field.is_readonly"
         :required="field.is_required"
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -92,7 +92,7 @@
         <input
           type="checkbox"
           :checked="localValue.boolean_value"
-          @change="updateBooleanValue($event.target.checked)"
+          @change="updateBooleanValue(($event.target as HTMLInputElement).checked)"
           :disabled="field.is_readonly"
           class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
         />
@@ -105,7 +105,7 @@
       <input
         type="date"
         :value="localValue.date_value"
-        @input="updateDateValue($event.target.value)"
+        @input="updateDateValue(($event.target as HTMLInputElement).value)"
         :disabled="field.is_readonly"
         :required="field.is_required"
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -117,7 +117,7 @@
       <input
         type="url"
         :value="localValue.url_value"
-        @input="updateUrlValue($event.target.value)"
+        @input="updateUrlValue(($event.target as HTMLInputElement).value)"
         placeholder="https://"
         :disabled="field.is_readonly"
         :required="field.is_required"
@@ -138,7 +138,7 @@
       <select
         v-if="!field.is_multi_select"
         :value="localValue.json_value?.[0] || ''"
-        @change="updateMemberValue($event.target.value)"
+        @change="updateMemberValue(($event.target as HTMLSelectElement).value)"
         :disabled="field.is_readonly"
         :required="field.is_required"
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -174,18 +174,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type {
   CustomFieldLite,
-  IssueCustomFieldValueUpdate,
-  CustomFieldOption
+  IssueCustomFieldValueUpdate
 } from '@/types/custom-field'
 
 // Props
 const props = defineProps<{
   field: CustomFieldLite
   value?: IssueCustomFieldValueUpdate
-  members?: Array<{ id: string; display_name?: string; email: string }>
+  members?: Array<{ id: number; display_name?: string; email: string }>
 }>()
 
 // Emits
@@ -235,11 +234,12 @@ function updateNumberValue(value: string) {
 }
 
 function updateDropdownValue(value: string) {
-  localValue.value.json_value = value ? [value] : []
+  const numValue = parseInt(value, 10)
+  localValue.value.json_value = numValue ? [numValue] : []
   emit('update:value', localValue.value)
 }
 
-function toggleDropdownOption(optionId: string) {
+function toggleDropdownOption(optionId: number) {
   const current = localValue.value.json_value || []
   const index = current.indexOf(optionId)
   if (index > -1) {
@@ -267,11 +267,12 @@ function updateUrlValue(value: string) {
 }
 
 function updateMemberValue(value: string) {
-  localValue.value.json_value = value ? [value] : []
+  const numValue = parseInt(value, 10)
+  localValue.value.json_value = numValue ? [numValue] : []
   emit('update:value', localValue.value)
 }
 
-function toggleMemberOption(memberId: string) {
+function toggleMemberOption(memberId: number) {
   const current = localValue.value.json_value || []
   const index = current.indexOf(memberId)
   if (index > -1) {

@@ -1,6 +1,5 @@
 from datetime import datetime
-from uuid import UUID
-from sqlalchemy import String, Boolean, ForeignKey, DateTime, Integer
+from sqlalchemy import String, Boolean, ForeignKey, DateTime, Integer, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin, SoftDeleteMixin
 
@@ -14,8 +13,8 @@ class Project(Base, AuditMixin, SoftDeleteMixin):
     timezone: Mapped[str] = mapped_column(String(255), default="UTC")
     archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     
-    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
-    default_assignee_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspaces.id"), nullable=False)
+    default_assignee_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True)
     
     workspace: Mapped["Workspace"] = relationship(back_populates="projects")
     members: Mapped[list["ProjectMember"]] = relationship(back_populates="project")
@@ -32,8 +31,8 @@ class Project(Base, AuditMixin, SoftDeleteMixin):
 class ProjectMember(Base, AuditMixin):
     __tablename__ = "project_members"
     
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     role: Mapped[int] = mapped_column(Integer, default=15)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     

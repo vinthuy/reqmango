@@ -2,7 +2,6 @@
 Cycle Services - 周期管理业务逻辑层
 """
 from typing import Optional, List, Dict, Any
-from uuid import UUID
 from datetime import datetime, date
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,8 +35,8 @@ class CycleStatus:
 async def create_cycle(
     db: AsyncSession,
     cycle_data: CycleCreate,
-    workspace_id: UUID,
-    user_id: UUID
+    workspace_id: int,
+    user_id: int
 ) -> Cycle:
     """创建周期"""
     # 验证项目存在
@@ -68,7 +67,7 @@ async def create_cycle(
     return cycle
 
 
-async def get_cycle_by_id(db: AsyncSession, cycle_id: UUID) -> Cycle:
+async def get_cycle_by_id(db: AsyncSession, cycle_id: int) -> Cycle:
     """获取周期详情"""
     result = await db.execute(
         select(Cycle)
@@ -83,7 +82,7 @@ async def get_cycle_by_id(db: AsyncSession, cycle_id: UUID) -> Cycle:
 
 async def list_project_cycles(
     db: AsyncSession,
-    project_id: UUID,
+    project_id: int,
     status: Optional[str] = None,
     include_completed: bool = False,
     limit: int = 50,
@@ -113,9 +112,9 @@ async def list_project_cycles(
 
 async def update_cycle(
     db: AsyncSession,
-    cycle_id: UUID,
+    cycle_id: int,
     update_data: CycleUpdate,
-    user_id: UUID
+    user_id: int
 ) -> Cycle:
     """更新周期"""
     cycle = await get_cycle_by_id(db, cycle_id)
@@ -141,7 +140,7 @@ async def update_cycle(
     return cycle
 
 
-async def delete_cycle(db: AsyncSession, cycle_id: UUID):
+async def delete_cycle(db: AsyncSession, cycle_id: int):
     """删除周期（软删除）"""
     cycle = await get_cycle_by_id(db, cycle_id)
     cycle.is_deleted = True
@@ -152,8 +151,8 @@ async def delete_cycle(db: AsyncSession, cycle_id: UUID):
 
 async def start_cycle(
     db: AsyncSession,
-    cycle_id: UUID,
-    user_id: UUID
+    cycle_id: int,
+    user_id: int
 ) -> Cycle:
     """开始周期"""
     cycle = await get_cycle_by_id(db, cycle_id)
@@ -173,8 +172,8 @@ async def start_cycle(
 
 async def end_cycle(
     db: AsyncSession,
-    cycle_id: UUID,
-    user_id: UUID
+    cycle_id: int,
+    user_id: int
 ) -> Cycle:
     """结束周期"""
     cycle = await get_cycle_by_id(db, cycle_id)
@@ -195,8 +194,8 @@ async def end_cycle(
 
 async def cancel_cycle(
     db: AsyncSession,
-    cycle_id: UUID,
-    user_id: UUID
+    cycle_id: int,
+    user_id: int
 ) -> Cycle:
     """取消周期"""
     cycle = await get_cycle_by_id(db, cycle_id)
@@ -215,9 +214,9 @@ async def cancel_cycle(
 
 async def add_issue_to_cycle(
     db: AsyncSession,
-    cycle_id: UUID,
-    issue_id: UUID,
-    user_id: UUID
+    cycle_id: int,
+    issue_id: int,
+    user_id: int
 ) -> Dict[str, Any]:
     """将工作项添加到周期"""
     # 验证周期存在
@@ -244,17 +243,17 @@ async def add_issue_to_cycle(
     await db.commit()
     
     return {
-        "cycle_id": str(cycle_id),
-        "issue_id": str(issue_id),
+        "cycle_id": cycle_id,
+        "issue_id": issue_id,
         "action": "added"
     }
 
 
 async def remove_issue_from_cycle(
     db: AsyncSession,
-    cycle_id: UUID,
-    issue_id: UUID,
-    user_id: UUID
+    cycle_id: int,
+    issue_id: int,
+    user_id: int
 ) -> Dict[str, Any]:
     """从周期移除工作项"""
     # 验证周期存在
@@ -277,16 +276,16 @@ async def remove_issue_from_cycle(
     await db.commit()
     
     return {
-        "cycle_id": str(cycle_id),
-        "issue_id": str(issue_id),
+        "cycle_id": cycle_id,
+        "issue_id": issue_id,
         "action": "removed"
     }
 
 
 async def get_cycle_issues(
     db: AsyncSession,
-    cycle_id: UUID,
-    state_id: Optional[UUID] = None,
+    cycle_id: int,
+    state_id: Optional[int] = None,
     priority: Optional[str] = None,
     limit: int = 50,
     offset: int = 0
@@ -327,7 +326,7 @@ async def get_cycle_issues(
 
 async def get_cycle_progress(
     db: AsyncSession,
-    cycle_id: UUID
+    cycle_id: int
 ) -> Dict[str, Any]:
     """获取周期进度"""
     cycle = await get_cycle_by_id(db, cycle_id)
@@ -372,7 +371,7 @@ async def get_cycle_progress(
     ]
     
     return {
-        "cycle_id": str(cycle_id),
+        "cycle_id": cycle_id,
         "cycle_name": cycle.name,
         "total_issues": total_issues,
         "completed_issues": completed_issues,
@@ -383,7 +382,7 @@ async def get_cycle_progress(
 
 async def get_cycle_statistics(
     db: AsyncSession,
-    cycle_id: UUID
+    cycle_id: int
 ) -> Dict[str, Any]:
     """获取周期详细统计"""
     progress = await get_cycle_progress(db, cycle_id)
@@ -433,7 +432,7 @@ async def get_cycle_statistics(
 
 async def get_burndown_data(
     db: AsyncSession,
-    cycle_id: UUID
+    cycle_id: int
 ) -> Dict[str, Any]:
     """获取燃尽图数据"""
     cycle = await get_cycle_by_id(db, cycle_id)
@@ -476,7 +475,7 @@ async def get_burndown_data(
     actual_completed = completed_result.scalar_one_or_none() or 0
     
     return {
-        "cycle_id": str(cycle_id),
+        "cycle_id": cycle_id,
         "cycle_name": cycle.name,
         "start_date": str(cycle.start_date),
         "end_date": str(cycle.end_date),
@@ -498,7 +497,7 @@ def build_cycle_response(cycle: Cycle, total_issues: int = 0, completed_issues: 
     progress = (completed_issues / total_issues * 100) if total_issues > 0 else 0
     
     return {
-        "id": str(cycle.id),
+        "id": cycle.id,
         "name": cycle.name,
         "description": cycle.description,
         "start_date": cycle.start_date,
@@ -507,8 +506,8 @@ def build_cycle_response(cycle: Cycle, total_issues: int = 0, completed_issues: 
         "progress": round(progress, 2),
         "total_issues": total_issues,
         "completed_issues": completed_issues,
-        "project_id": str(cycle.project_id),
-        "workspace_id": str(cycle.workspace_id),
+        "project_id": cycle.project_id,
+        "workspace_id": cycle.workspace_id,
         "created_at": cycle.created_at,
         "updated_at": cycle.updated_at,
     }

@@ -1,6 +1,5 @@
 from datetime import datetime, date
-from uuid import UUID
-from sqlalchemy import String, ForeignKey, Boolean, Integer, Date, DateTime
+from sqlalchemy import String, ForeignKey, Boolean, Integer, Date, DateTime, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin, SoftDeleteMixin
 
@@ -14,8 +13,8 @@ class Cycle(Base, AuditMixin, SoftDeleteMixin):
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
-    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=False)
+    workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspaces.id"), nullable=False)
     
     project: Mapped["Project"] = relationship(back_populates="cycles")
     workspace: Mapped["Workspace"] = relationship()

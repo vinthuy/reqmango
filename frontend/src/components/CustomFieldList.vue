@@ -77,7 +77,7 @@
                     :key="index"
                     class="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded"
                   >
-                    {{ option.label }}
+                    {{ option.value }}
                   </span>
                   <span v-if="field.options.length > 5" class="text-xs text-gray-400">
                     +{{ field.options.length - 5 }} 更多
@@ -117,21 +117,21 @@
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import customFieldApi from '@/api/custom-field'
-import type { CustomField, CustomFieldResponse } from '@/types/custom-field'
+import type { CustomField } from '@/types/custom-field'
 
 // Props
 const props = defineProps<{
-  projectId: string
+  projectId: number
 }>()
 
 // Emits
 defineEmits<{
   (e: 'create'): void
-  (e: 'edit', field: CustomFieldResponse): void
+  (e: 'edit', field: CustomField): void
 }>()
 
 // State
-const fields = ref<CustomFieldResponse[]>([])
+const fields = ref<CustomField[]>([])
 const loading = ref(false)
 
 // Load fields
@@ -151,7 +151,7 @@ async function loadFields() {
 }
 
 // Delete field
-async function deleteField(field: CustomFieldResponse) {
+async function deleteField(field: CustomField) {
   if (!confirm(`确定要删除字段 "${field.name}" 吗？此操作不可恢复。`)) return
 
   try {

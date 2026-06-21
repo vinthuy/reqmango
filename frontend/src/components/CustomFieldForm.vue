@@ -302,12 +302,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { CustomFieldCreate, CustomFieldUpdate, CustomFieldResponse } from '@/types/custom-field'
+import type { CustomFieldCreate, CustomFieldUpdate, CustomField } from '@/types/custom-field'
 
 // Props
 const props = defineProps<{
-  projectId: string
-  field?: CustomFieldResponse
+  projectId: number
+  field?: CustomField
 }>()
 
 // Emits
@@ -326,7 +326,7 @@ const form = ref<{
   field_type: string
   is_required: boolean
   is_unique: boolean
-  options: Array<{ label: string; value: string; color: string }>
+  options: Array<{ id?: number; label: string; value: string; color: string; sequence?: number; is_default?: boolean; is_active?: boolean }>
   default_value: any
   min_value?: number
   max_value?: number
@@ -366,7 +366,15 @@ if (props.field) {
     field_type: props.field.field_type,
     is_required: props.field.is_required || false,
     is_unique: props.field.is_unique || false,
-    options: props.field.options ? [...props.field.options] : [],
+    options: props.field.options ? props.field.options.map(opt => ({
+      id: opt.id,
+      label: opt.value,
+      value: opt.value,
+      color: opt.color || '#6366f1',
+      sequence: opt.sequence,
+      is_default: opt.is_default,
+      is_active: opt.is_active
+    })) : [],
     default_value: props.field.default_value
   }
 }

@@ -3,7 +3,6 @@ Workflow API Endpoints - 工作流和自动化接口
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 from typing import Optional, List
 
 from app.db.session import get_db
@@ -30,8 +29,8 @@ router = APIRouter()
 
 @router.post("/transitions", response_model=StateTransitionResponse, status_code=201)
 async def create_state_transition(
-    project_id: UUID,
-    workspace_id: UUID,
+    project_id: int,
+    workspace_id: int,
     transition_data: StateTransitionCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -54,8 +53,8 @@ async def create_state_transition(
 
 @router.get("/transitions", response_model=List[StateTransitionResponse])
 async def list_state_transitions(
-    project_id: UUID,
-    source_state_id: Optional[UUID] = None,
+    project_id: int,
+    source_state_id: Optional[int] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -72,7 +71,7 @@ async def list_state_transitions(
 
 @router.get("/transitions/{transition_id}", response_model=StateTransitionResponse)
 async def get_state_transition(
-    transition_id: UUID,
+    transition_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -85,7 +84,7 @@ async def get_state_transition(
 
 @router.put("/transitions/{transition_id}", response_model=StateTransitionResponse)
 async def update_state_transition(
-    transition_id: UUID,
+    transition_id: int,
     update_data: StateTransitionUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -103,7 +102,7 @@ async def update_state_transition(
 
 @router.delete("/transitions/{transition_id}", status_code=204)
 async def delete_state_transition(
-    transition_id: UUID,
+    transition_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -116,10 +115,10 @@ async def delete_state_transition(
 
 @router.get("/transitions/can-transition", response_model=bool)
 async def check_can_transition(
-    project_id: UUID,
-    source_state_id: UUID,
-    target_state_id: UUID,
-    issue_type_id: Optional[UUID] = None,
+    project_id: int,
+    source_state_id: int,
+    target_state_id: int,
+    issue_type_id: Optional[int] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -140,8 +139,8 @@ async def check_can_transition(
 
 @router.post("/automations", response_model=AutomationRuleResponse, status_code=201)
 async def create_automation_rule(
-    project_id: UUID,
-    workspace_id: UUID,
+    project_id: int,
+    workspace_id: int,
     rule_data: AutomationRuleCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -164,7 +163,7 @@ async def create_automation_rule(
 
 @router.get("/automations", response_model=List[AutomationRuleResponse])
 async def list_automation_rules(
-    project_id: UUID,
+    project_id: int,
     enabled_only: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -182,7 +181,7 @@ async def list_automation_rules(
 
 @router.get("/automations/lite", response_model=List[AutomationRuleLite])
 async def list_automation_rules_lite(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -198,7 +197,7 @@ async def list_automation_rules_lite(
 
 @router.get("/automations/{rule_id}", response_model=AutomationRuleResponse)
 async def get_automation_rule(
-    rule_id: UUID,
+    rule_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -211,7 +210,7 @@ async def get_automation_rule(
 
 @router.put("/automations/{rule_id}", response_model=AutomationRuleResponse)
 async def update_automation_rule(
-    rule_id: UUID,
+    rule_id: int,
     update_data: AutomationRuleUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -229,7 +228,7 @@ async def update_automation_rule(
 
 @router.delete("/automations/{rule_id}", status_code=204)
 async def delete_automation_rule(
-    rule_id: UUID,
+    rule_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -242,7 +241,7 @@ async def delete_automation_rule(
 
 @router.post("/automations/{rule_id}/toggle", response_model=AutomationRuleResponse)
 async def toggle_automation_rule(
-    rule_id: UUID,
+    rule_id: int,
     enabled: bool,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -262,7 +261,7 @@ async def toggle_automation_rule(
 
 @router.get("/automations/{rule_id}/logs", response_model=List[AutomationExecutionLogResponse])
 async def list_automation_logs(
-    rule_id: UUID,
+    rule_id: int,
     limit: int = Query(default=50, le=200),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -298,9 +297,9 @@ async def list_automation_templates(
 
 @router.post("/templates/{template_id}/apply", response_model=AutomationRuleResponse)
 async def apply_automation_template(
-    template_id: UUID,
-    project_id: UUID,
-    workspace_id: UUID,
+    template_id: int,
+    project_id: int,
+    workspace_id: int,
     name_override: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -323,10 +322,10 @@ async def apply_automation_template(
 
 @router.post("/validate-transition")
 async def validate_transition(
-    project_id: UUID,
-    source_state_id: UUID,
-    target_state_id: UUID,
-    issue_type_id: Optional[UUID] = None,
+    project_id: int,
+    source_state_id: int,
+    target_state_id: int,
+    issue_type_id: Optional[int] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

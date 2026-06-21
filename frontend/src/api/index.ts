@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { useAuthStore } from '@/stores/auth'
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -8,20 +7,34 @@ const api = axios.create({
   }
 })
 
+// 手动处理重定向以保留Authorization头
 api.interceptors.request.use((config) => {
-  const authStore = useAuthStore()
-  if (authStore.token) {
-    config.headers.Authorization = `Bearer ${authStore.token}`
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
 
+// 处理307重定向（Gin trailing slash redirect）
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config
+    if (error.response?.status === 307 && !originalRequest._retry) {
+      originalRequest._retry = true
+      // 跟随 Location 头重定向，保留方法 & body
+      const location = error.response.headers.location
+      if (location) {
+        // Gin 返回的 Location 是绝对路径如 /api/v1/workspaces/
+        // axios baseURL 是 /api/v1，所以只需要路径中 baseURL 之后的部分
+        const baseURL = '/api/v1'
+        originalRequest.url = location.startsWith(baseURL) ? location.slice(baseURL.length) : location
+      }
+      return api(originalRequest)
+    }
     if (error.response?.status === 401) {
-      const authStore = useAuthStore()
-      authStore.logout()
+      localStorage.removeItem('token')
       window.location.href = '/login'
     }
     return Promise.reject(error)

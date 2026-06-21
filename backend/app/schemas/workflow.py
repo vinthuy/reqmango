@@ -3,7 +3,6 @@ Workflow Schemas - 工作流相关数据验证模型
 """
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
-from uuid import UUID
 from enum import Enum
 
 from .base import AuditSchema, SoftDeleteSchema
@@ -72,25 +71,25 @@ class StateTransitionBase(BaseModel):
 
 
 class StateTransitionCreate(StateTransitionBase):
-    source_state_id: UUID
-    target_state_id: UUID
-    issue_type_id: Optional[UUID] = None
+    source_state_id: int
+    target_state_id: int
+    issue_type_id: Optional[int] = None
 
 
 class StateTransitionUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = Field(None, max_length=500)
     is_auto: Optional[bool] = None
-    issue_type_id: Optional[UUID] = None
+    issue_type_id: Optional[int] = None
 
 
 class StateTransitionResponse(AuditSchema, SoftDeleteSchema, StateTransitionBase):
-    id: UUID
-    source_state_id: UUID
-    target_state_id: UUID
-    issue_type_id: Optional[UUID] = None
-    project_id: UUID
-    workspace_id: UUID
+    id: int
+    source_state_id: int
+    target_state_id: int
+    issue_type_id: Optional[int] = None
+    project_id: int
+    workspace_id: int
     
     class Config:
         from_attributes = True
@@ -122,7 +121,7 @@ class ActionSchema(BaseModel):
     field: Optional[str] = None  # 如 "assignee", "priority"
     value: Optional[Any] = None
     label: Optional[str] = None  # 用于添加/移除标签
-    state_id: Optional[UUID] = None  # 用于改变状态
+    state_id: Optional[int] = None  # 用于改变状态
     # 通知动作
     message: Optional[str] = None
     subject: Optional[str] = None
@@ -136,7 +135,7 @@ class AutomationRuleBase(BaseModel):
 
 
 class AutomationRuleCreate(AutomationRuleBase):
-    project_id: UUID
+    project_id: int
     trigger: Dict[str, Any]  # 使用 dict 而非 TriggerSchema，方便扩展
     conditions: List[Dict[str, Any]] = Field(default=[])
     actions: List[Dict[str, Any]] = Field(default=[])
@@ -152,14 +151,14 @@ class AutomationRuleUpdate(BaseModel):
 
 
 class AutomationRuleResponse(AuditSchema, SoftDeleteSchema, AutomationRuleBase):
-    id: UUID
+    id: int
     trigger: Dict[str, Any]
     conditions: List[Dict[str, Any]]
     actions: List[Dict[str, Any]]
     execution_count: int
     last_executed_at: Optional[str] = None
-    project_id: UUID
-    workspace_id: UUID
+    project_id: int
+    workspace_id: int
     
     class Config:
         from_attributes = True
@@ -167,7 +166,7 @@ class AutomationRuleResponse(AuditSchema, SoftDeleteSchema, AutomationRuleBase):
 
 class AutomationRuleLite(BaseModel):
     """轻量级自动化规则响应"""
-    id: UUID
+    id: int
     name: str
     description: Optional[str] = None
     is_enabled: bool
@@ -181,11 +180,11 @@ class AutomationRuleLite(BaseModel):
 # ==================== Automation Execution Log Schema ====================
 
 class AutomationExecutionLogResponse(BaseModel):
-    id: UUID
-    rule_id: UUID
+    id: int
+    rule_id: int
     status: str  # success, failed, skipped
     trigger_event: str
-    triggered_issue_id: Optional[UUID] = None
+    triggered_issue_id: Optional[int] = None
     execution_details: Dict[str, Any]
     error_message: Optional[str] = None
     execution_time_ms: Optional[int] = None
@@ -198,7 +197,7 @@ class AutomationExecutionLogResponse(BaseModel):
 # ==================== Automation Template Schema ====================
 
 class AutomationTemplateResponse(BaseModel):
-    id: UUID
+    id: int
     name: str
     description: Optional[str] = None
     category: str

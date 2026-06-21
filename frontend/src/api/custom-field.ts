@@ -21,7 +21,7 @@ import type {
  * 创建自定义字段
  */
 export async function createCustomField(
-  workspaceId: string,
+  workspaceId: number,
   data: CustomFieldCreate
 ): Promise<CustomField> {
   const response = await api.post(`/custom-fields?workspace_id=${workspaceId}`, data)
@@ -32,15 +32,15 @@ export async function createCustomField(
  * 列出自定义字段
  */
 export async function listCustomFields(
-  workspaceId: string,
-  projectId?: string,
-  issueTypeId?: string,
+  workspaceId: number,
+  projectId?: number,
+  issueTypeId?: number,
   includeInactive?: boolean
 ): Promise<CustomField[]> {
   const params = new URLSearchParams()
-  params.append('workspace_id', workspaceId)
-  if (projectId) params.append('project_id', projectId)
-  if (issueTypeId) params.append('issue_type_id', issueTypeId)
+  params.append('workspace_id', workspaceId.toString())
+  if (projectId) params.append('project_id', projectId.toString())
+  if (issueTypeId) params.append('issue_type_id', issueTypeId.toString())
   if (includeInactive) params.append('include_inactive', 'true')
   
   const response = await api.get(`/custom-fields?${params.toString()}`)
@@ -50,7 +50,7 @@ export async function listCustomFields(
 /**
  * 获取自定义字段详情
  */
-export async function getCustomField(fieldId: string): Promise<CustomField> {
+export async function getCustomField(fieldId: number): Promise<CustomField> {
   const response = await api.get(`/custom-fields/${fieldId}`)
   return response.data
 }
@@ -59,7 +59,7 @@ export async function getCustomField(fieldId: string): Promise<CustomField> {
  * 更新自定义字段
  */
 export async function updateCustomField(
-  fieldId: string,
+  fieldId: number,
   data: CustomFieldUpdate
 ): Promise<CustomField> {
   const response = await api.put(`/custom-fields/${fieldId}`, data)
@@ -69,7 +69,7 @@ export async function updateCustomField(
 /**
  * 删除自定义字段
  */
-export async function deleteCustomField(fieldId: string): Promise<void> {
+export async function deleteCustomField(fieldId: number): Promise<void> {
   await api.delete(`/custom-fields/${fieldId}`)
 }
 
@@ -79,7 +79,7 @@ export async function deleteCustomField(fieldId: string): Promise<void> {
  * 创建字段选项
  */
 export async function createFieldOption(
-  fieldId: string,
+  fieldId: number,
   data: CustomFieldOptionCreate
 ): Promise<CustomFieldOption> {
   const response = await api.post(`/custom-fields/${fieldId}/options`, data)
@@ -90,8 +90,8 @@ export async function createFieldOption(
  * 更新字段选项
  */
 export async function updateFieldOption(
-  fieldId: string,
-  optionId: string,
+  fieldId: number,
+  optionId: number,
   data: {
     value?: string
     color?: string
@@ -115,8 +115,8 @@ export async function updateFieldOption(
  * 删除字段选项
  */
 export async function deleteFieldOption(
-  fieldId: string,
-  optionId: string
+  fieldId: number,
+  optionId: number
 ): Promise<void> {
   await api.delete(`/custom-fields/${fieldId}/options/${optionId}`)
 }
@@ -127,7 +127,7 @@ export async function deleteFieldOption(
  * 设置工作项的自定义字段值
  */
 export async function setIssueCustomFieldValue(
-  issueId: string,
+  issueId: number,
   data: IssueCustomFieldValueCreate
 ): Promise<IssueCustomFieldValue> {
   const response = await api.post(`/custom-fields/issues/${issueId}/values`, data)
@@ -138,7 +138,7 @@ export async function setIssueCustomFieldValue(
  * 获取工作项的所有自定义字段值
  */
 export async function listIssueCustomFieldValues(
-  issueId: string
+  issueId: number
 ): Promise<IssueCustomFieldValue[]> {
   const response = await api.get(`/custom-fields/issues/${issueId}/values`)
   return response.data
@@ -148,8 +148,8 @@ export async function listIssueCustomFieldValues(
  * 更新工作项的特定自定义字段值
  */
 export async function updateIssueCustomFieldValue(
-  issueId: string,
-  fieldId: string,
+  issueId: number,
+  fieldId: number,
   data: IssueCustomFieldValueUpdate
 ): Promise<IssueCustomFieldValue> {
   const response = await api.put(`/custom-fields/issues/${issueId}/values/${fieldId}`, data)
@@ -160,8 +160,8 @@ export async function updateIssueCustomFieldValue(
  * 删除工作项的自定义字段值
  */
 export async function deleteIssueCustomFieldValue(
-  issueId: string,
-  fieldId: string
+  issueId: number,
+  fieldId: number
 ): Promise<void> {
   await api.delete(`/custom-fields/issues/${issueId}/values/${fieldId}`)
 }
@@ -170,7 +170,7 @@ export async function deleteIssueCustomFieldValue(
  * 批量更新工作项的自定义字段值
  */
 export async function bulkUpdateIssueCustomFieldValues(
-  issueId: string,
+  issueId: number,
   values: IssueCustomFieldValueUpdate[]
 ): Promise<IssueCustomFieldValue[]> {
   const data: BulkCustomFieldValueUpdate = {
@@ -185,7 +185,7 @@ export async function bulkUpdateIssueCustomFieldValues(
  * 获取工作项的所有自定义字段定义及其值
  */
 export async function getIssueCustomFieldsWithDefinitions(
-  issueId: string
+  issueId: number
 ): Promise<IssueCustomFieldsResponse> {
   const response = await api.get(`/custom-fields/issues/${issueId}/fields`)
   return response.data

@@ -1,5 +1,4 @@
 from typing import Optional, List, Dict, Any
-from uuid import UUID
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -18,8 +17,8 @@ from . import project_settings
 async def create_project(
     db: AsyncSession,
     project_data: ProjectCreate,
-    workspace_id: UUID,
-    user_id: UUID
+    workspace_id: int,
+    user_id: int
 ) -> Project:
     """创建项目"""
     workspace = await db.get(Workspace, workspace_id)
@@ -72,7 +71,7 @@ async def create_project(
 
 async def get_project_by_id(
     db: AsyncSession,
-    project_id: UUID
+    project_id: int
 ) -> Project:
     """获取项目详情"""
     result = await db.execute(
@@ -88,7 +87,7 @@ async def get_project_by_id(
 
 async def list_workspace_projects(
     db: AsyncSession,
-    workspace_id: UUID,
+    workspace_id: int,
     include_archived: bool = False,
     limit: int = 50,
     offset: int = 0
@@ -111,7 +110,7 @@ async def list_workspace_projects(
 
 async def update_project(
     db: AsyncSession,
-    project_id: UUID,
+    project_id: int,
     update_data: ProjectUpdate
 ) -> Project:
     """更新项目"""
@@ -134,14 +133,14 @@ async def update_project(
     return project
 
 
-async def delete_project(db: AsyncSession, project_id: UUID):
+async def delete_project(db: AsyncSession, project_id: int):
     """删除项目（软删除）"""
     project = await get_project_by_id(db, project_id)
     project.is_deleted = True
     await db.commit()
 
 
-async def archive_project(db: AsyncSession, project_id: UUID) -> Project:
+async def archive_project(db: AsyncSession, project_id: int) -> Project:
     """归档项目"""
     project = await get_project_by_id(db, project_id)
     project.archived_at = datetime.utcnow()
@@ -150,7 +149,7 @@ async def archive_project(db: AsyncSession, project_id: UUID) -> Project:
     return project
 
 
-async def restore_project(db: AsyncSession, project_id: UUID) -> Project:
+async def restore_project(db: AsyncSession, project_id: int) -> Project:
     """恢复项目"""
     project = await get_project_by_id(db, project_id)
     project.archived_at = None
@@ -164,7 +163,7 @@ async def restore_project(db: AsyncSession, project_id: UUID) -> Project:
 
 async def list_project_members(
     db: AsyncSession,
-    project_id: UUID,
+    project_id: int,
     only_active: bool = True
 ) -> List[ProjectMember]:
     """列出项目成员"""
@@ -183,9 +182,9 @@ async def list_project_members(
 
 async def add_project_member(
     db: AsyncSession,
-    project_id: UUID,
-    user_id: UUID,
-    added_by: UUID,
+    project_id: int,
+    user_id: int,
+    added_by: int,
     role: int = 15
 ) -> ProjectMember:
     """添加项目成员"""
@@ -217,10 +216,10 @@ async def add_project_member(
 
 async def update_project_member(
     db: AsyncSession,
-    project_id: UUID,
-    user_id: UUID,
+    project_id: int,
+    user_id: int,
     role: int,
-    updated_by: UUID
+    updated_by: int
 ) -> ProjectMember:
     """更新项目成员角色"""
     result = await db.execute(
@@ -242,8 +241,8 @@ async def update_project_member(
 
 async def remove_project_member(
     db: AsyncSession,
-    project_id: UUID,
-    user_id: UUID
+    project_id: int,
+    user_id: int
 ) -> Dict[str, Any]:
     """移除项目成员"""
     result = await db.execute(
@@ -259,13 +258,13 @@ async def remove_project_member(
     await db.delete(member)
     await db.commit()
     
-    return {"project_id": str(project_id), "user_id": str(user_id), "action": "removed"}
+    return {"project_id": project_id, "user_id": user_id, "action": "removed"}
 
 
 async def deactivate_project_member(
     db: AsyncSession,
-    project_id: UUID,
-    user_id: UUID
+    project_id: int,
+    user_id: int
 ) -> ProjectMember:
     """停用项目成员"""
     result = await db.execute(
@@ -287,8 +286,8 @@ async def deactivate_project_member(
 
 async def reactivate_project_member(
     db: AsyncSession,
-    project_id: UUID,
-    user_id: UUID
+    project_id: int,
+    user_id: int
 ) -> ProjectMember:
     """重新激活项目成员"""
     result = await db.execute(
@@ -312,7 +311,7 @@ async def reactivate_project_member(
 
 async def get_project_statistics(
     db: AsyncSession,
-    project_id: UUID
+    project_id: int
 ) -> Dict[str, Any]:
     """获取项目统计"""
     project = await get_project_by_id(db, project_id)
@@ -364,7 +363,7 @@ async def get_project_statistics(
     active_members = members_result.scalar_one_or_none() or 0
     
     return {
-        "project_id": str(project_id),
+        "project_id": project_id,
         "project_name": project.name,
         "total_issues": total_issues,
         "completed_issues": completed_issues,
@@ -379,7 +378,7 @@ async def get_project_statistics(
 
 async def get_project_issues_summary(
     db: AsyncSession,
-    project_id: UUID
+    project_id: int
 ) -> Dict[str, Any]:
     """获取项目工作项摘要"""
     project = await get_project_by_id(db, project_id)
@@ -433,7 +432,7 @@ async def get_project_issues_summary(
     cancelled_count = cancelled_result.scalar_one_or_none() or 0
     
     return {
-        "project_id": str(project_id),
+        "project_id": project_id,
         "project_name": project.name,
         "issues": {
             "todo": todo_count,
@@ -476,23 +475,23 @@ async def build_project_response(db: AsyncSession, project: Project) -> Dict[str
         user = await db.get(User, project.default_assignee_id)
         if user:
             default_assignee = {
-                "id": str(user.id),
+                "id": user.id,
                 "username": user.username,
                 "display_name": user.display_name,
                 "avatar": user.avatar
             }
     
     return {
-        "id": str(project.id),
+        "id": project.id,
         "name": project.name,
         "identifier": project.identifier,
         "description": project.description,
         "is_public": project.is_public,
         "timezone": project.timezone,
         "archived_at": project.archived_at,
-        "workspace_id": str(project.workspace_id),
+        "workspace_id": project.workspace_id,
         "workspace": {
-            "id": str(workspace.id),
+            "id": workspace.id,
             "name": workspace.name,
             "slug": workspace.slug
         } if workspace else None,
@@ -505,6 +504,6 @@ async def build_project_response(db: AsyncSession, project: Project) -> Dict[str
         "updated_at": project.updated_at,
         "deleted_at": project.deleted_at,
         "is_deleted": project.is_deleted,
-        "created_by_id": str(project.created_by_id) if project.created_by_id else None,
-        "updated_by_id": str(project.updated_by_id) if project.updated_by_id else None,
+        "created_by_id": project.created_by_id,
+        "updated_by_id": project.updated_by_id,
     }

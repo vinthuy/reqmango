@@ -3,7 +3,6 @@ Project Settings API Endpoints - 项目设置管理接口（IssueType、State、
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 from typing import Optional, List
 
 from app.db.session import get_db
@@ -33,8 +32,8 @@ router = APIRouter()
 
 @router.post("/issue-types", response_model=IssueTypeResponse, status_code=201)
 async def create_issue_type(
-    project_id: UUID,
-    workspace_id: UUID,
+    project_id: int,
+    workspace_id: int,
     type_data: IssueTypeCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -58,7 +57,7 @@ async def create_issue_type(
 
 @router.get("/issue-types", response_model=List[IssueTypeResponse])
 async def list_issue_types(
-    project_id: UUID,
+    project_id: int,
     include_inactive: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -76,7 +75,7 @@ async def list_issue_types(
 
 @router.get("/issue-types/{type_id}", response_model=IssueTypeResponse)
 async def get_issue_type(
-    type_id: UUID,
+    type_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -89,7 +88,7 @@ async def get_issue_type(
 
 @router.put("/issue-types/{type_id}", response_model=IssueTypeResponse)
 async def update_issue_type(
-    type_id: UUID,
+    type_id: int,
     update_data: IssueTypeUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -107,7 +106,7 @@ async def update_issue_type(
 
 @router.delete("/issue-types/{type_id}", status_code=204)
 async def delete_issue_type(
-    type_id: UUID,
+    type_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -120,8 +119,8 @@ async def delete_issue_type(
 
 @router.post("/issue-types/default", response_model=List[IssueTypeResponse], status_code=201)
 async def create_default_issue_types(
-    project_id: UUID,
-    workspace_id: UUID,
+    project_id: int,
+    workspace_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -143,8 +142,8 @@ async def create_default_issue_types(
 
 @router.post("/states", response_model=StateResponse, status_code=201)
 async def create_state(
-    project_id: UUID,
-    workspace_id: UUID,
+    project_id: int,
+    workspace_id: int,
     state_data: StateCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -167,7 +166,7 @@ async def create_state(
 
 @router.get("/states", response_model=List[StateResponse])
 async def list_states(
-    project_id: UUID,
+    project_id: int,
     include_inactive: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -185,7 +184,7 @@ async def list_states(
 
 @router.get("/states/{state_id}", response_model=StateResponse)
 async def get_state(
-    state_id: UUID,
+    state_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -198,7 +197,7 @@ async def get_state(
 
 @router.put("/states/{state_id}", response_model=StateResponse)
 async def update_state(
-    state_id: UUID,
+    state_id: int,
     update_data: StateUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -216,7 +215,7 @@ async def update_state(
 
 @router.delete("/states/{state_id}", status_code=204)
 async def delete_state(
-    state_id: UUID,
+    state_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -229,8 +228,8 @@ async def delete_state(
 
 @router.post("/states/default", response_model=List[StateResponse], status_code=201)
 async def create_default_states(
-    project_id: UUID,
-    workspace_id: UUID,
+    project_id: int,
+    workspace_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -252,8 +251,8 @@ async def create_default_states(
 
 @router.post("/labels", response_model=LabelResponse, status_code=201)
 async def create_label(
-    project_id: UUID,
-    workspace_id: UUID,
+    project_id: int,
+    workspace_id: int,
     label_data: LabelCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -276,7 +275,7 @@ async def create_label(
 
 @router.get("/labels", response_model=List[LabelResponse])
 async def list_labels(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -289,7 +288,7 @@ async def list_labels(
 
 @router.get("/labels/{label_id}", response_model=LabelResponse)
 async def get_label(
-    label_id: UUID,
+    label_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -302,7 +301,7 @@ async def get_label(
 
 @router.put("/labels/{label_id}", response_model=LabelResponse)
 async def update_label(
-    label_id: UUID,
+    label_id: int,
     update_data: LabelUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -320,7 +319,7 @@ async def update_label(
 
 @router.delete("/labels/{label_id}", status_code=204)
 async def delete_label(
-    label_id: UUID,
+    label_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

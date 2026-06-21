@@ -23,7 +23,7 @@ export enum TextTypeEnum {
 // ==================== Custom Field Option ====================
 
 export interface CustomFieldOption {
-  id: string
+  id: number
   value: string
   color?: string
   sequence: number
@@ -50,13 +50,14 @@ export interface CustomFieldOptionUpdate {
 // ==================== Custom Field ====================
 
 export interface CustomField {
-  id: string
+  id: number
   name: string
   description?: string
   field_type: CustomFieldTypeEnum
   is_required: boolean
   is_readonly: boolean
   is_active: boolean
+  is_unique?: boolean
   
   // 文本类型属性
   text_type?: TextTypeEnum
@@ -76,10 +77,13 @@ export interface CustomField {
   // 序列号
   sequence: number
   
+  // 默认值
+  default_value?: any
+  
   // 关联关系
-  workspace_id: string
-  project_id?: string
-  issue_type_id?: string
+  workspace_id: number
+  project_id?: number
+  issue_type_id?: number
   
   // 选项列表
   options: CustomFieldOption[]
@@ -96,6 +100,12 @@ export interface CustomFieldCreate {
   is_required?: boolean
   is_readonly?: boolean
   is_active?: boolean
+  is_unique?: boolean
+  default_value?: any
+  min_value?: number
+  max_value?: number
+  min_length?: number
+  max_length?: number
   
   text_type?: TextTypeEnum
   placeholder?: string
@@ -110,8 +120,8 @@ export interface CustomFieldCreate {
   
   sequence?: number
   
-  project_id?: string
-  issue_type_id?: string
+  project_id?: number
+  issue_type_id?: number
   
   options?: CustomFieldOptionCreate[]
 }
@@ -122,6 +132,12 @@ export interface CustomFieldUpdate {
   is_required?: boolean
   is_readonly?: boolean
   is_active?: boolean
+  is_unique?: boolean
+  default_value?: any
+  min_value?: number
+  max_value?: number
+  min_length?: number
+  max_length?: number
   
   text_type?: TextTypeEnum
   placeholder?: string
@@ -138,20 +154,25 @@ export interface CustomFieldUpdate {
 }
 
 export interface CustomFieldLite {
-  id: string
+  id: number
   name: string
   field_type: string
   is_required: boolean
   is_readonly: boolean
   options: CustomFieldOption[]
+  text_type?: string
+  placeholder?: string
+  number_min?: number
+  number_max?: number
+  is_multi_select?: boolean
 }
 
 // ==================== Issue Custom Field Value ====================
 
 export interface IssueCustomFieldValue {
-  id: string
-  issue_id: string
-  field_id: string
+  id: number
+  issue_id: number
+  field_id: number
   field_name: string
   field_type: string
   
@@ -164,18 +185,18 @@ export interface IssueCustomFieldValue {
   boolean_value?: boolean
   date_value?: string
   url_value?: string
-  json_value?: string[]
+  json_value?: number[]
 }
 
 export interface IssueCustomFieldValueCreate {
-  issue_id: string
-  field_id: string
+  issue_id: number
+  field_id: number
   text_value?: string
   number_value?: number
   boolean_value?: boolean
   date_value?: string
   url_value?: string
-  json_value?: string[]
+  json_value?: number[]
 }
 
 export interface IssueCustomFieldValueUpdate {
@@ -184,11 +205,11 @@ export interface IssueCustomFieldValueUpdate {
   boolean_value?: boolean
   date_value?: string
   url_value?: string
-  json_value?: string[]
+  json_value?: number[]
 }
 
 export interface BulkCustomFieldValueUpdate {
-  issue_id: string
+  issue_id: number
   values: IssueCustomFieldValueUpdate[]
 }
 
@@ -200,21 +221,21 @@ export interface CustomFieldWithValues {
 }
 
 export interface IssueCustomFieldsResponse {
-  issue_id: string
+  issue_id: number
   fields: CustomFieldWithValues[]
 }
 
 // ==================== Validation ====================
 
 export interface CustomFieldValidationRequest {
-  field_id: string
+  field_id: number
   value: any
 }
 
 export interface CustomFieldValidationResponse {
   is_valid: boolean
   errors: string[]
-  field_id: string
+  field_id: number
 }
 
 // ==================== Helper Functions ====================

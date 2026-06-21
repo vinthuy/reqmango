@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { workspaceApi } from '@/api/workspace'
 import type { Workspace, WorkspaceCreate } from '@/types'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const workspaces = ref<Workspace[]>([])
 const showCreateModal = ref(false)
@@ -26,6 +28,10 @@ const fetchWorkspaces = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const goToWorkspace = (slug: string) => {
+  router.push(`/workspace/${slug}`)
 }
 
 const validateSlug = (slug: string): boolean => {
@@ -117,7 +123,7 @@ fetchWorkspaces()
           v-for="workspace in workspaces"
           :key="workspace.id"
           class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition cursor-pointer"
-          @click="() => {}"
+          @click="goToWorkspace(workspace.slug)"
         >
           <h3 class="font-semibold text-gray-800">{{ workspace.name }}</h3>
           <p class="text-sm text-gray-500 mt-1">{{ workspace.slug }}</p>

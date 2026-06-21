@@ -1,5 +1,4 @@
 from datetime import datetime
-from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Any
 
@@ -15,11 +14,11 @@ class TimestampSchema(BaseSchema):
     updated_at: datetime
 
 class UUIDSchema(BaseSchema):
-    id: UUID = Field(default_factory=uuid4)
+    id: int
 
 class AuditSchema(UUIDSchema, TimestampSchema):
-    created_by: Optional[UUID] = None
-    updated_by: Optional[UUID] = None
+    created_by: Optional[int] = None
+    updated_by: Optional[int] = None
 
 class SoftDeleteSchema(BaseSchema):
     deleted_at: Optional[datetime] = None

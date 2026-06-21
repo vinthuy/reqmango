@@ -29,7 +29,6 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
@@ -37,8 +36,8 @@ import type { CustomField } from '@/types/custom-field'
 
 const route = useRoute()
 const router = useRouter()
-const workspaceId = route.params.workspaceId as string
-const projectId = route.params.projectId as string
+const workspaceId = parseInt(route.params.workspaceId as string, 10)
+const projectId = parseInt(route.params.projectId as string, 10)
 
 function goBack() {
   router.back()
@@ -52,7 +51,7 @@ function onFieldUpdated(field: CustomField) {
   console.log('Field updated:', field)
 }
 
-function onFieldDeleted(fieldId: string) {
+function onFieldDeleted(fieldId: number) {
   console.log('Field deleted:', fieldId)
 }
 </script>

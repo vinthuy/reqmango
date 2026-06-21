@@ -133,13 +133,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import commentApi from '@/api/comment'
 import type { Comment, CommentCreate } from '@/types/comment'
 
 // Props
 const props = defineProps<{
-  issueId: string
+  issueId: number
 }>()
 
 // State
@@ -148,7 +148,7 @@ const loading = ref(false)
 const loadingMore = ref(false)
 const submitting = ref(false)
 const newComment = ref('')
-const currentUserId = ref<string | null>(null) // TODO: 从用户store获取
+const currentUserId = ref<number | null>(null) // TODO: 从用户store获取
 const page = ref(1)
 const hasMore = ref(false)
 

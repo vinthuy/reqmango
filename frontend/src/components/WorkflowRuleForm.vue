@@ -271,15 +271,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { AutomationRule, AutomationRuleCreate, AutomationRuleUpdate, Trigger, Condition, Action } from '@/types/workflow'
+import { ref, computed } from 'vue'
+import type { AutomationRule, AutomationRuleCreate, Trigger, Condition, Action } from '@/types/workflow'
+import { TriggerTypeEnum, ConditionOperatorEnum, ActionTypeEnum } from '@/types/workflow'
 
 // Props
 const props = defineProps<{
-  projectId: string
-  workspaceId: string
+  projectId: number
+  workspaceId: number
   rule?: AutomationRule
-  states?: Array<{ id: string; name: string }>
+  states?: Array<{ id: number; name: string }>
 }>()
 
 // Emits
@@ -301,7 +302,7 @@ const form = ref<{
 }>({
   name: '',
   description: '',
-  trigger: { type: '' },
+  trigger: { type: 'issue.created' as TriggerTypeEnum },
   conditions: [],
   actions: []
 })
@@ -312,9 +313,9 @@ const isEdit = computed(() => !!props.rule)
 // Validate form
 const isValid = computed(() => {
   return form.value.name.trim() !== '' &&
-    form.value.trigger.type !== '' &&
+    form.value.trigger !== null &&
     form.value.actions.length > 0 &&
-    form.value.actions.every(a => a.type !== '')
+    form.value.actions.every(a => a.type !== undefined)
 })
 
 // Initialize form with existing data
@@ -332,7 +333,7 @@ if (props.rule) {
 function addCondition() {
   form.value.conditions.push({
     field: '',
-    operator: 'equals',
+    operator: ConditionOperatorEnum.EQUALS,
     value: undefined
   })
 }
@@ -345,7 +346,7 @@ function removeCondition(index: number) {
 // Add action
 function addAction() {
   form.value.actions.push({
-    type: '',
+    type: ActionTypeEnum.ISSUE_UPDATE,
     field: undefined,
     value: undefined,
     state_id: undefined,
@@ -360,7 +361,7 @@ function removeAction(index: number) {
 
 // Handle submit
 async function handleSubmit() {
-  if (!isValid.value) return
+  if (!isValid.value || !form.value.trigger) return
 
   submitting.value = true
   try {

@@ -1,7 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
-from uuid import UUID
 from .base import AuditSchema, SoftDeleteSchema
 
 class UserBase(BaseModel):
@@ -30,7 +29,7 @@ class UserResponse(AuditSchema, SoftDeleteSchema, UserBase):
     last_active: Optional[datetime] = None
 
 class UserLite(BaseModel):
-    id: UUID
+    id: int
     display_name: str
     email: EmailStr
     avatar_url: Optional[str] = None

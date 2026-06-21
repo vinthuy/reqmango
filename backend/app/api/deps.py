@@ -2,7 +2,6 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
-from uuid import UUID
 from app.db.session import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
@@ -22,14 +21,14 @@ async def get_current_user(
     if not user_id:
         raise UnauthorizedException()
     
-    user = await db.get(User, UUID(user_id))
+    user = await db.get(User, int(user_id))
     if not user or user.is_deleted:
         raise UnauthorizedException()
     
     return user
 
 async def require_workspace_access(
-    workspace_id: UUID,
+    workspace_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ) -> User:

@@ -276,28 +276,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import CustomFieldValueInput from './CustomFieldValueInput.vue'
 import customFieldApi from '@/api/custom-field'
 import type {
   CustomField,
   CustomFieldCreate,
   CustomFieldUpdate,
-  CustomFieldLite,
   IssueCustomFieldValueUpdate,
   CustomFieldWithValues,
-  CustomFieldTypeEnum,
-  CustomFieldOptionCreate
+  CustomFieldTypeEnum
 } from '@/types/custom-field'
 import { getFieldTypeName } from '@/types/custom-field'
 
 // Props
 const props = defineProps<{
-  workspaceId: string
-  projectId?: string
-  issueId?: string
+  workspaceId: number
+  projectId?: number
+  issueId?: number
   mode?: 'display' | 'manage'  // display: 显示字段值, manage: 管理字段定义
-  members?: Array<{ id: string; display_name?: string; email: string }>
+  members?: Array<{ id: number; display_name?: string; email: string }>
 }>()
 
 // Emits
@@ -305,7 +303,7 @@ const emit = defineEmits<{
   (e: 'update:values', values: Record<string, IssueCustomFieldValueUpdate>): void
   (e: 'field-created', field: CustomField): void
   (e: 'field-updated', field: CustomField): void
-  (e: 'field-deleted', fieldId: string): void
+  (e: 'field-deleted', fieldId: number): void
 }>()
 
 // State
@@ -420,7 +418,7 @@ function convertValueToUpdate(item: CustomFieldWithValues): IssueCustomFieldValu
       break
     case 'dropdown':
     case 'member':
-      update.json_value = value as string[]
+      update.json_value = value as number[]
       break
   }
   
@@ -433,7 +431,7 @@ function getFieldValue(item: CustomFieldWithValues): IssueCustomFieldValueUpdate
 }
 
 // Update field value
-function updateFieldValue(fieldId: string, value: IssueCustomFieldValueUpdate) {
+function updateFieldValue(fieldId: number, value: IssueCustomFieldValueUpdate) {
   fieldValues.value[fieldId] = value
   emit('update:values', fieldValues.value)
 }
@@ -479,7 +477,7 @@ function editField(field: CustomField) {
 }
 
 // Delete field
-async function deleteField(fieldId: string) {
+async function deleteField(fieldId: number) {
   if (!confirm('确定要删除此字段吗？')) return
   
   try {

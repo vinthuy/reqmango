@@ -1,6 +1,5 @@
 from datetime import datetime, date
-from uuid import UUID
-from sqlalchemy import String, Boolean, Text, DateTime
+from sqlalchemy import String, Boolean, Text, DateTime, BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin, SoftDeleteMixin
 

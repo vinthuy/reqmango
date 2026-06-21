@@ -1,7 +1,6 @@
 """
 Attachment Model - 附件模型
 """
-from uuid import UUID
 from sqlalchemy import String, ForeignKey, Boolean, Integer, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin, SoftDeleteMixin
@@ -18,9 +17,9 @@ class Attachment(Base, AuditMixin, SoftDeleteMixin):
     file_url: Mapped[str] = mapped_column(String(500), nullable=True)
 
     # 关联
-    issue_id: Mapped[UUID] = mapped_column(ForeignKey("issues.id"), nullable=True)
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=True)
-    uploaded_by_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    issue_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("issues.id"), nullable=True)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=True)
+    uploaded_by_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
 
     # 元数据
     is_protected: Mapped[bool] = mapped_column(Boolean, default=False)  # 是否受保护（不能公开下载）

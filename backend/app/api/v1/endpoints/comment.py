@@ -2,7 +2,6 @@
 Comment API - 评论API端点
 """
 from typing import List
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,7 +38,7 @@ async def create_comment(
 
 @router.get("/issue/{issue_id}", response_model=CommentListResponse)
 async def list_issue_comments(
-    issue_id: UUID,
+    issue_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -62,7 +61,7 @@ async def list_issue_comments(
 
 @router.get("/{comment_id}", response_model=CommentResponse)
 async def get_comment(
-    comment_id: UUID,
+    comment_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -73,7 +72,7 @@ async def get_comment(
 
 @router.patch("/{comment_id}", response_model=CommentResponse)
 async def update_comment(
-    comment_id: UUID,
+    comment_id: int,
     update_data: CommentUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -90,7 +89,7 @@ async def update_comment(
 
 @router.delete("/{comment_id}", status_code=204)
 async def delete_comment(
-    comment_id: UUID,
+    comment_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -104,7 +103,7 @@ async def delete_comment(
 
 @router.post("/{comment_id}/resolve", response_model=CommentResponse)
 async def resolve_comment(
-    comment_id: UUID,
+    comment_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -119,7 +118,7 @@ async def resolve_comment(
 
 @router.post("/{comment_id}/unresolve", response_model=CommentResponse)
 async def unresolve_comment(
-    comment_id: UUID,
+    comment_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

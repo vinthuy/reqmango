@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
 from .base import AuditSchema, SoftDeleteSchema
 from .user import UserLite
@@ -14,7 +13,7 @@ class ProjectBase(BaseModel):
     timezone: str = "UTC"
 
 class ProjectCreate(ProjectBase):
-    default_assignee_id: Optional[UUID] = None
+    default_assignee_id: Optional[int] = None
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
@@ -31,7 +30,7 @@ class ProjectResponse(AuditSchema, SoftDeleteSchema, ProjectBase):
     is_favorite: bool = False
 
 class ProjectLite(BaseModel):
-    id: UUID
+    id: int
     name: str
     identifier: str
 
@@ -39,7 +38,7 @@ class ProjectMemberBase(BaseModel):
     role: int = 15
 
 class ProjectMemberCreate(ProjectMemberBase):
-    user_id: UUID
+    user_id: int
 
 class ProjectMemberResponse(AuditSchema, ProjectMemberBase):
     user: UserLite

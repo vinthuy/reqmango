@@ -2,7 +2,6 @@
 Notification Service - 通知业务逻辑层
 """
 from typing import List, Optional
-from uuid import UUID
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +17,7 @@ from app.core.exceptions import NotFoundException
 async def create_notification(
     db: AsyncSession,
     notification_data: NotificationCreate,
-    user_id: Optional[UUID] = None
+    user_id: Optional[int] = None
 ) -> Notification:
     """创建通知"""
     notification = Notification(
@@ -42,7 +41,7 @@ async def create_notification(
 
 async def get_notification_by_id(
     db: AsyncSession,
-    notification_id: UUID
+    notification_id: int
 ) -> Notification:
     """获取通知"""
     result = await db.execute(
@@ -56,7 +55,7 @@ async def get_notification_by_id(
 
 async def get_user_notifications(
     db: AsyncSession,
-    user_id: UUID,
+    user_id: int,
     unread_only: bool = False,
     limit: int = 50,
     offset: int = 0
@@ -92,7 +91,7 @@ async def get_user_notifications(
 
 async def get_notification_summary(
     db: AsyncSession,
-    user_id: UUID
+    user_id: int
 ) -> dict:
     """获取通知摘要"""
     # 总数
@@ -134,8 +133,8 @@ async def get_notification_summary(
 
 async def mark_as_read(
     db: AsyncSession,
-    notification_id: UUID,
-    user_id: UUID
+    notification_id: int,
+    user_id: int
 ) -> Notification:
     """标记通知已读"""
     notification = await get_notification_by_id(db, notification_id)
@@ -153,7 +152,7 @@ async def mark_as_read(
 
 async def mark_all_as_read(
     db: AsyncSession,
-    user_id: UUID
+    user_id: int
 ) -> int:
     """标记所有通知已读"""
     result = await db.execute(
@@ -177,8 +176,8 @@ async def mark_all_as_read(
 
 async def delete_notification(
     db: AsyncSession,
-    notification_id: UUID,
-    user_id: UUID
+    notification_id: int,
+    user_id: int
 ) -> None:
     """删除通知"""
     notification = await get_notification_by_id(db, notification_id)
@@ -193,8 +192,8 @@ async def delete_notification(
 async def create_bulk_notification(
     db: AsyncSession,
     notification_data: NotificationCreate,
-    recipient_ids: List[UUID],
-    user_id: Optional[UUID] = None
+    recipient_ids: List[int],
+    user_id: Optional[int] = None
 ) -> List[Notification]:
     """批量创建通知"""
     notifications = []

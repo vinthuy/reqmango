@@ -2,12 +2,9 @@
 Workflow Models - 工作流相关数据模型
 包含：状态转换规则、自动化规则、触发器、条件、动作
 """
-import uuid
-from uuid import UUID
-from sqlalchemy import String, Integer, ForeignKey, Boolean, Text, JSON
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import String, Integer, ForeignKey, Boolean, Text, JSON, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base import Base, AuditMixin, SoftDeleteMixin
+from .base import Base, AuditMixin, SoftDeleteMixin, BigIntMixin
 
 
 # ==================== State Transition (状态转换规则) ====================
@@ -23,17 +20,17 @@ class StateTransition(Base, AuditMixin, SoftDeleteMixin):
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     
     # 源状态和目标状态
-    source_state_id: Mapped[UUID] = mapped_column(ForeignKey("states.id"), nullable=False)
-    target_state_id: Mapped[UUID] = mapped_column(ForeignKey("states.id"), nullable=False)
+    source_state_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("states.id"), nullable=False)
+    target_state_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("states.id"), nullable=False)
     
     # 关联的工作项类型（可选，为空表示适用于所有类型）
-    issue_type_id: Mapped[UUID | None] = mapped_column(ForeignKey("issue_types.id"), nullable=True)
+    issue_type_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("issue_types.id"), nullable=True)
     
     # 是否自动应用（当工作项满足条件时）
     is_auto: Mapped[bool] = mapped_column(Boolean, default=False)
     
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
-    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=False)
+    workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspaces.id"), nullable=False)
     
     source_state: Mapped["State"] = relationship(
         back_populates="target_transitions",
@@ -75,8 +72,8 @@ class AutomationRule(Base, AuditMixin, SoftDeleteMixin):
     execution_count: Mapped[int] = mapped_column(Integer, default=0)
     last_executed_at: Mapped[str | None] = mapped_column(String(50), nullable=True)
     
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
-    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=False)
+    workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspaces.id"), nullable=False)
     
     project: Mapped["Project"] = relationship()
     execution_logs: Mapped[list["AutomationExecutionLog"]] = relationship(
@@ -91,7 +88,7 @@ class AutomationExecutionLog(Base, AuditMixin):
     """
     __tablename__ = "automation_execution_logs"
 
-    rule_id: Mapped[UUID] = mapped_column(ForeignKey("automation_rules.id"), nullable=False)
+    rule_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("automation_rules.id"), nullable=False)
     
     # 执行状态
     status: Mapped[str] = mapped_column(String(20), nullable=False)  # success, failed, skipped
@@ -100,7 +97,7 @@ class AutomationExecutionLog(Base, AuditMixin):
     trigger_event: Mapped[str] = mapped_column(String(50), nullable=False)
     
     # 触发的工作项ID
-    triggered_issue_id: Mapped[UUID | None] = mapped_column(ForeignKey("issues.id"), nullable=True)
+    triggered_issue_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("issues.id"), nullable=True)
     
     # 执行详情 (JSON)
     execution_details: Mapped[dict] = mapped_column(JSON, default={})
@@ -117,14 +114,13 @@ class AutomationExecutionLog(Base, AuditMixin):
 
 # ==================== Automation Templates (自动化模板) ====================
 
-class AutomationTemplate(Base):
+class AutomationTemplate(Base, BigIntMixin):
     """
     自动化模板
     预定义的自动化规则模板，方便快速创建
     """
     __tablename__ = "automation_templates"
 
-    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     

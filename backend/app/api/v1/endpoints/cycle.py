@@ -3,7 +3,6 @@ Cycle API Endpoints - 周期管理接口
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 from typing import Optional, List
 
 from app.db.session import get_db
@@ -25,7 +24,7 @@ router = APIRouter()
 
 @router.post("/", response_model=CycleResponse, status_code=201)
 async def create_cycle(
-    workspace_id: UUID,
+    workspace_id: int,
     cycle_data: CycleCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -47,8 +46,8 @@ async def create_cycle(
 
 @router.get("/", response_model=List[CycleResponse])
 async def list_cycles(
-    project_id: UUID,
-    workspace_id: UUID,
+    project_id: int,
+    workspace_id: int,
     status: Optional[str] = None,
     include_completed: bool = False,
     limit: int = Query(50, ge=1, le=100),
@@ -85,7 +84,7 @@ async def list_cycles(
 
 @router.get("/{cycle_id}", response_model=CycleResponse)
 async def get_cycle(
-    cycle_id: UUID,
+    cycle_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -106,7 +105,7 @@ async def get_cycle(
 
 @router.put("/{cycle_id}", response_model=CycleResponse)
 async def update_cycle(
-    cycle_id: UUID,
+    cycle_id: int,
     update_data: CycleUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -133,7 +132,7 @@ async def update_cycle(
 
 @router.delete("/{cycle_id}", status_code=204)
 async def delete_cycle(
-    cycle_id: UUID,
+    cycle_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -150,7 +149,7 @@ async def delete_cycle(
 
 @router.post("/{cycle_id}/start", response_model=CycleResponse)
 async def start_cycle(
-    cycle_id: UUID,
+    cycle_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -175,7 +174,7 @@ async def start_cycle(
 
 @router.post("/{cycle_id}/end", response_model=CycleResponse)
 async def end_cycle(
-    cycle_id: UUID,
+    cycle_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -200,7 +199,7 @@ async def end_cycle(
 
 @router.post("/{cycle_id}/cancel", response_model=CycleResponse)
 async def cancel_cycle(
-    cycle_id: UUID,
+    cycle_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -227,8 +226,8 @@ async def cancel_cycle(
 
 @router.post("/{cycle_id}/issues", response_model=dict)
 async def add_issue_to_cycle(
-    cycle_id: UUID,
-    issue_id: UUID,
+    cycle_id: int,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -246,8 +245,8 @@ async def add_issue_to_cycle(
 
 @router.delete("/{cycle_id}/issues/{issue_id}", response_model=dict)
 async def remove_issue_from_cycle(
-    cycle_id: UUID,
-    issue_id: UUID,
+    cycle_id: int,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -265,8 +264,8 @@ async def remove_issue_from_cycle(
 
 @router.get("/{cycle_id}/issues", response_model=List[dict])
 async def get_cycle_issues(
-    cycle_id: UUID,
-    state_id: Optional[UUID] = None,
+    cycle_id: int,
+    state_id: Optional[int] = None,
     priority: Optional[str] = None,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -296,7 +295,7 @@ async def get_cycle_issues(
 
 @router.get("/{cycle_id}/progress", response_model=dict)
 async def get_cycle_progress(
-    cycle_id: UUID,
+    cycle_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -311,7 +310,7 @@ async def get_cycle_progress(
 
 @router.get("/{cycle_id}/statistics", response_model=dict)
 async def get_cycle_statistics(
-    cycle_id: UUID,
+    cycle_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -326,7 +325,7 @@ async def get_cycle_statistics(
 
 @router.get("/{cycle_id}/burndown", response_model=dict)
 async def get_burndown_data(
-    cycle_id: UUID,
+    cycle_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

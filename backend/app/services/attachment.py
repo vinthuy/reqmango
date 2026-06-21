@@ -2,9 +2,9 @@
 Attachment Service - 附件业务逻辑层
 """
 from typing import List, Optional
-from uuid import UUID
 import os
 from datetime import datetime
+import uuid
 
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +24,7 @@ async def upload_attachment(
     db: AsyncSession,
     file: UploadFile,
     upload_data: AttachmentCreate,
-    user_id: UUID,
+    user_id: int,
     upload_dir: str = ATTACHMENT_DIR
 ) -> Attachment:
     """上传附件"""
@@ -38,7 +38,7 @@ async def upload_attachment(
     os.makedirs(upload_dir, exist_ok=True)
 
     # 生成文件名
-    file_id = str(UUID())
+    file_id = str(uuid.uuid4())
     file_ext = os.path.splitext(file.filename)[1] if file.filename else ""
     stored_filename = f"{file_id}{file_ext}"
     file_path = os.path.join(upload_dir, stored_filename)
@@ -74,7 +74,7 @@ async def upload_attachment(
 
 async def get_attachment_by_id(
     db: AsyncSession,
-    attachment_id: UUID
+    attachment_id: int
 ) -> Attachment:
     """获取附件"""
     result = await db.execute(
@@ -88,7 +88,7 @@ async def get_attachment_by_id(
 
 async def get_issue_attachments(
     db: AsyncSession,
-    issue_id: UUID
+    issue_id: int
 ) -> List[Attachment]:
     """获取工作项的所有附件"""
     result = await db.execute(
@@ -102,7 +102,7 @@ async def get_issue_attachments(
 
 async def get_project_attachments(
     db: AsyncSession,
-    project_id: UUID
+    project_id: int
 ) -> List[Attachment]:
     """获取项目的所有附件"""
     result = await db.execute(
@@ -116,9 +116,9 @@ async def get_project_attachments(
 
 async def update_attachment(
     db: AsyncSession,
-    attachment_id: UUID,
+    attachment_id: int,
     update_data: AttachmentUpdate,
-    user_id: UUID
+    user_id: int
 ) -> Attachment:
     """更新附件"""
     attachment = await get_attachment_by_id(db, attachment_id)
@@ -138,8 +138,8 @@ async def update_attachment(
 
 async def delete_attachment(
     db: AsyncSession,
-    attachment_id: UUID,
-    user_id: UUID
+    attachment_id: int,
+    user_id: int
 ) -> None:
     """删除附件"""
     attachment = await get_attachment_by_id(db, attachment_id)
@@ -162,8 +162,8 @@ async def delete_attachment(
 
 async def get_attachment_download_url(
     db: AsyncSession,
-    attachment_id: UUID,
-    user_id: UUID
+    attachment_id: int,
+    user_id: int
 ) -> str:
     """获取附件下载URL"""
     attachment = await get_attachment_by_id(db, attachment_id)

@@ -23,15 +23,15 @@ export enum IssuePriorityEnum {
 // ==================== IssueType ====================
 
 export interface IssueType {
-  id: string
+  id: number
   name: string
   color: string
   icon: string
   is_default: boolean
   sequence: number
   is_active: boolean
-  project_id: string
-  workspace_id: string
+  project_id: number
+  workspace_id: number
   created_at: string
   updated_at: string
 }
@@ -43,8 +43,8 @@ export interface IssueTypeCreate {
   is_default?: boolean
   sequence?: number
   is_active?: boolean
-  project_id: string
-  custom_fields?: string[]
+  project_id: number
+  custom_fields?: number[]
 }
 
 export interface IssueTypeUpdate {
@@ -54,11 +54,11 @@ export interface IssueTypeUpdate {
   is_default?: boolean
   sequence?: number
   is_active?: boolean
-  custom_fields?: string[]
+  custom_fields?: number[]
 }
 
 export interface IssueTypeLite {
-  id: string
+  id: number
   name: string
   color: string
   icon: string
@@ -68,15 +68,15 @@ export interface IssueTypeLite {
 // ==================== State ====================
 
 export interface State {
-  id: string
+  id: number
   name: string
   color: string
   group: StateGroupEnum
   sequence: number
   is_active: boolean
   description?: string
-  project_id: string
-  workspace_id: string
+  project_id: number
+  workspace_id: number
   created_at: string
   updated_at: string
 }
@@ -88,7 +88,7 @@ export interface StateCreate {
   sequence?: number
   is_active?: boolean
   description?: string
-  project_id: string
+  project_id: number
 }
 
 export interface StateUpdate {
@@ -101,7 +101,7 @@ export interface StateUpdate {
 }
 
 export interface StateLite {
-  id: string
+  id: number
   name: string
   color: string
   group: string
@@ -110,11 +110,11 @@ export interface StateLite {
 // ==================== Label ====================
 
 export interface Label {
-  id: string
+  id: number
   name: string
   color: string
   description?: string
-  project_id: string
+  project_id: number
   created_at: string
   updated_at: string
 }
@@ -123,7 +123,7 @@ export interface LabelCreate {
   name: string
   color?: string
   description?: string
-  project_id: string
+  project_id: number
 }
 
 export interface LabelUpdate {
@@ -133,7 +133,7 @@ export interface LabelUpdate {
 }
 
 export interface LabelLite {
-  id: string
+  id: number
   name: string
   color: string
 }
@@ -185,7 +185,15 @@ export function getPriorityColor(priority: IssuePriorityEnum): string {
 /**
  * 默认工作项类型
  */
-export const DEFAULT_ISSUE_TYPES: IssueTypeCreate[] = [
+export interface IssueTypeDefault {
+  name: string
+  color?: string
+  icon?: string
+  is_default?: boolean
+  sequence?: number
+}
+
+export const DEFAULT_ISSUE_TYPES: IssueTypeDefault[] = [
   { name: 'Issue', color: '#3B82F6', icon: 'circle', is_default: true, sequence: 1 },
   { name: 'Task', color: '#10B981', icon: 'check-circle', sequence: 2 },
   { name: 'Bug', color: '#EF4444', icon: 'alert-circle', sequence: 3 },
@@ -196,7 +204,14 @@ export const DEFAULT_ISSUE_TYPES: IssueTypeCreate[] = [
 /**
  * 默认状态
  */
-export const DEFAULT_STATES: StateCreate[] = [
+export interface StateDefault {
+  name: string
+  color?: string
+  group?: StateGroupEnum
+  sequence?: number
+}
+
+export const DEFAULT_STATES: StateDefault[] = [
   { name: 'Backlog', color: '#6B7280', group: StateGroupEnum.BACKLOG, sequence: 1 },
   { name: 'Todo', color: '#3B82F6', group: StateGroupEnum.TODO, sequence: 2 },
   { name: 'In Progress', color: '#F59E0B', group: StateGroupEnum.IN_PROGRESS, sequence: 3 },

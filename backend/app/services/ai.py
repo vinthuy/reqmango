@@ -6,7 +6,6 @@ AI Service - Plane AI 核心服务
 3. 自然语言转 PQL - 将自然语言转换为查询语言
 """
 from typing import Optional, List, Dict, Any, AsyncGenerator
-from uuid import UUID
 from datetime import datetime
 import json
 from enum import Enum
@@ -34,8 +33,8 @@ class AIContextAggregator:
     
     async def get_workspace_context(
         self, 
-        workspace_id: UUID, 
-        project_id: Optional[UUID] = None,
+        workspace_id: int, 
+        project_id: Optional[int] = None,
         include_issues: bool = True,
         include_cycles: bool = True,
         include_modules: bool = True,
@@ -86,18 +85,18 @@ class AIContextAggregator:
         
         return context
     
-    async def _get_workspace(self, workspace_id: UUID) -> Dict[str, Any]:
+    async def _get_workspace(self, workspace_id: int) -> Dict[str, Any]:
         workspace = await self.db.get(Workspace, workspace_id)
         if not workspace:
             return {}
         return {
-            "id": str(workspace.id),
+            "id": workspace.id,
             "name": workspace.name,
             "slug": workspace.slug,
             "timezone": workspace.timezone
         }
     
-    async def _get_workspace_projects(self, workspace_id: UUID) -> List[Dict[str, Any]]:
+    async def _get_workspace_projects(self, workspace_id: int) -> List[Dict[str, Any]]:
         result = await self.db.execute(
             select(Project).where(
                 Project.workspace_id == workspace_id,
@@ -107,7 +106,7 @@ class AIContextAggregator:
         projects = result.scalars().all()
         return [
             {
-                "id": str(p.id),
+                "id": p.id,
                 "name": p.name,
                 "identifier": p.identifier,
                 "description": p.description,
@@ -116,12 +115,12 @@ class AIContextAggregator:
             for p in projects
         ]
     
-    async def _get_project(self, project_id: UUID) -> Dict[str, Any]:
+    async def _get_project(self, project_id: int) -> Dict[str, Any]:
         project = await self.db.get(Project, project_id)
         if not project:
             return {}
         return {
-            "id": str(project.id),
+            "id": project.id,
             "name": project.name,
             "identifier": project.identifier,
             "description": project.description,
@@ -130,8 +129,8 @@ class AIContextAggregator:
     
     async def _get_issues(
         self, 
-        workspace_id: UUID, 
-        project_id: Optional[UUID] = None,
+        workspace_id: int, 
+        project_id: Optional[int] = None,
         limit: int = 50
     ) -> List[Dict[str, Any]]:
         query = select(Issue).where(
@@ -148,7 +147,7 @@ class AIContextAggregator:
         
         return [
             {
-                "id": str(i.id),
+                "id": i.id,
                 "name": i.name,
                 "priority": i.priority,
                 "state": i.state.name if i.state else None,
@@ -156,8 +155,8 @@ class AIContextAggregator:
                 "start_date": str(i.start_date) if i.start_date else None,
                 "target_date": str(i.target_date) if i.target_date else None,
                 "is_draft": i.is_draft,
-                "project_id": str(i.project_id),
-                "parent_id": str(i.parent_id) if i.parent_id else None,
+                "project_id": i.project_id,
+                "parent_id": i.parent_id if i.parent_id else None,
                 "created_at": str(i.created_at),
                 "completed_at": str(i.completed_at) if i.completed_at else None
             }
@@ -166,8 +165,8 @@ class AIContextAggregator:
     
     async def _get_cycles(
         self, 
-        workspace_id: UUID, 
-        project_id: Optional[UUID] = None
+        workspace_id: int, 
+        project_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         query = select(Cycle).where(
             Cycle.workspace_id == workspace_id,
@@ -181,20 +180,20 @@ class AIContextAggregator:
         
         return [
             {
-                "id": str(c.id),
+                "id": c.id,
                 "name": c.name,
                 "description": c.description,
                 "start_date": str(c.start_date) if c.start_date else None,
                 "end_date": str(c.end_date) if c.end_date else None,
-                "project_id": str(c.project_id)
+                "project_id": c.project_id
             }
             for c in cycles
         ]
     
     async def _get_modules(
         self, 
-        workspace_id: UUID, 
-        project_id: Optional[UUID] = None
+        workspace_id: int, 
+        project_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         query = select(Module).where(
             Module.workspace_id == workspace_id,
@@ -208,15 +207,15 @@ class AIContextAggregator:
         
         return [
             {
-                "id": str(m.id),
+                "id": m.id,
                 "name": m.name,
                 "description": m.description,
-                "project_id": str(m.project_id)
+                "project_id": m.project_id
             }
             for m in modules
         ]
     
-    async def _get_states(self, workspace_id: UUID) -> List[Dict[str, Any]]:
+    async def _get_states(self, workspace_id: int) -> List[Dict[str, Any]]:
         result = await self.db.execute(
             select(State).where(State.workspace_id == workspace_id)
         )
@@ -224,7 +223,7 @@ class AIContextAggregator:
         
         return [
             {
-                "id": str(s.id),
+                "id": s.id,
                 "name": s.name,
                 "group": s.group,
                 "color": s.color
@@ -232,7 +231,7 @@ class AIContextAggregator:
             for s in states
         ]
     
-    async def _get_workspace_users(self, workspace_id: UUID) -> List[Dict[str, Any]]:
+    async def _get_workspace_users(self, workspace_id: int) -> List[Dict[str, Any]]:
         from app.models.workspace import WorkspaceMember
         result = await self.db.execute(
             select(WorkspaceMember).where(
@@ -244,7 +243,7 @@ class AIContextAggregator:
         
         return [
             {
-                "id": str(m.user.id),
+                "id": m.user.id,
                 "name": m.user.display_name or m.user.email,
                 "email": m.user.email,
                 "role": m.role
@@ -296,7 +295,7 @@ class AIAgent:
         self.db = db
         self.context = context
     
-    async def triage_issue(self, issue_id: UUID) -> AIAction:
+    async def triage_issue(self, issue_id: int) -> AIAction:
         """自动分类问题"""
         issue = await self.db.get(Issue, issue_id)
         if not issue:
@@ -319,7 +318,7 @@ class AIAgent:
             description=analysis.get("reasoning", "Auto-triaged based on content analysis")
         )
     
-    async def suggest_assignee(self, issue_id: UUID) -> AIAction:
+    async def suggest_assignee(self, issue_id: int) -> AIAction:
         """建议分配人员"""
         issue = await self.db.get(Issue, issue_id)
         if not issue:
@@ -360,7 +359,7 @@ class AIAgent:
             description=f"Suggested assignee: {suggested_user['name']}" if suggested_user else "No suggestion available"
         )
     
-    async def track_blockers(self, project_id: Optional[UUID] = None) -> List[Dict[str, Any]]:
+    async def track_blockers(self, project_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """跟踪阻塞项"""
         issues = self.context.get("issues", [])
         blockers = []
@@ -569,7 +568,7 @@ class AIService:
         self.context_aggregator = AIContextAggregator(db)
         self.pql_generator = None  # 延迟初始化
     
-    async def process_request(self, request: AIRequest, user_id: UUID) -> AIResponse:
+    async def process_request(self, request: AIRequest, user_id: int) -> AIResponse:
         """处理 AI 请求"""
         # 获取上下文
         context = await self.context_aggregator.get_workspace_context(
@@ -595,7 +594,7 @@ class AIService:
         return AIResponse(
             content="Unknown mode",
             intent=intent,
-            thread_id=request.thread_id or UUID("00000000-0000-0000-0000-000000000000")
+            thread_id=request.thread_id or 0
         )
     
     def _analyze_intent(self, content: str) -> AIIntent:
@@ -645,7 +644,7 @@ class AIService:
             intent=intent,
             results=[{"pql": pql_query}] if intent == AIIntent.SEARCH else None,
             suggestions=self._generate_suggestions(context),
-            thread_id=request.thread_id or UUID("00000000-0000-0000-0000-000000000000")
+            thread_id=request.thread_id or 0
         )
     
     async def _handle_build_mode(
@@ -666,7 +665,7 @@ class AIService:
             intent=intent,
             plan=plan,
             suggestions=self._generate_suggestions(context),
-            thread_id=request.thread_id or UUID("00000000-0000-0000-0000-000000000000")
+            thread_id=request.thread_id or 0
         )
     
     async def _create_action_plan(
@@ -686,7 +685,7 @@ class AIService:
                 actions.append(AIAction(
                     action_type="identify_blocker",
                     target_type="issue",
-                    target_id=UUID(blocker["issue_id"]),
+                    target_id=int(blocker["issue_id"]),
                     changes={"blocker_type": blocker["type"], "severity": blocker["severity"]},
                     description=blocker["description"]
                 ))
@@ -695,7 +694,7 @@ class AIService:
         if "triage" in content_lower or "分类" in content_lower:
             issues = context.get("issues", [])
             for issue in issues[:5]:  # 限制处理数量
-                action = await agent.triage_issue(UUID(issue["id"]))
+                action = await agent.triage_issue(int(issue["id"]))
                 actions.append(action)
         
         return AIPlan(

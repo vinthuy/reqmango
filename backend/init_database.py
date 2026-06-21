@@ -21,10 +21,8 @@ from app.models import (
 )
 
 # 数据库URL - 根据环境变量或默认值
-DATABASE_URL = "sqlite+aiosqlite:///./test.db"  # 使用SQLite作为示例
-
-# PostgreSQL示例:
-# DATABASE_URL = "postgresql+asyncpg://user:password@localhost:5432/reqmanpy"
+from app.core.config import settings
+DATABASE_URL = settings.DATABASE_URL
 
 
 async def create_tables():

@@ -9,9 +9,8 @@ Custom Field Models - 自定义字段数据模型
 - Member (成员选择)
 - URL (链接)
 """
-from uuid import UUID
 from datetime import datetime, date
-from sqlalchemy import String, ForeignKey, Boolean, Integer, Text, JSON, Float, Date
+from sqlalchemy import String, ForeignKey, Boolean, Integer, Text, JSON, Float, Date, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin, SoftDeleteMixin
 
@@ -64,9 +63,9 @@ class CustomField(Base, AuditMixin, SoftDeleteMixin):
     sequence: Mapped[int] = mapped_column(Integer, default=0)
     
     # 关联关系
-    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
-    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)  # None 表示项目级
-    issue_type_id: Mapped[UUID | None] = mapped_column(ForeignKey("issue_types.id"), nullable=True)  # 关联到工作项类型
+    workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=True)  # None 表示项目级
+    issue_type_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("issue_types.id"), nullable=True)  # 关联到工作项类型
     
     workspace: Mapped["Workspace"] = relationship()
     project: Mapped["Project | None"] = relationship()
@@ -81,7 +80,7 @@ class CustomFieldOption(Base, AuditMixin):
     """
     __tablename__ = "custom_field_options"
 
-    field_id: Mapped[UUID] = mapped_column(ForeignKey("custom_fields.id"), nullable=False)
+    field_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("custom_fields.id"), nullable=False)
     value: Mapped[str] = mapped_column(String(255), nullable=False)
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)
     sequence: Mapped[int] = mapped_column(Integer, default=0)
@@ -99,8 +98,8 @@ class IssueCustomFieldValue(Base, AuditMixin):
     """
     __tablename__ = "issue_custom_field_values"
 
-    issue_id: Mapped[UUID] = mapped_column(ForeignKey("issues.id"), nullable=False)
-    field_id: Mapped[UUID] = mapped_column(ForeignKey("custom_fields.id"), nullable=False)
+    issue_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("issues.id"), nullable=False)
+    field_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("custom_fields.id"), nullable=False)
     
     # 根据字段类型存储不同的值
     text_value: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -121,13 +120,13 @@ class CustomFieldValueHistory(Base, AuditMixin):
     """
     __tablename__ = "custom_field_value_history"
 
-    issue_id: Mapped[UUID] = mapped_column(ForeignKey("issues.id"), nullable=False)
-    field_id: Mapped[UUID] = mapped_column(ForeignKey("custom_fields.id"), nullable=False)
+    issue_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("issues.id"), nullable=False)
+    field_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("custom_fields.id"), nullable=False)
     
     old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     
-    actor_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    actor_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True)
     
     issue: Mapped["Issue"] = relationship()
     field: Mapped["CustomField"] = relationship()

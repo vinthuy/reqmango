@@ -133,7 +133,7 @@
               required
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">选择源状态</option>
+              <option value="0">选择源状态</option>
               <option v-for="state in states" :key="state.id" :value="state.id">
                 {{ state.name }}
               </option>
@@ -150,7 +150,7 @@
               required
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">选择目标状态</option>
+              <option value="0">选择目标状态</option>
               <option v-for="state in states" :key="state.id" :value="state.id">
                 {{ state.name }}
               </option>
@@ -204,15 +204,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import workflowApi from '@/api/workflow'
 import type { StateTransition, StateTransitionCreate } from '@/types/workflow'
 
 // Props
 const props = defineProps<{
-  projectId: string
-  workspaceId: string
-  states: Array<{ id: string; name: string }>
+  projectId: number
+  workspaceId: number
+  states: Array<{ id: number; name: string }>
 }>()
 
 // Emits
@@ -232,8 +232,8 @@ const editingTransition = ref<StateTransition | null>(null)
 const transitionForm = ref({
   name: '',
   description: '',
-  source_state_id: '',
-  target_state_id: '',
+  source_state_id: 0,
+  target_state_id: 0,
   is_auto: false
 })
 
@@ -254,7 +254,7 @@ async function loadTransitions() {
 }
 
 // Get state name by ID
-function getStateName(stateId: string): string {
+function getStateName(stateId: number): string {
   const state = props.states.find(s => s.id === stateId)
   return state?.name || '未知'
 }
@@ -303,8 +303,7 @@ async function submitTransition() {
         description: transitionForm.value.description || undefined,
         source_state_id: transitionForm.value.source_state_id,
         target_state_id: transitionForm.value.target_state_id,
-        is_auto: transitionForm.value.is_auto,
-        project_id: props.projectId
+        is_auto: transitionForm.value.is_auto
       }
       await workflowApi.createStateTransition(props.projectId, props.workspaceId, data)
       emit('created')
@@ -324,8 +323,8 @@ function closeModal() {
   transitionForm.value = {
     name: '',
     description: '',
-    source_state_id: '',
-    target_state_id: '',
+    source_state_id: 0,
+    target_state_id: 0,
     is_auto: false
   }
 }

@@ -20,8 +20,8 @@ import type {
  * 创建状态转换规则
  */
 export async function createStateTransition(
-  projectId: string,
-  workspaceId: string,
+  projectId: number,
+  workspaceId: number,
   data: StateTransitionCreate
 ): Promise<StateTransition> {
   const response = await api.post(
@@ -35,11 +35,11 @@ export async function createStateTransition(
  * 列出状态转换规则
  */
 export async function listStateTransitions(
-  projectId: string,
-  sourceStateId?: string
+  projectId: number,
+  sourceStateId?: number
 ): Promise<StateTransition[]> {
   const params = new URLSearchParams()
-  if (sourceStateId) params.append('source_state_id', sourceStateId)
+  if (sourceStateId) params.append('source_state_id', sourceStateId.toString())
   
   const response = await api.get(
     `/projects/${projectId}/workflow/transitions?${params.toString()}`
@@ -51,7 +51,7 @@ export async function listStateTransitions(
  * 获取状态转换规则详情
  */
 export async function getStateTransition(
-  transitionId: string
+  transitionId: number
 ): Promise<StateTransition> {
   const response = await api.get(
     `/projects/workflow/transitions/${transitionId}`
@@ -63,7 +63,7 @@ export async function getStateTransition(
  * 更新状态转换规则
  */
 export async function updateStateTransition(
-  transitionId: string,
+  transitionId: number,
   data: StateTransitionUpdate
 ): Promise<StateTransition> {
   const response = await api.put(
@@ -77,7 +77,7 @@ export async function updateStateTransition(
  * 删除状态转换规则
  */
 export async function deleteStateTransition(
-  transitionId: string
+  transitionId: number
 ): Promise<void> {
   await api.delete(`/projects/workflow/transitions/${transitionId}`)
 }
@@ -86,16 +86,16 @@ export async function deleteStateTransition(
  * 检查是否允许状态转换
  */
 export async function checkCanTransition(
-  projectId: string,
-  sourceStateId: string,
-  targetStateId: string,
-  issueTypeId?: string
+  projectId: number,
+  sourceStateId: number,
+  targetStateId: number,
+  issueTypeId?: number
 ): Promise<boolean> {
   const params = new URLSearchParams()
-  params.append('project_id', projectId)
-  params.append('source_state_id', sourceStateId)
-  params.append('target_state_id', targetStateId)
-  if (issueTypeId) params.append('issue_type_id', issueTypeId)
+  params.append('project_id', projectId.toString())
+  params.append('source_state_id', sourceStateId.toString())
+  params.append('target_state_id', targetStateId.toString())
+  if (issueTypeId) params.append('issue_type_id', issueTypeId.toString())
   
   const response = await api.get(
     `/projects/${projectId}/workflow/transitions/can-transition?${params.toString()}`
@@ -109,8 +109,8 @@ export async function checkCanTransition(
  * 创建自动化规则
  */
 export async function createAutomationRule(
-  projectId: string,
-  workspaceId: string,
+  projectId: number,
+  workspaceId: number,
   data: AutomationRuleCreate
 ): Promise<AutomationRule> {
   const response = await api.post(
@@ -124,7 +124,7 @@ export async function createAutomationRule(
  * 列出自动化规则
  */
 export async function listAutomationRules(
-  projectId: string,
+  projectId: number,
   enabledOnly?: boolean
 ): Promise<AutomationRule[]> {
   const params = new URLSearchParams()
@@ -140,7 +140,7 @@ export async function listAutomationRules(
  * 列出自动化规则（轻量版）
  */
 export async function listAutomationRulesLite(
-  projectId: string
+  projectId: number
 ): Promise<AutomationRuleLite[]> {
   const response = await api.get(
     `/projects/${projectId}/workflow/automations/lite`
@@ -152,7 +152,7 @@ export async function listAutomationRulesLite(
  * 获取自动化规则详情
  */
 export async function getAutomationRule(
-  ruleId: string
+  ruleId: number
 ): Promise<AutomationRule> {
   const response = await api.get(
     `/projects/workflow/automations/${ruleId}`
@@ -164,7 +164,7 @@ export async function getAutomationRule(
  * 更新自动化规则
  */
 export async function updateAutomationRule(
-  ruleId: string,
+  ruleId: number,
   data: AutomationRuleUpdate
 ): Promise<AutomationRule> {
   const response = await api.put(
@@ -178,7 +178,7 @@ export async function updateAutomationRule(
  * 删除自动化规则
  */
 export async function deleteAutomationRule(
-  ruleId: string
+  ruleId: number
 ): Promise<void> {
   await api.delete(`/projects/workflow/automations/${ruleId}`)
 }
@@ -187,7 +187,7 @@ export async function deleteAutomationRule(
  * 启用/禁用自动化规则
  */
 export async function toggleAutomationRule(
-  ruleId: string,
+  ruleId: number,
   enabled: boolean
 ): Promise<AutomationRule> {
   const response = await api.post(
@@ -202,7 +202,7 @@ export async function toggleAutomationRule(
  * 获取自动化规则执行日志
  */
 export async function listAutomationLogs(
-  ruleId: string,
+  ruleId: number,
   limit?: number
 ): Promise<AutomationExecutionLog[]> {
   const params = new URLSearchParams()
@@ -235,14 +235,14 @@ export async function listAutomationTemplates(
  * 从模板创建自动化规则
  */
 export async function applyAutomationTemplate(
-  projectId: string,
-  workspaceId: string,
-  templateId: string,
+  projectId: number,
+  workspaceId: number,
+  templateId: number,
   nameOverride?: string
 ): Promise<AutomationRule> {
   const params = new URLSearchParams()
-  params.append('project_id', projectId)
-  params.append('workspace_id', workspaceId)
+  params.append('project_id', projectId.toString())
+  params.append('workspace_id', workspaceId.toString())
   if (nameOverride) params.append('name_override', nameOverride)
   
   const response = await api.post(

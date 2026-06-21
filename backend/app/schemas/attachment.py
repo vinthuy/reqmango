@@ -2,7 +2,6 @@
 Attachment Schemas - 附件Schema定义
 """
 from typing import Optional, List
-from uuid import UUID
 from pydantic import BaseModel, Field
 
 
@@ -18,8 +17,8 @@ class AttachmentBase(BaseModel):
 
 class AttachmentCreate(AttachmentBase):
     """创建附件"""
-    issue_id: Optional[UUID] = None
-    project_id: Optional[UUID] = None
+    issue_id: Optional[int] = None
+    project_id: Optional[int] = None
 
 
 class AttachmentUpdate(BaseModel):
@@ -30,11 +29,11 @@ class AttachmentUpdate(BaseModel):
 
 class AttachmentResponse(AttachmentBase):
     """附件响应"""
-    id: UUID
+    id: int
     file_path: str
-    issue_id: Optional[UUID] = None
-    project_id: Optional[UUID] = None
-    uploaded_by_id: UUID
+    issue_id: Optional[int] = None
+    project_id: Optional[int] = None
+    uploaded_by_id: int
     access_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
     created_at: str
@@ -52,7 +51,7 @@ class AttachmentListResponse(BaseModel):
 
 class AttachmentUploadResponse(BaseModel):
     """上传响应"""
-    id: UUID
+    id: int
     name: str
     file_url: str
     file_size: int

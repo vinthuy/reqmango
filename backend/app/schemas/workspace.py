@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from typing import Optional
-from uuid import UUID
 from enum import IntEnum
 from .base import AuditSchema, SoftDeleteSchema
 from .user import UserLite, UserResponse
@@ -26,10 +25,10 @@ class WorkspaceUpdate(BaseModel):
 
 class WorkspaceResponse(AuditSchema, SoftDeleteSchema, WorkspaceBase):
     logo_url: Optional[str] = None
-    owner_id: UUID
+    owner_id: int
 
 class WorkspaceLite(BaseModel):
-    id: UUID
+    id: int
     name: str
     slug: str
 
@@ -37,7 +36,7 @@ class WorkspaceMemberBase(BaseModel):
     role: WorkspaceRole
 
 class WorkspaceMemberCreate(WorkspaceMemberBase):
-    member_id: UUID
+    member_id: int
 
 class WorkspaceMemberResponse(AuditSchema, WorkspaceMemberBase):
     member: UserLite

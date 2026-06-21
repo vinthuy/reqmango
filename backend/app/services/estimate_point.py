@@ -2,7 +2,6 @@
 Estimate Point Service - 估算点业务逻辑层
 """
 from typing import List, Optional
-from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -20,7 +19,7 @@ from app.core.exceptions import NotFoundException, ValidationException
 async def create_estimate_point(
     db: AsyncSession,
     point_data: EstimatePointCreate,
-    user_id: UUID
+    user_id: int
 ) -> EstimatePoint:
     """创建估算点"""
     # 验证项目存在
@@ -54,7 +53,7 @@ async def create_estimate_point(
 
 async def get_estimate_point_by_id(
     db: AsyncSession,
-    point_id: UUID
+    point_id: int
 ) -> EstimatePoint:
     """获取估算点"""
     result = await db.execute(
@@ -68,7 +67,7 @@ async def get_estimate_point_by_id(
 
 async def get_project_estimate_points(
     db: AsyncSession,
-    project_id: UUID
+    project_id: int
 ) -> List[EstimatePoint]:
     """获取项目的所有估算点"""
     result = await db.execute(
@@ -84,7 +83,7 @@ async def get_project_estimate_points(
 
 async def get_default_estimate_point(
     db: AsyncSession,
-    project_id: UUID
+    project_id: int
 ) -> Optional[EstimatePoint]:
     """获取项目的默认估算点"""
     result = await db.execute(
@@ -100,7 +99,7 @@ async def get_default_estimate_point(
 
 async def update_estimate_point(
     db: AsyncSession,
-    point_id: UUID,
+    point_id: int,
     update_data: EstimatePointUpdate
 ) -> EstimatePoint:
     """更新估算点"""
@@ -128,7 +127,7 @@ async def update_estimate_point(
 
 async def delete_estimate_point(
     db: AsyncSession,
-    point_id: UUID
+    point_id: int
 ) -> None:
     """删除估算点（软删除）"""
     point = await get_estimate_point_by_id(db, point_id)
@@ -138,8 +137,8 @@ async def delete_estimate_point(
 
 async def reorder_estimate_points(
     db: AsyncSession,
-    project_id: UUID,
-    point_ids: List[UUID]
+    project_id: int,
+    point_ids: List[int]
 ) -> List[EstimatePoint]:
     """重新排序估算点"""
     # 验证所有点都属于该项目
@@ -158,7 +157,7 @@ async def reorder_estimate_points(
 
 async def _clear_default_points(
     db: AsyncSession,
-    project_id: UUID
+    project_id: int
 ) -> None:
     """清除项目的所有默认标记"""
     result = await db.execute(
@@ -175,8 +174,8 @@ async def _clear_default_points(
 
 async def create_default_estimate_points(
     db: AsyncSession,
-    project_id: UUID,
-    user_id: UUID
+    project_id: int,
+    user_id: int
 ) -> List[EstimatePoint]:
     """为项目创建默认估算点（敏捷Scrum标准）"""
     # 标准斐波那契数列

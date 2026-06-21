@@ -4,7 +4,6 @@ AI API Endpoints - Plane AI 对话和操作接口
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from uuid import UUID
 from typing import Optional
 from datetime import datetime
 
@@ -14,9 +13,12 @@ from app.models.user import User
 from app.models.ai_thread import AIThread, AIMessage, AIActionLog
 from app.schemas.ai import (
     AIRequest, AIResponse, AIMessage as AIMessageSchema, AIMode, AIIntent,
-    AIPlan, AIAction, AIThread as AIThreadSchema
+    AIPlan, AIAction, AIThread as AIThreadSchema,
+    TaskExtractionRequest, TaskExtractionResponse,
+    TaskCreateFromNLPRequest, TaskCreateFromNLPResponse
 )
 from app.services.ai import AIService, AIContextAggregator, PQLGenerator
+from app.services.nlp_parser import NLPParser, TaskExtraction
 
 router = APIRouter()
 
@@ -25,8 +27,8 @@ router = APIRouter()
 
 @router.post("/threads", response_model=dict)
 async def create_thread(
-    workspace_id: UUID,
-    project_id: Optional[UUID] = None,
+    workspace_id: int,
+    project_id: Optional[int] = None,
     title: str = "New Conversation",
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -49,17 +51,17 @@ async def create_thread(
     await db.refresh(thread)
     
     return {
-        "id": str(thread.id),
+        "id": thread.id,
         "title": thread.title,
-        "workspace_id": str(thread.workspace_id),
-        "project_id": str(thread.project_id) if thread.project_id else None,
+        "workspace_id": thread.workspace_id,
+        "project_id": thread.project_id if thread.project_id else None,
         "created_at": str(thread.created_at)
     }
 
 
 @router.get("/threads/{thread_id}", response_model=dict)
 async def get_thread(
-    thread_id: UUID,
+    thread_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -80,17 +82,17 @@ async def get_thread(
     messages = result.scalars().all()
     
     return {
-        "id": str(thread.id),
+        "id": thread.id,
         "title": thread.title,
         "summary": thread.summary,
-        "workspace_id": str(thread.workspace_id),
-        "project_id": str(thread.project_id) if thread.project_id else None,
+        "workspace_id": thread.workspace_id,
+        "project_id": thread.project_id if thread.project_id else None,
         "is_archived": thread.is_archived,
         "created_at": str(thread.created_at),
         "updated_at": str(thread.updated_at),
         "messages": [
             {
-                "id": str(m.id),
+                "id": m.id,
                 "role": m.role,
                 "content": m.content,
                 "mode": m.mode,
@@ -105,8 +107,8 @@ async def get_thread(
 
 @router.get("/threads/workspace/{workspace_id}", response_model=list)
 async def list_threads(
-    workspace_id: UUID,
-    project_id: Optional[UUID] = None,
+    workspace_id: int,
+    project_id: Optional[int] = None,
     is_archived: bool = False,
     limit: int = 20,
     current_user: User = Depends(get_current_user),
@@ -132,10 +134,10 @@ async def list_threads(
     
     return [
         {
-            "id": str(t.id),
+            "id": t.id,
             "title": t.title,
             "summary": t.summary,
-            "project_id": str(t.project_id) if t.project_id else None,
+            "project_id": t.project_id if t.project_id else None,
             "created_at": str(t.created_at),
             "updated_at": str(t.updated_at)
         }
@@ -145,7 +147,7 @@ async def list_threads(
 
 @router.put("/threads/{thread_id}", response_model=dict)
 async def update_thread(
-    thread_id: UUID,
+    thread_id: int,
     title: Optional[str] = None,
     is_archived: Optional[bool] = None,
     current_user: User = Depends(get_current_user),
@@ -169,7 +171,7 @@ async def update_thread(
     await db.refresh(thread)
     
     return {
-        "id": str(thread.id),
+        "id": thread.id,
         "title": thread.title,
         "is_archived": thread.is_archived,
         "updated_at": str(thread.updated_at)
@@ -178,7 +180,7 @@ async def update_thread(
 
 @router.delete("/threads/{thread_id}")
 async def delete_thread(
-    thread_id: UUID,
+    thread_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -267,8 +269,8 @@ async def ai_chat(
 @router.post("/pql", response_model=dict)
 async def generate_pql(
     query: str,
-    workspace_id: UUID,
-    project_id: Optional[UUID] = None,
+    workspace_id: int,
+    project_id: Optional[int] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -305,8 +307,8 @@ async def generate_pql(
 
 @router.get("/context/{workspace_id}", response_model=dict)
 async def get_workspace_context(
-    workspace_id: UUID,
-    project_id: Optional[UUID] = None,
+    workspace_id: int,
+    project_id: Optional[int] = None,
     include_issues: bool = True,
     include_cycles: bool = True,
     include_modules: bool = True,
@@ -347,8 +349,8 @@ async def get_workspace_context(
 
 @router.post("/agent/triage/{issue_id}", response_model=AIAction)
 async def triage_issue(
-    issue_id: UUID,
-    workspace_id: UUID,
+    issue_id: int,
+    workspace_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -377,8 +379,8 @@ async def triage_issue(
 
 @router.post("/agent/assign/{issue_id}", response_model=AIAction)
 async def suggest_assignee(
-    issue_id: UUID,
-    workspace_id: UUID,
+    issue_id: int,
+    workspace_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -404,8 +406,8 @@ async def suggest_assignee(
 
 @router.get("/agent/blockers/{workspace_id}", response_model=list)
 async def track_blockers(
-    workspace_id: UUID,
-    project_id: Optional[UUID] = None,
+    workspace_id: int,
+    project_id: Optional[int] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -440,9 +442,9 @@ async def track_blockers(
 @router.post("/execute-plan", response_model=dict)
 async def execute_plan(
     plan: AIPlan,
-    workspace_id: UUID,
-    thread_id: Optional[UUID] = None,
-    message_id: Optional[UUID] = None,
+    workspace_id: int,
+    thread_id: Optional[int] = None,
+    message_id: Optional[int] = None,
     confirm: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -522,7 +524,7 @@ async def _execute_action(db: AsyncSession, action: AIAction) -> dict:
 
 @router.get("/suggestions/{workspace_id}", response_model=list)
 async def get_ai_suggestions(
-    workspace_id: UUID,
+    workspace_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -539,3 +541,225 @@ async def get_ai_suggestions(
     suggestions = ai_service._generate_suggestions(context)
     
     return suggestions
+
+
+# ==================== NLP Task Creation ====================
+
+@router.post("/tasks/parse", response_model=TaskExtractionResponse)
+async def parse_task_from_nlp(
+    request: TaskExtractionRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    从自然语言解析任务信息
+    
+    将用户的自然语言输入解析为结构化的任务数据，包括：
+    - 标题
+    - 描述
+    - 优先级
+    - 截止日期
+    - 负责人
+    - 标签
+    
+    示例输入：
+    "创建一个高优先级任务，标题为修复登录页面bug，描述为用户反馈使用Chrome浏览器时无法登录，截止日期为本周五，负责人分配给张三"
+    """
+    await require_workspace_access(request.workspace_id, current_user, db)
+    
+    # 验证项目属于工作区
+    from app.models.project import Project
+    project = await db.get(Project, request.project_id)
+    if not project or project.workspace_id != request.workspace_id:
+        raise HTTPException(status_code=404, detail="Project not found in workspace")
+    
+    # 解析自然语言
+    parser = NLPParser()
+    extraction = parser.parse_task_creation(request.text)
+    
+    # 验证提取结果
+    warnings = parser.validate_extraction(extraction)
+    
+    # 生成建议
+    suggestions = []
+    if not extraction.title:
+        suggestions.append("请提供任务标题以便更清晰地描述任务")
+    if not extraction.priority:
+        suggestions.append("未检测到优先级，将使用默认优先级")
+    if extraction.confidence < 0.7:
+        suggestions.append("解析置信度较低，建议手动检查提取的信息")
+    
+    return TaskExtractionResponse(
+        extracted_data={
+            "title": extraction.title,
+            "description": extraction.description,
+            "priority": extraction.priority.value if extraction.priority else None,
+            "due_date": str(extraction.due_date) if extraction.due_date else None,
+            "start_date": str(extraction.start_date) if extraction.start_date else None,
+            "assignee_email": extraction.assignee_email,
+            "assignee_name": extraction.assignee_name,
+            "labels": extraction.labels,
+        },
+        confidence=extraction.confidence,
+        warnings=warnings,
+        parsing_notes=extraction.parsing_notes,
+        suggestions=suggestions
+    )
+
+
+@router.post("/tasks/create-from-nlp", response_model=TaskCreateFromNLPResponse)
+async def create_task_from_nlp(
+    request: TaskCreateFromNLPRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    从自然语言创建任务
+    
+    解析自然语言并自动创建任务。如果 review_before_create=True，
+    则先返回提取结果供用户确认。
+    
+    流程：
+    1. 解析自然语言
+    2. 提取任务信息
+    3. 如果需要审核，返回提取结果
+    4. 如果自动创建，创建任务并返回结果
+    """
+    await require_workspace_access(request.workspace_id, current_user, db)
+    
+    # 验证项目属于工作区
+    from app.models.project import Project
+    project = await db.get(Project, request.project_id)
+    if not project or project.workspace_id != request.workspace_id:
+        raise HTTPException(status_code=404, detail="Project not found in workspace")
+    
+    # 解析自然语言
+    parser = NLPParser()
+    extraction = parser.parse_task_creation(request.text)
+    
+    # 验证提取结果
+    warnings = parser.validate_extraction(extraction)
+    
+    # 如果不需要自动创建或需要审核，返回提取结果
+    if not request.auto_create or request.review_before_create:
+        return TaskCreateFromNLPResponse(
+            created=False,
+            extraction_details={
+                "title": extraction.title,
+                "description": extraction.description,
+                "priority": extraction.priority.value if extraction.priority else None,
+                "due_date": str(extraction.due_date) if extraction.due_date else None,
+                "start_date": str(extraction.start_date) if extraction.start_date else None,
+                "assignee_email": extraction.assignee_email,
+                "assignee_name": extraction.assignee_name,
+                "labels": extraction.labels,
+            },
+            confidence=extraction.confidence,
+            warnings=warnings
+        )
+    
+    # 自动创建任务
+    try:
+        from app.models.issue import Issue
+        from app.models.state import State
+        
+        # 获取默认状态（Todo）
+        state_result = await db.execute(
+            select(State).where(
+                State.workspace_id == request.workspace_id,
+                State.group == "todo",
+                State.is_default == True
+            ).limit(1)
+        )
+        default_state = state_result.scalar_one_or_none()
+        
+        if not default_state:
+            # 如果没有默认状态，获取第一个 Todo 状态
+            state_result = await db.execute(
+                select(State).where(
+                    State.workspace_id == request.workspace_id,
+                    State.group == "todo"
+                ).limit(1)
+            )
+            default_state = state_result.scalar_one_or_none()
+        
+        # 查找负责人（如果有邮箱或姓名）
+        assignee_id = None
+        if extraction.assignee_email:
+            user_result = await db.execute(
+                select(User).where(User.email == extraction.assignee_email)
+            )
+            assignee_user = user_result.scalar_one_or_none()
+            if assignee_user:
+                assignee_id = assignee_user.id
+        
+        # 创建 Issue
+        issue = Issue(
+            name=extraction.title or f"Task from NLP: {request.text[:50]}",
+            description=extraction.description,
+            priority=extraction.priority.value if extraction.priority else "medium",
+            state_id=default_state.id if default_state else None,
+            project_id=request.project_id,
+            workspace_id=request.workspace_id,
+            assignee_id=assignee_id,
+            start_date=extraction.start_date,
+            target_date=extraction.due_date,
+            is_draft=False,
+            created_by_id=current_user.id
+        )
+        
+        db.add(issue)
+        await db.flush()  # 获取 issue ID
+        
+        # 添加标签（如果有）
+        if extraction.labels:
+            from app.models.label import Label
+            for label_name in extraction.labels:
+                # 查找或创建标签
+                label_result = await db.execute(
+                    select(Label).where(
+                        Label.workspace_id == request.workspace_id,
+                        Label.name == label_name
+                    ).limit(1)
+                )
+                label = label_result.scalar_one_or_none()
+                
+                if not label:
+                    label = Label(
+                        name=label_name,
+                        color="#3B82F6",  # 默认蓝色
+                        workspace_id=request.workspace_id,
+                        created_by_id=current_user.id
+                    )
+                    db.add(label)
+                    await db.flush()
+                
+                # 关联标签到问题
+                issue.labels.append(label)
+        
+        await db.commit()
+        await db.refresh(issue)
+        
+        return TaskCreateFromNLPResponse(
+            task_id=issue.id,
+            created=True,
+            extraction_details={
+                "title": extraction.title,
+                "description": extraction.description,
+                "priority": extraction.priority.value if extraction.priority else None,
+                "due_date": str(extraction.due_date) if extraction.due_date else None,
+                "start_date": str(extraction.start_date) if extraction.start_date else None,
+                "assignee_email": extraction.assignee_email,
+                "assignee_name": extraction.assignee_name,
+                "labels": extraction.labels,
+            },
+            confidence=extraction.confidence,
+            warnings=warnings
+        )
+    
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create task: {str(e)}"
+        )

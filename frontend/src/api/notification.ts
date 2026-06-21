@@ -2,7 +2,7 @@
  * Notification API - 通知API模块
  */
 import api from './index'
-import type { Notification, NotificationCreate, NotificationUpdate, NotificationSummary } from '@/types/notification'
+import type { Notification, NotificationCreate, NotificationSummary } from '@/types/notification'
 
 const BASE_URL = '/api/v1/notifications'
 
@@ -32,7 +32,7 @@ export async function getNotificationSummary(): Promise<NotificationSummary> {
  * 获取通知详情
  */
 export async function getNotification(
-  notificationId: string
+  notificationId: number
 ): Promise<Notification> {
   const response = await api.get(`${BASE_URL}/${notificationId}`)
   return response.data
@@ -52,7 +52,7 @@ export async function createNotification(
  * 标记通知已读
  */
 export async function markAsRead(
-  notificationId: string
+  notificationId: number
 ): Promise<Notification> {
   const response = await api.patch(`${BASE_URL}/${notificationId}/read`)
   return response.data
@@ -70,7 +70,7 @@ export async function markAllAsRead(): Promise<{ marked_count: number }> {
  * 删除通知
  */
 export async function deleteNotification(
-  notificationId: string
+  notificationId: number
 ): Promise<void> {
   await api.delete(`${BASE_URL}/${notificationId}`)
 }
@@ -80,7 +80,7 @@ export async function deleteNotification(
  */
 export async function createBulkNotification(
   data: NotificationCreate,
-  recipientIds: string[]
+  recipientIds: number[]
 ): Promise<Notification[]> {
   const response = await api.post(`${BASE_URL}/bulk`, data, {
     params: { recipient_ids: recipientIds }

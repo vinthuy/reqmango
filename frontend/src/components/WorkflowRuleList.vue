@@ -88,8 +88,8 @@ import type { AutomationRule } from '@/types/workflow'
 
 // Props
 const props = defineProps<{
-  projectId: string
-  workspaceId: string
+  projectId: number
+  workspaceId: number
 }>()
 
 // Emits

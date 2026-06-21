@@ -3,7 +3,6 @@ Automation Engine - 自动化执行引擎
 实现真正的触发器检测、条件评估和动作执行
 """
 from typing import Optional, List, Dict, Any
-from uuid import UUID
 from datetime import datetime, timedelta
 import asyncio
 import logging
@@ -51,7 +50,7 @@ class AutomationExecutor:
 
     async def execute_rules_for_event(
         self,
-        project_id: UUID,
+        project_id: int,
         event_type: str,
         event_data: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
@@ -73,7 +72,7 @@ class AutomationExecutor:
 
         return results
 
-    async def _get_enabled_rules(self, project_id: UUID) -> List[AutomationRule]:
+    async def _get_enabled_rules(self, project_id: int) -> List[AutomationRule]:
         """获取项目所有启用的自动化规则"""
         result = await self.db.execute(
             select(AutomationRule).where(
@@ -125,7 +124,7 @@ class AutomationExecutor:
         """执行单个自动化规则"""
         start_time = datetime.utcnow()
         result = {
-            "rule_id": str(rule.id),
+            "rule_id": rule.id,
             "rule_name": rule.name,
             "status": "success",
             "actions_executed": [],
@@ -170,7 +169,7 @@ class AutomationExecutor:
         self.execution_results.append(result)
         return result
 
-    async def _get_issue_data(self, issue_id: Optional[UUID]) -> Dict[str, Any]:
+    async def _get_issue_data(self, issue_id: Optional[int]) -> Dict[str, Any]:
         """获取工作项数据用于条件评估"""
         if not issue_id:
             return {}
@@ -184,13 +183,13 @@ class AutomationExecutor:
             return {}
 
         return {
-            "id": str(issue.id),
+            "id": issue.id,
             "name": issue.name,
             "description": issue.description,
-            "state_id": str(issue.state_id) if issue.state_id else None,
+            "state_id": issue.state_id,
             "priority": issue.priority,
-            "assignee_id": str(issue.assignee_id) if issue.assignee_id else None,
-            "cycle_id": str(issue.cycle_id) if issue.cycle_id else None,
+            "assignee_id": issue.assignee_id,
+            "cycle_id": issue.cycle_id,
             "start_date": issue.start_date.isoformat() if issue.start_date else None,
             "target_date": issue.target_date.isoformat() if issue.target_date else None,
             "estimate_point": issue.estimate_point,
@@ -282,7 +281,7 @@ class AutomationExecutor:
             return {"success": False, "reason": "No issue ID"}
 
         result = await self.db.execute(
-            select(Issue).where(Issue.id == UUID(issue_id))
+            select(Issue).where(Issue.id == int(issue_id))
         )
         issue = result.scalar_one_or_none()
 
@@ -319,14 +318,14 @@ class AutomationExecutor:
             return {"success": False, "reason": "No issue ID"}
 
         result = await self.db.execute(
-            select(Issue).where(Issue.id == UUID(issue_id))
+            select(Issue).where(Issue.id == int(issue_id))
         )
         issue = result.scalar_one_or_none()
 
         if not issue:
             return {"success": False, "reason": "Issue not found"}
 
-        issue.assignee_id = UUID(assignee_id) if assignee_id else None
+        issue.assignee_id = int(assignee_id) if assignee_id else None
         issue.updated_at = datetime.utcnow().isoformat()
 
         await self.db.commit()
@@ -361,14 +360,14 @@ class AutomationExecutor:
             return {"success": False, "reason": "No issue ID"}
 
         result = await self.db.execute(
-            select(Issue).where(Issue.id == UUID(issue_id))
+            select(Issue).where(Issue.id == int(issue_id))
         )
         issue = result.scalar_one_or_none()
 
         if not issue:
             return {"success": False, "reason": "Issue not found"}
 
-        issue.state_id = UUID(state_id) if state_id else None
+        issue.state_id = int(state_id) if state_id else None
         issue.updated_at = datetime.utcnow().isoformat()
 
         await self.db.commit()
@@ -385,7 +384,7 @@ class AutomationExecutor:
             return {"success": False, "reason": "No issue ID"}
 
         result = await self.db.execute(
-            select(Issue).where(Issue.id == UUID(issue_id))
+            select(Issue).where(Issue.id == int(issue_id))
         )
         issue = result.scalar_one_or_none()
 
@@ -421,7 +420,7 @@ class AutomationExecutor:
         self.db.add(notification)
         await self.db.commit()
 
-        return {"success": True, "notification_id": str(notification.id)}
+        return {"success": True, "notification_id": notification.id}
 
     async def _action_send_email(
         self,
@@ -454,7 +453,7 @@ class AutomationExecutor:
             rule_id=rule.id,
             status=result["status"],
             trigger_event=event_data.get("event_type", "unknown"),
-            triggered_issue_id=UUID(event_data["issue_id"]) if event_data.get("issue_id") else None,
+            triggered_issue_id=int(event_data["issue_id"]) if event_data.get("issue_id") else None,
             execution_details=result,
             error_message=result.get("error"),
             execution_time_ms=result.get("execution_time_ms", 0)
@@ -486,8 +485,8 @@ async def check_due_soon_issues(db: AsyncSession, days_before: int = 1) -> List[
     for issue in issues:
         event_data = {
             "event_type": TriggerEvent.DUE_SOON,
-            "issue_id": str(issue.id),
-            "project_id": str(issue.project_id),
+            "issue_id": issue.id,
+            "project_id": issue.project_id,
             "target_date": str(issue.target_date),
             "days_until_due": (issue.target_date - datetime.utcnow().date()).days
         }
@@ -521,8 +520,8 @@ async def check_overdue_issues(db: AsyncSession) -> List[Dict[str, Any]]:
     for issue in issues:
         event_data = {
             "event_type": TriggerEvent.DUE_DATE_PASSED,
-            "issue_id": str(issue.id),
-            "project_id": str(issue.project_id),
+            "issue_id": issue.id,
+            "project_id": issue.project_id,
             "target_date": str(issue.target_date),
             "days_overdue": (today - issue.target_date).days
         }
@@ -557,8 +556,8 @@ async def check_cycle_status(db: AsyncSession) -> List[Dict[str, Any]]:
     for cycle in started_cycles:
         event_data = {
             "event_type": TriggerEvent.CYCLE_STARTED,
-            "cycle_id": str(cycle.id),
-            "project_id": str(cycle.project_id),
+            "cycle_id": cycle.id,
+            "project_id": cycle.project_id,
             "start_date": str(cycle.start_date)
         }
 
@@ -582,8 +581,8 @@ async def check_cycle_status(db: AsyncSession) -> List[Dict[str, Any]]:
     for cycle in ended_cycles:
         event_data = {
             "event_type": TriggerEvent.CYCLE_ENDED,
-            "cycle_id": str(cycle.id),
-            "project_id": str(cycle.project_id),
+            "cycle_id": cycle.id,
+            "project_id": cycle.project_id,
             "end_date": str(cycle.end_date)
         }
 

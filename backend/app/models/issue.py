@@ -1,6 +1,5 @@
 from datetime import datetime, date
-from uuid import UUID
-from sqlalchemy import String, Integer, ForeignKey, Date, DateTime, Boolean, Text, JSON, Float, Table, Column
+from sqlalchemy import String, Integer, ForeignKey, Date, DateTime, Boolean, Text, JSON, Float, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 from .base import Base, AuditMixin, SoftDeleteMixin
@@ -12,8 +11,8 @@ class IssueAssignee(Base):
     """工作项负责人关联表"""
     __tablename__ = "issue_assignees"
     
-    issue_id: Mapped[UUID] = mapped_column(ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    issue_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     
     # Relationships
     issue: Mapped["Issue"] = relationship(back_populates="assignee_links")
@@ -24,8 +23,8 @@ class IssueLabel(Base):
     """工作项标签关联表"""
     __tablename__ = "issue_labels"
     
-    issue_id: Mapped[UUID] = mapped_column(ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True)
-    label_id: Mapped[UUID] = mapped_column(ForeignKey("labels.id", ondelete="CASCADE"), primary_key=True)
+    issue_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True)
+    label_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("labels.id", ondelete="CASCADE"), primary_key=True)
     
     # Relationships
     issue: Mapped["Issue"] = relationship(back_populates="label_links")
@@ -36,8 +35,8 @@ class IssueCycle(Base):
     """工作项周期关联表"""
     __tablename__ = "issue_cycles"
     
-    issue_id: Mapped[UUID] = mapped_column(ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True)
-    cycle_id: Mapped[UUID] = mapped_column(ForeignKey("cycles.id", ondelete="CASCADE"), primary_key=True)
+    issue_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True)
+    cycle_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("cycles.id", ondelete="CASCADE"), primary_key=True)
     
     # Relationships
     issue: Mapped["Issue"] = relationship(back_populates="cycle_link")
@@ -48,8 +47,8 @@ class IssueModule(Base):
     """工作项模块关联表"""
     __tablename__ = "issue_modules"
     
-    issue_id: Mapped[UUID] = mapped_column(ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True)
-    module_id: Mapped[UUID] = mapped_column(ForeignKey("modules.id", ondelete="CASCADE"), primary_key=True)
+    issue_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("issues.id", ondelete="CASCADE"), primary_key=True)
+    module_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("modules.id", ondelete="CASCADE"), primary_key=True)
     
     # Relationships
     issue: Mapped["Issue"] = relationship(back_populates="module_links")
@@ -77,10 +76,10 @@ class Issue(Base, AuditMixin, SoftDeleteMixin):
     is_draft: Mapped[bool] = mapped_column(Boolean, default=False)
     archived_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
-    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
-    parent_id: Mapped[UUID | None] = mapped_column(ForeignKey("issues.id"), nullable=True)
-    state_id: Mapped[UUID] = mapped_column(ForeignKey("states.id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=False)
+    workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspaces.id"), nullable=False)
+    parent_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("issues.id"), nullable=True)
+    state_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("states.id"), nullable=False)
     
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     external_source: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -135,12 +134,12 @@ class Issue(Base, AuditMixin, SoftDeleteMixin):
 class IssueActivity(Base, AuditMixin):
     __tablename__ = "issue_activities"
     
-    issue_id: Mapped[UUID | None] = mapped_column(ForeignKey("issues.id"), nullable=True)
+    issue_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("issues.id"), nullable=True)
     verb: Mapped[str] = mapped_column(String(255), default="created")
     field: Mapped[str | None] = mapped_column(String(255), nullable=True)
     old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    actor_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    actor_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True)
     
     issue: Mapped["Issue"] = relationship(back_populates="activities")

@@ -20,8 +20,8 @@ import type {
  * 创建工作项类型
  */
 export async function createIssueType(
-  projectId: string,
-  workspaceId: string,
+  projectId: number,
+  workspaceId: number,
   data: IssueTypeCreate
 ): Promise<IssueType> {
   const response = await api.post(
@@ -35,7 +35,7 @@ export async function createIssueType(
  * 列出工作项类型
  */
 export async function listIssueTypes(
-  projectId: string,
+  projectId: number,
   includeInactive?: boolean
 ): Promise<IssueType[]> {
   const params = new URLSearchParams()
@@ -50,7 +50,7 @@ export async function listIssueTypes(
 /**
  * 获取工作项类型详情
  */
-export async function getIssueType(typeId: string): Promise<IssueType> {
+export async function getIssueType(typeId: number): Promise<IssueType> {
   const response = await api.get(`/projects/issue-types/${typeId}`)
   return response.data
 }
@@ -59,7 +59,7 @@ export async function getIssueType(typeId: string): Promise<IssueType> {
  * 更新工作项类型
  */
 export async function updateIssueType(
-  typeId: string,
+  typeId: number,
   data: IssueTypeUpdate
 ): Promise<IssueType> {
   const response = await api.put(`/projects/issue-types/${typeId}`, data)
@@ -69,7 +69,7 @@ export async function updateIssueType(
 /**
  * 删除工作项类型
  */
-export async function deleteIssueType(typeId: string): Promise<void> {
+export async function deleteIssueType(typeId: number): Promise<void> {
   await api.delete(`/projects/issue-types/${typeId}`)
 }
 
@@ -77,8 +77,8 @@ export async function deleteIssueType(typeId: string): Promise<void> {
  * 创建默认工作项类型
  */
 export async function createDefaultIssueTypes(
-  projectId: string,
-  workspaceId: string
+  projectId: number,
+  workspaceId: number
 ): Promise<IssueType[]> {
   const response = await api.post(
     `/projects/${projectId}/issue-types/default?workspace_id=${workspaceId}`
@@ -92,8 +92,8 @@ export async function createDefaultIssueTypes(
  * 创建状态
  */
 export async function createState(
-  projectId: string,
-  workspaceId: string,
+  projectId: number,
+  workspaceId: number,
   data: StateCreate
 ): Promise<State> {
   const response = await api.post(
@@ -107,14 +107,14 @@ export async function createState(
  * 列出状态
  */
 export async function listStates(
-  projectId: string,
+  projectId: number,
   includeInactive?: boolean
 ): Promise<State[]> {
   const params = new URLSearchParams()
   if (includeInactive) params.append('include_inactive', 'true')
   
   const response = await api.get(
-    `/projects/${projectId}/states?${params.toString()}`
+    `/projects/${projectId}/settings/states?${params.toString()}`
   )
   return response.data
 }
@@ -122,7 +122,7 @@ export async function listStates(
 /**
  * 获取状态详情
  */
-export async function getState(stateId: string): Promise<State> {
+export async function getState(stateId: number): Promise<State> {
   const response = await api.get(`/projects/states/${stateId}`)
   return response.data
 }
@@ -131,7 +131,7 @@ export async function getState(stateId: string): Promise<State> {
  * 更新状态
  */
 export async function updateState(
-  stateId: string,
+  stateId: number,
   data: StateUpdate
 ): Promise<State> {
   const response = await api.put(`/projects/states/${stateId}`, data)
@@ -141,7 +141,7 @@ export async function updateState(
 /**
  * 删除状态
  */
-export async function deleteState(stateId: string): Promise<void> {
+export async function deleteState(stateId: number): Promise<void> {
   await api.delete(`/projects/states/${stateId}`)
 }
 
@@ -149,8 +149,8 @@ export async function deleteState(stateId: string): Promise<void> {
  * 创建默认状态
  */
 export async function createDefaultStates(
-  projectId: string,
-  workspaceId: string
+  projectId: number,
+  workspaceId: number
 ): Promise<State[]> {
   const response = await api.post(
     `/projects/${projectId}/states/default?workspace_id=${workspaceId}`
@@ -164,8 +164,8 @@ export async function createDefaultStates(
  * 创建标签
  */
 export async function createLabel(
-  projectId: string,
-  workspaceId: string,
+  projectId: number,
+  workspaceId: number,
   data: LabelCreate
 ): Promise<Label> {
   const response = await api.post(
@@ -178,7 +178,7 @@ export async function createLabel(
 /**
  * 列出标签
  */
-export async function listLabels(projectId: string): Promise<Label[]> {
+export async function listLabels(projectId: number): Promise<Label[]> {
   const response = await api.get(`/projects/${projectId}/labels`)
   return response.data
 }
@@ -186,7 +186,7 @@ export async function listLabels(projectId: string): Promise<Label[]> {
 /**
  * 获取标签详情
  */
-export async function getLabel(labelId: string): Promise<Label> {
+export async function getLabel(labelId: number): Promise<Label> {
   const response = await api.get(`/projects/labels/${labelId}`)
   return response.data
 }
@@ -195,7 +195,7 @@ export async function getLabel(labelId: string): Promise<Label> {
  * 更新标签
  */
 export async function updateLabel(
-  labelId: string,
+  labelId: number,
   data: LabelUpdate
 ): Promise<Label> {
   const response = await api.put(`/projects/labels/${labelId}`, data)
@@ -205,7 +205,7 @@ export async function updateLabel(
 /**
  * 删除标签
  */
-export async function deleteLabel(labelId: string): Promise<void> {
+export async function deleteLabel(labelId: number): Promise<void> {
   await api.delete(`/projects/labels/${labelId}`)
 }
 

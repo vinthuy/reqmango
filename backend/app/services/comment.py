@@ -2,7 +2,6 @@
 Comment Service - 评论业务逻辑层
 """
 from typing import List, Optional, Tuple
-from uuid import UUID
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +17,7 @@ from app.core.exceptions import NotFoundException, ValidationException
 async def create_comment(
     db: AsyncSession,
     comment_data: CommentCreate,
-    user_id: UUID
+    user_id: int
 ) -> Comment:
     """创建评论"""
     # 验证工作项存在
@@ -49,7 +48,7 @@ async def create_comment(
 
 async def get_comment_by_id(
     db: AsyncSession,
-    comment_id: UUID
+    comment_id: int
 ) -> Comment:
     """获取评论"""
     result = await db.execute(
@@ -63,7 +62,7 @@ async def get_comment_by_id(
 
 async def get_issue_comments(
     db: AsyncSession,
-    issue_id: UUID,
+    issue_id: int,
     page: int = 1,
     page_size: int = 20,
     include_replies: bool = True
@@ -101,9 +100,9 @@ async def get_issue_comments(
 
 async def update_comment(
     db: AsyncSession,
-    comment_id: UUID,
+    comment_id: int,
     update_data: CommentUpdate,
-    user_id: UUID
+    user_id: int
 ) -> Comment:
     """更新评论"""
     comment = await get_comment_by_id(db, comment_id)
@@ -123,8 +122,8 @@ async def update_comment(
 
 async def delete_comment(
     db: AsyncSession,
-    comment_id: UUID,
-    user_id: UUID
+    comment_id: int,
+    user_id: int
 ) -> None:
     """删除评论"""
     comment = await get_comment_by_id(db, comment_id)
@@ -138,8 +137,8 @@ async def delete_comment(
 
 async def resolve_comment(
     db: AsyncSession,
-    comment_id: UUID,
-    user_id: UUID
+    comment_id: int,
+    user_id: int
 ) -> Comment:
     """标记评论为已解决"""
     comment = await get_comment_by_id(db, comment_id)
@@ -155,8 +154,8 @@ async def resolve_comment(
 
 async def unresolve_comment(
     db: AsyncSession,
-    comment_id: UUID,
-    user_id: UUID
+    comment_id: int,
+    user_id: int
 ) -> Comment:
     """取消评论解决状态"""
     comment = await get_comment_by_id(db, comment_id)

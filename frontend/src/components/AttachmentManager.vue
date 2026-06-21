@@ -110,8 +110,8 @@ import type { Attachment } from '@/types/attachment'
 
 // Props
 const props = defineProps<{
-  issueId?: string
-  projectId?: string
+  issueId?: number
+  projectId?: number
 }>()
 
 // State
@@ -158,7 +158,7 @@ async function uploadFiles(files: File[]) {
 
   try {
     for (const file of files) {
-      const data: { name?: string; issue_id?: string; project_id?: string } = {}
+      const data: { name?: string; issue_id?: number; project_id?: number } = {}
       if (props.issueId) data.issue_id = props.issueId
       if (props.projectId) data.project_id = props.projectId
 
@@ -183,7 +183,7 @@ async function deleteAttachment(attachment: Attachment) {
   }
 }
 
-function getDownloadUrl(attachmentId: string): string {
+function getDownloadUrl(attachmentId: number): string {
   return attachmentApi.getAttachmentDownloadUrl(attachmentId)
 }
 

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 from typing import List
 
 from app.db.session import get_db
@@ -17,7 +16,7 @@ router = APIRouter()
 
 @router.post("/", response_model=ProjectResponse, status_code=201)
 async def create_project(
-    workspace_id: UUID,
+    workspace_id: int,
     project_data: ProjectCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -38,7 +37,7 @@ async def create_project(
 
 @router.get("/", response_model=List[ProjectResponse])
 async def list_projects(
-    workspace_id: UUID,
+    workspace_id: int,
     include_archived: bool = False,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -62,7 +61,7 @@ async def list_projects(
 
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -77,7 +76,7 @@ async def get_project(
 
 @router.patch("/{project_id}", response_model=ProjectResponse)
 async def update_project(
-    project_id: UUID,
+    project_id: int,
     update_data: ProjectUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -97,7 +96,7 @@ async def update_project(
 
 @router.delete("/{project_id}", status_code=204)
 async def delete_project(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -114,7 +113,7 @@ async def delete_project(
 
 @router.post("/{project_id}/archive", response_model=ProjectResponse)
 async def archive_project(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -129,7 +128,7 @@ async def archive_project(
 
 @router.post("/{project_id}/restore", response_model=ProjectResponse)
 async def restore_project(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -146,7 +145,7 @@ async def restore_project(
 
 @router.get("/{project_id}/members", response_model=List[dict])
 async def list_project_members(
-    project_id: UUID,
+    project_id: int,
     only_active: bool = True,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -163,12 +162,12 @@ async def list_project_members(
     )
     return [
         {
-            "id": str(member.id),
-            "user_id": str(member.user_id),
+            "id": member.id,
+            "user_id": member.user_id,
             "role": member.role,
             "is_active": member.is_active,
             "user": {
-                "id": str(member.user.id),
+                "id": member.user.id,
                 "display_name": member.user.display_name,
                 "username": member.user.username,
                 "avatar": member.user.avatar
@@ -180,8 +179,8 @@ async def list_project_members(
 
 @router.post("/{project_id}/members", response_model=dict)
 async def add_project_member(
-    project_id: UUID,
-    user_id: UUID,
+    project_id: int,
+    user_id: int,
     role: int = Query(15, ge=1, le=20),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -199,17 +198,17 @@ async def add_project_member(
         added_by=current_user.id
     )
     return {
-        "id": str(member.id),
-        "project_id": str(member.project_id),
-        "user_id": str(member.user_id),
+        "id": member.id,
+        "project_id": member.project_id,
+        "user_id": member.user_id,
         "role": member.role
     }
 
 
 @router.patch("/{project_id}/members/{user_id}", response_model=dict)
 async def update_project_member(
-    project_id: UUID,
-    user_id: UUID,
+    project_id: int,
+    user_id: int,
     role: int = Query(..., ge=1, le=20),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -225,17 +224,17 @@ async def update_project_member(
         updated_by=current_user.id
     )
     return {
-        "id": str(member.id),
-        "project_id": str(member.project_id),
-        "user_id": str(member.user_id),
+        "id": member.id,
+        "project_id": member.project_id,
+        "user_id": member.user_id,
         "role": member.role
     }
 
 
 @router.delete("/{project_id}/members/{user_id}", response_model=dict)
 async def remove_project_member(
-    project_id: UUID,
-    user_id: UUID,
+    project_id: int,
+    user_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -256,7 +255,7 @@ async def remove_project_member(
 
 @router.get("/{project_id}/statistics", response_model=dict)
 async def get_project_statistics(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -271,7 +270,7 @@ async def get_project_statistics(
 
 @router.get("/{project_id}/issues-summary", response_model=dict)
 async def get_project_issues_summary(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

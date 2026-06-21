@@ -4,7 +4,7 @@ import os
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     
-    # Database - 默认使用SQLite进行测试
+    # Database - 强制使用SQLite进行测试
     DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
     REDIS_URL: str = "redis://localhost:6379"
     

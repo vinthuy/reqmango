@@ -2,7 +2,6 @@
 Workflow Services - 工作流和自动化业务逻辑层
 """
 from typing import Optional, List
-from uuid import UUID
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,8 +31,8 @@ from app.core.exceptions import NotFoundException, ValidationException
 async def create_state_transition(
     db: AsyncSession,
     transition_data: StateTransitionCreate,
-    workspace_id: UUID,
-    user_id: UUID
+    workspace_id: int,
+    user_id: int
 ) -> StateTransition:
     """创建状态转换规则"""
     # 验证项目存在
@@ -75,7 +74,7 @@ async def create_state_transition(
 
 async def get_state_transition_by_id(
     db: AsyncSession,
-    transition_id: UUID
+    transition_id: int
 ) -> StateTransition:
     """获取状态转换规则"""
     result = await db.execute(
@@ -89,8 +88,8 @@ async def get_state_transition_by_id(
 
 async def get_project_state_transitions(
     db: AsyncSession,
-    project_id: UUID,
-    source_state_id: Optional[UUID] = None
+    project_id: int,
+    source_state_id: Optional[int] = None
 ) -> List[StateTransition]:
     """获取项目的状态转换规则"""
     query = select(StateTransition).where(
@@ -109,10 +108,10 @@ async def get_project_state_transitions(
 
 async def can_transition(
     db: AsyncSession,
-    project_id: UUID,
-    source_state_id: UUID,
-    target_state_id: UUID,
-    issue_type_id: Optional[UUID] = None
+    project_id: int,
+    source_state_id: int,
+    target_state_id: int,
+    issue_type_id: Optional[int] = None
 ) -> bool:
     """检查是否允许从源状态转换到目标状态"""
     query = select(StateTransition).where(
@@ -136,7 +135,7 @@ async def can_transition(
 
 async def update_state_transition(
     db: AsyncSession,
-    transition_id: UUID,
+    transition_id: int,
     update_data: StateTransitionUpdate
 ) -> StateTransition:
     """更新状态转换规则"""
@@ -156,7 +155,7 @@ async def update_state_transition(
     return transition
 
 
-async def delete_state_transition(db: AsyncSession, transition_id: UUID):
+async def delete_state_transition(db: AsyncSession, transition_id: int):
     """删除状态转换规则（软删除）"""
     transition = await get_state_transition_by_id(db, transition_id)
     transition.is_deleted = True
@@ -165,9 +164,9 @@ async def delete_state_transition(db: AsyncSession, transition_id: UUID):
 
 async def create_default_transitions(
     db: AsyncSession,
-    project_id: UUID,
-    workspace_id: UUID,
-    user_id: UUID,
+    project_id: int,
+    workspace_id: int,
+    user_id: int,
     states: List[State]
 ) -> List[StateTransition]:
     """创建默认状态转换规则"""
@@ -210,8 +209,8 @@ async def create_default_transitions(
 async def create_automation_rule(
     db: AsyncSession,
     rule_data: AutomationRuleCreate,
-    workspace_id: UUID,
-    user_id: UUID
+    workspace_id: int,
+    user_id: int
 ) -> AutomationRule:
     """创建自动化规则"""
     # 验证项目存在
@@ -240,7 +239,7 @@ async def create_automation_rule(
 
 async def get_automation_rule_by_id(
     db: AsyncSession,
-    rule_id: UUID
+    rule_id: int
 ) -> AutomationRule:
     """获取自动化规则"""
     result = await db.execute(
@@ -254,7 +253,7 @@ async def get_automation_rule_by_id(
 
 async def get_project_automation_rules(
     db: AsyncSession,
-    project_id: UUID,
+    project_id: int,
     enabled_only: bool = False
 ) -> List[AutomationRule]:
     """获取项目的自动化规则"""
@@ -274,7 +273,7 @@ async def get_project_automation_rules(
 
 async def update_automation_rule(
     db: AsyncSession,
-    rule_id: UUID,
+    rule_id: int,
     update_data: AutomationRuleUpdate
 ) -> AutomationRule:
     """更新自动化规则"""
@@ -298,7 +297,7 @@ async def update_automation_rule(
     return rule
 
 
-async def delete_automation_rule(db: AsyncSession, rule_id: UUID):
+async def delete_automation_rule(db: AsyncSession, rule_id: int):
     """删除自动化规则（软删除）"""
     rule = await get_automation_rule_by_id(db, rule_id)
     rule.is_deleted = True
@@ -307,7 +306,7 @@ async def delete_automation_rule(db: AsyncSession, rule_id: UUID):
 
 async def toggle_automation_rule(
     db: AsyncSession,
-    rule_id: UUID,
+    rule_id: int,
     enabled: bool
 ) -> AutomationRule:
     """启用/禁用自动化规则"""
@@ -322,10 +321,10 @@ async def toggle_automation_rule(
 
 async def create_execution_log(
     db: AsyncSession,
-    rule_id: UUID,
+    rule_id: int,
     status: str,
     trigger_event: str,
-    triggered_issue_id: Optional[UUID] = None,
+    triggered_issue_id: Optional[int] = None,
     execution_details: dict = None,
     error_message: Optional[str] = None,
     execution_time_ms: Optional[int] = None
@@ -339,7 +338,7 @@ async def create_execution_log(
         execution_details=execution_details or {},
         error_message=error_message,
         execution_time_ms=execution_time_ms,
-        created_by_id=triggered_issue_id or UUID("00000000-0000-0000-0000-000000000000")
+        created_by_id=triggered_issue_id or 0
     )
     
     db.add(log)
@@ -356,7 +355,7 @@ async def create_execution_log(
 
 async def get_rule_execution_logs(
     db: AsyncSession,
-    rule_id: UUID,
+    rule_id: int,
     limit: int = 50
 ) -> List[AutomationExecutionLog]:
     """获取规则的执行日志"""
@@ -388,10 +387,10 @@ async def get_all_templates(
 
 async def create_rule_from_template(
     db: AsyncSession,
-    template_id: UUID,
-    project_id: UUID,
-    workspace_id: UUID,
-    user_id: UUID,
+    template_id: int,
+    project_id: int,
+    workspace_id: int,
+    user_id: int,
     name_override: Optional[str] = None
 ) -> AutomationRule:
     """从模板创建自动化规则"""

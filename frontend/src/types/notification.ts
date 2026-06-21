@@ -3,7 +3,7 @@
  */
 
 export interface Notification {
-  id: string
+  id: number
   title: string
   message: string
   type: 'info' | 'warning' | 'error' | 'success'
@@ -11,10 +11,10 @@ export interface Notification {
   is_read: boolean
   read_at?: string
   action_url?: string
-  recipient_id: string
-  sender_id?: string
-  project_id?: string
-  issue_id?: string
+  recipient_id: number
+  sender_id?: number
+  project_id?: number
+  issue_id?: number
   created_at: string
   updated_at: string
 }
@@ -25,10 +25,10 @@ export interface NotificationCreate {
   type?: 'info' | 'warning' | 'error' | 'success'
   priority?: 'low' | 'medium' | 'high' | 'urgent'
   action_url?: string
-  recipient_id: string
-  sender_id?: string
-  project_id?: string
-  issue_id?: string
+  recipient_id: number
+  sender_id?: number
+  project_id?: number
+  issue_id?: number
 }
 
 export interface NotificationUpdate {

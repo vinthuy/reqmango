@@ -2,7 +2,6 @@
 Issue Services - 工作项业务逻辑层
 """
 from typing import Optional, List, Dict, Any
-from uuid import UUID
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,9 +33,9 @@ from app.core.exceptions import NotFoundException, ValidationException
 async def create_issue(
     db: AsyncSession,
     issue_data: IssueCreate,
-    project_id: UUID,
-    workspace_id: UUID,
-    user_id: UUID
+    project_id: int,
+    workspace_id: int,
+    user_id: int
 ) -> Issue:
     """创建工作项"""
     # 验证项目存在
@@ -133,7 +132,7 @@ async def create_issue(
     return issue
 
 
-async def get_issue_by_id(db: AsyncSession, issue_id: UUID) -> Issue:
+async def get_issue_by_id(db: AsyncSession, issue_id: int) -> Issue:
     """获取工作项详情"""
     result = await db.execute(
         select(Issue)
@@ -159,13 +158,13 @@ async def get_issue_by_id(db: AsyncSession, issue_id: UUID) -> Issue:
 
 async def list_project_issues(
     db: AsyncSession,
-    project_id: UUID,
-    state_id: Optional[UUID] = None,
+    project_id: int,
+    state_id: Optional[int] = None,
     priority: Optional[IssuePriority] = None,
-    assignee_id: Optional[UUID] = None,
-    parent_id: Optional[UUID] = None,
-    cycle_id: Optional[UUID] = None,
-    module_id: Optional[UUID] = None,
+    assignee_id: Optional[int] = None,
+    parent_id: Optional[int] = None,
+    cycle_id: Optional[int] = None,
+    module_id: Optional[int] = None,
     search: Optional[str] = None,
     is_draft: Optional[bool] = None,
     limit: int = 50,
@@ -236,9 +235,9 @@ async def list_project_issues(
 
 async def update_issue(
     db: AsyncSession,
-    issue_id: UUID,
+    issue_id: int,
     update_data: IssueUpdate,
-    user_id: UUID
+    user_id: int
 ) -> Issue:
     """更新工作项"""
     issue = await get_issue_by_id(db, issue_id)
@@ -324,21 +323,21 @@ async def update_issue(
     return issue
 
 
-async def delete_issue(db: AsyncSession, issue_id: UUID):
+async def delete_issue(db: AsyncSession, issue_id: int):
     """删除工作项（软删除）"""
     issue = await get_issue_by_id(db, issue_id)
     issue.is_deleted = True
     await db.commit()
 
 
-async def archive_issue(db: AsyncSession, issue_id: UUID):
+async def archive_issue(db: AsyncSession, issue_id: int):
     """归档工作项"""
     issue = await get_issue_by_id(db, issue_id)
     issue.archived_at = datetime.utcnow().date()
     await db.commit()
 
 
-async def restore_issue(db: AsyncSession, issue_id: UUID):
+async def restore_issue(db: AsyncSession, issue_id: int):
     """恢复工作项"""
     issue = await get_issue_by_id(db, issue_id)
     issue.archived_at = None
@@ -348,7 +347,7 @@ async def restore_issue(db: AsyncSession, issue_id: UUID):
 
 # ==================== Assignee Management ====================
 
-async def _add_assignees(db: AsyncSession, issue_id: UUID, assignee_ids: List[UUID]):
+async def _add_assignees(db: AsyncSession, issue_id: int, assignee_ids: List[int]):
     """添加负责人"""
     for user_id in assignee_ids:
         user = await db.get(User, user_id)
@@ -364,7 +363,7 @@ async def _add_assignees(db: AsyncSession, issue_id: UUID, assignee_ids: List[UU
     await db.flush()
 
 
-async def _update_assignees(db: AsyncSession, issue_id: UUID, assignee_ids: List[UUID]):
+async def _update_assignees(db: AsyncSession, issue_id: int, assignee_ids: List[int]):
     """更新负责人"""
     # 删除旧的关联
     await db.execute(
@@ -377,9 +376,9 @@ async def _update_assignees(db: AsyncSession, issue_id: UUID, assignee_ids: List
 
 async def add_assignee(
     db: AsyncSession,
-    issue_id: UUID,
-    user_id: UUID,
-    actor_id: UUID
+    issue_id: int,
+    user_id: int,
+    actor_id: int
 ) -> Dict[str, Any]:
     """添加单个负责人"""
     issue = await get_issue_by_id(db, issue_id)
@@ -417,14 +416,14 @@ async def add_assignee(
     
     await db.commit()
     
-    return {"issue_id": str(issue_id), "user_id": str(user_id), "action": "added"}
+    return {"issue_id": issue_id, "user_id": user_id, "action": "added"}
 
 
 async def remove_assignee(
     db: AsyncSession,
-    issue_id: UUID,
-    user_id: UUID,
-    actor_id: UUID
+    issue_id: int,
+    user_id: int,
+    actor_id: int
 ) -> Dict[str, Any]:
     """移除单个负责人"""
     issue = await get_issue_by_id(db, issue_id)
@@ -456,12 +455,12 @@ async def remove_assignee(
     
     await db.commit()
     
-    return {"issue_id": str(issue_id), "user_id": str(user_id), "action": "removed"}
+    return {"issue_id": issue_id, "user_id": user_id, "action": "removed"}
 
 
 # ==================== Label Management ====================
 
-async def _add_labels(db: AsyncSession, issue_id: UUID, label_ids: List[UUID]):
+async def _add_labels(db: AsyncSession, issue_id: int, label_ids: List[int]):
     """添加标签"""
     for label_id in label_ids:
         label = await db.get(Label, label_id)
@@ -477,7 +476,7 @@ async def _add_labels(db: AsyncSession, issue_id: UUID, label_ids: List[UUID]):
     await db.flush()
 
 
-async def _update_labels(db: AsyncSession, issue_id: UUID, label_ids: List[UUID]):
+async def _update_labels(db: AsyncSession, issue_id: int, label_ids: List[int]):
     """更新标签"""
     # 删除旧的关联
     await db.execute(
@@ -490,9 +489,9 @@ async def _update_labels(db: AsyncSession, issue_id: UUID, label_ids: List[UUID]
 
 async def add_label(
     db: AsyncSession,
-    issue_id: UUID,
-    label_id: UUID,
-    actor_id: UUID
+    issue_id: int,
+    label_id: int,
+    actor_id: int
 ) -> Dict[str, Any]:
     """添加单个标签"""
     issue = await get_issue_by_id(db, issue_id)
@@ -530,14 +529,14 @@ async def add_label(
     
     await db.commit()
     
-    return {"issue_id": str(issue_id), "label_id": str(label_id), "action": "added"}
+    return {"issue_id": issue_id, "label_id": label_id, "action": "added"}
 
 
 async def remove_label(
     db: AsyncSession,
-    issue_id: UUID,
-    label_id: UUID,
-    actor_id: UUID
+    issue_id: int,
+    label_id: int,
+    actor_id: int
 ) -> Dict[str, Any]:
     """移除单个标签"""
     issue = await get_issue_by_id(db, issue_id)
@@ -569,12 +568,12 @@ async def remove_label(
     
     await db.commit()
     
-    return {"issue_id": str(issue_id), "label_id": str(label_id), "action": "removed"}
+    return {"issue_id": issue_id, "label_id": label_id, "action": "removed"}
 
 
 # ==================== Cycle Management ====================
 
-async def _add_cycle(db: AsyncSession, issue_id: UUID, cycle_id: UUID):
+async def _add_cycle(db: AsyncSession, issue_id: int, cycle_id: int):
     """添加周期关联"""
     cycle = await db.get(Cycle, cycle_id)
     if not cycle or cycle.is_deleted:
@@ -588,7 +587,7 @@ async def _add_cycle(db: AsyncSession, issue_id: UUID, cycle_id: UUID):
     await db.flush()
 
 
-async def _update_cycle(db: AsyncSession, issue_id: UUID, cycle_id: Optional[UUID]):
+async def _update_cycle(db: AsyncSession, issue_id: int, cycle_id: Optional[int]):
     """更新周期关联"""
     # 删除旧的关联
     await db.execute(
@@ -602,9 +601,9 @@ async def _update_cycle(db: AsyncSession, issue_id: UUID, cycle_id: Optional[UUI
 
 async def set_issue_cycle(
     db: AsyncSession,
-    issue_id: UUID,
-    cycle_id: UUID,
-    actor_id: UUID
+    issue_id: int,
+    cycle_id: int,
+    actor_id: int
 ) -> Dict[str, Any]:
     """设置工作项周期"""
     issue = await get_issue_by_id(db, issue_id)
@@ -641,13 +640,13 @@ async def set_issue_cycle(
     
     await db.commit()
     
-    return {"issue_id": str(issue_id), "cycle_id": str(cycle_id), "action": "set"}
+    return {"issue_id": issue_id, "cycle_id": cycle_id, "action": "set"}
 
 
 async def remove_issue_cycle(
     db: AsyncSession,
-    issue_id: UUID,
-    actor_id: UUID
+    issue_id: int,
+    actor_id: int
 ) -> Dict[str, Any]:
     """移除工作项周期"""
     issue = await get_issue_by_id(db, issue_id)
@@ -679,12 +678,12 @@ async def remove_issue_cycle(
     
     await db.commit()
     
-    return {"issue_id": str(issue_id), "cycle_id": None, "action": "removed"}
+    return {"issue_id": issue_id, "cycle_id": None, "action": "removed"}
 
 
 # ==================== Module Management ====================
 
-async def _update_modules(db: AsyncSession, issue_id: UUID, module_ids: List[UUID]):
+async def _update_modules(db: AsyncSession, issue_id: int, module_ids: List[int]):
     """更新模块关联"""
     # 验证模块存在
     for module_id in module_ids:
@@ -712,7 +711,7 @@ async def _update_modules(db: AsyncSession, issue_id: UUID, module_ids: List[UUI
 
 async def get_issue_activities(
     db: AsyncSession,
-    issue_id: UUID,
+    issue_id: int,
     limit: int = 50,
     offset: int = 0
 ) -> List[IssueActivity]:
@@ -729,7 +728,7 @@ async def get_issue_activities(
 
 # ==================== Issue Statistics ====================
 
-async def get_issue_statistics(db: AsyncSession, project_id: UUID) -> Dict[str, Any]:
+async def get_issue_statistics(db: AsyncSession, project_id: int) -> Dict[str, Any]:
     """获取项目工作项统计"""
     # 总数
     total_result = await db.execute(

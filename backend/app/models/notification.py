@@ -1,8 +1,7 @@
 """
 Notification Model - 通知模型
 """
-from uuid import UUID
-from sqlalchemy import String, ForeignKey, Boolean, Text, Integer
+from sqlalchemy import String, ForeignKey, Boolean, Text, Integer, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, AuditMixin, SoftDeleteMixin
 
@@ -17,10 +16,10 @@ class Notification(Base, AuditMixin, SoftDeleteMixin):
     read_at: Mapped[str] = mapped_column(String, nullable=True)
 
     # 关联
-    recipient_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    sender_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=True)
-    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=True)
-    issue_id: Mapped[UUID] = mapped_column(ForeignKey("issues.id"), nullable=True)
+    recipient_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    sender_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("projects.id"), nullable=True)
+    issue_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("issues.id"), nullable=True)
 
     # 优先级
     priority: Mapped[str] = mapped_column(String(20), default="medium")  # low, medium, high, urgent

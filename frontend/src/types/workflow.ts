@@ -56,15 +56,15 @@ export enum ActionTypeEnum {
 // ==================== State Transition ====================
 
 export interface StateTransition {
-  id: string
+  id: number
   name: string
   description?: string
-  source_state_id: string
-  target_state_id: string
-  issue_type_id?: string
+  source_state_id: number
+  target_state_id: number
+  issue_type_id?: number
   is_auto: boolean
-  project_id: string
-  workspace_id: string
+  project_id: number
+  workspace_id: number
   is_deleted: boolean
   created_at: string
   updated_at: string
@@ -73,9 +73,9 @@ export interface StateTransition {
 export interface StateTransitionCreate {
   name: string
   description?: string
-  source_state_id: string
-  target_state_id: string
-  issue_type_id?: string
+  source_state_id: number
+  target_state_id: number
+  issue_type_id?: number
   is_auto?: boolean
 }
 
@@ -83,7 +83,7 @@ export interface StateTransitionUpdate {
   name?: string
   description?: string
   is_auto?: boolean
-  issue_type_id?: string
+  issue_type_id?: number
 }
 
 // ==================== Automation Rule ====================
@@ -107,14 +107,14 @@ export interface Action {
   field?: string
   value?: any
   label?: string
-  state_id?: string
+  state_id?: number
   message?: string
   subject?: string
-  recipients?: string[]
+  recipients?: number[]
 }
 
 export interface AutomationRule {
-  id: string
+  id: number
   name: string
   description?: string
   is_enabled: boolean
@@ -123,8 +123,8 @@ export interface AutomationRule {
   actions: Action[]
   execution_count: number
   last_executed_at?: string
-  project_id: string
-  workspace_id: string
+  project_id: number
+  workspace_id: number
   is_deleted: boolean
   created_at: string
   updated_at: string
@@ -137,7 +137,7 @@ export interface AutomationRuleCreate {
   trigger: Trigger
   conditions?: Condition[]
   actions?: Action[]
-  project_id: string
+  project_id: number
 }
 
 export interface AutomationRuleUpdate {
@@ -150,7 +150,7 @@ export interface AutomationRuleUpdate {
 }
 
 export interface AutomationRuleLite {
-  id: string
+  id: number
   name: string
   description?: string
   is_enabled: boolean
@@ -161,11 +161,11 @@ export interface AutomationRuleLite {
 // ==================== Automation Execution Log ====================
 
 export interface AutomationExecutionLog {
-  id: string
-  rule_id: string
+  id: number
+  rule_id: number
   status: 'success' | 'failed' | 'skipped'
   trigger_event: string
-  triggered_issue_id?: string
+  triggered_issue_id?: number
   execution_details: Record<string, any>
   error_message?: string
   execution_time_ms?: number
@@ -175,7 +175,7 @@ export interface AutomationExecutionLog {
 // ==================== Automation Template ====================
 
 export interface AutomationTemplate {
-  id: string
+  id: number
   name: string
   description?: string
   category: string

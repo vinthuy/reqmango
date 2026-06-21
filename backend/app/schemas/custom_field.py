@@ -3,7 +3,6 @@ Custom Field Schemas - 自定义字段数据验证模型
 """
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any, Union
-from uuid import UUID
 from datetime import date, datetime
 from enum import Enum
 
@@ -51,7 +50,7 @@ class CustomFieldOptionUpdate(BaseModel):
 
 
 class CustomFieldOptionResponse(CustomFieldOptionBase):
-    id: UUID
+    id: int
 
     class Config:
         from_attributes = True
@@ -87,8 +86,8 @@ class CustomFieldBase(BaseModel):
 
 
 class CustomFieldCreate(CustomFieldBase):
-    project_id: Optional[UUID] = None
-    issue_type_id: Optional[UUID] = None
+    project_id: Optional[int] = None
+    issue_type_id: Optional[int] = None
     options: Optional[List[CustomFieldOptionCreate]] = []
 
 
@@ -119,10 +118,10 @@ class CustomFieldUpdate(BaseModel):
 
 
 class CustomFieldResponse(AuditSchema, SoftDeleteSchema, CustomFieldBase):
-    id: UUID
-    workspace_id: UUID
-    project_id: Optional[UUID] = None
-    issue_type_id: Optional[UUID] = None
+    id: int
+    workspace_id: int
+    project_id: Optional[int] = None
+    issue_type_id: Optional[int] = None
     options: List[CustomFieldOptionResponse] = []
 
     class Config:
@@ -131,7 +130,7 @@ class CustomFieldResponse(AuditSchema, SoftDeleteSchema, CustomFieldBase):
 
 class CustomFieldLite(BaseModel):
     """轻量级自定义字段响应"""
-    id: UUID
+    id: int
     name: str
     field_type: str
     is_required: bool
@@ -145,7 +144,7 @@ class CustomFieldLite(BaseModel):
 # ==================== IssueCustomFieldValue Schema ====================
 
 class IssueCustomFieldValueBase(BaseModel):
-    field_id: UUID
+    field_id: int
     # 值可以是多种类型，根据字段类型使用不同的值字段
     text_value: Optional[str] = None
     number_value: Optional[float] = None
@@ -157,7 +156,7 @@ class IssueCustomFieldValueBase(BaseModel):
 
 
 class IssueCustomFieldValueCreate(IssueCustomFieldValueBase):
-    issue_id: UUID
+    issue_id: int
 
 
 class IssueCustomFieldValueUpdate(BaseModel):
@@ -171,9 +170,9 @@ class IssueCustomFieldValueUpdate(BaseModel):
 
 
 class IssueCustomFieldValueResponse(BaseModel):
-    id: UUID
-    issue_id: UUID
-    field_id: UUID
+    id: int
+    issue_id: int
+    field_id: int
     field_name: str
     field_type: str
     # 返回统一格式的值
@@ -192,7 +191,7 @@ class IssueCustomFieldValueResponse(BaseModel):
 
 class BulkCustomFieldValueUpdate(BaseModel):
     """批量更新工作项的自定义字段值"""
-    issue_id: UUID
+    issue_id: int
     values: List[IssueCustomFieldValueUpdate]
 
 
@@ -206,7 +205,7 @@ class CustomFieldWithValues(BaseModel):
 
 class IssueCustomFieldsResponse(BaseModel):
     """工作项的所有自定义字段及其值"""
-    issue_id: UUID
+    issue_id: int
     fields: List[CustomFieldWithValues]
 
 
@@ -214,7 +213,7 @@ class IssueCustomFieldsResponse(BaseModel):
 
 class CustomFieldValidationRequest(BaseModel):
     """验证自定义字段值"""
-    field_id: UUID
+    field_id: int
     value: Any
 
 
@@ -222,4 +221,4 @@ class CustomFieldValidationResponse(BaseModel):
     """验证结果"""
     is_valid: bool
     errors: List[str] = []
-    field_id: UUID
+    field_id: int

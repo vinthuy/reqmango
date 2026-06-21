@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
-from uuid import UUID
 from datetime import datetime
 from .base import AuditSchema, SoftDeleteSchema
 from .user import UserLite
@@ -14,7 +13,7 @@ class CycleBase(BaseModel):
     timezone: str = "UTC"
 
 class CycleCreate(CycleBase):
-    project_id: UUID
+    project_id: int
 
 class CycleUpdate(BaseModel):
     name: Optional[str] = None
@@ -32,7 +31,7 @@ class CycleResponse(AuditSchema, SoftDeleteSchema, CycleBase):
     version: int = 1
 
 class CycleLite(BaseModel):
-    id: UUID
+    id: int
     name: str
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None

@@ -3,7 +3,6 @@ Issue API Endpoints - 工作项管理接口
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 from typing import Optional, List
 
 from app.db.session import get_db
@@ -28,8 +27,8 @@ router = APIRouter()
 
 @router.post("/", response_model=IssueResponse, status_code=201)
 async def create_issue(
-    project_id: UUID,
-    workspace_id: UUID,
+    project_id: int,
+    workspace_id: int,
     issue_data: IssueCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -58,14 +57,14 @@ async def create_issue(
 
 @router.get("/", response_model=List[IssueResponse])
 async def list_issues(
-    project_id: UUID,
-    workspace_id: UUID,
-    state_id: Optional[UUID] = None,
+    project_id: int,
+    workspace_id: int,
+    state_id: Optional[int] = None,
     priority: Optional[IssuePriority] = None,
-    assignee_id: Optional[UUID] = None,
-    parent_id: Optional[UUID] = None,
-    cycle_id: Optional[UUID] = None,
-    module_id: Optional[UUID] = None,
+    assignee_id: Optional[int] = None,
+    parent_id: Optional[int] = None,
+    cycle_id: Optional[int] = None,
+    module_id: Optional[int] = None,
     search: Optional[str] = None,
     is_draft: Optional[bool] = None,
     limit: int = Query(50, ge=1, le=100),
@@ -106,7 +105,7 @@ async def list_issues(
 
 @router.get("/{issue_id}", response_model=IssueResponse)
 async def get_issue(
-    issue_id: UUID,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -121,7 +120,7 @@ async def get_issue(
 
 @router.put("/{issue_id}", response_model=IssueResponse)
 async def update_issue(
-    issue_id: UUID,
+    issue_id: int,
     update_data: IssueUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -143,7 +142,7 @@ async def update_issue(
 
 @router.delete("/{issue_id}", status_code=204)
 async def delete_issue(
-    issue_id: UUID,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -159,7 +158,7 @@ async def delete_issue(
 
 @router.post("/{issue_id}/archive", status_code=204)
 async def archive_issue(
-    issue_id: UUID,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -174,7 +173,7 @@ async def archive_issue(
 
 @router.post("/{issue_id}/restore", response_model=IssueResponse)
 async def restore_issue(
-    issue_id: UUID,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -191,7 +190,7 @@ async def restore_issue(
 
 @router.get("/{issue_id}/activities", response_model=List[dict])
 async def get_issue_activities(
-    issue_id: UUID,
+    issue_id: int,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
@@ -211,14 +210,14 @@ async def get_issue_activities(
     
     return [
         {
-            "id": str(activity.id),
-            "issue_id": str(activity.issue_id),
+            "id": activity.id,
+            "issue_id": activity.issue_id,
             "verb": activity.verb,
             "field": activity.field,
             "old_value": activity.old_value,
             "new_value": activity.new_value,
             "comment": activity.comment,
-            "actor_id": str(activity.actor_id),
+            "actor_id": activity.actor_id,
             "created_at": activity.created_at
         }
         for activity in activities
@@ -229,7 +228,7 @@ async def get_issue_activities(
 
 @router.get("/statistics", response_model=dict)
 async def get_issue_statistics(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -246,9 +245,9 @@ async def get_issue_statistics(
 
 @router.get("/search", response_model=List[IssueSearchResult])
 async def search_issues(
-    workspace_id: UUID,
+    workspace_id: int,
     query: str = Query(..., min_length=1),
-    project_id: Optional[UUID] = None,
+    project_id: Optional[int] = None,
     limit: int = Query(10, ge=1, le=50),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -269,11 +268,11 @@ async def search_issues(
         
         return [
             IssueSearchResult(
-                id=str(issue.id),
+                id=issue.id,
                 name=issue.name,
                 sequence_id=issue.sequence_id,
                 project_identifier=issue.project.identifier if issue.project else "",
-                project_id=str(issue.project_id),
+                project_id=issue.project_id,
                 workspace_slug=workspace_id  # TODO: 获取 workspace slug
             )
             for issue in issues
@@ -286,8 +285,8 @@ async def search_issues(
 
 @router.post("/bulk/update", response_model=List[IssueResponse])
 async def bulk_update_issues(
-    project_id: UUID,
-    issue_ids: List[UUID],
+    project_id: int,
+    issue_ids: List[int],
     update_data: IssueUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -312,7 +311,7 @@ async def bulk_update_issues(
 
 @router.post("/bulk/delete", status_code=204)
 async def bulk_delete_issues(
-    issue_ids: List[UUID],
+    issue_ids: List[int],
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -329,8 +328,8 @@ async def bulk_delete_issues(
 
 @router.post("/{issue_id}/assignees", response_model=dict)
 async def add_issue_assignee(
-    issue_id: UUID,
-    user_id: UUID,
+    issue_id: int,
+    user_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -350,8 +349,8 @@ async def add_issue_assignee(
 
 @router.delete("/{issue_id}/assignees/{user_id}", response_model=dict)
 async def remove_issue_assignee(
-    issue_id: UUID,
-    user_id: UUID,
+    issue_id: int,
+    user_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -373,8 +372,8 @@ async def remove_issue_assignee(
 
 @router.post("/{issue_id}/labels", response_model=dict)
 async def add_issue_label(
-    issue_id: UUID,
-    label_id: UUID,
+    issue_id: int,
+    label_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -394,8 +393,8 @@ async def add_issue_label(
 
 @router.delete("/{issue_id}/labels/{label_id}", response_model=dict)
 async def remove_issue_label(
-    issue_id: UUID,
-    label_id: UUID,
+    issue_id: int,
+    label_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -417,8 +416,8 @@ async def remove_issue_label(
 
 @router.post("/{issue_id}/cycle", response_model=dict)
 async def set_issue_cycle(
-    issue_id: UUID,
-    cycle_id: UUID,
+    issue_id: int,
+    cycle_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -438,7 +437,7 @@ async def set_issue_cycle(
 
 @router.delete("/{issue_id}/cycle", response_model=dict)
 async def remove_issue_cycle(
-    issue_id: UUID,
+    issue_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

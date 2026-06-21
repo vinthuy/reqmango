@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from typing import Optional
-from uuid import UUID
 from datetime import datetime
 from .base import AuditSchema, SoftDeleteSchema
 from .project import ProjectLite
@@ -11,7 +10,7 @@ class ModuleBase(BaseModel):
     target_date: Optional[datetime] = None
 
 class ModuleCreate(ModuleBase):
-    project_id: UUID
+    project_id: int
 
 class ModuleUpdate(BaseModel):
     name: Optional[str] = None
@@ -25,5 +24,5 @@ class ModuleResponse(AuditSchema, SoftDeleteSchema, ModuleBase):
     completed_issues: int
 
 class ModuleLite(BaseModel):
-    id: UUID
+    id: int
     name: str

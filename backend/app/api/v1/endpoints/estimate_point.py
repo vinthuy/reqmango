@@ -2,7 +2,6 @@
 Estimate Point API - 估算点API端点
 """
 from typing import List
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +23,7 @@ router = APIRouter(prefix="/estimate-points", tags=["估算点"])
 
 @router.post("/", response_model=EstimatePointResponse, status_code=201)
 async def create_estimate_point(
-    project_id: UUID,
+    project_id: int,
     point_data: EstimatePointCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -45,7 +44,7 @@ async def create_estimate_point(
 
 @router.get("/", response_model=List[EstimatePointResponse])
 async def list_estimate_points(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -60,7 +59,7 @@ async def list_estimate_points(
 
 @router.get("/default", response_model=EstimatePointResponse)
 async def get_default_estimate_point(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -77,7 +76,7 @@ async def get_default_estimate_point(
 
 @router.get("/{point_id}", response_model=EstimatePointResponse)
 async def get_estimate_point(
-    point_id: UUID,
+    point_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -90,7 +89,7 @@ async def get_estimate_point(
 
 @router.patch("/{point_id}", response_model=EstimatePointResponse)
 async def update_estimate_point(
-    point_id: UUID,
+    point_id: int,
     update_data: EstimatePointUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -106,7 +105,7 @@ async def update_estimate_point(
 
 @router.delete("/{point_id}", status_code=204)
 async def delete_estimate_point(
-    point_id: UUID,
+    point_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -120,7 +119,7 @@ async def delete_estimate_point(
 
 @router.post("/reorder", response_model=List[EstimatePointResponse])
 async def reorder_estimate_points(
-    project_id: UUID,
+    project_id: int,
     reorder_data: EstimatePointReorder,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -140,7 +139,7 @@ async def reorder_estimate_points(
 
 @router.post("/bulk", response_model=List[EstimatePointResponse])
 async def bulk_create_estimate_points(
-    project_id: UUID,
+    project_id: int,
     bulk_data: EstimatePointBulkCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -168,7 +167,7 @@ async def bulk_create_estimate_points(
 
 @router.post("/defaults", response_model=List[EstimatePointResponse])
 async def create_default_estimate_points(
-    project_id: UUID,
+    project_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

@@ -1,5 +1,5 @@
 export interface User {
-  id: string
+  id: number
   email: string
   username: string
   display_name: string
@@ -13,8 +13,8 @@ export interface User {
   last_active?: string
   created_at: string
   updated_at: string
-  created_by?: string
-  updated_by?: string
+  created_by?: number
+  updated_by?: number
   deleted_at?: string
   is_deleted: boolean
 }
@@ -41,20 +41,20 @@ export interface Token {
 }
 
 export interface Workspace {
-  id: string
+  id: number
   name: string
   slug: string
   logo_url?: string
   organization_size?: string
   timezone: string
-  owner_id: string
-  created_by_id?: string
+  owner_id: number
+  created_by_id?: number
   created_at: string
   updated_at: string
 }
 
 export interface WorkspaceLite {
-  id: string
+  id: number
   name: string
   slug: string
 }
@@ -67,16 +67,16 @@ export interface WorkspaceCreate {
 }
 
 export interface Project {
-  id: string
+  id: number
   name: string
   identifier: string
   description?: string
   is_public: boolean
   timezone: string
   archived_at?: string
-  workspace_id: string
-  default_assignee_id?: string
-  created_by_id: string
+  workspace_id: number
+  default_assignee_id?: number
+  created_by_id: number
   created_at: string
   updated_at: string
 }
@@ -87,7 +87,87 @@ export interface ProjectCreate {
   description?: string
   is_public?: boolean
   timezone?: string
-  default_assignee_id?: string
+  default_assignee_id?: number
+}
+
+// Work Item Type
+export interface WorkItemType {
+  id: number
+  name: string
+  description?: string
+  icon: string
+  color: string
+  is_active: boolean
+}
+
+// Custom Field
+export interface CustomField {
+  id: number
+  name: string
+  type: 'text' | 'number' | 'dropdown' | 'boolean' | 'date' | 'member' | 'url'
+  description?: string
+  options?: string[]
+  is_required: boolean
+}
+
+// State
+export interface State {
+  id: number
+  name: string
+  category: 'unstarted' | 'started' | 'completed'
+  color: string
+  is_default: boolean
+  allowNew?: boolean
+}
+
+// Workflow Transition
+export interface WorkflowTransition {
+  id: number
+  fromStateId: number
+  toStateId: number
+  type: 'transition' | 'approval'
+  allowedRoles: string[]
+  approvers?: string[]
+}
+
+// Workflow
+export interface Workflow {
+  id: number
+  name: string
+  description?: string
+  is_active: boolean
+}
+
+// Label
+export interface Label {
+  id: number
+  name: string
+  color: string
+}
+
+// Automation Condition
+export interface AutomationCondition {
+  field: string
+  operator: string
+  value: string
+}
+
+// Automation Action
+export interface AutomationAction {
+  type: string
+  field: string
+  value: string
+}
+
+// Automation
+export interface Automation {
+  id: number
+  name: string
+  description?: string
+  trigger: string
+  conditions: AutomationCondition[]
+  actions: AutomationAction[]
+  is_enabled: boolean
 }
 
 // Re-export custom field types

@@ -3,15 +3,15 @@
  */
 
 export interface Comment {
-  id: string
+  id: number
   content: string
   html_content?: string
-  issue_id: string
-  author_id: string
+  issue_id: number
+  author_id: number
   author?: UserLite
-  parent_id?: string
+  parent_id?: number
   is_resolved: boolean
-  resolved_by_id?: string
+  resolved_by_id?: number
   resolved_at?: string
   reaction_count: number
   replies?: Comment[]
@@ -20,10 +20,10 @@ export interface Comment {
 }
 
 export interface CommentCreate {
-  issue_id: string
+  issue_id: number
   content: string
   html_content?: string
-  parent_id?: string
+  parent_id?: number
 }
 
 export interface CommentUpdate {
@@ -39,7 +39,7 @@ export interface CommentListResponse {
 }
 
 export interface UserLite {
-  id: string
+  id: number
   username: string
   display_name?: string
   email: string

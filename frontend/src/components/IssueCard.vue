@@ -8,7 +8,7 @@
       <div class="flex items-start space-x-3 flex-1 min-w-0">
         <!-- 优先级图标 -->
         <div class="shrink-0 mt-0.5">
-          <span :class="getPriorityClass(issue.priority)">
+          <span>
             {{ getPriorityIcon(issue.priority) }}
           </span>
         </div>
@@ -181,10 +181,7 @@ function getPriorityIcon(priority: string): string {
   return icons[priority] || '⚪'
 }
 
-// Priority classes
-function getPriorityClass(priority: string): string {
-  return ''
-}
+
 
 // State classes
 function getStateClass(group?: string): string {

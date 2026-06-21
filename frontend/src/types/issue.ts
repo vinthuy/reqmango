@@ -305,10 +305,3 @@ export function calculateIssueProgress(issue: IssueResponse): number {
   if (issue.state_group === IssueStateGroup.IN_PROGRESS) return 50
   return 0
 }
-
-// ==================== Type Alias ====================
-
-/**
- * Issue 类型别名 - 用于简化导入
- */
-export type Issue = IssueResponse

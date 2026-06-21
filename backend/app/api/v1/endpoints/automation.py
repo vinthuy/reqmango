@@ -2,7 +2,6 @@
 Automation Execution API - 自动化执行API端点
 """
 from typing import Optional
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,7 +70,7 @@ async def trigger_automation_event(
     }
 
     results = await executor.execute_rules_for_event(
-        project_id=UUID(request.project_id),
+        project_id=int(request.project_id),
         event_type=request.event_type,
         event_data=event_data
     )
@@ -81,8 +80,8 @@ async def trigger_automation_event(
 
 @router.post("/trigger/issue-created/{project_id}")
 async def trigger_issue_created(
-    project_id: UUID,
-    issue_id: UUID,
+    project_id: int,
+    issue_id: int,
     db: AsyncSession = Depends(get_db)
 ):
     """触发工作项创建事件"""
@@ -105,10 +104,10 @@ async def trigger_issue_created(
 
 @router.post("/trigger/issue-updated/{project_id}")
 async def trigger_issue_updated(
-    project_id: UUID,
-    issue_id: UUID,
-    previous_state_id: Optional[UUID] = None,
-    new_state_id: Optional[UUID] = None,
+    project_id: int,
+    issue_id: int,
+    previous_state_id: Optional[int] = None,
+    new_state_id: Optional[int] = None,
     previous_priority: Optional[str] = None,
     new_priority: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
@@ -167,9 +166,9 @@ async def trigger_issue_updated(
 
 @router.post("/trigger/issue-assigned/{project_id}")
 async def trigger_issue_assigned(
-    project_id: UUID,
-    issue_id: UUID,
-    assignee_id: UUID,
+    project_id: int,
+    issue_id: int,
+    assignee_id: int,
     db: AsyncSession = Depends(get_db)
 ):
     """触发工作项分配事件"""
@@ -193,8 +192,8 @@ async def trigger_issue_assigned(
 
 @router.post("/trigger/cycle-started/{project_id}")
 async def trigger_cycle_started(
-    project_id: UUID,
-    cycle_id: UUID,
+    project_id: int,
+    cycle_id: int,
     db: AsyncSession = Depends(get_db)
 ):
     """触发周期开始事件"""
@@ -217,8 +216,8 @@ async def trigger_cycle_started(
 
 @router.post("/trigger/cycle-ended/{project_id}")
 async def trigger_cycle_ended(
-    project_id: UUID,
-    cycle_id: UUID,
+    project_id: int,
+    cycle_id: int,
     db: AsyncSession = Depends(get_db)
 ):
     """触发周期结束事件"""
@@ -285,8 +284,8 @@ async def check_cycles(
 
 @router.post("/execute/{rule_id}")
 async def execute_rule(
-    rule_id: UUID,
-    issue_id: Optional[UUID] = None,
+    rule_id: int,
+    issue_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -321,11 +320,11 @@ async def execute_rule(
 
 @router.post("/dry-run")
 async def dry_run_automation(
-    project_id: UUID,
+    project_id: int,
     trigger: TriggerSchema,
     conditions: list[ConditionSchema],
     actions: list[ActionSchema],
-    issue_id: Optional[UUID] = None,
+    issue_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -345,13 +344,13 @@ async def dry_run_automation(
         issue = result.scalar_one_or_none()
         if issue:
             issue_data = {
-                "id": str(issue.id),
+                "id": issue.id,
                 "name": issue.name,
                 "description": issue.description,
-                "state_id": str(issue.state_id) if issue.state_id else None,
+                "state_id": issue.state_id if issue.state_id else None,
                 "priority": issue.priority,
-                "assignee_id": str(issue.assignee_id) if issue.assignee_id else None,
-                "cycle_id": str(issue.cycle_id) if issue.cycle_id else None,
+                "assignee_id": issue.assignee_id if issue.assignee_id else None,
+                "cycle_id": issue.cycle_id if issue.cycle_id else None,
                 "start_date": issue.start_date.isoformat() if issue.start_date else None,
                 "target_date": issue.target_date.isoformat() if issue.target_date else None
             }
