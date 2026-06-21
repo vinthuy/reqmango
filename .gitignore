@@ -58,3 +58,4 @@ htmlcov/
 *.dll
 *.so
 *.dylib
+node_modules/
