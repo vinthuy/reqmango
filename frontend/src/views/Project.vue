@@ -122,6 +122,24 @@
         @close="cyclePanelVisible = false"
       />
 
+      <ModuleDetailPanel
+        :module="selectedModule"
+        :visible="modulePanelVisible"
+        :project-id="projectId"
+        :workspace-id="workspaceId"
+        @close="modulePanelVisible = false"
+        @edit="handleModuleEdit"
+      />
+
+      <ModuleFormModal
+        :visible="moduleFormVisible"
+        :edit-module="editingModule"
+        :workspace-id="workspaceId"
+        :project-id="projectId"
+        @close="moduleFormVisible = false; editingModule = null"
+        @saved="moduleFormVisible = false; editingModule = null; modulePanelVisible = false"
+      />
+
       <div v-if="activeTab === 'cycles'">
         <CycleList
           :project-id="projectId"
@@ -135,6 +153,9 @@
         <ModuleList
           :project-id="projectId"
           :workspace-id="workspaceId"
+          @select="openModulePanel"
+          @create="moduleFormVisible = true"
+          @delete="handleModuleDelete"
         />
       </div>
     </div>
@@ -162,7 +183,10 @@ import IssueDetailPanel from '@/components/IssueDetailPanel.vue'
 import CycleList from '@/components/CycleList.vue'
 import CycleDetailPanel from '@/components/CycleDetailPanel.vue'
 import ModuleList from '@/components/ModuleList.vue'
+import ModuleDetailPanel from '@/components/ModuleDetailPanel.vue'
+import ModuleFormModal from '@/components/ModuleFormModal.vue'
 import type { CycleResponse } from '@/types/cycle'
+import type { ModuleResponse } from '@/types/module'
 
 const route = useRoute()
 const router = useRouter()
@@ -179,9 +203,15 @@ const detailPanelVisible = ref(false)
 const selectedCycle = ref<CycleResponse | null>(null)
 const cyclePanelVisible = ref(false)
 
+const selectedModule = ref<ModuleResponse | null>(null)
+const modulePanelVisible = ref(false)
+const moduleFormVisible = ref(false)
+const editingModule = ref<ModuleResponse | null>(null)
+
 watch(activeTab, () => {
   detailPanelVisible.value = false
   cyclePanelVisible.value = false
+  modulePanelVisible.value = false
 })
 
 function openDetailPanel(issue: any) {
@@ -206,6 +236,29 @@ function openCyclePanel(cycle: CycleResponse) {
 function goToCycleCreate() {
   const slug = route.params.slug as string
   router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}/cycles/new?ws=${slug}`)
+}
+
+function openModulePanel(module: ModuleResponse | any) {
+  selectedModule.value = module as ModuleResponse
+  modulePanelVisible.value = true
+}
+
+function handleModuleEdit(module: ModuleResponse) {
+  editingModule.value = module
+  moduleFormVisible.value = true
+}
+
+async function handleModuleDelete(module: ModuleResponse | any) {
+  if (confirm(`确定要删除模块 "${module.name}" 吗？`)) {
+    try {
+      const { useModuleStore } = await import('@/stores/module')
+      const store = useModuleStore()
+      await store.deleteModuleAction(module.id)
+    } catch (err) {
+      console.error('Failed to delete module:', err)
+      alert('删除失败')
+    }
+  }
 }
 
 const workspaceId = ref(0)

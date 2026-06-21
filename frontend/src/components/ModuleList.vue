@@ -88,10 +88,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ModuleCard from './ModuleCard.vue'
 import ModuleTree from './ModuleTree.vue'
-import moduleApi from '@/api/module'
+import { useModuleStore } from '@/stores/module'
 import type { ModuleResponse, ModuleTreeNode } from '@/types/module'
 
 // Props
@@ -107,28 +107,18 @@ defineEmits<{
   (e: 'delete', module: ModuleResponse | ModuleTreeNode): void
 }>()
 
-// State
-const modules = ref<ModuleResponse[]>([])
-const moduleTree = ref<ModuleTreeNode[]>([])
-const loading = ref(false)
+// Store
+const moduleStore = useModuleStore()
+const modules = computed(() => moduleStore.modules)
+const moduleTree = computed(() => moduleStore.moduleTree)
+const loading = computed(() => moduleStore.isLoading)
 const viewMode = ref<'card' | 'tree'>('card')
 
 // Load modules
 onMounted(() => {
-  loadModules()
+  moduleStore.fetchModules(props.projectId, props.workspaceId)
+  moduleStore.fetchModuleTree(props.projectId)
 })
-
-async function loadModules() {
-  loading.value = true
-  try {
-    modules.value = await moduleApi.listModules(props.projectId, props.workspaceId)
-    moduleTree.value = await moduleApi.getModuleTree(props.projectId)
-  } catch (error) {
-    console.error('Failed to load modules:', error)
-  } finally {
-    loading.value = false
-  }
-}
 </script>
 
 <style scoped>
