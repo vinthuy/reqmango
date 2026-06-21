@@ -187,6 +187,7 @@ import ModuleDetailPanel from '@/components/ModuleDetailPanel.vue'
 import ModuleFormModal from '@/components/ModuleFormModal.vue'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
+import { useModuleStore } from '@/stores/module'
 
 const route = useRoute()
 const router = useRouter()
@@ -248,12 +249,12 @@ function handleModuleEdit(module: ModuleResponse) {
   moduleFormVisible.value = true
 }
 
+const moduleStore = useModuleStore()
+
 async function handleModuleDelete(module: ModuleResponse | any) {
   if (confirm(`确定要删除模块 "${module.name}" 吗？`)) {
     try {
-      const { useModuleStore } = await import('@/stores/module')
-      const store = useModuleStore()
-      await store.deleteModuleAction(module.id)
+      await moduleStore.deleteModuleAction(module.id)
     } catch (err) {
       console.error('Failed to delete module:', err)
       alert('删除失败')
