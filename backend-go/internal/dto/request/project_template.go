@@ -13,7 +13,7 @@ type ProjectTemplateUpdate struct {
 }
 
 type ProjectTemplateAddType struct {
-	IssueTypeID    uint64  `json:"issue_type_id" binding:"required"`
+	TypeTemplateID uint64  `json:"type_template_id" binding:"required"`
 	IsRequired     bool    `json:"is_required"`
 	DefaultStateID *uint64 `json:"default_state_id"`
 	Sequence       int     `json:"sequence"`

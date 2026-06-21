@@ -54,6 +54,8 @@ func main() {
 		&model.IssueCustomFieldValue{},
 		&model.ProjectTemplate{},
 		&model.ProjectTemplateType{},
+		&model.IssueTypeTemplate{},
+		&model.IssueTypeTemplateField{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

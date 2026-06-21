@@ -15,11 +15,12 @@ type ProjectTemplateResponse struct {
 
 type ProjectTemplateTypeResponse struct {
 	TemplateID     uint64  `json:"template_id"`
-	IssueTypeID    uint64  `json:"issue_type_id"`
+	TypeTemplateID uint64  `json:"type_template_id"`
 	IsRequired     bool    `json:"is_required"`
 	DefaultStateID *uint64 `json:"default_state_id"`
 	Sequence       int     `json:"sequence"`
 	TypeName       string  `json:"type_name,omitempty"`
 	TypeColor      string  `json:"type_color,omitempty"`
 	TypeIcon       string  `json:"type_icon,omitempty"`
+	TypeLevel      int     `json:"type_level,omitempty"`
 }

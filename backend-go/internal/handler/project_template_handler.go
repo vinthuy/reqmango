@@ -135,7 +135,7 @@ func (h *ProjectTemplateHandler) AddType(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
 	}
-	resp, svcErr := h.svc.AddType(templateID, req.IssueTypeID, req.IsRequired, req.DefaultStateID, req.Sequence)
+	resp, svcErr := h.svc.AddType(templateID, req.TypeTemplateID, req.IsRequired, req.DefaultStateID, req.Sequence)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})

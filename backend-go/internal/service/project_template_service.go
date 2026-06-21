@@ -30,13 +30,14 @@ func (s *ProjectTemplateService) buildResponse(t model.ProjectTemplate) *respons
 	for _, link := range t.TypeLinks {
 		r.Types = append(r.Types, response.ProjectTemplateTypeResponse{
 			TemplateID:     link.TemplateID,
-			IssueTypeID:    link.IssueTypeID,
+			TypeTemplateID: link.TypeTemplateID,
 			IsRequired:     link.IsRequired,
 			DefaultStateID: link.DefaultStateID,
 			Sequence:       link.Sequence,
-			TypeName:       link.IssueType.Name,
-			TypeColor:      link.IssueType.Color,
-			TypeIcon:       link.IssueType.Icon,
+			TypeName:       link.TypeTemplate.Name,
+			TypeColor:      link.TypeTemplate.Color,
+			TypeIcon:       link.TypeTemplate.Icon,
+			TypeLevel:      link.TypeTemplate.Level,
 		})
 	}
 	return r
@@ -62,7 +63,7 @@ func (s *ProjectTemplateService) Create(workspaceID, userID uint64, req request.
 
 func (s *ProjectTemplateService) List(workspaceID uint64) ([]response.ProjectTemplateResponse, error) {
 	var templates []model.ProjectTemplate
-	if err := s.db.Preload("TypeLinks.IssueType").Where("workspace_id = ?", workspaceID).
+	if err := s.db.Preload("TypeLinks.TypeTemplate").Where("workspace_id = ?", workspaceID).
 		Order("created_at").Find(&templates).Error; err != nil {
 		return nil, common.Internal("Failed to list templates")
 	}
@@ -78,7 +79,7 @@ func (s *ProjectTemplateService) List(workspaceID uint64) ([]response.ProjectTem
 
 func (s *ProjectTemplateService) Get(templateID uint64) (*response.ProjectTemplateResponse, error) {
 	var t model.ProjectTemplate
-	if err := s.db.Preload("TypeLinks.IssueType").First(&t, templateID).Error; err != nil {
+	if err := s.db.Preload("TypeLinks.TypeTemplate").First(&t, templateID).Error; err != nil {
 		return nil, common.NotFound("Template not found")
 	}
 	return s.buildResponse(t), nil
@@ -116,49 +117,38 @@ func (s *ProjectTemplateService) Delete(templateID uint64) error {
 	return s.db.Delete(&t).Error
 }
 
-func (s *ProjectTemplateService) AddType(templateID, issueTypeID uint64, isRequired bool, defaultStateID *uint64, sequence int) (*response.ProjectTemplateTypeResponse, error) {
-	// Verify template exists
+func (s *ProjectTemplateService) AddType(templateID, typeTemplateID uint64, isRequired bool, defaultStateID *uint64, sequence int) (*response.ProjectTemplateTypeResponse, error) {
 	var t model.ProjectTemplate
 	if err := s.db.First(&t, templateID).Error; err != nil {
 		return nil, common.NotFound("Template not found")
 	}
-	// Verify issue type exists
-	var it model.IssueType
-	if err := s.db.First(&it, issueTypeID).Error; err != nil {
-		return nil, common.NotFound("Issue type not found")
+	var tt model.IssueTypeTemplate
+	if err := s.db.First(&tt, typeTemplateID).Error; err != nil {
+		return nil, common.NotFound("Type template not found")
 	}
-	// Check for duplicate
 	var count int64
-	s.db.Model(&model.ProjectTemplateType{}).Where("template_id = ? AND issue_type_id = ?", templateID, issueTypeID).Count(&count)
+	s.db.Model(&model.ProjectTemplateType{}).Where("template_id = ? AND type_template_id = ?", templateID, typeTemplateID).Count(&count)
 	if count > 0 {
-		return nil, common.Conflict("Issue type already in template")
+		return nil, common.Conflict("Type template already in project template")
 	}
 	link := model.ProjectTemplateType{
-		TemplateID:     templateID,
-		IssueTypeID:    issueTypeID,
-		IsRequired:     isRequired,
-		DefaultStateID: defaultStateID,
-		Sequence:       sequence,
+		TemplateID: templateID, TypeTemplateID: typeTemplateID,
+		IsRequired: isRequired, DefaultStateID: defaultStateID, Sequence: sequence,
 	}
 	if err := s.db.Create(&link).Error; err != nil {
-		return nil, common.Internal("Failed to add type to template")
+		return nil, common.Internal("Failed to add type template")
 	}
 	return &response.ProjectTemplateTypeResponse{
-		TemplateID:     templateID,
-		IssueTypeID:    issueTypeID,
-		IsRequired:     isRequired,
-		DefaultStateID: defaultStateID,
-		Sequence:       sequence,
-		TypeName:       it.Name,
-		TypeColor:      it.Color,
-		TypeIcon:       it.Icon,
+		TemplateID: templateID, TypeTemplateID: typeTemplateID,
+		IsRequired: isRequired, DefaultStateID: defaultStateID, Sequence: sequence,
+		TypeName: tt.Name, TypeColor: tt.Color, TypeIcon: tt.Icon,
 	}, nil
 }
 
-func (s *ProjectTemplateService) RemoveType(templateID, issueTypeID uint64) error {
-	result := s.db.Where("template_id = ? AND issue_type_id = ?", templateID, issueTypeID).Delete(&model.ProjectTemplateType{})
+func (s *ProjectTemplateService) RemoveType(templateID, typeTemplateID uint64) error {
+	result := s.db.Where("template_id = ? AND type_template_id = ?", templateID, typeTemplateID).Delete(&model.ProjectTemplateType{})
 	if result.RowsAffected == 0 {
-		return common.NotFound("Type not found in template")
+		return common.NotFound("Type template not in project template")
 	}
 	return nil
 }

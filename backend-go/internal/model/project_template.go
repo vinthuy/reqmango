@@ -16,16 +16,16 @@ func (ProjectTemplate) TableName() string {
 	return "project_templates"
 }
 
-// ProjectTemplateType links an IssueType to a ProjectTemplate with additional config.
+// ProjectTemplateType links a TypeTemplate to a ProjectTemplate with additional config.
 type ProjectTemplateType struct {
-	TemplateID     uint64  `gorm:"primaryKey;autoIncrement:false" json:"template_id"`
-	IssueTypeID    uint64  `gorm:"primaryKey;autoIncrement:false" json:"issue_type_id"`
-	IsRequired     bool    `gorm:"default:false" json:"is_required"`
-	DefaultStateID *uint64 `json:"default_state_id"`
-	Sequence       int     `gorm:"default:1" json:"sequence"`
+	TemplateID         uint64  `gorm:"primaryKey;autoIncrement:false" json:"template_id"`
+	TypeTemplateID     uint64  `gorm:"primaryKey;autoIncrement:false" json:"type_template_id"`
+	IsRequired         bool    `gorm:"default:false" json:"is_required"`
+	DefaultStateID     *uint64 `json:"default_state_id"`
+	Sequence           int     `gorm:"default:1" json:"sequence"`
 
-	Template  ProjectTemplate `gorm:"foreignKey:TemplateID;constraint:OnDelete:CASCADE" json:"-"`
-	IssueType IssueType       `gorm:"foreignKey:IssueTypeID;constraint:OnDelete:CASCADE" json:"-"`
+	Template     ProjectTemplate     `gorm:"foreignKey:TemplateID;constraint:OnDelete:CASCADE" json:"-"`
+	TypeTemplate IssueTypeTemplate   `gorm:"foreignKey:TypeTemplateID;constraint:OnDelete:CASCADE" json:"-"`
 }
 
 func (ProjectTemplateType) TableName() string {
