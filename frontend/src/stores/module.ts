@@ -26,7 +26,7 @@ export const useModuleStore = defineStore('module', () => {
 
   async function createModule(workspaceId: number, data: ModuleCreate) {
     error.value = null
-    try { const created = await moduleApi.createModule(workspaceId, data); modules.value.unshift(created); return created }
+    try { const created = await moduleApi.createModule(workspaceId, data); modules.value.unshift(created); await fetchModuleTree(data.project_id); return created }
     catch (e: any) { error.value = e.response?.data?.message || e.message; return null }
   }
 
@@ -37,6 +37,7 @@ export const useModuleStore = defineStore('module', () => {
       const idx = modules.value.findIndex(m => m.id === id)
       if (idx !== -1) modules.value[idx] = updated
       if (currentModule.value?.id === id) currentModule.value = updated
+      await fetchModuleTree(updated.project_id)
       return updated
     } catch (e: any) { error.value = e.response?.data?.message || e.message; return null }
   }
@@ -44,9 +45,11 @@ export const useModuleStore = defineStore('module', () => {
   async function deleteModuleAction(id: number) {
     error.value = null
     try {
+      const m = modules.value.find(m => m.id === id)
       await moduleApi.deleteModule(id)
       modules.value = modules.value.filter(m => m.id !== id)
       if (currentModule.value?.id === id) currentModule.value = null
+      if (m) await fetchModuleTree(m.project_id)
     } catch (e: any) { error.value = e.response?.data?.message || e.message }
   }
 
