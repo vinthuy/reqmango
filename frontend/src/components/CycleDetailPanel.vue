@@ -39,7 +39,7 @@
             <h4 class="text-sm font-medium text-gray-700">周期工作项 ({{ cycleStore.cycleIssues.length }})</h4>
             <button
               v-if="cycle?.status === 'active' || cycle?.status === 'upcoming'"
-              @click="showAddIssue = !showAddIssue"
+              @click="toggleAddIssue"
               class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
             >
               + 添加
@@ -135,6 +135,14 @@ watch(() => props.visible, async (v) => {
     ])
   }
 })
+
+function toggleAddIssue() {
+  showAddIssue.value = !showAddIssue.value
+  if (showAddIssue.value) {
+    searchQuery.value = ''
+    searchIssues()
+  }
+}
 
 async function searchIssues() {
   if (!props.cycle) return
