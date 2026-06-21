@@ -25,21 +25,25 @@ func (State) TableName() string {
 }
 
 // StateTransition represents a workflow transition between states.
-// Minimal model for Phase 1 - full workflow comes in Phase 2.
 type StateTransition struct {
 	BaseModel
 
 	Name          string  `gorm:"size:255;not null" json:"name"`
 	Description   *string `gorm:"size:500" json:"description"`
+	WorkflowID    uint64  `gorm:"not null;index" json:"workflow_id"`
 	SourceStateID uint64  `gorm:"not null" json:"source_state_id"`
 	TargetStateID uint64  `gorm:"not null" json:"target_state_id"`
 	IssueTypeID   *uint64 `json:"issue_type_id"`
 	IsAuto        bool    `gorm:"default:false" json:"is_auto"`
+	RuleType      string  `gorm:"default:'allow'" json:"rule_type"`
+	ApproverIDs   *string `gorm:"type:text" json:"approver_ids"`
+	RoleAllowed   string  `gorm:"size:50" json:"role_allowed"`
 	ProjectID     uint64  `gorm:"not null" json:"project_id"`
 	WorkspaceID   uint64  `gorm:"not null" json:"workspace_id"`
 
-	SourceState State `gorm:"foreignKey:SourceStateID" json:"-"`
-	TargetState State `gorm:"foreignKey:TargetStateID" json:"-"`
+	Workflow    Workflow `gorm:"foreignKey:WorkflowID" json:"-"`
+	SourceState State    `gorm:"foreignKey:SourceStateID" json:"-"`
+	TargetState State    `gorm:"foreignKey:TargetStateID" json:"-"`
 }
 
 func (StateTransition) TableName() string {

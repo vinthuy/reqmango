@@ -24,6 +24,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	templateSvc := service.NewProjectTemplateService(db)
 	typeTemplateSvc := service.NewTypeTemplateService(db)
 	relationSvc := service.NewRelationService(db)
+	workflowSvc := service.NewWorkflowService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -38,6 +39,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	templateH := handler.NewProjectTemplateHandler(templateSvc)
 	typeTemplateH := handler.NewTypeTemplateHandler(typeTemplateSvc)
 	relationH := handler.NewRelationHandler(relationSvc)
+	workflowH := handler.NewWorkflowHandler(workflowSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -241,5 +243,25 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.POST("/:issueId/relations", relationH.CreateRelation)
 			issues.GET("/:issueId/relations", relationH.ListRelations)
 			v1.DELETE("/relations/:relationId", authMiddleware, relationH.DeleteRelation)
+// ---- Workflows (protected) ----
+			workflows := v1.Group("/projects/:projectId/workflows", authMiddleware)
+			{
+				workflows.POST("", workflowH.CreateWorkflow)
+				workflows.GET("", workflowH.ListWorkflows)
+				workflows.GET("/:workflowId", workflowH.GetWorkflow)
+				workflows.PUT("/:workflowId", workflowH.UpdateWorkflow)
+				workflows.DELETE("/:workflowId", workflowH.DeleteWorkflow)
+				workflows.POST("/:workflowId/transitions", workflowH.AddTransition)
+				workflows.PUT("/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
+				workflows.DELETE("/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
+			}
+			// ---- Automations (protected) ----
+			automations := v1.Group("/projects/:projectId/automations", authMiddleware)
+			{
+				automations.POST("", workflowH.CreateAutomation)
+				automations.GET("", workflowH.ListAutomations)
+				automations.PUT("/:id", workflowH.UpdateAutomation)
+				automations.DELETE("/:id", workflowH.DeleteAutomation)
+			}
 	}
 }

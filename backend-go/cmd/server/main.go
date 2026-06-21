@@ -58,6 +58,9 @@ func main() {
 		&model.IssueTypeTemplateField{},
 		&model.RelationType{},
 		&model.IssueRelation{},
+		&model.Workflow{},
+		&model.StateTransition{},
+		&model.AutomationRule{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
