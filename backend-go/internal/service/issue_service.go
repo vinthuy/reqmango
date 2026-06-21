@@ -165,7 +165,7 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 
 	result := make([]response.IssueResponse, len(issues))
 	for i, issue := range issues {
-		resp, err := s.buildIssueResponse(&issue)
+		resp, err := s.BuildIssueResponse(&issue)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -552,10 +552,10 @@ func (s *IssueService) buildResponse(issueID uint64) (*response.IssueResponse, e
 		First(&issue, issueID).Error; err != nil {
 		return nil, common.NotFound("Issue not found")
 	}
-	return s.buildIssueResponse(&issue)
+	return s.BuildIssueResponse(&issue)
 }
 
-func (s *IssueService) buildIssueResponse(issue *model.Issue) (*response.IssueResponse, error) {
+func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueResponse, error) {
 	resp := &response.IssueResponse{
 		ID:              issue.ID,
 		Name:            issue.Name,
