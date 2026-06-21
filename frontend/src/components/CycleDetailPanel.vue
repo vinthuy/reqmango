@@ -101,7 +101,7 @@ const props = defineProps<{
   visible: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   close: []
   closed: []
 }>()
@@ -191,8 +191,7 @@ async function handleDelete() {
   if (!props.cycle) return
   if (!confirm('确定要删除这个周期吗？此操作不可撤销。')) return
   await cycleStore.deleteCycleAction(props.cycle.id)
-  // Also remove from the list that's displayed — emit close to hide panel
-  // Then the parent should refresh the cycle list
+  emit('close')
 }
 </script>
 
