@@ -134,6 +134,18 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			modules.GET("/:moduleId", moduleH.Get)
 			modules.PUT("/:moduleId", moduleH.Update)
 			modules.DELETE("/:moduleId", moduleH.Delete)
+			
+			// Issues
+			modules.POST("/:moduleId/issues", moduleH.AddIssue)         // ?issue_id=
+			modules.DELETE("/:moduleId/issues/:issueId", moduleH.RemoveIssue)
+			modules.GET("/:moduleId/issues", moduleH.ListIssues)
+			
+			// Analysis
+			modules.GET("/:moduleId/progress", moduleH.GetProgress)
+			modules.GET("/:moduleId/statistics", moduleH.GetStatistics)
+			
+			// Tree
+			modules.GET("/tree", moduleH.GetTree)                       // ?project_id=
 		}
 		// ---- Cycles (protected) ----
 		cycles := v1.Group("/cycles", authMiddleware)

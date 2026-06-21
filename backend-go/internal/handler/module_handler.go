@@ -19,6 +19,10 @@ func NewModuleHandler(svc *service.ModuleService) *ModuleHandler {
 	return &ModuleHandler{svc: svc}
 }
 
+func (h *ModuleHandler) parseModuleID(c *gin.Context) (uint64, error) {
+	return strconv.ParseUint(c.Param("moduleId"), 10, 64)
+}
+
 func (h *ModuleHandler) Create(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 
@@ -143,4 +147,125 @@ func (h *ModuleHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Module deleted successfully"})
+}
+
+// ==================== Issue Association ====================
+
+func (h *ModuleHandler) AddIssue(c *gin.Context) {
+	moduleID, err := h.parseModuleID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+	issueID, err := strconv.ParseUint(c.Query("issue_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue_id"})
+		return
+	}
+	if svcErr := h.svc.AddIssue(moduleID, issueID); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"module_id": moduleID, "issue_id": issueID, "action": "added"})
+}
+
+func (h *ModuleHandler) RemoveIssue(c *gin.Context) {
+	moduleID, err := h.parseModuleID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+	issueID, err := strconv.ParseUint(c.Param("issueId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+	if svcErr := h.svc.RemoveIssue(moduleID, issueID); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"module_id": moduleID, "issue_id": issueID, "action": "removed"})
+}
+
+func (h *ModuleHandler) ListIssues(c *gin.Context) {
+	moduleID, err := h.parseModuleID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+	p := common.ParsePagination(c.Query("limit"), c.Query("offset"), 50, 100)
+	var stateID *uint64
+	if v := c.Query("state_id"); v != "" {
+		if id, e := strconv.ParseUint(v, 10, 64); e == nil {
+			stateID = &id
+		}
+	}
+	issues, _, svcErr := h.svc.ListIssues(moduleID, stateID, c.Query("priority"), p.Limit, p.Offset)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, issues)
+}
+
+// ==================== Analysis ====================
+
+func (h *ModuleHandler) GetProgress(c *gin.Context) {
+	moduleID, err := h.parseModuleID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+	resp, svcErr := h.svc.GetProgress(moduleID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *ModuleHandler) GetStatistics(c *gin.Context) {
+	moduleID, err := h.parseModuleID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+	resp, svcErr := h.svc.GetStatistics(moduleID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *ModuleHandler) GetTree(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Query("project_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project_id"})
+		return
+	}
+	resp, svcErr := h.svc.BuildTree(projectID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
