@@ -116,10 +116,18 @@
         @refresh="handleDetailRefresh"
       />
 
+      <CycleDetailPanel
+        :cycle="selectedCycle"
+        :visible="cyclePanelVisible"
+        @close="cyclePanelVisible = false"
+      />
+
       <div v-if="activeTab === 'cycles'">
         <CycleList
           :project-id="projectId"
           :workspace-id="workspaceId"
+          @select="openCyclePanel"
+          @create="goToCycleCreate"
         />
       </div>
 
@@ -152,7 +160,9 @@ import IssueList from '@/components/IssueList.vue'
 import IssueKanban from '@/components/IssueKanban.vue'
 import IssueDetailPanel from '@/components/IssueDetailPanel.vue'
 import CycleList from '@/components/CycleList.vue'
+import CycleDetailPanel from '@/components/CycleDetailPanel.vue'
 import ModuleList from '@/components/ModuleList.vue'
+import type { CycleResponse } from '@/types/cycle'
 
 const route = useRoute()
 const router = useRouter()
@@ -166,6 +176,9 @@ const issueView = ref((route.query.view as string) || 'list')
 const detailIssueId = ref<number | null>(null)
 const detailPanelVisible = ref(false)
 
+const selectedCycle = ref<CycleResponse | null>(null)
+const cyclePanelVisible = ref(false)
+
 function openDetailPanel(issue: any) {
   detailIssueId.value = issue.id
   detailPanelVisible.value = true
@@ -178,6 +191,15 @@ function handleDetailDelete(issue: any) {
 function handleDetailRefresh() {
   // 刷新当前视图
   window.location.reload()
+}
+
+function openCyclePanel(cycle: CycleResponse) {
+  selectedCycle.value = cycle
+  cyclePanelVisible.value = true
+}
+
+function goToCycleCreate() {
+  router.push(`/workspaces/${route.params.slug}/projects/${projectId.value}/cycles/new`)
 }
 
 const workspaceId = ref(0)

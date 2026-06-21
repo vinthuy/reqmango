@@ -67,6 +67,18 @@ const router = createRouter({
       name: 'IssueCreate',
       component: () => import('@/views/IssueCreate.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspaces/:workspaceId/projects/:projectId/cycles/new',
+      name: 'CycleCreate',
+      component: () => import('@/views/CycleCreate.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspaces/:workspaceId/projects/:projectId/cycles/:cycleId',
+      name: 'CycleDetail',
+      component: () => import('@/views/CycleDetail.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })
