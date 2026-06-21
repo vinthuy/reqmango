@@ -18,46 +18,10 @@
       {{ module.description }}
     </p>
 
-    <!-- 进度条 -->
-    <div class="mb-3">
-      <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-        <span>进度</span>
-        <span>{{ module.progress }}%</span>
-      </div>
-      <div class="w-full bg-gray-200 rounded-full h-2">
-        <div
-          class="h-2 rounded-full transition-all duration-300"
-          :class="getProgressClass(module.progress)"
-          :style="{ width: module.progress + '%' }"
-        ></div>
-      </div>
-    </div>
-
-    <!-- 统计信息 -->
-    <div class="grid grid-cols-2 gap-3 mb-3">
-      <div class="text-center p-2 bg-gray-50 rounded">
-        <div class="text-lg font-semibold text-gray-900">{{ module.total_issues }}</div>
-        <div class="text-xs text-gray-500">总工作项</div>
-      </div>
-      <div class="text-center p-2 bg-gray-50 rounded">
-        <div class="text-lg font-semibold text-green-600">{{ module.completed_issues }}</div>
-        <div class="text-xs text-gray-500">已完成</div>
-      </div>
-    </div>
-
-    <!-- 目标日期 -->
-    <div v-if="module.target_date" class="text-xs text-gray-500 mb-3">
-      <div class="flex items-center" :class="{ 'text-red-500': isOverdue }">
-        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        目标: {{ formatDate(module.target_date) }}
-        <span v-if="isOverdue" class="ml-1 text-red-500">(已过期)</span>
-      </div>
-    </div>
-
-    <!-- 操作按钮 -->
-    <div class="flex items-center justify-end pt-3 border-t border-gray-100">
+    <!-- Footer -->
+    <div class="flex items-center justify-between pt-3 border-t border-gray-100 text-xs text-gray-400">
+      <span v-if="module.parent_id">子模块</span>
+      <span v-else>顶级模块</span>
       <div class="relative" @click.stop>
         <button
           @click="showMenu = !showMenu"
@@ -91,11 +55,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { ModuleResponse } from '@/types/module'
 
 // Props
-const props = defineProps<{
+defineProps<{
   module: ModuleResponse
 }>()
 
@@ -107,28 +71,6 @@ defineEmits<{
 
 // State
 const showMenu = ref(false)
-
-// Progress bar class
-function getProgressClass(progress: number): string {
-  if (progress >= 100) return 'bg-green-500'
-  if (progress >= 75) return 'bg-blue-500'
-  if (progress >= 50) return 'bg-yellow-500'
-  if (progress >= 25) return 'bg-orange-500'
-  return 'bg-red-500'
-}
-
-// Format date
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
-}
-
-// Check if overdue
-const isOverdue = computed(() => {
-  if (!props.module?.target_date) return false
-  return new Date(props.module.target_date) < new Date()
-})
 </script>
 
 <style scoped>

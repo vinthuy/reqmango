@@ -109,12 +109,8 @@ import { ref } from 'vue'
 import type { ModuleTreeNode } from '@/types/module'
 
 // Props
-interface ModuleTreeNodeWithLevel extends ModuleTreeNode {
-  level?: number
-}
-
 defineProps<{
-  tree: ModuleTreeNodeWithLevel[]
+  tree: (ModuleTreeNode & { level?: number })[]
 }>()
 
 // Emits

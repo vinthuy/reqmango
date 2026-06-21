@@ -54,28 +54,21 @@ export interface ModuleProgress {
   module_id: number
   module_name: string
   total_issues: number
-  completed_issues: number
+  completed: number
   progress: number
-  state_breakdown: StateBreakdown[]
-}
-
-export interface StateBreakdown {
-  state: string
-  group: string
-  count: number
 }
 
 // ==================== Module Statistics ====================
 
-export interface ModuleStatistics extends ModuleProgress {
-  priority_breakdown: Record<string, number>
-  issue_stats: {
-    total: number
-    with_start_date: number
-    with_target_date: number
-  }
-  target_date: string | null
-  has_sub_modules: boolean
+export interface ModuleStatistics {
+  module_id: number
+  module_name: string
+  total_issues: number
+  active_issues: number
+  completed: number
+  cancelled: number
+  by_priority: Record<string, number>
+  by_state: Record<string, number>
 }
 
 // ==================== Module Tree Node ====================
@@ -83,7 +76,17 @@ export interface ModuleStatistics extends ModuleProgress {
 export interface ModuleTreeNode {
   id: number
   name: string
-  description?: string
+  description: string
+  project_id: number
+  workspace_id: number
+  parent_id: number | null
   order: number
+  is_archived: boolean
+  archived_at: string | null
+  created_at: string
+  updated_at: string
   children: ModuleTreeNode[]
+  total_issues: number
+  completed_issues: number
+  progress: number
 }

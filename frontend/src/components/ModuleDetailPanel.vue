@@ -30,7 +30,7 @@
             <div class="text-xs text-gray-500">总数</div>
           </div>
           <div class="text-center p-3 bg-gray-50 rounded">
-            <div class="text-xl font-bold text-green-600">{{ moduleStore.progress.completed_issues }}</div>
+            <div class="text-xl font-bold text-green-600">{{ moduleStore.progress.completed }}</div>
             <div class="text-xs text-gray-500">完成</div>
           </div>
           <div class="text-center p-3 bg-gray-50 rounded">
