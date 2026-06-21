@@ -3,32 +3,46 @@
     <!-- 头部工具栏 -->
     <div class="bg-white border-b border-gray-200 px-4 py-3">
       <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-4">
-          <!-- 视图切换 -->
-          <div class="flex items-center border border-gray-300 rounded-md">
-            <button
-              @click="viewMode = 'card'"
-              :class="viewMode === 'card' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'"
-              class="px-3 py-1.5 text-sm first:rounded-l-md last:rounded-r-md"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-            <button
-              @click="viewMode = 'tree'"
-              :class="viewMode === 'tree' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'"
-              class="px-3 py-1.5 text-sm first:rounded-l-md last:rounded-r-md"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-              </svg>
-            </button>
-          </div>
+        <div class="flex items-center space-x-1 bg-gray-100 rounded-lg p-0.5">
+          <button
+            @click="viewMode = 'card'"
+            class="px-3 py-1.5 text-sm rounded-md transition-colors flex items-center space-x-1.5"
+            :class="viewMode === 'card'
+              ? 'bg-white shadow text-gray-900 font-medium'
+              : 'text-gray-500 hover:text-gray-700'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+            <span>卡片</span>
+          </button>
+          <button
+            @click="viewMode = 'list'"
+            class="px-3 py-1.5 text-sm rounded-md transition-colors flex items-center space-x-1.5"
+            :class="viewMode === 'list'
+              ? 'bg-white shadow text-gray-900 font-medium'
+              : 'text-gray-500 hover:text-gray-700'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+            <span>列表</span>
+          </button>
+          <button
+            @click="viewMode = 'tree'"
+            class="px-3 py-1.5 text-sm rounded-md transition-colors flex items-center space-x-1.5"
+            :class="viewMode === 'tree'
+              ? 'bg-white shadow text-gray-900 font-medium'
+              : 'text-gray-500 hover:text-gray-700'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+            </svg>
+            <span>树形</span>
+          </button>
         </div>
 
         <div class="flex items-center space-x-3">
-          <!-- 新建按钮 -->
           <button
             @click="$emit('create')"
             class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 flex items-center space-x-1"
@@ -75,6 +89,38 @@
         />
       </div>
 
+      <!-- 列表视图 -->
+      <div v-else-if="viewMode === 'list'" class="space-y-1">
+        <div
+          v-for="module in modules"
+          :key="module.id"
+          @click="$emit('select', module)"
+          class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg cursor-pointer border-b border-gray-100 last:border-b-0"
+        >
+          <div class="flex items-center space-x-3">
+            <svg class="w-5 h-5 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <div>
+              <div class="text-sm font-medium text-gray-900">{{ module.name }}</div>
+              <div v-if="module.description" class="text-xs text-gray-500 truncate max-w-md">{{ module.description }}</div>
+            </div>
+          </div>
+          <div class="flex items-center space-x-3">
+            <span class="text-xs text-gray-400">{{ module.parent_id ? '子模块' : '顶级' }}</span>
+            <button
+              @click.stop="$emit('delete', module)"
+              class="text-gray-400 hover:text-red-500 p-1"
+              title="删除"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- 树形视图 -->
       <div v-else class="space-y-1">
         <ModuleTree
@@ -94,27 +140,23 @@ import ModuleTree from './ModuleTree.vue'
 import { useModuleStore } from '@/stores/module'
 import type { ModuleResponse, ModuleTreeNode } from '@/types/module'
 
-// Props
 const props = defineProps<{
   projectId: number
   workspaceId: number
 }>()
 
-// Emits
 defineEmits<{
-  (e: 'create'): void
-  (e: 'select', module: ModuleResponse | ModuleTreeNode): void
-  (e: 'delete', module: ModuleResponse | ModuleTreeNode): void
+  create: []
+  select: [module: ModuleResponse | ModuleTreeNode]
+  delete: [module: ModuleResponse | ModuleTreeNode]
 }>()
 
-// Store
 const moduleStore = useModuleStore()
 const modules = computed(() => moduleStore.modules)
 const moduleTree = computed(() => moduleStore.moduleTree)
 const loading = computed(() => moduleStore.isLoading)
-const viewMode = ref<'card' | 'tree'>('card')
+const viewMode = ref<'card' | 'list' | 'tree'>('card')
 
-// Load modules
 onMounted(() => {
   moduleStore.fetchModules(props.projectId, props.workspaceId)
   moduleStore.fetchModuleTree(props.projectId)
