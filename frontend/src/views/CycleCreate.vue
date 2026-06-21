@@ -129,8 +129,14 @@ function nextStep() {
   currentStep.value++
 }
 
+const wsSlug = (route.query.ws as string) || ''
+
 function goBack() {
-  router.back()
+  if (wsSlug) {
+    router.push(`/workspace/${wsSlug}/project/${projectId}`)
+  } else {
+    router.back()
+  }
 }
 
 async function submitCycle() {
@@ -153,6 +159,10 @@ async function submitCycle() {
   }
 
   submitting.value = false
-  router.back()
+  if (wsSlug) {
+    router.push(`/workspace/${wsSlug}/project/${projectId}`)
+  } else {
+    router.back()
+  }
 }
 </script>

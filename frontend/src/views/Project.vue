@@ -199,7 +199,8 @@ function openCyclePanel(cycle: CycleResponse) {
 }
 
 function goToCycleCreate() {
-  router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}/cycles/new`)
+  const slug = route.params.slug as string
+  router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}/cycles/new?ws=${slug}`)
 }
 
 const workspaceId = ref(0)
