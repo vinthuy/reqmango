@@ -119,7 +119,8 @@ watch(filters, () => {
 async function loadCycles() {
   loading.value = true
   try {
-    cycles.value = await cycleApi.listCycles(props.projectId, props.workspaceId)
+    const result = await cycleApi.listCycles(props.projectId)
+    cycles.value = result.items
   } catch (error) {
     console.error('Failed to load cycles:', error)
   } finally {

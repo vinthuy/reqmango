@@ -2,14 +2,9 @@
  * Cycle Types - 周期类型定义
  */
 
-// ==================== Enums ====================
+// ==================== Type ====================
 
-export enum CycleStatus {
-  UPCOMING = 'upcoming',
-  ACTIVE = 'active',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
-}
+export type CycleStatus = 'upcoming' | 'active' | 'completed' | 'cancelled'
 
 // ==================== Cycle Base ====================
 
@@ -37,6 +32,14 @@ export interface CycleUpdate {
   archived_at?: string
 }
 
+// ==================== Project Lite ====================
+
+export interface ProjectLite {
+  id: number
+  name: string
+  identifier: string
+}
+
 // ==================== Cycle Response ====================
 
 export interface CycleResponse extends CycleBase {
@@ -48,6 +51,9 @@ export interface CycleResponse extends CycleBase {
   project_id: number
   workspace_id: number
   owned_by?: UserLite
+  project?: ProjectLite
+  created_by_id?: number
+  updated_by_id?: number
   total_issues_count?: number
   completed_issues_count?: number
   progress_snapshot?: Record<string, any>
@@ -130,10 +136,10 @@ export interface UserLite {
  */
 export function getCycleStatusName(status: CycleStatus): string {
   const names: Record<CycleStatus, string> = {
-    [CycleStatus.UPCOMING]: '未开始',
-    [CycleStatus.ACTIVE]: '进行中',
-    [CycleStatus.COMPLETED]: '已完成',
-    [CycleStatus.CANCELLED]: '已取消'
+    upcoming: '未开始',
+    active: '进行中',
+    completed: '已完成',
+    cancelled: '已取消'
   }
   return names[status] || status
 }
@@ -143,10 +149,10 @@ export function getCycleStatusName(status: CycleStatus): string {
  */
 export function getCycleStatusColor(status: CycleStatus): string {
   const colors: Record<CycleStatus, string> = {
-    [CycleStatus.UPCOMING]: '#6B7280', // 灰色
-    [CycleStatus.ACTIVE]: '#3B82F6',   // 蓝色
-    [CycleStatus.COMPLETED]: '#10B981', // 绿色
-    [CycleStatus.CANCELLED]: '#EF4444'  // 红色
+    upcoming: '#6B7280', // 灰色
+    active: '#3B82F6',   // 蓝色
+    completed: '#10B981', // 绿色
+    cancelled: '#EF4444'  // 红色
   }
   return colors[status] || '#6B7280'
 }
@@ -156,10 +162,10 @@ export function getCycleStatusColor(status: CycleStatus): string {
  */
 export function getCycleStatusIcon(status: CycleStatus): string {
   const icons: Record<CycleStatus, string> = {
-    [CycleStatus.UPCOMING]: 'clock',
-    [CycleStatus.ACTIVE]: 'play',
-    [CycleStatus.COMPLETED]: 'check',
-    [CycleStatus.CANCELLED]: 'x'
+    upcoming: 'clock',
+    active: 'play',
+    completed: 'check',
+    cancelled: 'x'
   }
   return icons[status] || 'circle'
 }
@@ -168,14 +174,14 @@ export function getCycleStatusIcon(status: CycleStatus): string {
  * 判断周期是否活跃
  */
 export function isCycleActive(cycle: CycleResponse): boolean {
-  return cycle.status === CycleStatus.ACTIVE
+  return cycle.status === 'active'
 }
 
 /**
  * 判断周期是否已完成
  */
 export function isCycleCompleted(cycle: CycleResponse): boolean {
-  return cycle.status === CycleStatus.COMPLETED
+  return cycle.status === 'completed'
 }
 
 /**
@@ -215,7 +221,7 @@ export function createEmptyCycle(projectId: number): CycleCreate {
  */
 export function isCycleOverdue(cycle: CycleResponse): boolean {
   if (!cycle.end_date) return false
-  if (cycle.status === CycleStatus.COMPLETED) return false
+  if (cycle.status === 'completed') return false
   const endDate = new Date(cycle.end_date)
   const today = new Date()
   return endDate < today

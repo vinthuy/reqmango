@@ -267,8 +267,8 @@ async function loadData() {
 
     // 加载周期
     try {
-      const cyclesRes = await cycleApi.listCycles(projectId.value, workspaceId.value)
-      cycles.value = cyclesRes
+      const cyclesRes = await cycleApi.listCycles(projectId.value)
+      cycles.value = cyclesRes.items
     } catch (e) {
       console.error('Failed to load cycles:', e)
     }
