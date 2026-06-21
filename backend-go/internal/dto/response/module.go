@@ -18,7 +18,10 @@ type ModuleResponse struct {
 
 type ModuleTreeNode struct {
 	ModuleResponse
-	Children []*ModuleTreeNode `json:"children"`
+	Children         []*ModuleTreeNode `json:"children"`
+	TotalIssues      int64             `json:"total_issues"`
+	CompletedIssues  int64             `json:"completed_issues"`
+	Progress         int               `json:"progress"`
 }
 
 type ModuleProgress struct {

@@ -9,7 +9,7 @@ type ModuleCreate struct {
 }
 
 type ModuleUpdate struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
 	ParentID    *uint64 `json:"parent_id"`
 }

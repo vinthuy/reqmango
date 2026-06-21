@@ -5,9 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/reqmanpy/backend-go/internal/service"
+	"github.com/reqmanpy/backend-go/internal/common"
 	"github.com/reqmanpy/backend-go/internal/dto/request"
+	"github.com/reqmanpy/backend-go/internal/middleware"
+	"github.com/reqmanpy/backend-go/internal/service"
 )
 
 type ModuleHandler struct {
@@ -19,6 +20,8 @@ func NewModuleHandler(svc *service.ModuleService) *ModuleHandler {
 }
 
 func (h *ModuleHandler) Create(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
 	var req request.ModuleCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
@@ -30,11 +33,14 @@ func (h *ModuleHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
 		return
 	}
-	req.WorkspaceID = workspaceID
 
-	module, err := h.svc.Create(req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	module, svcErr := h.svc.Create(workspaceID, user.ID, req)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 
@@ -56,13 +62,20 @@ func (h *ModuleHandler) List(c *gin.Context) {
 
 	includeArchived := c.DefaultQuery("include_archived", "false") == "true"
 
-	modules, err := h.svc.List(projectID, workspaceID, includeArchived)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	modules, total, svcErr := h.svc.List(projectID, workspaceID, includeArchived)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 
-	c.JSON(http.StatusOK, modules)
+	c.JSON(http.StatusOK, gin.H{
+		"data":  modules,
+		"total": total,
+	})
 }
 
 func (h *ModuleHandler) Get(c *gin.Context) {
@@ -72,9 +85,13 @@ func (h *ModuleHandler) Get(c *gin.Context) {
 		return
 	}
 
-	module, err := h.svc.Get(moduleID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	module, svcErr := h.svc.Get(moduleID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 
@@ -82,6 +99,8 @@ func (h *ModuleHandler) Get(c *gin.Context) {
 }
 
 func (h *ModuleHandler) Update(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
 	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
@@ -94,9 +113,13 @@ func (h *ModuleHandler) Update(c *gin.Context) {
 		return
 	}
 
-	module, err := h.svc.Update(moduleID, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	module, svcErr := h.svc.Update(moduleID, user.ID, req)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 
@@ -110,8 +133,12 @@ func (h *ModuleHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Delete(moduleID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	if svcErr := h.svc.Delete(moduleID); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 
