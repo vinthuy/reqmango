@@ -31,13 +31,59 @@
       <CycleProgressCard :progress="cycleStore.progress" />
       <CycleBurndownChart :data="cycleStore.burndown" />
 
+      <!-- Issues section -->
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">周期工作项</h3>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-medium text-gray-700">周期工作项 ({{ cycleStore.cycleIssues.length }})</h3>
+          <button
+            v-if="cycle?.status === 'active' || cycle?.status === 'upcoming'"
+            @click="showAddIssue = !showAddIssue"
+            class="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          >
+            + 添加工作项
+          </button>
+        </div>
+
+        <!-- Add issue search -->
+        <div v-if="showAddIssue" class="mb-4 border border-gray-200 rounded-md p-3 bg-gray-50">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜索项目内的工作项..."
+            class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            @input="searchIssues"
+          />
+          <div class="mt-2 max-h-60 overflow-y-auto space-y-1">
+            <div
+              v-for="issue in availableIssues"
+              :key="issue.id"
+              @click="handleAddIssue(issue.id)"
+              class="flex items-center justify-between p-2 hover:bg-indigo-50 rounded cursor-pointer text-sm"
+            >
+              <div class="flex-1 min-w-0">
+                <span class="text-gray-900 truncate block">{{ issue.name }}</span>
+                <span class="text-xs text-gray-400">{{ issue.state_name }}</span>
+              </div>
+              <span class="text-xs text-gray-400 ml-2 shrink-0">#{{ issue.sequence_id }}</span>
+            </div>
+            <div v-if="availableIssues.length === 0 && searched" class="text-sm text-gray-400 py-4 text-center">
+              没有可添加的工作项
+            </div>
+          </div>
+        </div>
+
         <div v-if="cycleStore.cycleIssues.length === 0" class="text-sm text-gray-400 text-center py-8">暂无工作项</div>
         <div v-else class="space-y-2">
-          <div v-for="issue in cycleStore.cycleIssues" :key="issue.id" class="flex items-center p-2 bg-gray-50 rounded text-sm">
+          <div v-for="issue in cycleStore.cycleIssues" :key="issue.id" class="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
             <span class="text-gray-900">{{ issue.name }}</span>
-            <span class="ml-auto text-xs text-gray-400">#{{ issue.sequence_id }}</span>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs text-gray-400">#{{ issue.sequence_id }}</span>
+              <button @click="handleRemoveIssue(issue.id)" class="text-gray-400 hover:text-red-500" title="移除">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -46,9 +92,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCycleStore } from '@/stores/cycle'
+import { issueApi } from '@/api/issue'
 import CycleProgressCard from '@/components/CycleProgressCard.vue'
 import CycleBurndownChart from '@/components/CycleBurndownChart.vue'
 
@@ -59,6 +106,11 @@ const cycleStore = useCycleStore()
 const cycleId = Number(route.params.cycleId)
 const cycle = computed(() => cycleStore.currentCycle)
 const loading = computed(() => cycleStore.isLoading)
+
+const showAddIssue = ref(false)
+const searchQuery = ref('')
+const searched = ref(false)
+const availableIssues = ref<any[]>([])
 
 const statusBadgeClass = computed(() => {
   const map: Record<string, string> = {
@@ -80,6 +132,35 @@ onMounted(async () => {
     ])
   }
 })
+
+async function searchIssues() {
+  if (!cycle.value) return
+  try {
+    const result = await issueApi.listIssues(cycle.value.project_id, cycle.value.workspace_id, {
+      search: searchQuery.value || undefined,
+    })
+    const allIssues = (result as any)?.items || result || []
+    const currentIds = new Set(cycleStore.cycleIssues.map((i: any) => i.id))
+    availableIssues.value = allIssues.filter(
+      (i: any) => !currentIds.has(i.id) && i.state_group !== 'completed' && i.state_group !== 'cancelled'
+    )
+    searched.value = true
+  } catch {
+    availableIssues.value = []
+    searched.value = true
+  }
+}
+
+async function handleAddIssue(issueId: number) {
+  await cycleStore.addIssueToCycle(cycleId, issueId)
+  showAddIssue.value = false
+  searchQuery.value = ''
+  searched.value = false
+}
+
+async function handleRemoveIssue(issueId: number) {
+  await cycleStore.removeIssueFromCycle(cycleId, issueId)
+}
 
 function goBack() { router.back() }
 

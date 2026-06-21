@@ -33,8 +33,44 @@
         <CycleProgressCard :progress="cycleStore.progress" />
         <CycleBurndownChart :data="cycleStore.burndown" />
 
+        <!-- Issues section -->
         <div>
-          <h4 class="text-sm font-medium text-gray-700 mb-2">周期工作项 ({{ cycleStore.cycleIssues.length }})</h4>
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-sm font-medium text-gray-700">周期工作项 ({{ cycleStore.cycleIssues.length }})</h4>
+            <button
+              v-if="cycle?.status === 'active' || cycle?.status === 'upcoming'"
+              @click="showAddIssue = !showAddIssue"
+              class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+            >
+              + 添加
+            </button>
+          </div>
+
+          <!-- Add issue dropdown -->
+          <div v-if="showAddIssue" class="mb-3 border border-gray-200 rounded-md p-2">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索工作项..."
+              class="w-full px-2 py-1 text-sm border border-gray-300 rounded mb-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              @input="searchIssues"
+            />
+            <div class="max-h-40 overflow-y-auto space-y-1">
+              <div
+                v-for="issue in availableIssues"
+                :key="issue.id"
+                @click="handleAddIssue(issue.id)"
+                class="flex items-center p-1.5 hover:bg-indigo-50 rounded cursor-pointer text-sm"
+              >
+                <span class="text-gray-900 truncate flex-1">{{ issue.name }}</span>
+                <span class="text-xs text-gray-400 ml-2">#{{ issue.sequence_id }}</span>
+              </div>
+              <div v-if="availableIssues.length === 0 && searchIssuesDone" class="text-xs text-gray-400 py-2 text-center">
+                没有可添加的工作项
+              </div>
+            </div>
+          </div>
+
           <div v-if="cycleStore.cycleIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">暂无工作项</div>
           <div v-else class="space-y-2">
             <div v-for="issue in cycleStore.cycleIssues" :key="issue.id" class="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
@@ -53,8 +89,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useCycleStore } from '@/stores/cycle'
+import { issueApi } from '@/api/issue'
 import CycleProgressCard from './CycleProgressCard.vue'
 import CycleBurndownChart from './CycleBurndownChart.vue'
 import type { CycleResponse } from '@/types/cycle'
@@ -72,6 +109,11 @@ defineEmits<{
 const cycleStore = useCycleStore()
 const loading = computed(() => cycleStore.isLoading)
 
+const showAddIssue = ref(false)
+const searchQuery = ref('')
+const searchIssuesDone = ref(false)
+const availableIssues = ref<any[]>([])
+
 const statusBadgeClass = computed(() => {
   const map: Record<string, string> = {
     upcoming: 'px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700',
@@ -84,6 +126,8 @@ const statusBadgeClass = computed(() => {
 
 watch(() => props.visible, async (v) => {
   if (v && props.cycle) {
+    showAddIssue.value = false
+    searchQuery.value = ''
     await Promise.all([
       cycleStore.fetchProgress(props.cycle.id),
       cycleStore.fetchBurndown(props.cycle.id),
@@ -91,6 +135,31 @@ watch(() => props.visible, async (v) => {
     ])
   }
 })
+
+async function searchIssues() {
+  if (!props.cycle) return
+  try {
+    const result = await issueApi.listIssues(props.cycle.project_id, props.cycle.workspace_id, {
+      search: searchQuery.value || undefined,
+    })
+    const allIssues = (result as any)?.items || result || []
+    const currentIds = new Set(cycleStore.cycleIssues.map((i: any) => i.id))
+    availableIssues.value = allIssues.filter(
+      (i: any) => !currentIds.has(i.id) && i.state_group !== 'completed' && i.state_group !== 'cancelled'
+    )
+    searchIssuesDone.value = true
+  } catch {
+    availableIssues.value = []
+    searchIssuesDone.value = true
+  }
+}
+
+async function handleAddIssue(issueId: number) {
+  if (!props.cycle) return
+  await cycleStore.addIssueToCycle(props.cycle.id, issueId)
+  showAddIssue.value = false
+  searchQuery.value = ''
+}
 
 async function handleRemoveIssue(issueId: number) {
   if (props.cycle) {
