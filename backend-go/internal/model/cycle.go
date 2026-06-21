@@ -3,7 +3,6 @@ package model
 import "time"
 
 // Cycle represents an iteration/sprint cycle.
-// Minimal model for Phase 1 - full Cycle CRUD comes in Phase 2.
 type Cycle struct {
 	BaseModel
 
@@ -12,6 +11,7 @@ type Cycle struct {
 	StartDate   time.Time  `gorm:"type:date;not null" json:"start_date"`
 	EndDate     *time.Time `gorm:"type:date" json:"end_date"`
 	CompletedAt *time.Time `json:"completed_at"`
+	CancelledAt *time.Time `json:"cancelled_at"`
 	ProjectID   uint64     `gorm:"not null;index" json:"project_id"`
 	WorkspaceID uint64     `gorm:"not null" json:"workspace_id"`
 
