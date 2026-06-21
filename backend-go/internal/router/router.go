@@ -71,6 +71,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.GET("/:projectId/statistics", projectH.GetStatistics)
 			projects.GET("/:projectId/issues-summary", projectH.GetIssuesSummary)
 			projects.GET("/:projectId/cycles", cycleH.List)
+			projects.POST("/:projectId/cycles", cycleH.Create)     // ?workspace_id=
 
 			// ---- Project Settings: States + Labels ----
 			settings := projects.Group("/:projectId/settings", authMiddleware)
@@ -133,6 +134,22 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			modules.GET("/:moduleId", moduleH.Get)
 			modules.PUT("/:moduleId", moduleH.Update)
 			modules.DELETE("/:moduleId", moduleH.Delete)
+		}
+		// ---- Cycles (protected) ----
+		cycles := v1.Group("/cycles", authMiddleware)
+		{
+			cycles.GET("/:cycleId", cycleH.Get)
+			cycles.PUT("/:cycleId", cycleH.Update)
+			cycles.DELETE("/:cycleId", cycleH.Delete)
+			cycles.POST("/:cycleId/start", cycleH.Start)
+			cycles.POST("/:cycleId/end", cycleH.End)
+			cycles.POST("/:cycleId/cancel", cycleH.Cancel)
+			cycles.POST("/:cycleId/issues", cycleH.AddIssue)
+			cycles.DELETE("/:cycleId/issues/:issueId", cycleH.RemoveIssue)
+			cycles.GET("/:cycleId/issues", cycleH.ListIssues)
+			cycles.GET("/:cycleId/progress", cycleH.GetProgress)
+			cycles.GET("/:cycleId/statistics", cycleH.GetStatistics)
+			cycles.GET("/:cycleId/burndown", cycleH.GetBurndown)
 		}
 	}
 }
