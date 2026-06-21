@@ -5,6 +5,7 @@ import (
 	"github.com/reqmanpy/backend-go/internal/config"
 	"github.com/reqmanpy/backend-go/internal/handler"
 	"github.com/reqmanpy/backend-go/internal/middleware"
+	"github.com/reqmanpy/backend-go/internal/rql"
 	"github.com/reqmanpy/backend-go/internal/service"
 	"gorm.io/gorm"
 )
@@ -25,6 +26,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	typeTemplateSvc := service.NewTypeTemplateService(db)
 	relationSvc := service.NewRelationService(db)
 	workflowSvc := service.NewWorkflowService(db)
+		commentSvc := service.NewCommentService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -40,6 +42,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	typeTemplateH := handler.NewTypeTemplateHandler(typeTemplateSvc)
 	relationH := handler.NewRelationHandler(relationSvc)
 	workflowH := handler.NewWorkflowHandler(workflowSvc)
+		commentH := handler.NewCommentHandler(commentSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -187,6 +190,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				issueTypes.PATCH("/:typeId/disable", issueTypeH.Disable)
 				issueTypes.GET("/:typeId/fields", issueTypeH.ListFields)
 				issueTypes.POST("/:typeId/fields", issueTypeH.AddField)
+				issueTypes.PUT("/:typeId/fields/:fieldId", issueTypeH.UpdateField)
 				issueTypes.DELETE("/:typeId/fields/:fieldId", issueTypeH.RemoveField)
 			}
 
@@ -254,6 +258,23 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				workflows.POST("/:workflowId/transitions", workflowH.AddTransition)
 				workflows.PUT("/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
 				workflows.DELETE("/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
+			}
+			// ---- Comments (protected) ----
+			comments := v1.Group("/comments", authMiddleware)
+			{
+				comments.POST("", commentH.Create)
+				comments.GET("/issue/:issueId", commentH.ListByIssue)
+				comments.GET("/:commentId", commentH.Get)
+				comments.PATCH("/:commentId", commentH.Update)
+				comments.DELETE("/:commentId", commentH.Delete)
+				comments.POST("/:commentId/resolve", commentH.Resolve)
+				comments.POST("/:commentId/unresolve", commentH.Unresolve)
+			}
+			// ---- RQL (protected) ----
+			rqlHandler := rql.NewRQLHandler()
+			rqlGroup := v1.Group("/rql", authMiddleware)
+			{
+				rqlGroup.POST("/search", rqlHandler.Search)
 			}
 			// ---- Automations (protected) ----
 			automations := v1.Group("/projects/:projectId/automations", authMiddleware)
