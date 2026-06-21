@@ -5,7 +5,14 @@
       <div class="px-4 py-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3 flex-1">
-            <div class="relative flex-1 max-w-md">
+            <button
+              @click="showRQL = !showRQL"
+              class="px-3 py-1.5 text-sm border rounded-md transition-colors"
+              :class="showRQL ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'"
+            >
+              RQL
+            </button>
+            <div class="relative flex-1 max-w-md" v-if="!showRQL">
               <input
                 v-model="filters.search"
                 type="text"
@@ -17,7 +24,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <select v-model="filters.state_id" @change="reload" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
+            <div class="flex-1 max-w-md" v-else>
+              <RQLInput
+                v-model="rqlQuery"
+                placeholder="输入 RQL 查询... (例如: state = '待处理')"
+                :show-history="true"
+                :show-hints="true"
+                :error="rqlError"
+                @search="onRQLSearch"
+              />
+            </div>
+            <select v-if="!showRQL" v-model="filters.state_id" @change="reload" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
               <option value="0">所有状态</option>
               <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
@@ -136,9 +153,28 @@ import issueApi from '@/api/issue'
 import customFieldApi from '@/api/custom-field'
 import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
+import { RQLInput } from '@/components/RQL'
+import { useRQL } from '@/composables/useRQL'
 
 const props = defineProps<{ projectId: number; workspaceId: number }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
+
+// RQL 搜索相关
+const {
+  rql: rqlQuery,
+  error: rqlError,
+  search: doRQLSearch,
+  results: rqlResults
+} = useRQL()
+
+const showRQL = ref(false)
+
+const onRQLSearch = async (_query: string) => {
+  await doRQLSearch(props.projectId, 'issue')
+  if (rqlResults.value.length > 0) {
+    issues.value = rqlResults.value
+  }
+}
 
 const issues = ref<any[]>([])
 const states = ref<any[]>([])
