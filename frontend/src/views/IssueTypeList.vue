@@ -40,8 +40,10 @@
           <div class="type-info">
             <h3 class="type-name">{{ type.name }}</h3>
             <div class="type-badges">
+              <span class="badge badge-level">L{{ type.level || 0 }}</span>
               <span v-if="type.is_default" class="badge badge-default">默认</span>
               <span v-if="!type.is_active" class="badge badge-inactive">已禁用</span>
+              <span v-if="type.parent_type_id" class="badge badge-parent">父类型约束</span>
             </div>
           </div>
         </div>
@@ -144,6 +146,34 @@
                 @click="formData.color = color"
               />
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">描述</label>
+            <input v-model="formData.description" type="text" class="form-input" placeholder="类型描述" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">层级 (Level)</label>
+            <select v-model="formData.level" class="form-input">
+              <option :value="0">L0 - 根层级 (Epic级)</option>
+              <option :value="1">L1 - 第1层子级</option>
+              <option :value="2">L2 - 第2层子级</option>
+              <option :value="3">L3 - 第3层子级</option>
+              <option :value="4">L4 - 第4层子级</option>
+              <option :value="5">L5 - 第5层子级</option>
+            </select>
+          </div>
+
+          <div class="form-group" v-if="(formData.level || 0) > 0">
+            <label class="form-label">父类型 (Parent Type)</label>
+            <select v-model="formData.parent_type_id" class="form-input">
+              <option :value="undefined">无约束</option>
+              <option v-for="t in parentTypeOptions" :key="t.id" :value="t.id">
+                {{ t.name }} (L{{ t.level }})
+              </option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">限定此类型只能挂在选定的父类型下</p>
           </div>
 
           <div class="form-group">
@@ -273,8 +303,18 @@ const formData = ref<IssueTypeCreate & IssueTypeUpdate>({
   name: '',
   color: ISSUE_TYPE_COLORS[0],
   icon: ISSUE_TYPE_ICONS[0],
+  description: '',
+  level: 0,
+  parent_type_id: undefined,
   is_default: false,
   sequence: 1
+})
+
+// 父类型选项: 只显示比当前层级低一级的类型
+const parentTypeOptions = computed(() => {
+  const targetLevel = (formData.value.level || 0) - 1
+  if (targetLevel < 0) return []
+  return issueTypes.value.filter(t => (t.level || 0) === targetLevel)
 })
 
 // 可用字段（未关联的字段）
@@ -306,6 +346,9 @@ function openEditModal(type: IssueType) {
     name: type.name,
     color: type.color,
     icon: type.icon,
+    description: type.description || '',
+    level: type.level || 0,
+    parent_type_id: type.parent_type_id || undefined,
     is_default: type.is_default,
     sequence: type.sequence
   }
@@ -491,6 +534,14 @@ onMounted(() => {
 
 .badge-inactive {
   @apply bg-gray-100 text-gray-600;
+}
+
+.badge-level {
+  @apply bg-blue-100 text-blue-700 font-mono;
+}
+
+.badge-parent {
+  @apply bg-yellow-100 text-yellow-700;
 }
 
 .type-actions {
