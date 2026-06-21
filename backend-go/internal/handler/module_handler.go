@@ -66,7 +66,7 @@ func (h *ModuleHandler) List(c *gin.Context) {
 
 	includeArchived := c.DefaultQuery("include_archived", "false") == "true"
 
-	modules, total, svcErr := h.svc.List(projectID, workspaceID, includeArchived)
+	modules, _, svcErr := h.svc.List(projectID, workspaceID, includeArchived)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -76,10 +76,7 @@ func (h *ModuleHandler) List(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":  modules,
-		"total": total,
-	})
+	c.JSON(http.StatusOK, modules)
 }
 
 func (h *ModuleHandler) Get(c *gin.Context) {
