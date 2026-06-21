@@ -3,6 +3,10 @@ package response
 import "time"
 
 // CycleResponse is the full cycle representation returned by the API.
+// NOTE: Cycle dates use "2006-01-02" (date-only) format strings rather than
+// *time.Time (RFC3339). This is intentional — cycles are date-range-oriented,
+// so the time-of-day component is irrelevant. Issue dates (*time.Time / RFC3339)
+// carry full timestamps because they represent point-in-time events.
 type CycleResponse struct {
 	ID              uint64       `json:"id"`
 	Name            string       `json:"name"`
@@ -27,7 +31,7 @@ type CycleResponse struct {
 type CycleLite struct {
 	ID        uint64  `json:"id"`
 	Name      string  `json:"name"`
-	StartDate *string `json:"start_date"`
+	StartDate string `json:"start_date"`
 	EndDate   *string `json:"end_date"`
 }
 
@@ -65,7 +69,7 @@ type IssueStats struct {
 
 // DateRange represents a date range.
 type DateRange struct {
-	StartDate *string `json:"start_date"`
+	StartDate string `json:"start_date"`
 	EndDate   *string `json:"end_date"`
 }
 
