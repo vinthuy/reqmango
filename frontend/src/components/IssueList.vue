@@ -36,7 +36,7 @@
               </button>
               <div v-if="showColumns" class="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
                 <div class="px-3 py-1.5 text-xs text-gray-400 font-medium border-b border-gray-100">显示列</div>
-                <label v-for="col in allColumns" :key="col.key"
+                <label v-for="col in effectiveColumns" :key="col.key"
                   class="flex items-center px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
                   <input type="checkbox" :checked="visibleColumnKeys.has(col.key)" @change="toggleColumn(col.key)" class="rounded border-gray-300 mr-2" />
                   {{ col.label }}
@@ -71,7 +71,20 @@
           <div><label class="block text-xs text-gray-500 mb-1">截止日期</label>
             <input type="date" v-model="filters.end_date" @change="search" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
         </div>
-        <div class="mt-2 flex justify-end"><button @click="resetFilters" class="text-sm text-gray-500 hover:text-indigo-600">重置筛选</button></div>
+        <div v-if="customFields.length > 0" class="grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-200">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">自定义字段</label>
+              <select v-model="filters.cf_field_id" @change="search" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                <option :value="0">全部</option>
+                <option v-for="cf in customFields" :key="cf.id" :value="cf.id">{{ cf.name }}</option>
+              </select>
+            </div>
+            <div v-if="filters.cf_field_id > 0">
+              <label class="block text-xs text-gray-500 mb-1">字段值</label>
+              <input type="text" v-model="filters.cf_value" @input="search" placeholder="输入值模糊搜索..." class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
+            </div>
+          </div>
+          <div class="mt-2 flex justify-end"><button @click="resetFilters" class="text-sm text-gray-500 hover:text-indigo-600">重置筛选</button></div>
       </div>
     </div>
 
@@ -168,6 +181,8 @@
               <span v-else-if="col.key === 'target_date'" class="text-xs text-gray-500">{{ formatDate(issue.target_date) }}</span>
               <!-- 创建时间 -->
               <span v-else-if="col.key === 'created_at'" class="text-xs text-gray-400">{{ formatDate(issue.created_at) }}</span>
+              <!-- 自定义字段 -->
+              <span v-else-if="col.key.startsWith('cf_')" class="text-xs text-gray-600 whitespace-nowrap">{{ getCFValue(issue.id, col.key) }}</span>
             </td>
             <td class="px-3 py-2" @click.stop>
               <button @click="$emit('select', issue)" class="text-xs text-indigo-600 hover:text-indigo-800 mr-2">查看</button>
@@ -198,6 +213,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import issueApi from '@/api/issue'
+import customFieldApi from '@/api/custom-field'
 import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
 
@@ -211,7 +227,7 @@ defineEmits<{
 
 // ---- Column config ----
 interface ColumnDef { key: string; label: string; width: string; defaultVisible: boolean }
-const allColumns: ColumnDef[] = [
+const staticColumns: ColumnDef[] = [
   { key: 'sequence_id', label: '编号', width: 'w-20', defaultVisible: true },
   { key: 'name',         label: '标题', width: '',       defaultVisible: true },
   { key: 'priority',     label: '优先级', width: 'w-20', defaultVisible: true },
@@ -226,18 +242,34 @@ const allColumns: ColumnDef[] = [
 
 const STORAGE_KEY = 'issuelist_columns'
 
+const customFields = ref<any[]>([])
+
+// Dynamic columns: static + custom fields
+const effectiveColumns = computed(() => {
+  const cols = [...staticColumns]
+  for (const cf of customFields.value) {
+    cols.push({
+      key: 'cf_' + cf.id,
+      label: cf.name,
+      width: 'w-28',
+      defaultVisible: false
+    } as ColumnDef)
+  }
+  return cols
+})
+
 function loadColumnPrefs(): Set<string> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) return new Set(JSON.parse(raw))
   } catch { /* */ }
-  return new Set(allColumns.filter(c => c.defaultVisible).map(c => c.key))
+  return new Set(effectiveColumns.value.filter(c => c.defaultVisible).map(c => c.key))
 }
 
 const visibleColumnKeys = ref(loadColumnPrefs())
 const showColumns = ref(false)
 
-const visibleColumns = computed(() => allColumns.filter(c => visibleColumnKeys.value.has(c.key)))
+const visibleColumns = computed(() => effectiveColumns.value.filter(c => visibleColumnKeys.value.has(c.key)))
 
 function toggleColumn(key: string) {
   const s = new Set(visibleColumnKeys.value)
@@ -264,7 +296,8 @@ const showAdvanced = ref(false)
 const selectedIds = ref(new Set<number>())
 
 const filters = ref({
-  search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, start_date: '', end_date: ''
+  search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0,
+  start_date: '', end_date: '', cf_field_id: 0, cf_value: ''
 })
 
 const batchAction = ref('')
@@ -312,7 +345,7 @@ function formatDate(d: string | null | undefined) { if (!d) return '-'; return n
 function goToCreate() { router.push(`/workspaces/${props.workspaceId}/projects/${props.projectId}/issues/new`) }
 function search() { page.value = 1; loadIssues() }
 function resetFilters() {
-  filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, start_date: '', end_date: '' }
+  filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, start_date: '', end_date: '', cf_field_id: 0, cf_value: '' }
   search()
 }
 function toggleSelectAll() {
@@ -338,7 +371,7 @@ async function execBatchDelete() {
 }
 
 // ---- Data loading ----
-onMounted(() => { Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers()]) })
+onMounted(() => { Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields()]) })
 watch(page, () => loadIssues())
 
 async function loadIssues() {
@@ -350,6 +383,10 @@ async function loadIssues() {
     if (filters.value.cycle_id && filters.value.cycle_id > 0) params.cycle_id = filters.value.cycle_id
     if (filters.value.assignee_id && filters.value.assignee_id > 0) params.assignee_id = filters.value.assignee_id
     if (filters.value.search) params.search = filters.value.search
+    if (filters.value.cf_field_id && filters.value.cf_field_id > 0) {
+      params.cf_field_id = filters.value.cf_field_id
+      if (filters.value.cf_value) params.cf_value = filters.value.cf_value
+    }
     const result = await issueApi.listIssues(props.projectId, props.workspaceId, params)
     issues.value = result.items; totalCount.value = result.total; totalPages.value = Math.max(1, Math.ceil(result.total / limit.value))
   } catch (e) { console.error('Failed to load issues:', e) }
@@ -358,5 +395,40 @@ async function loadIssues() {
 async function loadStates() { try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ } }
 async function loadCycles() { try { const r = await api.get(`/projects/${props.projectId}/cycles`); cycles.value = r.data } catch (e) { /* */ } }
 async function loadMembers() { try { const r = await api.get(`/workspaces/${props.workspaceId}/members`); members.value = r.data } catch (e) { /* */ } }
+async function loadCustomFields() {
+  try { customFields.value = await customFieldApi.listCustomFields(props.workspaceId, props.projectId) } catch (e) { /* */ }
+}
+
+// Custom field value cache: issueId → fieldId → display string
+const cfValueCache = ref<Record<number, Record<number, string>>>({})
+
+async function loadCFValues(issueIds: number[]) {
+  if (!issueIds.length) return
+  try {
+    const results = await Promise.all(issueIds.map(id =>
+      customFieldApi.listIssueCustomFieldValues(id).catch(() => [] as any[])
+    ))
+    const cache: Record<number, Record<number, string>> = {}
+    issueIds.forEach((id, idx) => {
+      cache[id] = {}
+      for (const v of (results[idx] || [])) {
+        cache[id][v.field_id] = v.value || ''
+      }
+    })
+    cfValueCache.value = cache
+  } catch { /* */ }
+}
+
+function getCFValue(issueId: number, colKey: string): string {
+  const fieldId = parseInt(colKey.replace('cf_', ''))
+  return cfValueCache.value[issueId]?.[fieldId] || '-'
+}
+
+// Load CF values after issues load
+watch(issues, (newIssues) => {
+  if (newIssues.length) {
+    loadCFValues(newIssues.map(i => i.id))
+  }
+})
 </script>
 

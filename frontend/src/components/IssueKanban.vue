@@ -55,6 +55,19 @@
           <div><label class="block text-xs text-gray-500 mb-1">截止日期</label>
             <input v-model="filters.filter_target_date" type="date" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
         </div>
+          <div v-if="customFields.length > 0" class="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-200">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">自定义字段</label>
+              <select v-model="filters.cf_field_id" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                <option :value="0">全部</option>
+                <option v-for="cf in customFields" :key="cf.id" :value="cf.id">{{ cf.name }}</option>
+              </select>
+            </div>
+            <div v-if="filters.cf_field_id > 0">
+              <label class="block text-xs text-gray-500 mb-1">字段值</label>
+              <input type="text" v-model="filters.cf_value" @input="reload" placeholder="输入值模糊搜索..." class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
+            </div>
+          </div>
         <div class="mt-2 flex justify-end"><button @click="resetFilters" class="text-sm text-gray-500 hover:text-indigo-600">重置筛选</button></div>
       </div>
     </div>
@@ -119,6 +132,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import issueApi from '@/api/issue'
+import customFieldApi from '@/api/custom-field'
 import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
 
@@ -132,7 +146,8 @@ const members = ref<any[]>([])
 const loading = ref(false)
 const showAdvanced = ref(false)
 
-const filters = ref({ search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, filter_start_date: '', filter_target_date: '' })
+const customFields = ref<any[]>([])
+const filters = ref({ search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, filter_start_date: '', filter_target_date: '', cf_field_id: 0, cf_value: '' })
 
 const memberOptions = computed(() => members.value.map(m => ({
   id: m.user_id,
@@ -175,11 +190,14 @@ function onDragStart(e: DragEvent, issue: any) {
 
 function reload() { loadIssues() }
 function resetFilters() {
-  filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, filter_start_date: '', filter_target_date: '' }
+  filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, filter_start_date: '', filter_target_date: '', cf_field_id: 0, cf_value: '' }
   reload()
 }
 
-onMounted(() => Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers()]))
+onMounted(() => Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields()]))
+async function loadCustomFields() {
+  try { customFields.value = await customFieldApi.listCustomFields(props.workspaceId, props.projectId) } catch { /* */ }
+}
 
 async function loadIssues() {
   loading.value = true
@@ -192,6 +210,10 @@ async function loadIssues() {
     if (filters.value.search) params.search = filters.value.search
     if (filters.value.filter_start_date) params.start_date = filters.value.filter_start_date
     if (filters.value.filter_target_date) params.target_date = filters.value.filter_target_date
+    if (filters.value.cf_field_id && filters.value.cf_field_id > 0) {
+      params.cf_field_id = filters.value.cf_field_id
+      if (filters.value.cf_value) params.cf_value = filters.value.cf_value
+    }
     const result = await issueApi.listIssues(props.projectId, props.workspaceId, params)
     issues.value = result.items
   } catch (e) { console.error('Failed to load issues:', e) }

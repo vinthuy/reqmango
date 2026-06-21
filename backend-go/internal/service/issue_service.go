@@ -148,24 +148,59 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 	if issueTypeID, ok := filters["issue_type_id"]; ok && issueTypeID != nil {
 		baseQuery = baseQuery.Where("issues.issue_type_id = ?", issueTypeID)
 	}
+	needDedup := false
+	if cfFieldID, ok := filters["cf_field_id"]; ok && cfFieldID != nil {
+		alias := fmt.Sprintf("cfv_%d", cfFieldID)
+		baseQuery = baseQuery.Joins(
+			fmt.Sprintf("JOIN issue_custom_field_values %s ON %s.issue_id = issues.id AND %s.field_id = ?",
+				alias, alias, alias), cfFieldID)
+		if cfValue, ok2 := filters["cf_value"]; ok2 && cfValue != nil && cfValue != "" {
+			baseQuery = baseQuery.Where(fmt.Sprintf("%s.value ILIKE ?", alias), "%"+cfValue.(string)+"%")
+		}
+		needDedup = true
+	}
 
 	// Count total (before limit/offset)
 	var total int64
-	if err := baseQuery.Count(&total).Error; err != nil {
+	countQuery := baseQuery.Session(&gorm.Session{})
+	if needDedup {
+		countQuery = countQuery.Distinct("issues.id")
+	}
+	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, common.Internal("Database error")
 	}
 
 	var issues []model.Issue
-	if err := baseQuery.
-		Preload("State").
-		Preload("IssueType").
-		Preload("AssigneeLinks.User").
-		Preload("LabelLinks.Label").
-		Preload("CycleLink").
-		Order("issues.sort_order ASC, issues.sequence_id DESC").
-		Limit(limit).Offset(offset).
-		Find(&issues).Error; err != nil {
-		return nil, 0, common.Internal("Database error")
+	if needDedup {
+		// Use subquery to get distinct issue IDs, then fetch full rows
+		var ids []uint64
+		if err := baseQuery.Distinct("issues.id").Pluck("issues.id", &ids).Error; err != nil {
+			return nil, 0, common.Internal("Database error")
+		}
+		if len(ids) > 0 {
+			if err := s.db.Where("id IN ?", ids).
+				Preload("State").
+				Preload("IssueType").
+				Preload("AssigneeLinks.User").
+				Preload("LabelLinks.Label").
+				Preload("CycleLink").
+				Order("sort_order ASC, sequence_id DESC").
+				Find(&issues).Error; err != nil {
+				return nil, 0, common.Internal("Database error")
+			}
+		}
+	} else {
+		if err := baseQuery.
+			Preload("State").
+			Preload("IssueType").
+			Preload("AssigneeLinks.User").
+			Preload("LabelLinks.Label").
+			Preload("CycleLink").
+			Order("issues.sort_order ASC, issues.sequence_id DESC").
+			Limit(limit).Offset(offset).
+			Find(&issues).Error; err != nil {
+			return nil, 0, common.Internal("Database error")
+		}
 	}
 
 	result := make([]response.IssueResponse, len(issues))

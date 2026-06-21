@@ -113,6 +113,14 @@ func (h *IssueHandler) List(c *gin.Context) {
 	if v := c.Query("is_draft"); v != "" {
 		filters["is_draft"] = v == "true"
 	}
+	if v := c.Query("cf_field_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["cf_field_id"] = id
+		}
+	}
+	if v := c.Query("cf_value"); v != "" {
+		filters["cf_value"] = v
+	}
 
 	issues, total, svcErr := h.svc.List(projectID, filters, p.Limit, p.Offset)
 	if svcErr != nil {

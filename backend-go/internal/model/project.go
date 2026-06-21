@@ -14,6 +14,8 @@ type Project struct {
 	ArchivedAt        *time.Time `json:"archived_at"`
 	WorkspaceID       uint64     `gorm:"not null;index" json:"workspace_id"`
 	DefaultAssigneeID *uint64    `json:"default_assignee_id"`
+	Color             string     `gorm:"size:20;default:'#6366F1'" json:"color"`
+	TemplateID        *uint64    `json:"template_id"`
 
 	// Relationships
 	Workspace       Workspace       `gorm:"foreignKey:WorkspaceID" json:"-"`
