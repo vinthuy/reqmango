@@ -152,3 +152,69 @@ func (s *ProjectTemplateService) RemoveType(templateID, typeTemplateID uint64) e
 	}
 	return nil
 }
+
+// Apply instantiates a project template: creates concrete IssueTypes from type templates.
+func (s *ProjectTemplateService) Apply(templateID, projectID uint64) error {
+	var pt model.ProjectTemplate
+	if err := s.db.Preload("TypeLinks.TypeTemplate").Preload("TypeLinks.TypeTemplate.FieldLinks").First(&pt, templateID).Error; err != nil {
+		return common.NotFound("Project template not found")
+	}
+	if len(pt.TypeLinks) == 0 {
+		return common.BadRequest("Template has no types to apply")
+	}
+
+	var project model.Project
+	if err := s.db.First(&project, projectID).Error; err != nil {
+		return common.NotFound("Project not found")
+	}
+
+	tx := s.db.Begin()
+
+	// Phase 1: Create IssueTypes from templates, tracking old→new ID mapping
+	typeMapping := make(map[uint64]uint64) // template type ID → new issue type ID
+
+	for _, link := range pt.TypeLinks {
+		tt := link.TypeTemplate
+		it := model.IssueType{
+			Name: tt.Name, Color: tt.Color, Icon: tt.Icon,
+			Description: tt.Description, Level: tt.Level,
+			IsDefault: link.IsRequired, Sequence: link.Sequence,
+			ProjectID: &projectID, WorkspaceID: project.WorkspaceID,
+		}
+		if err := tx.Create(&it).Error; err != nil {
+			tx.Rollback(); return common.Internal("Failed to create issue type: " + tt.Name)
+		}
+		typeMapping[tt.ID] = it.ID
+	}
+
+	// Phase 2: Set hierarchy (parent_type_id → mapped to new IDs)
+	for _, link := range pt.TypeLinks {
+		tt := link.TypeTemplate
+		if tt.ParentTypeID != nil {
+			if newParentID, ok := typeMapping[*tt.ParentTypeID]; ok {
+				newID := typeMapping[tt.ID]
+				tx.Model(&model.IssueType{}).Where("id = ?", newID).Update("parent_type_id", newParentID)
+			}
+		}
+	}
+
+	// Phase 3: Copy field bindings
+	for _, link := range pt.TypeLinks {
+		tt := link.TypeTemplate
+		newID := typeMapping[tt.ID]
+		for _, fl := range tt.FieldLinks {
+			tx.Create(&model.IssueTypeField{
+				TypeID: newID, FieldID: fl.FieldID,
+				IsRequired: fl.IsRequired, Sequence: fl.Sequence,
+			})
+		}
+	}
+
+	// Phase 4: Set project template_id
+	tx.Model(&project).Update("template_id", templateID)
+
+	if err := tx.Commit().Error; err != nil {
+		return common.Internal("Failed to apply template")
+	}
+	return nil
+}

@@ -1,6 +1,7 @@
 <script setup lang="ts">import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import TypeTemplateManager from '@/components/TypeTemplateManager.vue';
+import ProjectTemplateManager from '@/components/ProjectTemplateManager.vue';
 import type { WorkItemType, CustomField, State, Workflow, Automation, Label } from '@/types';
 
 const router = useRouter();
@@ -678,39 +679,8 @@ const handleViewWorkflow = (workflowId: number) => {
         <TypeTemplateManager :workspace-id="1" />
       </div>
 
-      <div v-if="activeSection === 'templates'" class="p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h1 class="text-xl font-semibold text-gray-900">Project Templates</h1>
-            <p class="text-sm text-gray-500 mt-1">Create reusable project structures</p>
-          </div>
-          <button
-            @click="showTemplateModal = true"
-            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
-            + Create template
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div
-            v-for="template in templates"
-            :key="template.id"
-            class="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-          >
-            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-xl mb-4">
-              📋
-            </div>
-            <h3 class="font-medium text-gray-900">{{ template.name }}</h3>
-            <p class="mt-1 text-sm text-gray-500">{{ template.description }}</p>
-            <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-              <span class="text-xs text-gray-400">{{ template.work_item_count }} work items</span>
-              <button class="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                Use template →
-              </button>
-            </div>
-          </div>
-        </div>
+      <div v-if="activeSection === 'templates'" class="p-0">
+        <ProjectTemplateManager :workspace-id="1" />
       </div>
     </main>
 

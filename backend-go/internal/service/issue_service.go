@@ -348,7 +348,31 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	}
 
 	// Handle issue type
-	if req.TypeID != nil {
+	if req.TypeID != nil && (issue.IssueTypeID == nil || *req.TypeID != *issue.IssueTypeID) {
+		var newType model.IssueType
+		if err := s.db.First(&newType, *req.TypeID).Error; err == nil {
+			// Validate: if issue has children, new type's level must = children's level - 1
+			var childCount int64
+			s.db.Model(&model.Issue{}).Where("parent_id = ?", issueID).Count(&childCount)
+			if childCount > 0 {
+				var childLevel int
+				s.db.Model(&model.Issue{}).Select("COALESCE(MAX(depth),0)").Where("parent_id = ?", issueID).Scan(&childLevel)
+				if newType.Level != childLevel-1 && childLevel > 0 {
+					tx.Rollback()
+					return nil, common.BadRequest("Type change blocked: children require parent type one level above")
+				}
+			}
+			// Validate: if issue has parent, new type must be parent's level + 1
+			if issue.ParentID != nil {
+				var parent model.Issue
+				if s.db.Preload("IssueType").First(&parent, *issue.ParentID).Error == nil && parent.IssueType.ID != 0 {
+					if newType.Level != parent.IssueType.Level+1 {
+						tx.Rollback()
+						return nil, common.BadRequest("Type change blocked: must be one level below parent")
+					}
+				}
+			}
+		}
 		issue.IssueTypeID = req.TypeID
 		tx.Save(&issue)
 		hasChanges = true

@@ -180,8 +180,8 @@ func (h *ProjectTemplateHandler) Apply(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
 		return
 	}
-	// Apply: set project's template_id
-	resp, svcErr := h.svc.Get(templateID)
+	// Apply: instantiates type templates into the project
+	svcErr := h.svc.Apply(templateID, req.ProjectID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -190,5 +190,5 @@ func (h *ProjectTemplateHandler) Apply(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Template applied", "template": resp})
+	c.JSON(http.StatusOK, gin.H{"message": "Template applied successfully"})
 }
