@@ -170,7 +170,7 @@ const router = useRouter()
 const workspace = ref<Workspace | null>(null)
 const project = ref<ProjectResponse | null>(null)
 const loading = ref(false)
-const activeTab = ref('issues')
+const activeTab = ref((route.query.tab as string) || 'issues')
 const issueView = ref((route.query.view as string) || 'list')
 
 const detailIssueId = ref<number | null>(null)
