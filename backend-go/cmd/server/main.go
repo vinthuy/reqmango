@@ -46,6 +46,7 @@ func main() {
 		&model.IssueActivity{},
 		&model.Cycle{},
 		&model.Module{},
+		&model.ModuleIssue{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
