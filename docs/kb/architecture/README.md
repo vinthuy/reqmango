@@ -77,14 +77,17 @@ ReqManPy 采用前后端分离架构，当前技术体系如下。
 | Label（标签） | ✅ | ✅ | 完成 |
 | Cycle（周期） | ✅ | ✅ | 完成 |
 | Module（模块） | ✅ | ✅ | 完成 |
-| CustomField（自定义字段） | ❌ | ✅ | 仅前端有实现 |
-| Workflow/Automation | ❌ | 部分 | 仅前端类型+API |
-| IssueType | ❌ | ✅ | 仅前端有实现 |
-| EstimatePoint | ❌ | 部分 | 仅前端 |
+| CustomField（自定义字段） | ✅ | ✅ | 完成 |
+| IssueType（工作项类型） | ✅ | ✅ | 完成 |
+| Workflow（工作流） | ✅ | ✅ | 完成 |
+| Automation（自动化） | ✅ | ✅ | 完成 |
+| Comments（评论） | ✅ | ✅ | 完成 |
+| Notifications（通知） | ✅ | ✅ | 完成 |
+| Saved Views（保存视图） | ✅ | ✅ | 完成 |
+| Pages（页面文档） | ✅ | ✅ | 完成 |
+| EstimatePoint（估算点） | ❌ | ✅ | 仅前端 |
+| Attachments（附件） | ❌ | ✅ | 仅前端 |
 | AI | ❌ | ❌ | 未实现 |
-| Comments | ❌ | ✅ | 仅前端 |
-| Notifications | ❌ | ✅ | 仅前端 |
-| Attachments | ❌ | ✅ | 仅前端 |
 
 ## 参考架构
 
