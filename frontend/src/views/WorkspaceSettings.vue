@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router';
 import RelationTypeManager from '@/components/RelationTypeManager.vue';
 import WorkspaceIssueTypeManager from '@/components/WorkspaceIssueTypeManager.vue';
+import ProjectTemplateManager from '@/components/ProjectTemplateManager.vue';
 import CustomFieldManager from '@/components/CustomFieldManager.vue';
 import AutomationForm from '@/components/AutomationForm.vue';
 import AutomationList from '@/components/AutomationList.vue';
@@ -122,6 +123,7 @@ onMounted(() => { loadWorkspace(); });
         <button
           v-for="item in [
             { id: 'types', label: 'Work Item Types', icon: '📋', count: issueTypes.length },
+            { id: 'templates', label: 'Templates', icon: '📦', count: 0 },
             { id: 'fields', label: 'Custom Fields', icon: '📝', count: customFields.length },
             { id: 'automations', label: 'Automations', icon: '🤖', count: automations.length },
             { id: 'relations', label: 'Relations', icon: '🔗', count: relationTypes.length },
@@ -145,6 +147,11 @@ onMounted(() => { loadWorkspace(); });
       <!-- Work Item Types Section -->
       <div v-if="!loading && activeSection === 'types'" class="p-6">
         <WorkspaceIssueTypeManager :workspace-id="workspaceId" />
+      </div>
+
+      <!-- Templates Section -->
+      <div v-if="!loading && activeSection === 'templates'" class="p-6">
+        <ProjectTemplateManager :workspace-id="workspaceId" />
       </div>
 
       <!-- Custom Fields Section -->
