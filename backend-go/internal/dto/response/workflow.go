@@ -28,15 +28,16 @@ type TransitionResponse struct {
 }
 
 type AutomationResponse struct {
-	ID          uint64    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	ProjectID   uint64    `json:"project_id"`
-	IsEnabled   bool      `json:"is_enabled"`
-	Sequence    int       `json:"sequence"`
-	TriggerType string    `json:"trigger_type"`
-	Conditions  string    `json:"conditions"`
-	Actions     string    `json:"actions"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID             uint64    `json:"id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	ProjectID      uint64    `json:"project_id"`
+	IsEnabled      bool      `json:"is_enabled"`
+	Sequence       int       `json:"sequence"`
+	ExecutionCount int       `json:"execution_count"`
+	TriggerType    string    `json:"trigger_type"`
+	Conditions     string    `json:"conditions"`
+	Actions        string    `json:"actions"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }

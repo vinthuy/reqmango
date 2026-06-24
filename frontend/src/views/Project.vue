@@ -205,7 +205,11 @@ const modulePanelVisible = ref(false)
 const moduleFormVisible = ref(false)
 const editingModule = ref<ModuleResponse | null>(null)
 
-watch(activeTab, () => {
+watch(activeTab, (tab) => {
+  if (tab === 'settings') {
+    router.push(`/workspace/${route.params.slug}/project/${projectId.value}/settings`)
+    return
+  }
   detailPanelVisible.value = false
   cyclePanelVisible.value = false
   modulePanelVisible.value = false
@@ -265,6 +269,7 @@ const tabs = [
   { id: 'issues', name: '工作项管理' },
   { id: 'cycles', name: '周期' },
   { id: 'modules', name: '模块' },
+  { id: 'settings', name: '设置' },
 ]
 
 function goBack() {

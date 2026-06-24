@@ -86,6 +86,10 @@ ReqManPy 采用前后端分离架构，当前技术体系如下。
 | Notifications | ❌ | ✅ | 仅前端 |
 | Attachments | ❌ | ✅ | 仅前端 |
 
+## 参考架构
+
+- [plane-enterprise-info-architecture.md](plane-enterprise-info-architecture.md) — Plane Enterprise 信息架构（对标参考）
+
 ## 文档索引
 
 - [tech-stack.md](tech-stack.md) — 技术栈详情

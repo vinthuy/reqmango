@@ -70,6 +70,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import templateApi from '@/api/template'
+import * as issueTypeApi from '@/api/issue-type'
 
 const props = defineProps<{ workspaceId: number }>()
 
@@ -83,17 +84,17 @@ const form = ref({ name:'', description:'' })
 
 const availableTypeTemplates = computed(() =>
   typeTemplates.value.filter((tt:any) =>
-    !(selected.value?.types||[]).some((t:any) => t.type_template_id === tt.id)
+    !(selected.value?.types||[]).some((t:any) => (t.type_template_id || t.issue_type_id) === tt.id)
   )
 )
 
 async function load() {
   try {
-    const [tmpl, tt] = await Promise.all([
+    const [tmpl, types] = await Promise.all([
       templateApi.listTemplates(props.workspaceId),
-      templateApi.listTypeTemplates(props.workspaceId),
+      issueTypeApi.getIssueTypes(props.workspaceId),
     ])
-    templates.value = tmpl; typeTemplates.value = tt
+    templates.value = tmpl; typeTemplates.value = types
   } catch(e) { console.error(e) }
 }
 
@@ -106,7 +107,7 @@ async function saveTemplate() {
 function openAddTypes(tmpl: any) { selected.value = tmpl; showTypeModal.value = true }
 async function addType(tt: any) {
   if (!selected.value) return
-  await templateApi.addTypeToTemplate(selected.value.id, { type_template_id: tt.id, is_required: !!typeRequired.value[tt.id], sequence: 1 })
+  await templateApi.addTypeToTemplate(selected.value.id, { issue_type_id: tt.id, is_required: !!typeRequired.value[tt.id], sequence: 1 })
   typeRequired.value[tt.id] = false; load().then(() => { selected.value = templates.value.find(t=>t.id===selected.value!.id) })
 }
 async function applyTemplate(tmpl: any) {

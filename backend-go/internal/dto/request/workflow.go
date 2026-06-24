@@ -14,6 +14,7 @@ type WorkflowUpdate struct {
 }
 
 type TransitionCreate struct {
+	Name        string  `json:"name"`
 	FromStateID uint64  `json:"from_state_id" binding:"required"`
 	ToStateID   uint64  `json:"to_state_id" binding:"required"`
 	Description string  `json:"description"`

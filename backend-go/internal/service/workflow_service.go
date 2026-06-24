@@ -54,11 +54,23 @@ func (s *WorkflowService) Delete(id uint64) error {
 func (s *WorkflowService) AddTransition(wid uint64, req request.TransitionCreate) (*response.TransitionResponse, error) {
 	var w model.Workflow
 	if err := s.db.First(&w, wid).Error; err != nil { return nil, common.NotFound("Workflow not found") }
-	t := model.StateTransition{WorkflowID: wid, SourceStateID: req.FromStateID, TargetStateID: req.ToStateID, Description: &req.Description, RuleType: req.RuleType, ApproverIDs: req.ApproverIDs, RoleAllowed: req.RoleAllowed}
-	if t.RuleType == "" { t.RuleType = "allow" }
-	if err := s.db.Create(&t).Error; err != nil { return nil, common.Internal("Failed to add transition") }
+	name := req.Name
+	if name == "" {
+		var fs, ts model.State
+		s.db.First(&fs, req.FromStateID); s.db.First(&ts, req.ToStateID)
+		name = fs.Name + "→" + ts.Name
+	}
 	var fs, ts model.State
 	s.db.First(&fs, req.FromStateID); s.db.First(&ts, req.ToStateID)
+	t := model.StateTransition{
+		Name: name, WorkflowID: wid,
+		SourceStateID: req.FromStateID, TargetStateID: req.ToStateID,
+		Description: &req.Description, RuleType: req.RuleType,
+		ApproverIDs: req.ApproverIDs, RoleAllowed: req.RoleAllowed,
+		ProjectID: w.ProjectID, WorkspaceID: fs.WorkspaceID,
+	}
+	if t.RuleType == "" { t.RuleType = "allow" }
+	if err := s.db.Create(&t).Error; err != nil { return nil, common.Internal("Failed to add transition") }
 	return &response.TransitionResponse{ID: t.ID, WorkflowID: wid, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: fs.Name, TargetName: ts.Name}, nil
 }
 func (s *WorkflowService) UpdateTransition(id uint64, req request.TransitionUpdate) (*response.TransitionResponse, error) {
@@ -76,14 +88,14 @@ func (s *WorkflowService) DeleteTransition(id uint64) error { return s.db.Delete
 func (s *WorkflowService) CreateAutomation(pid uint64, req request.AutomationCreate) (*response.AutomationResponse, error) {
 	a := model.AutomationRule{Name: req.Name, Description: req.Description, ProjectID: pid, TriggerType: req.TriggerType, Conditions: req.Conditions, Actions: req.Actions, Sequence: req.Sequence}
 	if err := s.db.Create(&a).Error; err != nil { return nil, common.Internal("Failed to create automation") }
-	return &response.AutomationResponse{ID: a.ID, Name: a.Name, Description: a.Description, ProjectID: a.ProjectID, IsEnabled: a.IsEnabled, Sequence: a.Sequence, TriggerType: a.TriggerType, Conditions: a.Conditions, Actions: a.Actions, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}, nil
+	return &response.AutomationResponse{ID: a.ID, Name: a.Name, Description: a.Description, ProjectID: a.ProjectID, IsEnabled: a.IsEnabled, Sequence: a.Sequence, ExecutionCount: a.ExecutionCount, TriggerType: a.TriggerType, Conditions: a.Conditions, Actions: a.Actions, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}, nil
 }
 func (s *WorkflowService) ListAutomations(pid uint64) ([]response.AutomationResponse, error) {
 	var as []model.AutomationRule
 	s.db.Where("project_id = ?", pid).Order("sequence").Find(&as)
 	res := make([]response.AutomationResponse, len(as))
 	for i, a := range as {
-		res[i] = response.AutomationResponse{ID: a.ID, Name: a.Name, Description: a.Description, ProjectID: a.ProjectID, IsEnabled: a.IsEnabled, Sequence: a.Sequence, TriggerType: a.TriggerType, Conditions: a.Conditions, Actions: a.Actions, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}
+		res[i] = response.AutomationResponse{ID: a.ID, Name: a.Name, Description: a.Description, ProjectID: a.ProjectID, IsEnabled: a.IsEnabled, Sequence: a.Sequence, ExecutionCount: a.ExecutionCount, TriggerType: a.TriggerType, Conditions: a.Conditions, Actions: a.Actions, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}
 	}
 	if res == nil { res = []response.AutomationResponse{} }; return res, nil
 }
@@ -98,6 +110,6 @@ func (s *WorkflowService) UpdateAutomation(id uint64, req request.AutomationUpda
 	if req.IsEnabled != nil { a.IsEnabled = *req.IsEnabled }
 	if req.Sequence != nil { a.Sequence = *req.Sequence }
 	s.db.Save(&a)
-	return &response.AutomationResponse{ID: a.ID, Name: a.Name, Description: a.Description, ProjectID: a.ProjectID, IsEnabled: a.IsEnabled, Sequence: a.Sequence, TriggerType: a.TriggerType, Conditions: a.Conditions, Actions: a.Actions, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}, nil
+	return &response.AutomationResponse{ID: a.ID, Name: a.Name, Description: a.Description, ProjectID: a.ProjectID, IsEnabled: a.IsEnabled, Sequence: a.Sequence, ExecutionCount: a.ExecutionCount, TriggerType: a.TriggerType, Conditions: a.Conditions, Actions: a.Actions, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}, nil
 }
 func (s *WorkflowService) DeleteAutomation(id uint64) error { return s.db.Delete(&model.AutomationRule{}, id).Error }

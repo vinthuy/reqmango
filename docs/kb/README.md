@@ -26,13 +26,14 @@ KB 是 ReqManPy 系统的**唯一真相来源**，始终描述系统当前的实
 
 ### 架构层
 - [architecture/README.md](architecture/README.md) — 架构文档索引
+- [architecture/plane-enterprise-info-architecture.md](architecture/plane-enterprise-info-architecture.md) — Plane Enterprise 信息架构（对标参考）
 - [architecture/tech-stack.md](architecture/tech-stack.md) — 技术栈总览
 - [architecture/backend-go.md](architecture/backend-go.md) — Go 后端（主）
 - [architecture/backend-python.md](architecture/backend-python.md) — Python 后端（遗留）
 - [architecture/frontend.md](architecture/frontend.md) — Vue 3 前端
 - [architecture/data-model.md](architecture/data-model.md) — 数据模型 ERD
 - [architecture/api-conventions.md](architecture/api-conventions.md) — API 设计约定
-- [architecture/project-layout.md](architecture/project-layout.md) — 目录结构
+- [architecture/project-layout.md](architecture/project-layout.md) — 项目目录结构
 
 ### 变更日志
 - [changelog/README.md](changelog/README.md) — 按时间记录每次 KB 更新

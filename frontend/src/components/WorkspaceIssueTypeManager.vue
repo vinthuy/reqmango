@@ -184,6 +184,37 @@
               </label>
               <p class="text-xs text-gray-500 mt-1">默认类型在创建工作项时自动选中</p>
             </div>
+
+            <!-- Custom Properties Binding (edit mode only) -->
+            <div v-if="!isCreating && selectedType" class="form-group border-t border-gray-200 pt-4 mt-4">
+              <div class="flex items-center justify-between mb-3">
+                <label class="form-label mb-0">Custom Properties</label>
+                <button
+                  @click="showFieldBindModal = true"
+                  class="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                  :disabled="availableFields.length === 0"
+                >
+                  + Add Property
+                </button>
+              </div>
+              <p class="text-xs text-gray-500 mb-3">Attach custom fields from the workspace field pool to this type.</p>
+
+              <!-- Bound fields list -->
+              <div v-if="typeFields.length > 0" class="space-y-2">
+                <div v-for="f in typeFields" :key="f.field_id || f.id"
+                  class="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-xs font-mono bg-gray-200 px-1.5 py-0.5 rounded">{{ getFieldTypeLabel(f.field_type || f.type) }}</span>
+                    <span class="text-sm text-gray-700">{{ f.name || f.field_name || '#' + (f.field_id || f.id) }}</span>
+                    <span v-if="f.is_required" class="text-xs text-red-500">*Required</span>
+                  </div>
+                  <button @click="handleRemoveField(f)" class="text-gray-400 hover:text-red-500 p-1">✕</button>
+                </div>
+              </div>
+              <div v-else class="text-center py-4 text-gray-400 text-sm border border-dashed border-gray-300 rounded-lg">
+                No properties attached. Click "+ Add Property" to bind fields from the workspace pool.
+              </div>
+            </div>
           </div>
 
           <div class="drawer-footer">
@@ -195,15 +226,41 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Field Bind Modal -->
+    <div v-if="showFieldBindModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showFieldBindModal = false">
+      <div class="bg-white rounded-xl p-6 w-full max-w-md max-h-[70vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Properties to "{{ selectedType?.name }}"</h3>
+        <p class="text-sm text-gray-500 mb-4">Select custom fields from the workspace pool to attach to this type.</p>
+        <div v-if="availableFields.length > 0" class="space-y-2">
+          <div v-for="field in availableFields" :key="field.id"
+            @click="handleAddField(field); showFieldBindModal = false"
+            class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer transition">
+            <div class="flex items-center space-x-3">
+              <span class="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ getFieldTypeLabel(field.field_type || field.type) }}</span>
+              <span class="text-sm font-medium text-gray-800">{{ field.name }}</span>
+            </div>
+            <span class="text-indigo-500">+</span>
+          </div>
+        </div>
+        <div v-else class="text-center py-8 text-gray-400 text-sm">
+          All available fields are already bound. Create new fields in Custom Fields first.
+        </div>
+        <div class="flex justify-end mt-4">
+          <button @click="showFieldBindModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import type { IssueType, IssueTypeCreate, IssueTypeUpdate } from '@/types/issue-type'
 import { ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS, getIconName } from '@/types/issue-type'
 import { useConfirm } from '@/composables/useConfirm'
 import * as issueTypeApi from '@/api/issue-type'
+import * as customFieldApi from '@/api/custom-field'
 
 const props = defineProps<{
   workspaceId: number
@@ -214,8 +271,11 @@ const { confirm } = useConfirm()
 const issueTypes = ref<IssueType[]>([])
 const loading = ref(false)
 const showEditDrawer = ref(false)
+const showFieldBindModal = ref(false)
 const isCreating = ref(false)
 const selectedType = ref<IssueType | null>(null)
+const typeFields = ref<any[]>([])
+const allCustomFields = ref<any[]>([])
 
 const formData = ref<IssueTypeCreate & IssueTypeUpdate>({
   name: '',
@@ -226,11 +286,17 @@ const formData = ref<IssueTypeCreate & IssueTypeUpdate>({
   sequence: 1
 })
 
+const availableFields = computed(() => {
+  const boundIds = new Set(typeFields.value.map((f: any) => f.field_id || f.id))
+  return allCustomFields.value.filter((f: any) => !boundIds.has(f.id))
+})
+
 async function loadData() {
   if (!props.workspaceId) return
   loading.value = true
   try {
     issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId)
+    allCustomFields.value = await customFieldApi.listCustomFields(props.workspaceId)
   } catch (error) {
     console.error('Failed to load issue types:', error)
   } finally {
@@ -238,9 +304,16 @@ async function loadData() {
   }
 }
 
+async function loadTypeFields(typeId: number) {
+  try {
+    typeFields.value = await issueTypeApi.getIssueTypeFields(typeId)
+  } catch { typeFields.value = [] }
+}
+
 function openCreateModal() {
   isCreating.value = true
   selectedType.value = null
+  typeFields.value = []
   formData.value = {
     name: '',
     color: ISSUE_TYPE_COLORS[0],
@@ -252,7 +325,7 @@ function openCreateModal() {
   showEditDrawer.value = true
 }
 
-function openEditModal(type: IssueType) {
+async function openEditModal(type: IssueType) {
   isCreating.value = false
   selectedType.value = type
   formData.value = {
@@ -263,6 +336,7 @@ function openEditModal(type: IssueType) {
     is_default: type.is_default,
     sequence: type.sequence
   }
+  await loadTypeFields(type.id)
   showEditDrawer.value = true
 }
 
@@ -317,6 +391,35 @@ async function confirmDelete(type: IssueType) {
       console.error('Failed to delete type:', error)
     }
   }
+}
+
+// ===== Field binding =====
+async function handleAddField(field: any) {
+  if (!selectedType.value) return
+  try {
+    await issueTypeApi.addFieldToIssueType(selectedType.value.id, {
+      field_id: field.id,
+      is_required: false,
+      sequence: typeFields.value.length + 1
+    })
+    await loadTypeFields(selectedType.value.id)
+    await loadData()
+  } catch (e) { console.error('Failed to add field:', e) }
+}
+async function handleRemoveField(field: any) {
+  if (!selectedType.value) return
+  try {
+    const fieldId = field.field_id || field.id
+    await issueTypeApi.removeFieldFromIssueType(selectedType.value.id, fieldId)
+    await loadTypeFields(selectedType.value.id)
+  } catch (e) { console.error('Failed to remove field:', e) }
+}
+function getFieldTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    text: 'Text', number: 'Number', dropdown: 'Dropdown',
+    boolean: 'Boolean', date: 'Date', member: 'Member', url: 'URL'
+  }
+  return map[type] || type
 }
 
 defineExpose({ loadData })

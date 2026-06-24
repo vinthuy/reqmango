@@ -23,6 +23,34 @@ export enum TriggerTypeEnum {
   COMMENT_ADDED = 'comment.added'
 }
 
+export const TriggerTypeOptions = [
+  { value: 'issue.created', label: '工作项创建时', icon: '➕' },
+  { value: 'issue.updated', label: '工作项更新时', icon: '✏️' },
+  { value: 'issue.state_changed', label: '状态变更时', icon: '🔄' },
+  { value: 'issue.assigned', label: '分配人变更时', icon: '👤' },
+  { value: 'issue.priority_changed', label: '优先级变更时', icon: '⚡' },
+  { value: 'issue.due_soon', label: '截止日期临近时', icon: '⏰' },
+  { value: 'issue.due_date_passed', label: '截止日期过期时', icon: '⚠️' },
+  { value: 'cycle.started', label: '周期开始时', icon: '▶️' },
+  { value: 'cycle.ended', label: '周期结束时', icon: '⏹️' },
+  { value: 'comment.added', label: '添加评论时', icon: '💬' },
+]
+
+export const StateGroupOptions = [
+  { value: 'backlog', label: '待处理 (Backlog)', color: '#6B7280' },
+  { value: 'unstarted', label: '未开始 (Todo)', color: '#3B82F6' },
+  { value: 'started', label: '进行中 (In Progress)', color: '#8B5CF6' },
+  { value: 'completed', label: '已完成 (Done)', color: '#10B981' },
+  { value: 'cancelled', label: '已取消 (Cancelled)', color: '#EF4444' },
+]
+
+export const PriorityOptions = [
+  { value: 'urgent', label: '紧急 (Urgent)', color: '#EF4444' },
+  { value: 'high', label: '高 (High)', color: '#F59E0B' },
+  { value: 'medium', label: '中 (Medium)', color: '#3B82F6' },
+  { value: 'low', label: '低 (Low)', color: '#6B7280' },
+]
+
 export enum ConditionOperatorEnum {
   EQUALS = 'equals',
   NOT_EQUALS = 'not_equals',
@@ -36,6 +64,17 @@ export enum ConditionOperatorEnum {
   IS_NOT_EMPTY = 'is_not_empty'
 }
 
+export const ConditionOperatorOptions = [
+  { value: 'equals', label: '等于' },
+  { value: 'not_equals', label: '不等于' },
+  { value: 'contains', label: '包含' },
+  { value: 'not_contains', label: '不包含' },
+  { value: 'in', label: '在列表中' },
+  { value: 'not_in', label: '不在列表中' },
+  { value: 'is_empty', label: '为空' },
+  { value: 'is_not_empty', label: '不为空' },
+]
+
 export enum ActionTypeEnum {
   // 工作项动作
   ISSUE_UPDATE = 'issue.update',
@@ -44,14 +83,23 @@ export enum ActionTypeEnum {
   ISSUE_REMOVE_LABEL = 'issue.remove_label',
   ISSUE_CHANGE_STATE = 'issue.change_state',
   ISSUE_SET_PRIORITY = 'issue.set_priority',
+  ISSUE_ADD_COMMENT = 'issue.add_comment',
+  ISSUE_SET_DUE_DATE = 'issue.set_due_date',
   
   // 通知动作
   NOTIFICATION_CREATE = 'notification.create',
   EMAIL_SEND = 'email.send',
-  
-  // 自动化动作
-  AUTOMATION_TRIGGER = 'automation.trigger'
 }
+
+export const ActionTypeOptions = [
+  { value: 'issue.change_state', label: '更新状态', icon: '🔄' },
+  { value: 'issue.set_priority', label: '设置优先级', icon: '⚡' },
+  { value: 'issue.assign', label: '分配给', icon: '👤' },
+  { value: 'issue.add_label', label: '添加标签', icon: '🏷️' },
+  { value: 'issue.remove_label', label: '移除标签', icon: '❌' },
+  { value: 'issue.add_comment', label: '添加评论', icon: '💬' },
+  { value: 'notification.create', label: '发送通知', icon: '🔔' },
+]
 
 // ==================== State Transition ====================
 

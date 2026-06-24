@@ -39,7 +39,13 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/workspace/:slug/settings/workflows/:workflowId',
+      path: '/workspace/:slug/project/:id/settings',
+      name: 'ProjectSettings',
+      component: () => import('@/views/ProjectSettings.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/project/:id/settings/workflows/:workflowId',
       name: 'WorkflowDetail',
       component: () => import('@/views/WorkflowDetail.vue'),
       meta: { requiresAuth: true }

@@ -18,11 +18,12 @@ func (Workflow) TableName() string { return "workflows" }
 // AutomationRule defines an automated trigger→condition→action rule.
 type AutomationRule struct {
 	BaseModel
-	Name        string `gorm:"type:varchar(100);not null" json:"name"`
-	Description string `gorm:"type:text" json:"description"`
-	ProjectID   uint64 `gorm:"not null;index" json:"project_id"`
-	IsEnabled   bool   `gorm:"default:true" json:"is_enabled"`
-	Sequence    int    `gorm:"default:1" json:"sequence"`
+	Name           string `gorm:"type:varchar(100);not null" json:"name"`
+	Description    string `gorm:"type:text" json:"description"`
+	ProjectID      uint64 `gorm:"not null;index" json:"project_id"`
+	IsEnabled      bool   `gorm:"default:true" json:"is_enabled"`
+	Sequence       int    `gorm:"default:1" json:"sequence"`
+	ExecutionCount int    `gorm:"default:0" json:"execution_count"`
 
 	// Trigger: issue_created, issue_updated, state_changed, assignee_changed, comment_added, scheduled
 	TriggerType string `gorm:"type:varchar(50);not null" json:"trigger_type"`

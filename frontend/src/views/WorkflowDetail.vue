@@ -1,29 +1,34 @@
-<script setup lang="ts">import { ref, onMounted } from 'vue';
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/api';
 import * as workflowApi from '@/api/workflow';
+import { useConfirm } from '@/composables/useConfirm';
+
+const { confirm } = useConfirm();
 
 const route = useRoute();
 const router = useRouter();
 
 const workflowId = ref(0);
 const projectId = ref(0);
+const workspaceId = ref(0);
 
 const workflowName = ref('');
 const workflowDescription = ref('');
 const isActive = ref(true);
+const updatingStatus = ref(false);
 const states = ref<any[]>([]);
 const transitions = ref<any[]>([]);
+const members = ref<any[]>([]);
 
-const showAddStateModal = ref(false);
 const showAddTransitionModal = ref(false);
 const selectedFromState = ref<number | null>(null);
-const newStateName = ref('');
-const newStateColor = ref('#3B82F6');
-const newStateGroup = ref('backlog');
 const newTransitionTo = ref<number | null>(null);
 const newTransitionType = ref('allow');
+const newTransitionName = ref('');
 const newTransitionDesc = ref('');
+const newTransitionApproverIds = ref<number[]>([]);
 
 const loading = ref(true);
 
@@ -34,29 +39,34 @@ function getStateName(id: number): string {
 function getStateById(id: number) { return states.value.find((s: any) => s.id === id); }
 function getTransitionsFromState(stateId: number) { return transitions.value.filter((t: any) => t.from_state_id === stateId); }
 
+async function loadMembers() {
+  if (!projectId.value) return;
+  try {
+    const res = await api.get(`/projects/${projectId.value}/members`).then(r => r.data);
+    members.value = Array.isArray(res) ? res : (res?.data || []);
+  } catch (e) { console.error('Failed to load members:', e); }
+}
+
 async function loadData() {
   loading.value = true;
   try {
-    // Get workflowId from route
     const wfId = parseInt((route.params as any).workflowId, 10);
     if (!wfId) return;
     workflowId.value = wfId;
 
-    // Find the workflow's project by listing all workflows across projects
-    // For simplicity, try the default project (ID 1)
-    const pid = 1;
+    const pid = parseInt((route.params as any).id, 10);
     projectId.value = pid;
 
-    // Load workflow
     const wf = await api.get(`/projects/${pid}/workflows/${wfId}`).then(r => r.data);
     workflowName.value = wf.name || '';
     workflowDescription.value = wf.description || '';
     isActive.value = wf.is_active ?? true;
     transitions.value = wf.transitions || [];
 
-    // Load states for the project
     const sts = await api.get(`/projects/${pid}/settings/states`).then(r => r.data);
     states.value = Array.isArray(sts) ? sts : (sts?.data || []);
+
+    await loadMembers();
   } catch (e) {
     console.error('Failed to load workflow:', e);
   } finally {
@@ -64,38 +74,47 @@ async function loadData() {
   }
 }
 
-// ===== State handlers =====
-async function handleSaveState() {
-  if (!newStateName.value.trim() || !projectId.value) return;
-  try {
-    await api.post(`/projects/${projectId.value}/settings/states?workspace_id=1`, {
-      name: newStateName.value, color: newStateColor.value, group: newStateGroup.value
-    });
-    showAddStateModal.value = false;
-    newStateName.value = ''; newStateColor.value = '#3B82F6';
-    // Reload states
-    const sts = await api.get(`/projects/${projectId.value}/settings/states`).then(r => r.data);
-    states.value = Array.isArray(sts) ? sts : (sts?.data || []);
-  } catch (e) { console.error('Failed to add state:', e); }
-}
-
-// ===== Transition handlers =====
 function handleAddTransition(stateId: number) {
   selectedFromState.value = stateId;
   newTransitionTo.value = null;
   newTransitionType.value = 'allow';
+  newTransitionName.value = '';
   newTransitionDesc.value = '';
+  newTransitionApproverIds.value = [];
   showAddTransitionModal.value = true;
+}
+
+function getApproverNames(approverIds: string | null | undefined): string {
+  if (!approverIds || !members.value.length) return '';
+  try {
+    const ids = JSON.parse(approverIds);
+    if (!Array.isArray(ids)) return '';
+    return ids.map((id: number) => {
+      const m = members.value.find(m => m.user_id === id || m.id === id);
+      return m?.user?.display_name || m?.display_name || `#${id}`;
+    }).join(', ');
+  } catch { return ''; }
 }
 
 async function handleSaveTransition() {
   if (!selectedFromState.value || !newTransitionTo.value || !workflowId.value) return;
   try {
+    const fromState = getStateById(selectedFromState.value);
+    const toState = getStateById(newTransitionTo.value);
+    const name = newTransitionName.value || `${fromState?.name || ''}→${toState?.name || ''}`;
+    
+    let approverIds: string | undefined = undefined;
+    if (newTransitionType.value === 'approval' && newTransitionApproverIds.value.length > 0) {
+      approverIds = JSON.stringify(newTransitionApproverIds.value);
+    }
+
     await workflowApi.addTransition(projectId.value, workflowId.value, {
       from_state_id: selectedFromState.value,
       to_state_id: newTransitionTo.value,
+      name: name,
       description: newTransitionDesc.value,
-      rule_type: newTransitionType.value
+      rule_type: newTransitionType.value,
+      approver_ids: approverIds
     });
     showAddTransitionModal.value = false;
     await loadData();
@@ -110,7 +129,47 @@ async function handleDeleteTransition(transitionId: number) {
   } catch (e) { console.error('Failed to delete transition:', e); }
 }
 
-function goBack() { router.back(); }
+const availableToStates = computed(() => {
+  return states.value.filter(s => s.id !== selectedFromState.value);
+});
+
+function toggleApprover(userId: number) {
+  const idx = newTransitionApproverIds.value.indexOf(userId);
+  if (idx > -1) {
+    newTransitionApproverIds.value.splice(idx, 1);
+  } else {
+    newTransitionApproverIds.value.push(userId);
+  }
+}
+
+function goBack() {
+  const slug = (route.params as any).slug as string;
+  const pid = (route.params as any).id as string;
+  router.push(`/workspace/${slug}/project/${pid}/settings`);
+}
+
+async function toggleActive() {
+  if (!workflowId.value || updatingStatus.value) return;
+  
+  const newStatus = !isActive.value;
+  const actionText = newStatus ? '启用' : '停用';
+  
+  if (!(await confirm({
+    title: `${actionText}工作流`,
+    message: `确定要${actionText}工作流 "${workflowName.value}" 吗？${newStatus ? '' : '停用后该工作流将不参与状态流转。'}`,
+    danger: !newStatus,
+    confirmText: actionText
+  }))) return;
+  
+  updatingStatus.value = true;
+  try {
+    await workflowApi.updateWorkflow(projectId.value, workflowId.value, {
+      is_active: newStatus
+    });
+    isActive.value = newStatus;
+  } catch (e) { console.error('Failed to toggle workflow status:', e); }
+  finally { updatingStatus.value = false; }
+}
 
 onMounted(loadData);
 </script>
@@ -120,7 +179,6 @@ onMounted(loadData);
     <div v-if="loading" class="flex items-center justify-center h-64"><div class="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>
 
     <template v-if="!loading">
-      <!-- Header -->
       <header class="bg-white border-b border-gray-200 px-6 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-4">
@@ -131,21 +189,27 @@ onMounted(loadData);
             </div>
           </div>
           <div class="flex items-center space-x-3">
-            <span :class="['px-3 py-1 rounded-full text-sm font-medium', isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600']">{{ isActive ? 'Active' : 'Inactive' }}</span>
+            <button @click="toggleActive" :disabled="updatingStatus" :class="['px-3 py-1 rounded-full text-sm font-medium transition-colors', isActive ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer', updatingStatus ? 'opacity-50 cursor-not-allowed' : '']">
+              {{ isActive ? 'Active' : 'Inactive' }}
+            </button>
           </div>
         </div>
       </header>
 
-      <!-- Content -->
       <main class="p-6">
         <div class="max-w-5xl mx-auto">
           <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 class="font-semibold text-gray-800">Define Workflow</h2>
-              <button @click="showAddStateModal = true" class="text-blue-600 hover:text-blue-700 text-sm font-medium">+ Add States</button>
+              <div>
+                <h2 class="font-semibold text-gray-800">Define Workflow</h2>
+                <p class="text-xs text-gray-500 mt-1">States are managed in Project Settings → States</p>
+              </div>
             </div>
 
             <div class="p-6">
+              <div v-if="states.length === 0" class="text-center py-8 text-gray-400">
+                <p>No states defined. Add states in project settings first.</p>
+              </div>
               <div class="space-y-4">
                 <div v-for="state in states" :key="state.id" class="border border-gray-200 rounded-lg overflow-hidden">
                   <div class="flex items-center justify-between p-4 bg-gray-50">
@@ -161,7 +225,6 @@ onMounted(loadData);
                     </div>
                   </div>
 
-                  <!-- Transitions from this state -->
                   <div class="p-4 border-t border-gray-200">
                     <div class="flex items-center justify-between mb-3">
                       <span class="text-sm text-gray-500">Transitions</span>
@@ -174,6 +237,7 @@ onMounted(loadData);
                           <span class="text-gray-700">→</span>
                           <span class="font-medium text-gray-800">{{ getStateName(t.to_state_id) }}</span>
                           <span v-if="t.description" class="text-xs text-gray-400">{{ t.description }}</span>
+                          <span v-if="t.rule_type === 'approval' && t.approver_ids" class="text-xs text-gray-500 ml-2">👤 {{ getApproverNames(t.approver_ids) }}</span>
                         </div>
                         <button @click="handleDeleteTransition(t.id)" class="text-gray-400 hover:text-red-500">✕</button>
                       </div>
@@ -185,7 +249,6 @@ onMounted(loadData);
             </div>
           </div>
 
-          <!-- Visualize -->
           <div class="mt-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200"><h2 class="font-semibold text-gray-800">Visualize Workflow</h2></div>
             <div class="p-6">
@@ -203,31 +266,8 @@ onMounted(loadData);
       </main>
     </template>
 
-    <!-- Add State Modal -->
-    <div v-if="showAddStateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAddStateModal = false">
-      <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <div class="flex items-center justify-between mb-6"><h3 class="text-lg font-semibold text-gray-800">Add State</h3><button @click="showAddStateModal = false" class="text-gray-400 hover:text-gray-600">✕</button></div>
-        <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Name</label><input v-model="newStateName" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter state name" /></div>
-          <div class="grid grid-cols-2 gap-4">
-            <div><label class="block text-sm font-medium text-gray-700 mb-1">Color</label><input v-model="newStateColor" type="color" class="w-full h-10 border border-gray-300 rounded-lg cursor-pointer" /></div>
-            <div><label class="block text-sm font-medium text-gray-700 mb-1">Group</label>
-              <select v-model="newStateGroup" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option value="backlog">Backlog</option><option value="unstarted">Unstarted</option><option value="started">Started</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showAddStateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="handleSaveState" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Add State</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Add Transition Modal -->
     <div v-if="showAddTransitionModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAddTransitionModal = false">
-      <div class="bg-white rounded-xl p-6 w-full max-w-md">
+      <div class="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6"><h3 class="text-lg font-semibold text-gray-800">Add Transition</h3><button @click="showAddTransitionModal = false" class="text-gray-400 hover:text-gray-600">✕</button></div>
         <div class="space-y-4">
           <div>
@@ -248,12 +288,32 @@ onMounted(loadData);
             <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
             <select v-model="newTransitionTo" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
               <option :value="null">Select destination state</option>
-              <option v-for="s in states.filter(s => s.id !== selectedFromState)" :key="s.id" :value="s.id">{{ s.name }}</option>
+              <option v-for="s in availableToStates" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name (optional)</label>
+            <input v-model="newTransitionName" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Auto-generated if empty" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <input v-model="newTransitionDesc" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Optional description" />
+          </div>
+          <div v-if="newTransitionType === 'approval'" class="p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <label class="block text-sm font-medium text-amber-800 mb-2">Approvers</label>
+            <p class="text-xs text-amber-600 mb-3">Select users who can approve this transition</p>
+            <div class="space-y-2 max-h-48 overflow-y-auto">
+              <label v-for="m in members" :key="m.user_id || m.id" class="flex items-center space-x-3 p-2 rounded hover:bg-amber-100 cursor-pointer">
+                <input type="checkbox" :checked="newTransitionApproverIds.includes(m.user_id || m.id)" @change="toggleApprover(m.user_id || m.id)" class="rounded border-amber-300 text-amber-600 focus:ring-amber-500" />
+                <div class="flex items-center space-x-2">
+                  <div class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
+                    {{ (m.user?.display_name || m.display_name || 'U').charAt(0).toUpperCase() }}
+                  </div>
+                  <span class="text-sm text-gray-700">{{ m.user?.display_name || m.display_name || 'Unknown' }}</span>
+                </div>
+              </label>
+              <div v-if="members.length === 0" class="text-center py-4 text-gray-400 text-sm">No members found.</div>
+            </div>
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">

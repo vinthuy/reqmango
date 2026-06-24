@@ -307,9 +307,13 @@ func SeedConfigData(db *gorm.DB) {
 	db.Model(&model.Workflow{}).Where("project_id = ?", proj.ID).Count(&wfCount)
 	if wfCount == 0 {
 		var stList []model.State
-		db.Where("project_id = ?", proj.ID).Order("sequence").Find(&stList)
-		if len(stList) >= 6 {
-			bid, tid, ipid, rid, dnid, cid := stList[0].ID, stList[1].ID, stList[2].ID, stList[3].ID, stList[4].ID, stList[5].ID
+		db.Where("project_id = ? AND is_active = true", proj.ID).Order("sequence").Find(&stList)
+		if len(stList) >= 5 {
+			bid, tid, ipid, rid, dnid := stList[0].ID, stList[1].ID, stList[2].ID, stList[3].ID, stList[4].ID
+			var cid uint64
+			if len(stList) >= 6 {
+				cid = stList[5].ID
+			}
 			wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: proj.ID, IsActive: true}
 			db.Create(&wf)
 			trs := []model.StateTransition{
@@ -320,16 +324,22 @@ func SeedConfigData(db *gorm.DB) {
 				{Name: "Review→InProgress", WorkflowID: wf.ID, SourceStateID: rid, TargetStateID: ipid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
 				{Name: "InProgress→Todo", WorkflowID: wf.ID, SourceStateID: ipid, TargetStateID: tid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
 				{Name: "Todo→Backlog", WorkflowID: wf.ID, SourceStateID: tid, TargetStateID: bid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-				{Name: "Backlog→Cancelled", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-				{Name: "Todo→Cancelled", WorkflowID: wf.ID, SourceStateID: tid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-				{Name: "InProgress→Cancelled", WorkflowID: wf.ID, SourceStateID: ipid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-				{Name: "Review→Cancelled", WorkflowID: wf.ID, SourceStateID: rid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-				{Name: "Done→Review", WorkflowID: wf.ID, SourceStateID: dnid, TargetStateID: rid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
+			}
+			if len(stList) >= 6 {
+				trs = append(trs,
+					model.StateTransition{Name: "Backlog→Cancelled", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
+					model.StateTransition{Name: "Todo→Cancelled", WorkflowID: wf.ID, SourceStateID: tid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
+					model.StateTransition{Name: "InProgress→Cancelled", WorkflowID: wf.ID, SourceStateID: ipid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
+					model.StateTransition{Name: "Review→Cancelled", WorkflowID: wf.ID, SourceStateID: rid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
+					model.StateTransition{Name: "Done→Review", WorkflowID: wf.ID, SourceStateID: dnid, TargetStateID: rid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
+				)
 			}
 			for _, tr := range trs {
 				db.Create(&tr)
 			}
 			fmt.Printf("  Created workflow with %d transitions\n", len(trs))
+		} else {
+			fmt.Printf("  Skipping workflow creation: only %d states found\n", len(stList))
 		}
 	}
 
