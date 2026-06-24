@@ -13,3 +13,11 @@ export async function listAutomations(projectId: number) { const r = await api.g
 export async function createAutomation(projectId: number, data: any) { const r = await api.post(`/projects/${projectId}/automations`, data); return r.data }
 export async function updateAutomation(projectId: number, aid: number, data: any) { const r = await api.put(`/projects/${projectId}/automations/${aid}`, data); return r.data }
 export async function deleteAutomation(projectId: number, aid: number) { await api.delete(`/projects/${projectId}/automations/${aid}`) }
+
+const workflowApi = {
+  listWorkflows, createWorkflow, updateWorkflow, deleteWorkflow,
+  addTransition, updateTransition, deleteTransition,
+  listAutomations, createAutomation, updateAutomation, deleteAutomation
+}
+export { workflowApi }
+export default workflowApi

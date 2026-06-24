@@ -4,7 +4,7 @@
 import api from './index'
 import type { Comment, CommentCreate, CommentUpdate, CommentListResponse } from '@/types/comment'
 
-const BASE_URL = '/api/v1/comments'
+const BASE_URL = '/comments'
 
 /**
  * 创建评论

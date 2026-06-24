@@ -49,6 +49,23 @@
             />
           </div>
 
+          <!-- 评论区 -->
+          <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-sm font-medium text-gray-700 mb-4">评论</h3>
+            <CommentList :issue-id="issueId" />
+          </div>
+
+          <!-- 活动历史 -->
+          <div v-if="activities.length > 0" class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-sm font-medium text-gray-700 mb-4">活动历史</h3>
+            <div class="space-y-2">
+              <div v-for="act in activities" :key="act.id" class="flex items-start space-x-3 text-sm">
+                <span class="text-xs text-gray-400 w-20 shrink-0">{{ formatActivityTime(act.created_at) }}</span>
+                <span class="text-gray-600">{{ formatActivity(act) }}</span>
+              </div>
+            </div>
+          </div>
+
           <!-- 自定义字段区域 -->
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h3 class="text-sm font-medium text-gray-700 mb-4">自定义属性</h3>
@@ -195,22 +212,41 @@
           <!-- 标签 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">标签</label>
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="label in issueForm.labels"
-                :key="label"
-                class="px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-800"
-              >
-                {{ label }}
-              </span>
-            </div>
-            <input
-              v-model="newLabel"
-              @keyup.enter="addLabel"
-              type="text"
-              placeholder="添加标签"
-              class="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            <LabelSelector
+              :project-id="projectId"
+              v-model="selectedLabelIds"
+              @change="saveLabels"
             />
+          </div>
+
+          <!-- 关联关系 -->
+          <div class="bg-white rounded-lg shadow-sm p-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">关联关系</label>
+            <div v-if="relations.length > 0" class="space-y-2 mb-3">
+              <div v-for="rel in relations" :key="rel.id" class="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{{ rel.relation_type?.outward_name || rel.relation_type?.name || '关联' }}</span>
+                  <span>#{{ rel.related_issue?.sequence_id || rel.related_issue_id }}</span>
+                  <span class="text-gray-700 truncate max-w-[120px]">{{ rel.related_issue?.name || '' }}</span>
+                </div>
+                <button @click="deleteRelation(rel.id)" class="text-gray-400 hover:text-red-500">&times;</button>
+              </div>
+            </div>
+            <div v-if="!showAddRelation" class="text-xs text-gray-400">无关联关系</div>
+            <button v-if="!showAddRelation" @click="showAddRelation = true" class="text-xs text-indigo-600 hover:text-indigo-800 mt-1">+ 添加关联</button>
+            <div v-if="showAddRelation" class="mt-2 space-y-2">
+              <select v-model="newRelation.type_id" class="w-full px-2 py-1 border rounded text-xs">
+                <option value="">选择关系类型</option>
+                <option v-for="rt in relationTypes" :key="rt.id" :value="rt.id">{{ rt.outward_name }} ({{ rt.name }})</option>
+              </select>
+              <input v-model="newRelation.search" @input="searchRelatedIssues" type="text" placeholder="搜索工作项..." class="w-full px-2 py-1 border rounded text-xs" />
+              <div v-if="relationSearchResults.length > 0" class="max-h-24 overflow-y-auto border rounded">
+                <div v-for="r in relationSearchResults" :key="r.id" @click="addRelation(r)" class="px-2 py-1 hover:bg-indigo-50 cursor-pointer text-xs">
+                  #{{ r.sequence_id }} {{ r.name?.substring(0, 30) }}
+                </div>
+              </div>
+              <button @click="showAddRelation = false" class="text-xs text-gray-500">取消</button>
+            </div>
           </div>
         </div>
       </div>
@@ -222,6 +258,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
+import LabelSelector from '@/components/LabelSelector.vue'
+import CommentList from '@/components/CommentList.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import * as issueApi from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
@@ -229,6 +267,8 @@ import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
 import projectApi from '@/api/project'
+import * as relationApi from '@/api/relation'
+import * as issueApiSearch from '@/api/issue'
 
 // Route params
 const route = useRoute()
@@ -246,7 +286,13 @@ const projectMembers = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const subIssues = ref<any[]>([])
 const saving = ref(false)
-const newLabel = ref('')
+const selectedLabelIds = ref<number[]>([])
+const relations = ref<any[]>([])
+const relationTypes = ref<any[]>([])
+const activities = ref<any[]>([])
+const showAddRelation = ref(false)
+const newRelation = ref({ type_id: '', search: '' })
+const relationSearchResults = ref<any[]>([])
 const customFieldManagerRef = ref<InstanceType<typeof CustomFieldManager> | null>(null)
 const customFieldValues = ref<Record<string, any>>({})
 
@@ -261,8 +307,7 @@ const issueForm = ref({
   cycle_id: '',
   module_id: '',
   start_date: '',
-  target_date: '',
-  labels: [] as string[]
+  target_date: ''
 })
 
 // Load issue data
@@ -273,7 +318,9 @@ onMounted(async () => {
     loadCycles(),
     loadModules(),
     loadProjectMembers(),
-    loadIssueTypes()
+    loadIssueTypes(),
+    loadRelations(),
+    loadActivities()
   ])
 })
 
@@ -295,8 +342,8 @@ async function loadIssue() {
       module_id: issue.value.module_ids?.[0] || '',
       start_date: issue.value.start_date?.split('T')[0] || '',
       target_date: issue.value.target_date?.split('T')[0] || '',
-      labels: issue.value.label_details?.map((l: any) => l.name) || []
     }
+    selectedLabelIds.value = issue.value.labels || []
     
     // Load sub issues
     if (issue.value.sub_issues) {
@@ -395,12 +442,97 @@ async function saveIssue() {
   }
 }
 
-// Add label
-function addLabel() {
-  if (newLabel.value && !issueForm.value.labels.includes(newLabel.value)) {
-    issueForm.value.labels.push(newLabel.value)
-    newLabel.value = ''
+// Save labels via API
+async function saveLabels(labelIds: number[]) {
+  try {
+    const currentIds: Set<number> = new Set(issue.value?.labels || [])
+    const newIds: Set<number> = new Set(labelIds)
+
+    // Add new labels
+    for (const id of labelIds) {
+      if (!currentIds.has(id)) {
+        await issueApi.addIssueLabel(issueId, id)
+      }
+    }
+    // Remove deselected labels
+    for (const id of currentIds) {
+      if (!newIds.has(id)) {
+        await issueApi.removeIssueLabel(issueId, id)
+      }
+    }
+  } catch (e) {
+    console.error('Failed to save labels:', e)
   }
+}
+
+// ===== Relations =====
+async function loadRelations() {
+  try {
+    const [rels, types] = await Promise.all([
+      relationApi.listIssueRelations(issueId),
+      relationApi.listRelationTypes(workspaceId)
+    ])
+    relations.value = rels || []
+    relationTypes.value = types || []
+  } catch (e) { console.error('Failed to load relations:', e) }
+}
+
+let relationSearchTimer: any = null
+async function searchRelatedIssues() {
+  if (relationSearchTimer) clearTimeout(relationSearchTimer)
+  if (!newRelation.value.search.trim()) { relationSearchResults.value = []; return }
+  relationSearchTimer = setTimeout(async () => {
+    try {
+      const result: any = await issueApiSearch.searchIssues(workspaceId, newRelation.value.search)
+      relationSearchResults.value = (Array.isArray(result) ? result : (result.items || [])).slice(0, 8)
+    } catch (e) { console.error('Search failed:', e) }
+  }, 300)
+}
+
+async function addRelation(related: any) {
+  if (!newRelation.value.type_id) return
+  try {
+    await relationApi.createIssueRelation(issueId, {
+      related_issue_id: related.id,
+      relation_type_id: parseInt(newRelation.value.type_id)
+    })
+    showAddRelation.value = false
+    newRelation.value = { type_id: '', search: '' }
+    relationSearchResults.value = []
+    await loadRelations()
+  } catch (e) { console.error('Failed to add relation:', e) }
+}
+
+async function deleteRelation(relationId: number) {
+  try {
+    await relationApi.deleteIssueRelation(relationId)
+    await loadRelations()
+  } catch (e) { console.error('Failed to delete relation:', e) }
+}
+
+// ===== Activity History =====
+async function loadActivities() {
+  try {
+    const result: any = await issueApi.getIssueActivities(issueId)
+    activities.value = Array.isArray(result) ? result.slice(0, 20) : (result?.activities || []).slice(0, 20)
+  } catch (e) { console.error('Failed to load activities:', e) }
+}
+
+function formatActivityTime(timeStr: string): string {
+  const d = new Date(timeStr)
+  return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function formatActivity(act: any): string {
+  const fieldMap: Record<string, string> = {
+    name: '标题', state_id: '状态', priority: '优先级', assignees: '负责人',
+    labels: '标签', cycle: '周期', description: '描述', created: '创建',
+  }
+  const verb = act.verb === 'created' ? '创建了工作项' : act.verb === 'updated' ? '更新了' : act.verb
+  const field = fieldMap[act.field || ''] || act.field || ''
+  if (act.verb === 'created') return '创建了工作项'
+  if (act.old_value && act.new_value) return `${verb}${field}: ${act.old_value} → ${act.new_value}`
+  return `${verb}${field}`
 }
 
 // Create sub issue

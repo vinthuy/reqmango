@@ -29,6 +29,33 @@
 
     <div v-else-if="cycle" class="max-w-5xl mx-auto px-6 py-6 space-y-6">
       <CycleProgressCard :progress="cycleStore.progress" />
+
+      <!-- State Group Breakdown -->
+      <div v-if="cycleStore.progress?.state_breakdown?.length" class="bg-white rounded-lg border border-gray-200 p-4">
+        <h3 class="text-sm font-medium text-gray-700 mb-3">状态分布</h3>
+        <div class="space-y-2">
+          <div v-for="sb in cycleStore.progress.state_breakdown" :key="sb.state" class="flex items-center gap-3">
+            <span class="text-xs text-gray-600 w-16 shrink-0">{{ sb.state }}</span>
+            <div class="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                class="h-full rounded-full transition-all"
+                :style="{
+                  width: cycleStore.progress.total_issues > 0 ? (sb.count / cycleStore.progress.total_issues * 100) + '%' : '0%',
+                  backgroundColor: stateGroupColor(sb.group)
+                }"
+              ></div>
+            </div>
+            <span class="text-xs text-gray-500 w-8 text-right">{{ sb.count }}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
+          <div v-for="g in stateGroupLegend" :key="g.group" class="flex items-center gap-1 text-xs text-gray-500">
+            <div class="w-3 h-3 rounded" :style="{ backgroundColor: g.color }"></div>
+            {{ g.label }}
+          </div>
+        </div>
+      </div>
+
       <CycleBurndownChart :data="cycleStore.burndown" />
 
       <!-- Issues section -->
@@ -123,6 +150,22 @@ const statusBadgeClass = computed(() => {
   }
   return map[cycle.value?.status ?? ''] || ''
 })
+
+function stateGroupColor(group: string): string {
+  const colors: Record<string, string> = {
+    backlog: '#6B7280', unstarted: '#3B82F6', started: '#F59E0B',
+    completed: '#10B981', cancelled: '#EF4444'
+  }
+  return colors[group] || '#9CA3AF'
+}
+
+const stateGroupLegend = [
+  { group: 'backlog', label: '待办池', color: '#6B7280' },
+  { group: 'unstarted', label: '未开始', color: '#3B82F6' },
+  { group: 'started', label: '进行中', color: '#F59E0B' },
+  { group: 'completed', label: '已完成', color: '#10B981' },
+  { group: 'cancelled', label: '已取消', color: '#EF4444' },
+]
 
 onMounted(async () => {
   await cycleStore.fetchCycle(cycleId)

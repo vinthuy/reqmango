@@ -34,14 +34,6 @@
             </div>
           </div>
 
-          <div class="flex items-center space-x-2">
-            <button
-              @click="goToSettings"
-              class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              设置
-            </button>
-          </div>
         </div>
 
         <!-- 标签页导航 -->
@@ -277,10 +269,6 @@ const tabs = [
 
 function goBack() {
   router.push(`/workspace/${route.params.slug}`)
-}
-
-function goToSettings() {
-  router.push(`/workspace/${route.params.slug}/settings`)
 }
 
 async function handleDeleteIssue(issue: any) {

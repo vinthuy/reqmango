@@ -16,6 +16,7 @@ const error = ref('')
 
 const logout = () => {
   authStore.logout()
+  router.push('/login')
 }
 
 const fetchWorkspaces = async () => {

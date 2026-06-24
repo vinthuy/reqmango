@@ -4,7 +4,8 @@
 
 export interface Comment {
   id: number
-  content: string
+  body: string
+  content?: string
   html_content?: string
   issue_id: number
   author_id: number
@@ -21,18 +22,21 @@ export interface Comment {
 
 export interface CommentCreate {
   issue_id: number
-  content: string
+  body: string
+  content?: string
   html_content?: string
   parent_id?: number
 }
 
 export interface CommentUpdate {
+  body?: string
   content?: string
   html_content?: string
 }
 
 export interface CommentListResponse {
-  items: Comment[]
+  comments: Comment[]
+  items?: Comment[]
   total: number
   page: number
   page_size: number

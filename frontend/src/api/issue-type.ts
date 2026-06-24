@@ -85,6 +85,14 @@ export async function addFieldToIssueType(typeId: number, data: IssueTypeFieldCr
 }
 
 /**
+ * 更新类型-字段关联（切换必填等）
+ */
+export async function updateIssueTypeField(typeId: number, fieldId: number, data: { is_required?: boolean; sequence?: number }): Promise<IssueTypeField> {
+  const response = await api.put(`/issue-types/${typeId}/fields/${fieldId}`, data)
+  return response.data
+}
+
+/**
  * 移除工作项类型的字段关联
  */
 export async function removeFieldFromIssueType(typeId: number, fieldId: number): Promise<void> {

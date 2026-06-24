@@ -64,7 +64,7 @@
               <span class="text-sm font-medium text-gray-900">{{ comment.author?.display_name || '用户' }}</span>
               <span class="text-xs text-gray-500">{{ formatTime(comment.created_at) }}</span>
             </div>
-            <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{{ comment.content }}</div>
+            <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{{ comment.body || comment.content }}</div>
           </div>
 
           <!-- 操作按钮 -->
@@ -111,7 +111,7 @@
                   <span class="text-xs font-medium text-gray-900">{{ reply.author?.display_name || '用户' }}</span>
                   <span class="text-xs text-gray-500">{{ formatTime(reply.created_at) }}</span>
                 </div>
-                <div class="mt-0.5 text-xs text-gray-700 whitespace-pre-wrap">{{ reply.content }}</div>
+                <div class="mt-0.5 text-xs text-gray-700 whitespace-pre-wrap">{{ reply.body || reply.content }}</div>
               </div>
             </div>
           </div>
@@ -136,6 +136,7 @@
 import { ref, onMounted } from 'vue'
 import commentApi from '@/api/comment'
 import { useConfirm } from '@/composables/useConfirm'
+import { useAuthStore } from '@/stores/auth'
 import type { Comment, CommentCreate } from '@/types/comment'
 
 // Props
@@ -145,12 +146,13 @@ const props = defineProps<{
 
 // State
 const { confirm } = useConfirm()
+const authStore = useAuthStore()
 const comments = ref<Comment[]>([])
 const loading = ref(false)
 const loadingMore = ref(false)
 const submitting = ref(false)
 const newComment = ref('')
-const currentUserId = ref<number | null>(null) // TODO: 从用户store获取
+const currentUserId = ref<number | null>(authStore.user?.id || null)
 const page = ref(1)
 const hasMore = ref(false)
 
@@ -159,10 +161,11 @@ async function loadComments() {
   loading.value = true
   try {
     const response = await commentApi.listIssueComments(props.issueId, page.value)
+    const items = response.comments || response.items || []
     if (page.value === 1) {
-      comments.value = response.items
+      comments.value = items
     } else {
-      comments.value.push(...response.items)
+      comments.value.push(...items)
     }
     hasMore.value = comments.value.length < response.total
   } catch (error) {
@@ -186,8 +189,8 @@ async function submitComment() {
   try {
     const data: CommentCreate = {
       issue_id: props.issueId,
-      content: newComment.value.trim()
-    }
+      body: newComment.value.trim()
+    } as any
     const comment = await commentApi.createComment(data)
     comments.value.unshift(comment)
     newComment.value = ''

@@ -21,6 +21,11 @@ const error = ref('')
 
 const logout = () => {
   authStore.logout()
+  router.push('/login')
+}
+
+const goToSettings = () => {
+  router.push(`/workspace/${route.params.slug}/settings`)
 }
 
 const fetchWorkspace = async () => {
@@ -100,6 +105,12 @@ onMounted(fetchWorkspace)
         </div>
         <div class="flex items-center gap-4">
           <span class="text-gray-600">{{ authStore.user?.email }}</span>
+          <button
+            @click="goToSettings"
+            class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            设置
+          </button>
           <button
             @click="logout"
             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition"

@@ -30,13 +30,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import workflowApi from '@/api/workflow'
+import { useConfirm } from '@/composables/useConfirm'
 const props = defineProps<{ projectId: number }>()
+const { confirm } = useConfirm()
 const automations = ref<any[]>([])
 const showModal = ref(false)
 const form = ref({ name:'', desc:'', trigger:'issue_created', conditions:'[]', actions:'[]' })
 async function load() { try { automations.value = await workflowApi.listAutomations(props.projectId) } catch(e){ console.error(e) } }
-function openCreate() { form = ref({ name:'', desc:'', trigger:'issue_created', conditions:'[]', actions:'[]' }); showModal.value = true }
+function openCreate() { form.value = { name:'', desc:'', trigger:'issue_created', conditions:'[]', actions:'[]' }; showModal.value = true }
 async function save() { await workflowApi.createAutomation(props.projectId, { name:form.value.name, description:form.value.desc, trigger_type:form.value.trigger, conditions:form.value.conditions, actions:form.value.actions }); showModal.value = false; load() }
-async function confirmDel(a:any) { if(confirm('Delete?')) { await workflowApi.deleteAutomation(props.projectId, a.id); load() } }
+async function confirmDel(a:any) { if(await confirm('确定要删除此自动化规则吗？')) { await workflowApi.deleteAutomation(props.projectId, a.id); load() } }
 onMounted(load)
 </script>

@@ -4,7 +4,7 @@
 import api from './index'
 import type { Notification, NotificationCreate, NotificationSummary } from '@/types/notification'
 
-const BASE_URL = '/api/v1/notifications'
+const BASE_URL = '/notifications'
 
 /**
  * 获取通知列表

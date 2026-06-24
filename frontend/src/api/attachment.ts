@@ -4,7 +4,7 @@
 import api from './index'
 import type { Attachment, AttachmentCreate, AttachmentUpdate } from '@/types/attachment'
 
-const BASE_URL = '/api/v1/attachments'
+const BASE_URL = '/attachments'
 
 /**
  * 上传附件

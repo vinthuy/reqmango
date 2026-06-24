@@ -89,8 +89,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import templateApi from '@/api/template'
 import customFieldApi from '@/api/custom-field'
+import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps<{ workspaceId: number }>()
+
+const { confirm } = useConfirm()
 
 const templates = ref<any[]>([])
 const allFields = ref<any[]>([])
@@ -115,17 +118,22 @@ async function load() {
   } catch(e) { console.error(e) }
 }
 
-function openCreate() { editing.value = false; form.value = { name:'', description:'', color:'#6366F1', icon:'circle', level:0, parent_type_id:undefined }; showModal.value = true }
-function openEdit(tt: any) { editing.value = true; form.value = { name:tt.name, description:tt.description||'', color:tt.color, icon:tt.icon, level:tt.level||0, parent_type_id:tt.parent_type_id }; showModal.value = true }
+function openCreate() { editing.value = false; selected.value = null; form.value = { name:'', description:'', color:'#6366F1', icon:'circle', level:0, parent_type_id:undefined }; showModal.value = true }
+function openEdit(tt: any) { editing.value = true; selected.value = tt; form.value = { name:tt.name, description:tt.description||'', color:tt.color, icon:tt.icon, level:tt.level||0, parent_type_id:tt.parent_type_id }; showModal.value = true }
 function closeModal() { showModal.value = false }
 async function save() {
   const data: any = { name:form.value.name, description:form.value.description, color:form.value.color, icon:form.value.icon, level:form.value.level, parent_type_id:form.value.parent_type_id || null }
-  if (editing.value && selected.value) {
-    await fetch(`/api/v1/type-templates/${selected.value.id}`, { method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+localStorage.getItem('token')}, body:JSON.stringify(data) })
-  } else {
-    await fetch(`/api/v1/type-templates?workspace_id=${props.workspaceId}`, { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+localStorage.getItem('token')}, body:JSON.stringify(data) })
+  try {
+    if (editing.value && selected.value) {
+      await templateApi.updateTypeTemplate(selected.value.id, data)
+    } else {
+      await templateApi.createTypeTemplate(props.workspaceId, data)
+    }
+    closeModal(); load()
+  } catch (e) {
+    console.error('Failed to save type template:', e)
+    alert('保存失败：' + (e as any).message)
   }
-  closeModal(); load()
 }
 
 function openBindFields(tt: any) { selected.value = tt; showFieldModal.value = true }
@@ -139,7 +147,16 @@ async function unbindField(fid: number) {
   await fetch(`/api/v1/type-templates/${selected.value.id}/fields/${fid}`, { method:'DELETE', headers:{Authorization:'Bearer '+localStorage.getItem('token')} })
   load().then(() => { selected.value = templates.value.find(t=>t.id===selected.value!.id) })
 }
-async function confirmDelete(tt: any) { if (confirm(`Delete "${tt.name}"?`)) { await fetch(`/api/v1/type-templates/${tt.id}`, { method:'DELETE', headers:{Authorization:'Bearer '+localStorage.getItem('token')} }); load() } }
+async function confirmDelete(tt: any) { 
+  if (!(await confirm({ title: '删除类型模板', message: `确定要删除 "${tt.name}" 吗？此操作不可恢复。`, danger: true, confirmText: '删除' }))) return
+  try {
+    await templateApi.deleteTypeTemplate(tt.id)
+    load()
+  } catch (e) {
+    console.error('Failed to delete type template:', e)
+    alert('删除失败：' + (e as any).message)
+  }
+}
 
 onMounted(load)
 watch(() => props.workspaceId, load)

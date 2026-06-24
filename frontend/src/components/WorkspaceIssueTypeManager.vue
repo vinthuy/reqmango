@@ -1,0 +1,490 @@
+<template>
+  <div class="w-full">
+    <!-- 头部 -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900">工作项类型</h2>
+        <p class="text-sm text-gray-500 mt-0.5">定义工作空间中可用的工作项类型（如 Bug、Story、Task 等）</p>
+      </div>
+      <button @click="openCreateModal" class="create-btn">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        新建类型
+      </button>
+    </div>
+
+    <!-- 类型列表 -->
+    <div v-if="issueTypes.length > 0" class="space-y-2">
+      <div
+        v-for="type in issueTypes"
+        :key="type.id"
+        class="type-row"
+        :class="{ 'is-default': type.is_default }"
+      >
+        <div class="type-row-main" @click="openEditModal(type)">
+          <div class="type-icon" :style="{ backgroundColor: type.color }">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path v-if="type.icon === 'circle'" stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path v-else-if="type.icon === 'square'" stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4z" />
+              <path v-else-if="type.icon === 'bug'" stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <path v-else-if="type.icon === 'task'" stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+              <path v-else-if="type.icon === 'check-square'" stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+              <path v-else-if="type.icon === 'bookmark'" stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              <path v-else-if="type.icon === 'flag'" stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm0 0h7" />
+              <path v-else-if="type.icon === 'star'" stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              <path v-else-if="type.icon === 'heart'" stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              <path v-else-if="type.icon === 'zap'" stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <path v-else-if="type.icon === 'layers'" stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2H7a2 2 0 00-2 2v2m10-9v6m-3-3h6" />
+              <path v-else-if="type.icon === 'box'" stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              <path v-else-if="type.icon === 'database'" stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+              <path v-else-if="type.icon === 'file'" stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              <path v-else-if="type.icon === 'code'" stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              <path v-else-if="type.icon === 'terminal'" stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path v-else-if="type.icon === 'settings'" stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path v-else-if="type.icon === 'users'" stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              <path v-else-if="type.icon === 'calendar'" stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path v-else-if="type.icon === 'clock'" stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path v-else stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-2">
+              <span class="font-medium text-gray-900">{{ type.name }}</span>
+              <span v-if="type.is_default" class="badge-default">默认</span>
+              <span v-if="!type.is_active" class="badge-inactive">已禁用</span>
+            </div>
+            <p v-if="type.description" class="text-xs text-gray-500 mt-0.5 truncate">{{ type.description }}</p>
+          </div>
+        </div>
+        <div class="type-row-actions">
+          <button
+            v-if="!type.is_default"
+            @click.stop="toggleActive(type)"
+            class="icon-action"
+            :title="type.is_active ? '禁用' : '启用'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path v-if="type.is_active" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+          <button
+            v-if="!type.is_default"
+            @click.stop="confirmDelete(type)"
+            class="icon-action icon-action-danger"
+            title="删除"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="empty-state">
+      <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+      <p class="mt-2 text-sm text-gray-500">暂无工作项类型，点击上方按钮创建</p>
+    </div>
+
+    <!-- 内嵌编辑抽屉 -->
+    <Transition name="slide-fade">
+      <div v-if="showEditDrawer" class="edit-drawer-overlay" @click.self="closeDrawer">
+        <div class="edit-drawer">
+          <div class="drawer-header">
+            <div>
+              <h3 class="drawer-title">
+                {{ isCreating ? '新建类型' : '编辑: ' + (selectedType?.name || '') }}
+              </h3>
+              <p class="drawer-subtitle">配置工作项类型的名称、图标和颜色</p>
+            </div>
+            <button @click="closeDrawer" class="close-btn">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="drawer-body">
+            <div class="form-group">
+              <label class="form-label">预览</label>
+              <div class="type-preview" :class="{ 'is-default': formData.is_default }">
+                <div class="type-row">
+                  <div class="type-row-main" style="cursor: default">
+                    <div class="type-icon" :style="{ backgroundColor: formData.color }">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path v-if="formData.icon === 'circle'" stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path v-else-if="formData.icon === 'bug'" stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        <path v-else stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <span class="font-medium text-gray-900">{{ formData.name || '未命名类型' }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">名称 <span class="required">*</span></label>
+              <input v-model="formData.name" type="text" class="form-input" placeholder="输入类型名称" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">图标</label>
+              <div class="icon-grid">
+                <button
+                  v-for="icon in ISSUE_TYPE_ICONS"
+                  :key="icon"
+                  class="icon-btn"
+                  :class="{ active: formData.icon === icon }"
+                  @click="formData.icon = icon"
+                  :title="getIconName(icon)"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path v-if="icon === 'circle'" stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path v-else-if="icon === 'bug'" stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <path v-else-if="icon === 'task'" stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
+                    <path v-else-if="icon === 'check-square'" stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
+                    <path v-else-if="icon === 'star'" stroke-linecap="round" stroke-linejoin="round" d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
+                    <path v-else-if="icon === 'flag'" stroke-linecap="round" stroke-linejoin="round" d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                    <path v-else stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">颜色</label>
+              <div class="color-grid">
+                <button
+                  v-for="color in ISSUE_TYPE_COLORS"
+                  :key="color"
+                  class="color-btn"
+                  :class="{ active: formData.color === color }"
+                  :style="{ backgroundColor: color }"
+                  @click="formData.color = color"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">描述</label>
+              <input v-model="formData.description" type="text" class="form-input" placeholder="类型描述（可选）" />
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input v-model="formData.is_default" type="checkbox" class="checkbox" />
+                <span>设为默认类型</span>
+              </label>
+              <p class="text-xs text-gray-500 mt-1">默认类型在创建工作项时自动选中</p>
+            </div>
+          </div>
+
+          <div class="drawer-footer">
+            <button @click="closeDrawer" class="btn btn-secondary">取消</button>
+            <button @click="submitForm" class="btn btn-primary" :disabled="!formData.name">
+              {{ isCreating ? '创建' : '保存' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, watch } from 'vue'
+import type { IssueType, IssueTypeCreate, IssueTypeUpdate } from '@/types/issue-type'
+import { ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS, getIconName } from '@/types/issue-type'
+import { useConfirm } from '@/composables/useConfirm'
+import * as issueTypeApi from '@/api/issue-type'
+
+const props = defineProps<{
+  workspaceId: number
+}>()
+
+const { confirm } = useConfirm()
+
+const issueTypes = ref<IssueType[]>([])
+const loading = ref(false)
+const showEditDrawer = ref(false)
+const isCreating = ref(false)
+const selectedType = ref<IssueType | null>(null)
+
+const formData = ref<IssueTypeCreate & IssueTypeUpdate>({
+  name: '',
+  color: ISSUE_TYPE_COLORS[0],
+  icon: ISSUE_TYPE_ICONS[0],
+  description: '',
+  is_default: false,
+  sequence: 1
+})
+
+async function loadData() {
+  if (!props.workspaceId) return
+  loading.value = true
+  try {
+    issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId)
+  } catch (error) {
+    console.error('Failed to load issue types:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+function openCreateModal() {
+  isCreating.value = true
+  selectedType.value = null
+  formData.value = {
+    name: '',
+    color: ISSUE_TYPE_COLORS[0],
+    icon: ISSUE_TYPE_ICONS[0],
+    description: '',
+    is_default: false,
+    sequence: issueTypes.value.length + 1
+  }
+  showEditDrawer.value = true
+}
+
+function openEditModal(type: IssueType) {
+  isCreating.value = false
+  selectedType.value = type
+  formData.value = {
+    name: type.name,
+    color: type.color,
+    icon: type.icon,
+    description: type.description || '',
+    is_default: type.is_default,
+    sequence: type.sequence
+  }
+  showEditDrawer.value = true
+}
+
+function closeDrawer() {
+  showEditDrawer.value = false
+  selectedType.value = null
+  isCreating.value = false
+}
+
+async function submitForm() {
+  if (!formData.value.name) return
+  try {
+    if (isCreating.value) {
+      await issueTypeApi.createIssueType(props.workspaceId, formData.value)
+    } else if (selectedType.value) {
+      await issueTypeApi.updateIssueType(selectedType.value.id, formData.value)
+    }
+    closeDrawer()
+    await loadData()
+  } catch (error) {
+    console.error('Failed to submit form:', error)
+  }
+}
+
+async function toggleActive(type: IssueType) {
+  if (await confirm({
+    title: type.is_active ? '禁用类型' : '启用类型',
+    message: `确定要${type.is_active ? '禁用' : '启用'}类型 "${type.name}" 吗？`,
+    confirmText: type.is_active ? '禁用' : '启用',
+    danger: type.is_active,
+  })) {
+    try {
+      await issueTypeApi.disableIssueType(type.id, !type.is_active)
+      await loadData()
+    } catch (error) {
+      console.error('Failed to toggle active:', error)
+    }
+  }
+}
+
+async function confirmDelete(type: IssueType) {
+  if (await confirm({
+    title: '删除类型',
+    message: `确定要删除类型 "${type.name}" 吗？此操作不可撤销。`,
+    danger: true,
+    confirmText: '删除'
+  })) {
+    try {
+      await issueTypeApi.deleteIssueType(type.id)
+      await loadData()
+    } catch (error) {
+      console.error('Failed to delete type:', error)
+    }
+  }
+}
+
+defineExpose({ loadData })
+
+onMounted(() => {
+  loadData()
+})
+</script>
+
+<style scoped>
+.create-btn {
+  @apply flex items-center space-x-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition;
+}
+
+.type-row {
+  @apply flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-indigo-300 transition;
+}
+
+.type-row.is-default {
+  @apply border-indigo-200 bg-indigo-50;
+}
+
+.type-row-main {
+  @apply flex items-center space-x-3 flex-1 min-w-0 cursor-pointer;
+}
+
+.type-icon {
+  @apply w-8 h-8 rounded-md flex items-center justify-center text-white shrink-0 overflow-hidden;
+}
+
+.type-row-actions {
+  @apply flex items-center space-x-1;
+}
+
+.icon-action {
+  @apply p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition;
+}
+
+.icon-action-danger {
+  @apply hover:bg-red-50 hover:text-red-600;
+}
+
+.badge-default {
+  @apply px-1.5 py-0.5 text-xs rounded bg-indigo-100 text-indigo-700;
+}
+
+.badge-inactive {
+  @apply px-1.5 py-0.5 text-xs rounded bg-gray-100 text-gray-600;
+}
+
+.empty-state {
+  @apply flex flex-col items-center justify-center py-12 text-center;
+}
+
+/* 编辑抽屉 */
+.edit-drawer-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-30 z-40 flex justify-end;
+}
+
+.edit-drawer {
+  @apply bg-white w-full max-w-md h-full shadow-xl flex flex-col;
+}
+
+.drawer-header {
+  @apply flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0;
+}
+
+.drawer-title {
+  @apply text-lg font-semibold text-gray-900;
+}
+
+.drawer-subtitle {
+  @apply text-sm text-gray-500 mt-0.5;
+}
+
+.close-btn {
+  @apply p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition;
+}
+
+.drawer-body {
+  @apply px-6 py-4 flex-1 overflow-y-auto;
+}
+
+.drawer-footer {
+  @apply flex items-center justify-end space-x-3 px-6 py-4 border-t border-gray-200 shrink-0;
+}
+
+.type-preview {
+  @apply bg-white rounded-lg border border-gray-200 p-3;
+}
+
+.type-preview.is-default {
+  @apply border-indigo-200 bg-indigo-50;
+}
+
+/* 表单 */
+.form-group {
+  @apply mb-4;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-gray-700 mb-1;
+}
+
+.required {
+  @apply text-red-500;
+}
+
+.form-input {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500;
+}
+
+.icon-grid {
+  @apply grid grid-cols-7 gap-2;
+}
+
+.icon-btn {
+  @apply w-9 h-9 p-1.5 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition flex items-center justify-center;
+}
+
+.icon-btn.active {
+  @apply border-indigo-500 bg-indigo-100;
+}
+
+.color-grid {
+  @apply flex flex-wrap gap-2;
+}
+
+.color-btn {
+  @apply w-7 h-7 rounded-full border-2 border-transparent hover:border-gray-400 transition;
+}
+
+.color-btn.active {
+  @apply border-gray-900;
+}
+
+.checkbox-label {
+  @apply flex items-center space-x-2 cursor-pointer;
+}
+
+.checkbox {
+  @apply w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500;
+}
+
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply bg-indigo-600 text-white hover:bg-indigo-700;
+}
+
+.btn-secondary {
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+}
+
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.25s ease;
+}
+
+.slide-fade-enter-from .edit-drawer,
+.slide-fade-leave-to .edit-drawer {
+  transform: translateX(100%);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+}
+</style>

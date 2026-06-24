@@ -138,6 +138,42 @@
           <label class="property-label">截止日期</label>
           <input v-model="formData.target_date" type="date" class="property-input" />
         </div>
+
+        <div class="property-group">
+          <label class="property-label">父工作项</label>
+          <div class="relative">
+            <div v-if="selectedParent" class="flex items-center justify-between p-2 bg-indigo-50 rounded-md mb-1">
+              <span class="text-sm text-indigo-700">#{{ selectedParent.sequence_id }} {{ selectedParent.name }}</span>
+              <button @click="selectedParent = null; formData.parent_id = ''" class="text-gray-400 hover:text-red-500">&times;</button>
+            </div>
+            <input
+              v-if="!selectedParent"
+              v-model="parentSearch"
+              @input="searchParents"
+              type="text"
+              placeholder="搜索父工作项..."
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+            <div v-if="parentResults.length > 0 && !selectedParent" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-36 overflow-y-auto">
+              <div
+                v-for="p in parentResults"
+                :key="p.id"
+                @click="selectParent(p)"
+                class="px-3 py-2 hover:bg-indigo-50 cursor-pointer text-sm"
+              >
+                <span class="font-medium">#{{ p.sequence_id }}</span> {{ p.name }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="property-group">
+          <label class="property-label">标签</label>
+          <LabelSelector
+            :project-id="projectId"
+            v-model="selectedLabelIds"
+          />
+        </div>
       </div>
     </div>
 
@@ -157,6 +193,7 @@ import { useRoute, useRouter } from 'vue-router'
 import CustomFieldValueInput from '@/components/CustomFieldValueInput.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import UserSelect from '@/components/UserSelect.vue'
+import LabelSelector from '@/components/LabelSelector.vue'
 import type { IssueType } from '@/types/issue-type'
 import type { IssueCustomFieldValueUpdate } from '@/types/custom-field'
 import type { State } from '@/types/project-settings'
@@ -204,8 +241,14 @@ const formData = ref({
   cycle_id: '' as number | string,
   module_id: '' as number | string,
   start_date: '',
-  target_date: ''
+  target_date: '',
+  parent_id: '' as number | string
 })
+const selectedLabelIds = ref<number[]>([])
+const parentSearch = ref('')
+const parentResults = ref<any[]>([])
+const selectedParent = ref<any>(null)
+let parentSearchTimer: any = null
 
 // 计算属性
 const canSubmit = computed(() => {
@@ -294,6 +337,29 @@ async function loadData() {
   }
 }
 
+// 搜索父工作项
+async function searchParents() {
+  if (parentSearchTimer) clearTimeout(parentSearchTimer)
+  if (!parentSearch.value.trim()) {
+    parentResults.value = []
+    return
+  }
+  parentSearchTimer = setTimeout(async () => {
+    try {
+      const result: any = await issueApi.searchIssues(workspaceId.value, parentSearch.value, projectId.value)
+      parentResults.value = (Array.isArray(result) ? result : (result.items || [])).slice(0, 10)
+    } catch (e) {
+      console.error('Parent search failed:', e)
+    }
+  }, 300)
+}
+
+function selectParent(p: any) {
+  selectedParent.value = p
+  parentResults.value = []
+  parentSearch.value = ''
+}
+
 // 加载类型的关联字段
 async function loadLinkedFields(typeId: number) {
   try {
@@ -363,6 +429,16 @@ async function submitForm() {
       if (assigneeId > 0) {
         data.assignee_ids = [assigneeId]
       }
+    }
+
+    // Add labels if selected
+    if (selectedLabelIds.value.length > 0) {
+      data.label_ids = selectedLabelIds.value
+    }
+
+    // Add parent if selected
+    if (selectedParent.value) {
+      data.parent_id = selectedParent.value.id
     }
 
     console.log('Creating issue with data:', data)

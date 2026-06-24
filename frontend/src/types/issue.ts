@@ -303,7 +303,8 @@ export function isIssueArchived(issue: IssueResponse): boolean {
  * 获取工作项的完整标识符
  */
 export function getIssueFullId(issue: IssueResponse | IssueLite): string {
-  return issue.project_identifier ? `${issue.project_identifier}-${issue.sequence_id}` : `#${issue.sequence_id}`
+  const identifier = (issue as any).project_identifier || (issue as IssueResponse).project?.identifier
+  return identifier ? `${identifier}-${issue.sequence_id}` : `#${issue.sequence_id}`
 }
 
 /**

@@ -244,6 +244,38 @@ func (s *IssueTypeService) RemoveField(typeID, fieldID uint64) error {
 	return nil
 }
 
+func (s *IssueTypeService) UpdateField(typeID, fieldID uint64, req request.IssueTypeFieldUpdate) (*response.IssueTypeFieldResponse, error) {
+	var link model.IssueTypeField
+	if err := s.db.Where("type_id = ? AND field_id = ?", typeID, fieldID).First(&link).Error; err != nil {
+		return nil, common.NotFound("Field association not found")
+	}
+
+	if req.IsRequired != nil {
+		link.IsRequired = *req.IsRequired
+	}
+	if req.Sequence != nil {
+		link.Sequence = *req.Sequence
+	}
+
+	if err := s.db.Save(&link).Error; err != nil {
+		return nil, common.Internal("Failed to update field association")
+	}
+
+	// Load field info for response
+	var f model.CustomField
+	s.db.First(&f, fieldID)
+
+	return &response.IssueTypeFieldResponse{
+		FieldID:    fieldID,
+		TypeID:     typeID,
+		IsRequired: link.IsRequired,
+		Sequence:   link.Sequence,
+		Name:       f.Name,
+		FieldType:  f.FieldType,
+		Description: f.Description,
+	}, nil
+}
+
 func (s *IssueTypeService) ListFields(typeID uint64) ([]response.IssueTypeFieldResponse, error) {
 	var t model.IssueType
 	if err := s.db.First(&t, typeID).Error; err != nil {

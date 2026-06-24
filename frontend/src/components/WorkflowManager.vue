@@ -42,18 +42,20 @@
 import { ref, onMounted } from 'vue'
 import workflowApi from '@/api/workflow'
 import api from '@/api'
+import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps<{ projectId: number }>()
+const { confirm } = useConfirm()
 const workflows = ref<any[]>([])
 const states = ref<any[]>([])
 const showModal = ref(false); const showTrans = ref(false); const selWid = ref(0)
 const form = ref({ name:'', desc:'' }); const trans = ref({ from:0, to:0, desc:'' })
 
 async function load() { try { const [w,s] = await Promise.all([workflowApi.listWorkflows(props.projectId), api.get(`/projects/${props.projectId}/settings/states`)]); workflows.value = w; states.value = s.data } catch(e){ console.error(e) } }
-function openCreate() { form = ref({ name:'', desc:'' }); showModal.value = true }
+function openCreate() { form.value = { name:'', desc:'' }; showModal.value = true }
 async function save() { await workflowApi.createWorkflow(props.projectId, { name:form.value.name, description:form.value.desc }); showModal.value = false; load() }
-async function confirmDel(w:any) { if(confirm('Delete?')) { await workflowApi.deleteWorkflow(props.projectId, w.id); load() } }
-function openAddTrans(w:any) { selWid.value = w.id; trans = ref({ from:0, to:0, desc:'' }); showTrans.value = true }
+async function confirmDel(w:any) { if(await confirm('确定要删除此工作流吗？')) { await workflowApi.deleteWorkflow(props.projectId, w.id); load() } }
+function openAddTrans(w:any) { selWid.value = w.id; trans.value = { from:0, to:0, desc:'' }; showTrans.value = true }
 async function saveTrans() { await workflowApi.addTransition(props.projectId, selWid.value, { from_state_id:trans.value.from, to_state_id:trans.value.to, description:trans.value.desc }); showTrans.value = false; load() }
 async function delTrans(tid:number) { await workflowApi.deleteTransition(props.projectId, selWid.value || (workflows.value.find(w=>w.transitions?.some((t:any)=>t.id===tid))?.id||0), tid); load() }
 onMounted(load)

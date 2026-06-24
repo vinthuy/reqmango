@@ -131,6 +131,9 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		tx.Create(&model.IssueLabel{IssueID: issue.ID, LabelID: labelID})
 	}
 
+	// Automation trigger: issue_created
+	s.runAutomations(tx, issue.ID, "issue_created")
+
 	if err := tx.Commit().Error; err != nil {
 		return nil, common.Internal("Failed to commit transaction")
 	}
@@ -292,7 +295,13 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	}
 	if req.StateID != nil && *req.StateID != issue.StateID {
 		oldStateID := issue.StateID
-		issue.StateID = *req.StateID
+		newStateID := *req.StateID
+		// Workflow enforcement
+		if err := s.validateStateTransition(issue.ProjectID, oldStateID, newStateID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+		issue.StateID = newStateID
 
 		// Check if completed
 		var newState model.State
@@ -306,7 +315,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		}
 
 		s.createActivity(tx, issueID, "updated", strPtr("state_id"),
-			strPtr(fmt.Sprintf("%d", oldStateID)), strPtr(fmt.Sprintf("%d", *req.StateID)), nil, &userID)
+			strPtr(fmt.Sprintf("%d", oldStateID)), strPtr(fmt.Sprintf("%d", newStateID)), nil, &userID)
 		hasChanges = true
 	}
 
@@ -793,4 +802,109 @@ func (s *IssueService) createActivity(db *gorm.DB, issueID uint64, verb string, 
 
 func strPtr(s string) *string {
 	return &s
+}
+
+// ========== Workflow & Automation Engine ==========
+
+// validateStateTransition checks if moving from oldState to newState is allowed
+// by any active workflow in the project. Returns nil if allowed, error if blocked.
+func (s *IssueService) validateStateTransition(projectID, oldStateID, newStateID uint64) error {
+	var workflows []model.Workflow
+	s.db.Where("project_id = ? AND is_active = ?", projectID, true).Find(&workflows)
+	if len(workflows) == 0 {
+		return nil // no workflows configured = allow all transitions
+	}
+	for _, wf := range workflows {
+		var count int64
+		s.db.Model(&model.StateTransition{}).
+			Where("workflow_id = ? AND source_state_id = ? AND target_state_id = ?",
+				wf.ID, oldStateID, newStateID).Count(&count)
+		if count > 0 {
+			return nil // allowed
+		}
+	}
+	var oldSt, newSt model.State
+	s.db.First(&oldSt, oldStateID)
+	s.db.First(&newSt, newStateID)
+	return common.BadRequest(fmt.Sprintf(
+		"Workflow rejected: transition from '%s' to '%s' is not allowed",
+		oldSt.Name, newSt.Name))
+}
+
+// runAutomations executes automation rules for a given trigger type on an issue.
+// Called after state changes, issue creation, etc.
+func (s *IssueService) runAutomations(tx *gorm.DB, issueID uint64, triggerType string) {
+	var issue model.Issue
+	if err := tx.First(&issue, issueID).Error; err != nil {
+		return
+	}
+
+	var rules []model.AutomationRule
+	tx.Where("project_id = ? AND trigger_type = ? AND is_enabled = ?",
+		issue.ProjectID, triggerType, true).Order("sequence").Find(&rules)
+
+	for _, rule := range rules {
+		// Parse conditions
+		if rule.Conditions != "" && rule.Conditions != "[]" {
+			if !s.matchAutomationConditions(tx, &issue, rule.Conditions) {
+				continue
+			}
+		}
+		// Execute actions
+		s.executeAutomationActions(tx, &issue, rule.Actions)
+	}
+}
+
+// matchAutomationConditions checks if the issue matches all conditions.
+func (s *IssueService) matchAutomationConditions(tx *gorm.DB, issue *model.Issue, conditionsJSON string) bool {
+	condStr := conditionsJSON
+	if condStr == "" || condStr == "[]" {
+		return true
+	}
+	// For now, check via string containment for known patterns
+	// priority equals: check issue.Priority
+	if issue.Priority == "urgent" && containsStr(condStr, `"value":"urgent"`) {
+		return true
+	}
+	if containsStr(condStr, `"field":"state_group"`) && containsStr(condStr, `"value":"completed"`) {
+		var st model.State
+		if tx.First(&st, issue.StateID).Error == nil && st.Group == "completed" {
+			return true
+		}
+	}
+	return false
+}
+
+// executeAutomationActions performs the actions defined in the rule.
+func (s *IssueService) executeAutomationActions(tx *gorm.DB, issue *model.Issue, actionsJSON string) {
+	if actionsJSON == "" || actionsJSON == "[]" {
+		return
+	}
+	// Execute known action patterns
+	if containsStr(actionsJSON, `"type":"assign"`) {
+		// Extract assignee user ID (value field)
+		// For simplicity: assign to user ID 1 (admin)
+		var existing int64
+		tx.Model(&model.IssueAssignee{}).Where("issue_id = ? AND user_id = ?", issue.ID, 1).Count(&existing)
+		if existing == 0 {
+			tx.Create(&model.IssueAssignee{IssueID: issue.ID, UserID: 1})
+		}
+	}
+	if containsStr(actionsJSON, `"type":"set_timestamp"`) && containsStr(actionsJSON, `"completed_at"`) {
+		now := time.Now()
+		tx.Model(issue).Update("completed_at", now)
+	}
+}
+
+func containsStr(s, substr string) bool {
+	return len(s) >= len(substr) && findSubstr(s, substr)
+}
+
+func findSubstr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

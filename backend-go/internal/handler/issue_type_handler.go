@@ -247,3 +247,34 @@ func (h *IssueTypeHandler) RemoveField(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Field removed from issue type"})
 }
+
+func (h *IssueTypeHandler) UpdateField(c *gin.Context) {
+	typeID, err := h.parseTypeID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue type ID"})
+		return
+	}
+	fieldID, err := h.parseFieldID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid field ID"})
+		return
+	}
+
+	var req request.IssueTypeFieldUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
+		return
+	}
+
+	resp, svcErr := h.svc.UpdateField(typeID, fieldID, req)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}

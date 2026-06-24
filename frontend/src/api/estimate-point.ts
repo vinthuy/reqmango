@@ -4,7 +4,7 @@
 import api from './index'
 import type { EstimatePoint, EstimatePointCreate, EstimatePointUpdate, EstimatePointBulkCreate, EstimatePointReorder } from '@/types/estimate-point'
 
-const BASE_URL = '/api/v1/projects'
+const BASE_URL = '/projects'
 
 /**
  * 创建估算点
