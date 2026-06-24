@@ -85,6 +85,12 @@ const router = createRouter({
       name: 'CycleDetail',
       component: () => import('@/views/CycleDetail.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/project/:id/pages',
+      name: 'ProjectPages',
+      component: () => import('@/views/ProjectPages.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

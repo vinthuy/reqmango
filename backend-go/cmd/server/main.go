@@ -56,6 +56,9 @@ func main() {
 		&model.Workflow{},
 		&model.AutomationRule{},
 		&model.Comment{},
+		&model.Notification{},
+		&model.SavedView{},
+		&model.Page{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

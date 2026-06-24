@@ -58,21 +58,28 @@
       <div v-if="activeTab === 'issues'">
         <!-- 视图切换 -->
         <div class="flex items-center justify-between mb-4">
-          <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
-            <button
-              @click="issueView = 'list'"
-              class="px-3 py-1.5 text-sm rounded-md transition-colors"
-              :class="issueView === 'list' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
-            >
-              列表视图
-            </button>
-            <button
-              @click="issueView = 'kanban'"
-              class="px-3 py-1.5 text-sm rounded-md transition-colors"
-              :class="issueView === 'kanban' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
-            >
-              看板视图
-            </button>
+          <div class="flex items-center gap-3">
+            <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
+              <button
+                @click="issueView = 'list'"
+                class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                :class="issueView === 'list' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+              >
+                列表视图
+              </button>
+              <button
+                @click="issueView = 'kanban'"
+                class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                :class="issueView === 'kanban' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+              >
+                看板视图
+              </button>
+            </div>
+            <SavedViewSelector
+              :project-id="projectId"
+              :view-type="issueView as 'list' | 'kanban'"
+              @select="handleViewSelect"
+            />
           </div>
           <button
             @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)"
@@ -180,6 +187,8 @@ import CycleDetailPanel from '@/components/CycleDetailPanel.vue'
 import ModuleList from '@/components/ModuleList.vue'
 import ModuleDetailPanel from '@/components/ModuleDetailPanel.vue'
 import ModuleFormModal from '@/components/ModuleFormModal.vue'
+import SavedViewSelector from '@/components/SavedViewSelector.vue'
+import type { SavedView } from '@/types/saved-view'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
 import { useModuleStore } from '@/stores/module'
@@ -208,6 +217,10 @@ const editingModule = ref<ModuleResponse | null>(null)
 watch(activeTab, (tab) => {
   if (tab === 'settings') {
     router.push(`/workspace/${route.params.slug}/project/${projectId.value}/settings`)
+    return
+  }
+  if (tab === 'pages') {
+    router.push(`/workspace/${route.params.slug}/project/${projectId.value}/pages`)
     return
   }
   detailPanelVisible.value = false
@@ -269,11 +282,21 @@ const tabs = [
   { id: 'issues', name: '工作项管理' },
   { id: 'cycles', name: '周期' },
   { id: 'modules', name: '模块' },
+  { id: 'pages', name: '文档' },
   { id: 'settings', name: '设置' },
 ]
 
 function goBack() {
   router.push(`/workspace/${route.params.slug}`)
+}
+
+function handleViewSelect(view: SavedView) {
+  if (view.view_type && (view.view_type === 'list' || view.view_type === 'kanban')) {
+    issueView.value = view.view_type
+  }
+  // Future: apply filters, sort, columns, groupBy from the view
+  // These would be passed as props to IssueList/IssueKanban
+  console.log('View selected:', view.name, view)
 }
 
 async function handleDeleteIssue(issue: any) {

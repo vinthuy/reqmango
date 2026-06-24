@@ -26,7 +26,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	typeTemplateSvc := service.NewTypeTemplateService(db)
 	relationSvc := service.NewRelationService(db)
 	workflowSvc := service.NewWorkflowService(db)
-		commentSvc := service.NewCommentService(db)
+	commentSvc := service.NewCommentService(db)
+	notificationSvc := service.NewNotificationService(db)
+	savedViewSvc := service.NewSavedViewService(db)
+	projectIssueTypeH := handler.NewProjectIssueTypeHandler(issueTypeSvc)
+	pageSvc := service.NewPageService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -42,7 +46,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	typeTemplateH := handler.NewTypeTemplateHandler(typeTemplateSvc)
 	relationH := handler.NewRelationHandler(relationSvc)
 	workflowH := handler.NewWorkflowHandler(workflowSvc)
-		commentH := handler.NewCommentHandler(commentSvc)
+	commentH := handler.NewCommentHandler(commentSvc)
+	notificationH := handler.NewNotificationHandler(notificationSvc)
+	savedViewH := handler.NewSavedViewHandler(savedViewSvc)
+	pageH := handler.NewPageHandler(pageSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -87,6 +94,42 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.GET("/:projectId/issues-summary", projectH.GetIssuesSummary)
 			projects.GET("/:projectId/cycles", cycleH.List)
 			projects.POST("/:projectId/cycles", cycleH.Create)     // ?workspace_id=
+
+			// ---- Pages ----
+			pages := projects.Group("/:projectId/pages", authMiddleware)
+			{
+				pages.GET("", pageH.List)
+				pages.POST("", pageH.Create)
+				pages.GET("/tree", pageH.GetTree)
+				pages.GET("/:pageId", pageH.Get)
+				pages.PUT("/:pageId", pageH.Update)
+				pages.DELETE("/:pageId", pageH.Delete)
+				pages.POST("/:pageId/archive", pageH.Archive)
+				pages.POST("/:pageId/restore", pageH.Restore)
+				pages.POST("/:pageId/move", pageH.Move)
+				pages.GET("/:pageId/children", pageH.ListChildren)
+			}
+
+			// ---- Project Issue Types ----
+			projTypes := projects.Group("/:projectId/issue-types", authMiddleware)
+			{
+				projTypes.GET("", projectIssueTypeH.ListProjectTypes)
+				projTypes.POST("", projectIssueTypeH.CreateProjectType)
+				projTypes.POST("/copy-from-workspace", projectIssueTypeH.CopyFromWorkspace)
+				projTypes.PATCH("/reorder", projectIssueTypeH.Reorder)
+			}
+
+			// ---- Saved Views ----
+			views := projects.Group("/:projectId/views", authMiddleware)
+			{
+				views.GET("", savedViewH.List)
+				views.POST("", savedViewH.Create)
+				views.GET("/:viewId", savedViewH.Get)
+				views.PUT("/:viewId", savedViewH.Update)
+				views.DELETE("/:viewId", savedViewH.Delete)
+				views.POST("/:viewId/set-default", savedViewH.SetDefault)
+				views.POST("/:viewId/duplicate", savedViewH.Duplicate)
+			}
 
 			// ---- Project Settings: States + Labels ----
 			settings := projects.Group("/:projectId/settings", authMiddleware)
@@ -283,6 +326,18 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				automations.GET("", workflowH.ListAutomations)
 				automations.PUT("/:id", workflowH.UpdateAutomation)
 				automations.DELETE("/:id", workflowH.DeleteAutomation)
+			}
+			// ---- Notifications (protected) ----
+			notifications := v1.Group("/notifications", authMiddleware)
+			{
+				notifications.GET("", notificationH.List)
+				notifications.GET("/summary", notificationH.GetSummary)
+				notifications.GET("/:id", notificationH.Get)
+				notifications.POST("", notificationH.Create)
+				notifications.POST("/bulk", notificationH.CreateBulk)
+				notifications.PATCH("/:id/read", notificationH.MarkRead)
+				notifications.POST("/read-all", notificationH.MarkAllRead)
+				notifications.DELETE("/:id", notificationH.Delete)
 			}
 	}
 }

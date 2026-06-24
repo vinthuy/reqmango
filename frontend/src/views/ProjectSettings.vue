@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi } from '@/api/project'
 import * as workflowApi from '@/api/workflow'
 import api from '@/api'
 import type { Workspace } from '@/types'
-import type { ProjectResponse } from '@/types/project'
+import type { ProjectResponse, ProjectUpdate } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
+import ProjectMemberList from '@/components/ProjectMemberList.vue'
+import ModuleList from '@/components/ModuleList.vue'
+import CycleList from '@/components/CycleList.vue'
+import CustomFieldList from '@/components/CustomFieldList.vue'
+import EstimatePointManager from '@/components/EstimatePointManager.vue'
+import ProjectIssueTypeManager from '@/components/ProjectIssueTypeManager.vue'
 
 const { confirm } = useConfirm()
 
@@ -20,7 +26,16 @@ const loading = ref(false)
 const workspaceId = ref(0)
 const workspace = ref<Workspace | null>(null)
 const project = ref<ProjectResponse | null>(null)
-const activeSection = ref('states')
+const activeSection = ref('overview')
+
+// ===== Settings sub-page state =====
+const settingsLoading = ref(false)
+const settingsError = ref('')
+const deleteLoading = ref(false)
+const showEditModal = ref(false)
+const showDeleteConfirm = ref(false)
+const editForm = reactive({ name: '', identifier: '', description: '', color: '#6366f1' })
+const stats = ref({ issuesCount: 0, membersCount: 0 })
 
 // ===== Data =====
 const states = ref<any[]>([])
@@ -28,6 +43,27 @@ const labels = ref<any[]>([])
 const workflows = ref<any[]>([])
 const automations = ref<any[]>([])
 const members = ref<any[]>([])
+
+// ===== Menu items =====
+const menuItems = [
+  { id: 'overview', label: 'Overview', icon: '📊' },
+  { id: 'members', label: 'Members', icon: '👥' },
+  { id: 'states', label: 'States', icon: '🔄' },
+  { id: 'labels', label: 'Labels', icon: '🏷️' },
+  { id: 'issue-types', label: 'Issue Types', icon: '📐' },
+  { id: 'modules', label: 'Modules', icon: '📦' },
+  { id: 'cycles', label: 'Cycles', icon: '🔄' },
+  { id: 'custom-fields', label: 'Custom Fields', icon: '🔧' },
+  { id: 'estimate-points', label: 'Estimate Points', icon: '📏' },
+  { id: 'workflows', label: 'Workflows', icon: '⚙️' },
+  { id: 'automations', label: 'Automations', icon: '🤖' },
+  { id: 'delete', label: 'Delete Project', icon: '🗑️' },
+]
+
+const currentMenuLabel = computed(() => {
+  const item = menuItems.find(i => i.id === activeSection.value)
+  return item?.label || ''
+})
 
 // ===== State groups =====
 const STATE_GROUPS = [
@@ -212,6 +248,32 @@ async function handleDeleteAutomation(automation: any) {
   catch (e) { console.error('Failed to delete automation:', e) }
 }
 
+// ===== Overview / Edit handlers =====
+async function handleEditProject() {
+  editForm.name = project.value?.name || ''
+  editForm.identifier = project.value?.identifier || ''
+  editForm.description = project.value?.description || ''
+  editForm.color = project.value?.color || '#6366f1'
+  showEditModal.value = true
+}
+async function handleSaveProject() {
+  if (!editForm.name) { settingsError.value = 'Please enter project name'; return }
+  settingsLoading.value = true; settingsError.value = ''
+  try {
+    const data: ProjectUpdate = { name: editForm.name, identifier: editForm.identifier || undefined, description: editForm.description || undefined, color: editForm.color }
+    const updated = await projectApi.updateProject(projectId.value, data)
+    project.value = { ...project.value, ...updated } as ProjectResponse
+    showEditModal.value = false
+  } catch (e: any) { settingsError.value = e.response?.data?.message || 'Save failed' }
+  finally { settingsLoading.value = false }
+}
+async function handleDeleteProject() {
+  deleteLoading.value = true
+  try { await projectApi.deleteProject(projectId.value); router.push(`/workspace/${slug.value}`) }
+  catch (e: any) { alert(e.response?.data?.message || 'Delete failed'); showDeleteConfirm.value = false }
+  finally { deleteLoading.value = false }
+}
+
 function goBack() {
   router.push(`/workspace/${slug.value}/project/${projectId.value}`)
 }
@@ -222,6 +284,10 @@ onMounted(async () => {
     workspace.value = await workspaceApi.getBySlug(slug.value)
     workspaceId.value = workspace.value.id
     project.value = await projectApi.getProject(projectId.value)
+    try {
+      const membersData = await projectApi.listProjectMembers(projectId.value)
+      stats.value.membersCount = Array.isArray(membersData) ? membersData.length : 0
+    } catch (_) { /* ignore */ }
     await loadData()
   } catch (e) { console.error('Failed to load:', e) }
 })
@@ -243,22 +309,14 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-      <nav class="flex-1 p-4 space-y-1">
+      <nav class="flex-1 p-2 overflow-y-auto">
         <button
-          v-for="item in [
-            { id: 'states', label: 'States', icon: '🔄', count: totalStates },
-            { id: 'labels', label: 'Labels', icon: '🏷️', count: labels.length },
-            { id: 'workflows', label: 'Workflows', icon: '⚙️', count: workflows.length },
-            { id: 'automations', label: 'Automations', icon: '🤖', count: automations.length },
-          ]"
+          v-for="item in menuItems"
           :key="item.id"
           @click="activeSection = item.id"
-          :class="['w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors', activeSection === item.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800']"
+          :class="['w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors', activeSection === item.id ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50']"
         >
-          <span class="flex items-center space-x-3">
-            <span>{{ item.icon }}</span><span>{{ item.label }}</span>
-          </span>
-          <span class="text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ item.count }}</span>
+          <span>{{ item.icon }}</span><span>{{ item.label }}</span>
         </button>
       </nav>
     </aside>
@@ -267,23 +325,52 @@ onMounted(async () => {
     <main class="flex-1 overflow-auto">
       <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 class="text-xl font-semibold text-gray-800">{{ activeSection === 'states' ? 'States' : activeSection === 'labels' ? 'Labels' : activeSection === 'workflows' ? 'Workflows' : activeSection === 'automations' ? 'Automations' : '' }}</h1>
+          <h1 class="text-xl font-semibold text-gray-800">{{ currentMenuLabel }}</h1>
           <p class="text-sm text-gray-500 mt-1">Configure project-level settings</p>
         </div>
-        <button @click="goBack" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">← Back to Project</button>
+        <button @click="goBack" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">← Back to Project</button>
       </header>
 
       <div v-if="loading" class="flex items-center justify-center h-64"><div class="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div></div>
 
-      <!-- States Section -->
-      <div v-if="!loading && activeSection === 'states'" class="p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div><h2 class="text-lg font-semibold text-gray-900">Work Item States</h2><p class="text-sm text-gray-500 mt-1">5 fixed state groups. Manage states within each group.</p></div>
-          <div class="flex gap-2">
-            <button v-if="states.length === 0" @click="handleCreateDefaultStates" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">Create Default States</button>
+      <div class="p-6">
+        <!-- Overview -->
+        <div v-if="!loading && activeSection === 'overview'" class="bg-white rounded-lg border border-gray-200">
+          <div class="p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Project Overview</h2>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="p-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-500">Total States</p>
+                <p class="text-2xl font-bold text-gray-800">{{ totalStates }}</p>
+              </div>
+              <div class="p-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-500">Members</p>
+                <p class="text-2xl font-bold text-gray-800">{{ stats.membersCount }}</p>
+              </div>
+            </div>
+            <div class="pt-4 mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <p class="text-gray-600">{{ project?.description || 'No description' }}</p>
+            </div>
+          </div>
+          <div class="px-6 py-4 border-t border-gray-200">
+            <button @click="handleEditProject" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">Edit Project</button>
           </div>
         </div>
-        <div class="space-y-6">
+
+        <!-- Members -->
+        <div v-if="!loading && activeSection === 'members'" class="bg-white rounded-lg border border-gray-200">
+          <ProjectMemberList :project-id="projectId" :workspace-id="workspaceId" />
+        </div>
+
+        <!-- States -->
+        <div v-if="!loading && activeSection === 'states'" class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div><h2 class="text-lg font-semibold text-gray-900">Work Item States</h2><p class="text-sm text-gray-500 mt-1">5 fixed state groups. Manage states within each group.</p></div>
+            <div class="flex gap-2">
+              <button v-if="states.length === 0" @click="handleCreateDefaultStates" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">Create Default States</button>
+            </div>
+          </div>
           <div v-for="group in stateGroups" :key="group.id" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <div class="flex items-center space-x-3">
@@ -309,84 +396,186 @@ onMounted(async () => {
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Labels Section -->
-      <div v-if="!loading && activeSection === 'labels'" class="p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div><h2 class="text-lg font-semibold text-gray-900">Labels</h2><p class="text-sm text-gray-500 mt-1">Categorize work items with color-coded labels</p></div>
-          <button @click="handleAddLabel" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ Add Label</button>
-        </div>
-        <div class="flex flex-wrap gap-3">
-          <div v-for="label in labels" :key="label.id" @click="handleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
-            <div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: label.color }"></div>
-            <span class="text-sm font-medium" :style="{ color: label.color }">{{ label.name }}</span>
-            <button @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
+        <!-- Labels -->
+        <div v-if="!loading && activeSection === 'labels'" class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div><h2 class="text-lg font-semibold text-gray-900">Labels</h2><p class="text-sm text-gray-500 mt-1">Categorize work items with color-coded labels</p></div>
+            <button @click="handleAddLabel" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ Add Label</button>
           </div>
-          <div v-if="labels.length === 0" class="w-full text-center text-gray-400 py-8">No labels. Click "+ Add Label" to create.</div>
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <div class="flex flex-wrap gap-3">
+              <div v-for="label in labels" :key="label.id" @click="handleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
+                <div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: label.color }"></div>
+                <span class="text-sm font-medium" :style="{ color: label.color }">{{ label.name }}</span>
+                <button @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
+              </div>
+              <div v-if="labels.length === 0" class="w-full text-center text-gray-400 py-8">No labels. Click "+ Add Label" to create.</div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- Workflows Section -->
-      <div v-if="!loading && activeSection === 'workflows'" class="p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div><h2 class="text-lg font-semibold text-gray-900">Workflows</h2><p class="text-sm text-gray-500 mt-1">Manage state transition rules for this project</p></div>
-          <button @click="handleAddWorkflow" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ Create Workflow</button>
+        <!-- Issue Types -->
+        <div v-if="!loading && activeSection === 'issue-types'" class="bg-white rounded-lg border border-gray-200">
+          <ProjectIssueTypeManager :project-id="projectId" :workspace-id="workspaceId" />
         </div>
-        <div class="grid gap-4">
-          <div v-for="workflow in workflows" :key="workflow.id" class="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-md transition-all">
-            <div class="flex items-center justify-between">
-              <div @click="handleViewWorkflow(workflow.id)" class="flex-1 cursor-pointer">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h3 class="font-medium text-gray-900">{{ workflow.name }}</h3>
-                    <p class="mt-1 text-sm text-gray-500">{{ (workflow.transitions || []).length }} transitions</p>
+
+        <!-- Modules -->
+        <div v-if="!loading && activeSection === 'modules'" class="bg-white rounded-lg border border-gray-200">
+          <ModuleList :project-id="projectId" :workspace-id="workspaceId" />
+        </div>
+
+        <!-- Cycles -->
+        <div v-if="!loading && activeSection === 'cycles'" class="bg-white rounded-lg border border-gray-200">
+          <CycleList :project-id="projectId" :workspace-id="workspaceId" />
+        </div>
+
+        <!-- Custom Fields -->
+        <div v-if="!loading && activeSection === 'custom-fields'" class="bg-white rounded-lg border border-gray-200">
+          <CustomFieldList :project-id="projectId" />
+        </div>
+
+        <!-- Estimate Points -->
+        <div v-if="!loading && activeSection === 'estimate-points'" class="bg-white rounded-lg border border-gray-200">
+          <EstimatePointManager :project-id="projectId" />
+        </div>
+
+        <!-- Workflows -->
+        <div v-if="!loading && activeSection === 'workflows'" class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div><h2 class="text-lg font-semibold text-gray-900">Workflows</h2><p class="text-sm text-gray-500 mt-1">Manage state transition rules for this project</p></div>
+            <button @click="handleAddWorkflow" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ Create Workflow</button>
+          </div>
+          <div class="grid gap-4">
+            <div v-for="workflow in workflows" :key="workflow.id" class="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-md transition-all">
+              <div class="flex items-center justify-between">
+                <div @click="handleViewWorkflow(workflow.id)" class="flex-1 cursor-pointer">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h3 class="font-medium text-gray-900">{{ workflow.name }}</h3>
+                      <p class="mt-1 text-sm text-gray-500">{{ (workflow.transitions || []).length }} transitions</p>
+                    </div>
+                    <span class="text-gray-400">→</span>
                   </div>
-                  <span class="text-gray-400">→</span>
                 </div>
+                <button @click.stop="handleDeleteWorkflow(workflow)" class="ml-3 text-gray-400 hover:text-red-500 p-1">✕</button>
               </div>
-              <button @click.stop="handleDeleteWorkflow(workflow)" class="ml-3 text-gray-400 hover:text-red-500 p-1">✕</button>
             </div>
+            <div v-if="workflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">No workflows configured. Click "+ Create Workflow" to add.</div>
           </div>
-          <div v-if="workflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">No workflows configured. Click "+ Create Workflow" to add.</div>
         </div>
-      </div>
 
-      <!-- Automations Section -->
-      <div v-if="!loading && activeSection === 'automations'" class="p-6">
-        <div class="flex items-center justify-between mb-6">
-          <div><h2 class="text-lg font-semibold text-gray-900">Automations</h2><p class="text-sm text-gray-500 mt-1">Project-level automation rules</p></div>
-          <button @click="handleAddAutomation" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ Create Automation</button>
-        </div>
-        <div class="space-y-4">
-          <div v-for="automation in automations" :key="automation.id" class="bg-white rounded-xl border border-gray-200 p-4">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <div :class="['w-10 h-10 rounded-lg flex items-center justify-center', automation.is_enabled ? 'bg-green-100' : 'bg-gray-100']">
-                  <span class="text-lg">🤖</span>
-                </div>
-                <div>
-                  <h3 class="font-medium text-gray-900">{{ automation.name }}</h3>
-                  <p class="text-sm text-gray-500">{{ automation.description || 'No description' }}</p>
-                </div>
-              </div>
-              <div class="flex items-center space-x-3">
-                <span :class="['px-3 py-1 rounded-full text-xs font-medium', automation.is_enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500']">
-                  {{ automation.is_enabled ? 'Enabled' : 'Disabled' }}
-                </span>
-                <button @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500">🗑️</button>
-              </div>
-            </div>
-            <div class="mt-4 pt-4 border-t border-gray-100">
-              <div class="flex items-center space-x-2 text-sm">
-                <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-medium">Trigger: {{ automation.trigger_type }}</span>
-              </div>
-            </div>
+        <!-- Automations -->
+        <div v-if="!loading && activeSection === 'automations'" class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div><h2 class="text-lg font-semibold text-gray-900">Automations</h2><p class="text-sm text-gray-500 mt-1">Project-level automation rules</p></div>
+            <button @click="handleAddAutomation" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ Create Automation</button>
           </div>
-          <div v-if="automations.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">No automations. Click "+ Create Automation" to add.</div>
+          <div class="space-y-4">
+            <div v-for="automation in automations" :key="automation.id" class="bg-white rounded-xl border border-gray-200 p-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                  <div :class="['w-10 h-10 rounded-lg flex items-center justify-center', automation.is_enabled ? 'bg-green-100' : 'bg-gray-100']">
+                    <span class="text-lg">🤖</span>
+                  </div>
+                  <div>
+                    <h3 class="font-medium text-gray-900">{{ automation.name }}</h3>
+                    <p class="text-sm text-gray-500">{{ automation.description || 'No description' }}</p>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <span :class="['px-3 py-1 rounded-full text-xs font-medium', automation.is_enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500']">
+                    {{ automation.is_enabled ? 'Enabled' : 'Disabled' }}
+                  </span>
+                  <button @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500">🗑️</button>
+                </div>
+              </div>
+              <div class="mt-4 pt-4 border-t border-gray-100">
+                <div class="flex items-center space-x-2 text-sm">
+                  <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-medium">Trigger: {{ automation.trigger_type }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="automations.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">No automations. Click "+ Create Automation" to add.</div>
+          </div>
+        </div>
+
+        <!-- Delete Project -->
+        <div v-if="!loading && activeSection === 'delete'" class="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">Delete Project</h2>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl">⚠️</span>
+              <div>
+                <h3 class="font-medium text-red-800">Permanently Delete This Project</h3>
+                <p class="text-sm text-red-700 mt-1">This action will permanently delete the project and all related data including issues, comments, and attachments. This action cannot be undone.</p>
+              </div>
+            </div>
+            <button @click="showDeleteConfirm = true" class="mt-4 w-full px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition">
+              Delete Project
+            </button>
+          </div>
         </div>
       </div>
     </main>
+
+    <!-- Edit Project Modal -->
+    <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showEditModal = false">
+      <div class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">Edit Project</h3>
+          <button @click="showEditModal = false" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+        </div>
+        <div v-if="settingsError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{{ settingsError }}</div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <input v-model="editForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Project name" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Identifier</label>
+            <input v-model="editForm.identifier" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 uppercase" placeholder="PROJ" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea v-model="editForm.description" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Project description"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+            <div class="flex items-center gap-2">
+              <input v-model="editForm.color" type="color" class="w-10 h-10 rounded border border-gray-300 cursor-pointer" />
+              <input v-model="editForm.color" type="text" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="#6366f1" />
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button @click="showEditModal = false" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+          <button @click="handleSaveProject" :disabled="settingsLoading" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition">
+            {{ settingsLoading ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showDeleteConfirm = false">
+      <div class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-xl">⚠️</div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800">Confirm Delete</h3>
+            <p class="text-sm text-gray-500">This action cannot be undone</p>
+          </div>
+        </div>
+        <p class="text-gray-600 mb-6">Are you sure you want to delete <strong>{{ project?.name }}</strong>? This will permanently delete all related issues, comments, and attachments.</p>
+        <div class="flex gap-3">
+          <button @click="showDeleteConfirm = false" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+          <button @click="handleDeleteProject" :disabled="deleteLoading" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition">
+            {{ deleteLoading ? 'Deleting...' : 'Delete Project' }}
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- State Modal -->
     <div v-if="showStateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showStateModal = false">

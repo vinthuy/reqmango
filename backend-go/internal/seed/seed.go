@@ -424,5 +424,27 @@ func SeedConfigData(db *gorm.DB) {
 		fmt.Println("  Created sample comments")
 	}
 
+	var notifCount int64
+	db.Model(&model.Notification{}).Count(&notifCount)
+	if notifCount == 0 {
+		adminID := uint64(1)
+		db.Create(&model.Notification{
+			Title:       "Welcome to ReqManPy!",
+			Message:     "Your project management platform is ready. Start by creating your first work item.",
+			Type:        "info",
+			Priority:    "medium",
+			RecipientID: adminID,
+		})
+		db.Create(&model.Notification{
+			Title:       "Project Created",
+			Message:     "Demo project has been set up with sample data including issues, cycles, and modules.",
+			Type:        "success",
+			Priority:    "high",
+			RecipientID: adminID,
+			ProjectID:   &proj.ID,
+		})
+		fmt.Println("  Created sample notifications")
+	}
+
 	fmt.Println("--- Config seed complete ---")
 }

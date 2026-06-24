@@ -22,10 +22,12 @@ export interface ProjectCreate extends ProjectBase {
 
 export interface ProjectUpdate {
   name?: string
+  identifier?: string
   description?: string
   is_public?: boolean
   archived_at?: string
   default_assignee_id?: number
+  color?: string
 }
 
 // ==================== Project Response ====================
