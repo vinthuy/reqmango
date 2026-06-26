@@ -8,6 +8,7 @@ import type {
   ProjectResponse,
   ProjectMember,
   ProjectMemberCreate,
+  ProjectSubscriber,
   ProjectStatistics,
   ProjectIssuesSummary
 } from '@/types/project'
@@ -21,10 +22,11 @@ export async function createProject(
   workspaceId: number,
   data: ProjectCreate
 ): Promise<ProjectResponse> {
-  const response = await api.post(
-    `/projects/?workspace_id=${workspaceId}`,
-    data
-  )
+  let url = `/projects/?workspace_id=${workspaceId}`
+  if (data.template_id) {
+    url += `&template_id=${data.template_id}`
+  }
+  const response = await api.post(url, data)
   return response.data
 }
 
@@ -147,6 +149,72 @@ export async function removeProjectMember(
   return response.data
 }
 
+// ==================== Project Lead & Default Assignee ====================
+
+/**
+ * 更新项目默认处理人
+ */
+export async function updateDefaultAssignee(
+  projectId: number,
+  userId: number | null
+): Promise<ProjectResponse> {
+  const response = await api.patch(
+    `/projects/${projectId}?default_assignee_id=${userId ?? ''}`
+  )
+  return response.data
+}
+
+/**
+ * 更新项目负责人
+ */
+export async function updateProjectLead(
+  projectId: number,
+  userId: number | null
+): Promise<ProjectResponse> {
+  const response = await api.patch(
+    `/projects/${projectId}?project_lead_id=${userId ?? ''}`
+  )
+  return response.data
+}
+
+// ==================== Project Subscribers ====================
+
+/**
+ * 列出项目订阅者
+ */
+export async function listProjectSubscribers(
+  projectId: number
+): Promise<ProjectSubscriber[]> {
+  const response = await api.get(`/projects/${projectId}/subscribers`)
+  return response.data
+}
+
+/**
+ * 添加项目订阅者
+ */
+export async function addProjectSubscriber(
+  projectId: number,
+  userId: number
+): Promise<any> {
+  const response = await api.post(
+    `/projects/${projectId}/subscribers?user_id=${userId}`
+  )
+  return response.data
+}
+
+/**
+ * 移除项目订阅者
+ */
+export async function removeProjectSubscriber(
+  projectId: number,
+  userId: number
+): Promise<any> {
+  const response = await api.delete(
+    `/projects/${projectId}/subscribers/${userId}`
+  )
+  return response.data
+}
+
 // ==================== Project Statistics ====================
 
 /**
@@ -188,6 +256,15 @@ export const projectApi = {
   addProjectMember,
   updateProjectMember,
   removeProjectMember,
+  
+  // Lead & Default Assignee
+  updateDefaultAssignee,
+  updateProjectLead,
+  
+  // Subscribers
+  listProjectSubscribers,
+  addProjectSubscriber,
+  removeProjectSubscriber,
   
   // Statistics
   getProjectStatistics,

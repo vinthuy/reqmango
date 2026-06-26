@@ -170,6 +170,21 @@ export interface Automation {
   is_enabled: boolean
 }
 
+export interface WorkspaceMember {
+  id: number
+  workspace_id: number
+  user_id: number
+  role: number
+  is_active: boolean
+  user?: {
+    id: number
+    display_name: string
+    email: string
+  }
+  created_at: string
+  updated_at: string
+}
+
 // Re-export custom field types
 export * from './custom-field'
 

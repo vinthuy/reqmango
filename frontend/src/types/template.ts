@@ -5,6 +5,8 @@ export interface ProjectTemplate {
   workspace_id: number
   is_default: boolean
   types: ProjectTemplateType[]
+  states?: string
+  labels?: string
   created_at: string
   updated_at: string
 }
@@ -24,12 +26,16 @@ export interface ProjectTemplateCreate {
   name: string
   description?: string
   is_default?: boolean
+  states?: string
+  labels?: string
 }
 
 export interface ProjectTemplateUpdate {
   name?: string
   description?: string
   is_default?: boolean
+  states?: string
+  labels?: string
 }
 
 export interface TemplateTypeAdd {

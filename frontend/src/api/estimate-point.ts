@@ -1,14 +1,40 @@
-/**
- * Estimate Point API - 估算点API模块
- */
 import api from './index'
-import type { EstimatePoint, EstimatePointCreate, EstimatePointUpdate, EstimatePointBulkCreate, EstimatePointReorder } from '@/types/estimate-point'
+import type { 
+  EstimatePoint, 
+  EstimatePointCreate, 
+  EstimatePointUpdate, 
+  EstimatePointBulkCreate, 
+  EstimatePointReorder,
+  EstimateCategory,
+  EstimateCategoryCreate,
+  EstimateTime,
+  EstimateTimeCreate,
+  ProjectEstimateSettings,
+  EstimateMode
+} from '@/types/estimate-point'
 
 const BASE_URL = '/projects'
 
-/**
- * 创建估算点
- */
+export async function getEstimateSettings(
+  projectId: number
+): Promise<ProjectEstimateSettings> {
+  const response = await api.get(
+    `${BASE_URL}/${projectId}/estimate-points/settings`
+  )
+  return response.data
+}
+
+export async function updateEstimateSettings(
+  projectId: number,
+  mode: EstimateMode
+): Promise<ProjectEstimateSettings> {
+  const response = await api.put(
+    `${BASE_URL}/${projectId}/estimate-points/settings`,
+    { mode }
+  )
+  return response.data
+}
+
 export async function createEstimatePoint(
   projectId: number,
   data: EstimatePointCreate
@@ -20,9 +46,6 @@ export async function createEstimatePoint(
   return response.data
 }
 
-/**
- * 列出项目的估算点
- */
 export async function listEstimatePoints(
   projectId: number
 ): Promise<EstimatePoint[]> {
@@ -32,9 +55,6 @@ export async function listEstimatePoints(
   return response.data
 }
 
-/**
- * 获取默认估算点
- */
 export async function getDefaultEstimatePoint(
   projectId: number
 ): Promise<EstimatePoint> {
@@ -44,9 +64,6 @@ export async function getDefaultEstimatePoint(
   return response.data
 }
 
-/**
- * 获取估算点详情
- */
 export async function getEstimatePoint(
   projectId: number,
   pointId: number
@@ -57,9 +74,6 @@ export async function getEstimatePoint(
   return response.data
 }
 
-/**
- * 更新估算点
- */
 export async function updateEstimatePoint(
   projectId: number,
   pointId: number,
@@ -72,9 +86,6 @@ export async function updateEstimatePoint(
   return response.data
 }
 
-/**
- * 删除估算点
- */
 export async function deleteEstimatePoint(
   projectId: number,
   pointId: number
@@ -84,9 +95,6 @@ export async function deleteEstimatePoint(
   )
 }
 
-/**
- * 重新排序估算点
- */
 export async function reorderEstimatePoints(
   projectId: number,
   data: EstimatePointReorder
@@ -98,9 +106,6 @@ export async function reorderEstimatePoints(
   return response.data
 }
 
-/**
- * 批量创建估算点
- */
 export async function bulkCreateEstimatePoints(
   projectId: number,
   data: EstimatePointBulkCreate
@@ -112,9 +117,6 @@ export async function bulkCreateEstimatePoints(
   return response.data
 }
 
-/**
- * 创建默认估算点
- */
 export async function createDefaultEstimatePoints(
   projectId: number
 ): Promise<EstimatePoint[]> {
@@ -124,7 +126,67 @@ export async function createDefaultEstimatePoints(
   return response.data
 }
 
+export async function listEstimateCategories(
+  projectId: number
+): Promise<EstimateCategory[]> {
+  const response = await api.get(
+    `${BASE_URL}/${projectId}/estimate-categories`
+  )
+  return response.data
+}
+
+export async function createEstimateCategory(
+  projectId: number,
+  data: EstimateCategoryCreate
+): Promise<EstimateCategory> {
+  const response = await api.post(
+    `${BASE_URL}/${projectId}/estimate-categories`,
+    data
+  )
+  return response.data
+}
+
+export async function createDefaultEstimateCategories(
+  projectId: number
+): Promise<EstimateCategory[]> {
+  const response = await api.post(
+    `${BASE_URL}/${projectId}/estimate-categories/defaults`
+  )
+  return response.data
+}
+
+export async function listEstimateTime(
+  projectId: number
+): Promise<EstimateTime[]> {
+  const response = await api.get(
+    `${BASE_URL}/${projectId}/estimate-time`
+  )
+  return response.data
+}
+
+export async function createEstimateTime(
+  projectId: number,
+  data: EstimateTimeCreate
+): Promise<EstimateTime> {
+  const response = await api.post(
+    `${BASE_URL}/${projectId}/estimate-time`,
+    data
+  )
+  return response.data
+}
+
+export async function createDefaultEstimateTime(
+  projectId: number
+): Promise<EstimateTime[]> {
+  const response = await api.post(
+    `${BASE_URL}/${projectId}/estimate-time/defaults`
+  )
+  return response.data
+}
+
 export default {
+  getEstimateSettings,
+  updateEstimateSettings,
   createEstimatePoint,
   listEstimatePoints,
   getDefaultEstimatePoint,
@@ -133,5 +195,11 @@ export default {
   deleteEstimatePoint,
   reorderEstimatePoints,
   bulkCreateEstimatePoints,
-  createDefaultEstimatePoints
+  createDefaultEstimatePoints,
+  listEstimateCategories,
+  createEstimateCategory,
+  createDefaultEstimateCategories,
+  listEstimateTime,
+  createEstimateTime,
+  createDefaultEstimateTime
 }

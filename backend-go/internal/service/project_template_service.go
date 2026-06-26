@@ -1,6 +1,8 @@
 package service
 
 import (
+	"encoding/json"
+
 	"github.com/reqmanpy/backend-go/internal/common"
 	"github.com/reqmanpy/backend-go/internal/dto/request"
 	"github.com/reqmanpy/backend-go/internal/dto/response"
@@ -23,6 +25,8 @@ func (s *ProjectTemplateService) buildResponse(t model.ProjectTemplate) *respons
 		Description: t.Description,
 		WorkspaceID: t.WorkspaceID,
 		IsDefault:   t.IsDefault,
+		States:      t.States,
+		Labels:      t.Labels,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,
 		Types:       make([]response.ProjectTemplateTypeResponse, 0),
@@ -53,6 +57,8 @@ func (s *ProjectTemplateService) Create(workspaceID, userID uint64, req request.
 		Description: req.Description,
 		WorkspaceID: workspaceID,
 		IsDefault:   req.IsDefault,
+		States:      req.States,
+		Labels:      req.Labels,
 	}
 	t.CreatedByID = &userID
 	if err := s.db.Create(&t).Error; err != nil {
@@ -100,6 +106,12 @@ func (s *ProjectTemplateService) Update(templateID, userID uint64, req request.P
 		s.db.Model(&model.ProjectTemplate{}).Where("workspace_id = ? AND is_default = ?", t.WorkspaceID, true).
 			Update("is_default", false)
 		t.IsDefault = true
+	}
+	if req.States != nil {
+		t.States = req.States
+	}
+	if req.Labels != nil {
+		t.Labels = req.Labels
 	}
 	t.UpdatedByID = &userID
 	if err := s.db.Save(&t).Error; err != nil {
@@ -212,6 +224,54 @@ func (s *ProjectTemplateService) Apply(templateID, projectID uint64) error {
 
 	// Phase 4: Set project template_id
 	tx.Model(&project).Update("template_id", templateID)
+
+	// Phase 5: Copy template states to project
+	if pt.States != nil {
+		var templateStates []struct {
+			Name     string `json:"name"`
+			Color    string `json:"color"`
+			Group    string `json:"group"`
+			Sequence int    `json:"sequence"`
+		}
+		if err := json.Unmarshal([]byte(*pt.States), &templateStates); err != nil {
+			tx.Rollback(); return common.BadRequest("Invalid template states JSON")
+		}
+		for _, ts := range templateStates {
+			state := model.State{
+				Name:        ts.Name,
+				Color:       ts.Color,
+				Group:       ts.Group,
+				Sequence:    ts.Sequence,
+				IsActive:    true,
+				ProjectID:   projectID,
+				WorkspaceID: project.WorkspaceID,
+			}
+			if err := tx.Create(&state).Error; err != nil {
+				tx.Rollback(); return common.Internal("Failed to create state: " + ts.Name)
+			}
+		}
+	}
+
+	// Phase 6: Copy template labels to project
+	if pt.Labels != nil {
+		var templateLabels []struct {
+			Name  string `json:"name"`
+			Color string `json:"color"`
+		}
+		if err := json.Unmarshal([]byte(*pt.Labels), &templateLabels); err != nil {
+			tx.Rollback(); return common.BadRequest("Invalid template labels JSON")
+		}
+		for _, tl := range templateLabels {
+			label := model.Label{
+				Name:      tl.Name,
+				Color:     tl.Color,
+				ProjectID: projectID,
+			}
+			if err := tx.Create(&label).Error; err != nil {
+				tx.Rollback(); return common.Internal("Failed to create label: " + tl.Name)
+			}
+		}
+	}
 
 	if err := tx.Commit().Error; err != nil {
 		return common.Internal("Failed to apply template")

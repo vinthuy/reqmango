@@ -302,11 +302,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import customFieldApi from '@/api/custom-field'
 import type { CustomFieldCreate, CustomFieldUpdate, CustomField } from '@/types/custom-field'
 
 // Props
 const props = defineProps<{
   projectId: number
+  workspaceId: number
   field?: CustomField
 }>()
 
@@ -422,7 +424,15 @@ async function handleSubmit() {
       max_length: form.value.max_length
     }
 
+    if (isEdit.value && props.field) {
+      await customFieldApi.updateCustomField(props.field.id, data as CustomFieldUpdate)
+    } else {
+      await customFieldApi.createCustomField(props.workspaceId, data as CustomFieldCreate)
+    }
+
     emit('submit', data)
+  } catch (e: any) {
+    alert(e.response?.data?.message || '操作失败')
   } finally {
     submitting.value = false
   }

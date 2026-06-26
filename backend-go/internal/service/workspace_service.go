@@ -217,3 +217,97 @@ func (s *WorkspaceService) ListMembers(workspaceID uint64) ([]model.WorkspaceMem
 	}
 	return members, nil
 }
+
+// AddMember adds a user to a workspace.
+func (s *WorkspaceService) AddMember(workspaceID uint64, req *request.WorkspaceAddMemberRequest, addedBy uint64) (*response.WorkspaceMemberResponse, error) {
+	// Verify user exists
+	var user model.User
+	if err := s.db.First(&user, req.UserID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("User not found")
+		}
+		return nil, common.Internal("Database error")
+	}
+
+	// Check if already a workspace member
+	var existing model.WorkspaceMember
+	err := s.db.Where("workspace_id = ? AND user_id = ?", workspaceID, req.UserID).First(&existing).Error
+	if err == nil {
+		return nil, common.Conflict("User is already a workspace member")
+	}
+
+	role := req.Role
+	if role == 0 {
+		role = common.RoleMember
+	}
+
+	member := &model.WorkspaceMember{
+		WorkspaceID: workspaceID,
+		UserID:      req.UserID,
+		Role:        role,
+		IsActive:    true,
+	}
+	if err := s.db.Create(member).Error; err != nil {
+		return nil, common.Internal("Failed to add workspace member")
+	}
+
+	// Reload with user
+	s.db.Preload("User").First(member, member.ID)
+
+	return &response.WorkspaceMemberResponse{
+		ID:          member.ID,
+		WorkspaceID: member.WorkspaceID,
+		UserID:      member.UserID,
+		Role:        member.Role,
+		IsActive:    member.IsActive,
+		User: response.UserLite{
+			ID:          member.User.ID,
+			DisplayName: member.User.DisplayName,
+			Email:       member.User.Email,
+		},
+		CreatedAt: member.CreatedAt,
+		UpdatedAt: member.UpdatedAt,
+	}, nil
+}
+
+// UpdateMember updates a workspace member's role.
+func (s *WorkspaceService) UpdateMember(workspaceID uint64, userID uint64, role int) (*response.WorkspaceMemberResponse, error) {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ?", workspaceID, userID).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("Workspace member not found")
+		}
+		return nil, common.Internal("Database error")
+	}
+
+	member.Role = role
+	s.db.Save(&member)
+
+	s.db.Preload("User").First(&member, member.ID)
+
+	return &response.WorkspaceMemberResponse{
+		ID:          member.ID,
+		WorkspaceID: member.WorkspaceID,
+		UserID:      member.UserID,
+		Role:        member.Role,
+		IsActive:    member.IsActive,
+		User: response.UserLite{
+			ID:          member.User.ID,
+			DisplayName: member.User.DisplayName,
+			Email:       member.User.Email,
+		},
+		CreatedAt: member.CreatedAt,
+		UpdatedAt: member.UpdatedAt,
+	}, nil
+}
+
+// RemoveMember performs a soft remove on a workspace member (sets is_active=false).
+func (s *WorkspaceService) RemoveMember(workspaceID uint64, userID uint64) error {
+	result := s.db.Model(&model.WorkspaceMember{}).
+		Where("workspace_id = ? AND user_id = ?", workspaceID, userID).
+		Update("is_active", false)
+	if result.RowsAffected == 0 {
+		return common.NotFound("Workspace member not found")
+	}
+	return nil
+}

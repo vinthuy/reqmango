@@ -2,20 +2,21 @@ package request
 
 // IssueCreateRequest is the request body for creating an issue.
 type IssueCreateRequest struct {
-	Name             string  `json:"name" binding:"required,min=1,max=255"`
-	DescriptionHTML  string  `json:"description_html"`
-	DescriptionJSON  *string `json:"description_json"`
-	Priority         string  `json:"priority"`
-	StateID          *uint64 `json:"state_id"`
-	AssigneeIDs      []uint64 `json:"assignee_ids"`
-	LabelIDs         []uint64 `json:"label_ids"`
-	StartDate        *string `json:"start_date"`   // RFC3339 date
-	TargetDate       *string `json:"target_date"`  // RFC3339 date
-	ParentID         *uint64 `json:"parent_id"`
-	EstimatePointID  *uint64 `json:"estimate_point_id"`
-	TypeID           *uint64 `json:"type_id"`
-	ExternalID       *string `json:"external_id"`
-	ExternalSource   *string `json:"external_source"`
+	Name             string                  `json:"name" binding:"required,min=1,max=255"`
+	DescriptionHTML  string                  `json:"description_html"`
+	DescriptionJSON  *string                 `json:"description_json"`
+	Priority         string                  `json:"priority"`
+	StateID          *uint64                 `json:"state_id"`
+	AssigneeIDs      []uint64                `json:"assignee_ids"`
+	LabelIDs         []uint64                `json:"label_ids"`
+	StartDate        *string                 `json:"start_date"`   // RFC3339 date
+	TargetDate       *string                 `json:"target_date"`  // RFC3339 date
+	ParentID         *uint64                 `json:"parent_id"`
+	EstimatePointID  *uint64                 `json:"estimate_point_id"`
+	TypeID           *uint64                 `json:"type_id"`
+	ExternalID       *string                 `json:"external_id"`
+	ExternalSource   *string                 `json:"external_source"`
+	CustomFieldValues map[uint64]interface{} `json:"custom_field_values"`
 }
 
 // IssueUpdateRequest is the request body for updating an issue.
@@ -51,3 +52,20 @@ type BulkUpdateRequest struct {
 type BulkDeleteRequest struct {
 	IssueIDs []uint64 `json:"issue_ids" binding:"required"`
 }
+
+// ImportIssueItem represents a single issue item for import (JSON format).
+type ImportIssueItem struct {
+	Name           string   `json:"name"`
+	Description    string   `json:"description"`
+	Priority       string   `json:"priority"`
+	StateName      string   `json:"state_name"`
+	TypeName       string   `json:"type_name"`
+	AssigneeEmails []string `json:"assignee_emails"`
+	LabelNames     []string `json:"label_names"`
+	StartDate      string   `json:"start_date"`
+	TargetDate     string   `json:"target_date"`
+	ParentTitle    string   `json:"parent_title"`
+}
+
+// CSVImportRow represents a row parsed from CSV.
+type CSVImportRow map[string]string

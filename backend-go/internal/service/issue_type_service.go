@@ -163,6 +163,9 @@ func (s *IssueTypeService) Update(typeID, userID uint64, req request.IssueTypeUp
 	if req.ParentTypeID != nil {
 		t.ParentTypeID = req.ParentTypeID
 	}
+	if req.AllowedChildTypeIDs != nil {
+		t.AllowedChildTypeIDs = req.AllowedChildTypeIDs
+	}
 
 	t.UpdatedByID = &userID
 	if err := s.db.Save(&t).Error; err != nil {

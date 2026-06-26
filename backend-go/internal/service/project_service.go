@@ -56,6 +56,9 @@ func (s *ProjectService) Create(req *request.ProjectCreateRequest, workspaceID, 
 		WorkspaceID:       workspaceID,
 		DefaultAssigneeID: req.DefaultAssigneeID,
 	}
+	if req.TemplateID != nil {
+		project.TemplateID = req.TemplateID
+	}
 
 	tx := s.db.Begin()
 
@@ -76,21 +79,23 @@ func (s *ProjectService) Create(req *request.ProjectCreateRequest, workspaceID, 
 		return nil, common.Internal("Failed to add project member")
 	}
 
-	// Create default states
-	for _, ds := range common.DefaultStates {
-		state := &model.State{
-			Name:        ds.Name,
-			Color:       ds.Color,
-			Group:       ds.Group,
-			Sequence:    ds.Sequence,
-			IsDefault:   ds.IsDefault,
-			IsActive:    true,
-			ProjectID:   project.ID,
-			WorkspaceID: workspaceID,
-		}
-		if err := tx.Create(state).Error; err != nil {
-			tx.Rollback()
-			return nil, common.Internal("Failed to create default states")
+	// Create default states (skip if using template — template provides them via Apply)
+	if req.TemplateID == nil {
+		for _, ds := range common.DefaultStates {
+			state := &model.State{
+				Name:        ds.Name,
+				Color:       ds.Color,
+				Group:       ds.Group,
+				Sequence:    ds.Sequence,
+				IsDefault:   ds.IsDefault,
+				IsActive:    true,
+				ProjectID:   project.ID,
+				WorkspaceID: workspaceID,
+			}
+			if err := tx.Create(state).Error; err != nil {
+				tx.Rollback()
+				return nil, common.Internal("Failed to create default states")
+			}
 		}
 	}
 
@@ -421,7 +426,7 @@ func (s *ProjectService) GetIssuesSummary(projectID uint64) (*response.IssuesSum
 // buildResponse is a wrapper that fetches the full model and builds the response.
 func (s *ProjectService) buildResponse(projectID uint64) (*response.ProjectResponse, error) {
 	var project model.Project
-	if err := s.db.Preload("Workspace").Preload("DefaultAssignee").First(&project, projectID).Error; err != nil {
+	if err := s.db.Preload("Workspace").Preload("DefaultAssignee").Preload("ProjectLead").First(&project, projectID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, common.NotFound("Project not found")
 		}
@@ -470,10 +475,121 @@ func (s *ProjectService) buildProjectResponse(project *model.Project) (*response
 		}
 	}
 
+	resp.ProjectLeadID = project.ProjectLeadID
+	if project.ProjectLead != nil && project.ProjectLead.ID != 0 {
+		resp.ProjectLead = &response.UserLite{
+			ID:          project.ProjectLead.ID,
+			DisplayName: project.ProjectLead.DisplayName,
+			Email:       project.ProjectLead.Email,
+		}
+	}
+
 	if project.DeletedAt.Valid {
 		resp.DeletedAt = &project.DeletedAt.Time
 		resp.IsDeleted = true
 	}
 
 	return resp, nil
+}
+
+// UpdateProjectLead sets or clears the project lead.
+func (s *ProjectService) UpdateProjectLead(projectID uint64, userID *uint64) (*response.ProjectResponse, error) {
+	var project model.Project
+	if err := s.db.First(&project, projectID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("Project not found")
+		}
+		return nil, common.Internal("Database error")
+	}
+
+	project.ProjectLeadID = userID
+	if err := s.db.Save(&project).Error; err != nil {
+		return nil, common.Internal("Failed to update project lead")
+	}
+
+	return s.buildResponse(projectID)
+}
+
+// ListSubscribers returns all subscribers for a project.
+func (s *ProjectService) ListSubscribers(projectID uint64) ([]response.ProjectSubscriberResponse, error) {
+	var project model.Project
+	if err := s.db.First(&project, projectID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("Project not found")
+		}
+		return nil, common.Internal("Database error")
+	}
+
+	var subs []model.ProjectSubscriber
+	if err := s.db.Where("project_id = ?", projectID).Preload("User").Find(&subs).Error; err != nil {
+		return nil, common.Internal("Database error")
+	}
+
+	result := make([]response.ProjectSubscriberResponse, len(subs))
+	for i, s := range subs {
+		result[i] = response.ProjectSubscriberResponse{
+			ID:        s.ID,
+			ProjectID: s.ProjectID,
+			UserID:    s.UserID,
+			User: &response.UserLite{
+				ID:          s.User.ID,
+				DisplayName: s.User.DisplayName,
+				Email:       s.User.Email,
+			},
+			CreatedAt: s.CreatedAt,
+			UpdatedAt: s.UpdatedAt,
+		}
+	}
+	return result, nil
+}
+
+// AddSubscriber adds a user as a project subscriber.
+func (s *ProjectService) AddSubscriber(projectID, userID uint64) (*response.ProjectSubscriberResponse, error) {
+	// Verify user exists
+	var user model.User
+	if err := s.db.First(&user, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("User not found")
+		}
+		return nil, common.Internal("Database error")
+	}
+
+	// Check if already subscribed
+	var existing model.ProjectSubscriber
+	err := s.db.Where("project_id = ? AND user_id = ?", projectID, userID).First(&existing).Error
+	if err == nil {
+		return nil, common.Conflict("User is already a subscriber")
+	}
+
+	sub := &model.ProjectSubscriber{
+		ProjectID: projectID,
+		UserID:    userID,
+	}
+	if err := s.db.Create(sub).Error; err != nil {
+		return nil, common.Internal("Failed to add subscriber")
+	}
+
+	s.db.Preload("User").First(sub, sub.ID)
+
+	return &response.ProjectSubscriberResponse{
+		ID:        sub.ID,
+		ProjectID: sub.ProjectID,
+		UserID:    sub.UserID,
+		User: &response.UserLite{
+			ID:          sub.User.ID,
+			DisplayName: sub.User.DisplayName,
+			Email:       sub.User.Email,
+		},
+		CreatedAt: sub.CreatedAt,
+		UpdatedAt: sub.UpdatedAt,
+	}, nil
+}
+
+// RemoveSubscriber removes a user from project subscribers.
+func (s *ProjectService) RemoveSubscriber(projectID, userID uint64) error {
+	result := s.db.Where("project_id = ? AND user_id = ?", projectID, userID).Delete(&model.ProjectSubscriber{})
+	if result.RowsAffected == 0 {
+		return common.NotFound("Subscriber not found")
+	}
+	return nil
 }

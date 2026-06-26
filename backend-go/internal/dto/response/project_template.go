@@ -8,6 +8,8 @@ type ProjectTemplateResponse struct {
 	Description string                        `json:"description"`
 	WorkspaceID uint64                        `json:"workspace_id"`
 	IsDefault   bool                          `json:"is_default"`
+	States      *string                       `json:"states,omitempty"`
+	Labels      *string                       `json:"labels,omitempty"`
 	Types       []ProjectTemplateTypeResponse `json:"types"`
 	CreatedAt   time.Time                     `json:"created_at"`
 	UpdatedAt   time.Time                     `json:"updated_at"`

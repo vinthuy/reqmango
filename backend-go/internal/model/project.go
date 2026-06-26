@@ -14,12 +14,14 @@ type Project struct {
 	ArchivedAt        *time.Time `json:"archived_at"`
 	WorkspaceID       uint64     `gorm:"not null;index" json:"workspace_id"`
 	DefaultAssigneeID *uint64    `json:"default_assignee_id"`
+	ProjectLeadID     *uint64    `json:"project_lead_id"`
 	Color             string     `gorm:"size:20;default:'#6366F1'" json:"color"`
 	TemplateID        *uint64    `json:"template_id"`
 
 	// Relationships
 	Workspace       Workspace       `gorm:"foreignKey:WorkspaceID" json:"-"`
 	DefaultAssignee *User           `gorm:"foreignKey:DefaultAssigneeID" json:"-"`
+	ProjectLead     *User           `gorm:"foreignKey:ProjectLeadID" json:"-"`
 	Members         []ProjectMember `gorm:"foreignKey:ProjectID" json:"-"`
 	Issues          []Issue         `gorm:"foreignKey:ProjectID" json:"-"`
 	States          []State         `gorm:"foreignKey:ProjectID" json:"-"`
@@ -47,4 +49,20 @@ type ProjectMember struct {
 
 func (ProjectMember) TableName() string {
 	return "project_members"
+}
+
+// ProjectSubscriber represents a user's subscription to a project.
+type ProjectSubscriber struct {
+	BaseModel
+
+	ProjectID uint64 `gorm:"not null;uniqueIndex:idx_proj_sub_user" json:"project_id"`
+	UserID    uint64 `gorm:"not null;uniqueIndex:idx_proj_sub_user" json:"user_id"`
+
+	// Relationships
+	Project Project `gorm:"foreignKey:ProjectID" json:"-"`
+	User    User    `gorm:"foreignKey:UserID" json:"-"`
+}
+
+func (ProjectSubscriber) TableName() string {
+	return "project_subscribers"
 }

@@ -48,6 +48,7 @@
               高级搜索
               <svg class="w-3 h-3 inline ml-1" :class="{ 'rotate-180': showAdvanced }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
+            <button @click="showImportModal = true" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">导入</button>
           </div>
         </div>
       </div>
@@ -104,7 +105,31 @@
             <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: state.color || '#6366f1' }"></span>
             <h3 class="text-sm font-medium text-gray-700">{{ state.name }}</h3>
           </div>
-          <span class="text-xs bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full">{{ groupedIssues[state.id]?.length || 0 }}</span>
+          <div class="flex items-center space-x-1">
+            <button
+              @click="openQuickCreate(state.id)"
+              class="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-gray-200 rounded text-sm"
+              title="快速创建"
+            >
+              +
+            </button>
+            <span class="text-xs bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full">{{ groupedIssues[state.id]?.length || 0 }}</span>
+          </div>
+        </div>
+
+        <!-- 快速创建输入框 -->
+        <div v-if="quickCreateStateId === state.id" class="mb-3">
+          <QuickCreateInput
+            :project-id="projectId"
+            :workspace-id="workspaceId"
+            :issue-types="issueTypes"
+            :default-state-id="state.id"
+            :show-priority="false"
+            inline
+            show-cancel
+            @created="onQuickCreated"
+            @cancel="closeQuickCreate"
+          />
         </div>
 
         <!-- 卡片列表 -->
@@ -144,6 +169,13 @@
         </div>
       </div>
     </div>
+    <ImportIssuesModal
+      :visible="showImportModal"
+      :project-id="projectId"
+      :workspace-id="workspaceId"
+      @close="showImportModal = false"
+      @success="onImportSuccess"
+    />
   </div>
 </template>
 
@@ -155,6 +187,9 @@ import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
 import { RQLInput } from '@/components/RQL'
 import { useRQL } from '@/composables/useRQL'
+import QuickCreateInput from '@/components/QuickCreateInput.vue'
+import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
+import * as issueTypeApi from '@/api/issue-type'
 
 const props = defineProps<{ projectId: number; workspaceId: number }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
@@ -235,10 +270,21 @@ function resetFilters() {
   reload()
 }
 
-onMounted(() => Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields()]))
+onMounted(() => Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes()]))
 async function loadCustomFields() {
   try { customFields.value = await customFieldApi.listCustomFields(props.workspaceId, props.projectId) } catch { /* */ }
 }
+const issueTypes = ref<any[]>([])
+async function loadIssueTypes() {
+  try { issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId) } catch { /* */ }
+}
+const quickCreateStateId = ref<number | null>(null)
+function openQuickCreate(stateId: number) { quickCreateStateId.value = stateId }
+function closeQuickCreate() { quickCreateStateId.value = null }
+function onQuickCreated() { quickCreateStateId.value = null; loadIssues() }
+
+const showImportModal = ref(false)
+function onImportSuccess() { loadIssues() }
 
 async function loadIssues() {
   loading.value = true

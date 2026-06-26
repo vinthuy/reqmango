@@ -8,6 +8,7 @@ type ProjectCreateRequest struct {
 	IsPublic          *bool   `json:"is_public"`
 	Timezone          string  `json:"timezone"`
 	DefaultAssigneeID *uint64 `json:"default_assignee_id"`
+	TemplateID        *uint64 `json:"template_id"`
 }
 
 // ProjectUpdateRequest is the request body for updating a project.

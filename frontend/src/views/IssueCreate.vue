@@ -34,6 +34,21 @@
           </div>
         </div>
 
+        <!-- 模板选择 -->
+        <div v-if="availableTemplates.length > 0" class="form-group">
+          <label class="form-label">模板</label>
+          <select
+            v-model.number="selectedTemplateId"
+            @change="handleTemplateChange(selectedTemplateId)"
+            class="form-input"
+          >
+            <option :value="null">选择模板...</option>
+            <option v-for="tmpl in availableTemplates" :key="tmpl.id" :value="tmpl.id">
+              {{ tmpl.name }}{{ tmpl.is_default ? ' (默认)' : '' }}
+            </option>
+          </select>
+        </div>
+
         <!-- 标题 -->
         <div class="form-group">
           <label class="form-label">标题 <span class="required">*</span></label>
@@ -207,6 +222,8 @@ import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
 import projectApi from '@/api/project'
 import customFieldApi from '@/api/custom-field'
+import workItemTemplateApi from '@/api/work-item-template'
+import type { WorkItemTemplate } from '@/types/work-item-template'
 
 const route = useRoute()
 const router = useRouter()
@@ -230,6 +247,9 @@ const projectMembers = ref<User[]>([])
 const selectedTypeId = ref<number | null>(null)
 const customFieldValues = ref<Record<number, IssueCustomFieldValueUpdate>>({})
 const saving = ref(false)
+
+const templates = ref<WorkItemTemplate[]>([])
+const selectedTemplateId = ref<number | null>(null)
 
 // 表单数据
 const formData = ref({
@@ -265,6 +285,11 @@ const canSubmit = computed(() => {
   return true
 })
 
+const availableTemplates = computed(() => {
+  if (!selectedTypeId.value) return templates.value
+  return templates.value.filter(t => !t.issue_type_id || t.issue_type_id === selectedTypeId.value)
+})
+
 // 判断字段是否必填
 function isFieldRequired(field: any): boolean {
   return field.is_required === true
@@ -276,6 +301,71 @@ function hasFieldValue(fieldId: number): boolean {
   if (!value) return false
   return !!(value.text_value || value.number_value !== undefined || value.boolean_value ||
     value.date_value || value.url_value || (value.json_value && value.json_value.length > 0))
+}
+
+async function loadTemplates() {
+  try {
+    templates.value = await workItemTemplateApi.listTemplates(projectId.value)
+  } catch (e) {
+    console.error('Failed to load templates:', e)
+  }
+}
+
+function applyTemplate(template: WorkItemTemplate | null) {
+  if (!template) return
+
+  const defaults = template.defaults
+
+  if (defaults.name_prefix) {
+    formData.value.name = defaults.name_prefix
+  }
+
+  if (defaults.priority) {
+    formData.value.priority = defaults.priority
+  }
+
+  if (defaults.state_id) {
+    formData.value.state_id = defaults.state_id
+  }
+
+  if (defaults.assignee_ids && defaults.assignee_ids.length > 0) {
+    formData.value.assignee_id = defaults.assignee_ids[0]
+  }
+
+  if (defaults.label_ids && defaults.label_ids.length > 0) {
+    selectedLabelIds.value = [...defaults.label_ids]
+  }
+
+  if (defaults.description_html) {
+    formData.value.description = defaults.description_html
+  }
+}
+
+function applyDefaultTemplateForType(typeId: number | null) {
+  if (!typeId) {
+    selectedTemplateId.value = null
+    return
+  }
+
+  const defaultTemplate = templates.value.find(t => t.is_default && t.issue_type_id === typeId)
+  if (defaultTemplate) {
+    selectedTemplateId.value = defaultTemplate.id
+    applyTemplate(defaultTemplate)
+  } else {
+    selectedTemplateId.value = null
+  }
+}
+
+function handleTemplateChange(templateId: number | null) {
+  if (!templateId) {
+    selectedTemplateId.value = null
+    return
+  }
+  const template = templates.value.find(t => t.id === templateId)
+  if (template) {
+    selectedTemplateId.value = templateId
+    applyTemplate(template)
+  }
 }
 
 // 加载数据
@@ -331,6 +421,13 @@ async function loadData() {
       projectMembers.value = membersRes.map((m: any) => m.user)
     } catch (e) {
       console.error('Failed to load project members:', e)
+    }
+
+    // 加载工作项模板
+    try {
+      await loadTemplates()
+    } catch (e) {
+      console.error('Failed to load templates:', e)
     }
   } catch (error) {
     console.error('Failed to load data:', error)
@@ -390,6 +487,15 @@ async function submitForm() {
     return
   }
 
+  // 检查必填自定义字段
+  const missingFields = linkedFields.value
+    .filter(field => isFieldRequired(field) && !hasFieldValue(field.field_id))
+    .map(field => field.name)
+  if (missingFields.length > 0) {
+    alert('请填写必填字段: ' + missingFields.join(', '))
+    return
+  }
+
   saving.value = true
   try {
     const data: any = {
@@ -441,6 +547,22 @@ async function submitForm() {
       data.parent_id = selectedParent.value.id
     }
 
+    // Add custom field values for validation
+    const cfValues: Record<number, any> = {}
+    for (const [fieldId, v] of Object.entries(customFieldValues.value)) {
+      const val = v as any
+      const value = val.text_value ?? val.date_value ?? val.url_value ??
+                    (val.number_value !== undefined ? String(val.number_value) : '') ??
+                    (val.boolean_value !== undefined ? String(val.boolean_value) : '') ??
+                    (val.json_value?.length ? JSON.stringify(val.json_value) : '') ?? ''
+      if (value !== '') {
+        cfValues[parseInt(fieldId)] = value
+      }
+    }
+    if (Object.keys(cfValues).length > 0) {
+      data.custom_field_values = cfValues
+    }
+
     console.log('Creating issue with data:', data)
     const issue = await issueApi.createIssue(projectId.value, workspaceId.value, data)
     console.log('Created issue:', issue)
@@ -489,6 +611,7 @@ function goBack() {
 watch(selectedTypeId, (newTypeId) => {
   if (newTypeId) {
     loadLinkedFields(newTypeId)
+    applyDefaultTemplateForType(newTypeId)
   }
 })
 

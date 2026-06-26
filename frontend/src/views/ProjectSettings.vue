@@ -6,14 +6,17 @@ import { projectApi } from '@/api/project'
 import * as workflowApi from '@/api/workflow'
 import api from '@/api'
 import type { Workspace } from '@/types'
-import type { ProjectResponse, ProjectUpdate } from '@/types/project'
+import type { ProjectResponse, ProjectUpdate, UserLite, ProjectSubscriber } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
 import ProjectMemberList from '@/components/ProjectMemberList.vue'
 import ModuleList from '@/components/ModuleList.vue'
 import CycleList from '@/components/CycleList.vue'
 import CustomFieldList from '@/components/CustomFieldList.vue'
+import CustomFieldForm from '@/components/CustomFieldForm.vue'
 import EstimatePointManager from '@/components/EstimatePointManager.vue'
 import ProjectIssueTypeManager from '@/components/ProjectIssueTypeManager.vue'
+import WorkItemTemplateManager from '@/components/WorkItemTemplateManager.vue'
+import ReleaseList from '@/components/ReleaseList.vue'
 
 const { confirm } = useConfirm()
 
@@ -44,6 +47,44 @@ const workflows = ref<any[]>([])
 const automations = ref<any[]>([])
 const members = ref<any[]>([])
 
+// ===== Custom Field Form =====
+const showFieldForm = ref(false)
+const editingField = ref<any>(null)
+
+function handleCreateField() {
+  editingField.value = null
+  showFieldForm.value = true
+}
+
+function handleEditField(field: any) {
+  editingField.value = field
+  showFieldForm.value = true
+}
+
+function handleFieldSaved() {
+  showFieldForm.value = false
+  editingField.value = null
+}
+
+// ===== Default Assignee / Project Lead / Subscribers =====
+const defaultAssigneeId = ref<number | null>(null)
+const projectLeadId = ref<number | null>(null)
+const subscribers = ref<ProjectSubscriber[]>([])
+const updatingAssignee = ref(false)
+const updatingLead = ref(false)
+const showSubscriberPicker = ref(false)
+const subscriberPickerUserId = ref<number | null>(null)
+
+function getMemberDisplay(member: any): string {
+  if (!member) return ''
+  return member.user?.display_name || member.display_name || member.username || member.user?.username || `User #${member.user_id}`
+}
+
+function getMemberById(userId: number | null | undefined): any | undefined {
+  if (!userId) return undefined
+  return members.value.find((m: any) => m.user_id === userId)
+}
+
 // ===== Menu items =====
 const menuItems = [
   { id: 'overview', label: 'Overview', icon: '📊' },
@@ -51,8 +92,10 @@ const menuItems = [
   { id: 'states', label: 'States', icon: '🔄' },
   { id: 'labels', label: 'Labels', icon: '🏷️' },
   { id: 'issue-types', label: 'Issue Types', icon: '📐' },
+  { id: 'templates', label: 'Templates', icon: '📋' },
   { id: 'modules', label: 'Modules', icon: '📦' },
   { id: 'cycles', label: 'Cycles', icon: '🔄' },
+  { id: 'releases', label: 'Releases', icon: '🚀' },
   { id: 'custom-fields', label: 'Custom Fields', icon: '🔧' },
   { id: 'estimate-points', label: 'Estimate Points', icon: '📏' },
   { id: 'workflows', label: 'Workflows', icon: '⚙️' },
@@ -274,6 +317,60 @@ async function handleDeleteProject() {
   finally { deleteLoading.value = false }
 }
 
+// ===== Default Assignee handlers =====
+async function handleUpdateDefaultAssignee() {
+  if (!projectId.value) return
+  updatingAssignee.value = true
+  try {
+    const updated = await projectApi.updateDefaultAssignee(projectId.value, defaultAssigneeId.value)
+    project.value = { ...project.value, ...updated } as ProjectResponse
+  } catch (e) { console.error('Failed to update default assignee:', e) }
+  finally { updatingAssignee.value = false }
+}
+
+// ===== Project Lead handlers =====
+async function handleUpdateProjectLead() {
+  if (!projectId.value) return
+  updatingLead.value = true
+  try {
+    const updated = await projectApi.updateProjectLead(projectId.value, projectLeadId.value)
+    project.value = { ...project.value, ...updated } as ProjectResponse
+  } catch (e) { console.error('Failed to update project lead:', e) }
+  finally { updatingLead.value = false }
+}
+
+// ===== Subscriber handlers =====
+async function loadSubscribers() {
+  if (!projectId.value) return
+  try {
+    const data = await projectApi.listProjectSubscribers(projectId.value)
+    subscribers.value = Array.isArray(data) ? data : []
+  } catch (e) { console.error('Failed to load subscribers:', e) }
+}
+
+function openSubscriberPicker() {
+  subscriberPickerUserId.value = null
+  showSubscriberPicker.value = true
+}
+
+async function handleAddSubscriber() {
+  if (!projectId.value || !subscriberPickerUserId.value) return
+  try {
+    await projectApi.addProjectSubscriber(projectId.value, subscriberPickerUserId.value)
+    showSubscriberPicker.value = false
+    await loadSubscribers()
+  } catch (e) { console.error('Failed to add subscriber:', e) }
+}
+
+async function handleRemoveSubscriber(userId: number) {
+  if (!projectId.value) return
+  if (!(await confirm({ title: '移除订阅者', message: '确定要移除此订阅者吗？', danger: true, confirmText: '移除' }))) return
+  try {
+    await projectApi.removeProjectSubscriber(projectId.value, userId)
+    await loadSubscribers()
+  } catch (e) { console.error('Failed to remove subscriber:', e) }
+}
+
 function goBack() {
   router.push(`/workspace/${slug.value}/project/${projectId.value}`)
 }
@@ -284,11 +381,14 @@ onMounted(async () => {
     workspace.value = await workspaceApi.getBySlug(slug.value)
     workspaceId.value = workspace.value.id
     project.value = await projectApi.getProject(projectId.value)
+    defaultAssigneeId.value = project.value.default_assignee_id ?? null
+    projectLeadId.value = project.value.project_lead_id ?? null
     try {
       const membersData = await projectApi.listProjectMembers(projectId.value)
       stats.value.membersCount = Array.isArray(membersData) ? membersData.length : 0
     } catch (_) { /* ignore */ }
     await loadData()
+    await loadSubscribers()
   } catch (e) { console.error('Failed to load:', e) }
 })
 </script>
@@ -338,7 +438,7 @@ onMounted(async () => {
         <div v-if="!loading && activeSection === 'overview'" class="bg-white rounded-lg border border-gray-200">
           <div class="p-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-4">Project Overview</h2>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-3 gap-4">
               <div class="p-4 bg-gray-50 rounded-lg">
                 <p class="text-sm text-gray-500">Total States</p>
                 <p class="text-2xl font-bold text-gray-800">{{ totalStates }}</p>
@@ -346,6 +446,10 @@ onMounted(async () => {
               <div class="p-4 bg-gray-50 rounded-lg">
                 <p class="text-sm text-gray-500">Members</p>
                 <p class="text-2xl font-bold text-gray-800">{{ stats.membersCount }}</p>
+              </div>
+              <div class="p-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-500">Project Lead</p>
+                <p class="text-lg font-bold text-gray-800">{{ project?.project_lead?.display_name || getMemberDisplay(getMemberById(project?.project_lead_id)) || '—' }}</p>
               </div>
             </div>
             <div class="pt-4 mt-4">
@@ -359,8 +463,85 @@ onMounted(async () => {
         </div>
 
         <!-- Members -->
-        <div v-if="!loading && activeSection === 'members'" class="bg-white rounded-lg border border-gray-200">
-          <ProjectMemberList :project-id="projectId" :workspace-id="workspaceId" />
+        <div v-if="!loading && activeSection === 'members'" class="space-y-6">
+          <div class="bg-white rounded-lg border border-gray-200">
+            <ProjectMemberList :project-id="projectId" :workspace-id="workspaceId" />
+          </div>
+
+          <!-- Default Assignee -->
+          <div class="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Default Assignee</h3>
+            <p class="text-sm text-gray-500 mb-4">New issues will be assigned to this member by default.</p>
+            <div class="flex items-center gap-3">
+              <select
+                v-model.number="defaultAssigneeId"
+                class="flex-1 max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option :value="null">None</option>
+                <option v-for="m in members" :key="m.user_id" :value="m.user_id">
+                  {{ getMemberDisplay(m) }}
+                </option>
+              </select>
+              <button
+                @click="handleUpdateDefaultAssignee"
+                :disabled="updatingAssignee"
+                class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
+              >
+                {{ updatingAssignee ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+            <div v-if="getMemberById(defaultAssigneeId)" class="mt-3 text-sm text-gray-600">
+              Current: <span class="font-medium">{{ getMemberDisplay(getMemberById(defaultAssigneeId)) }}</span>
+            </div>
+          </div>
+
+          <!-- Project Lead -->
+          <div class="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Project Lead</h3>
+            <p class="text-sm text-gray-500 mb-4">Designate the project lead responsible for this project.</p>
+            <div class="flex items-center gap-3">
+              <select
+                v-model.number="projectLeadId"
+                class="flex-1 max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option :value="null">None</option>
+                <option v-for="m in members" :key="m.user_id" :value="m.user_id">
+                  {{ getMemberDisplay(m) }}
+                </option>
+              </select>
+              <button
+                @click="handleUpdateProjectLead"
+                :disabled="updatingLead"
+                class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
+              >
+                {{ updatingLead ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+            <div v-if="getMemberById(projectLeadId)" class="mt-3 text-sm text-gray-600">
+              Current: <span class="font-medium">{{ getMemberDisplay(getMemberById(projectLeadId)) }}</span>
+            </div>
+          </div>
+
+          <!-- Project Subscribers -->
+          <div class="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Project Subscribers</h3>
+            <p class="text-sm text-gray-500 mb-4">Subscribers receive notifications about project updates.</p>
+            <div v-if="subscribers.length > 0" class="divide-y divide-gray-100 border border-gray-200 rounded-lg mb-4">
+              <div v-for="sub in subscribers" :key="sub.id" class="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <span class="text-sm font-medium text-gray-800">
+                    {{ sub.user?.display_name || `User #${sub.user_id}` }}
+                  </span>
+                  <span v-if="sub.user?.username" class="text-sm text-gray-400 ml-2">@{{ sub.user.username }}</span>
+                </div>
+                <button @click="handleRemoveSubscriber(sub.user_id)" class="text-gray-400 hover:text-red-500 text-sm font-medium">Remove</button>
+              </div>
+            </div>
+            <div v-else class="text-sm text-gray-400 py-4">No subscribers yet.</div>
+            <button @click="openSubscriberPicker" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">
+              + Add Subscriber
+            </button>
+          </div>
         </div>
 
         <!-- States -->
@@ -420,6 +601,11 @@ onMounted(async () => {
           <ProjectIssueTypeManager :project-id="projectId" :workspace-id="workspaceId" />
         </div>
 
+        <!-- Templates -->
+        <div v-if="!loading && activeSection === 'templates'" class="bg-white rounded-lg border border-gray-200">
+          <WorkItemTemplateManager :project-id="projectId" :workspace-id="workspaceId" />
+        </div>
+
         <!-- Modules -->
         <div v-if="!loading && activeSection === 'modules'" class="bg-white rounded-lg border border-gray-200">
           <ModuleList :project-id="projectId" :workspace-id="workspaceId" />
@@ -430,9 +616,14 @@ onMounted(async () => {
           <CycleList :project-id="projectId" :workspace-id="workspaceId" />
         </div>
 
+        <!-- Releases -->
+        <div v-if="!loading && activeSection === 'releases'" class="bg-white rounded-lg border border-gray-200">
+          <ReleaseList :project-id="projectId" />
+        </div>
+
         <!-- Custom Fields -->
         <div v-if="!loading && activeSection === 'custom-fields'" class="bg-white rounded-lg border border-gray-200">
-          <CustomFieldList :project-id="projectId" />
+          <CustomFieldList :project-id="projectId" @create="handleCreateField" @edit="handleEditField" />
         </div>
 
         <!-- Estimate Points -->
@@ -657,6 +848,47 @@ onMounted(async () => {
         <div class="flex justify-end space-x-3 mt-6">
           <button @click="showAutomationModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
           <button @click="handleSaveAutomation" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscriber Picker Modal -->
+    <div v-if="showSubscriberPicker" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showSubscriberPicker = false">
+      <div class="bg-white rounded-xl p-6 w-full max-w-md">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Subscriber</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Select Member</label>
+            <select v-model.number="subscriberPickerUserId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <option :value="null" disabled>Select a member...</option>
+              <option v-for="m in members" :key="m.user_id" :value="m.user_id">
+                {{ getMemberDisplay(m) }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3 mt-6">
+          <button @click="showSubscriberPicker = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+          <button @click="handleAddSubscriber" :disabled="!subscriberPickerUserId" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Field Form Modal -->
+    <div v-if="showFieldForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showFieldForm = false">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-800">{{ editingField ? '编辑字段' : '创建字段' }}</h2>
+          <button @click="showFieldForm = false" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+        </div>
+        <div class="p-6">
+          <CustomFieldForm
+            :field="editingField"
+            :project-id="projectId"
+            :workspace-id="workspaceId"
+            @submit="handleFieldSaved"
+            @cancel="showFieldForm = false"
+          />
         </div>
       </div>
     </div>

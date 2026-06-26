@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router';
 import RelationTypeManager from '@/components/RelationTypeManager.vue';
 import WorkspaceIssueTypeManager from '@/components/WorkspaceIssueTypeManager.vue';
+import WorkspaceMemberList from '@/components/WorkspaceMemberList.vue';
 import ProjectTemplateManager from '@/components/ProjectTemplateManager.vue';
 import CustomFieldManager from '@/components/CustomFieldManager.vue';
 import AutomationForm from '@/components/AutomationForm.vue';
@@ -29,6 +30,7 @@ const issueTypes = ref<any[]>([]);
 const customFields = ref<any[]>([]);
 const automations = ref<any[]>([]);
 const relationTypes = ref<any[]>([]);
+const memberCount = ref(0);
 
 // ===== Load workspace and data =====
 async function loadWorkspace() {
@@ -53,11 +55,13 @@ async function loadAllData() {
       customFieldApi.listCustomFields(wid),
       pid ? workflowApi.listAutomations(pid) : Promise.resolve([]),
       relationApi.listRelationTypes(wid),
+      slug.value ? workspaceApi.listMembers(slug.value) : Promise.resolve([]),
     ]);
     issueTypes.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value) ? results[0].value : []) : [];
     customFields.value = results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : []) : [];
     automations.value = results[2].status === 'fulfilled' ? (Array.isArray(results[2].value) ? results[2].value : []) : [];
     relationTypes.value = results[3].status === 'fulfilled' ? (Array.isArray(results[3].value) ? results[3].value : []) : [];
+    memberCount.value = results[4].status === 'fulfilled' ? (Array.isArray(results[4].value) ? results[4].value.length : 0) : 0;
   } catch (e) { console.error('Failed to load data:', e); }
   finally { loading.value = false; }
 }
@@ -122,6 +126,7 @@ onMounted(() => { loadWorkspace(); });
       <nav class="flex-1 p-4 space-y-1">
         <button
           v-for="item in [
+            { id: 'members', label: 'Members', icon: '👥', count: memberCount },
             { id: 'types', label: 'Work Item Types', icon: '📋', count: issueTypes.length },
             { id: 'templates', label: 'Templates', icon: '📦', count: 0 },
             { id: 'fields', label: 'Custom Fields', icon: '📝', count: customFields.length },
@@ -143,6 +148,11 @@ onMounted(() => { loadWorkspace(); });
     <!-- Main Content -->
     <main class="flex-1 overflow-auto">
       <div v-if="loading" class="flex items-center justify-center h-64"><div class="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>
+
+      <!-- Members Section -->
+      <div v-if="!loading && activeSection === 'members'" class="p-6">
+        <WorkspaceMemberList :workspace-id="workspaceId" :workspace-slug="slug" />
+      </div>
 
       <!-- Work Item Types Section -->
       <div v-if="!loading && activeSection === 'types'" class="p-6">

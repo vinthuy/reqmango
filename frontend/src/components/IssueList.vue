@@ -60,10 +60,18 @@
               高级搜索
               <svg class="w-3 h-3 inline ml-1" :class="{ 'rotate-180': showAdvanced }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
+            <button @click="showImportModal = true" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">导入</button>
             <button @click="goToCreate" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">新建</button>
           </div>
         </div>
       </div>
+      <!-- 快速创建 -->
+      <QuickCreateInput
+        :project-id="projectId"
+        :workspace-id="workspaceId"
+        :issue-types="issueTypes"
+        @created="onQuickCreated"
+      />
       <!-- 高级搜索 -->
       <div v-if="showAdvanced" class="px-4 pb-3 border-t border-gray-100 pt-3 bg-gray-50">
         <div class="grid grid-cols-4 gap-3">
@@ -226,6 +234,13 @@
         <button @click="page++" :disabled="page >= totalPages" class="px-3 py-1 border rounded text-sm disabled:opacity-50">下一页</button>
       </div>
     </div>
+    <ImportIssuesModal
+      :visible="showImportModal"
+      :project-id="projectId"
+      :workspace-id="workspaceId"
+      @close="showImportModal = false"
+      @success="onImportSuccess"
+    />
   </div>
 </template>
 
@@ -238,6 +253,9 @@ import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
 import { RQLInput } from '@/components/RQL'
 import { useRQL } from '@/composables/useRQL'
+import QuickCreateInput from '@/components/QuickCreateInput.vue'
+import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
+import * as issueTypeApi from '@/api/issue-type'
 
 const props = defineProps<{ projectId: number; workspaceId: number }>()
 const router = useRouter()
@@ -391,6 +409,17 @@ function formatDate(d: string | null | undefined) { if (!d) return '-'; return n
 
 // ---- Actions ----
 function goToCreate() { router.push(`/workspaces/${props.workspaceId}/projects/${props.projectId}/issues/new`) }
+
+function onQuickCreated() {
+  page.value = 1
+  loadIssues()
+}
+
+const showImportModal = ref(false)
+function onImportSuccess() {
+  page.value = 1
+  loadIssues()
+}
 function search() { page.value = 1; loadIssues() }
 function resetFilters() {
   filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, start_date: '', end_date: '', cf_field_id: 0, cf_value: '' }
@@ -420,7 +449,7 @@ async function execBatchDelete() {
 }
 
 // ---- Data loading ----
-onMounted(() => { Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields()]) })
+onMounted(() => { Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes()]) })
 watch(page, () => loadIssues())
 
 async function loadIssues() {
@@ -446,6 +475,10 @@ async function loadCycles() { try { const r = await api.get(`/projects/${props.p
 async function loadMembers() { try { const r = await api.get(`/workspaces/${props.workspaceId}/members`); members.value = r.data } catch (e) { /* */ } }
 async function loadCustomFields() {
   try { customFields.value = await customFieldApi.listCustomFields(props.workspaceId, props.projectId) } catch (e) { /* */ }
+}
+const issueTypes = ref<any[]>([])
+async function loadIssueTypes() {
+  try { issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId) } catch (e) { /* */ }
 }
 
 // Custom field value cache: issueId → fieldId → display string

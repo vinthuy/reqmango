@@ -15,5 +15,17 @@ export const authApi = {
   getCurrentUser: async (): Promise<User> => {
     const response = await api.get('/auth/me')
     return response.data
+  },
+
+  listUsers: async (): Promise<UserLite[]> => {
+    const response = await api.get('/users')
+    return response.data
   }
+}
+
+export interface UserLite {
+  id: number
+  display_name: string
+  email: string
+  avatar_url?: string
 }

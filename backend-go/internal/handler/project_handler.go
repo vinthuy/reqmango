@@ -12,14 +12,15 @@ import (
 )
 
 type ProjectHandler struct {
-	svc *service.ProjectService
+	svc        *service.ProjectService
+	templateSvc *service.ProjectTemplateService
 }
 
-func NewProjectHandler(svc *service.ProjectService) *ProjectHandler {
-	return &ProjectHandler{svc: svc}
+func NewProjectHandler(svc *service.ProjectService, templateSvc *service.ProjectTemplateService) *ProjectHandler {
+	return &ProjectHandler{svc: svc, templateSvc: templateSvc}
 }
 
-// Create handles POST /projects/?workspace_id=int
+// Create handles POST /projects/?workspace_id=int&template_id=int
 func (h *ProjectHandler) Create(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 
@@ -35,6 +36,13 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// template_id from query param takes precedence over body
+	if templateIDStr := c.Query("template_id"); templateIDStr != "" {
+		if tid, err := strconv.ParseUint(templateIDStr, 10, 64); err == nil {
+			req.TemplateID = &tid
+		}
+	}
+
 	resp, svcErr := h.svc.Create(&req, workspaceID, user.ID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
@@ -43,6 +51,18 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
+	}
+
+	// Auto-apply template after creation
+	if req.TemplateID != nil {
+		if svcErr := h.templateSvc.Apply(*req.TemplateID, resp.ID); svcErr != nil {
+			if appErr, ok := svcErr.(*common.AppError); ok {
+				c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to apply template"})
+			return
+		}
 	}
 
 	c.JSON(http.StatusCreated, resp)
@@ -320,6 +340,111 @@ func (h *ProjectHandler) GetStatistics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, stats)
+}
+
+// UpdateProjectLead handles PATCH /projects/:id/lead?user_id=int
+func (h *ProjectHandler) UpdateProjectLead(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	var userID *uint64
+	if uidStr := c.Query("user_id"); uidStr != "" {
+		uid, err := strconv.ParseUint(uidStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid user_id"})
+			return
+		}
+		userID = &uid
+	}
+
+	resp, svcErr := h.svc.UpdateProjectLead(projectID, userID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// ListSubscribers handles GET /projects/:id/subscribers
+func (h *ProjectHandler) ListSubscribers(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	subs, svcErr := h.svc.ListSubscribers(projectID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, subs)
+}
+
+// AddSubscriber handles POST /projects/:id/subscribers?user_id=int
+func (h *ProjectHandler) AddSubscriber(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	userID, err := strconv.ParseUint(c.Query("user_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid user_id"})
+		return
+	}
+
+	sub, svcErr := h.svc.AddSubscriber(projectID, userID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, sub)
+}
+
+// RemoveSubscriber handles DELETE /projects/:id/subscribers/:userId
+func (h *ProjectHandler) RemoveSubscriber(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	userID, err := strconv.ParseUint(c.Param("userId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid user ID"})
+		return
+	}
+
+	if svcErr := h.svc.RemoveSubscriber(projectID, userID); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"project_id": projectID, "user_id": userID, "action": "removed"})
 }
 
 // GetIssuesSummary handles GET /projects/:id/issues-summary

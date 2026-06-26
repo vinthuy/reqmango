@@ -105,3 +105,18 @@ type ProjectLite struct {
 	Name       string `json:"name"`
 	Identifier string `json:"identifier"`
 }
+
+// ImportResult is the result of a bulk import operation.
+type ImportResult struct {
+	SuccessCount int            `json:"success_count"`
+	FailCount    int            `json:"fail_count"`
+	Errors       []ImportError  `json:"errors"`
+	ImportedIDs  []uint64       `json:"imported_ids"`
+}
+
+// ImportError represents an error for a specific row in the import.
+type ImportError struct {
+	Row     int    `json:"row"`
+	Title   string `json:"title"`
+	Message string `json:"message"`
+}

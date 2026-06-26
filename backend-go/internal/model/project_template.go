@@ -3,10 +3,12 @@ package model
 // ProjectTemplate defines a reusable set of issue types, states, and settings for a project.
 type ProjectTemplate struct {
 	BaseModel
-	Name        string `gorm:"type:varchar(100);not null" json:"name"`
-	Description string `gorm:"type:text" json:"description"`
-	WorkspaceID uint64 `gorm:"not null;index" json:"workspace_id"`
-	IsDefault   bool   `gorm:"default:false" json:"is_default"`
+	Name        string  `gorm:"type:varchar(100);not null" json:"name"`
+	Description string  `gorm:"type:text" json:"description"`
+	WorkspaceID uint64  `gorm:"not null;index" json:"workspace_id"`
+	IsDefault   bool    `gorm:"default:false" json:"is_default"`
+	States      *string `gorm:"type:text" json:"states"`
+	Labels      *string `gorm:"type:text" json:"labels"`
 
 	// Relations
 	TypeLinks []ProjectTemplateType `gorm:"foreignKey:TemplateID" json:"-"`

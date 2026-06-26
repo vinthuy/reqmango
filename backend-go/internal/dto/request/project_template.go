@@ -1,15 +1,19 @@
 package request
 
 type ProjectTemplateCreate struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
-	IsDefault   bool   `json:"is_default"`
+	Name        string  `json:"name" binding:"required"`
+	Description string  `json:"description"`
+	IsDefault   bool    `json:"is_default"`
+	States      *string `json:"states"`
+	Labels      *string `json:"labels"`
 }
 
 type ProjectTemplateUpdate struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
 	IsDefault   *bool   `json:"is_default"`
+	States      *string `json:"states"`
+	Labels      *string `json:"labels"`
 }
 
 type ProjectTemplateAddType struct {

@@ -584,3 +584,74 @@ func (h *IssueHandler) RemoveCycle(c *gin.Context) {
 		"action":   "removed",
 	})
 }
+
+// ImportJSON handles POST /issues/import/json?project_id=int&workspace_id=int
+func (h *IssueHandler) ImportJSON(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	projectID, err := strconv.ParseUint(c.Query("project_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project_id"})
+		return
+	}
+
+	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
+		return
+	}
+
+	var items []request.ImportIssueItem
+	if err := c.ShouldBindJSON(&items); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	result, svcErr := h.svc.ImportFromJSON(projectID, workspaceID, user.ID, items)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// ImportCSV handles POST /issues/import/csv?project_id=int&workspace_id=int
+func (h *IssueHandler) ImportCSV(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	projectID, err := strconv.ParseUint(c.Query("project_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project_id"})
+		return
+	}
+
+	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
+		return
+	}
+
+	file, _, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "请上传 CSV 文件"})
+		return
+	}
+	defer file.Close()
+
+	result, svcErr := h.svc.ImportFromCSV(projectID, workspaceID, user.ID, file)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}

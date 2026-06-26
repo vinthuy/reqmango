@@ -14,3 +14,9 @@ type WorkspaceUpdateRequest struct {
 	LogoURL string `json:"logo_url"`
 	Timezone string `json:"timezone"`
 }
+
+// WorkspaceAddMemberRequest is the request body for adding a workspace member.
+type WorkspaceAddMemberRequest struct {
+	UserID uint64 `json:"user_id" binding:"required"`
+	Role   int    `json:"role"`
+}

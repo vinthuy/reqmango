@@ -98,3 +98,18 @@ export async function updateIssueTypeField(typeId: number, fieldId: number, data
 export async function removeFieldFromIssueType(typeId: number, fieldId: number): Promise<void> {
   await api.delete(`/issue-types/${typeId}/fields/${fieldId}`)
 }
+
+const issueTypeApi = {
+  getIssueTypes,
+  getIssueType,
+  createIssueType,
+  updateIssueType,
+  deleteIssueType,
+  disableIssueType,
+  getIssueTypeFields,
+  addFieldToIssueType,
+  updateIssueTypeField,
+  removeFieldFromIssueType,
+}
+
+export default issueTypeApi

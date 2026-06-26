@@ -16,6 +16,7 @@ export interface ProjectBase {
 
 export interface ProjectCreate extends ProjectBase {
   default_assignee_id?: number
+  template_id?: number
 }
 
 // ==================== Project Update ====================
@@ -37,6 +38,8 @@ export interface ProjectResponse extends ProjectBase {
   archived_at?: string
   workspace_id: number
   default_assignee_id?: number
+  project_lead_id?: number
+  project_lead?: UserLite
   created_at: string
   updated_at: string
   color?: string
@@ -64,6 +67,17 @@ export interface ProjectMemberCreate {
 
 export interface ProjectMemberUpdate {
   role: number
+}
+
+// ==================== Project Subscriber ====================
+
+export interface ProjectSubscriber {
+  id: number
+  project_id: number
+  user_id: number
+  user?: UserLite
+  created_at: string
+  updated_at: string
 }
 
 // ==================== Project Statistics ====================

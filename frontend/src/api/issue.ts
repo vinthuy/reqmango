@@ -198,6 +198,69 @@ export async function bulkDeleteIssues(issueIds: number[]): Promise<void> {
   await api.post('/issues/bulk/delete', { issue_ids: issueIds })
 }
 
+export interface ImportError {
+  row: number
+  title: string
+  message: string
+}
+
+export interface ImportResult {
+  success_count: number
+  fail_count: number
+  errors: ImportError[]
+  imported_ids: number[]
+}
+
+export interface ImportIssueItem {
+  name: string
+  description?: string
+  priority?: string
+  state_name?: string
+  type_name?: string
+  assignee_emails?: string[]
+  label_names?: string[]
+  start_date?: string
+  target_date?: string
+  parent_title?: string
+}
+
+/**
+ * JSON 批量导入工作项
+ */
+export async function importIssuesJSON(
+  projectId: number,
+  workspaceId: number,
+  items: ImportIssueItem[]
+): Promise<ImportResult> {
+  const response = await api.post(
+    `/issues/import/json?project_id=${projectId}&workspace_id=${workspaceId}`,
+    items
+  )
+  return response.data
+}
+
+/**
+ * CSV 批量导入工作项
+ */
+export async function importIssuesCSV(
+  projectId: number,
+  workspaceId: number,
+  file: File
+): Promise<ImportResult> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await api.post(
+    `/issues/import/csv?project_id=${projectId}&workspace_id=${workspaceId}`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  )
+  return response.data
+}
+
 // ==================== Assignee Management ====================
 
 /**
@@ -293,6 +356,8 @@ export const issueApi = {
   // Bulk
   bulkUpdateIssues,
   bulkDeleteIssues,
+  importIssuesJSON,
+  importIssuesCSV,
   
   // Assignee
   addIssueAssignee,

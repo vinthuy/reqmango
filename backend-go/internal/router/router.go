@@ -31,11 +31,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	savedViewSvc := service.NewSavedViewService(db)
 	projectIssueTypeH := handler.NewProjectIssueTypeHandler(issueTypeSvc)
 	pageSvc := service.NewPageService(db)
+	witSvc := service.NewWorkItemTemplateService(db)
+	releaseSvc := service.NewReleaseService(db)
+	estimateSvc := service.NewEstimateService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
 	workspaceH := handler.NewWorkspaceHandler(workspaceSvc)
-	projectH := handler.NewProjectHandler(projectSvc)
+	projectH := handler.NewProjectHandler(projectSvc, templateSvc)
 	settingsH := handler.NewProjectSettingsHandler(settingsSvc)
 	issueH := handler.NewIssueHandler(issueSvc)
 	cycleH := handler.NewCycleHandler(cycleSvc)
@@ -50,6 +53,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	notificationH := handler.NewNotificationHandler(notificationSvc)
 	savedViewH := handler.NewSavedViewHandler(savedViewSvc)
 	pageH := handler.NewPageHandler(pageSvc)
+	witH := handler.NewWorkItemTemplateHandler(witSvc)
+	releaseH := handler.NewReleaseHandler(releaseSvc)
+	estimateH := handler.NewEstimateHandler(estimateSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -71,9 +77,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("", workspaceH.List)
 			workspaces.POST("", workspaceH.Create)
 			workspaces.GET("/:wsParam", workspaceH.Get)     // slug or numeric ID
-			workspaces.PATCH("/:id", workspaceH.Update)      // numeric ID
-			workspaces.DELETE("/:id", workspaceH.Delete)     // numeric ID
+			workspaces.PATCH("/:wsParam", workspaceH.Update)      // numeric ID or slug
+			workspaces.DELETE("/:wsParam", workspaceH.Delete)     // numeric ID or slug
 			workspaces.GET("/:wsParam/members", workspaceH.ListMembers)
+			workspaces.POST("/:wsParam/members", workspaceH.AddMember)
+			workspaces.PATCH("/:wsParam/members/:userId", workspaceH.UpdateMember)
+			workspaces.DELETE("/:wsParam/members/:userId", workspaceH.RemoveMember)
 		}
 
 		// ---- Projects (protected) ----
@@ -92,6 +101,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.DELETE("/:projectId/members/:userId", projectH.RemoveMember)
 			projects.GET("/:projectId/statistics", projectH.GetStatistics)
 			projects.GET("/:projectId/issues-summary", projectH.GetIssuesSummary)
+			projects.PATCH("/:projectId/lead", projectH.UpdateProjectLead)
+			projects.GET("/:projectId/subscribers", projectH.ListSubscribers)
+			projects.POST("/:projectId/subscribers", projectH.AddSubscriber)
+			projects.DELETE("/:projectId/subscribers/:userId", projectH.RemoveSubscriber)
 			projects.GET("/:projectId/cycles", cycleH.List)
 			projects.POST("/:projectId/cycles", cycleH.Create)     // ?workspace_id=
 
@@ -131,6 +144,58 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				views.POST("/:viewId/duplicate", savedViewH.Duplicate)
 			}
 
+			// ---- Work Item Templates ----
+			templates := projects.Group("/:projectId/work-item-templates", authMiddleware)
+			{
+				templates.GET("", witH.List)
+				templates.POST("", witH.Create)
+				templates.GET("/:id", witH.Get)
+				templates.PUT("/:id", witH.Update)
+				templates.DELETE("/:id", witH.Delete)
+			}
+
+			// ---- Releases ----
+			releases := projects.Group("/:projectId/releases", authMiddleware)
+			{
+				releases.GET("", releaseH.List)
+				releases.POST("", releaseH.Create)
+				releases.GET("/:releaseId", releaseH.Get)
+				releases.PUT("/:releaseId", releaseH.Update)
+				releases.DELETE("/:releaseId", releaseH.Delete)
+				releases.POST("/:releaseId/issues", releaseH.AddIssues)
+				releases.DELETE("/:releaseId/issues", releaseH.RemoveIssues)
+				releases.GET("/:releaseId/progress", releaseH.GetProgress)
+			}
+
+			// ---- Estimates ----
+			estimates := projects.Group("/:projectId/estimate-points", authMiddleware)
+			{
+				estimates.GET("/settings", estimateH.GetSettings)
+				estimates.PUT("/settings", estimateH.UpdateSettings)
+				estimates.GET("", estimateH.ListPoints)
+				estimates.POST("", estimateH.CreatePoint)
+				estimates.GET("/:pointId", estimateH.GetPoint)
+				estimates.PATCH("/:pointId", estimateH.UpdatePoint)
+				estimates.DELETE("/:pointId", estimateH.DeletePoint)
+				estimates.POST("/reorder", estimateH.ReorderPoints)
+				estimates.POST("/bulk", estimateH.BulkCreatePoints)
+				estimates.POST("/defaults", estimateH.CreateDefaultPoints)
+			}
+
+			estimateCategories := projects.Group("/:projectId/estimate-categories", authMiddleware)
+			{
+				estimateCategories.GET("", estimateH.ListCategories)
+				estimateCategories.POST("", estimateH.CreateCategory)
+				estimateCategories.POST("/defaults", estimateH.CreateDefaultCategories)
+			}
+
+			estimateTime := projects.Group("/:projectId/estimate-time", authMiddleware)
+			{
+				estimateTime.GET("", estimateH.ListTime)
+				estimateTime.POST("", estimateH.CreateTime)
+				estimateTime.POST("/defaults", estimateH.CreateDefaultTime)
+			}
+
 			// ---- Project Settings: States + Labels ----
 			settings := projects.Group("/:projectId/settings", authMiddleware)
 			{
@@ -161,6 +226,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.GET("/search", issueH.Search)                  // ?workspace_id=&query=
 			issues.POST("/bulk/update", issueH.BulkUpdate)        // ?project_id=
 			issues.POST("/bulk/delete", issueH.BulkDelete)
+
+			// Import
+			issues.POST("/import/json", issueH.ImportJSON)   // ?project_id=&workspace_id=
+			issues.POST("/import/csv", issueH.ImportCSV)     // ?project_id=&workspace_id=
 
 			// Single issue
 			issues.GET("/:issueId", issueH.Get)

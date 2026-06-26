@@ -88,16 +88,9 @@ func (h *WorkspaceHandler) Get(c *gin.Context) {
 
 // ListMembers handles GET /workspaces/:wsParam/members
 func (h *WorkspaceHandler) ListMembers(c *gin.Context) {
-	param := c.Param("wsParam")
-	workspaceID, err := strconv.ParseUint(param, 10, 64)
-	if err != nil {
-		// try slug lookup
-		ws, svcErr := h.svc.GetBySlug(param)
-		if svcErr != nil {
-			c.JSON(http.StatusNotFound, gin.H{"message": "Workspace not found"})
-			return
-		}
-		workspaceID = ws.ID
+	workspaceID, ok := h.resolveWsParam(c)
+	if !ok {
+		return
 	}
 
 	members, err := h.svc.ListMembers(workspaceID)
@@ -109,9 +102,109 @@ func (h *WorkspaceHandler) ListMembers(c *gin.Context) {
 	c.JSON(http.StatusOK, members)
 }
 
+// AddMember handles POST /workspaces/:wsParam/members
+func (h *WorkspaceHandler) AddMember(c *gin.Context) {
+	workspaceID, ok := h.resolveWsParam(c)
+	if !ok {
+		return
+	}
+
+	var req request.WorkspaceAddMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	currentUser := middleware.GetCurrentUser(c)
+
+	member, err := h.svc.AddMember(workspaceID, &req, currentUser.ID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, member)
+}
+
+// UpdateMember handles PATCH /workspaces/:wsParam/members/:userId?role=N
+func (h *WorkspaceHandler) UpdateMember(c *gin.Context) {
+	workspaceID, ok := h.resolveWsParam(c)
+	if !ok {
+		return
+	}
+
+	userID, err := strconv.ParseUint(c.Param("userId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid user ID"})
+		return
+	}
+
+	role, err := strconv.Atoi(c.Query("role"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid role"})
+		return
+	}
+
+	member, svcErr := h.svc.UpdateMember(workspaceID, userID, role)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, member)
+}
+
+// RemoveMember handles DELETE /workspaces/:wsParam/members/:userId
+func (h *WorkspaceHandler) RemoveMember(c *gin.Context) {
+	workspaceID, ok := h.resolveWsParam(c)
+	if !ok {
+		return
+	}
+
+	userID, err := strconv.ParseUint(c.Param("userId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid user ID"})
+		return
+	}
+
+	if svcErr := h.svc.RemoveMember(workspaceID, userID); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"workspace_id": workspaceID, "user_id": userID, "action": "removed"})
+}
+
+// resolveWsParam resolves wsParam (slug or numeric ID) to a workspace ID.
+func (h *WorkspaceHandler) resolveWsParam(c *gin.Context) (uint64, bool) {
+	param := c.Param("wsParam")
+	if id, err := strconv.ParseUint(param, 10, 64); err == nil {
+		return id, true
+	}
+
+	ws, svcErr := h.svc.GetBySlug(param)
+	if svcErr != nil {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Workspace not found"})
+		return 0, false
+	}
+	return ws.ID, true
+}
+
 // Update handles PATCH /workspaces/:id
 func (h *WorkspaceHandler) Update(c *gin.Context) {
-	workspaceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
 		return
@@ -138,7 +231,7 @@ func (h *WorkspaceHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /workspaces/:id
 func (h *WorkspaceHandler) Delete(c *gin.Context) {
-	workspaceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
 		return

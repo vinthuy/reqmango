@@ -15,6 +15,8 @@ type ProjectResponse struct {
 	Workspace         *WorkspaceLite `json:"workspace"`
 	DefaultAssigneeID *uint64        `json:"default_assignee_id"`
 	DefaultAssignee   *UserLite      `json:"default_assignee"`
+	ProjectLeadID     *uint64        `json:"project_lead_id"`
+	ProjectLead       *UserLite      `json:"project_lead"`
 	TotalIssues       int64          `json:"total_issues"`
 	TotalMembers      int64          `json:"total_members"`
 	LogoURL           *string        `json:"logo_url"`
@@ -55,4 +57,14 @@ type IssuesSummary struct {
 	ProjectID   uint64            `json:"project_id"`
 	ProjectName string            `json:"project_name"`
 	Issues      map[string]int    `json:"issues"` // todo, started, completed, cancelled
+}
+
+// ProjectSubscriberResponse represents a project subscriber.
+type ProjectSubscriberResponse struct {
+	ID        uint64    `json:"id"`
+	ProjectID uint64    `json:"project_id"`
+	UserID    uint64    `json:"user_id"`
+	User      *UserLite `json:"user"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

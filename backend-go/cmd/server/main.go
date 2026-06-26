@@ -47,6 +47,7 @@ func main() {
 		&model.CustomField{},
 		&model.CustomFieldOption{},
 		&model.IssueCustomFieldValue{},
+		&model.ProjectSubscriber{},
 		&model.ProjectTemplate{},
 		&model.ProjectTemplateType{},
 		&model.IssueTypeTemplate{},
@@ -59,6 +60,13 @@ func main() {
 		&model.Notification{},
 		&model.SavedView{},
 		&model.Page{},
+		&model.WorkItemTemplate{},
+		&model.Release{},
+		&model.ReleaseIssue{},
+		&model.EstimatePoint{},
+		&model.EstimateCategory{},
+		&model.EstimateTime{},
+		&model.ProjectEstimateSettings{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

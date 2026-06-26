@@ -15,16 +15,17 @@ type IssueTypeCreate struct {
 
 // IssueTypeUpdate request for updating an issue type.
 type IssueTypeUpdate struct {
-	Name         *string `json:"name"`
-	Color        *string `json:"color"`
-	Icon         *string `json:"icon"`
-	Description  *string `json:"description"`
-	Level        *int    `json:"level"`
-	ParentTypeID *uint64 `json:"parent_type_id"`
-	IsDefault    *bool   `json:"is_default"`
-	Sequence     *int    `json:"sequence"`
-	IsActive     *bool   `json:"is_active"`
-	ProjectID    *uint64 `json:"project_id"`
+	Name               *string `json:"name"`
+	Color              *string `json:"color"`
+	Icon               *string `json:"icon"`
+	Description        *string `json:"description"`
+	Level              *int    `json:"level"`
+	ParentTypeID       *uint64 `json:"parent_type_id"`
+	AllowedChildTypeIDs []uint64 `json:"allowed_child_type_ids"`
+	IsDefault          *bool   `json:"is_default"`
+	Sequence           *int    `json:"sequence"`
+	IsActive           *bool   `json:"is_active"`
+	ProjectID          *uint64 `json:"project_id"`
 }
 
 // IssueTypeDisable request for toggling active status.
