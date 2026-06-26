@@ -72,6 +72,7 @@ func main() {
 		&model.AIConfig{},
 		&model.AIThread{},
 		&model.AIMessage{},
+		&model.ConditionalField{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

@@ -32,6 +32,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	projectIssueTypeH := handler.NewProjectIssueTypeHandler(issueTypeSvc)
 	pageSvc := service.NewPageService(db)
 	witSvc := service.NewWorkItemTemplateService(db)
+	conditionalFieldSvc := service.NewConditionalFieldService(db)
 	releaseSvc := service.NewReleaseService(db)
 	estimateSvc := service.NewEstimateService(db)
 	attachmentSvc := service.NewAttachmentService(db)
@@ -56,6 +57,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	notificationH := handler.NewNotificationHandler(notificationSvc)
 	savedViewH := handler.NewSavedViewHandler(savedViewSvc)
 	pageH := handler.NewPageHandler(pageSvc)
+	conditionalFieldH := handler.NewConditionalFieldHandler(conditionalFieldSvc)
 	witH := handler.NewWorkItemTemplateHandler(witSvc)
 	releaseH := handler.NewReleaseHandler(releaseSvc)
 	estimateH := handler.NewEstimateHandler(estimateSvc)
@@ -343,6 +345,18 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				customFields.DELETE("/issues/:issueId/values/:fieldId", customFieldH.DeleteIssueValue)
 				customFields.GET("/issues/:issueId/fields", customFieldH.GetIssueFieldsWithValues)
 		}
+
+// ---- Conditional Fields (protected) ----
+		conditionalFields := v1.Group("/conditional-fields", authMiddleware)
+		{
+			conditionalFields.POST("", conditionalFieldH.Create)                            // ?workspace_id=
+			conditionalFields.GET("", conditionalFieldH.List)                               // ?workspace_id=&field_id=
+			conditionalFields.GET("/:id", conditionalFieldH.Get)                           // ?workspace_id=
+			conditionalFields.PUT("/:id", conditionalFieldH.Update)                         // ?workspace_id=
+			conditionalFields.DELETE("/:id", conditionalFieldH.Delete)                     // ?workspace_id=
+			conditionalFields.POST("/evaluate", conditionalFieldH.EvaluateFieldVisibility)  // ?workspace_id=
+		}
+
 // ---- Project Templates (protected) ----
 			templates := v1.Group("/templates", authMiddleware)
 			{
