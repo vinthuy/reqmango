@@ -1,18 +1,25 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/reqmanpy/backend-go/internal/common"
 	"github.com/reqmanpy/backend-go/internal/model"
 	"gorm.io/gorm"
 )
 
-type CommentService struct{ db *gorm.DB }
+type CommentService struct {
+	db             *gorm.DB
+	notificationSvc *NotificationService
+}
 
-func NewCommentService(db *gorm.DB) *CommentService { return &CommentService{db: db} }
+func NewCommentService(db *gorm.DB, notificationSvc *NotificationService) *CommentService {
+	return &CommentService{db: db, notificationSvc: notificationSvc}
+}
 
 func (s *CommentService) Create(issueID, authorID uint64, body string, parentID *uint64) (*model.Comment, error) {
 	var issue model.Issue
-	if err := s.db.First(&issue, issueID).Error; err != nil {
+	if err := s.db.Preload("Project").First(&issue, issueID).Error; err != nil {
 		return nil, common.NotFound("Issue not found")
 	}
 	c := model.Comment{IssueID: issueID, AuthorID: &authorID, Body: body, ParentID: parentID}
@@ -20,6 +27,28 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 		return nil, common.Internal("Failed to create comment")
 	}
 	s.db.Preload("Author").First(&c, c.ID)
+
+	// Trigger notification for comment
+	if s.notificationSvc != nil {
+		var assignees []model.IssueAssignee
+		s.db.Where("issue_id = ?", issueID).Find(&assignees)
+		if len(assignees) > 0 {
+			recipientIDs := make([]uint64, 0, len(assignees))
+			for _, a := range assignees {
+				if a.UserID != authorID {
+					recipientIDs = append(recipientIDs, a.UserID)
+				}
+			}
+			if len(recipientIDs) > 0 {
+				title := fmt.Sprintf("新评论: %s", issue.Name)
+				message := fmt.Sprintf("工作项 #%d 收到新评论", issue.SequenceID)
+				issueIDPtr := issueID
+				projectIDPtr := issue.ProjectID
+				s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_commented", title, message, recipientIDs, &authorID, &projectIDPtr, &issueIDPtr)
+			}
+		}
+	}
+
 	return &c, nil
 }
 

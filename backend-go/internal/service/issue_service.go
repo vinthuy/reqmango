@@ -16,11 +16,12 @@ import (
 )
 
 type IssueService struct {
-	db *gorm.DB
+	db             *gorm.DB
+	notificationSvc *NotificationService
 }
 
-func NewIssueService(db *gorm.DB) *IssueService {
-	return &IssueService{db: db}
+func NewIssueService(db *gorm.DB, notificationSvc *NotificationService) *IssueService {
+	return &IssueService{db: db, notificationSvc: notificationSvc}
 }
 
 // Create creates a new issue.
@@ -72,6 +73,7 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		ParentID:          req.ParentID,
 		ExternalID:        req.ExternalID,
 		ExternalSource:    req.ExternalSource,
+		CoverImageURL:     req.CoverImageURL,
 		IssueTypeID:       req.TypeID,
 	}
 
@@ -342,6 +344,29 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		s.createActivity(tx, issueID, "updated", strPtr("state_id"),
 			strPtr(fmt.Sprintf("%d", oldStateID)), strPtr(fmt.Sprintf("%d", newStateID)), nil, &userID)
 		hasChanges = true
+
+		// Trigger notification for state change
+		if s.notificationSvc != nil {
+			var oldState model.State
+			s.db.First(&oldState, oldStateID)
+			var assignees []model.IssueAssignee
+			s.db.Where("issue_id = ?", issueID).Find(&assignees)
+			if len(assignees) > 0 {
+				recipientIDs := make([]uint64, 0, len(assignees))
+				for _, a := range assignees {
+					if a.UserID != userID {
+						recipientIDs = append(recipientIDs, a.UserID)
+					}
+				}
+				if len(recipientIDs) > 0 {
+					title := fmt.Sprintf("状态变更: %s", issue.Name)
+					message := fmt.Sprintf("工作项 #%d 状态从 %s 变为 %s", issue.SequenceID, oldState.Name, newState.Name)
+					issueIDPtr := issueID
+					projectIDPtr := issue.ProjectID
+					s.notificationSvc.TriggerNotificationsBulk(tx, "issue_state_changed", title, message, recipientIDs, &userID, &projectIDPtr, &issueIDPtr)
+				}
+			}
+		}
 	}
 
 	// Save basic fields
@@ -428,6 +453,11 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		}
 	}
 
+	if req.CoverImageURL != nil {
+		issue.CoverImageURL = req.CoverImageURL
+		hasChanges = true
+	}
+
 	if !hasChanges {
 		tx.Rollback()
 		return s.buildResponse(issueID)
@@ -479,7 +509,7 @@ func (s *IssueService) Restore(issueID uint64) (*response.IssueResponse, error) 
 func (s *IssueService) AddAssignee(issueID, userID, actorID uint64) error {
 	// Verify issue exists
 	var issue model.Issue
-	if err := s.db.First(&issue, issueID).Error; err != nil {
+	if err := s.db.Preload("Project").First(&issue, issueID).Error; err != nil {
 		return common.NotFound("Issue not found")
 	}
 
@@ -496,6 +526,16 @@ func (s *IssueService) AddAssignee(issueID, userID, actorID uint64) error {
 	}
 
 	s.createActivity(s.db, issueID, "updated", strPtr("assignees"), nil, nil, nil, &actorID)
+
+	// Trigger notification for assignment
+	if s.notificationSvc != nil && userID != actorID {
+		title := fmt.Sprintf("工作项分配: %s", issue.Name)
+		message := fmt.Sprintf("您被分配到工作项 #%d: %s", issue.SequenceID, issue.Name)
+		issueIDPtr := issueID
+		projectIDPtr := issue.ProjectID
+		s.notificationSvc.TriggerNotification(s.db, "issue_assigned", title, message, userID, &actorID, &projectIDPtr, &issueIDPtr)
+	}
+
 	return nil
 }
 
@@ -1360,4 +1400,235 @@ func (s *IssueService) ListPages(issueID uint64) ([]model.Page, error) {
 		return nil, common.NotFound("Issue not found")
 	}
 	return issue.Pages, nil
+}
+
+// BulkCopy copies issues to another project, creating new copies while preserving the originals.
+func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) ([]response.IssueResponse, error) {
+	var targetProject model.Project
+	if err := s.db.First(&targetProject, req.TargetProjectID).Error; err != nil {
+		return nil, common.NotFound("Target project not found")
+	}
+
+	var issues []model.Issue
+	if err := s.db.Preload("AssigneeLinks").Preload("LabelLinks").Preload("IssueType").
+		Where("id IN ?", req.IssueIDs).Find(&issues).Error; err != nil {
+		return nil, common.Internal("Failed to fetch issues")
+	}
+
+	if len(issues) == 0 {
+		return nil, common.BadRequest("No issues found")
+	}
+
+	var results []response.IssueResponse
+	tx := s.db.Begin()
+
+	for _, issue := range issues {
+		copiedIssue := &model.Issue{
+			Name:              issue.Name,
+			DescriptionHTML:   issue.DescriptionHTML,
+			DescriptionJSON:   issue.DescriptionJSON,
+			Priority:          issue.Priority,
+			SequenceID:        issue.SequenceID,
+			SortOrder:         issue.SortOrder,
+			IsDraft:           issue.IsDraft,
+			ProjectID:         req.TargetProjectID,
+			WorkspaceID:       targetProject.WorkspaceID,
+			StateID:           issue.StateID,
+			Depth:             issue.Depth,
+			ExternalID:        issue.ExternalID,
+			ExternalSource:    issue.ExternalSource,
+			IssueTypeID:       issue.IssueTypeID,
+		}
+
+		if issue.StartDate != nil {
+			copiedIssue.StartDate = issue.StartDate
+		}
+		if issue.TargetDate != nil {
+			copiedIssue.TargetDate = issue.TargetDate
+		}
+
+		if err := tx.Create(copiedIssue).Error; err != nil {
+			tx.Rollback()
+			return nil, common.Internal("Failed to copy issue")
+		}
+
+		for _, assignee := range issue.AssigneeLinks {
+			tx.Create(&model.IssueAssignee{IssueID: copiedIssue.ID, UserID: assignee.UserID})
+		}
+
+		for _, label := range issue.LabelLinks {
+			tx.Create(&model.IssueLabel{IssueID: copiedIssue.ID, LabelID: label.LabelID})
+		}
+
+		if req.IncludeSubtasks {
+			s.copySubtasks(tx, issue.ID, copiedIssue.ID, req.TargetProjectID, targetProject.WorkspaceID)
+		}
+
+		resp, _ := s.buildResponse(copiedIssue.ID)
+		if resp != nil {
+			results = append(results, *resp)
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, common.Internal("Failed to commit transaction")
+	}
+
+	return results, nil
+}
+
+// copySubtasks recursively copies subtasks to the target issue.
+func (s *IssueService) copySubtasks(tx *gorm.DB, sourceParentID, targetParentID, targetProjectID, workspaceID uint64) {
+	var subtasks []model.Issue
+	s.db.Preload("AssigneeLinks").Preload("LabelLinks").
+		Where("parent_id = ?", sourceParentID).Find(&subtasks)
+
+	for _, subtask := range subtasks {
+		copiedSubtask := &model.Issue{
+			Name:              subtask.Name,
+			DescriptionHTML:   subtask.DescriptionHTML,
+			DescriptionJSON:   subtask.DescriptionJSON,
+			Priority:          subtask.Priority,
+			SequenceID:        subtask.SequenceID,
+			SortOrder:         subtask.SortOrder,
+			IsDraft:           subtask.IsDraft,
+			ProjectID:         targetProjectID,
+			WorkspaceID:       workspaceID,
+			StateID:           subtask.StateID,
+			ParentID:          &targetParentID,
+			Depth:             subtask.Depth,
+			ExternalID:        subtask.ExternalID,
+			ExternalSource:    subtask.ExternalSource,
+			IssueTypeID:       subtask.IssueTypeID,
+		}
+
+		if subtask.StartDate != nil {
+			copiedSubtask.StartDate = subtask.StartDate
+		}
+		if subtask.TargetDate != nil {
+			copiedSubtask.TargetDate = subtask.TargetDate
+		}
+
+		tx.Create(copiedSubtask)
+
+		for _, assignee := range subtask.AssigneeLinks {
+			tx.Create(&model.IssueAssignee{IssueID: copiedSubtask.ID, UserID: assignee.UserID})
+		}
+
+		for _, label := range subtask.LabelLinks {
+			tx.Create(&model.IssueLabel{IssueID: copiedSubtask.ID, LabelID: label.LabelID})
+		}
+
+		s.copySubtasks(tx, subtask.ID, copiedSubtask.ID, targetProjectID, workspaceID)
+	}
+}
+
+// BulkMove moves issues to another project, removing them from the source project.
+func (s *IssueService) BulkMove(req *request.BulkMoveRequest, userID uint64) ([]response.IssueResponse, error) {
+	var targetProject model.Project
+	if err := s.db.First(&targetProject, req.TargetProjectID).Error; err != nil {
+		return nil, common.NotFound("Target project not found")
+	}
+
+	var issues []model.Issue
+	if err := s.db.Preload("AssigneeLinks").Preload("LabelLinks").
+		Where("id IN ?", req.IssueIDs).Find(&issues).Error; err != nil {
+		return nil, common.Internal("Failed to fetch issues")
+	}
+
+	if len(issues) == 0 {
+		return nil, common.BadRequest("No issues found")
+	}
+
+	var results []response.IssueResponse
+	tx := s.db.Begin()
+
+	for _, issue := range issues {
+		sourceProjectID := issue.ProjectID
+
+		if err := tx.Model(&issue).Updates(map[string]interface{}{
+			"project_id":  req.TargetProjectID,
+			"workspace_id": targetProject.WorkspaceID,
+			"updated_by_id": userID,
+		}).Error; err != nil {
+			tx.Rollback()
+			return nil, common.Internal("Failed to move issue")
+		}
+
+		if req.IncludeSubtasks {
+			s.moveSubtasks(tx, issue.ID, req.TargetProjectID, targetProject.WorkspaceID)
+		}
+
+		resp, _ := s.buildResponse(issue.ID)
+		if resp != nil {
+			results = append(results, *resp)
+		}
+
+		sourceProjectIDStr := strconv.FormatUint(sourceProjectID, 10)
+		targetProjectIDStr := strconv.FormatUint(req.TargetProjectID, 10)
+		s.createActivity(tx, issue.ID, "moved", nil,
+			&sourceProjectIDStr, &targetProjectIDStr, nil, &userID)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, common.Internal("Failed to commit transaction")
+	}
+
+	return results, nil
+}
+
+// moveSubtasks recursively moves subtasks to the target project.
+func (s *IssueService) moveSubtasks(tx *gorm.DB, parentID, targetProjectID, workspaceID uint64) {
+	var subtasks []model.Issue
+	s.db.Where("parent_id = ?", parentID).Find(&subtasks)
+
+	for _, subtask := range subtasks {
+		tx.Model(&subtask).Updates(map[string]interface{}{
+			"project_id":  targetProjectID,
+			"workspace_id": workspaceID,
+		})
+
+		s.moveSubtasks(tx, subtask.ID, targetProjectID, workspaceID)
+	}
+}
+
+// ConvertType converts an issue's type to the target type.
+func (s *IssueService) ConvertType(issueID uint64, req *request.ConvertTypeRequest, userID uint64) (*response.IssueResponse, error) {
+	var issue model.Issue
+	if err := s.db.Preload("IssueType").First(&issue, issueID).Error; err != nil {
+		return nil, common.NotFound("Issue not found")
+	}
+
+	var targetType model.IssueType
+	if err := s.db.First(&targetType, req.TargetTypeID).Error; err != nil {
+		return nil, common.NotFound("Target issue type not found")
+	}
+
+	if issue.IssueTypeID != nil && *issue.IssueTypeID == req.TargetTypeID {
+		return nil, common.BadRequest("Issue already has this type")
+	}
+
+	oldTypeName := ""
+	if issue.IssueType.ID != 0 {
+		oldTypeName = issue.IssueType.Name
+	}
+
+	tx := s.db.Begin()
+
+	if err := tx.Model(&issue).Updates(map[string]interface{}{
+		"issue_type_id": req.TargetTypeID,
+		"updated_by_id": userID,
+	}).Error; err != nil {
+		tx.Rollback()
+		return nil, common.Internal("Failed to update issue type")
+	}
+
+	s.createActivity(tx, issue.ID, "converted", nil,
+		&oldTypeName, &targetType.Name, nil, &userID)
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, common.Internal("Failed to commit transaction")
+	}
+
+	return s.buildResponse(issueID)
 }

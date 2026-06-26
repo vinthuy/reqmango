@@ -193,3 +193,75 @@ func notificationToResponse(n *model.Notification) response.NotificationResponse
 		UpdatedAt:   n.UpdatedAt,
 	}
 }
+
+// TriggerNotification creates a notification for a specific event.
+// This is used internally to auto-trigger notifications on business events.
+func (s *NotificationService) TriggerNotification(db *gorm.DB, event, title, message string, recipientID uint64, senderID, projectID, issueID *uint64) error {
+	nType := "info"
+	priority := "medium"
+
+	switch event {
+	case "issue_assigned", "issue_mentioned":
+		nType = "assignment"
+		priority = "high"
+	case "issue_state_changed":
+		nType = "status"
+	case "issue_commented":
+		nType = "comment"
+	case "issue_created", "issue_updated":
+		nType = "info"
+	case "issue_due_soon":
+		nType = "reminder"
+		priority = "high"
+	}
+
+	n := &model.Notification{
+		Title:       title,
+		Message:     message,
+		Type:        nType,
+		Priority:    priority,
+		RecipientID: recipientID,
+		SenderID:    senderID,
+		ProjectID:   projectID,
+		IssueID:     issueID,
+	}
+
+	return db.Create(n).Error
+}
+
+// TriggerNotificationsBulk creates notifications for multiple recipients.
+func (s *NotificationService) TriggerNotificationsBulk(db *gorm.DB, event, title, message string, recipientIDs []uint64, senderID, projectID, issueID *uint64) error {
+	nType := "info"
+	priority := "medium"
+
+	switch event {
+	case "issue_assigned", "issue_mentioned":
+		nType = "assignment"
+		priority = "high"
+	case "issue_state_changed":
+		nType = "status"
+	case "issue_commented":
+		nType = "comment"
+	case "issue_created", "issue_updated":
+		nType = "info"
+	case "issue_due_soon":
+		nType = "reminder"
+		priority = "high"
+	}
+
+	notifications := make([]*model.Notification, len(recipientIDs))
+	for i, rid := range recipientIDs {
+		notifications[i] = &model.Notification{
+			Title:       title,
+			Message:     message,
+			Type:        nType,
+			Priority:    priority,
+			RecipientID: rid,
+			SenderID:    senderID,
+			ProjectID:   projectID,
+			IssueID:     issueID,
+		}
+	}
+
+	return db.Create(&notifications).Error
+}

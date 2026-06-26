@@ -740,3 +740,78 @@ func (h *IssueHandler) RemovePage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Page removed from issue"})
 }
+
+// BulkCopy handles POST /issues/bulk/copy
+func (h *IssueHandler) BulkCopy(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	var req request.BulkCopyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	results, err := h.svc.BulkCopy(&req, user.ID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+// BulkMove handles POST /issues/bulk/move
+func (h *IssueHandler) BulkMove(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	var req request.BulkMoveRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	results, err := h.svc.BulkMove(&req, user.ID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+// ConvertType handles POST /issues/:issueId/convert-type
+func (h *IssueHandler) ConvertType(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	var req request.ConvertTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	result, err := h.svc.ConvertType(issueID, &req, user.ID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}

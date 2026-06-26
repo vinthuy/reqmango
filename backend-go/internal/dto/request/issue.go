@@ -16,6 +16,7 @@ type IssueCreateRequest struct {
 	TypeID           *uint64                 `json:"type_id"`
 	ExternalID       *string                 `json:"external_id"`
 	ExternalSource   *string                 `json:"external_source"`
+	CoverImageURL    *string                 `json:"cover_image_url"`
 	CustomFieldValues map[uint64]interface{} `json:"custom_field_values"`
 }
 
@@ -35,6 +36,7 @@ type IssueUpdateRequest struct {
 	ModuleIDs        []uint64 `json:"module_ids"`
 	ParentID         *uint64  `json:"parent_id"`
 	TypeID           *uint64  `json:"type_id"`
+	CoverImageURL    *string  `json:"cover_image_url"`
 }
 
 // BulkUpdateRequest is the request body for bulk issue updates.
@@ -51,6 +53,25 @@ type BulkUpdateRequest struct {
 // BulkDeleteRequest is the request body for bulk issue deletion.
 type BulkDeleteRequest struct {
 	IssueIDs []uint64 `json:"issue_ids" binding:"required"`
+}
+
+// BulkCopyRequest is the request body for bulk copying issues to another project.
+type BulkCopyRequest struct {
+	IssueIDs        []uint64 `json:"issue_ids" binding:"required"`
+	TargetProjectID uint64   `json:"target_project_id" binding:"required"`
+	IncludeSubtasks bool     `json:"include_subtasks"`
+}
+
+// BulkMoveRequest is the request body for bulk moving issues to another project.
+type BulkMoveRequest struct {
+	IssueIDs        []uint64 `json:"issue_ids" binding:"required"`
+	TargetProjectID uint64   `json:"target_project_id" binding:"required"`
+	IncludeSubtasks bool     `json:"include_subtasks"`
+}
+
+// ConvertTypeRequest is the request body for converting issue type.
+type ConvertTypeRequest struct {
+	TargetTypeID uint64 `json:"target_type_id" binding:"required"`
 }
 
 // ImportIssueItem represents a single issue item for import (JSON format).

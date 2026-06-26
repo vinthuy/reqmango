@@ -17,7 +17,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	workspaceSvc := service.NewWorkspaceService(db)
 	projectSvc := service.NewProjectService(db)
 	settingsSvc := service.NewProjectSettingsService(db)
-	issueSvc := service.NewIssueService(db)
+	notificationSvc := service.NewNotificationService(db)
+	issueSvc := service.NewIssueService(db, notificationSvc)
 	cycleSvc := service.NewCycleService(db)
 	moduleSvc := service.NewModuleService(db)
 	issueTypeSvc := service.NewIssueTypeService(db)
@@ -26,8 +27,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	typeTemplateSvc := service.NewTypeTemplateService(db)
 	relationSvc := service.NewRelationService(db)
 	workflowSvc := service.NewWorkflowService(db)
-	commentSvc := service.NewCommentService(db)
-	notificationSvc := service.NewNotificationService(db)
+	commentSvc := service.NewCommentService(db, notificationSvc)
 	savedViewSvc := service.NewSavedViewService(db)
 	projectIssueTypeH := handler.NewProjectIssueTypeHandler(issueTypeSvc)
 	pageSvc := service.NewPageService(db)
@@ -231,6 +231,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.GET("/search", issueH.Search)                  // ?workspace_id=&query=
 			issues.POST("/bulk/update", issueH.BulkUpdate)        // ?project_id=
 			issues.POST("/bulk/delete", issueH.BulkDelete)
+			issues.POST("/bulk/copy", issueH.BulkCopy)
+			issues.POST("/bulk/move", issueH.BulkMove)
 
 			// Import
 			issues.POST("/import/json", issueH.ImportJSON)   // ?project_id=&workspace_id=
@@ -242,6 +244,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.DELETE("/:issueId", issueH.Delete)
 			issues.POST("/:issueId/archive", issueH.Archive)
 			issues.POST("/:issueId/restore", issueH.Restore)
+			issues.POST("/:issueId/convert-type", issueH.ConvertType)
 			issues.GET("/:issueId/activities", issueH.GetActivities) // ?limit=&offset=
 
 			// Assignees

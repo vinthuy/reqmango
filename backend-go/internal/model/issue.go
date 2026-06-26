@@ -27,6 +27,7 @@ type Issue struct {
 	StateID        uint64  `gorm:"not null;index" json:"state_id"`
 	ExternalID     *string `gorm:"size:255" json:"external_id"`
 	ExternalSource *string `gorm:"size:255" json:"external_source"`
+	CoverImageURL  *string `gorm:"size:500" json:"cover_image_url"`
 
 	// Relationships
 	Project        Project         `gorm:"foreignKey:ProjectID" json:"-"`

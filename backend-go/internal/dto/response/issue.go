@@ -38,6 +38,7 @@ type IssueResponse struct {
 	ModuleIDs         []uint64      `json:"module_ids"`
 	ExternalID        *string       `json:"external_id"`
 	ExternalSource    *string       `json:"external_source"`
+	CoverImageURL     *string       `json:"cover_image_url"`
 
 	IssueType         *IssueTypeLite `json:"issue_type,omitempty"`
 
