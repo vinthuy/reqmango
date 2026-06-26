@@ -620,6 +620,72 @@ func (s *AIService) Analyze(ctx context.Context, actx *AIContext) (*AIAnalyzeRes
 
 func min(a, b int) int { if a < b { return a }; return b }
 
+// ==================== AI Triage ====================
+
+// AITriageResponse is the AI-powered triage analysis result.
+type AITriageResponse struct {
+	SuggestedType     string `json:"suggested_type"`
+	SuggestedPriority string `json:"suggested_priority"`
+	HasDuplicates     bool   `json:"has_duplicates"`
+	DuplicateIDs      []uint64 `json:"duplicate_ids"`
+	Summary           string `json:"summary"`
+}
+
+// TriageAnalyze runs AI analysis on an intake issue.
+func (s *AIService) TriageAnalyze(ctx context.Context, issueID uint64, projectID uint64) (*AITriageResponse, error) {
+	var issue model.Issue
+	if err := s.db.First(&issue, issueID).Error; err != nil {
+		return nil, fmt.Errorf("issue not found")
+	}
+
+	// Find potential duplicates by name similarity
+	var dupes []model.Issue
+	s.db.Where("project_id = ? AND id != ? AND name ILIKE ?", projectID, issueID, "%"+issue.Name[:min(len(issue.Name), 10)]+"%").
+		Limit(5).Find(&dupes)
+
+	dupIDs := make([]uint64, len(dupes))
+	for i, d := range dupes { dupIDs[i] = d.ID }
+
+	// Build prompt
+	prompt := fmt.Sprintf(`分析以下新提交的工作项，给出分类建议。
+
+标题: %s
+描述: %s
+提交者: %s
+可能重复: %d 个相似工作项
+
+请输出JSON格式（不要markdown标记）:
+{
+  "suggested_type": "Bug|Feature|Task|Improvement",
+  "suggested_priority": "urgent|high|medium|low",
+  "summary": "一句话总结（中文，30字内）"
+}`,
+		issue.Name, issue.DescriptionHTML, "外部用户", len(dupes))
+
+	result, err := s.llm.Complete(ctx, "你是项目分诊专家。只输出JSON，不加解释。", prompt)
+	if err != nil {
+		// Fallback: rule-based analysis
+		name := strings.ToLower(issue.Name)
+		st := "Task"
+		sp := "medium"
+		if strings.Contains(name, "bug") || strings.Contains(name, "错误") || strings.Contains(name, "崩溃") { st = "Bug"; sp = "high" }
+		if strings.Contains(name, "登录") || strings.Contains(name, "支付") { sp = "urgent" }
+		return &AITriageResponse{
+			SuggestedType: st, SuggestedPriority: sp,
+			HasDuplicates: len(dupes) > 0, DuplicateIDs: dupIDs,
+			Summary: fmt.Sprintf("[离线分析] 建议类型: %s, 优先级: %s, 相似工作项: %d个", st, sp, len(dupes)),
+		}, nil
+	}
+
+	var resp AITriageResponse
+	if json.Unmarshal([]byte(result), &resp) != nil {
+		resp = AITriageResponse{Summary: result}
+	}
+	resp.HasDuplicates = len(dupes) > 0
+	resp.DuplicateIDs = dupIDs
+	return &resp, nil
+}
+
 // ==================== Page AI ====================
 
 // PageAIRequest is the request for Page AI operations.

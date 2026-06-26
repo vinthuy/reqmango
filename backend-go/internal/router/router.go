@@ -119,6 +119,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.GET("/:projectId/statistics", projectH.GetStatistics)
 	projects.GET("/:projectId/intake", intakeH.ListPending)
 	projects.POST("/:projectId/intake/:issueId/triage", intakeH.Triage)
+	projects.POST("/:projectId/intake/:issueId/ai-analyze", aiH.TriageAnalyze)
 			projects.GET("/:projectId/issues-summary", projectH.GetIssuesSummary)
 			projects.PATCH("/:projectId/lead", projectH.UpdateProjectLead)
 			projects.GET("/:projectId/subscribers", projectH.ListSubscribers)

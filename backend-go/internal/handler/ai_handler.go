@@ -198,6 +198,15 @@ func (h *AIHandler) PageAI(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// TriageAnalyze handles POST /projects/:projectId/intake/:issueId/ai-analyze.
+func (h *AIHandler) TriageAnalyze(c *gin.Context) {
+	issueID, _ := strconv.ParseUint(c.Param("issueId"), 10, 64)
+	projectID, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	result, err := h.svc.TriageAnalyze(c.Request.Context(), issueID, projectID)
+	if err != nil { c.JSON(500, gin.H{"message":err.Error()}); return }
+	c.JSON(200, result)
+}
+
 // ==================== AI Config (workspace-level) ====================
 
 // GetAIConfig handles GET /workspaces/:wsParam/ai-config.

@@ -34,7 +34,21 @@
               <span>{{ formatDate(item.created_at) }}</span>
             </div>
           </div>
+          <!-- AI Suggestion -->
+          <div v-if="aiResults[item.id]" class="mt-2 p-2 bg-indigo-50 rounded text-xs">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-indigo-700">🤖 AI:</span>
+              <span class="text-indigo-600">{{ aiResults[item.id].suggested_type }}</span>
+              <span :class="'px-1 rounded text-white '+(aiResults[item.id].suggested_priority==='urgent'?'bg-red-500':'bg-amber-500')">{{ aiResults[item.id].suggested_priority }}</span>
+            </div>
+            <div class="text-gray-600">{{ aiResults[item.id].summary }}</div>
+            <div v-if="aiResults[item.id].has_duplicates" class="text-amber-600 mt-1">⚠ Possible duplicates: #{{ aiResults[item.id].duplicate_ids?.join(', #') }}</div>
+          </div>
+
           <div class="flex items-center gap-2 ml-4">
+            <button @click="analyzeAI(item.id)" class="px-2 py-1.5 text-xs border border-indigo-300 text-indigo-600 rounded hover:bg-indigo-50" :disabled="analyzing[item.id]">
+              {{ analyzing[item.id] ? '...' : '🤖' }}
+            </button>
             <button @click="triage(item.id, 'accept')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700">Accept</button>
             <button @click="triage(item.id, 'reject')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded hover:bg-red-600">Reject</button>
           </div>
@@ -53,6 +67,17 @@ defineEmits<{ (e: 'showForm'): void }>()
 
 const items = ref<any[]>([])
 const loading = ref(false)
+const aiResults = ref<Record<number, any>>({})
+const analyzing = ref<Record<number, boolean>>({})
+
+async function analyzeAI(issueId: number) {
+  analyzing.value[issueId] = true
+  try {
+    const r = await api.post(`/projects/${props.projectId}/intake/${issueId}/ai-analyze`)
+    aiResults.value[issueId] = r.data
+  } catch (_) {}
+  finally { analyzing.value[issueId] = false }
+}
 
 onMounted(() => load())
 

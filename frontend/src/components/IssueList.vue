@@ -1,124 +1,207 @@
 <template>
   <div class="issue-list bg-white rounded-lg border border-gray-200">
-    <!-- 工具栏 -->
-    <div class="border-b border-gray-200">
-      <div class="px-4 py-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-3 flex-1">
-            <div class="relative flex-1 max-w-md">
-              <input
-                v-model="filters.search" type="text"
-                placeholder="搜索工作项...（名称 / 编号）"
-                class="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                @keydown.enter="search"
-              />
-              <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    <!-- Row 1: 主工具栏 -->
+    <div class="px-4 py-2.5 border-b border-gray-100">
+      <div class="flex items-center gap-3">
+        <!-- 搜索框 -->
+        <div class="relative flex-1 max-w-sm">
+          <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            v-model="filters.search"
+            type="text"
+            placeholder="搜索工作项..."
+
+            class="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-md text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+            @keydown.enter="search"
+          />
+        </div>
+
+        <!-- 快速筛选芯片 -->
+        <QuickFilterChips @filter="handleQuickFilter" />
+
+        <div class="flex-1" />
+
+        <!-- 右侧操作按钮 -->
+        <div class="flex items-center gap-1.5">
+          <!-- RQL 按钮 -->
+          <button
+            @click="showRQL = !showRQL"
+            class="px-2.5 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            :class="{ 'bg-gray-100 text-gray-700': showRQL }"
+            title="RQL 高级查询"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+          </button>
+
+          <!-- 筛选按钮 -->
+          <div class="relative">
+            <button
+              @click="showFilterDropdown = !showFilterDropdown"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+              :class="{ 'bg-gray-100 border-gray-300': activeFilterCount > 0 }"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
-            </div>
-            <QuickFilterChips @filter="handleQuickFilter" />
-            <div class="w-80 flex items-center">
-              <RQLInput
-                v-model="rqlQuery"
-                placeholder="RQL 查询..."
-                :error="rqlError"
-                show-history
-                @search="onRQLSearch"
-              />
-              <svg v-if="rqlLoading" class="animate-spin h-5 w-5 text-indigo-600 ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-            </div>
-            <select v-model="filters.state_id" @change="search" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
-              <option value="0">所有状态</option>
-              <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
-            </select>
-            <select v-model="filters.priority" @change="search" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
-              <option value="">所有优先级</option>
-              <option value="urgent">紧急</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option><option value="none">无</option>
-            </select>
-          </div>
-          <div class="flex items-center space-x-2 ml-3">
-            <!-- 列配置 -->
-            <div class="relative">
-              <button @click="showColumns = !showColumns"
-                class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-                :class="{ 'bg-gray-100': showColumns }">
-                列配置
-                <svg class="w-3 h-3 inline ml-1" :class="{ 'rotate-180': showColumns }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-              </button>
-              <div v-if="showColumns" class="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-                <div class="px-3 py-1.5 text-xs text-gray-400 font-medium border-b border-gray-100">显示列</div>
-                <label v-for="col in effectiveColumns" :key="col.key"
-                  class="flex items-center px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
-                  <input type="checkbox" :checked="visibleColumnKeys.has(col.key)" @change="toggleColumn(col.key)" class="rounded border-gray-300 mr-2" />
-                  {{ col.label }}
-                </label>
-              </div>
-            </div>
-            <button @click="showAdvanced = !showAdvanced" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
-              高级搜索
-              <svg class="w-3 h-3 inline ml-1" :class="{ 'rotate-180': showAdvanced }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              <span>筛选</span>
+              <span v-if="activeFilterCount > 0" class="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center">{{ activeFilterCount }}</span>
             </button>
-            <button @click="showImportModal = true" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">导入</button>
-            <button @click="goToCreate" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">新建</button>
-          </div>
-        </div>
-      </div>
-      <!-- 快速创建 -->
-      <QuickCreateInput
-        :project-id="projectId"
-        :workspace-id="workspaceId"
-        :issue-types="issueTypes"
-        @created="onQuickCreated"
-      />
-      <!-- 高级搜索 -->
-      <div v-if="showAdvanced" class="px-4 pb-3 border-t border-gray-100 pt-3 bg-gray-50">
-        <div class="grid grid-cols-4 gap-3">
-          <div><label class="block text-xs text-gray-500 mb-1">周期</label>
-            <select v-model="filters.cycle_id" @change="search" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
-              <option value="0">全部</option><option v-for="c in cycles" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select></div>
-          <div><label class="block text-xs text-gray-500 mb-1">负责人</label>
-            <UserSelect
-              v-model="filtersAssignee"
-              :users="memberOptions"
-              placeholder="全部"
-              :clearable="true"
-              @update:model-value="search"
-            /></div>
-          <div><label class="block text-xs text-gray-500 mb-1">起始日期</label>
-            <input type="date" v-model="filters.start_date" @change="search" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
-          <div><label class="block text-xs text-gray-500 mb-1">截止日期</label>
-            <input type="date" v-model="filters.end_date" @change="search" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
-        </div>
-        <div v-if="customFields.length > 0" class="mt-3 pt-3 border-t border-gray-200">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs text-gray-500">自定义字段筛选 (AND)</span>
-              <button @click="addCFCondition" class="text-xs text-indigo-600 hover:text-indigo-800">+ 添加条件</button>
-            </div>
-            <div v-for="(cond, idx) in cfConditions" :key="idx" class="grid grid-cols-8 gap-2 mb-2">
-              <div class="col-span-3">
-                <select v-model="cond.field_id" @change="search" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
-                  <option :value="0">选择字段</option>
-                  <option v-for="cf in customFields" :key="cf.id" :value="cf.id">{{ cf.name }}</option>
-                </select>
-              </div>
-              <div class="col-span-4">
-                <input type="text" v-model="cond.value" @input="search" placeholder="值 (模糊搜索)" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
-              </div>
-              <div class="col-span-1">
-                <button @click="removeCFCondition(idx)" class="w-full px-2 py-1.5 text-xs text-red-500 border border-red-200 rounded hover:bg-red-50">×</button>
+
+            <!-- 筛选下拉菜单 -->
+            <div v-if="showFilterDropdown" class="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1" @click.stop>
+              <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider">添加筛选条件</div>
+              <button @click="addFilter('state_id')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
+                状态 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('state_id') }}</span>
+              </button>
+              <button @click="addFilter('priority')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
+                优先级 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('priority') }}</span>
+              </button>
+              <button @click="addFilter('assignee_id')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
+                负责人 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('assignee_id') }}</span>
+              </button>
+              <button @click="addFilter('cycle_id')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
+                周期 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('cycle_id') }}</span>
+              </button>
+              <button @click="addFilter('start_date')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
+                开始日期 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('start_date') }}</span>
+              </button>
+              <button @click="addFilter('target_date')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
+                截止日期 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('target_date') }}</span>
+              </button>
+              <div v-if="customFields.length > 0" class="border-t border-gray-100 mt-1 pt-1">
+                <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider">自定义字段</div>
+                <button v-for="cf in customFields" :key="cf.id" @click="addCFFilter(cf.id)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">
+                  {{ cf.name }}
+                </button>
               </div>
             </div>
           </div>
-          <div class="mt-2 flex justify-end"><button @click="resetFilters" class="text-sm text-gray-500 hover:text-indigo-600">重置筛选</button></div>
+
+          <!-- 列配置 -->
+          <div class="relative">
+            <button
+              @click="showColumns = !showColumns"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+              :class="{ 'bg-gray-100 border-gray-300': showColumns }"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              <span>列配置</span>
+            </button>
+            <div v-if="showColumns" class="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+              <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider border-b border-gray-100">显示列</div>
+              <label v-for="col in effectiveColumns" :key="col.key" class="flex items-center px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
+                <input type="checkbox" :checked="visibleColumnKeys.has(col.key)" @change="toggleColumn(col.key)" class="rounded border-gray-300 mr-2" />
+                {{ col.label }}
+              </label>
+            </div>
+          </div>
+
+          <!-- 导入 -->
+          <button @click="showImportModal = true" class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span>导入</span>
+          </button>
+
+          <!-- 新建 -->
+          <button @click="goToCreate" class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:bg-indigo-700 transition-colors font-medium">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>新建</span>
+          </button>
+        </div>
       </div>
     </div>
 
+    <!-- RQL 查询栏（可收起） -->
+    <div v-if="showRQL" class="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+      <div class="flex-1">
+        <RQLInput
+          v-model="rqlQuery"
+          placeholder="RQL 查询，例如: priority = urgent AND state.in = [进行中, 待处理]"
+          :error="rqlError"
+          show-history
+          @search="onRQLSearch"
+        />
+      </div>
+      <svg v-if="rqlLoading" class="animate-spin h-4 w-4 text-indigo-600 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+    </div>
+
+    <!-- Row 2: 激活的筛选条件芯片 -->
+    <div v-if="activeFilterChips.length > 0" class="px-4 py-2 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2 flex-wrap">
+      <span class="text-[11px] text-gray-400 font-medium shrink-0">筛选条件:</span>
+      <span
+        v-for="chip in activeFilterChips"
+        :key="chip.key"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white border border-gray-200 text-gray-700 shadow-sm"
+      >
+        <span class="text-gray-400">{{ chip.label }}:</span>
+        <span class="font-medium">{{ chip.value }}</span>
+        <button @click="removeFilter(chip.key)" class="ml-0.5 text-gray-400 hover:text-red-500 transition-colors">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </span>
+      <button @click="clearAllFilters" class="text-[11px] text-gray-400 hover:text-indigo-600 transition-colors ml-1">清除全部</button>
+    </div>
+
+    <!-- Row 3: 快速创建 -->
+    <QuickCreateInput
+      :project-id="projectId"
+      :workspace-id="workspaceId"
+      :issue-types="issueTypes"
+      @created="onQuickCreated"
+    />
+
+    <!-- 筛选值选择弹窗（当点击添加筛选时出现） -->
+    <div v-if="activeFilterPicker" class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center gap-3">
+      <span class="text-xs text-gray-500 shrink-0">{{ activeFilterPicker.label }}:</span>
+      <!-- 状态选择 -->
+      <select v-if="activeFilterPicker.key === 'state_id'" v-model="filters.state_id" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm">
+        <option :value="0">所有状态</option>
+        <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
+      </select>
+      <!-- 优先级选择 -->
+      <select v-else-if="activeFilterPicker.key === 'priority'" v-model="filters.priority" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm">
+        <option value="">所有优先级</option>
+        <option value="urgent">紧急</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option><option value="none">无</option>
+      </select>
+      <!-- 周期选择 -->
+      <select v-else-if="activeFilterPicker.key === 'cycle_id'" v-model="filters.cycle_id" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm">
+        <option :value="0">全部</option>
+        <option v-for="c in cycles" :key="c.id" :value="c.id">{{ c.name }}</option>
+      </select>
+      <!-- 负责人选择 -->
+      <UserSelect
+        v-else-if="activeFilterPicker.key === 'assignee_id'"
+        v-model="filtersAssignee"
+        :users="memberOptions"
+        placeholder="选择负责人"
+        :clearable="true"
+        @update:model-value="applyFilterPicker"
+      />
+      <!-- 日期选择 -->
+      <input v-else-if="activeFilterPicker.key === 'start_date'" type="date" v-model="filters.start_date" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm" />
+      <input v-else-if="activeFilterPicker.key === 'target_date'" type="date" v-model="filters.end_date" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm" />
+      <!-- 自定义字段 -->
+      <input v-else-if="activeFilterPicker.key === 'cf'" type="text" :placeholder="'输入' + activeFilterPicker.label + '值'" v-model="activeCFValue" @keydown.enter="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm flex-1 max-w-xs" />
+      <button @click="cancelFilterPicker" class="text-xs text-gray-400 hover:text-gray-600">取消</button>
+    </div>
+
     <!-- 批量操作工具栏 -->
-    <div v-if="selectedIds.size > 0" class="px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center space-x-4">
+    <div v-if="selectedIds.size > 0" class="px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center gap-3">
       <span class="text-sm text-indigo-700 font-medium">已选 {{ selectedIds.size }} 项</span>
       <select v-model="batchAction" class="px-2 py-1 border border-indigo-300 rounded text-sm">
         <option value="">批量操作...</option>
@@ -145,77 +228,77 @@
       <template v-else-if="batchAction === 'delete'">
         <button @click="execBatchDelete" class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700">确认删除</button>
       </template>
-      <button @click="batchAction = ''; selectedIds.clear()" class="text-sm text-gray-500 hover:text-gray-700">取消</button>
+      <button @click="selectedIds.clear(); batchAction = ''" class="text-sm text-gray-500 hover:text-gray-700">取消</button>
     </div>
 
     <!-- 列表内容 -->
     <div class="overflow-x-auto">
-      <div v-if="loading" class="text-center py-12">
+      <div v-if="loading" class="text-center py-16">
         <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
         <p class="mt-2 text-gray-500 text-sm">加载中...</p>
       </div>
       <div v-else-if="issues.length === 0" class="text-center py-16">
         <svg class="h-12 w-12 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         <p class="mt-2 text-gray-500">暂无工作项</p>
+        <p class="mt-1 text-sm text-gray-400">使用上方快速创建栏或点击"新建"按钮添加工作项</p>
       </div>
       <table v-else class="w-full">
-        <thead class="bg-gray-50 border-b border-gray-200">
+        <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
           <tr>
-            <th class="w-10 px-3 py-2 text-left">
+            <th class="w-10 px-3 py-2.5 text-left">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" class="rounded border-gray-300" />
             </th>
             <th v-for="col in visibleColumns" :key="col.key"
-              class="px-3 py-2 text-left text-xs font-medium text-gray-500"
+              class="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               :class="col.width"
             >{{ col.label }}</th>
-            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 w-20">操作</th>
+            <th class="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="issue in issues" :key="issue.id"
-            class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-            :class="{ 'bg-indigo-50': selectedIds.has(issue.id) }">
-            <td class="px-3 py-2" @click.stop>
+            class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+            :class="{ 'bg-indigo-50/50': selectedIds.has(issue.id) }">
+            <td class="px-3 py-2.5" @click.stop>
               <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300" />
             </td>
-            <td v-for="col in visibleColumns" :key="col.key" class="px-3 py-2" @click="col.key !== 'actions' && $emit('select', issue)">
+            <td v-for="col in visibleColumns" :key="col.key" class="px-3 py-2.5" @click="col.key !== 'actions' && $emit('select', issue)">
               <!-- 编号 -->
-              <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-500 font-mono">DEMO-{{ issue.sequence_id }}</span>
+              <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-400 font-mono">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
               <!-- 标题 -->
-              <span v-else-if="col.key === 'name'" class="text-sm text-gray-800 font-medium line-clamp-2">{{ issue.name }}</span>
+              <span v-else-if="col.key === 'name'" class="text-sm text-gray-800 font-medium line-clamp-2 hover:text-indigo-600 transition-colors">{{ issue.name }}</span>
               <!-- 优先级 -->
               <span v-else-if="col.key === 'priority'" :class="priorityClass(issue.priority)" class="text-xs px-1.5 py-0.5 rounded whitespace-nowrap">{{ priorityLabel(issue.priority) }}</span>
-              <!-- 状态 -->
               <!-- 类型 -->
               <span v-else-if="col.key === 'issue_type'" class="text-xs whitespace-nowrap">
-                <span v-if="issue.issue_type" class="inline-flex items-center space-x-0.5">
+                <span v-if="issue.issue_type" class="inline-flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: issue.issue_type.color }"></span>
-                  <span>{{ issue.issue_type.name }}</span>
+                  <span class="text-gray-600">{{ issue.issue_type.name }}</span>
                 </span>
                 <span v-else class="text-gray-400">-</span>
               </span>
+              <!-- 状态 -->
               <span v-else-if="col.key === 'state'" class="text-xs text-gray-600 whitespace-nowrap">{{ getStateName(issue.state_id) }}</span>
               <!-- 负责人 -->
               <div v-else-if="col.key === 'assignees'" class="flex -space-x-1">
                 <div v-for="(a, idx) in (issue.assignees || []).slice(0, 3)" :key="a.id"
-                  class="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[10px] font-medium text-white"
+                  class="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[10px] font-medium text-white ring-2 ring-white"
                   :style="{ backgroundColor: assigneeColor(idx) }" :title="a.display_name || a.username">{{ getInitials(a.display_name || a.username) }}</div>
                 <span v-if="!issue.assignees?.length" class="text-xs text-gray-400">-</span>
               </div>
               <!-- 周期 -->
               <span v-else-if="col.key === 'cycle'" class="text-xs text-gray-500 whitespace-nowrap">{{ getCycleName(issue) }}</span>
-              <!-- 开始日期 -->
+              <!-- 日期 -->
               <span v-else-if="col.key === 'start_date'" class="text-xs text-gray-500">{{ formatDate(issue.start_date) }}</span>
-              <!-- 截止日期 -->
               <span v-else-if="col.key === 'target_date'" class="text-xs text-gray-500">{{ formatDate(issue.target_date) }}</span>
-              <!-- 创建时间 -->
               <span v-else-if="col.key === 'created_at'" class="text-xs text-gray-400">{{ formatDate(issue.created_at) }}</span>
               <!-- 自定义字段 -->
               <span v-else-if="col.key.startsWith('cf_')" class="text-xs text-gray-600 whitespace-nowrap">{{ getCFValue(issue.id, col.key) }}</span>
             </td>
-            <td class="px-3 py-2" @click.stop>
-              <button @click="$emit('select', issue)" class="text-xs text-indigo-600 hover:text-indigo-800 mr-2">查看</button>
-              <button @click="$emit('delete', issue)" class="text-xs text-red-500 hover:text-red-700">删除</button>
+            <td class="px-3 py-2.5" @click.stop>
+              <div class="flex items-center gap-1">
+                <button @click="$emit('select', issue)" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">查看</button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -223,18 +306,19 @@
     </div>
 
     <!-- 分页 -->
-    <div v-if="totalPages > 1" class="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+    <div v-if="totalPages > 1" class="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50/50">
       <span class="text-sm text-gray-500">共 {{ totalCount }} 项</span>
-      <div class="flex items-center space-x-1">
-        <button @click="page--" :disabled="page <= 1" class="px-3 py-1 border rounded text-sm disabled:opacity-50">上一页</button>
+      <div class="flex items-center gap-1">
+        <button @click="page--" :disabled="page <= 1" class="px-3 py-1 border rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors">上一页</button>
         <template v-for="p in visiblePages" :key="p">
           <button v-if="p === '...'" disabled class="px-2 py-1 text-sm text-gray-400">...</button>
-          <button v-else @click="page = Number(p)" class="px-3 py-1 border rounded text-sm"
-            :class="page === Number(p) ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-gray-50'">{{ p }}</button>
+          <button v-else @click="page = Number(p)" class="px-3 py-1 border rounded text-sm transition-colors"
+            :class="page === Number(p) ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-gray-100'">{{ p }}</button>
         </template>
-        <button @click="page++" :disabled="page >= totalPages" class="px-3 py-1 border rounded text-sm disabled:opacity-50">下一页</button>
+        <button @click="page++" :disabled="page >= totalPages" class="px-3 py-1 border rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors">下一页</button>
       </div>
     </div>
+
     <ImportIssuesModal
       :visible="showImportModal"
       :project-id="projectId"
@@ -250,6 +334,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import issueApi from '@/api/issue'
 import customFieldApi from '@/api/custom-field'
+import projectApi from '@/api/project'
 import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
 import { RQLInput } from '@/components/RQL'
@@ -262,10 +347,13 @@ import * as issueTypeApi from '@/api/issue-type'
 const props = defineProps<{ projectId: number; workspaceId: number }>()
 const router = useRouter()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'select', issue: any): void
   (e: 'delete', issue: any): void
 }>()
+
+// ---- Project Identifier ----
+const projectIdentifier = ref('')
 
 // ---- Column config ----
 interface ColumnDef { key: string; label: string; width: string; defaultVisible: boolean }
@@ -285,26 +373,13 @@ const staticColumns: ColumnDef[] = [
 const STORAGE_KEY = 'issuelist_columns'
 
 const customFields = ref<any[]>([])
-const cfConditions = ref<Array<{ field_id: number; value: string }>>([])
-
-function addCFCondition() {
-  cfConditions.value.push({ field_id: 0, value: '' })
-}
-function removeCFCondition(idx: number) {
-  cfConditions.value.splice(idx, 1)
-  search()
-}
+const cfFilters = ref<Map<number, string>>(new Map())
 
 // Dynamic columns: static + custom fields
 const effectiveColumns = computed(() => {
   const cols = [...staticColumns]
   for (const cf of customFields.value) {
-    cols.push({
-      key: 'cf_' + cf.id,
-      label: cf.name,
-      width: 'w-28',
-      defaultVisible: false
-    } as ColumnDef)
+    cols.push({ key: 'cf_' + cf.id, label: cf.name, width: 'w-28', defaultVisible: false } as ColumnDef)
   }
   return cols
 })
@@ -319,6 +394,7 @@ function loadColumnPrefs(): Set<string> {
 
 const visibleColumnKeys = ref(loadColumnPrefs())
 const showColumns = ref(false)
+const showRQL = ref(false)
 
 const visibleColumns = computed(() => effectiveColumns.value.filter(c => visibleColumnKeys.value.has(c.key)))
 
@@ -334,15 +410,8 @@ function saveColumnPrefs() {
 }
 
 // ---- RQL Search ----
-const {
-  rql: rqlQuery,
-  loading: rqlLoading,
-  error: rqlError,
-  search: doRQLSearch,
-  results: rqlResults
-} = useRQL()
+const { rql: rqlQuery, loading: rqlLoading, error: rqlError, search: doRQLSearch, results: rqlResults } = useRQL()
 
-// 处理 RQL 搜索
 const onRQLSearch = async () => {
   await doRQLSearch(props.projectId, 'issue')
   if (!rqlError.value && rqlResults.value.length > 0) {
@@ -350,7 +419,7 @@ const onRQLSearch = async () => {
   }
 }
 
-// ---- State ----
+// ---- Filter System ----
 const issues = ref<any[]>([])
 const states = ref<any[]>([])
 const cycles = ref<any[]>([])
@@ -360,14 +429,149 @@ const page = ref(1)
 const limit = ref(20)
 const totalCount = ref(0)
 const totalPages = ref(1)
-const showAdvanced = ref(false)
 const selectedIds = ref(new Set<number>())
+const showFilterDropdown = ref(false)
+const showImportModal = ref(false)
+
+// Active filter picker state
+const activeFilterPicker = ref<{ key: string; label: string } | null>(null)
+const activeCFValue = ref('')
 
 const filters = ref({
   search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0,
-  start_date: '', end_date: '', cf_field_id: 0, cf_value: ''
+  start_date: '', end_date: ''
 })
 
+// Track which filters are "active" (user has explicitly set them)
+const activeFilterKeys = ref<Set<string>>(new Set())
+
+const activeFilterCount = computed(() => activeFilterKeys.value.size + cfFilters.value.size)
+
+interface FilterChip { key: string; label: string; value: string }
+
+const activeFilterChips = computed<FilterChip[]>(() => {
+  const chips: FilterChip[] = []
+  if (activeFilterKeys.value.has('state_id') && filters.value.state_id > 0) {
+    const s = states.value.find((s: any) => s.id === filters.value.state_id)
+    chips.push({ key: 'state_id', label: '状态', value: s?.name || String(filters.value.state_id) })
+  }
+  if (activeFilterKeys.value.has('priority') && filters.value.priority) {
+    const labels: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }
+    chips.push({ key: 'priority', label: '优先级', value: labels[filters.value.priority] || filters.value.priority })
+  }
+  if (activeFilterKeys.value.has('assignee_id') && filters.value.assignee_id > 0) {
+    const m = members.value.find((m: any) => m.user_id === filters.value.assignee_id)
+    chips.push({ key: 'assignee_id', label: '负责人', value: m?.user?.display_name || m?.user?.username || String(filters.value.assignee_id) })
+  }
+  if (activeFilterKeys.value.has('cycle_id') && filters.value.cycle_id > 0) {
+    const c = cycles.value.find((c: any) => c.id === filters.value.cycle_id)
+    chips.push({ key: 'cycle_id', label: '周期', value: c?.name || String(filters.value.cycle_id) })
+  }
+  if (activeFilterKeys.value.has('start_date') && filters.value.start_date) {
+    chips.push({ key: 'start_date', label: '开始日期', value: filters.value.start_date })
+  }
+  if (activeFilterKeys.value.has('target_date') && filters.value.end_date) {
+    chips.push({ key: 'target_date', label: '截止日期', value: filters.value.end_date })
+  }
+  cfFilters.value.forEach((value, fieldId) => {
+    const cf = customFields.value.find((f: any) => f.id === fieldId)
+    chips.push({ key: 'cf_' + fieldId, label: cf?.name || '自定义字段', value })
+  })
+  return chips
+})
+
+function getFilterValueLabel(key: string): string {
+  if (key === 'state_id' && filters.value.state_id > 0) {
+    const s = states.value.find((s: any) => s.id === filters.value.state_id)
+    return s?.name || ''
+  }
+  if (key === 'priority' && filters.value.priority) {
+    const labels: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }
+    return labels[filters.value.priority] || ''
+  }
+  if (key === 'assignee_id' && filters.value.assignee_id > 0) {
+    const m = members.value.find((m: any) => m.user_id === filters.value.assignee_id)
+    return m?.user?.display_name || m?.user?.username || ''
+  }
+  if (key === 'cycle_id' && filters.value.cycle_id > 0) {
+    const c = cycles.value.find((c: any) => c.id === filters.value.cycle_id)
+    return c?.name || ''
+  }
+  if (key === 'start_date' && filters.value.start_date) return filters.value.start_date
+  if (key === 'target_date' && filters.value.end_date) return filters.value.end_date
+  return ''
+}
+
+function addFilter(key: string) {
+  showFilterDropdown.value = false
+  const labels: Record<string, string> = {
+    state_id: '状态', priority: '优先级', assignee_id: '负责人',
+    cycle_id: '周期', start_date: '开始日期', target_date: '截止日期'
+  }
+  activeFilterPicker.value = { key, label: labels[key] || key }
+}
+
+function addCFFilter(fieldId: number) {
+  showFilterDropdown.value = false
+  const cf = customFields.value.find((f: any) => f.id === fieldId)
+  activeFilterPicker.value = { key: 'cf', label: cf?.name || '自定义字段' }
+}
+
+function applyFilterPicker() {
+  if (!activeFilterPicker.value) return
+  if (activeFilterPicker.value.key === 'cf') {
+    if (activeCFValue.value.trim()) {
+      const fieldId = customFields.value.find((f: any) => f.name === activeFilterPicker.value!.label)?.id
+      if (fieldId) cfFilters.value.set(fieldId, activeCFValue.value.trim())
+    }
+    activeCFValue.value = ''
+  } else {
+    activeFilterKeys.value.add(activeFilterPicker.value.key)
+  }
+  activeFilterPicker.value = null
+  showFilterDropdown.value = false
+  search()
+}
+
+function cancelFilterPicker() {
+  activeFilterPicker.value = null
+  activeCFValue.value = ''
+}
+
+function removeFilter(key: string) {
+  if (key.startsWith('cf_')) {
+    const fieldId = parseInt(key.replace('cf_', ''))
+    cfFilters.value.delete(fieldId)
+  } else {
+    activeFilterKeys.value.delete(key)
+    // Reset the filter value
+    if (key === 'state_id') filters.value.state_id = 0
+    else if (key === 'priority') filters.value.priority = ''
+    else if (key === 'cycle_id') filters.value.cycle_id = 0
+    else if (key === 'assignee_id') filters.value.assignee_id = 0
+    else if (key === 'start_date') filters.value.start_date = ''
+    else if (key === 'target_date') filters.value.end_date = ''
+  }
+  search()
+}
+
+function clearAllFilters() {
+  activeFilterKeys.value.clear()
+  cfFilters.value.clear()
+  filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, start_date: '', end_date: '' }
+  search()
+}
+
+// Close filter dropdown when clicking outside
+function handleClickOutside(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (!target.closest('.relative')) {
+    showFilterDropdown.value = false
+    showColumns.value = false
+  }
+}
+
+// ---- Batch Operations ----
 const batchAction = ref('')
 const batchStateId = ref(0)
 const batchPriority = ref('')
@@ -376,7 +580,7 @@ const batchCycleId = ref(0)
 // ---- Computed ----
 const isAllSelected = computed(() => issues.value.length > 0 && issues.value.every(i => selectedIds.value.has(i.id)))
 
-const memberOptions = computed(() => members.value.map(m => ({
+const memberOptions = computed(() => members.value.map((m: any) => ({
   id: m.user_id,
   display_name: m.user?.display_name || m.user?.username,
   email: m.user?.email
@@ -412,22 +616,25 @@ function formatDate(d: string | null | undefined) { if (!d) return '-'; return n
 // ---- Actions ----
 function goToCreate() { router.push(`/workspaces/${props.workspaceId}/projects/${props.projectId}/issues/new`) }
 
-function onQuickCreated() {
-  page.value = 1
-  loadIssues()
-}
-
-const showImportModal = ref(false)
-function onImportSuccess() {
-  page.value = 1
-  loadIssues()
-}
+function onQuickCreated() { page.value = 1; loadIssues() }
+function onImportSuccess() { page.value = 1; loadIssues() }
 function search() { page.value = 1; loadIssues() }
-function resetFilters() {
-  filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, start_date: '', end_date: '', cf_field_id: 0, cf_value: '' }
-  cfConditions.value = []
+
+function handleQuickFilter(quickFilters: Record<string, any>) {
+  if (quickFilters.assignee_id === 'me') {
+    filters.value.assignee_id = 1
+    activeFilterKeys.value.add('assignee_id')
+  } else if (quickFilters.assignee_id === null) {
+    filters.value.assignee_id = 0
+    activeFilterKeys.value.delete('assignee_id')
+  }
+  if (quickFilters.priority) {
+    filters.value.priority = quickFilters.priority
+    activeFilterKeys.value.add('priority')
+  }
   search()
 }
+
 function toggleSelectAll() {
   if (isAllSelected.value) selectedIds.value.clear()
   else issues.value.forEach(i => selectedIds.value.add(i.id))
@@ -451,8 +658,19 @@ async function execBatchDelete() {
 }
 
 // ---- Data loading ----
-onMounted(() => { Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes()]) })
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes(), loadProjectInfo()])
+})
+
 watch(page, () => loadIssues())
+
+async function loadProjectInfo() {
+  try {
+    const project = await projectApi.getProject(props.projectId)
+    projectIdentifier.value = project.identifier || 'PROJ'
+  } catch { /* */ }
+}
 
 async function loadIssues() {
   loading.value = true
@@ -463,9 +681,10 @@ async function loadIssues() {
     if (filters.value.cycle_id && filters.value.cycle_id > 0) params.cycle_id = filters.value.cycle_id
     if (filters.value.assignee_id && filters.value.assignee_id > 0) params.assignee_id = filters.value.assignee_id
     if (filters.value.search) params.search = filters.value.search
-    const activeConditions = cfConditions.value.filter(c => c.field_id > 0)
-    if (activeConditions.length > 0) {
-      params.cf_and = JSON.stringify(activeConditions)
+    // Pass CF filters
+    if (cfFilters.value.size > 0) {
+      const conditions = Array.from(cfFilters.value.entries()).map(([field_id, value]) => ({ field_id, value }))
+      params.cf_and = JSON.stringify(conditions)
     }
     const result = await issueApi.listIssues(props.projectId, props.workspaceId, params)
     issues.value = result.items; totalCount.value = result.total; totalPages.value = Math.max(1, Math.ceil(result.total / limit.value))
@@ -473,17 +692,6 @@ async function loadIssues() {
   finally { loading.value = false }
 }
 
-function handleQuickFilter(quickFilters: Record<string, any>) {
-  if (quickFilters.assignee_id === 'me') {
-    filters.value.assignee_id = 1
-  } else if (quickFilters.assignee_id === null) {
-    filters.value.assignee_id = 0
-  }
-  if (quickFilters.priority) {
-    filters.value.priority = quickFilters.priority
-  }
-  search()
-}
 async function loadStates() { try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ } }
 async function loadCycles() { try { const r = await api.get(`/projects/${props.projectId}/cycles`); cycles.value = r.data } catch (e) { /* */ } }
 async function loadMembers() { try { const r = await api.get(`/workspaces/${props.workspaceId}/members`); members.value = r.data } catch (e) { /* */ } }
@@ -495,7 +703,7 @@ async function loadIssueTypes() {
   try { issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId) } catch (e) { /* */ }
 }
 
-// Custom field value cache: issueId → fieldId → display string
+// Custom field value cache
 const cfValueCache = ref<Record<number, Record<number, string>>>({})
 
 async function loadCFValues(issueIds: number[]) {
@@ -520,11 +728,7 @@ function getCFValue(issueId: number, colKey: string): string {
   return cfValueCache.value[issueId]?.[fieldId] || '-'
 }
 
-// Load CF values after issues load
 watch(issues, (newIssues) => {
-  if (newIssues.length) {
-    loadCFValues(newIssues.map(i => i.id))
-  }
+  if (newIssues.length) loadCFValues(newIssues.map(i => i.id))
 })
 </script>
-
