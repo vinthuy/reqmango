@@ -242,6 +242,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// CRUD
 			issues.POST("", issueH.Create)                       // ?project_id=&workspace_id=
 			issues.GET("", issueH.List)                          // ?project_id=&filters...
+			issues.GET("/tree", issueH.Tree)                     // ?project_id=&search=&limit=&offset=
 			issues.GET("/statistics", issueH.GetStatistics)       // ?project_id=
 			issues.GET("/search", issueH.Search)                  // ?workspace_id=&query=
 			issues.POST("/bulk/update", issueH.BulkUpdate)        // ?project_id=
@@ -259,6 +260,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.PUT("/:issueId", issueH.Update)
 			issues.DELETE("/:issueId", issueH.Delete)
 			issues.POST("/:issueId/archive", issueH.Archive)
+			issues.GET("/:issueId/children", issueH.Children)     // tree lazy-load children
 			issues.POST("/:issueId/restore", issueH.Restore)
 			issues.POST("/:issueId/convert-type", issueH.ConvertType)
 			issues.GET("/:issueId/activities", issueH.GetActivities) // ?limit=&offset=

@@ -1635,6 +1635,264 @@ func (s *IssueService) ConvertType(issueID uint64, req *request.ConvertTypeReque
 	return s.buildResponse(issueID)
 }
 
+// ==================== Tree View ====================
+
+// Tree returns paginated root-level issues for tree view, optionally with search.
+func (s *IssueService) Tree(projectID uint64, filters map[string]interface{}, limit, offset int) ([]response.TreeIssueResponse, int64, error) {
+	baseQuery := s.db.Model(&model.Issue{}).Where("issues.project_id = ?", projectID).Where("issues.parent_id IS NULL")
+
+	// Apply simple filters (state, priority, search on root level)
+	if stateID, ok := filters["state_id"]; ok && stateID != nil {
+		baseQuery = baseQuery.Where("issues.state_id = ?", stateID)
+	}
+	if priority, ok := filters["priority"]; ok && priority != nil {
+		baseQuery = baseQuery.Where("issues.priority = ?", priority)
+	}
+	if issueTypeID, ok := filters["issue_type_id"]; ok && issueTypeID != nil {
+		baseQuery = baseQuery.Where("issues.issue_type_id = ?", issueTypeID)
+	}
+
+	searchTerm, hasSearch := filters["search"]
+	if hasSearch && searchTerm != nil && searchTerm != "" {
+		searchStr := fmt.Sprintf("%%%s%%", searchTerm)
+		baseQuery = baseQuery.Where("issues.name ILIKE ? OR COALESCE(issues.description_stripped, '') ILIKE ?",
+			searchStr, searchStr)
+	}
+
+	// Count total
+	var total int64
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, common.Internal("Database error")
+	}
+
+	// Paginate
+	var issues []model.Issue
+	if err := baseQuery.
+		Preload("State").
+		Preload("IssueType").
+		Order("issues.sort_order ASC, issues.sequence_id DESC").
+		Limit(limit).Offset(offset).
+		Find(&issues).Error; err != nil {
+		return nil, 0, common.Internal("Database error")
+	}
+
+	// Collect issue IDs for batch sub-issues count
+	issueIDs := make([]uint64, len(issues))
+	for i, issue := range issues {
+		issueIDs[i] = issue.ID
+	}
+
+	// Batch count sub-issues
+	countMap := make(map[uint64]int64)
+	if len(issueIDs) > 0 {
+		type countResult struct {
+			ParentID uint64
+			Count    int64
+		}
+		var counts []countResult
+		s.db.Model(&model.Issue{}).
+			Select("parent_id, COUNT(*) as count").
+			Where("parent_id IN ?", issueIDs).
+			Group("parent_id").
+			Scan(&counts)
+		for _, c := range counts {
+			countMap[c.ParentID] = c.Count
+		}
+	}
+
+	result := make([]response.TreeIssueResponse, len(issues))
+	for i, issue := range issues {
+		resp := buildTreeIssueFromModel(&issue, countMap)
+		result[i] = *resp
+	}
+	return result, total, nil
+}
+
+// TreeSearch finds issues matching the search term anywhere in the tree,
+// and returns results with ancestor chains for tree view display.
+func (s *IssueService) TreeSearch(projectID uint64, search string, limit, offset int) ([]response.TreeSearchResult, int64, error) {
+	searchStr := fmt.Sprintf("%%%s%%", search)
+
+	// Find all matching issues (not archived)
+	baseQuery := s.db.Model(&model.Issue{}).
+		Where("issues.project_id = ?", projectID).
+		Where("issues.archived_at IS NULL").
+		Where("issues.name ILIKE ? OR COALESCE(issues.description_stripped, '') ILIKE ?",
+			searchStr, searchStr)
+
+	var total int64
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, common.Internal("Database error")
+	}
+
+	var matchedIssues []model.Issue
+	if err := baseQuery.
+		Preload("State").
+		Preload("IssueType").
+		Order("issues.depth ASC, issues.sort_order ASC, issues.sequence_id DESC").
+		Limit(limit).Offset(offset).
+		Find(&matchedIssues).Error; err != nil {
+		return nil, 0, common.Internal("Database error")
+	}
+
+	// For each matched issue, find its root ancestor and build ancestor chain
+	results := make([]response.TreeSearchResult, 0, len(matchedIssues))
+
+	for _, matched := range matchedIssues {
+		// If already root, no ancestor chain needed
+		if matched.ParentID == nil || *matched.ParentID == 0 {
+			rootResp := buildTreeIssueFromModel(&matched, nil)
+			rootResp.IsSearchMatch = true
+			results = append(results, response.TreeSearchResult{
+				RootIssue:    *rootResp,
+				MatchedIssue: *rootResp,
+				AncestorChain: []response.AncestorInfo{},
+			})
+			continue
+		}
+
+		// Build ancestor chain by walking up parent_id
+		ancestorChain := make([]response.AncestorInfo, 0)
+		currentParentID := *matched.ParentID
+		var rootIssue *model.Issue
+
+		for {
+			var parent model.Issue
+			if err := s.db.Select("id, name, sequence_id, parent_id, depth, priority, state_id, sort_order").
+				First(&parent, currentParentID).Error; err != nil {
+				break
+			}
+
+			if parent.ParentID == nil || *parent.ParentID == 0 {
+				// This is the root
+				rootIssue = &parent
+				break
+			}
+
+			// Insert at beginning to maintain root->child order
+			ancestorChain = append([]response.AncestorInfo{{
+				ID:         parent.ID,
+				Name:       parent.Name,
+				SequenceID: parent.SequenceID,
+			}}, ancestorChain...)
+			currentParentID = *parent.ParentID
+		}
+
+		if rootIssue == nil {
+			// Fallback: use matched issue itself as root
+			rootResp := buildTreeIssueFromModel(&matched, nil)
+			rootResp.IsSearchMatch = true
+			results = append(results, response.TreeSearchResult{
+				RootIssue:    *rootResp,
+				MatchedIssue: *rootResp,
+				AncestorChain: []response.AncestorInfo{},
+			})
+			continue
+		}
+
+		// Load full root issue details
+		var fullRoot model.Issue
+		if err := s.db.Preload("State").Preload("IssueType").First(&fullRoot, rootIssue.ID).Error; err != nil {
+			continue
+		}
+		rootResp := buildTreeIssueFromModel(&fullRoot, nil)
+
+		matchedResp := buildTreeIssueFromModel(&matched, nil)
+		matchedResp.IsSearchMatch = true
+
+		results = append(results, response.TreeSearchResult{
+			RootIssue:     *rootResp,
+			MatchedIssue:  *matchedResp,
+			AncestorChain: ancestorChain,
+		})
+	}
+
+	return results, total, nil
+}
+
+// Children returns direct children of a parent issue (lazy loading for tree expansion).
+func (s *IssueService) Children(parentID uint64) ([]response.TreeIssueResponse, error) {
+	var children []model.Issue
+	if err := s.db.
+		Where("parent_id = ?", parentID).
+		Preload("State").
+		Preload("IssueType").
+		Order("sort_order ASC, sequence_id DESC").
+		Find(&children).Error; err != nil {
+		return nil, common.Internal("Database error")
+	}
+
+	// Batch count sub-issues for each child
+	childIDs := make([]uint64, len(children))
+	for i, c := range children {
+		childIDs[i] = c.ID
+	}
+	countMap := make(map[uint64]int64)
+	if len(childIDs) > 0 {
+		type countResult struct {
+			ParentID uint64
+			Count    int64
+		}
+		var counts []countResult
+		s.db.Model(&model.Issue{}).
+			Select("parent_id, COUNT(*) as count").
+			Where("parent_id IN ?", childIDs).
+			Group("parent_id").
+			Scan(&counts)
+		for _, c := range counts {
+			countMap[c.ParentID] = c.Count
+		}
+	}
+
+	result := make([]response.TreeIssueResponse, len(children))
+	for i, child := range children {
+		resp := buildTreeIssueFromModel(&child, countMap)
+		result[i] = *resp
+	}
+	return result, nil
+}
+
+// buildTreeIssueFromModel converts a model.Issue to TreeIssueResponse with optional count map.
+func buildTreeIssueFromModel(issue *model.Issue, countMap map[uint64]int64) *response.TreeIssueResponse {
+	resp := &response.TreeIssueResponse{
+		ID:          issue.ID,
+		Name:        issue.Name,
+		SequenceID:  issue.SequenceID,
+		Priority:    issue.Priority,
+		StateID:     issue.StateID,
+		ParentID:    issue.ParentID,
+		Depth:       issue.Depth,
+		IssueTypeID: issue.IssueTypeID,
+		StartDate:   issue.StartDate,
+		TargetDate:  issue.TargetDate,
+	}
+
+	if issue.State.ID != 0 {
+		resp.StateName = issue.State.Name
+		resp.StateGroup = issue.State.Group
+	}
+	if issue.IssueType.ID != 0 {
+		resp.IssueType = &response.IssueTypeLite{
+			ID:    issue.IssueType.ID,
+			Name:  issue.IssueType.Name,
+			Color: issue.IssueType.Color,
+			Icon:  issue.IssueType.Icon,
+		}
+	}
+
+	if countMap != nil {
+		if count, ok := countMap[issue.ID]; ok {
+			resp.SubIssuesCount = count
+			resp.HasChildren = count > 0
+		}
+	} else {
+		resp.SubIssuesCount = int64(len(issue.SubIssues))
+		resp.HasChildren = len(issue.SubIssues) > 0
+	}
+
+	return resp
+}
+
 // MergeDuplicates merges multiple duplicate issues into a target issue.
 // Source issues will be deleted after merging.
 func (s *IssueService) MergeDuplicates(req *request.MergeDuplicatesRequest, userID uint64) (*response.IssueResponse, error) {

@@ -351,6 +351,54 @@ export async function removeIssuePage(issueId: number, pageId: number): Promise<
 
 // ==================== Export all ====================
 
+// ==================== Tree View ====================
+
+import type {
+  TreeIssueResponse
+} from '@/types/issue'
+
+export interface TreeListResult {
+  items: TreeIssueResponse[]
+  total: number
+}
+
+/**
+ * 获取树形视图根节点（支持分页和筛选）
+ */
+export async function listTreeIssues(
+  projectId: number,
+  filters?: {
+    state_id?: number
+    priority?: string
+    issue_type_id?: number
+    search?: string
+    limit?: number
+    offset?: number
+  }
+): Promise<TreeListResult> {
+  const params = new URLSearchParams()
+  params.append('project_id', projectId.toString())
+  if (filters) {
+    if (filters.state_id) params.append('state_id', filters.state_id.toString())
+    if (filters.priority) params.append('priority', filters.priority)
+    if (filters.issue_type_id) params.append('issue_type_id', filters.issue_type_id.toString())
+    if (filters.search) params.append('search', filters.search)
+    if (filters.limit) params.append('limit', filters.limit.toString())
+    if (filters.offset) params.append('offset', filters.offset.toString())
+  }
+  const response = await api.get(`/issues/tree?${params.toString()}`)
+  const total = parseInt(response.headers['x-total-count'] || '0', 10)
+  return { items: response.data || [], total }
+}
+
+/**
+ * 获取子节点（懒加载）
+ */
+export async function getIssueChildren(issueId: number): Promise<TreeIssueResponse[]> {
+  const response = await api.get(`/issues/${issueId}/children`)
+  return response.data || []
+}
+
 export const issueApi = {
   // CRUD
   createIssue,
@@ -369,6 +417,10 @@ export const issueApi = {
   
   // Search
   searchIssues,
+  
+  // Tree
+  listTreeIssues,
+  getIssueChildren,
   
   // Bulk
   bulkUpdateIssues,

@@ -307,6 +307,44 @@ export function getIssueFullId(issue: IssueResponse | IssueLite): string {
   return identifier ? `${identifier}-${issue.sequence_id}` : `#${issue.sequence_id}`
 }
 
+// ==================== Tree View ====================
+
+export interface TreeIssueResponse {
+  id: number
+  name: string
+  sequence_id: number
+  priority: string
+  state_id: number
+  state_name: string
+  state_group: string
+  parent_id?: number
+  depth: number
+  sub_issues_count: number
+  has_children: boolean
+  issue_type_id?: number
+  issue_type?: {
+    id: number
+    name: string
+    color: string
+    icon: string
+  }
+  start_date?: string
+  target_date?: string
+  is_search_match: boolean
+}
+
+export interface AncestorInfo {
+  id: number
+  name: string
+  sequence_id: number
+}
+
+export interface TreeSearchResult {
+  root_issue: TreeIssueResponse
+  matched_issue: TreeIssueResponse
+  ancestor_chain: AncestorInfo[]
+}
+
 /**
  * 计算工作项的进度百分比
  */

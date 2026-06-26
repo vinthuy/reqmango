@@ -816,6 +816,96 @@ func (h *IssueHandler) ConvertType(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// ==================== Tree View ====================
+
+// Tree handles GET /issues/tree?project_id=int&limit=&offset=&search=&state_id=&priority=
+func (h *IssueHandler) Tree(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Query("project_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project_id"})
+		return
+	}
+
+	search := c.Query("search")
+	if search != "" {
+		// Use TreeSearch for cross-level search
+		p := common.ParsePagination(c.Query("limit"), c.Query("offset"), 20, 50)
+		results, total, svcErr := h.svc.TreeSearch(projectID, search, p.Limit, p.Offset)
+		if svcErr != nil {
+			if appErr, ok := svcErr.(*common.AppError); ok {
+				c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+			return
+		}
+		if results == nil {
+			results = make([]response.TreeSearchResult, 0)
+		}
+		c.Header("X-Total-Count", fmt.Sprintf("%d", total))
+		c.JSON(http.StatusOK, results)
+		return
+	}
+
+	p := common.ParsePagination(c.Query("limit"), c.Query("offset"), 20, 50)
+
+	filters := make(map[string]interface{})
+	if v := c.Query("state_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["state_id"] = id
+		}
+	}
+	if v := c.Query("priority"); v != "" {
+		filters["priority"] = v
+	}
+	if v := c.Query("issue_type_id"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
+			filters["issue_type_id"] = id
+		}
+	}
+
+	issues, total, svcErr := h.svc.Tree(projectID, filters, p.Limit, p.Offset)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	if issues == nil {
+		issues = make([]response.TreeIssueResponse, 0)
+	}
+
+	c.Header("X-Total-Count", fmt.Sprintf("%d", total))
+	c.JSON(http.StatusOK, issues)
+}
+
+// Children handles GET /issues/:issueId/children
+func (h *IssueHandler) Children(c *gin.Context) {
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	children, svcErr := h.svc.Children(issueID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	if children == nil {
+		children = make([]response.TreeIssueResponse, 0)
+	}
+	c.JSON(http.StatusOK, children)
+}
+
 // MergeDuplicates handles POST /issues/merge
 func (h *IssueHandler) MergeDuplicates(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)

@@ -59,3 +59,4 @@ htmlcov/
 *.so
 *.dylib
 node_modules/
+backend-go/uploads/

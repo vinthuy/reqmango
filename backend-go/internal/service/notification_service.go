@@ -44,7 +44,7 @@ func (s *NotificationService) Get(id, recipientID uint64) (*response.Notificatio
 	var n model.Notification
 	if err := s.db.Where("id = ? AND recipient_id = ?", id, recipientID).First(&n).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, common.NotFound("Notification not found")
+			return nil, common.NotificationNotFound()
 		}
 		return nil, common.Internal("Failed to fetch notification")
 	}
@@ -84,7 +84,7 @@ func (s *NotificationService) MarkRead(id, recipientID uint64) (*response.Notifi
 	var n model.Notification
 	if err := s.db.Where("id = ? AND recipient_id = ?", id, recipientID).First(&n).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, common.NotFound("Notification not found")
+			return nil, common.NotificationNotFound()
 		}
 		return nil, common.Internal("Failed to fetch notification")
 	}

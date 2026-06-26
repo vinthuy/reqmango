@@ -1,48 +1,82 @@
 package common
 
-import "net/http"
+import (
+	"net/http"
 
-// AppError represents an application-level error with an HTTP status code.
+	"github.com/gin-gonic/gin"
+)
+
+// AppError represents an application-level error with an HTTP status and business error code.
 type AppError struct {
-	Code    int    `json:"-"`
-	Message string `json:"message"`
+	Code      int       `json:"-"` // HTTP status code (backward compat)
+	ErrorCode ErrorCode `json:"error_code"`
+	Message   string    `json:"message"`
+	Detail    string    `json:"detail,omitempty"`
 }
 
-func (e *AppError) Error() string {
-	return e.Message
+// HTTPCode returns the HTTP status code.
+func (e *AppError) HTTPCodeVal() int { return e.Code }
+
+func (e *AppError) Error() string { return e.Message }
+
+// ==================== Error Constructors ====================
+
+func NewError(code ErrorCode, msg string) *AppError {
+	return &AppError{Code: code.HTTPStatus(), ErrorCode: code, Message: msg}
 }
 
-// NotFound returns a 404 error.
-func NotFound(msg string) *AppError {
-	return &AppError{Code: http.StatusNotFound, Message: msg}
+func NewErrorDetail(code ErrorCode, msg, detail string) *AppError {
+	return &AppError{Code: code.HTTPStatus(), ErrorCode: code, Message: msg, Detail: detail}
 }
 
-// Conflict returns a 409 error (duplicate resource).
-func Conflict(msg string) *AppError {
-	return &AppError{Code: http.StatusConflict, Message: msg}
+func NotFound(msg string) *AppError          { return NewError(ErrNotFound, msg) }
+func Conflict(msg string) *AppError          { return NewError(ErrConflict, msg) }
+func Unauthorized(msg string) *AppError      { return NewError(ErrUnauthorized, msg) }
+func Forbidden(msg string) *AppError         { return NewError(ErrForbidden, msg) }
+func Validation(msg string) *AppError        { return NewError(ErrValidation, msg) }
+func Internal(msg string) *AppError          { return NewError(ErrInternal, msg) }
+func BadRequest(msg string) *AppError        { return NewError(ErrBadRequest, msg) }
+
+// ProjectNotFound etc.
+func ProjectNotFound() *AppError    { return NewError(ErrProjectNotFound, "Project not found") }
+func IssueNotFound() *AppError      { return NewError(ErrIssueNotFound, "Issue not found") }
+func UserNotFound() *AppError       { return NewError(ErrUserNotFound, "User not found") }
+func WorkspaceNotFound() *AppError  { return NewError(ErrWorkspaceNotFound, "Workspace not found") }
+func PageNotFound() *AppError       { return NewError(ErrPageNotFound, "Page not found") }
+func CycleNotFound() *AppError      { return NewError(ErrCycleNotFound, "Cycle not found") }
+func ModuleNotFound() *AppError     { return NewError(ErrModuleNotFound, "Module not found") }
+func StateNotFound() *AppError      { return NewError(ErrStateNotFound, "State not found") }
+func LabelNotFound() *AppError      { return NewError(ErrLabelNotFound, "Label not found") }
+func ReleaseNotFound() *AppError    { return NewError(ErrReleaseNotFound, "Release not found") }
+func TemplateNotFound() *AppError   { return NewError(ErrTemplateNotFound, "Template not found") }
+func ViewNotFound() *AppError       { return NewError(ErrViewNotFound, "Saved view not found") }
+func CommentNotFound() *AppError    { return NewError(ErrCommentNotFound, "Comment not found") }
+func AttachmentNotFound() *AppError { return NewError(ErrAttachmentNotFound, "Attachment not found") }
+func TimeEntryNotFound() *AppError  { return NewError(ErrTimeEntryNotFound, "Time entry not found") }
+func RecurrenceNotFound() *AppError { return NewError(ErrRecurrenceNotFound, "Recurrence rule not found") }
+func NotificationNotFound() *AppError { return NewError(ErrNotificationNotFound, "Notification not found") }
+
+// ==================== Standard Response Helpers ====================
+
+// RespondError writes a standardized error response.
+func RespondError(c *gin.Context, err error) {
+	if ae, ok := err.(*AppError); ok {
+		c.JSON(ae.Code, ae)
+		return
+	}
+	c.JSON(http.StatusInternalServerError, AppError{
+		Code:  500,
+		ErrorCode: ErrInternal,
+		Message:   "Internal server error",
+	})
 }
 
-// Unauthorized returns a 401 error.
-func Unauthorized(msg string) *AppError {
-	return &AppError{Code: http.StatusUnauthorized, Message: msg}
+// RespondOK writes a success response.
+func RespondOK(c *gin.Context, data interface{}) {
+	c.JSON(http.StatusOK, data)
 }
 
-// Forbidden returns a 403 error.
-func Forbidden(msg string) *AppError {
-	return &AppError{Code: http.StatusForbidden, Message: msg}
-}
-
-// Validation returns a 422 error.
-func Validation(msg string) *AppError {
-	return &AppError{Code: http.StatusUnprocessableEntity, Message: msg}
-}
-
-// Internal returns a 500 error.
-func Internal(msg string) *AppError {
-	return &AppError{Code: http.StatusInternalServerError, Message: msg}
-}
-
-// BadRequest returns a 400 error.
-func BadRequest(msg string) *AppError {
-	return &AppError{Code: http.StatusBadRequest, Message: msg}
+// RespondCreated writes a 201 response.
+func RespondCreated(c *gin.Context, data interface{}) {
+	c.JSON(http.StatusCreated, data)
 }

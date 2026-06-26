@@ -74,10 +74,31 @@
               >
                 看板视图
               </button>
+              <button
+                @click="issueView = 'tree'"
+                class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                :class="issueView === 'tree' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+              >
+                树形视图
+              </button>
+              <button
+                @click="issueView = 'calendar'"
+                class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                :class="issueView === 'calendar' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+              >
+                日历视图
+              </button>
+              <button
+                @click="issueView = 'gantt'"
+                class="px-3 py-1.5 text-sm rounded-md transition-colors"
+                :class="issueView === 'gantt' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
+              >
+                甘特图
+              </button>
             </div>
             <SavedViewSelector
               :project-id="projectId"
-              :view-type="issueView as 'list' | 'kanban'"
+              :view-type="(issueView as 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt')"
               @select="handleViewSelect"
             />
           </div>
@@ -106,11 +127,31 @@
           @delete="handleDeleteIssue"
         />
         <IssueKanban
-          v-else
+          v-else-if="issueView === 'kanban'"
           :key="'kanban-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
           @select="openDetailPanel"
+        />
+        <IssueTreeView
+          v-else-if="issueView === 'tree'"
+          :key="'tree-' + issueRefreshKey"
+          :project-id="projectId"
+          :workspace-id="workspaceId"
+          @select="openDetailPanel"
+        />
+        <IssueCalendar
+          v-else-if="issueView === 'calendar'"
+          :project-id="projectId"
+          :workspace-id="workspaceId"
+          @select="openDetailPanel"
+        />
+        <IssueGantt
+          v-else-if="issueView === 'gantt'"
+          :project-id="projectId"
+          :workspace-id="workspaceId"
+          @select="openDetailPanel"
+          @create="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=tree`)"
         />
       </div>
 
@@ -217,6 +258,9 @@ import { useConfirm } from '@/composables/useConfirm'
 
 import IssueList from '@/components/IssueList.vue'
 import IssueKanban from '@/components/IssueKanban.vue'
+import IssueTreeView from '@/components/IssueTreeView.vue'
+import IssueCalendar from '@/components/IssueCalendar.vue'
+import IssueGantt from '@/components/IssueGantt.vue'
 import IssueDetailPanel from '@/components/IssueDetailPanel.vue'
 import CycleList from '@/components/CycleList.vue'
 import CycleDetailPanel from '@/components/CycleDetailPanel.vue'
@@ -336,7 +380,7 @@ function goBack() {
 }
 
 function handleViewSelect(view: SavedView) {
-  if (view.view_type && (view.view_type === 'list' || view.view_type === 'kanban')) {
+  if (view.view_type && (view.view_type === 'list' || view.view_type === 'kanban' || view.view_type === 'tree')) {
     issueView.value = view.view_type
   }
   // Future: apply filters, sort, columns, groupBy from the view

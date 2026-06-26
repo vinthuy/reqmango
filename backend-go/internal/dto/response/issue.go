@@ -121,3 +121,41 @@ type ImportError struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`
 }
+
+// ==================== Tree View ====================
+
+// TreeIssueResponse is a lightweight tree node for tree view (ID placeholder pattern).
+type TreeIssueResponse struct {
+	ID             uint64         `json:"id"`
+	Name           string         `json:"name"`
+	SequenceID     int            `json:"sequence_id"`
+	Priority       string         `json:"priority"`
+	StateID        uint64         `json:"state_id"`
+	StateName      string         `json:"state_name"`
+	StateGroup     string         `json:"state_group"`
+	ParentID       *uint64        `json:"parent_id"`
+	Depth          int            `json:"depth"`
+	SubIssuesCount int64          `json:"sub_issues_count"`
+	HasChildren    bool           `json:"has_children"`
+	IssueTypeID    *uint64        `json:"issue_type_id"`
+	IssueType      *IssueTypeLite `json:"issue_type,omitempty"`
+	StartDate      *time.Time     `json:"start_date"`
+	TargetDate     *time.Time     `json:"target_date"`
+
+	// Search
+	IsSearchMatch bool `json:"is_search_match"`
+}
+
+// AncestorInfo represents an ancestor node in the tree path.
+type AncestorInfo struct {
+	ID         uint64 `json:"id"`
+	Name       string `json:"name"`
+	SequenceID int    `json:"sequence_id"`
+}
+
+// TreeSearchResult wraps a matched issue with its ancestor chain for tree view search.
+type TreeSearchResult struct {
+	RootIssue     TreeIssueResponse `json:"root_issue"`
+	MatchedIssue  TreeIssueResponse `json:"matched_issue"`
+	AncestorChain []AncestorInfo    `json:"ancestor_chain"` // from root child down to parent of matched
+}
