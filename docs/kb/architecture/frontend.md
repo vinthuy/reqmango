@@ -1,6 +1,6 @@
 # Frontend Architecture（前端架构）
 
-**最后更新**: 2026-06-26
+**最后更新**: 2026-06-27
 
 ---
 
@@ -26,7 +26,7 @@ frontend/src/
 ├── App.vue
 ├── style.css
 │
-├── api/ (22 模块)
+├── api/ (23 模块)
 │   ├── index.ts          — Axios 实例 + JWT 拦截器
 │   ├── ai.ts             — AI Chat SSE / Search / Create
 │   ├── auth.ts, workspace.ts, project.ts
@@ -38,7 +38,7 @@ frontend/src/
 │   ├── release.ts, work-item-template.ts, relation.ts
 │   └── rql.ts
 │
-├── types/ (19 模块)
+├── types/ (21 模块)
 │   ├── index.ts
 │   ├── ai.ts, attachment.ts, comment.ts
 │   ├── custom-field.ts, cycle.ts, estimate-point.ts
@@ -52,19 +52,20 @@ frontend/src/
 │   ├── cycle.ts  — 周期 CRUD + 进度
 │   └── module.ts — 模块 CRUD + 树形
 │
-├── router/index.ts — 14 条路由
+├── router/index.ts — 16 条路由
 │
-├── views/ (15 视图)
+├── views/ (16 视图)
 │   ├── Login.vue, Register.vue, Home.vue
 │   ├── Workspace.vue, WorkspaceSettings.vue
 │   ├── Project.vue, ProjectPages.vue, ProjectSettings.vue
 │   ├── IssueCreate.vue, IssueDetail.vue
 │   ├── CycleCreate.vue, CycleDetail.vue
 │   ├── CustomFields.vue, IssueTypeList.vue
-│   └── WorkflowDetail.vue
+│   ├── IntakeForm.vue, WorkflowDetail.vue
 │
-├── components/ (50+ 组件)
-│   ├── AI: AIChatSidebar.vue, AICreateDialog.vue
+├── components/ (57 组件)
+│   ├── AI: AIChatSidebar.vue, AICreateDialog.vue, AISettingsPanel.vue
+│   ├── Palette: CommandPalette.vue
 │   ├── Issue: IssueCard.vue, IssueList.vue, IssueKanban.vue,
 │   │          IssueDetailPanel.vue, SubIssuePanel.vue
 │   ├── Cycle: CycleCard.vue, CycleList.vue, CycleDetailPanel.vue,

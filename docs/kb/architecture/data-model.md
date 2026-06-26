@@ -1,6 +1,6 @@
 # Data Model（数据模型总览）
 
-**最后更新**: 2026-06-26
+**最后更新**: 2026-06-27
 
 ---
 
@@ -171,6 +171,24 @@ User     1──N Notification
 | 表 | 关键字段 | 说明 |
 |----|----------|------|
 | `pages` | title, content, content_json (JSONB), parent_id (depth≤5), sequence, published, archived_at, project_id | Wiki/文档页面 |
+
+### 工时 (1 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `time_tracks` | issue_id, user_id, description, started_at, ended_at, duration (seconds) | 工时记录 |
+
+### 重复工作项 (1 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `recurrence_rules` | issue_id (unique), frequency (daily/weekly/monthly/cron), interval, cron_expr, next_run, end_date | 周期自动创建规则 |
+
+### 条件字段 (1 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `conditional_fields` | field_id, condition_type, operator, condition_values (JSON), workspace_id | 字段显隐规则 |
 
 ### AI (3 表)
 
