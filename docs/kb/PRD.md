@@ -635,7 +635,7 @@ flowchart TB
 
 ### 22.2 技术栈选型
 
-本项目采用 **Vue3 + Python3 + FastAPI（异步） + SDD（Schema-Driven Development）** 模式。
+本项目采用 **Vue3 + Go + Gin + GORM** 技术栈。
 
 | 层级 | 技术 | 说明 |
 |------|------|------|
@@ -644,55 +644,16 @@ flowchart TB
 | 样式方案 | TailwindCSS | 原子化 CSS |
 | 状态管理 | Pinia | Vue3 官方推荐状态管理 |
 | 前端类型 | TypeScript | 类型安全 |
-| 后端框架 | FastAPI（异步） | 高性能异步 Python 框架 |
-| 数据验证 | Pydantic V2 | Schema 驱动的数据验证 |
-| 数据库 ORM | SQLAlchemy 2.0（异步） | 异步 ORM 支持 |
+| 后端框架 | Go + Gin 1.x | 高性能 HTTP 框架 |
+| 数据验证 | Gin ShouldBindJSON | 请求绑定与验证 |
+| 数据库 ORM | GORM 2.x | Go ORM 框架 |
 | 数据库 | PostgreSQL 16+ | 关系型数据 |
-| 缓存 | Redis（aioredis） | 异步 Redis 客户端 |
-| 文件存储 | S3 兼容存储 | 附件和文件 |
-| API 文档 | OpenAPI（内置） | 自动生成 API 文档 |
-| 后台任务 | ARQ / BackgroundTasks | 异步任务处理 |
-| AI 集成 | OpenAI / Claude | LLM 支持 |
-| 实时通信 | WebSocket | 实时协作 |
+| 认证 | JWT (golang-jwt/v5) | Bearer token 认证 |
+| 文件存储 | 本地文件系统 | 附件上传 |
+| AI 集成 | DeepSeek / Anthropic / OpenAI | LLM 支持 (SSE 流式) |
+| 查询语言 | RQL (自定义) | 工作项高级搜索 |
 
-### 22.2.1 SDD（Schema-Driven Development）模式
-
-Schema-Driven Development 是一种以数据 Schema 为核心的开发模式：
-
-- **Schema 作为契约**：前后端共享同一套数据定义（Pydantic Schema）
-- **自动生成**：从 Pydantic Schema 自动生成 TypeScript 类型、API 文档
-- **类型安全**：全链路类型检查，减少运行时错误
-- **文档同步**：Schema 即文档，保持一致性
-
-```mermaid
-flowchart LR
-    subgraph SchemaLayer["Schema 层"]
-        Pydantic[Pydantic Schema]
-        TypeScript[TypeScript 类型]
-    end
-    
-    subgraph Backend["后端"]
-        FastAPI[FastAPI 路由]
-        Validation[自动验证]
-        ORM[SQLAlchemy Model]
-    end
-    
-    subgraph Frontend["前端"]
-        APIClient[API 客户端]
-        Store[Pinia Store]
-        Components[Vue 组件]
-    end
-    
-    Pydantic -->|生成 API| FastAPI
-    Pydantic -->|生成类型| TypeScript
-    TypeScript -->|类型检查| APIClient
-    FastAPI --> Validation
-    Validation --> ORM
-    APIClient --> Store
-    Store --> Components
-```
-
-### 22.3 数据库模型
+### 22.3 数据库模型 (核心实体)
 
 ```mermaid
 erDiagram
