@@ -578,41 +578,403 @@ IntakeStatus  *string `gorm:"size:30" json:"intake_status"`  // "pending" | "acc
 
 ---
 
-## 实施节奏建议
+## Part B: Plane AI 智能助手差距分析
+
+> **ReqManPy 现状**: 零 AI 功能。无 LLM 集成、无 AI 模型、无聊天界面。
+> **Plane AI 现状**: 内置 AI 助手，支持 Ask/Build 双模式，上下文感知。
+
+### AI 功能对比矩阵
+
+| Plane AI 能力 | 描述 | ReqManPy 现状 | 难度 |
+|---------------|------|--------------|------|
+| **AI Chat 对话** | 聊天界面，自然语言交互项目数据 | ❌ 无 | 中 |
+| **NL Search 自然语言搜索** | "上周未解决的紧急Bug" → RQL | ❌ 无 | 中 |
+| **Smart Create 智能创建** | "创建一个登录页面的Bug，P0" → Issue | ❌ 无 | 中 |
+| **Smart Update 智能更新** | "把#42标记为完成" → 执行操作 | ❌ 无 | 中 |
+| **Data Analysis 数据分析** | "分析本周项目进度" → 洞察报告 | ❌ 无 | 高 |
+| **Context Awareness 上下文感知** | AI 知道当前项目/页面/选中项 | ❌ 无 | 低 |
+| **Page AI 文档AI** | 在 Page 编辑器中 AI 生成/总结/翻译 | ❌ 无 | 中 |
+| **AI Triage 智能分诊** | AI 自动分类/优先级建议新提交的 Issue | ❌ 无 | 高 |
+| **AI Sprint Planning** | AI 根据历史数据建议 Sprint 容量 | ❌ 无 | 高 |
+| **Command Palette** | ⌘K 快速导航/搜索/操作 | ❌ 无 | 低 |
+
+---
+
+### AI 架构设计
 
 ```
-Week 1 (P0 — 核心创建工作流):
-  Task 1:  Work Item Templates      → 创建效率翻倍
-  Task 2:  Quick Create             → 极简创建
-  Task 3:  Bulk Import CSV/JSON     → 数据迁移
+┌─────────────────────────────────────────────────────┐
+│                    前端 (Vue 3)                       │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
+│  │ AI Chat  │  │ ⌘K Cmd   │  │ Page AI (Editor) │  │
+│  │ Sidebar  │  │ Palette  │  │ 生成/总结/翻译    │  │
+│  └────┬─────┘  └────┬─────┘  └────────┬─────────┘  │
+│       │             │                │              │
+│       └─────────────┼────────────────┘              │
+│                     │ SSE (Server-Sent Events)       │
+└─────────────────────┼───────────────────────────────┘
+                      │
+┌─────────────────────┼───────────────────────────────┐
+│                Go 后端 (Gin)                          │
+│  ┌──────────────────▼───────────────────────────┐   │
+│  │           AI Service (ai_service.go)          │   │
+│  │  ┌─────────┐ ┌──────────┐ ┌──────────────┐  │   │
+│  │  │ Intent  │ │ Context  │ │ Tool Calling │  │   │
+│  │  │ Parser  │ │ Builder  │ │ (Function)   │  │   │
+│  │  └─────────┘ └──────────┘ └──────────────┘  │   │
+│  │                                              │   │
+│  │  Tools: search_issues, create_issue,         │   │
+│  │  update_issue, get_project_stats,            │   │
+│  │  get_cycle_progress, list_assignees...       │   │
+│  └──────────────────┬───────────────────────────┘   │
+│                     │ LLM API Call                    │
+└─────────────────────┼───────────────────────────────┘
+                      │
+              ┌───────▼───────┐
+              │  Claude API   │
+              │  (或 OpenAI)   │
+              │  + Tool Use   │
+              └───────────────┘
+```
 
-Week 2 (P1 — 结构化增强):
-  Task 15: Estimates Categories     → 估算多样性
-  Task 10: Mandatory Validation     → 数据完整性
-  Task 12: Type Hierarchy Rules     → 层级约束
+### AI Service 核心设计
 
-Week 3 (P1 — 关联与操作):
-  Task 6:  Release Management       → 发布追踪
-  Task 5:  Page Linking             → 文档关联
-  Task 8:  Bulk Copy/Move/Convert   → 灵活操作
+```go
+// backend-go/internal/service/ai_service.go
 
-Week 4 (P1 — 附件与通知):
-  Task 17: Attachment Backend       → 文件上传
-  Task 18: Notification Auto-trigger→ 自动通知
-  Task 4:  Sub-items Panel          → 层级展示
+type AIService struct {
+    db       *gorm.DB
+    llmClient *LLMClient  // Claude/OpenAI SDK wrapper
+    issueSvc  *IssueService
+    projectSvc *ProjectService
+    // ... 其他 service 引用
+}
 
-Week 5 (P1 — 筛选与展示):
-  Task 16: Quick Filters            → 快速筛选
-  Task 7:  Cover Image              → 视觉增强
+// Chat handles a conversational AI request.
+func (s *AIService) Chat(ctx context.Context, req *AIChatRequest) (*AIChatResponse, error) {
+    // 1. Build system prompt with project/page/issue context
+    // 2. Send message + tool definitions to LLM
+    // 3. If LLM requests tool calls → execute → send results back
+    // 4. Stream response via SSE channel
+}
 
-Week 6 (P2 — 深度功能):
-  Task 13: Time Tracking            → 工时管理
-  Task 14: Recurring Work Items     → 自动化创建
-  Task 9:  Merge Duplicates         → 去重
+// Available AI Tools (Function Calling):
+// - search_issues(query, filters) → []Issue
+// - create_issue(project_id, type, title, description, priority, ...) → Issue
+// - update_issue(issue_id, fields) → Issue
+// - get_project_stats(project_id) → ProjectStatistics
+// - get_cycle_progress(cycle_id) → CycleProgress
+// - get_issue_detail(issue_id) → IssueDetail
+// - list_assignees(project_id) → []User
+// - add_comment(issue_id, body) → Comment
+```
 
-Week 7 (P2-P3):
-  Task 11: Conditional Fields       → 智能表单
-  Task 19: Intake & Triage          → 外部接收
+### API 端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/projects/:projectId/ai/chat` | AI 对话（SSE 流式） |
+| POST | `/projects/:projectId/ai/search` | NL 搜索 → 返回 Issue 列表 |
+| POST | `/projects/:projectId/ai/create` | NL 创建 → 返回预览 + 确认 |
+| POST | `/projects/:projectId/ai/analyze` | 数据分析 → 返回洞察 |
+| POST | `/pages/:pageId/ai/generate` | Page AI 生成内容 |
+| POST | `/pages/:pageId/ai/summarize` | Page AI 总结 |
+| GET | `/ai/models` | 列出可用 AI 模型 |
+
+### SSE 流式响应格式
+
+```
+data: {"type":"thinking","content":"正在搜索最近一周的Bug..."}
+data: {"type":"tool_call","name":"search_issues","args":{"priority":"urgent","days":7}}
+data: {"type":"tool_result","result":[{"id":42,"name":"登录失败","priority":"urgent"}]}
+data: {"type":"text","content":"找到 3 个紧急Bug：#42 登录失败、#58 支付超时、#99 数据丢失"}
+data: {"type":"done"}
+```
+
+### 上下文注入
+
+每个 AI 请求自动注入当前上下文：
+
+```go
+type AIContext struct {
+    Workspace   *WorkspaceLite   // 当前工作空间
+    Project     *ProjectLite     // 当前项目
+    Page        *PageLite        // 当前页面（如在 Pages 中）
+    Issue       *IssueLite       // 当前工作项（如在 IssueDetail 中）
+    User        *UserLite        // 当前用户
+    RecentItems []RecentItem     // 最近访问/操作
+}
+```
+
+---
+
+## Task 20-28: AI 功能拆分
+
+### Task 20: AI Infrastructure — LLM Client + Config
+
+**功能**: 建立 AI 基础设施。LLM 客户端封装、模型配置、API Key 管理。
+
+#### 数据模型
+
+```go
+// backend-go/internal/model/ai_config.go
+
+type AIConfig struct {
+    BaseModel
+    Provider   string `gorm:"size:20;default:anthropic" json:"provider"` // anthropic | openai
+    Model      string `gorm:"size:50;default:claude-sonnet-4-6" json:"model"`
+    APIKey     string `gorm:"size:500;not null" json:"-"`  // 不序列化到 JSON
+    BaseURL    string `gorm:"size:255" json:"base_url"`
+    MaxTokens  int    `gorm:"default:4096" json:"max_tokens"`
+    IsActive   bool   `gorm:"default:true" json:"is_active"`
+    WorkspaceID uint64 `gorm:"not null;uniqueIndex" json:"workspace_id"`
+}
+
+type AIThread struct {
+    BaseModel
+    Title       string  `gorm:"size:255" json:"title"`
+    WorkspaceID uint64  `gorm:"not null;index" json:"workspace_id"`
+    ProjectID   *uint64 `gorm:"index" json:"project_id"`
+    UserID      uint64  `gorm:"not null;index" json:"user_id"`
+    Messages    []AIMessage `gorm:"foreignKey:ThreadID" json:"messages"`
+}
+
+type AIMessage struct {
+    BaseModel
+    ThreadID   uint64  `gorm:"not null;index" json:"thread_id"`
+    Role       string  `gorm:"size:20;not null" json:"role"` // user | assistant | system | tool
+    Content    string  `gorm:"type:text;not null" json:"content"`
+    ToolCalls  json.RawMessage `gorm:"type:jsonb" json:"tool_calls"`
+    ToolName   *string `gorm:"size:50" json:"tool_name"`
+}
+```
+
+#### 涉及文件
+
+| 类型 | 文件 |
+|------|------|
+| 新建 | `model/ai_config.go`, `model/ai_thread.go`, `model/ai_message.go` |
+| 新建 | `service/llm_client.go` — LLM SDK 封装 |
+| 新建 | `service/ai_service.go` — AI 核心服务 |
+| 新建 | `handler/ai_handler.go` |
+| 新建 | `handler/ai_config_handler.go` |
+| 新建 | `frontend/src/components/AIChatSidebar.vue` |
+| 新建 | `frontend/src/composables/useAI.ts` |
+| 新建 | `frontend/src/types/ai.ts` |
+| 新建 | `frontend/src/api/ai.ts` |
+| 修改 | `router/router.go`, `cmd/server/main.go` |
+
+---
+
+### Task 21: AI Chat — 对话式 AI 助手
+
+**功能**: 右侧滑出式 AI 聊天面板，支持 Ask 模式（查询）和 Build 模式（执行操作）。SSE 流式响应。
+
+#### 涉及文件
+
+| 类型 | 文件 |
+|------|------|
+| 修改 | `frontend/src/components/AIChatSidebar.vue` — 完整聊天 UI |
+| 修改 | `frontend/src/views/Project.vue` — 集成 AI 按钮 |
+| 修改 | `frontend/src/views/IssueDetail.vue` — 集成 AI 按钮 |
+| 修改 | `handler/ai_handler.go` — Chat SSE 端点 |
+
+---
+
+### Task 22: NL Search — 自然语言搜索
+
+**功能**: 在搜索框支持自然语言输入，"上周未解决的紧急Bug" → RQL 查询 → 结果列表。
+
+```
+用户输入: "分配给张三的高优先级任务"
+    ↓ AI Service (NL → RQL)
+RQL: priority = "high" AND assignee = "张三" AND type = "Task"
+    ↓ RQL Executor
+结果: [Issue#42, Issue#58, Issue#99]
+```
+
+#### 涉及文件
+
+| 类型 | 文件 |
+|------|------|
+| 修改 | `frontend/src/components/RQL/RQLInput.vue` — NL 开关 |
+| 修改 | `handler/ai_handler.go` — Search 端点 |
+| 修改 | `service/ai_service.go` — NL→RQL 转换 |
+
+---
+
+### Task 23: Smart Create — 智能创建工作项
+
+**功能**: 自然语言描述需求 → AI 解析为结构化 Issue → 预览确认 → 创建。
+
+```
+输入: "创建一个登录页面的Bug，P0紧急，分配给张三，截止下周五，需要在Safari上复现"
+    ↓ AI 解析
+预览: {
+  name: "登录页面Bug - Safari兼容性问题",
+  type: "Bug",
+  priority: "urgent",
+  assignee: "张三 (id=3)",
+  target_date: "2026-07-03",
+  description: "## 复现步骤\n1. 打开Safari浏览器\n..."
+}
+    ↓ 用户确认
+创建 Issue #101
+```
+
+#### 涉及文件
+
+| 类型 | 文件 |
+|------|------|
+| 新建 | `frontend/src/components/AICreateDialog.vue` — 预览确认弹窗 |
+| 修改 | `handler/ai_handler.go` — Create 端点 |
+| 修改 | `service/ai_service.go` — Parse→Preview→Create 流程 |
+
+---
+
+### Task 24: Data Analysis — AI 数据分析
+
+**功能**: AI 分析项目/周期数据，生成洞察和建议。
+
+支持的分析类型：
+- 项目健康度概览 ("这个项目进展如何？")
+- 周期回顾 ("Sprint 3 完成率为什么低？")
+- 瓶颈检测 ("哪些任务卡住了？")
+- 工作量分析 ("张三是否过载？")
+
+#### 涉及文件
+
+| 类型 | 文件 |
+|------|------|
+| 修改 | `handler/ai_handler.go` — Analyze 端点 |
+| 修改 | `service/ai_service.go` — 数据聚合 + LLM 分析 |
+
+---
+
+### Task 25: Page AI — 文档 AI 能力
+
+**功能**: 在 Page 编辑器中集成 AI 能力：生成内容、总结要点、翻译语言、改进写作。
+
+```
+Page Editor Toolbar:
+  [🤖 Generate] [📝 Summarize] [🌐 Translate] [✨ Improve]
+```
+
+#### 涉及文件
+
+| 类型 | 文件 |
+|------|------|
+| 修改 | `frontend/src/views/ProjectPages.vue` — AI 工具栏 |
+| 修改 | `frontend/src/components/RichTextEditor.vue` — AI 按钮 |
+| 修改 | `handler/ai_handler.go` — Page AI 端点 |
+
+---
+
+### Task 26: AI Triage — 智能分诊
+
+**功能**: 外部提交的 Issue 经 AI 自动分类、优先级建议、可能重复检测。
+
+```
+Intake Form 提交 →
+  AI 分析:
+    - 类型建议: Bug (置信度 0.92)
+    - 优先级建议: High
+    - 可能重复: #42 "登录问题" (相似度 0.78)
+    - 建议 Assignee: 张三 (相关领域专家)
+  →
+  Triage 面板展示 AI 建议，管理员一键采纳
+```
+
+#### 涉及文件
+
+| 类型 | 文件 |
+|------|------|
+| 修改 | `handler/intake_handler.go` — 提交后触发 AI 分析 |
+| 修改 | `service/ai_service.go` — Triage 分析逻辑 |
+| 修改 | `frontend/src/components/TriagePanel.vue` — 展示 AI 建议 |
+
+---
+
+### Task 27: Command Palette (⌘K)
+
+**功能**: 键盘优先的快速导航/搜索/操作面板。类似 VS Code ⌘K。
+
+```
+⌘K → 输入:
+  "new bug"        → 快速创建 Bug
+  "go to #42"      → 跳转到 Issue #42
+  "my issues"      → 列出我的工作项
+  "sprint progress"→ 显示当前 Sprint 进度
+  "page prd"       → 打开 PRD 页面
+```
+
+#### 涉及文件
+
+| 类型 | 文件 |
+|------|------|
+| 新建 | `frontend/src/components/CommandPalette.vue` |
+| 新建 | `frontend/src/composables/useCommandPalette.ts` |
+| 修改 | `frontend/src/App.vue` — 全局 ⌘K 监听 |
+
+---
+
+### Task 28: AI Settings — AI 配置管理
+
+**功能**: 工作空间级 AI 设置页面。选择 Provider、Model、配置 API Key、管理使用量。
+
+#### 涉及文件
+
+| 类型 | 文件 |
+|------|------|
+| 新建 | `frontend/src/components/AISettingsPanel.vue` |
+| 修改 | `frontend/src/views/WorkspaceSettings.vue` — "AI" tab |
+| 新建 | `handler/ai_config_handler.go` |
+
+---
+
+## 更新后的实施节奏
+
+```
+Phase 1 — 工作项基础能力 (Week 1-3):
+  Task 1-3:    Templates + Quick Create + Import
+  Task 15,10,12: Estimates + Validation + Hierarchy
+
+Phase 2 — 工作项关联与操作 (Week 4-6):
+  Task 6,5,8:  Release + Page Link + Bulk Ops
+  Task 17,18,4: Attachment + Notification + Sub-items
+
+Phase 3 — 工作项展示与深度 (Week 7-9):
+  Task 16,7,13: Quick Filters + Cover + Time Track
+  Task 14,9,11,19: Recurring + Merge + Conditional + Intake
+
+Phase 4 — AI 基础设施 (Week 10-11):
+  Task 20: AI Infrastructure     ← 所有 AI 功能的前置依赖
+  Task 27: Command Palette       ← 独立，无 LLM 依赖
+  Task 28: AI Settings           ← 依赖 Task 20
+
+Phase 5 — AI 核心能力 (Week 12-14):
+  Task 21: AI Chat               ← 依赖 Task 20
+  Task 22: NL Search             ← 依赖 Task 20
+  Task 23: Smart Create          ← 依赖 Task 20
+
+Phase 6 — AI 深度集成 (Week 15-17):
+  Task 24: Data Analysis         ← 依赖 Task 21
+  Task 25: Page AI               ← 依赖 Task 20
+  Task 26: AI Triage             ← 依赖 Task 19 + Task 20
+```
+
+### AI 功能依赖图
+
+```
+Task 20 (AI Infrastructure)
+  ├── Task 21 (AI Chat) ────── Task 24 (Data Analysis)
+  ├── Task 22 (NL Search)
+  ├── Task 23 (Smart Create)
+  ├── Task 25 (Page AI)
+  ├── Task 26 (AI Triage) ──── 需要 Task 19 (Intake)
+  └── Task 28 (AI Settings)
+
+Task 27 (Command Palette) — 独立，无 LLM 依赖
 ```
 
 ---
@@ -627,17 +989,19 @@ Week 7 (P2-P3):
 | Go Service | `service/notification_service.go` | `NewXxxService(db *gorm.DB)`, 返回 `*response.XxxResponse`, `*common.AppError` |
 | Go Handler | `handler/notification_handler.go` | `c.Get("currentUser").(*model.User).ID`, `ShouldBindJSON`, `strconv.ParseUint(c.Param(...))` |
 | Go Router | `router/router.go` | 项目级嵌套在 `projects.Group` 内，挂载 `authMiddleware` |
+| Go SSE | `handler/ai_handler.go` (Chat) | `c.Stream()` + `c.SSEvent()`, `Content-Type: text/event-stream` |
+| LLM Client | `service/llm_client.go` | 封装 Anthropic SDK / OpenAI SDK, Tool Calling, Streaming |
 | Vue View | `views/ProjectSettings.vue` | `<script setup lang="ts">`, sidebar + tabs 布局 |
 | Vue Component | `components/SavedViewSelector.vue` | `defineProps<T>()`, `defineEmits<T>()`, `onMounted(() => load())` |
 | Vue API | `api/page.ts` | 函数导出, `api.get/post/put/delete`, `Promise<T>` |
 | Vue Types | `types/page.ts` | `interface` 定义，字段名与 Go DTO 一致 |
+| Vue Composable | `composables/useAI.ts` | SSE EventSource, `ref()`, `onMounted`/`onUnmounted` |
 
-### 关键约定
+### AI 特有约定
 
-1. **getUserID**: 必须 `c.Get("currentUser").(*model.User).ID`（不是 `c.Get("user_id")`）
-2. **AuthMiddleware**: 所有新路由挂载 `authMiddleware`（Intake 除外）
-3. **AutoMigrate**: 新 Model 在 `cmd/server/main.go` 中注册
-4. **路由**: workspace 级 `/workspaces/:wsParam/xxx`，project 级 `/projects/:projectId/xxx`
-5. **前端 API base**: axios 实例 baseURL 已设 `/api/v1`
-6. **JSONB 字段**: 使用 `json.RawMessage`，Go 端 `normalizeJSON()` 处理空值
-7. **软删除**: 所有 Model 使用 GORM `DeletedAt`，不是物理删除
+1. **SSE 流式**: Chat 端点使用 Server-Sent Events，`text/event-stream` MIME type
+2. **API Key 安全**: AI Config 的 `api_key` 字段标记 `json:"-"` 永远不序列化
+3. **Tool Calling**: 使用 Claude/OpenAI 原生 Function Calling，工具定义在 `ai_service.go` 的 `getTools()` 方法
+4. **上下文注入**: 每个 AI 请求自动附带当前 workspace/project/page/issue 上下文
+5. **速率限制**: AI 端点建议添加 per-user rate limiting（后续 middleware 实现）
+6. **日志审计**: AI 对话历史存储在 `ai_threads` + `ai_messages` 表，用于审计和改进
