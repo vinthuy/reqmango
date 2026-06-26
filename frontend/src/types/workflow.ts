@@ -267,9 +267,10 @@ export function getActionDisplayName(actionType: ActionTypeEnum): string {
     [ActionTypeEnum.ISSUE_REMOVE_LABEL]: '移除标签',
     [ActionTypeEnum.ISSUE_CHANGE_STATE]: '改变状态',
     [ActionTypeEnum.ISSUE_SET_PRIORITY]: '设置优先级',
+    [ActionTypeEnum.ISSUE_ADD_COMMENT]: '添加评论',
+    [ActionTypeEnum.ISSUE_SET_DUE_DATE]: '设置截止日期',
     [ActionTypeEnum.NOTIFICATION_CREATE]: '创建通知',
     [ActionTypeEnum.EMAIL_SEND]: '发送邮件',
-    [ActionTypeEnum.AUTOMATION_TRIGGER]: '触发自动化'
   }
   return names[actionType] || actionType
 }
@@ -324,9 +325,10 @@ export function getActionIcon(actionType: ActionTypeEnum): string {
     [ActionTypeEnum.ISSUE_REMOVE_LABEL]: 'x-circle',
     [ActionTypeEnum.ISSUE_CHANGE_STATE]: 'git-branch',
     [ActionTypeEnum.ISSUE_SET_PRIORITY]: 'flag',
+    [ActionTypeEnum.ISSUE_ADD_COMMENT]: 'message-circle',
+    [ActionTypeEnum.ISSUE_SET_DUE_DATE]: 'calendar',
     [ActionTypeEnum.NOTIFICATION_CREATE]: 'bell',
     [ActionTypeEnum.EMAIL_SEND]: 'mail',
-    [ActionTypeEnum.AUTOMATION_TRIGGER]: 'zap'
   }
   return icons[actionType] || 'zap'
 }

@@ -119,8 +119,10 @@ export interface ProjectIssuesSummary {
 export interface UserLite {
   id: number
   display_name: string
-  username: string
+  username?: string
   avatar?: string
+  avatar_url?: string
+  email?: string
 }
 
 // ==================== Project Role Constants ====================

@@ -81,25 +81,13 @@
             />
           </div>
 
-          <!-- 子工作项 -->
+          <!-- 子工作项面板 -->
           <div class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-sm font-medium text-gray-700 mb-3">子工作项</h3>
-            <div v-if="subIssues.length > 0" class="space-y-2">
-              <div
-                v-for="sub in subIssues"
-                :key="sub.id"
-                class="flex items-center justify-between p-2 border border-gray-200 rounded"
-              >
-                <span class="text-sm">{{ sub.name }}</span>
-                <span class="text-xs text-gray-500">#{{ sub.sequence_id }}</span>
-              </div>
-            </div>
-            <button
-              @click="createSubIssue"
-              class="text-sm text-indigo-600 hover:text-indigo-800"
-            >
-              + 添加子工作项
-            </button>
+            <SubIssuePanel
+              :sub-issues="subIssues"
+              @create="createSubIssue"
+              @edit="editSubIssue"
+            />
           </div>
         </div>
 
@@ -248,6 +236,38 @@
               <button @click="showAddRelation = false" class="text-xs text-gray-500">取消</button>
             </div>
           </div>
+
+          <!-- 关联文档页面 -->
+          <div class="bg-white rounded-lg shadow-sm p-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">关联文档</label>
+            <div v-if="pages.length > 0" class="space-y-2 mb-3">
+              <div v-for="page in pages" :key="page.id" class="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
+                <div class="flex items-center space-x-2">
+                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span class="text-gray-700 truncate max-w-[120px]">{{ page.title }}</span>
+                </div>
+                <button @click="removePage(page.id)" class="text-gray-400 hover:text-red-500">&times;</button>
+              </div>
+            </div>
+            <div v-if="!showAddPage" class="text-xs text-gray-400">无关联文档</div>
+            <button v-if="!showAddPage" @click="showAddPage = true" class="text-xs text-indigo-600 hover:text-indigo-800 mt-1">+ 添加文档</button>
+            <div v-if="showAddPage" class="mt-2 space-y-2">
+              <input v-model="newPage.search" @input="searchPages" type="text" placeholder="搜索文档..." class="w-full px-2 py-1 border rounded text-xs" />
+              <div v-if="pageSearchResults.length > 0" class="max-h-24 overflow-y-auto border rounded">
+                <div v-for="p in pageSearchResults" :key="p.id" @click="addPage(p)" class="px-2 py-1 hover:bg-indigo-50 cursor-pointer text-xs">
+                  {{ p.title?.substring(0, 40) }}
+                </div>
+              </div>
+              <button @click="showAddPage = false" class="text-xs text-gray-500">取消</button>
+            </div>
+          </div>
+
+          <!-- 附件 -->
+          <div class="bg-white rounded-lg shadow-sm p-4">
+            <AttachmentManager :issue-id="issueId" :project-id="projectId" />
+          </div>
         </div>
       </div>
     </div>
@@ -261,6 +281,8 @@ import CustomFieldManager from '@/components/CustomFieldManager.vue'
 import LabelSelector from '@/components/LabelSelector.vue'
 import CommentList from '@/components/CommentList.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
+import SubIssuePanel from '@/components/SubIssuePanel.vue'
+import AttachmentManager from '@/components/AttachmentManager.vue'
 import * as issueApi from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
 import * as stateApi from '@/api/project-settings'
@@ -268,6 +290,7 @@ import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
 import projectApi from '@/api/project'
 import * as relationApi from '@/api/relation'
+import * as pageApi from '@/api/page'
 import * as issueApiSearch from '@/api/issue'
 
 // Route params
@@ -295,6 +318,10 @@ const newRelation = ref({ type_id: '', search: '' })
 const relationSearchResults = ref<any[]>([])
 const customFieldManagerRef = ref<InstanceType<typeof CustomFieldManager> | null>(null)
 const customFieldValues = ref<Record<string, any>>({})
+const pages = ref<any[]>([])
+const showAddPage = ref(false)
+const newPage = ref({ search: '' })
+const pageSearchResults = ref<any[]>([])
 
 // Form
 const issueForm = ref({
@@ -320,7 +347,8 @@ onMounted(async () => {
     loadProjectMembers(),
     loadIssueTypes(),
     loadRelations(),
-    loadActivities()
+    loadActivities(),
+    loadPages()
   ])
 })
 
@@ -542,6 +570,47 @@ function createSubIssue() {
     path: `/workspaces/${workspaceId}/projects/${projectId}/issues/new`,
     query: { parent_id: issueId }
   })
+}
+
+// Edit sub issue
+function editSubIssue(issue: any) {
+  router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/${issue.id}`)
+}
+
+// Pages
+async function loadPages() {
+  try {
+    pages.value = await issueApi.listIssuePages(issueId)
+  } catch (e) { console.error('Failed to load pages:', e) }
+}
+
+let pageSearchTimer: any = null
+async function searchPages() {
+  if (pageSearchTimer) clearTimeout(pageSearchTimer)
+  if (!newPage.value.search.trim()) { pageSearchResults.value = []; return }
+  pageSearchTimer = setTimeout(async () => {
+    try {
+      const pages: any[] = await pageApi.searchPages(projectId, newPage.value.search)
+      pageSearchResults.value = pages.slice(0, 8)
+    } catch (e) { console.error('Search pages failed:', e) }
+  }, 300)
+}
+
+async function addPage(page: any) {
+  try {
+    await issueApi.addIssuePage(issueId, page.id)
+    showAddPage.value = false
+    newPage.value = { search: '' }
+    pageSearchResults.value = []
+    await loadPages()
+  } catch (e) { console.error('Failed to add page:', e) }
+}
+
+async function removePage(pageId: number) {
+  try {
+    await issueApi.removeIssuePage(issueId, pageId)
+    await loadPages()
+  } catch (e) { console.error('Failed to remove page:', e) }
 }
 
 // Go back

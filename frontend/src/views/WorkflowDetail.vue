@@ -12,7 +12,6 @@ const router = useRouter();
 
 const workflowId = ref(0);
 const projectId = ref(0);
-const workspaceId = ref(0);
 
 const workflowName = ref('');
 const workflowDescription = ref('');

@@ -218,8 +218,8 @@ function openInviteModal() {
   selectedUserId.value = null
 }
 
-// Reset search
-function resetSearch() {
+function closeInviteModal() {
+  showInviteModal.value = false
   userSearchQuery.value = ''
   selectedUserId.value = null
 }

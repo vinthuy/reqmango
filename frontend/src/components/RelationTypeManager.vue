@@ -159,8 +159,7 @@ const form = ref({ name: '', inward_name: '', outward_name: '' })
 async function load() {
   loading.value = true
   try { 
-    const res = await relationApi.listRelationTypes(props.workspaceId)
-    types.value = Array.isArray(res) ? res : (res?.data || [])
+    types.value = await relationApi.listRelationTypes(props.workspaceId)
   } catch (e) { 
     console.error(e) 
   } finally {

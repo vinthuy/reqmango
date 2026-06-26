@@ -34,6 +34,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	witSvc := service.NewWorkItemTemplateService(db)
 	releaseSvc := service.NewReleaseService(db)
 	estimateSvc := service.NewEstimateService(db)
+	attachmentSvc := service.NewAttachmentService(db)
+	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
+	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -56,6 +59,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	witH := handler.NewWorkItemTemplateHandler(witSvc)
 	releaseH := handler.NewReleaseHandler(releaseSvc)
 	estimateH := handler.NewEstimateHandler(estimateSvc)
+	attachmentH := handler.NewAttachmentHandler(attachmentSvc)
+	aiH := handler.NewAIHandler(aiSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -250,6 +255,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// Cycle
 			issues.POST("/:issueId/cycle", issueH.SetCycle)                // ?cycle_id=
 			issues.DELETE("/:issueId/cycle", issueH.RemoveCycle)
+
+			// Pages
+			issues.GET("/:issueId/pages", issueH.ListPages)
+			issues.POST("/:issueId/pages", issueH.AddPage)                // ?page_id=
+			issues.DELETE("/:issueId/pages", issueH.RemovePage)           // ?page_id=
+
+			// Attachments
+			issues.GET("/:issueId/attachments", attachmentH.ListByIssue)
+			issues.POST("/:issueId/attachments", attachmentH.Create)
+			issues.GET("/:issueId/attachments/:attachmentId", attachmentH.Get)
+			issues.DELETE("/:issueId/attachments/:attachmentId", attachmentH.Delete)
 		}
 
 		// ---- Modules (protected) ----
@@ -396,6 +412,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				automations.PUT("/:id", workflowH.UpdateAutomation)
 				automations.DELETE("/:id", workflowH.DeleteAutomation)
 			}
+			// ---- AI (protected) ----
+			aiGroup := projects.Group("/:projectId/ai", authMiddleware)
+			{
+				aiGroup.POST("/chat", aiH.Chat)
+				aiGroup.POST("/search", aiH.Search)
+				aiGroup.POST("/create", aiH.CreatePreview)
+			}
+
 			// ---- Notifications (protected) ----
 			notifications := v1.Group("/notifications", authMiddleware)
 			{

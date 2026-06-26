@@ -127,8 +127,6 @@ async function loadAttachments() {
   try {
     if (props.issueId) {
       attachments.value = await attachmentApi.listIssueAttachments(props.issueId)
-    } else if (props.projectId) {
-      attachments.value = await attachmentApi.listProjectAttachments(props.projectId)
     }
   } catch (error) {
     console.error('Failed to load attachments:', error)
@@ -154,17 +152,15 @@ async function handleDrop(event: DragEvent) {
 }
 
 async function uploadFiles(files: File[]) {
+  if (!props.issueId) return
+
   for (const file of files) {
     uploadingFiles.value.push(file)
   }
 
   try {
     for (const file of files) {
-      const data: { name?: string; issue_id?: number; project_id?: number } = {}
-      if (props.issueId) data.issue_id = props.issueId
-      if (props.projectId) data.project_id = props.projectId
-
-      const attachment = await attachmentApi.uploadAttachment(file, data)
+      const attachment = await attachmentApi.uploadAttachment(props.issueId!, file)
       attachments.value.unshift(attachment)
     }
   } catch (error) {
@@ -176,9 +172,10 @@ async function uploadFiles(files: File[]) {
 
 async function deleteAttachment(attachment: Attachment) {
   if (!(await confirm(`确定要删除 "${attachment.name}" 吗？`))) return
+  if (!props.issueId) return
 
   try {
-    await attachmentApi.deleteAttachment(attachment.id)
+    await attachmentApi.deleteAttachment(props.issueId, attachment.id)
     attachments.value = attachments.value.filter(a => a.id !== attachment.id)
   } catch (error) {
     console.error('Failed to delete attachment:', error)
@@ -186,7 +183,7 @@ async function deleteAttachment(attachment: Attachment) {
 }
 
 function getDownloadUrl(attachmentId: number): string {
-  return attachmentApi.getAttachmentDownloadUrl(attachmentId)
+  return attachmentApi.getAttachmentDownloadUrl(props.issueId || 0, attachmentId)
 }
 
 function formatSize(bytes: number): string {

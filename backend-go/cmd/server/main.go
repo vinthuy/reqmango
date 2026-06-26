@@ -67,6 +67,11 @@ func main() {
 		&model.EstimateCategory{},
 		&model.EstimateTime{},
 		&model.ProjectEstimateSettings{},
+		&model.IssuePage{},
+		&model.Attachment{},
+		&model.AIConfig{},
+		&model.AIThread{},
+		&model.AIMessage{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

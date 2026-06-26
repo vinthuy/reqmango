@@ -38,6 +38,8 @@ type Issue struct {
 	LabelLinks     []IssueLabel    `gorm:"foreignKey:IssueID" json:"-"`
 	CycleLink      *IssueCycle     `gorm:"foreignKey:IssueID" json:"-"`
 	Activities     []IssueActivity `gorm:"foreignKey:IssueID" json:"-"`
+	PageLinks      []IssuePage     `gorm:"foreignKey:IssueID" json:"-"`
+	Pages          []Page          `gorm:"many2many:issue_pages;" json:"pages"`
 }
 
 func (Issue) TableName() string {
@@ -81,6 +83,19 @@ type IssueCycle struct {
 
 func (IssueCycle) TableName() string {
 	return "issue_cycles"
+}
+
+// IssuePage is a join table for issue-page associations.
+type IssuePage struct {
+	IssueID uint64 `gorm:"primaryKey;autoIncrement:false" json:"issue_id"`
+	PageID  uint64 `gorm:"primaryKey;autoIncrement:false" json:"page_id"`
+
+	Issue Issue `gorm:"foreignKey:IssueID;constraint:OnDelete:CASCADE" json:"-"`
+	Page  Page  `gorm:"foreignKey:PageID;constraint:OnDelete:CASCADE" json:"-"`
+}
+
+func (IssuePage) TableName() string {
+	return "issue_pages"
 }
 
 // IssueActivity tracks changes to an issue.

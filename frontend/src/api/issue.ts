@@ -332,6 +332,23 @@ export async function removeIssueCycle(
   return response.data
 }
 
+// ==================== Pages ====================
+
+export async function listIssuePages(issueId: number): Promise<any[]> {
+  const response = await api.get(`/issues/${issueId}/pages`)
+  return response.data
+}
+
+export async function addIssuePage(issueId: number, pageId: number): Promise<any> {
+  const response = await api.post(`/issues/${issueId}/pages?page_id=${pageId}`)
+  return response.data
+}
+
+export async function removeIssuePage(issueId: number, pageId: number): Promise<any> {
+  const response = await api.delete(`/issues/${issueId}/pages?page_id=${pageId}`)
+  return response.data
+}
+
 // ==================== Export all ====================
 
 export const issueApi = {
@@ -369,7 +386,12 @@ export const issueApi = {
   
   // Cycle
   setIssueCycle,
-  removeIssueCycle
+  removeIssueCycle,
+  
+  // Pages
+  listIssuePages,
+  addIssuePage,
+  removeIssuePage
 }
 
 export default issueApi

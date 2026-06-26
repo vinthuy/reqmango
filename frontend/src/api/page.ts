@@ -83,6 +83,13 @@ export async function listPageChildren(projectId: number, pageId: number): Promi
   return response.data
 }
 
+export async function searchPages(projectId: number, query: string): Promise<Page[]> {
+  const response = await api.get(`/projects/${projectId}/pages`, {
+    params: { search: query }
+  })
+  return response.data
+}
+
 export default {
   listPages,
   getPageTree,

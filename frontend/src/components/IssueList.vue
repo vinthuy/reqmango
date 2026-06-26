@@ -16,6 +16,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
+            <QuickFilterChips @filter="handleQuickFilter" />
             <div class="w-80 flex items-center">
               <RQLInput
                 v-model="rqlQuery"
@@ -255,6 +256,7 @@ import { RQLInput } from '@/components/RQL'
 import { useRQL } from '@/composables/useRQL'
 import QuickCreateInput from '@/components/QuickCreateInput.vue'
 import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
+import QuickFilterChips from '@/components/QuickFilterChips.vue'
 import * as issueTypeApi from '@/api/issue-type'
 
 const props = defineProps<{ projectId: number; workspaceId: number }>()
@@ -469,6 +471,18 @@ async function loadIssues() {
     issues.value = result.items; totalCount.value = result.total; totalPages.value = Math.max(1, Math.ceil(result.total / limit.value))
   } catch (e) { console.error('Failed to load issues:', e) }
   finally { loading.value = false }
+}
+
+function handleQuickFilter(quickFilters: Record<string, any>) {
+  if (quickFilters.assignee_id === 'me') {
+    filters.value.assignee_id = 1
+  } else if (quickFilters.assignee_id === null) {
+    filters.value.assignee_id = 0
+  }
+  if (quickFilters.priority) {
+    filters.value.priority = quickFilters.priority
+  }
+  search()
 }
 async function loadStates() { try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ } }
 async function loadCycles() { try { const r = await api.get(`/projects/${props.projectId}/cycles`); cycles.value = r.data } catch (e) { /* */ } }

@@ -190,6 +190,7 @@ export * from './custom-field'
 
 // Re-export project settings types
 export * from './project-settings'
+export * from './project'
 
 // Re-export workflow types
 export * from './workflow'

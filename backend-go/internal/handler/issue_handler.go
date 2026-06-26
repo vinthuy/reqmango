@@ -11,6 +11,7 @@ import (
 	"github.com/reqmanpy/backend-go/internal/dto/request"
 	"github.com/reqmanpy/backend-go/internal/dto/response"
 	"github.com/reqmanpy/backend-go/internal/middleware"
+	"github.com/reqmanpy/backend-go/internal/model"
 	"github.com/reqmanpy/backend-go/internal/service"
 )
 
@@ -654,4 +655,88 @@ func (h *IssueHandler) ImportCSV(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+func (h *IssueHandler) ListPages(c *gin.Context) {
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	pages, svcErr := h.svc.ListPages(issueID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, pages)
+}
+
+func (h *IssueHandler) AddPage(c *gin.Context) {
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	pageID, err := strconv.ParseUint(c.Query("page_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid page_id"})
+		return
+	}
+
+	user, _ := c.Get("user")
+	var actorID uint64
+	if u, ok := user.(*model.User); ok {
+		actorID = u.ID
+	}
+
+	svcErr := h.svc.AddPage(issueID, pageID, actorID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Page added to issue"})
+}
+
+func (h *IssueHandler) RemovePage(c *gin.Context) {
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	pageID, err := strconv.ParseUint(c.Query("page_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid page_id"})
+		return
+	}
+
+	user, _ := c.Get("user")
+	var actorID uint64
+	if u, ok := user.(*model.User); ok {
+		actorID = u.ID
+	}
+
+	svcErr := h.svc.RemovePage(issueID, pageID, actorID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Page removed from issue"})
 }

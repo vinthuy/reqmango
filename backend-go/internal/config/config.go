@@ -13,6 +13,10 @@ type Config struct {
 	AccessTokenExpireMin  int
 	Port                  string
 	Debug                 bool
+	AIAPIKey              string
+	AIProvider            string
+	AIModel               string
+	AIBaseURL             string
 }
 
 func Load() *Config {
@@ -33,6 +37,10 @@ func Load() *Config {
 		AccessTokenExpireMin: getEnvInt("ACCESS_TOKEN_EXPIRE_MINUTES", 10080),
 		Port:                 getEnv("PORT", "8000"),
 		Debug:                getEnvBool("DEBUG", true),
+		AIAPIKey:             getEnv("AI_API_KEY", getEnv("DEEPSEEK_API_KEY", "")),
+		AIProvider:           getEnv("AI_PROVIDER", "deepseek"),
+		AIModel:              getEnv("AI_MODEL", "deepseek-chat"),
+		AIBaseURL:            getEnv("AI_BASE_URL", "https://api.deepseek.com/v1"),
 	}
 
 	fmt.Printf("Config loaded: port=%s, db_url=%s\n", cfg.Port, maskDSN(cfg.DatabaseURL))

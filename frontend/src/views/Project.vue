@@ -81,12 +81,20 @@
               @select="handleViewSelect"
             />
           </div>
-          <button
-            @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)"
-            class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700"
-          >
-            新建工作项
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              @click="showAICreate = true"
+              class="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm rounded-md hover:from-indigo-600 hover:to-purple-700 transition flex items-center gap-1"
+            >
+              🤖 AI Create
+            </button>
+            <button
+              @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)"
+              class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700"
+            >
+              新建工作项
+            </button>
+          </div>
         </div>
 
         <IssueList
@@ -167,6 +175,27 @@
       <button @click="goBack" class="mt-4 text-indigo-600 hover:text-indigo-800 text-sm">返回</button>
     </div>
   </div>
+
+  <!-- AI Chat Sidebar -->
+  <AIChatSidebar
+    :visible="showAIChat"
+    :project-id="projectId"
+    :workspace-id="workspaceId"
+    :project-name="project?.name"
+    @close="showAIChat = false"
+  />
+  <AICreateDialog
+    :visible="showAICreate"
+    :project-id="projectId"
+    :workspace-id="workspaceId"
+    @close="showAICreate = false"
+    @created="issueRefreshKey++"
+  />
+  <button
+    @click="showAIChat = true"
+    class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition flex items-center justify-center text-2xl z-40"
+    title="AI Assistant"
+  >🤖</button>
 </template>
 
 <script setup lang="ts">
@@ -188,6 +217,8 @@ import ModuleList from '@/components/ModuleList.vue'
 import ModuleDetailPanel from '@/components/ModuleDetailPanel.vue'
 import ModuleFormModal from '@/components/ModuleFormModal.vue'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
+import AIChatSidebar from '@/components/AIChatSidebar.vue'
+import AICreateDialog from '@/components/AICreateDialog.vue'
 import type { SavedView } from '@/types/saved-view'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
@@ -213,6 +244,10 @@ const selectedModule = ref<ModuleResponse | null>(null)
 const modulePanelVisible = ref(false)
 const moduleFormVisible = ref(false)
 const editingModule = ref<ModuleResponse | null>(null)
+
+// AI state
+const showAIChat = ref(false)
+const showAICreate = ref(false)
 
 watch(activeTab, (tab) => {
   if (tab === 'settings') {
@@ -327,6 +362,13 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+  // Ctrl+J to toggle AI chat
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+      e.preventDefault()
+      showAIChat.value = !showAIChat.value
+    }
+  })
 })
 </script>
 

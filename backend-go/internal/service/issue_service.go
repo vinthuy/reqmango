@@ -1322,3 +1322,42 @@ func (s *IssueService) validateMandatoryCustomFields(projectID, workspaceID, iss
 
 	return nil
 }
+
+func (s *IssueService) AddPage(issueID, pageID, actorID uint64) error {
+	var issue model.Issue
+	if err := s.db.First(&issue, issueID).Error; err != nil {
+		return common.NotFound("Issue not found")
+	}
+
+	var page model.Page
+	if err := s.db.First(&page, pageID).Error; err != nil {
+		return common.NotFound("Page not found")
+	}
+
+	if err := s.db.Model(&issue).Association("Pages").Append(&page); err != nil {
+		return common.Internal("Failed to add page to issue")
+	}
+
+	return nil
+}
+
+func (s *IssueService) RemovePage(issueID, pageID, actorID uint64) error {
+	var issue model.Issue
+	if err := s.db.First(&issue, issueID).Error; err != nil {
+		return common.NotFound("Issue not found")
+	}
+
+	if err := s.db.Model(&issue).Association("Pages").Delete(&model.Page{BaseModel: model.BaseModel{ID: pageID}}); err != nil {
+		return common.Internal("Failed to remove page from issue")
+	}
+
+	return nil
+}
+
+func (s *IssueService) ListPages(issueID uint64) ([]model.Page, error) {
+	var issue model.Issue
+	if err := s.db.Preload("Pages").First(&issue, issueID).Error; err != nil {
+		return nil, common.NotFound("Issue not found")
+	}
+	return issue.Pages, nil
+}

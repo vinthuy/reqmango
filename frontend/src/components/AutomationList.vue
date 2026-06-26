@@ -111,9 +111,9 @@
 </template>
 
 <script setup lang="ts">
-import { TriggerTypeOptions, StateGroupOptions, PriorityOptions, ConditionOperatorOptions, ActionTypeOptions } from '@/types/workflow';
+import { TriggerTypeOptions, ConditionOperatorOptions, ActionTypeOptions } from '@/types/workflow';
 
-const props = defineProps<{
+defineProps<{
   automations: any[];
 }>();
 
