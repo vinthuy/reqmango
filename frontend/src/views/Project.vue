@@ -191,6 +191,13 @@
     @close="showAICreate = false"
     @created="issueRefreshKey++"
   />
+  <CommandPalette
+    :visible="showCommandPalette"
+    :workspace-slug="slug"
+    :project-id="projectId"
+    :workspace-id="workspaceId"
+    @close="showCommandPalette = false"
+  />
   <button
     @click="showAIChat = true"
     class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition flex items-center justify-center text-2xl z-40"
@@ -219,6 +226,7 @@ import ModuleFormModal from '@/components/ModuleFormModal.vue'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
 import AIChatSidebar from '@/components/AIChatSidebar.vue'
 import AICreateDialog from '@/components/AICreateDialog.vue'
+import CommandPalette from '@/components/CommandPalette.vue'
 import type { SavedView } from '@/types/saved-view'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
@@ -248,6 +256,7 @@ const editingModule = ref<ModuleResponse | null>(null)
 // AI state
 const showAIChat = ref(false)
 const showAICreate = ref(false)
+const showCommandPalette = ref(false)
 
 watch(activeTab, (tab) => {
   if (tab === 'settings') {
@@ -312,6 +321,7 @@ async function handleModuleDelete(module: ModuleResponse | any) {
 
 const workspaceId = ref(0)
 const projectId = ref(0)
+const slug = ref('')
 
 const tabs = [
   { id: 'issues', name: '工作项管理' },
@@ -338,7 +348,6 @@ async function handleDeleteIssue(issue: any) {
   if (await confirm(`确定要删除工作项 "${issue.name}" 吗？`)) {
     try {
       await issueApi.deleteIssue(issue.id)
-      // 刷新列表
       window.location.reload()
     } catch (err) {
       console.error('Failed to delete issue:', err)
@@ -349,11 +358,11 @@ async function handleDeleteIssue(issue: any) {
 
 onMounted(async () => {
   loading.value = true
-  const slug = route.params.slug as string
+  slug.value = route.params.slug as string
   const id = parseInt(route.params.id as string)
 
   try {
-    workspace.value = await workspaceApi.getBySlug(slug)
+    workspace.value = await workspaceApi.getBySlug(slug.value)
     workspaceId.value = workspace.value.id
     projectId.value = id
     project.value = await projectApi.getProject(id)
@@ -362,11 +371,14 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-  // Ctrl+J to toggle AI chat
   document.addEventListener('keydown', (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
       e.preventDefault()
       showAIChat.value = !showAIChat.value
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault()
+      showCommandPalette.value = !showCommandPalette.value
     }
   })
 })

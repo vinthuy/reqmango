@@ -28,6 +28,8 @@ type Issue struct {
 	ExternalID     *string `gorm:"size:255" json:"external_id"`
 	ExternalSource *string `gorm:"size:255" json:"external_source"`
 	CoverImageURL  *string `gorm:"size:500" json:"cover_image_url"`
+	IntakeSource   *string `gorm:"size:50" json:"intake_source"`  // "form" | "email" | "api"
+	IntakeStatus   *string `gorm:"size:30" json:"intake_status"`  // "pending" | "accepted" | "rejected"
 
 	// Relationships
 	Project        Project         `gorm:"foreignKey:ProjectID" json:"-"`

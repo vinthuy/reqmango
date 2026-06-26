@@ -46,6 +46,15 @@
           </div>
         </div>
 
+        <!-- AI Toolbar -->
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs text-gray-400 mr-1">🤖 AI:</span>
+          <button @click="aiAction('summarize')" :disabled="aiLoading" class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">Summarize</button>
+          <button @click="aiAction('improve')" :disabled="aiLoading" class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">Improve</button>
+          <button @click="aiAction('generate')" :disabled="aiLoading" class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">Generate More</button>
+          <span v-if="aiLoading" class="text-xs text-indigo-500 animate-pulse">AI working...</span>
+        </div>
+
         <div class="bg-white rounded-lg border border-gray-200 p-4 min-h-[400px]">
           <textarea
             v-model="editForm.content"
@@ -222,6 +231,38 @@ async function doDelete() {
     deletingPage.value = null
     await loadPages()
   } catch (e) { console.error('Failed to delete page:', e) }
+}
+
+const aiLoading = ref(false)
+
+async function aiAction(action: string) {
+  if (!selectedPage.value) return
+  aiLoading.value = true
+  try {
+    const content = editForm.content || selectedPage.value.content || ''
+    const res = await fetch(`/api/v1/pages/${selectedPage.value.id}/ai`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+      },
+      body: JSON.stringify({ action, content, context: editForm.title }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      alert('AI failed: ' + (err.message || 'Unknown error'))
+      return
+    }
+    const data = await res.json()
+    if (action === 'summarize' || action === 'improve') {
+      editForm.content = data.result
+    } else {
+      editForm.content = (editForm.content || '') + '\n\n' + data.result
+    }
+    savePage()
+  } catch (e: any) {
+    alert('AI request failed: ' + e.message)
+  } finally { aiLoading.value = false }
 }
 
 function goBack() {

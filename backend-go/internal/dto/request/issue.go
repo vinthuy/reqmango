@@ -74,6 +74,15 @@ type ConvertTypeRequest struct {
 	TargetTypeID uint64 `json:"target_type_id" binding:"required"`
 }
 
+// MergeDuplicatesRequest is the request body for merging duplicate issues.
+type MergeDuplicatesRequest struct {
+	TargetIssueID uint64   `json:"target_issue_id" binding:"required"`
+	SourceIssueIDs []uint64 `json:"source_issue_ids" binding:"required"`
+	KeepSourceComments bool `json:"keep_source_comments"`
+	KeepSourceLabels bool `json:"keep_source_labels"`
+	KeepSourceAssignees bool `json:"keep_source_assignees"`
+}
+
 // ImportIssueItem represents a single issue item for import (JSON format).
 type ImportIssueItem struct {
 	Name           string   `json:"name"`

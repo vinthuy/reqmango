@@ -455,6 +455,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	if req.CoverImageURL != nil {
 		issue.CoverImageURL = req.CoverImageURL
+		tx.Save(&issue)
 		hasChanges = true
 	}
 
@@ -772,6 +773,7 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 		Depth:           issue.Depth,
 		ExternalID:      issue.ExternalID,
 		ExternalSource:  issue.ExternalSource,
+		CoverImageURL:   issue.CoverImageURL,
 		LinkCount:       0,
 		AttachmentCount: 0,
 		CreatedAt:       issue.CreatedAt,
@@ -1631,4 +1633,69 @@ func (s *IssueService) ConvertType(issueID uint64, req *request.ConvertTypeReque
 	}
 
 	return s.buildResponse(issueID)
+}
+
+// MergeDuplicates merges multiple duplicate issues into a target issue.
+// Source issues will be deleted after merging.
+func (s *IssueService) MergeDuplicates(req *request.MergeDuplicatesRequest, userID uint64) (*response.IssueResponse, error) {
+	var targetIssue model.Issue
+	if err := s.db.Preload("LabelLinks").Preload("AssigneeLinks").First(&targetIssue, req.TargetIssueID).Error; err != nil {
+		return nil, common.NotFound("Target issue not found")
+	}
+
+	if len(req.SourceIssueIDs) == 0 {
+		return nil, common.BadRequest("No source issues provided")
+	}
+
+	var sourceIssues []model.Issue
+	if err := s.db.Preload("LabelLinks").Preload("AssigneeLinks").
+		Where("id IN ?", req.SourceIssueIDs).Find(&sourceIssues).Error; err != nil {
+		return nil, common.Internal("Failed to fetch source issues")
+	}
+
+	if len(sourceIssues) == 0 {
+		return nil, common.BadRequest("No source issues found")
+	}
+
+	tx := s.db.Begin()
+
+	if req.KeepSourceLabels {
+		for _, source := range sourceIssues {
+			for _, labelLink := range source.LabelLinks {
+				var exists bool
+				s.db.Model(&targetIssue).Where("label_id = ?", labelLink.LabelID).
+					First(&model.IssueLabel{}).Scan(&exists)
+				if !exists {
+					tx.Create(&model.IssueLabel{IssueID: targetIssue.ID, LabelID: labelLink.LabelID})
+				}
+			}
+		}
+	}
+
+	if req.KeepSourceAssignees {
+		for _, source := range sourceIssues {
+			for _, assigneeLink := range source.AssigneeLinks {
+				var exists bool
+				s.db.Model(&targetIssue).Where("user_id = ?", assigneeLink.UserID).
+					First(&model.IssueAssignee{}).Scan(&exists)
+				if !exists {
+					tx.Create(&model.IssueAssignee{IssueID: targetIssue.ID, UserID: assigneeLink.UserID})
+				}
+			}
+		}
+	}
+
+	for _, source := range sourceIssues {
+		tx.Delete(&source)
+	}
+
+	sourceIDsStr := fmt.Sprintf("%v", req.SourceIssueIDs)
+	s.createActivity(tx, targetIssue.ID, "merged", nil,
+		&sourceIDsStr, nil, nil, &userID)
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, common.Internal("Failed to commit transaction")
+	}
+
+	return s.buildResponse(targetIssue.ID)
 }

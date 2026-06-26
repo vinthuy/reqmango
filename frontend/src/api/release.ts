@@ -2,8 +2,8 @@ import api from './index'
 import type { Release, ReleaseCreateRequest, ReleaseUpdateRequest, ReleaseProgress, ReleaseIssueRequest } from '../types/release'
 
 export const releaseApi = {
-  list(projectId: number): Promise<{ data: Release[] }> {
-    return api.get(`/projects/${projectId}/releases`)
+  list(projectId: number): Promise<Release[]> {
+    return api.get(`/projects/${projectId}/releases`).then(res => res.data.data || [])
   },
 
   create(projectId: number, data: ReleaseCreateRequest): Promise<Release> {

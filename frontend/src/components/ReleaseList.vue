@@ -36,7 +36,7 @@ async function loadReleases() {
   loading.value = true
   try {
     const result = await releaseApi.list(props.projectId)
-    releases.value = result.data || []
+    releases.value = result || []
   } catch (e) { console.error('Failed to load releases:', e) }
   finally { loading.value = false }
 }
@@ -114,8 +114,8 @@ onMounted(loadReleases)
             </div>
             <p v-if="release.description" class="mt-1 text-sm text-gray-500">{{ release.description }}</p>
             <div class="mt-2 flex items-center gap-4 text-xs text-gray-400">
-              <span v-if="release.release_date">Release Date: {{ release.release_date.split('T')[0] }}</span>
-              <span>Created: {{ release.created_at.split('T')[0] }}</span>
+              <span v-if="release.release_date">Release Date: {{ (release.release_date as string).split('T')[0] }}</span>
+              <span v-if="release.created_at">Created: {{ release.created_at.split('T')[0] }}</span>
             </div>
           </div>
           <div class="flex items-center gap-2">

@@ -73,6 +73,8 @@ func main() {
 		&model.AIThread{},
 		&model.AIMessage{},
 		&model.ConditionalField{},
+		&model.TimeTrack{},
+		&model.RecurrenceRule{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

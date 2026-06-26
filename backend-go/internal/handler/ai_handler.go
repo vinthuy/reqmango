@@ -10,16 +10,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/reqmanpy/backend-go/internal/model"
 	"github.com/reqmanpy/backend-go/internal/service"
+	"gorm.io/gorm"
 )
 
 // AIHandler handles AI endpoints.
 type AIHandler struct {
 	svc *service.AIService
+	db  *gorm.DB
 }
 
 // NewAIHandler creates an AIHandler.
-func NewAIHandler(svc *service.AIService) *AIHandler {
-	return &AIHandler{svc: svc}
+func NewAIHandler(svc *service.AIService, db *gorm.DB) *AIHandler {
+	return &AIHandler{svc: svc, db: db}
 }
 
 func (h *AIHandler) getUserID(c *gin.Context) uint64 {
@@ -147,6 +149,17 @@ func (h *AIHandler) Search(c *gin.Context) {
 
 // ==================== Create Preview ====================
 
+// Analyze handles POST /projects/:projectId/ai/analyze.
+func (h *AIHandler) Analyze(c *gin.Context) {
+	actx := h.buildContext(c)
+	result, err := h.svc.Analyze(c.Request.Context(), actx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 // CreatePreview handles POST /projects/:projectId/ai/create.
 func (h *AIHandler) CreatePreview(c *gin.Context) {
 	var req service.AICreateRequest
@@ -162,4 +175,69 @@ func (h *AIHandler) CreatePreview(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+}
+
+// ==================== Page AI ====================
+
+// PageAI handles POST /pages/:pageId/ai.
+func (h *AIHandler) PageAI(c *gin.Context) {
+	var req service.PageAIRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	if req.Content == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "content is required"})
+		return
+	}
+	result, err := h.svc.PageAI(c.Request.Context(), &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// ==================== AI Config (workspace-level) ====================
+
+// GetAIConfig handles GET /workspaces/:wsParam/ai-config.
+func (h *AIHandler) GetAIConfig(c *gin.Context) {
+	wsID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	if wsID == 0 { c.JSON(400, gin.H{"message":"Invalid workspace"}); return }
+
+	var cfg model.AIConfig
+	if err := h.db.Where("workspace_id = ?", wsID).First(&cfg).Error; err != nil {
+		c.JSON(200, gin.H{"provider":"deepseek","model":"deepseek-chat","max_tokens":4096,"is_active":true,"configured":false})
+		return
+	}
+	c.JSON(200, gin.H{"id":cfg.ID,"provider":cfg.Provider,"model":cfg.Model,"max_tokens":cfg.MaxTokens,"is_active":cfg.IsActive,"configured":true})
+}
+
+// UpdateAIConfig handles PUT /workspaces/:wsParam/ai-config.
+func (h *AIHandler) UpdateAIConfig(c *gin.Context) {
+	wsID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	if wsID == 0 { c.JSON(400, gin.H{"message":"Invalid workspace"}); return }
+
+	var req struct {
+		Provider  *string `json:"provider"`
+		Model     *string `json:"model"`
+		APIKey    *string `json:"api_key"`
+		MaxTokens *int    `json:"max_tokens"`
+		IsActive  *bool   `json:"is_active"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"message":err.Error()}); return }
+
+	var cfg model.AIConfig
+	if err := h.db.Where("workspace_id = ?", wsID).First(&cfg).Error; err != nil {
+		cfg = model.AIConfig{WorkspaceID: wsID}
+	}
+	if req.Provider != nil { cfg.Provider = *req.Provider }
+	if req.Model != nil { cfg.Model = *req.Model }
+	if req.APIKey != nil && *req.APIKey != "" { cfg.APIKey = *req.APIKey }
+	if req.MaxTokens != nil { cfg.MaxTokens = *req.MaxTokens }
+	if req.IsActive != nil { cfg.IsActive = *req.IsActive }
+
+	if cfg.ID == 0 { h.db.Create(&cfg) } else { h.db.Save(&cfg) }
+
+	c.JSON(200, gin.H{"id":cfg.ID,"provider":cfg.Provider,"model":cfg.Model,"max_tokens":cfg.MaxTokens,"is_active":cfg.IsActive,"configured":true})
 }

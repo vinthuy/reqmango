@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/reqmanpy/backend-go/internal/model"
 	"gorm.io/gorm"
@@ -505,6 +506,153 @@ func (s *AIService) CreatePreview(ctx context.Context, req *AICreateRequest, act
 		Preview:     preview,
 		Explanation: resp.Content,
 	}, nil
+}
+
+// ==================== Analyze ====================
+
+// AIAnalyzeResponse is the response for the AI analysis endpoint.
+type AIAnalyzeResponse struct {
+	Summary       string                   `json:"summary"`
+	Insights      []string                 `json:"insights"`
+	Bottlenecks   []AIBottleneck           `json:"bottlenecks,omitempty"`
+	Stats         map[string]interface{}   `json:"stats"`
+}
+
+// AIBottleneck represents a detected bottleneck.
+type AIBottleneck struct {
+	IssueID      uint64 `json:"issue_id"`
+	IssueName    string `json:"issue_name"`
+	DaysInState  int    `json:"days_in_state"`
+	StateName    string `json:"state_name"`
+}
+
+// Analyze generates an AI-powered analysis of the project.
+func (s *AIService) Analyze(ctx context.Context, actx *AIContext) (*AIAnalyzeResponse, error) {
+	// 1. Gather real project data
+	stats, err := s.projectSvc.GetStatistics(actx.ProjectID)
+	if err != nil {
+		return nil, fmt.Errorf("get stats: %w", err)
+	}
+	summary, err := s.projectSvc.GetIssuesSummary(actx.ProjectID)
+	if err != nil {
+		return nil, fmt.Errorf("get summary: %w", err)
+	}
+
+	// Detect bottlenecks: issues in-progress > 7 days
+	var bottlenecks []AIBottleneck
+	var stuckIssues []model.Issue
+	s.db.Where("project_id = ? AND state_id IN (SELECT id FROM states WHERE \"group\" = 'started')", actx.ProjectID).
+		Order("updated_at ASC").Limit(20).Find(&stuckIssues)
+	for _, iss := range stuckIssues {
+		days := int(time.Since(iss.UpdatedAt).Hours() / 24)
+		if days > 3 {
+			var state model.State
+			if s.db.First(&state, iss.StateID).Error == nil {
+				bottlenecks = append(bottlenecks, AIBottleneck{
+					IssueID: iss.ID, IssueName: iss.Name,
+					DaysInState: days, StateName: state.Name,
+				})
+			}
+		}
+	}
+
+	// 2. Build the analysis prompt
+	statsJSON, _ := json.MarshalIndent(stats, "", "  ")
+	summaryJSON, _ := json.MarshalIndent(summary, "", "  ")
+	bottleneckJSON, _ := json.MarshalIndent(bottlenecks, "", "  ")
+
+	analyzePrompt := fmt.Sprintf(`你是一个高级项目分析师。根据以下真实数据，对项目「%s」进行专业分析。
+
+## 项目统计
+%s
+
+## 工作项概要
+%s
+
+## 瓶颈检测 (停滞超过3天的进行中任务)
+%s
+
+请用中文输出 JSON 格式的分析报告：
+{
+  "summary": "一段简洁的项目健康度概述 (100字以内)",
+  "insights": ["洞察1", "洞察2", "洞察3"],
+  "recommendations": ["建议1", "建议2"]
+}
+
+关注点：
+1. 完成率是否健康
+2. 是否有任务积压
+3. 瓶颈在哪里
+4. 需要立即关注的事项`,
+		actx.ProjectName, statsJSON, summaryJSON, bottleneckJSON)
+
+	// 3. Call LLM (read-only, no tools needed)
+	content, err := s.llm.Complete(ctx, "你是一个高级项目分析师。请输出严格的 JSON 格式，不要添加任何 markdown 标记。", analyzePrompt)
+	if err != nil {
+		return nil, fmt.Errorf("AI analysis failed: %w", err)
+	}
+
+	// 4. Parse LLM output
+	var result AIAnalyzeResponse
+	if err := json.Unmarshal([]byte(content), &result); err != nil {
+		// Fallback: wrap raw content
+		result = AIAnalyzeResponse{
+			Summary:   content[:min(len(content), 200)],
+			Insights:  []string{},
+			Stats:     map[string]interface{}{"raw_analysis": content},
+		}
+	}
+
+	result.Bottlenecks = bottlenecks
+	progressPct := float64(0)
+	if stats.TotalIssues > 0 {
+		progressPct = float64(stats.CompletedIssues) / float64(stats.TotalIssues) * 100
+	}
+	result.Stats = map[string]interface{}{
+		"total_issues":    stats.TotalIssues,
+		"completed":       stats.CompletedIssues,
+		"progress_pct":    int(progressPct),
+		"active_members":  stats.ActiveMembers,
+		"issues_summary":  summary,
+	}
+	return &result, nil
+}
+
+func min(a, b int) int { if a < b { return a }; return b }
+
+// ==================== Page AI ====================
+
+// PageAIRequest is the request for Page AI operations.
+type PageAIRequest struct {
+	Action   string `json:"action"`   // generate | summarize | improve | translate
+	Content  string `json:"content"`  // selected text (or full page content)
+	Context  string `json:"context"`  // additional context (e.g., "write a PRD section")
+}
+
+// PageAIResponse is the response for Page AI.
+type PageAIResponse struct {
+	Result string `json:"result"`
+}
+
+// PageAI performs AI operations on page content.
+func (s *AIService) PageAI(ctx context.Context, req *PageAIRequest) (*PageAIResponse, error) {
+	var taskPrompt string
+	switch req.Action {
+	case "summarize":
+		taskPrompt = fmt.Sprintf("请用中文总结以下内容的关键要点，用3-5个要点呈现：\n\n%s", req.Content)
+	case "improve":
+		taskPrompt = fmt.Sprintf("请改进以下文本的写作质量，修正语法错误，使表达更清晰专业，保持原意不变：\n\n%s", req.Content)
+	case "translate":
+		taskPrompt = fmt.Sprintf("请将以下内容翻译为中文，如果已经是中文则翻译为英文：\n\n%s", req.Content)
+	default: // generate
+		taskPrompt = fmt.Sprintf("根据以下上下文和内容，生成专业的文档内容。上下文：%s\n\n参考内容：\n%s", req.Context, req.Content)
+	}
+
+	result, err := s.llm.Complete(ctx, "你是一个专业的技术文档撰写助手。只输出结果，不要添加解释或标记。", taskPrompt)
+	if err != nil {
+		return nil, fmt.Errorf("page AI failed: %w", err)
+	}
+	return &PageAIResponse{Result: strings.TrimSpace(result)}, nil
 }
 
 // ==================== Tool Execution ====================

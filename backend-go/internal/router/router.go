@@ -36,6 +36,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	releaseSvc := service.NewReleaseService(db)
 	estimateSvc := service.NewEstimateService(db)
 	attachmentSvc := service.NewAttachmentService(db)
+	timeTrackSvc := service.NewTimeTrackService(db)
+	recurrenceSvc := service.NewRecurrenceService(db)
+	intakeH := handler.NewIntakeHandler(db)
 	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
 	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
 
@@ -62,7 +65,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	releaseH := handler.NewReleaseHandler(releaseSvc)
 	estimateH := handler.NewEstimateHandler(estimateSvc)
 	attachmentH := handler.NewAttachmentHandler(attachmentSvc)
-	aiH := handler.NewAIHandler(aiSvc)
+	timeTrackH := handler.NewTimeTrackHandler(timeTrackSvc)
+	recurrenceH := handler.NewRecurrenceHandler(recurrenceSvc)
+	aiH := handler.NewAIHandler(aiSvc, db)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -70,6 +75,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	// ==================== API v1 ====================
 	v1 := r.Group("/api/v1")
 	{
+		// ---- Intake (public) ----
+		v1.POST("/intake/:projectId", intakeH.Submit)
+
 		// ---- Auth (public + protected) ----
 		auth := v1.Group("/auth")
 		{
@@ -90,6 +98,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/members", workspaceH.AddMember)
 			workspaces.PATCH("/:wsParam/members/:userId", workspaceH.UpdateMember)
 			workspaces.DELETE("/:wsParam/members/:userId", workspaceH.RemoveMember)
+			workspaces.GET("/:wsParam/ai-config", aiH.GetAIConfig)
+			workspaces.PUT("/:wsParam/ai-config", aiH.UpdateAIConfig)
 		}
 
 		// ---- Projects (protected) ----
@@ -107,6 +117,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.PATCH("/:projectId/members/:userId", projectH.UpdateMember) // ?role=
 			projects.DELETE("/:projectId/members/:userId", projectH.RemoveMember)
 			projects.GET("/:projectId/statistics", projectH.GetStatistics)
+	projects.GET("/:projectId/intake", intakeH.ListPending)
+	projects.POST("/:projectId/intake/:issueId/triage", intakeH.Triage)
 			projects.GET("/:projectId/issues-summary", projectH.GetIssuesSummary)
 			projects.PATCH("/:projectId/lead", projectH.UpdateProjectLead)
 			projects.GET("/:projectId/subscribers", projectH.ListSubscribers)
@@ -235,6 +247,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.POST("/bulk/delete", issueH.BulkDelete)
 			issues.POST("/bulk/copy", issueH.BulkCopy)
 			issues.POST("/bulk/move", issueH.BulkMove)
+			issues.POST("/merge", issueH.MergeDuplicates)
 
 			// Import
 			issues.POST("/import/json", issueH.ImportJSON)   // ?project_id=&workspace_id=
@@ -260,6 +273,19 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// Cycle
 			issues.POST("/:issueId/cycle", issueH.SetCycle)                // ?cycle_id=
 			issues.DELETE("/:issueId/cycle", issueH.RemoveCycle)
+
+	// Time Tracks
+	issues.POST("/:issueId/time-tracks/start", timeTrackH.Start)
+	issues.POST("/:issueId/time-tracks/stop", timeTrackH.Stop)
+	issues.GET("/:issueId/time-tracks", timeTrackH.List)
+	issues.GET("/:issueId/time-tracks/summary", timeTrackH.Summary)
+	issues.DELETE("/:issueId/time-tracks/:id", timeTrackH.Delete)
+
+	// Recurrence
+	issues.POST("/:issueId/recurrence", recurrenceH.Create)
+	issues.GET("/:issueId/recurrence", recurrenceH.Get)
+	issues.PUT("/:issueId/recurrence", recurrenceH.Update)
+	issues.DELETE("/:issueId/recurrence", recurrenceH.Delete)
 
 			// Pages
 			issues.GET("/:issueId/pages", issueH.ListPages)
@@ -416,7 +442,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				comments.POST("/:commentId/unresolve", commentH.Unresolve)
 			}
 			// ---- RQL (protected) ----
-			rqlHandler := rql.NewRQLHandler(db)
+			v1.POST("/pages/:pageId/ai", authMiddleware, aiH.PageAI)
+
+	rqlHandler := rql.NewRQLHandler(db)
 			rqlGroup := v1.Group("/rql", authMiddleware)
 			{
 				rqlGroup.POST("/search", rqlHandler.Search)
@@ -435,6 +463,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				aiGroup.POST("/chat", aiH.Chat)
 				aiGroup.POST("/search", aiH.Search)
 				aiGroup.POST("/create", aiH.CreatePreview)
+				aiGroup.POST("/analyze", aiH.Analyze)
 			}
 
 			// ---- Notifications (protected) ----

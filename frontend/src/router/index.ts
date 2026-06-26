@@ -51,9 +51,33 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/workspaces/:workspaceId/projects/:projectId/issues/:issueId',
+      path: '/workspace/:slug/project/:id/issues/:issueId',
       name: 'IssueDetail',
       component: () => import('@/views/IssueDetail.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspaces/:workspaceId/projects/:projectId/issues/:issueId',
+      name: 'IssueDetailOld',
+      component: () => import('@/views/IssueDetail.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/project/:id/issues/new',
+      name: 'IssueCreate',
+      component: () => import('@/views/IssueCreate.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/project/:id/cycles/new',
+      name: 'CycleCreate',
+      component: () => import('@/views/CycleCreate.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/project/:id/cycles/:cycleId',
+      name: 'CycleDetail',
+      component: () => import('@/views/CycleDetail.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -69,20 +93,25 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/intake/:projectId',
+      name: 'IntakeForm',
+      component: () => import('@/views/IntakeForm.vue'),
+    },
+    {
       path: '/workspaces/:workspaceId/projects/:projectId/issues/new',
-      name: 'IssueCreate',
+      name: 'IssueCreateOld',
       component: () => import('@/views/IssueCreate.vue'),
       meta: { requiresAuth: true }
     },
     {
       path: '/workspaces/:workspaceId/projects/:projectId/cycles/new',
-      name: 'CycleCreate',
+      name: 'CycleCreateOld',
       component: () => import('@/views/CycleCreate.vue'),
       meta: { requiresAuth: true }
     },
     {
       path: '/workspaces/:workspaceId/projects/:projectId/cycles/:cycleId',
-      name: 'CycleDetail',
+      name: 'CycleDetailOld',
       component: () => import('@/views/CycleDetail.vue'),
       meta: { requiresAuth: true }
     },

@@ -53,6 +53,8 @@
           <div class="bg-white rounded-lg shadow-sm p-6">
             <h3 class="text-sm font-medium text-gray-700 mb-4">评论</h3>
             <CommentList :issue-id="issueId" />
+            <TimeTrackPanel :issue-id="issueId" />
+            <RecurrenceConfig :issue-id="issueId" />
           </div>
 
           <!-- 活动历史 -->
@@ -282,6 +284,8 @@ import LabelSelector from '@/components/LabelSelector.vue'
 import CommentList from '@/components/CommentList.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import SubIssuePanel from '@/components/SubIssuePanel.vue'
+import TimeTrackPanel from '@/components/TimeTrackPanel.vue'
+import RecurrenceConfig from '@/components/RecurrenceConfig.vue'
 import AttachmentManager from '@/components/AttachmentManager.vue'
 import * as issueApi from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
@@ -296,9 +300,10 @@ import * as issueApiSearch from '@/api/issue'
 // Route params
 const route = useRoute()
 const router = useRouter()
-const workspaceId = parseInt(route.params.workspaceId as string, 10)
-const projectId = parseInt(route.params.projectId as string, 10)
-const issueId = parseInt(route.params.issueId as string, 10)
+const issueId = parseInt(route.params.issueId as string, 10) || 0
+
+let workspaceId = 0
+let projectId = 0
 
 // State
 const issue = ref<any>(null)
@@ -339,8 +344,8 @@ const issueForm = ref({
 
 // Load issue data
 onMounted(async () => {
+  await loadIssue()
   await Promise.all([
-    loadIssue(),
     loadStates(),
     loadCycles(),
     loadModules(),
@@ -357,6 +362,10 @@ async function loadIssue() {
   try {
     const issueData = await issueApi.getIssue(issueId)
     issue.value = issueData
+    
+    // Set workspaceId and projectId from issue data
+    if (issueData.workspace_id) workspaceId = issueData.workspace_id
+    if (issueData.project_id) projectId = issueData.project_id
 
     // Populate form
     issueForm.value = {

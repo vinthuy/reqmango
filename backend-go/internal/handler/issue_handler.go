@@ -815,3 +815,26 @@ func (h *IssueHandler) ConvertType(c *gin.Context) {
 
 	c.JSON(http.StatusOK, result)
 }
+
+// MergeDuplicates handles POST /issues/merge
+func (h *IssueHandler) MergeDuplicates(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	var req request.MergeDuplicatesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	result, err := h.svc.MergeDuplicates(&req, user.ID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
