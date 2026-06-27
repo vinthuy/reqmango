@@ -55,7 +55,8 @@
         <div
           v-for="attachment in attachments"
           :key="attachment.id"
-          class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100"
+          class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
+          @click="previewAttachment(attachment, idx)"
         >
           <div class="flex items-center space-x-3 min-w-0">
             <!-- 文件图标 -->
@@ -101,12 +102,14 @@
       </div>
     </div>
   </div>
+  <AttachmentPreview :visible="showPreview" :items="attachments" :initial-idx="previewIdx" @close="showPreview = false" />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import attachmentApi from '@/api/attachment'
 import { useConfirm } from '@/composables/useConfirm'
+import AttachmentPreview from '@/components/AttachmentPreview.vue'
 import type { Attachment } from '@/types/attachment'
 
 // Props
@@ -119,6 +122,12 @@ const props = defineProps<{
 const { confirm } = useConfirm()
 const attachments = ref<Attachment[]>([])
 const uploadingFiles = ref<File[]>([])
+const showPreview = ref(false)
+const previewIdx = ref(0)
+
+function previewAttachment(_att: Attachment, idx: number) {
+  previewIdx.value = idx; showPreview.value = true
+}
 const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
