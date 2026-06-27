@@ -39,7 +39,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	attachmentSvc := service.NewAttachmentService(db)
 	timeTrackSvc := service.NewTimeTrackService(db)
 	recurrenceSvc := service.NewRecurrenceService(db)
+	reportSvc := service.NewReportService(db)
 	intakeH := handler.NewIntakeHandler(db)
+	reportH := handler.NewReportHandler(reportSvc)
 	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
 	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
 
@@ -106,6 +108,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.DELETE("/:wsParam/members/:userId", workspaceH.RemoveMember)
 			workspaces.GET("/:wsParam/ai-config", aiH.GetAIConfig)
 			workspaces.PUT("/:wsParam/ai-config", aiH.UpdateAIConfig)
+
+			// Initiatives
+			initiativeH := handler.NewInitiativeHandler(db)
+			workspaces.POST("/:wsParam/initiatives", initiativeH.Create)
+			workspaces.GET("/:wsParam/initiatives", initiativeH.List)
+		}
+
+		// Initiatives (top-level routes)
+		initiatives := v1.Group("/initiatives", authMiddleware)
+		{
+			initiativeH := handler.NewInitiativeHandler(db)
+			initiatives.GET("/:initiativeId", initiativeH.Get)
+			initiatives.PUT("/:initiativeId", initiativeH.Update)
+			initiatives.DELETE("/:initiativeId", initiativeH.Delete)
+			initiatives.GET("/:initiativeId/progress", initiativeH.GetProgress)
 		}
 
 		// ---- Projects (protected) ----
@@ -123,6 +140,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.PATCH("/:projectId/members/:userId", projectH.UpdateMember) // ?role=
 			projects.DELETE("/:projectId/members/:userId", projectH.RemoveMember)
 			projects.GET("/:projectId/statistics", projectH.GetStatistics)
+	projects.POST("/:projectId/reports", reportH.Generate)
 	projects.GET("/:projectId/intake", intakeH.ListPending)
 	projects.GET("/:projectId/webhooks", webhookH.List)
 	projects.POST("/:projectId/webhooks", webhookH.Create)
@@ -135,6 +153,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.GET("/:projectId/subscribers", projectH.ListSubscribers)
 			projects.POST("/:projectId/subscribers", projectH.AddSubscriber)
 			projects.DELETE("/:projectId/subscribers/:userId", projectH.RemoveSubscriber)
+			// Project Updates
+			projectUpdateH := handler.NewProjectUpdateHandler(db)
+			projects.GET("/:projectId/updates", projectUpdateH.List)
+			projects.POST("/:projectId/updates", projectUpdateH.Create)
 			projects.GET("/:projectId/cycles", cycleH.List)
 			projects.POST("/:projectId/cycles", cycleH.Create)     // ?workspace_id=
 
@@ -254,6 +276,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.GET("", issueH.List)                          // ?project_id=&filters...
 			issues.GET("/tree", issueH.Tree)                     // ?project_id=&search=&limit=&offset=
 			issues.GET("/statistics", issueH.GetStatistics)       // ?project_id=
+			issues.GET("/flow-metrics", issueH.GetFlowMetrics)     // ?project_id=
 			issues.GET("/search", issueH.Search)                  // ?workspace_id=&query=
 			issues.POST("/bulk/update", issueH.BulkUpdate)        // ?project_id=
 			issues.POST("/bulk/delete", issueH.BulkDelete)
@@ -264,6 +287,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// Import
 			issues.POST("/import/json", issueH.ImportJSON)   // ?project_id=&workspace_id=
 			issues.POST("/import/csv", issueH.ImportCSV)     // ?project_id=&workspace_id=
+
+			// Export
+			issues.GET("/export", issueH.Export) // ?project_id=&format=csv|json
 
 			// Single issue
 			issues.GET("/:issueId", issueH.Get)
@@ -297,6 +323,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	// Recurrence
 	issues.POST("/:issueId/recurrence", recurrenceH.Create)
 	issues.GET("/:issueId/recurrence", recurrenceH.Get)
+	issues.POST("/:issueId/ai/comment", aiH.AssistComment)
 	issues.PUT("/:issueId/recurrence", recurrenceH.Update)
 	issues.DELETE("/:issueId/recurrence", recurrenceH.Delete)
 
@@ -477,6 +504,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				aiGroup.POST("/search", aiH.Search)
 				aiGroup.POST("/create", aiH.CreatePreview)
 				aiGroup.POST("/analyze", aiH.Analyze)
+				aiGroup.POST("/suggest-labels", aiH.SuggestLabels)
 			}
 
 			// ---- Notifications (protected) ----
@@ -487,6 +515,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				notifications.GET("/:id", notificationH.Get)
 				notifications.POST("", notificationH.Create)
 				notifications.POST("/bulk", notificationH.CreateBulk)
+				notifications.POST("/check-due-reminders", notificationH.CheckDueReminders)
 				notifications.PATCH("/:id/read", notificationH.MarkRead)
 				notifications.POST("/read-all", notificationH.MarkAllRead)
 				notifications.DELETE("/:id", notificationH.Delete)

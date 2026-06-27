@@ -198,6 +198,28 @@ func (h *AIHandler) PageAI(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// AssistComment handles POST /issues/:issueId/ai/comment.
+func (h *AIHandler) AssistComment(c *gin.Context) {
+	var req service.AICommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"message":err.Error()}); return }
+	r, err := h.svc.AssistComment(c.Request.Context(), &req)
+	if err != nil { c.JSON(500, gin.H{"message":err.Error()}); return }
+	c.JSON(200, r)
+}
+
+// SuggestLabels handles POST /projects/:projectId/ai/suggest-labels.
+func (h *AIHandler) SuggestLabels(c *gin.Context) {
+	var req struct {
+		Name        string `json:"name" binding:"required"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"message":err.Error()}); return }
+	pid, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	r, err := h.svc.SuggestLabels(c.Request.Context(), pid, req.Name, req.Description)
+	if err != nil { c.JSON(500, gin.H{"message":err.Error()}); return }
+	c.JSON(200, r)
+}
+
 // TriageAnalyze handles POST /projects/:projectId/intake/:issueId/ai-analyze.
 func (h *AIHandler) TriageAnalyze(c *gin.Context) {
 	issueID, _ := strconv.ParseUint(c.Param("issueId"), 10, 64)

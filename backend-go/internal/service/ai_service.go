@@ -620,6 +620,118 @@ func (s *AIService) Analyze(ctx context.Context, actx *AIContext) (*AIAnalyzeRes
 
 func min(a, b int) int { if a < b { return a }; return b }
 
+// ==================== AI Labels ====================
+
+// AILabelResponse is the AI label suggestion result.
+type AILabelResponse struct {
+	SuggestedLabels []AILabelSuggestion `json:"suggested_labels"`
+}
+
+// AILabelSuggestion is a single label suggestion.
+type AILabelSuggestion struct {
+	LabelID   uint64  `json:"label_id"`
+	LabelName string  `json:"label_name"`
+	Confidence float64 `json:"confidence"`
+	Reason    string  `json:"reason"`
+}
+
+// SuggestLabels uses AI to suggest labels for an issue.
+func (s *AIService) SuggestLabels(ctx context.Context, projectID uint64, name, description string) (*AILabelResponse, error) {
+	// Get existing labels
+	var labels []model.Label
+	s.db.Where("project_id = ?", projectID).Find(&labels)
+	if len(labels) == 0 {
+		return &AILabelResponse{}, nil
+	}
+
+	labelList := make([]string, len(labels))
+	for i, l := range labels { labelList[i] = fmt.Sprintf("%d:%s", l.ID, l.Name) }
+
+	prompt := fmt.Sprintf(`根据工作项标题和描述，从以下标签中选择最合适的1-3个标签。
+可用标签: %s
+标题: %s
+描述: %s
+输出JSON: {"labels":[{"id":1,"reason":"简短理由"}]}`,
+		strings.Join(labelList, ", "), name, description[:min(len(description), 300)])
+
+	result, err := s.llm.Complete(ctx, "你是标签分类专家。只输出JSON。", prompt)
+	if err != nil {
+		// Rule-based fallback
+		return s.ruleBasedLabels(labels, name, description), nil
+	}
+
+	var parsed struct{ Labels []struct{ ID uint64 `json:"id"`; Reason string `json:"reason"` } `json:"labels"` }
+	if json.Unmarshal([]byte(result), &parsed) != nil {
+		return s.ruleBasedLabels(labels, name, description), nil
+	}
+
+	suggestions := make([]AILabelSuggestion, 0, len(parsed.Labels))
+	for _, p := range parsed.Labels {
+		for _, l := range labels {
+			if l.ID == p.ID {
+				suggestions = append(suggestions, AILabelSuggestion{LabelID: l.ID, LabelName: l.Name, Confidence: 0.85, Reason: p.Reason})
+			}
+		}
+	}
+	return &AILabelResponse{SuggestedLabels: suggestions}, nil
+}
+
+// ==================== AI Comments ====================
+
+// AICommentRequest is the request for AI-powered comment assistance.
+type AICommentRequest struct {
+	Action   string `json:"action"`   // summarize | weekly_report | improve
+	Comments string `json:"comments"` // existing comments as context
+}
+
+// AICommentResponse is the AI-generated comment result.
+type AICommentResponse struct {
+	Result string `json:"result"`
+}
+
+// AssistComment generates AI assistance for comments.
+func (s *AIService) AssistComment(ctx context.Context, req *AICommentRequest) (*AICommentResponse, error) {
+	var prompt string
+	switch req.Action {
+	case "summarize":
+		prompt = fmt.Sprintf("请用中文总结以下讨论的要点（3-5条）：\n\n%s", req.Comments)
+	case "weekly_report":
+		prompt = fmt.Sprintf("根据以下工作项讨论，生成一份简短的周报摘要：\n\n%s", req.Comments)
+	case "improve":
+		prompt = fmt.Sprintf("请改进以下评论文本，使其更清晰专业，保持原意：\n\n%s", req.Comments)
+	default:
+		prompt = fmt.Sprintf("请总结以下内容：\n\n%s", req.Comments)
+	}
+
+	result, err := s.llm.Complete(ctx, "你是技术支持助手。直接输出结果，不加解释。", prompt)
+	if err != nil {
+		return nil, fmt.Errorf("AI comment failed: %w", err)
+	}
+	return &AICommentResponse{Result: strings.TrimSpace(result)}, nil
+}
+
+func (s *AIService) ruleBasedLabels(labels []model.Label, name, description string) *AILabelResponse {
+	text := strings.ToLower(name + " " + description)
+	var suggestions []AILabelSuggestion
+	for _, l := range labels {
+		if strings.Contains(text, strings.ToLower(l.Name)) {
+			suggestions = append(suggestions, AILabelSuggestion{LabelID: l.ID, LabelName: l.Name, Confidence: 0.7, Reason: "关键词匹配"})
+		}
+	}
+	if len(suggestions) == 0 {
+		// Default: check for common patterns
+		if strings.Contains(text, "bug") || strings.Contains(text, "错误") || strings.Contains(text, "修复") {
+			for _, l := range labels {
+				if strings.Contains(strings.ToLower(l.Name), "bug") {
+					suggestions = append(suggestions, AILabelSuggestion{LabelID: l.ID, LabelName: l.Name, Confidence: 0.6, Reason: "Bug关键词"})
+					break
+				}
+			}
+		}
+	}
+	return &AILabelResponse{SuggestedLabels: suggestions}
+}
+
 // ==================== AI Triage ====================
 
 // AITriageResponse is the AI-powered triage analysis result.
