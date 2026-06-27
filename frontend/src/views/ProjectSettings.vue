@@ -17,6 +17,7 @@ import EstimatePointManager from '@/components/EstimatePointManager.vue'
 import ProjectIssueTypeManager from '@/components/ProjectIssueTypeManager.vue'
 import WorkItemTemplateManager from '@/components/WorkItemTemplateManager.vue'
 import ReleaseList from '@/components/ReleaseList.vue'
+import WebhookManager from '@/components/WebhookManager.vue'
 
 const { confirm } = useConfirm()
 
@@ -96,6 +97,7 @@ const menuItems = [
   { id: 'modules', label: 'Modules', icon: '📦' },
   { id: 'cycles', label: 'Cycles', icon: '🔄' },
   { id: 'releases', label: 'Releases', icon: '🚀' },
+  { id: 'webhooks', label: 'Webhooks', icon: '🔌' },
   { id: 'custom-fields', label: 'Custom Fields', icon: '🔧' },
   { id: 'estimate-points', label: 'Estimate Points', icon: '📏' },
   { id: 'workflows', label: 'Workflows', icon: '⚙️' },
@@ -619,6 +621,9 @@ onMounted(async () => {
         <!-- Releases -->
         <div v-if="!loading && activeSection === 'releases'" class="bg-white rounded-lg border border-gray-200">
           <ReleaseList :project-id="projectId" />
+        </div>
+        <div v-if="!loading && activeSection === 'webhooks'" class="bg-white rounded-lg border border-gray-200">
+          <WebhookManager :project-id="projectId" :workspace-id="workspaceId" />
         </div>
 
         <!-- Custom Fields -->

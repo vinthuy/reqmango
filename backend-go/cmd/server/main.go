@@ -75,6 +75,7 @@ func main() {
 		&model.ConditionalField{},
 		&model.TimeTrack{},
 		&model.RecurrenceRule{},
+		&model.Webhook{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

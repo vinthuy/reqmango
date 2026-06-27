@@ -16,12 +16,13 @@ import (
 )
 
 type IssueService struct {
-	db             *gorm.DB
+	db              *gorm.DB
 	notificationSvc *NotificationService
+	webhookSvc      *WebhookService
 }
 
-func NewIssueService(db *gorm.DB, notificationSvc *NotificationService) *IssueService {
-	return &IssueService{db: db, notificationSvc: notificationSvc}
+func NewIssueService(db *gorm.DB, notificationSvc *NotificationService, webhookSvc *WebhookService) *IssueService {
+	return &IssueService{db: db, notificationSvc: notificationSvc, webhookSvc: webhookSvc}
 }
 
 // Create creates a new issue.
@@ -165,6 +166,7 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		return nil, common.Internal("Failed to commit transaction")
 	}
 
+	s.webhookSvc.Fire(projectID, "issue_created", map[string]interface{}{"issue_id": issue.ID, "name": issue.Name, "priority": issue.Priority})
 	return s.buildResponse(issue.ID)
 }
 
@@ -469,6 +471,9 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		return nil, common.Internal("Failed to commit update")
 	}
 
+	event := "issue_updated"
+	if req.StateID != nil { event = "state_changed" }
+	s.webhookSvc.Fire(issue.ProjectID, event, map[string]interface{}{"issue_id": issueID, "name": issue.Name, "priority": issue.Priority, "state_id": issue.StateID})
 	return s.buildResponse(issueID)
 }
 
