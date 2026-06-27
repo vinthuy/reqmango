@@ -2,8 +2,10 @@ package common
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmanpy/backend-go/internal/i18n"
 )
 
 // AppError represents an application-level error with an HTTP status and business error code.
@@ -61,6 +63,10 @@ func NotificationNotFound() *AppError { return NewError(ErrNotificationNotFound,
 // RespondError writes a standardized error response.
 func RespondError(c *gin.Context, err error) {
 	if ae, ok := err.(*AppError); ok {
+		lang := getLang(c)
+		if msg := i18n.GetMessage(lang, strings.ToLower(string(ae.ErrorCode))); msg != "" {
+			ae.Message = msg
+		}
 		c.JSON(ae.Code, ae)
 		return
 	}
@@ -69,6 +75,11 @@ func RespondError(c *gin.Context, err error) {
 		ErrorCode: ErrInternal,
 		Message:   "Internal server error",
 	})
+}
+
+func getLang(c *gin.Context) string {
+	if l, exists := c.Get("lang"); exists { return l.(string) }
+	return "zh"
 }
 
 // RespondOK writes a success response.

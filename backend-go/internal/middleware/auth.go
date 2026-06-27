@@ -96,3 +96,11 @@ func GetCurrentUser(c *gin.Context) *model.User {
 	}
 	return user.(*model.User)
 }
+
+// GetUserID extracts the current user's ID from the Gin context.
+func GetUserID(c *gin.Context) uint64 {
+	user, exists := c.Get("currentUser")
+	if !exists { return 0 }
+	if u, ok := user.(*model.User); ok { return u.ID }
+	return 0
+}

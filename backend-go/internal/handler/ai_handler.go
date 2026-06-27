@@ -207,6 +207,14 @@ func (h *AIHandler) AssistComment(c *gin.Context) {
 	c.JSON(200, r)
 }
 
+// SprintPlan handles POST /projects/:projectId/ai/sprint-plan.
+func (h *AIHandler) SprintPlan(c *gin.Context) {
+	pid, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	r, err := h.svc.SprintPlan(c.Request.Context(), pid)
+	if err != nil { c.JSON(500, gin.H{"message":err.Error()}); return }
+	c.JSON(200, r)
+}
+
 // SuggestLabels handles POST /projects/:projectId/ai/suggest-labels.
 func (h *AIHandler) SuggestLabels(c *gin.Context) {
 	var req struct {

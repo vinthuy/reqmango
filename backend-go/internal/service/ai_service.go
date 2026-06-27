@@ -710,6 +710,88 @@ func (s *AIService) AssistComment(ctx context.Context, req *AICommentRequest) (*
 	return &AICommentResponse{Result: strings.TrimSpace(result)}, nil
 }
 
+// ==================== AI Sprint Planning ====================
+
+// AISprintPlanResponse is the AI-generated sprint plan.
+type AISprintPlanResponse struct {
+	RecommendedCapacity int              `json:"recommended_capacity"`
+	SuggestedIssues     []uint64         `json:"suggested_issues"`
+	Reasoning           string           `json:"reasoning"`
+	Risks               []string         `json:"risks"`
+}
+
+// SprintPlan generates AI sprint planning recommendations.
+func (s *AIService) SprintPlan(ctx context.Context, projectID uint64) (*AISprintPlanResponse, error) {
+	// Gather data: completed cycles stats, backlog issues
+	var completedCycles []model.Cycle
+	s.db.Where("project_id = ? AND completed_at IS NOT NULL", projectID).Order("completed_at DESC").Limit(5).Find(&completedCycles)
+
+	var backlogIssues []model.Issue
+	var backlogState model.State
+	s.db.Where("project_id = ? AND \"group\" = ?", projectID, "backlog").First(&backlogState)
+	s.db.Where("project_id = ? AND state_id = ? AND priority IN (?)", projectID, backlogState.ID, []string{"urgent","high"}).
+		Order("priority, sequence_id").Limit(20).Find(&backlogIssues)
+
+	// Build data summary
+	cycleSummary := ""
+	for _, c := range completedCycles {
+		var count int64
+		s.db.Model(&model.IssueCycle{}).Where("cycle_id = ?", c.ID).Count(&count)
+		cycleSummary += fmt.Sprintf("- %s: %d issues, %s → %s\n", c.Name, count, c.StartDate.Format("01-02"), c.EndDate.Format("01-02"))
+	}
+
+	issueList := ""
+	for _, i := range backlogIssues {
+		issueList += fmt.Sprintf("- #%d %s [%s]\n", i.SequenceID, i.Name, i.Priority)
+	}
+
+	prompt := fmt.Sprintf(`你是敏捷教练。根据以下数据给出Sprint规划建议。
+
+历史Sprint数据:
+%s
+
+待办高优先级工作项:
+%s
+
+请输出JSON（不要markdown标记）:
+{
+  "recommended_capacity": 建议纳入的工作项数量,
+  "reasoning": "简短中文分析（50字内）",
+  "risks": ["风险1", "风险2"]
+}`,
+		cycleSummary, issueList)
+
+	result, err := s.llm.Complete(ctx, "你是敏捷规划专家。输出纯JSON。", prompt)
+	if err != nil {
+		// Fallback: simple average
+		avg := 10
+		if len(completedCycles) > 0 { avg = 10 }
+		ids := make([]uint64, 0)
+		for i, iss := range backlogIssues {
+			if i >= avg { break }
+			ids = append(ids, iss.ID)
+		}
+		return &AISprintPlanResponse{
+			RecommendedCapacity: avg,
+			SuggestedIssues:     ids,
+			Reasoning:           "基于历史Sprint平均容量建议",
+			Risks:               []string{"建议人工审核优先级"},
+		}, nil
+	}
+
+	var plan AISprintPlanResponse
+	if json.Unmarshal([]byte(result), &plan) != nil {
+		plan.Reasoning = result
+	}
+	ids := make([]uint64, 0)
+	for i, iss := range backlogIssues {
+		if i >= plan.RecommendedCapacity { break }
+		ids = append(ids, iss.ID)
+	}
+	plan.SuggestedIssues = ids
+	return &plan, nil
+}
+
 func (s *AIService) ruleBasedLabels(labels []model.Label, name, description string) *AILabelResponse {
 	text := strings.ToLower(name + " " + description)
 	var suggestions []AILabelSuggestion

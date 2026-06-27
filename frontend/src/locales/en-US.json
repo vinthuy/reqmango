@@ -1,0 +1,41 @@
+{
+  "app": { "title": "ReqManPy", "loading": "Loading..." },
+  "nav": { "workspaces": "Workspaces", "projects": "Projects", "settings": "Settings", "logout": "Logout" },
+  "project": {
+    "issues": "Issues", "cycles": "Cycles", "modules": "Modules", "pages": "Pages", "settings": "Settings",
+    "new_issue": "New Issue", "ai_create": "🤖 AI Create", "analytics": "Analytics", "export": "Export",
+    "list_view": "List", "kanban_view": "Kanban", "tree_view": "Tree", "calendar_view": "Calendar", "gantt_view": "Gantt"
+  },
+  "settings": {
+    "overview": "Overview", "members": "Members", "states": "States", "labels": "Labels",
+    "issue_types": "Issue Types", "templates": "Templates", "modules": "Modules", "cycles": "Cycles",
+    "releases": "Releases", "webhooks": "Webhooks", "custom_fields": "Custom Fields",
+    "estimates": "Estimates", "workflows": "Workflows", "automations": "Automations", "delete": "Delete"
+  },
+  "issue": {
+    "title": "Title", "description": "Description", "priority": "Priority", "state": "State",
+    "assignee": "Assignee", "type": "Type", "labels": "Labels", "cycle": "Cycle", "module": "Module",
+    "start_date": "Start Date", "target_date": "Target Date", "parent": "Parent",
+    "urgent": "Urgent", "high": "High", "medium": "Medium", "low": "Low", "none": "None",
+    "save": "Save", "saving": "Saving...", "comments": "Comments", "activities": "Activity"
+  },
+  "common": {
+    "save": "Save", "cancel": "Cancel", "delete": "Delete", "edit": "Edit", "create": "Create",
+    "search": "Search", "filter": "Filter", "back": "Back", "close": "Close", "confirm": "Confirm",
+    "loading": "Loading...", "no_data": "No data", "error": "Error", "success": "Success",
+    "export_csv": "Export CSV", "export_json": "Export JSON"
+  },
+  "ai": {
+    "assistant": "AI Assistant", "ask": "Ask", "build": "Build", "search": "Search",
+    "create": "Smart Create", "analyze": "Analyze", "labels": "Suggest Labels",
+    "placeholder_ask": "Ask AI about the project...", "placeholder_build": "Describe what to build...",
+    "summarize": "Summarize", "improve": "Improve", "generate": "Generate More"
+  },
+  "time": {
+    "tracking": "Time Tracking", "start": "Start", "stop": "Stop", "summary": "Summary",
+    "total_hours": "Total", "entries": "entries", "running": "Running..."
+  },
+  "errors": {
+    "not_found": "Not found", "unauthorized": "Please login first", "server_error": "Server error"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "app": { "title": "ReqManPy", "loading": "加载中..." },
+  "nav": { "workspaces": "工作空间", "projects": "项目", "settings": "设置", "logout": "退出登录" },
+  "project": {
+    "issues": "工作项管理", "cycles": "周期", "modules": "模块", "pages": "文档", "settings": "设置",
+    "new_issue": "新建工作项", "ai_create": "🤖 AI Create", "analytics": "分析", "export": "导出",
+    "list_view": "列表视图", "kanban_view": "看板视图", "tree_view": "树形视图", "calendar_view": "日历视图", "gantt_view": "甘特图"
+  },
+  "settings": {
+    "overview": "概览", "members": "成员", "states": "状态", "labels": "标签",
+    "issue_types": "工作项类型", "templates": "模板", "modules": "模块", "cycles": "周期",
+    "releases": "发布", "webhooks": "Webhook", "custom_fields": "自定义字段",
+    "estimates": "估算", "workflows": "工作流", "automations": "自动化", "delete": "删除项目"
+  },
+  "issue": {
+    "title": "标题", "description": "描述", "priority": "优先级", "state": "状态",
+    "assignee": "负责人", "type": "类型", "labels": "标签", "cycle": "周期", "module": "模块",
+    "start_date": "开始日期", "target_date": "截止日期", "parent": "父工作项",
+    "urgent": "紧急", "high": "高", "medium": "中", "low": "低", "none": "无",
+    "save": "保存", "saving": "保存中...", "comments": "评论", "activities": "活动历史"
+  },
+  "common": {
+    "save": "保存", "cancel": "取消", "delete": "删除", "edit": "编辑", "create": "创建",
+    "search": "搜索", "filter": "筛选", "back": "返回", "close": "关闭", "confirm": "确认",
+    "loading": "加载中...", "no_data": "暂无数据", "error": "出错了", "success": "操作成功",
+    "export_csv": "导出 CSV", "export_json": "导出 JSON"
+  },
+  "ai": {
+    "assistant": "AI 助手", "ask": "询问", "build": "构建", "search": "搜索",
+    "create": "智能创建", "analyze": "数据分析", "labels": "标签建议",
+    "placeholder_ask": "向AI询问项目相关问题...", "placeholder_build": "描述你想创建什么...",
+    "summarize": "总结", "improve": "改进", "generate": "生成更多"
+  },
+  "time": {
+    "tracking": "工时记录", "start": "开始", "stop": "停止", "summary": "汇总",
+    "total_hours": "总时长", "entries": "条记录", "running": "计时中..."
+  },
+  "errors": {
+    "not_found": "资源不存在", "unauthorized": "请先登录", "server_error": "服务器错误"
+  }
+}

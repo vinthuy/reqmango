@@ -40,6 +40,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	timeTrackSvc := service.NewTimeTrackService(db)
 	recurrenceSvc := service.NewRecurrenceService(db)
 	reportSvc := service.NewReportService(db)
+	pageTabSvc := service.NewProjectPageTabService(db)
 	intakeH := handler.NewIntakeHandler(db)
 	reportH := handler.NewReportHandler(reportSvc)
 	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
@@ -72,13 +73,22 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	timeTrackH := handler.NewTimeTrackHandler(timeTrackSvc)
 	recurrenceH := handler.NewRecurrenceHandler(recurrenceSvc)
 	aiH := handler.NewAIHandler(aiSvc, db)
+	pageTabH := handler.NewProjectPageTabHandler(pageTabSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
 
+	// Language detection middleware
+	r.Use(middleware.LanguageMiddleware())
+
 	// Rate limiter: global middleware (applied before routes)
 	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRequests, cfg.RateLimitWindowSec)
 	r.Use(rateLimiter.Middleware())
+
+	// SSE endpoint for real-time notifications
+	sseH := handler.NewSSEHandler()
+	v1SSE := r.Group("/api/v1")
+	v1SSE.GET("/sse", authMiddleware, sseH.Connect)
 
 	// ==================== API v1 ====================
 	v1 := r.Group("/api/v1")
@@ -265,6 +275,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				settings.GET("/labels/:labelId", settingsH.GetLabel)
 				settings.PUT("/labels/:labelId", settingsH.UpdateLabel)
 				settings.DELETE("/labels/:labelId", settingsH.DeleteLabel)
+			}
+
+			// ---- Project Page Tabs ----
+			pageTabs := projects.Group("/:projectId/page-tabs", authMiddleware)
+			{
+				pageTabs.GET("", pageTabH.List)
+				pageTabs.POST("", pageTabH.Create)
+				pageTabs.PUT("/batch", pageTabH.BatchSave)
+				pageTabs.PUT("/reorder", pageTabH.Reorder)
+				pageTabs.PUT("/:tabId", pageTabH.Update)
+				pageTabs.DELETE("/:tabId", pageTabH.Delete)
 			}
 		}
 
@@ -505,6 +526,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				aiGroup.POST("/create", aiH.CreatePreview)
 				aiGroup.POST("/analyze", aiH.Analyze)
 				aiGroup.POST("/suggest-labels", aiH.SuggestLabels)
+			aiGroup.POST("/sprint-plan", aiH.SprintPlan)
 			}
 
 			// ---- Notifications (protected) ----
