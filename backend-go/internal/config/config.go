@@ -17,6 +17,8 @@ type Config struct {
 	AIProvider            string
 	AIModel               string
 	AIBaseURL             string
+	RateLimitRequests     int
+	RateLimitWindowSec    int
 }
 
 func Load() *Config {
@@ -41,6 +43,8 @@ func Load() *Config {
 		AIProvider:           getEnv("AI_PROVIDER", "deepseek"),
 		AIModel:              getEnv("AI_MODEL", "deepseek-chat"),
 		AIBaseURL:            getEnv("AI_BASE_URL", "https://api.deepseek.com/v1"),
+		RateLimitRequests:    getEnvInt("RATE_LIMIT_REQUESTS", 100),
+		RateLimitWindowSec:   getEnvInt("RATE_LIMIT_WINDOW_SEC", 60),
 	}
 
 	fmt.Printf("Config loaded: port=%s, db_url=%s\n", cfg.Port, maskDSN(cfg.DatabaseURL))

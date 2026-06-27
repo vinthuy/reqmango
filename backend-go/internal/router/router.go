@@ -74,6 +74,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
 
+	// Rate limiter: global middleware (applied before routes)
+	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRequests, cfg.RateLimitWindowSec)
+	r.Use(rateLimiter.Middleware())
+
 	// ==================== API v1 ====================
 	v1 := r.Group("/api/v1")
 	{
