@@ -7,7 +7,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-      <h1 class="page-title">创建工作项</h1>
+      <h1 class="page-title">{{ t('issue.createTitle') }}</h1>
     </div>
 
     <div class="page-content">
@@ -15,7 +15,7 @@
       <div class="form-section">
         <!-- 类型选择 -->
         <div class="form-group">
-          <label class="form-label">类型</label>
+          <label class="form-label">{{ t('issue.type') }}</label>
           <div class="type-selector">
             <button
               v-for="type in issueTypes"
@@ -36,43 +36,43 @@
 
         <!-- 模板选择 -->
         <div v-if="availableTemplates.length > 0" class="form-group">
-          <label class="form-label">模板</label>
+          <label class="form-label">{{ t('issue.template') }}</label>
           <select
             v-model.number="selectedTemplateId"
             @change="handleTemplateChange(selectedTemplateId)"
             class="form-input"
           >
-            <option :value="null">选择模板...</option>
+            <option :value="null">{{ t('issue.templatePlaceholder') }}</option>
             <option v-for="tmpl in availableTemplates" :key="tmpl.id" :value="tmpl.id">
-              {{ tmpl.name }}{{ tmpl.is_default ? ' (默认)' : '' }}
+              {{ tmpl.name }}{{ tmpl.is_default ? t('issue.templateDefault') : '' }}
             </option>
           </select>
         </div>
 
         <!-- 标题 -->
         <div class="form-group">
-          <label class="form-label">标题 <span class="required">*</span></label>
+          <label class="form-label">{{ t('issue.titleRequired') }}</label>
           <input
             v-model="formData.name"
             type="text"
             class="form-input title-input"
-            placeholder="输入工作项标题"
+            :placeholder="t('issue.titlePlaceholder')"
             ref="titleInput"
           />
         </div>
 
         <!-- 描述 -->
         <div class="form-group">
-          <label class="form-label">描述</label>
+          <label class="form-label">{{ t('issue.description') }}</label>
           <RichTextEditor
             v-model="formData.description"
-            placeholder="添加描述..."
+            :placeholder="t('issue.descriptionPlaceholder')"
           />
         </div>
 
         <!-- 自定义字段 -->
         <div v-if="linkedFields.length > 0" class="form-group">
-          <label class="form-label">自定义属性</label>
+          <label class="form-label">{{ t('issue.customFields') }}</label>
           <div class="custom-fields">
             <div v-for="field in linkedFields" :key="field.field_id" class="field-item">
               <label class="field-label">
@@ -93,9 +93,9 @@
       <!-- 右侧属性 -->
       <div class="properties-section">
         <div class="property-group">
-          <label class="property-label">状态</label>
+          <label class="property-label">{{ t('issue.state') }}</label>
           <select v-model="formData.state_id" class="property-select">
-            <option value="">选择状态</option>
+            <option value="">{{ t('issue.statePlaceholder') }}</option>
             <option v-for="state in states" :key="state.id" :value="state.id">
               {{ state.name }}
             </option>
@@ -103,31 +103,31 @@
         </div>
 
         <div class="property-group">
-          <label class="property-label">优先级</label>
+          <label class="property-label">{{ t('issue.priority') }}</label>
           <select v-model="formData.priority" class="property-select">
-            <option value="">选择优先级</option>
-            <option value="urgent">紧急</option>
-            <option value="high">高</option>
-            <option value="medium">中</option>
-            <option value="low">低</option>
-            <option value="none">无</option>
+            <option value="">{{ t('issue.priorityPlaceholder') }}</option>
+            <option value="urgent">{{ t('issue.priorityUrgent') }}</option>
+            <option value="high">{{ t('issue.priorityHigh') }}</option>
+            <option value="medium">{{ t('issue.priorityMedium') }}</option>
+            <option value="low">{{ t('issue.priorityLow') }}</option>
+            <option value="none">{{ t('issue.priorityNone') }}</option>
           </select>
         </div>
 
         <div class="property-group">
-          <label class="property-label">负责人</label>
+          <label class="property-label">{{ t('issue.assignee') }}</label>
           <UserSelect
             v-model="formData.assignee_id"
             :users="projectMembers"
-            placeholder="选择负责人"
+            :placeholder="t('issue.assigneePlaceholder')"
             :clearable="true"
           />
         </div>
 
         <div class="property-group">
-          <label class="property-label">周期</label>
+          <label class="property-label">{{ t('issue.cycle') }}</label>
           <select v-model="formData.cycle_id" class="property-select">
-            <option value="">选择周期</option>
+            <option value="">{{ t('issue.cyclePlaceholder') }}</option>
             <option v-for="cycle in cycles" :key="cycle.id" :value="cycle.id">
               {{ cycle.name }}
             </option>
@@ -135,9 +135,9 @@
         </div>
 
         <div class="property-group">
-          <label class="property-label">模块</label>
+          <label class="property-label">{{ t('issue.module') }}</label>
           <select v-model="formData.module_id" class="property-select">
-            <option value="">选择模块</option>
+            <option value="">{{ t('issue.modulePlaceholder') }}</option>
             <option v-for="module in modules" :key="module.id" :value="module.id">
               {{ module.name }}
             </option>
@@ -145,17 +145,17 @@
         </div>
 
         <div class="property-group">
-          <label class="property-label">开始日期</label>
+          <label class="property-label">{{ t('issue.startDate') }}</label>
           <input v-model="formData.start_date" type="date" class="property-input" />
         </div>
 
         <div class="property-group">
-          <label class="property-label">截止日期</label>
+          <label class="property-label">{{ t('issue.targetDate') }}</label>
           <input v-model="formData.target_date" type="date" class="property-input" />
         </div>
 
         <div class="property-group">
-          <label class="property-label">父工作项</label>
+          <label class="property-label">{{ t('issue.parentIssue') }}</label>
           <div class="relative">
             <div v-if="selectedParent" class="flex items-center justify-between p-2 bg-indigo-50 rounded-md mb-1">
               <span class="text-sm text-indigo-700">#{{ selectedParent.sequence_id }} {{ selectedParent.name }}</span>
@@ -166,7 +166,7 @@
               v-model="parentSearch"
               @input="searchParents"
               type="text"
-              placeholder="搜索父工作项..."
+              :placeholder="t('issue.parentSearchPlaceholder')"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             />
             <div v-if="parentResults.length > 0 && !selectedParent" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-36 overflow-y-auto">
@@ -183,7 +183,7 @@
         </div>
 
         <div class="property-group">
-          <label class="property-label">标签</label>
+          <label class="property-label">{{ t('issue.labels') }}</label>
           <LabelSelector
             :project-id="projectId"
             v-model="selectedLabelIds"
@@ -194,9 +194,9 @@
 
     <!-- 底部操作 -->
     <div class="page-footer">
-      <button @click="goBack" class="btn btn-secondary">取消</button>
+      <button @click="goBack" class="btn btn-secondary">{{ t('issue.cancel') }}</button>
       <button @click="submitForm" class="btn btn-primary" :disabled="!canSubmit">
-        创建工作项
+        {{ t('issue.create') }}
       </button>
     </div>
   </div>
@@ -204,6 +204,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useRoute, useRouter } from 'vue-router'
 import CustomFieldValueInput from '@/components/CustomFieldValueInput.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
@@ -227,6 +228,7 @@ import type { WorkItemTemplate } from '@/types/work-item-template'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const projectId = computed(() => parseInt(route.params.projectId as string, 10))
 const workspaceId = computed(() => parseInt(route.params.workspaceId as string, 10))
@@ -477,13 +479,13 @@ function updateCustomFieldValue(fieldId: number, value: IssueCustomFieldValueUpd
 async function submitForm() {
   // 检查标题
   if (!formData.value.name.trim()) {
-    alert('请输入工作项标题')
+    alert(t('issue.titleRequiredMsg'))
     return
   }
   
   // 检查类型
   if (!selectedTypeId.value) {
-    alert('请选择工作项类型')
+    alert(t('issue.typeRequiredMsg'))
     return
   }
 
@@ -492,7 +494,7 @@ async function submitForm() {
     .filter(field => isFieldRequired(field) && !hasFieldValue(field.field_id))
     .map(field => field.name)
   if (missingFields.length > 0) {
-    alert('请填写必填字段: ' + missingFields.join(', '))
+    alert(t('issue.requiredFieldsMsg', { fields: missingFields.join(', ') }))
     return
   }
 
@@ -595,8 +597,8 @@ async function submitForm() {
     router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}?view=${returnView.value}`)
   } catch (error: any) {
     console.error('Failed to create issue:', error)
-    const errorMsg = error.response?.data?.message || error.message || '未知错误'
-    alert('创建失败: ' + errorMsg)
+    const errorMsg = error.response?.data?.message || error.message || t('issue.unknownError')
+    alert(t('issue.createFailed', { msg: errorMsg }))
   } finally {
     saving.value = false
   }

@@ -3,14 +3,14 @@
     <!-- 头部 -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">工作项类型</h2>
-        <p class="text-sm text-gray-500 mt-0.5">定义工作空间中可用的工作项类型（如 Bug、Story、Task 等）</p>
+        <h2 class="text-lg font-semibold text-gray-900">{{ t('workspaceIssueType.title') }}</h2>
+        <p class="text-sm text-gray-500 mt-0.5">{{ t('workspaceIssueType.description') }}</p>
       </div>
       <button @click="openCreateModal" class="create-btn">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        新建类型
+        {{ t('workspaceIssueType.createType') }}
       </button>
     </div>
 
@@ -51,8 +51,8 @@
           <div class="flex-1 min-w-0">
             <div class="flex items-center space-x-2">
               <span class="font-medium text-gray-900">{{ type.name }}</span>
-              <span v-if="type.is_default" class="badge-default">默认</span>
-              <span v-if="!type.is_active" class="badge-inactive">已禁用</span>
+              <span v-if="type.is_default" class="badge-default">{{ t('workspaceIssueType.defaultBadge') }}</span>
+              <span v-if="!type.is_active" class="badge-inactive">{{ t('workspaceIssueType.disabledBadge') }}</span>
             </div>
             <p v-if="type.description" class="text-xs text-gray-500 mt-0.5 truncate">{{ type.description }}</p>
           </div>
@@ -62,7 +62,7 @@
             v-if="!type.is_default"
             @click.stop="toggleActive(type)"
             class="icon-action"
-            :title="type.is_active ? '禁用' : '启用'"
+            :title="type.is_active ? t('workspaceIssueType.disableAction') : t('workspaceIssueType.enableAction')"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path v-if="type.is_active" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -73,7 +73,7 @@
             v-if="!type.is_default"
             @click.stop="confirmDelete(type)"
             class="icon-action icon-action-danger"
-            title="删除"
+            :title="t('workspaceIssueType.deleteAction')"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -87,7 +87,7 @@
       <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
-      <p class="mt-2 text-sm text-gray-500">暂无工作项类型，点击上方按钮创建</p>
+      <p class="mt-2 text-sm text-gray-500">{{ t('workspaceIssueType.emptyText') }}</p>
     </div>
 
     <!-- 内嵌编辑抽屉 -->
@@ -97,9 +97,9 @@
           <div class="drawer-header">
             <div>
               <h3 class="drawer-title">
-                {{ isCreating ? '新建类型' : '编辑: ' + (selectedType?.name || '') }}
+                {{ isCreating ? t('workspaceIssueType.createTitle') : t('workspaceIssueType.editTitle') + (selectedType?.name || '') }}
               </h3>
-              <p class="drawer-subtitle">配置工作项类型的名称、图标和颜色</p>
+              <p class="drawer-subtitle">{{ t('workspaceIssueType.drawerSubtitle') }}</p>
             </div>
             <button @click="closeDrawer" class="close-btn">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,7 +110,7 @@
 
           <div class="drawer-body">
             <div class="form-group">
-              <label class="form-label">预览</label>
+              <label class="form-label">{{ t('workspaceIssueType.preview') }}</label>
               <div class="type-preview" :class="{ 'is-default': formData.is_default }">
                 <div class="type-row">
                   <div class="type-row-main" style="cursor: default">
@@ -122,7 +122,7 @@
                       </svg>
                     </div>
                     <div class="flex-1 min-w-0">
-                      <span class="font-medium text-gray-900">{{ formData.name || '未命名类型' }}</span>
+                      <span class="font-medium text-gray-900">{{ formData.name || t('workspaceIssueType.unnamedType') }}</span>
                     </div>
                   </div>
                 </div>
@@ -130,12 +130,12 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">名称 <span class="required">*</span></label>
-              <input v-model="formData.name" type="text" class="form-input" placeholder="输入类型名称" />
+              <label class="form-label">{{ t('workspaceIssueType.name') }} <span class="required">*</span></label>
+              <input v-model="formData.name" type="text" class="form-input" :placeholder="t('workspaceIssueType.namePlaceholder')" />
             </div>
 
             <div class="form-group">
-              <label class="form-label">图标</label>
+              <label class="form-label">{{ t('workspaceIssueType.icon') }}</label>
               <div class="icon-grid">
                 <button
                   v-for="icon in ISSUE_TYPE_ICONS"
@@ -159,7 +159,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">颜色</label>
+              <label class="form-label">{{ t('workspaceIssueType.color') }}</label>
               <div class="color-grid">
                 <button
                   v-for="color in ISSUE_TYPE_COLORS"
@@ -173,16 +173,16 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">描述</label>
-              <input v-model="formData.description" type="text" class="form-input" placeholder="类型描述（可选）" />
+              <label class="form-label">{{ t('workspaceIssueType.descriptionLabel') }}</label>
+              <input v-model="formData.description" type="text" class="form-input" :placeholder="t('workspaceIssueType.descriptionPlaceholder')" />
             </div>
 
             <div class="form-group">
               <label class="checkbox-label">
                 <input v-model="formData.is_default" type="checkbox" class="checkbox" />
-                <span>设为默认类型</span>
+                <span>{{ t('workspaceIssueType.setDefaultType') }}</span>
               </label>
-              <p class="text-xs text-gray-500 mt-1">默认类型在创建工作项时自动选中</p>
+              <p class="text-xs text-gray-500 mt-1">{{ t('workspaceIssueType.defaultHint') }}</p>
             </div>
 
             <!-- Custom Properties Binding (edit mode only) -->
@@ -218,9 +218,9 @@
           </div>
 
           <div class="drawer-footer">
-            <button @click="closeDrawer" class="btn btn-secondary">取消</button>
+            <button @click="closeDrawer" class="btn btn-secondary">{{ t('common.cancel') }}</button>
             <button @click="submitForm" class="btn btn-primary" :disabled="!formData.name">
-              {{ isCreating ? '创建' : '保存' }}
+              {{ isCreating ? t('common.create') : t('common.save') }}
             </button>
           </div>
         </div>
@@ -256,6 +256,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { IssueType, IssueTypeCreate, IssueTypeUpdate } from '@/types/issue-type'
 import { ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS, getIconName } from '@/types/issue-type'
 import { useConfirm } from '@/composables/useConfirm'
@@ -266,6 +267,7 @@ const props = defineProps<{
   workspaceId: number
 }>()
 
+const { t } = useI18n()
 const { confirm } = useConfirm()
 
 const issueTypes = ref<IssueType[]>([])
@@ -362,10 +364,11 @@ async function submitForm() {
 }
 
 async function toggleActive(type: IssueType) {
+  const actionKey = type.is_active ? 'workspaceIssueType.disableAction' : 'workspaceIssueType.enableAction'
   if (await confirm({
-    title: type.is_active ? '禁用类型' : '启用类型',
-    message: `确定要${type.is_active ? '禁用' : '启用'}类型 "${type.name}" 吗？`,
-    confirmText: type.is_active ? '禁用' : '启用',
+    title: t(type.is_active ? 'workspaceIssueType.disableConfirmTitle' : 'workspaceIssueType.enableConfirmTitle'),
+    message: t('workspaceIssueType.confirmToggleMessage').replace('{action}', t(actionKey)).replace('{name}', type.name),
+    confirmText: t(actionKey),
     danger: type.is_active,
   })) {
     try {
@@ -379,10 +382,10 @@ async function toggleActive(type: IssueType) {
 
 async function confirmDelete(type: IssueType) {
   if (await confirm({
-    title: '删除类型',
-    message: `确定要删除类型 "${type.name}" 吗？此操作不可撤销。`,
+    title: t('workspaceIssueType.deleteConfirmTitle'),
+    message: t('workspaceIssueType.deleteConfirmMessage').replace('{name}', type.name),
     danger: true,
-    confirmText: '删除'
+    confirmText: t('workspaceIssueType.deleteConfirmBtn')
   })) {
     try {
       await issueTypeApi.deleteIssueType(type.id)

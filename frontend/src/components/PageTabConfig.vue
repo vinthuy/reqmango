@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { listPageTabs, batchSavePageTabs } from '@/api/project'
 import type { ProjectPageTab, BuiltInTabDef } from '@/types/project-page-tab'
 
+const { t } = useI18n()
 const props = defineProps<{ projectId: number }>()
 const emit = defineEmits<{ close: []; saved: [tabs: ProjectPageTab[]] }>()
 
@@ -18,6 +20,13 @@ const builtInTabs: BuiltInTabDef[] = [
   { tab_type: 'roadmap', name: '路线图', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7', route_key: 'roadmap' },
   { tab_type: 'settings', name: '设置', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z', route_key: 'settings' },
 ]
+
+function getTabDisplayName(tab: { tab_type: string, name: string }): string {
+  if (tab.tab_type !== 'custom') {
+    return t(`pageTab.builtInTabs.${tab.tab_type}`)
+  }
+  return tab.name
+}
 
 const configuredTabs = ref<ProjectPageTab[]>([])
 const loading = ref(false)
@@ -144,7 +153,7 @@ onMounted(async () => {
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 shrink-0">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">页面配置</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ t('pageTab.title') }}</h3>
         <button @click="emit('close')" class="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -161,14 +170,14 @@ onMounted(async () => {
         <template v-else>
           <!-- Built-in tabs -->
           <div>
-            <p class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">内置页面</p>
+            <p class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">{{ t('pageTab.builtInPages') }}</p>
             <div class="space-y-1">
               <div v-for="tab in builtInTabs" :key="tab.tab_type"
                 class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                 <svg class="w-5 h-5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="tab.icon" />
                 </svg>
-                <span class="flex-1 text-sm text-gray-700 dark:text-gray-300">{{ tab.name }}</span>
+                <span class="flex-1 text-sm text-gray-700 dark:text-gray-300">{{ t('pageTab.builtInTabs.' + tab.tab_type) }}</span>
                 <button @click="toggleBuiltIn(tab)"
                   :class="['relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors',
                     enabledBuiltIns.has(tab.tab_type) ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600']">
@@ -182,32 +191,32 @@ onMounted(async () => {
           <!-- Custom tabs -->
           <div>
             <div class="flex items-center justify-between mb-2">
-              <p class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">自定义页面</p>
+              <p class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">{{ t('pageTab.customPages') }}</p>
               <button @click="showAddCustom = !showAddCustom"
                 class="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium flex items-center gap-1">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                添加
+                {{ t('pageTab.add') }}
               </button>
             </div>
 
             <!-- Add custom form -->
             <div v-if="showAddCustom" class="mb-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
-              <input v-model="customName" type="text" placeholder="名称"
+              <input v-model="customName" type="text" :placeholder="t('pageTab.name')"
                 class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-indigo-500" />
               <div class="flex gap-2">
                 <select v-model="customTabType"
                   class="text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-2 outline-none">
-                  <option value="url">URL 链接</option>
-                  <option value="saved_view">保存的视图</option>
+                  <option value="url">{{ t('pageTab.urlLink') }}</option>
+                  <option value="saved_view">{{ t('pageTab.savedView') }}</option>
                 </select>
                 <input v-if="customTabType === 'url'" v-model="customUrl" type="text" placeholder="https://..."
                   class="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <button @click="addCustomTab" :disabled="!customName"
                 class="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:bg-indigo-700 disabled:opacity-50 transition">
-                确认添加
+                {{ t('pageTab.confirmAdd') }}
               </button>
             </div>
 
@@ -240,10 +249,10 @@ onMounted(async () => {
                     :d="builtInTabs.find(b => b.tab_type === tab.tab_type)?.icon || ''" />
                 </svg>
 
-                <span class="flex-1 text-sm text-gray-700 dark:text-gray-300">{{ tab.name }}</span>
+                <span class="flex-1 text-sm text-gray-700 dark:text-gray-300">{{ getTabDisplayName(tab) }}</span>
                 <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 shrink-0"
                   :class="tab.tab_type === 'custom' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : ''">
-                  {{ tab.tab_type === 'custom' ? '自定义' : '内置' }}
+                  {{ tab.tab_type === 'custom' ? t('pageTab.custom') : t('pageTab.builtIn') }}
                 </span>
 
                 <!-- Remove custom -->
@@ -257,7 +266,7 @@ onMounted(async () => {
             </div>
 
             <p v-if="configuredTabs.length === 0" class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">
-              未配置任何页面标签
+              {{ t('pageTab.noTabs') }}
             </p>
           </div>
         </template>
@@ -267,11 +276,11 @@ onMounted(async () => {
       <div class="flex items-center justify-between p-5 border-t border-gray-200 dark:border-gray-700 shrink-0">
         <button @click="emit('close')"
           class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition">
-          取消
+          {{ t('common.cancel') }}
         </button>
         <button @click="save" :disabled="saving"
           class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition">
-          {{ saving ? '保存中...' : '保存配置' }}
+          {{ saving ? t('pageTab.saving') : t('pageTab.saveConfig') }}
         </button>
       </div>
     </div>

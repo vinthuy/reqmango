@@ -1,7 +1,9 @@
 <script setup lang="ts">import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from '@/composables/useI18n';
 import { useAuthStore } from '@/stores/auth';
 const router = useRouter();
+const { t } = useI18n();
 const authStore = useAuthStore();
 const email = ref('');
 const password = ref('');
@@ -37,7 +39,7 @@ const handleLogin = async () => {
         
         <form @submit.prevent="handleLogin">
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">邮箱</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('auth.email') }}</label>
             <input
               v-model="email"
               type="email"
@@ -47,7 +49,7 @@ const handleLogin = async () => {
           </div>
           
           <div class="mb-6">
-            <label class="block text-sm font-medium text-gray-700 mb-2">密码</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('auth.password') }}</label>
             <input
               v-model="password"
               type="password"
@@ -61,7 +63,7 @@ const handleLogin = async () => {
             :disabled="loading"
             class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
-            {{ loading ? '登录中...' : '登录' }}
+            {{ loading ? t('common.loading') : t('auth.loginBtn') }}
           </button>
         </form>
         
@@ -70,8 +72,8 @@ const handleLogin = async () => {
         </div>
         
         <p class="mt-6 text-center text-gray-500">
-          还没有账户？
-          <router-link to="/register" class="text-blue-600 hover:text-blue-700 font-medium">注册</router-link>
+          {{ t('auth.noAccount') }}
+          <router-link to="/register" class="text-blue-600 hover:text-blue-700 font-medium">{{ t('auth.goRegister') }}</router-link>
         </p>
       </div>
     </div>

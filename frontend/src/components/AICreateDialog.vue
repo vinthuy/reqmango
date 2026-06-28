@@ -20,7 +20,7 @@
           :disabled="loading"
           rows="3"
           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 resize-none disabled:bg-gray-100"
-          placeholder="e.g. 创建登录页面Bug，P0紧急，分配给张三，下周五前修复，需要在Safari上复现..."
+          :placeholder="t('ai.promptExample')"
           @keydown.ctrl.enter="generate"
         ></textarea>
         <div class="flex justify-between items-center mt-2">
@@ -85,9 +85,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { createPreviewWithAI } from '@/api/ai'
 import { issueApi } from '@/api/issue'
 import type { AICreateResponse } from '@/types/ai'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   visible: boolean

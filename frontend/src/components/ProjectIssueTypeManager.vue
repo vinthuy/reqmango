@@ -33,7 +33,7 @@
           </div>
           <div class="flex items-center gap-2">
             <button @click="loadTypeFields(t)" class="px-2 py-1 text-xs text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded border border-gray-200">
-              {{ t.fields?.length || 0 }} 字段
+              {{ t.fields?.length || 0 }} {{ $t('issueTypeManager.fields') }}
             </button>
             <button @click="moveUp(index)" :disabled="index === 0" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↑</button>
             <button @click="moveDown(index)" :disabled="index === types.length - 1" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↓</button>
@@ -43,12 +43,12 @@
 
         <div v-if="expandedType === t.id" class="border-t border-gray-200 p-4 bg-gray-50">
           <div class="flex items-center justify-between mb-3">
-            <h4 class="text-sm font-medium text-gray-700">关联字段</h4>
-            <button @click="openFieldBindModal" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ 添加字段</button>
+            <h4 class="text-sm font-medium text-gray-700">{{ $t('issueTypeManager.relatedFields') }}</h4>
+            <button @click="openFieldBindModal" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ {{ $t('issueTypeManager.addField') }}</button>
           </div>
 
           <div v-if="!typeFieldsLoading && (typeFields.length === 0)" class="text-center py-4 text-gray-400 text-sm">
-            暂无关联字段，点击上方按钮添加
+            {{ $t('issueTypeManager.noFields') }}
           </div>
 
           <div v-else-if="!typeFieldsLoading" class="space-y-2">
@@ -58,7 +58,7 @@
                 <span class="text-sm text-gray-700">{{ field.name }}</span>
                 <span v-if="field.is_required" class="text-xs text-red-600 font-medium">*</span>
               </div>
-              <button @click="removeField(t.id, field.field_id, fIndex)" class="text-xs text-red-500 hover:text-red-700">移除</button>
+              <button @click="removeField(t.id, field.field_id, fIndex)" class="text-xs text-red-500 hover:text-red-700">{{ $t('issueTypeManager.remove') }}</button>
             </div>
           </div>
         </div>
@@ -68,12 +68,12 @@
     <div v-if="showFieldBindModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showFieldBindModal = false">
       <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h3 class="text-lg font-semibold">添加字段到 {{ selectedType?.name }}</h3>
+          <h3 class="text-lg font-semibold">{{ $t('issueTypeManager.addFieldTo') }} {{ selectedType?.name }}</h3>
           <button @click="showFieldBindModal = false" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
         </div>
         <div class="p-6 max-h-80 overflow-y-auto">
-          <p class="text-sm text-gray-500 mb-4">从项目自定义字段中选择要关联的字段</p>
-          <div v-if="availableFields.length === 0" class="text-center py-8 text-gray-400">暂无可用字段，请先创建自定义字段</div>
+          <p class="text-sm text-gray-500 mb-4">{{ $t('issueTypeManager.selectField') }}</p>
+          <div v-if="availableFields.length === 0" class="text-center py-8 text-gray-400">{{ $t('issueTypeManager.noAvailableFields') }}</div>
           <div v-else class="space-y-2">
             <div v-for="field in availableFields" :key="field.id" @click="handleAddField(field)" class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer transition">
               <div class="flex items-center gap-3">
@@ -94,6 +94,9 @@ import { ref, onMounted, watch } from 'vue'
 import api from '@/api'
 import customFieldApi from '@/api/custom-field'
 import issueTypeApi from '@/api/issue-type'
+import { useI18n } from '@/composables/useI18n'
+
+const { t: $t } = useI18n()
 
 const props = defineProps<{
   projectId: number
@@ -208,7 +211,7 @@ async function handleAddField(field: any) {
     showFieldBindModal.value = false
     await loadTypeFields(selectedType.value)
   } catch (e: any) {
-    alert(e.response?.data?.message || '添加字段失败')
+    alert(e.response?.data?.message || $t('issueTypeManager.addFieldFailed'))
   }
 }
 
@@ -221,14 +224,14 @@ async function removeField(typeId: number, fieldId: number, index: number) {
 
 function getFieldTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    text: '文本',
-    number: '数字',
-    select: '下拉',
-    multi_select: '多选',
-    date: '日期',
-    boolean: '布尔',
-    url: '链接',
-    member: '成员',
+    text: $t('issueTypeManager.fieldTypes.text'),
+    number: $t('issueTypeManager.fieldTypes.number'),
+    select: $t('issueTypeManager.fieldTypes.select'),
+    multi_select: $t('issueTypeManager.fieldTypes.multi_select'),
+    date: $t('issueTypeManager.fieldTypes.date'),
+    boolean: $t('issueTypeManager.fieldTypes.boolean'),
+    url: $t('issueTypeManager.fieldTypes.url'),
+    member: $t('issueTypeManager.fieldTypes.member'),
   }
   return labels[type] || type
 }

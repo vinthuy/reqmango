@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from '@/composables/useI18n'
 import { workspaceApi } from '@/api/workspace'
 import type { Workspace, WorkspaceCreate } from '@/types'
 
 const router = useRouter()
+const { t } = useI18n()
 const workspaces = ref<Workspace[]>([])
 const showCreateModal = ref(false)
 const newWorkspace = ref<WorkspaceCreate>({ name: '', slug: '' })
@@ -29,9 +31,9 @@ const validateSlug = (slug: string): boolean => /^[a-z0-9-]+$/.test(slug)
 
 const createWorkspace = async () => {
   error.value = ''
-  if (!newWorkspace.value.name) { error.value = '请输入工作空间名称'; return }
-  if (!newWorkspace.value.slug) { error.value = '请输入Slug'; return }
-  if (!validateSlug(newWorkspace.value.slug)) { error.value = 'Slug只能包含小写字母、数字和连字符'; return }
+  if (!newWorkspace.value.name) { error.value = t('home.nameRequired'); return }
+  if (!newWorkspace.value.slug) { error.value = t('home.slugRequired'); return }
+  if (!validateSlug(newWorkspace.value.slug)) { error.value = t('home.slugInvalid'); return }
   createLoading.value = true
   try {
     const workspace = await workspaceApi.create(newWorkspace.value)
@@ -39,7 +41,7 @@ const createWorkspace = async () => {
     showCreateModal.value = false
     newWorkspace.value = { name: '', slug: '' }
   } catch (err: any) {
-    error.value = err.response?.data?.detail || '创建工作空间失败'
+    error.value = err.response?.data?.detail || t('home.createFailed')
   } finally {
     createLoading.value = false
   }
@@ -52,8 +54,8 @@ fetchWorkspaces()
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">工作空间</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ workspaces.length }} 个工作空间</p>
+        <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ t('home.title') }}</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ t('home.workspaceCount', { count: workspaces.length }) }}</p>
       </div>
       <button
         @click="showCreateModal = true"
@@ -62,7 +64,7 @@ fetchWorkspaces()
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        创建工作空间
+        {{ t('home.createWorkspace') }}
       </button>
     </div>
 
@@ -76,9 +78,9 @@ fetchWorkspaces()
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
       </div>
-      <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">暂无工作空间</h3>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">创建工作空间开始协作</p>
-      <button @click="showCreateModal = true" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">创建第一个工作空间</button>
+      <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">{{ t('home.noWorkspaces') }}</h3>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ t('home.noWorkspacesHint') }}</p>
+      <button @click="showCreateModal = true" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">{{ t('home.createFirst') }}</button>
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -107,21 +109,21 @@ fetchWorkspaces()
 
     <div v-if="showCreateModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showCreateModal = false">
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-5">创建工作空间</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-5">{{ t('home.createWorkspace') }}</h3>
         <div v-if="error" class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">{{ error }}</div>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">名称</label>
-            <input v-model="newWorkspace.name" type="text" class="w-full px-3.5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm" placeholder="工作空间名称" />
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('home.name') }}</label>
+            <input v-model="newWorkspace.name" type="text" class="w-full px-3.5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm" :placeholder="t('home.namePlaceholder')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Slug</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('home.slug') }}</label>
             <input v-model="newWorkspace.slug" type="text" class="w-full px-3.5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm" placeholder="url-slug" />
           </div>
         </div>
         <div class="flex gap-3 mt-6">
-          <button @click="showCreateModal = false" class="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium">取消</button>
-          <button @click="createWorkspace" :disabled="createLoading" class="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition text-sm font-medium">{{ createLoading ? '创建中...' : '创建' }}</button>
+          <button @click="showCreateModal = false" class="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-sm font-medium">{{ t('home.cancel') }}</button>
+          <button @click="createWorkspace" :disabled="createLoading" class="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition text-sm font-medium">{{ createLoading ? t('home.creating') : t('home.create') }}</button>
         </div>
       </div>
     </div>

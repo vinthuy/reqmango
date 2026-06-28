@@ -2,14 +2,14 @@
   <div class="p-6 max-w-4xl mx-auto">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">角色与权限管理</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">管理工作空间的自定义角色和权限分配</p>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ t('role.title') }}</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ t('role.description') }}</p>
       </div>
       <button
         @click="showCreateModal = true"
         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
       >
-        新建角色
+        {{ t('role.create') }}
       </button>
     </div>
 
@@ -37,27 +37,27 @@
                   v-if="role.is_system"
                   class="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
                 >
-                  系统角色
+                  {{ t('role.system') }}
                 </span>
               </div>
               <p class="text-sm text-gray-500 dark:text-gray-400">{{ role.description }}</p>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-400 dark:text-gray-500">{{ role.permissions.length }} 个权限</span>
+            <span class="text-xs text-gray-400 dark:text-gray-500">{{ role.permissions.length }} {{ t('role.permissionsCount') }}</span>
             <button
               v-if="!role.is_system"
               @click="editRole(role)"
               class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
             >
-              编辑
+              {{ t('common.edit') }}
             </button>
             <button
               v-if="!role.is_system"
               @click="confirmDelete(role)"
               class="text-sm text-red-600 hover:text-red-700 dark:text-red-400"
             >
-              删除
+              {{ t('common.delete') }}
             </button>
           </div>
         </div>
@@ -78,14 +78,14 @@
           @click="expandedRole = expandedRole === role.id ? null : role.id"
           class="mt-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         >
-          {{ expandedRole === role.id ? '收起' : '展开权限' }}
+          {{ expandedRole === role.id ? t('role.collapse') : t('role.expand') }}
         </button>
       </div>
     </div>
 
     <!-- Permissions Reference -->
     <div class="mt-8">
-      <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">所有可用权限</h3>
+      <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">{{ t('role.allPermissions') }}</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         <div
           v-for="perm in allPermissions"
@@ -106,45 +106,45 @@
     >
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          {{ editingRole ? '编辑角色' : '新建角色' }}
+          {{ editingRole ? t('role.edit') : t('role.create') }}
         </h3>
 
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">角色名称</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('role.name') }}</label>
             <input
               v-model="form.name"
               type="text"
-              placeholder="例如：高级编辑者"
+              :placeholder="t('role.namePlaceholder')"
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('role.descriptionLabel') }}</label>
             <input
               v-model="form.description"
               type="text"
-              placeholder="角色描述"
+              :placeholder="t('role.descriptionPlaceholder')"
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">角色等级</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('role.level') }}</label>
             <select
               v-model="form.level"
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
             >
-              <option :value="5">Guest (5) — 只读</option>
-              <option :value="15">Member (15) — 创建+编辑</option>
-              <option :value="20">Admin (20) — 完全管理</option>
-              <option :value="10">Custom (10)</option>
+              <option :value="5">{{ t('role.guest') }}</option>
+              <option :value="15">{{ t('role.memberRole') }}</option>
+              <option :value="20">{{ t('role.adminRole') }}</option>
+              <option :value="10">{{ t('role.custom') }}</option>
             </select>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">权限分配</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ t('role.permissions') }}</label>
             <div class="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg p-2 space-y-1">
               <label
                 v-for="perm in allPermissions"
@@ -169,14 +169,14 @@
             @click="closeModal"
             class="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             @click="saveRole"
             :disabled="!form.name"
             class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {{ editingRole ? '保存' : '创建' }}
+            {{ editingRole ? t('common.save') : t('common.create') }}
           </button>
         </div>
       </div>
@@ -189,22 +189,22 @@
       @click.self="deletingRole = null"
     >
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">确认删除</h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{{ t('role.confirmDeleteTitle') }}</h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          确定要删除角色 "{{ deletingRole.name }}" 吗？此操作不可撤销。
+          {{ t('role.confirmDeleteMessage').replace('{name}', deletingRole.name) }}{{ t('role.irreversible') }}
         </p>
         <div class="flex justify-end gap-2">
           <button
             @click="deletingRole = null"
             class="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             @click="doDelete(deletingRole)"
             class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
           >
-            删除
+            {{ t('common.delete') }}
           </button>
         </div>
       </div>
@@ -217,6 +217,9 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { roleApi } from '../api/role'
 import type { Role, Permission } from '../types/role'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const workspaceSlug = route.params.slug as string

@@ -3,6 +3,9 @@ import { ref, onMounted } from 'vue'
 import { releaseApi } from '@/api/release'
 import type { Release, ReleaseCreateRequest, ReleaseUpdateRequest } from '@/types/release'
 import { useConfirm } from '@/composables/useConfirm'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   projectId: number
@@ -71,7 +74,7 @@ async function handleUpdate() {
 }
 
 async function handleDelete(release: Release) {
-  if (!(await confirm({ title: '删除发布', message: `确定要删除 "${release.name}" 吗？`, danger: true, confirmText: '删除' }))) return
+  if (!(await confirm({ title: t('release.deleteTitle'), message: t('release.confirmDelete').replace('{name}', release.name), danger: true, confirmText: t('release.delete') }))) return
   try {
     await releaseApi.delete(props.projectId, release.id)
     await loadReleases()

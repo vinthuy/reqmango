@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from '@/composables/useI18n'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi } from '@/api/project'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 onMounted(async () => {
   const slug = route.params.slug as string
@@ -24,5 +26,5 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex items-center justify-center h-64 text-gray-400">跳转中...</div>
+  <div class="flex items-center justify-center h-64 text-gray-400">{{ t('workspaceAnalytics.redirecting') }}</div>
 </template>

@@ -11,7 +11,7 @@
           <input
             v-model="filters.search"
             type="text"
-            placeholder="搜索工作项..."
+            :placeholder="t('issueList.searchPlaceholder')"
 
             class="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-md text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
             @keydown.enter="search"
@@ -30,7 +30,7 @@
             @click="showRQL = !showRQL"
             class="px-2.5 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
             :class="{ 'bg-gray-100 text-gray-700': showRQL }"
-            title="RQL 高级查询"
+            :title="t('issueList.rqlAdvanced')"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -47,33 +47,33 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
-              <span>筛选</span>
+              <span>{{ t('issueList.filter') }}</span>
               <span v-if="activeFilterCount > 0" class="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center">{{ activeFilterCount }}</span>
             </button>
 
             <!-- 筛选下拉菜单 -->
             <div v-if="showFilterDropdown" class="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1" @click.stop>
-              <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider">添加筛选条件</div>
+              <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider">{{ t('issueList.addFilterCondition') }}</div>
               <button @click="addFilter('state_id')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
-                状态 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('state_id') }}</span>
+                {{ t('issue.state') }} <span class="text-gray-400 text-xs">{{ getFilterValueLabel('state_id') }}</span>
               </button>
               <button @click="addFilter('priority')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
-                优先级 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('priority') }}</span>
+                {{ t('issue.priority') }} <span class="text-gray-400 text-xs">{{ getFilterValueLabel('priority') }}</span>
               </button>
               <button @click="addFilter('assignee_id')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
-                负责人 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('assignee_id') }}</span>
+                {{ t('issue.assignee') }} <span class="text-gray-400 text-xs">{{ getFilterValueLabel('assignee_id') }}</span>
               </button>
               <button @click="addFilter('cycle_id')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
-                周期 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('cycle_id') }}</span>
+                {{ t('issue.cycle') }} <span class="text-gray-400 text-xs">{{ getFilterValueLabel('cycle_id') }}</span>
               </button>
               <button @click="addFilter('start_date')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
-                开始日期 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('start_date') }}</span>
+                {{ t('issue.startDate') }} <span class="text-gray-400 text-xs">{{ getFilterValueLabel('start_date') }}</span>
               </button>
               <button @click="addFilter('target_date')" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center justify-between">
-                截止日期 <span class="text-gray-400 text-xs">{{ getFilterValueLabel('target_date') }}</span>
+                {{ t('issue.targetDate') }} <span class="text-gray-400 text-xs">{{ getFilterValueLabel('target_date') }}</span>
               </button>
               <div v-if="customFields.length > 0" class="border-t border-gray-100 mt-1 pt-1">
-                <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider">自定义字段</div>
+                <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider">{{ t('issue.customFields') }}</div>
                 <button v-for="cf in customFields" :key="cf.id" @click="addCFFilter(cf.id)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">
                   {{ cf.name }}
                 </button>
@@ -91,13 +91,13 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
               </svg>
-              <span>列配置</span>
+              <span>{{ t('issueList.columnConfig') }}</span>
             </button>
             <div v-if="showColumns" class="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-              <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider border-b border-gray-100">显示列</div>
+              <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider border-b border-gray-100">{{ t('issueList.displayColumns') }}</div>
               <label v-for="col in effectiveColumns" :key="col.key" class="flex items-center px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
                 <input type="checkbox" :checked="visibleColumnKeys.has(col.key)" @change="toggleColumn(col.key)" class="rounded border-gray-300 mr-2" />
-                {{ col.label }}
+                {{ t(col.labelKey || "") || col.label }}
               </label>
             </div>
           </div>
@@ -107,7 +107,7 @@
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            <span>导入</span>
+            <span>{{ t('common.import') }}</span>
           </button>
 
           <!-- 新建 -->
@@ -115,7 +115,7 @@
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            <span>新建</span>
+            <span>{{ t('project.create') }}</span>
           </button>
         </div>
       </div>
@@ -126,7 +126,7 @@
       <div class="flex-1">
         <RQLInput
           v-model="rqlQuery"
-          placeholder="RQL 查询，例如: priority = urgent AND state.in = [进行中, 待处理]"
+          :placeholder="t('issueList.rqlPlaceholder')"
           :error="rqlError"
           show-history
           @search="onRQLSearch"
@@ -140,7 +140,7 @@
 
     <!-- Row 2: 激活的筛选条件芯片 -->
     <div v-if="activeFilterChips.length > 0" class="px-4 py-2 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2 flex-wrap">
-      <span class="text-[11px] text-gray-400 font-medium shrink-0">筛选条件:</span>
+      <span class="text-[11px] text-gray-400 font-medium shrink-0">{{ t('issueList.filterConditions') }}:</span>
       <span
         v-for="chip in activeFilterChips"
         :key="chip.key"
@@ -154,7 +154,7 @@
           </svg>
         </button>
       </span>
-      <button @click="clearAllFilters" class="text-[11px] text-gray-400 hover:text-indigo-600 transition-colors ml-1">清除全部</button>
+      <button @click="clearAllFilters" class="text-[11px] text-gray-400 hover:text-indigo-600 transition-colors ml-1">{{ t('issueList.clearAll') }}</button>
     </div>
 
     <!-- Row 3: 快速创建 -->
@@ -170,17 +170,17 @@
       <span class="text-xs text-gray-500 shrink-0">{{ activeFilterPicker.label }}:</span>
       <!-- 状态选择 -->
       <select v-if="activeFilterPicker.key === 'state_id'" v-model="filters.state_id" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm">
-        <option :value="0">所有状态</option>
+        <option :value="0">{{ t('issueList.allStates') }}</option>
         <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
       </select>
       <!-- 优先级选择 -->
       <select v-else-if="activeFilterPicker.key === 'priority'" v-model="filters.priority" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm">
-        <option value="">所有优先级</option>
-        <option value="urgent">紧急</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option><option value="none">无</option>
+        <option value="">{{ t('issueList.allPriorities') }}</option>
+        <option value="urgent">{{ t('issue.priorityUrgent') }}</option><option value="high">{{ t('issue.priorityHigh') }}</option><option value="medium">{{ t('issue.priorityMedium') }}</option><option value="low">{{ t('issue.priorityLow') }}</option><option value="none">{{ t('issue.priorityNone') }}</option>
       </select>
       <!-- 周期选择 -->
       <select v-else-if="activeFilterPicker.key === 'cycle_id'" v-model="filters.cycle_id" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm">
-        <option :value="0">全部</option>
+        <option :value="0">{{ t('common.all') }}</option>
         <option v-for="c in cycles" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
       <!-- 负责人选择 -->
@@ -188,7 +188,7 @@
         v-else-if="activeFilterPicker.key === 'assignee_id'"
         v-model="filtersAssignee"
         :users="memberOptions"
-        placeholder="选择负责人"
+        :placeholder="t('issueList.selectAssignee')"
         :clearable="true"
         @update:model-value="applyFilterPicker"
       />
@@ -196,18 +196,18 @@
       <input v-else-if="activeFilterPicker.key === 'start_date'" type="date" v-model="filters.start_date" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm" />
       <input v-else-if="activeFilterPicker.key === 'target_date'" type="date" v-model="filters.end_date" @change="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm" />
       <!-- 自定义字段 -->
-      <input v-else-if="activeFilterPicker.key === 'cf'" type="text" :placeholder="'输入' + activeFilterPicker.label + '值'" v-model="activeCFValue" @keydown.enter="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm flex-1 max-w-xs" />
-      <button @click="cancelFilterPicker" class="text-xs text-gray-400 hover:text-gray-600">取消</button>
+      <input v-else-if="activeFilterPicker.key === 'cf'" type="text" :placeholder="t('issueList.inputFilterValue').replace('{0}', activeFilterPicker.label)" v-model="activeCFValue" @keydown.enter="applyFilterPicker" class="px-2 py-1 border border-gray-300 rounded text-sm flex-1 max-w-xs" />
+      <button @click="cancelFilterPicker" class="text-xs text-gray-400 hover:text-gray-600">{{ t('common.cancel') }}</button>
     </div>
 
     <!-- 批量操作工具栏 -->
     <div v-if="selectedIds.size > 0" class="sticky top-0 z-20 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 flex-wrap">
-      <span class="text-sm text-indigo-700 dark:text-indigo-300 font-medium">已选 {{ selectedIds.size }} 项</span>
+      <span class="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{{ t('issueList.selected') }} {{ selectedIds.size }} {{ t('common.items') }}</span>
 
       <!-- 更改状态 -->
       <div class="relative">
         <button @click="showBatchState = !showBatchState" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
-          更改状态
+          {{ t('issueList.changeState') }}
         </button>
         <div v-if="showBatchState" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
           <button v-for="s in states" :key="s.id" @click="batchChangeState(s.id)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">{{ s.name }}</button>
@@ -217,7 +217,7 @@
       <!-- 更改优先级 -->
       <div class="relative">
         <button @click="showBatchPriority = !showBatchPriority" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
-          更改优先级
+          {{ t('issueList.changePriority') }}
         </button>
         <div v-if="showBatchPriority" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
           <button v-for="p in priorityOptions" :key="p.value" @click="batchChangePriority(p.value)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">{{ p.label }}</button>
@@ -227,19 +227,19 @@
       <!-- 批量分配 -->
       <div class="relative">
         <button @click="showBatchAssign = !showBatchAssign" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
-          批量分配
+          {{ t('issueList.batchAssign') }}
         </button>
         <div v-if="showBatchAssign" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 p-2 w-48">
-          <UserSelect v-model="batchAssigneeId" :users="memberOptions" placeholder="选择负责人" @update:model-value="batchAssign" />
+          <UserSelect v-model="batchAssigneeId" :users="memberOptions" :placeholder="t('issueList.selectAssignee')" @update:model-value="batchAssign" />
         </div>
       </div>
 
       <!-- 批量删除 -->
       <button @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
-        批量删除
+        {{ t('issueList.batchDelete') }}
       </button>
 
-      <button @click="clearSelection" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">取消选择</button>
+      <button @click="clearSelection" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">{{ t('issueList.clearSelection') }}</button>
     </div>
 
     <!-- Success toast -->
@@ -251,12 +251,12 @@
     <div class="overflow-x-auto">
       <div v-if="loading" class="text-center py-16">
         <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-        <p class="mt-2 text-gray-500 text-sm">加载中...</p>
+        <p class="mt-2 text-gray-500 text-sm">{{ t('common.loading') }}</p>
       </div>
       <div v-else-if="issues.length === 0" class="text-center py-16">
         <svg class="h-12 w-12 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        <p class="mt-2 text-gray-500">暂无工作项</p>
-        <p class="mt-1 text-sm text-gray-400">使用上方快速创建栏或点击"新建"按钮添加工作项</p>
+        <p class="mt-2 text-gray-500">{{ t('cycle.noIssues') }}</p>
+        <p class="mt-1 text-sm text-gray-400">{{ t('issueList.noIssuesHint') }}</p>
       </div>
       <table v-else class="w-full">
         <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
@@ -267,8 +267,8 @@
             <th v-for="col in visibleColumns" :key="col.key"
               class="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               :class="col.width"
-            >{{ col.label }}</th>
-            <th class="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">操作</th>
+            >{{ t(col.labelKey || "") || col.label }}</th>
+            <th class="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">{{ t('issueList.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -313,7 +313,7 @@
             </td>
             <td class="px-3 py-2.5" @click.stop>
               <div class="flex items-center gap-1">
-                <button @click="$emit('select', issue)" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">查看</button>
+                <button @click="$emit('select', issue)" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">{{ t('issueList.view') }}</button>
               </div>
             </td>
           </tr>
@@ -323,15 +323,15 @@
 
     <!-- 分页 -->
     <div v-if="totalPages > 1" class="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50/50">
-      <span class="text-sm text-gray-500">共 {{ totalCount }} 项</span>
+      <span class="text-sm text-gray-500">{{ t('issueList.total') }} {{ totalCount }} {{ t('common.items') }}</span>
       <div class="flex items-center gap-1">
-        <button @click="page--" :disabled="page <= 1" class="px-3 py-1 border rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors">上一页</button>
+        <button @click="page--" :disabled="page <= 1" class="px-3 py-1 border rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors">{{ t('issueList.prevPage') }}</button>
         <template v-for="p in visiblePages" :key="p">
           <button v-if="p === '...'" disabled class="px-2 py-1 text-sm text-gray-400">...</button>
           <button v-else @click="page = Number(p)" class="px-3 py-1 border rounded text-sm transition-colors"
             :class="page === Number(p) ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-gray-100'">{{ p }}</button>
         </template>
-        <button @click="page++" :disabled="page >= totalPages" class="px-3 py-1 border rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors">下一页</button>
+        <button @click="page++" :disabled="page >= totalPages" class="px-3 py-1 border rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors">{{ t('issueList.nextPage') }}</button>
       </div>
     </div>
 
@@ -348,6 +348,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from '@/composables/useI18n'
 import issueApi from '@/api/issue'
 import customFieldApi from '@/api/custom-field'
 import projectApi from '@/api/project'
@@ -363,6 +364,7 @@ import * as issueTypeApi from '@/api/issue-type'
 
 const props = defineProps<{ projectId: number; workspaceId: number }>()
 const router = useRouter()
+const { t, locale } = useI18n()
 
 const emit = defineEmits<{
   (e: 'select', issue: any): void
@@ -373,18 +375,18 @@ const emit = defineEmits<{
 const projectIdentifier = ref('')
 
 // ---- Column config ----
-interface ColumnDef { key: string; label: string; width: string; defaultVisible: boolean }
+interface ColumnDef { key: string; label?: string; labelKey?: string; width: string; defaultVisible: boolean }
 const staticColumns: ColumnDef[] = [
-  { key: 'sequence_id', label: '编号', width: 'w-20', defaultVisible: true },
-  { key: 'name',         label: '标题', width: '',       defaultVisible: true },
-  { key: 'priority',     label: '优先级', width: 'w-20', defaultVisible: true },
-  { key: 'issue_type',   label: '类型', width: 'w-20', defaultVisible: true },
-  { key: 'state',        label: '状态',   width: 'w-28', defaultVisible: true },
-  { key: 'assignees',    label: '负责人', width: 'w-28', defaultVisible: true },
-  { key: 'cycle',        label: '周期',   width: 'w-24', defaultVisible: true },
-  { key: 'start_date',   label: '开始日期', width: 'w-28', defaultVisible: false },
-  { key: 'target_date',  label: '截止日期', width: 'w-28', defaultVisible: false },
-  { key: 'created_at',   label: '创建时间', width: 'w-36', defaultVisible: false },
+  { key: 'sequence_id', labelKey: 'issueList.columnSequenceId', width: 'w-20', defaultVisible: true },
+  { key: 'name',         labelKey: 'issueList.columnName', width: '',       defaultVisible: true },
+  { key: 'priority',     labelKey: 'issue.priority', width: 'w-20', defaultVisible: true },
+  { key: 'issue_type',   labelKey: 'issue.type', width: 'w-20', defaultVisible: true },
+  { key: 'state',        labelKey: 'issue.state',   width: 'w-28', defaultVisible: true },
+  { key: 'assignees',    labelKey: 'issue.assignee', width: 'w-28', defaultVisible: true },
+  { key: 'cycle',        labelKey: 'issue.cycle',   width: 'w-24', defaultVisible: true },
+  { key: 'start_date',   labelKey: 'issue.startDate', width: 'w-28', defaultVisible: false },
+  { key: 'target_date',  labelKey: 'issue.targetDate', width: 'w-28', defaultVisible: false },
+  { key: 'created_at',   labelKey: 'issueList.columnCreatedAt', width: 'w-36', defaultVisible: false },
 ]
 
 const STORAGE_KEY = 'issuelist_columns'
@@ -470,29 +472,29 @@ const activeFilterChips = computed<FilterChip[]>(() => {
   const chips: FilterChip[] = []
   if (activeFilterKeys.value.has('state_id') && filters.value.state_id > 0) {
     const s = states.value.find((s: any) => s.id === filters.value.state_id)
-    chips.push({ key: 'state_id', label: '状态', value: s?.name || String(filters.value.state_id) })
+    chips.push({ key: 'state_id', label: t('issue.state'), value: s?.name || String(filters.value.state_id) })
   }
   if (activeFilterKeys.value.has('priority') && filters.value.priority) {
-    const labels: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }
-    chips.push({ key: 'priority', label: '优先级', value: labels[filters.value.priority] || filters.value.priority })
+    const labels: Record<string, string> = { urgent: t('issue.priorityUrgent'), high: t('issue.priorityHigh'), medium: t('issue.priorityMedium'), low: t('issue.priorityLow'), none: t('issue.priorityNone') }
+    chips.push({ key: 'priority', label: t('issue.priority'), value: labels[filters.value.priority] || filters.value.priority })
   }
   if (activeFilterKeys.value.has('assignee_id') && filters.value.assignee_id > 0) {
     const m = members.value.find((m: any) => m.user_id === filters.value.assignee_id)
-    chips.push({ key: 'assignee_id', label: '负责人', value: m?.user?.display_name || m?.user?.username || String(filters.value.assignee_id) })
+    chips.push({ key: 'assignee_id', label: t('issue.assignee'), value: m?.user?.display_name || m?.user?.username || String(filters.value.assignee_id) })
   }
   if (activeFilterKeys.value.has('cycle_id') && filters.value.cycle_id > 0) {
     const c = cycles.value.find((c: any) => c.id === filters.value.cycle_id)
-    chips.push({ key: 'cycle_id', label: '周期', value: c?.name || String(filters.value.cycle_id) })
+    chips.push({ key: 'cycle_id', label: t('issue.cycle'), value: c?.name || String(filters.value.cycle_id) })
   }
   if (activeFilterKeys.value.has('start_date') && filters.value.start_date) {
-    chips.push({ key: 'start_date', label: '开始日期', value: filters.value.start_date })
+    chips.push({ key: 'start_date', label: t('issue.startDate'), value: filters.value.start_date })
   }
   if (activeFilterKeys.value.has('target_date') && filters.value.end_date) {
-    chips.push({ key: 'target_date', label: '截止日期', value: filters.value.end_date })
+    chips.push({ key: 'target_date', label: t('issue.targetDate'), value: filters.value.end_date })
   }
   cfFilters.value.forEach((value, fieldId) => {
     const cf = customFields.value.find((f: any) => f.id === fieldId)
-    chips.push({ key: 'cf_' + fieldId, label: cf?.name || '自定义字段', value })
+    chips.push({ key: 'cf_' + fieldId, label: cf?.name || t('issue.customFields'), value })
   })
   return chips
 })
@@ -503,7 +505,7 @@ function getFilterValueLabel(key: string): string {
     return s?.name || ''
   }
   if (key === 'priority' && filters.value.priority) {
-    const labels: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }
+    const labels: Record<string, string> = { urgent: t('issue.priorityUrgent'), high: t('issue.priorityHigh'), medium: t('issue.priorityMedium'), low: t('issue.priorityLow'), none: t('issue.priorityNone') }
     return labels[filters.value.priority] || ''
   }
   if (key === 'assignee_id' && filters.value.assignee_id > 0) {
@@ -522,8 +524,8 @@ function getFilterValueLabel(key: string): string {
 function addFilter(key: string) {
   showFilterDropdown.value = false
   const labels: Record<string, string> = {
-    state_id: '状态', priority: '优先级', assignee_id: '负责人',
-    cycle_id: '周期', start_date: '开始日期', target_date: '截止日期'
+    state_id: t('issue.state'), priority: t('issue.priority'), assignee_id: t('issue.assignee'),
+    cycle_id: t('issue.cycle'), start_date: t('issue.startDate'), target_date: t('issue.targetDate')
   }
   activeFilterPicker.value = { key, label: labels[key] || key }
 }
@@ -531,7 +533,7 @@ function addFilter(key: string) {
 function addCFFilter(fieldId: number) {
   showFilterDropdown.value = false
   const cf = customFields.value.find((f: any) => f.id === fieldId)
-  activeFilterPicker.value = { key: 'cf', label: cf?.name || '自定义字段' }
+  activeFilterPicker.value = { key: 'cf', label: cf?.name || t('issue.customFields') }
 }
 
 function applyFilterPicker() {
@@ -594,13 +596,13 @@ const showBatchPriority = ref(false)
 const showBatchAssign = ref(false)
 const batchAssigneeId = ref<number | undefined>(undefined)
 
-const priorityOptions = [
-  { value: 'urgent', label: '紧急' },
-  { value: 'high', label: '高' },
-  { value: 'medium', label: '中' },
-  { value: 'low', label: '低' },
-  { value: 'none', label: '无' },
-]
+const priorityOptions = computed(() => [
+  { value: 'urgent', label: t('issue.priorityUrgent') },
+  { value: 'high', label: t('issue.priorityHigh') },
+  { value: 'medium', label: t('issue.priorityMedium') },
+  { value: 'low', label: t('issue.priorityLow') },
+  { value: 'none', label: t('issue.priorityNone') },
+])
 
 const toastMessage = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -642,12 +644,12 @@ function priorityClass(p: string) {
   const m: Record<string, string> = { urgent: 'bg-red-100 text-red-700', high: 'bg-orange-100 text-orange-700', medium: 'bg-yellow-100 text-yellow-700', low: 'bg-green-100 text-green-700', none: 'bg-gray-100 text-gray-500' }
   return m[p] || m.none
 }
-function priorityLabel(p: string) { const m: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }; return m[p] || p }
+function priorityLabel(p: string) { const m: Record<string, string> = { urgent: t('issue.priorityUrgent'), high: t('issue.priorityHigh'), medium: t('issue.priorityMedium'), low: t('issue.priorityLow'), none: t('issue.priorityNone') }; return m[p] || p }
 function getStateName(id: number) { return states.value.find((s: any) => s.id === id)?.name || '-' }
 function getCycleName(i: any) { return i.cycle?.name || i.cycle_link?.name || '-' }
 function getInitials(n: string) { return (n || '?')[0]?.toUpperCase() || '?' }
 function assigneeColor(i: number) { return ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][i % 6] }
-function formatDate(d: string | null | undefined) { if (!d) return '-'; return new Date(d).toLocaleDateString('zh-CN') }
+function formatDate(d: string | null | undefined) { if (!d) return '-'; return new Date(d).toLocaleDateString(locale.value) }
 
 // ---- Actions ----
 function goToCreate() { router.push(`/workspaces/${props.workspaceId}/projects/${props.projectId}/issues/new`) }
@@ -685,7 +687,7 @@ async function batchChangeState(stateId: number) {
   try {
     await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { state_id: stateId })
     clearSelection()
-    showToast('状态已更新')
+    showToast(t('issueList.toastStateUpdated'))
     loadIssues()
   } catch (e) { console.error('Batch state failed:', e) }
 }
@@ -695,7 +697,7 @@ async function batchChangePriority(priority: string) {
   try {
     await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { priority: priority as any })
     clearSelection()
-    showToast('优先级已更新')
+    showToast(t('issueList.toastPriorityUpdated'))
     loadIssues()
   } catch (e) { console.error('Batch priority failed:', e) }
 }
@@ -707,7 +709,7 @@ async function batchAssign(userId: string | number | undefined) {
   try {
     await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { assignee_ids: [uid] })
     clearSelection()
-    showToast('负责人已分配')
+    showToast(t('issueList.toastAssigned'))
     loadIssues()
   } catch (e) { console.error('Batch assign failed:', e) }
 }
@@ -720,11 +722,11 @@ function clearSelection() {
 }
 
 async function execBatchDelete() {
-  if (!(await confirm(`确定要删除选中的 ${selectedIds.value.size} 个工作项吗？此操作不可撤销。`))) return
+  if (!(await confirm(t('issueList.confirmDelete').replace('{0}', String(selectedIds.value.size))))) return
   try {
     await issueApi.bulkDeleteIssues([...selectedIds.value])
     clearSelection()
-    showToast('已删除选中工作项')
+    showToast(t('issueList.toastDeleted'))
     loadIssues()
   } catch (e) { console.error('Batch delete failed:', e) }
 }
@@ -732,11 +734,13 @@ async function execBatchDelete() {
 // ---- Data loading ----
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes(), loadProjectInfo()])
-})
+	  if (props.workspaceId > 0) Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes(), loadProjectInfo()])
+	})
 
-watch(page, () => loadIssues())
-
+	watch(page, () => loadIssues())
+	watch(() => props.workspaceId, (id) => {
+	  if (id > 0) Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes(), loadProjectInfo()])
+	})
 async function loadProjectInfo() {
   try {
     const project = await projectApi.getProject(props.projectId)

@@ -5,6 +5,7 @@ import { workspaceApi } from '@/api/workspace'
 import { projectApi } from '@/api/project'
 import * as workflowApi from '@/api/workflow'
 import api from '@/api'
+import { useI18n } from '@/composables/useI18n'
 import type { Workspace } from '@/types'
 import type { ProjectResponse, ProjectUpdate, ProjectSubscriber } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
@@ -20,6 +21,7 @@ import ReleaseList from '@/components/ReleaseList.vue'
 import WebhookManager from '@/components/WebhookManager.vue'
 
 const { confirm } = useConfirm()
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -112,11 +114,11 @@ const currentMenuLabel = computed(() => {
 
 // ===== State groups =====
 const STATE_GROUPS = [
-  { id: 'backlog', name: 'Backlog', description: '待规划的工作项' },
-  { id: 'unstarted', name: 'Unstarted', description: '已规划但未开始' },
-  { id: 'started', name: 'Started', description: '正在执行中' },
-  { id: 'completed', name: 'Completed', description: '已完成' },
-  { id: 'cancelled', name: 'Cancelled', description: '已取消' },
+  { id: 'backlog', name: 'Backlog', description: t('settings.stateGroupBacklog') },
+  { id: 'unstarted', name: 'Unstarted', description: t('settings.stateGroupUnstarted') },
+  { id: 'started', name: 'Started', description: t('settings.stateGroupStarted') },
+  { id: 'completed', name: 'Completed', description: t('settings.stateGroupCompleted') },
+  { id: 'cancelled', name: 'Cancelled', description: t('settings.stateGroupCancelled') },
 ] as const
 
 const stateGroups = computed(() => {
@@ -182,7 +184,7 @@ async function handleSaveState() {
 }
 async function handleDeleteState(_groupId: string, state: any) {
   if (!projectId.value) return
-  if (!(await confirm({ title: '删除状态', message: `确定要删除状态 "${state.name}" 吗？此操作不可恢复。`, danger: true, confirmText: '删除' }))) return
+  if (!(await confirm({ title: t('settings.deleteState'), message: t('settings.confirmDeleteState').replace('{0}', state.name), danger: true, confirmText: t('common.delete') }))) return
   try { await api.delete(`/projects/${projectId.value}/settings/states/${state.id}`); await loadData() }
   catch (e) { console.error('Failed to delete state:', e) }
 }
@@ -227,7 +229,7 @@ async function handleSaveLabel() {
 }
 async function handleDeleteLabel(label: any) {
   if (!projectId.value) return
-  if (!(await confirm({ title: '删除标签', message: `确定要删除标签 "${label.name}" 吗？此操作不可恢复。`, danger: true, confirmText: '删除' }))) return
+  if (!(await confirm({ title: t('settings.deleteLabel'), message: t('settings.confirmDeleteLabel').replace('{0}', label.name), danger: true, confirmText: t('common.delete') }))) return
   try { await api.delete(`/projects/${projectId.value}/settings/labels/${label.id}`); await loadData() }
   catch (e) { console.error('Failed to delete label:', e) }
 }
@@ -256,7 +258,7 @@ async function handleSaveWorkflow() {
 }
 async function handleDeleteWorkflow(workflow: any) {
   if (!projectId.value) return
-  if (!(await confirm({ title: '删除工作流', message: `确定要删除工作流 "${workflow.name}" 吗？此操作不可恢复。`, danger: true, confirmText: '删除' }))) return
+  if (!(await confirm({ title: t('settings.deleteWorkflow'), message: t('settings.confirmDeleteWorkflow').replace('{0}', workflow.name), danger: true, confirmText: t('common.delete') }))) return
   try { await workflowApi.deleteWorkflow(projectId.value, workflow.id); await loadData() }
   catch (e) { console.error('Failed to delete workflow:', e) }
 }
@@ -288,7 +290,7 @@ async function handleSaveAutomation() {
 }
 async function handleDeleteAutomation(automation: any) {
   if (!projectId.value) return
-  if (!(await confirm({ title: '删除自动化', message: `确定要删除自动化 "${automation.name}" 吗？此操作不可恢复。`, danger: true, confirmText: '删除' }))) return
+  if (!(await confirm({ title: t('settings.deleteAutomation'), message: t('settings.confirmDeleteAutomation').replace('{0}', automation.name), danger: true, confirmText: t('common.delete') }))) return
   try { await workflowApi.deleteAutomation(projectId.value, automation.id); await loadData() }
   catch (e) { console.error('Failed to delete automation:', e) }
 }
@@ -366,7 +368,7 @@ async function handleAddSubscriber() {
 
 async function handleRemoveSubscriber(userId: number) {
   if (!projectId.value) return
-  if (!(await confirm({ title: '移除订阅者', message: '确定要移除此订阅者吗？', danger: true, confirmText: '移除' }))) return
+  if (!(await confirm({ title: t('settings.removeSubscriber'), message: t('settings.confirmRemoveSubscriber'), danger: true, confirmText: t('settings.remove') }))) return
   try {
     await projectApi.removeProjectSubscriber(projectId.value, userId)
     await loadSubscribers()
@@ -883,7 +885,7 @@ onMounted(async () => {
     <div v-if="showFieldForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showFieldForm = false">
       <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-800">{{ editingField ? '编辑字段' : '创建字段' }}</h2>
+          <h2 class="text-lg font-semibold text-gray-800">{{ editingField ? t('settings.editField') : t('settings.createField') }}</h2>
           <button @click="showFieldForm = false" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
         </div>
         <div class="p-6">

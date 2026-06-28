@@ -1,5 +1,6 @@
 <script setup lang="ts">import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from '@/composables/useI18n';
 import RelationTypeManager from '@/components/RelationTypeManager.vue';
 import WorkspaceIssueTypeManager from '@/components/WorkspaceIssueTypeManager.vue';
 import WorkspaceMemberList from '@/components/WorkspaceMemberList.vue';
@@ -19,6 +20,7 @@ import { listProjects } from '@/api/project';
 import { useConfirm } from '@/composables/useConfirm';
 
 const { confirm } = useConfirm();
+const { t } = useI18n();
 
 const route = useRoute();
 const slug = computed(() => (route.params as any).slug as string || '');
@@ -34,6 +36,18 @@ const customFields = ref<any[]>([]);
 const automations = ref<any[]>([]);
 const relationTypes = ref<any[]>([]);
 const memberCount = ref(0);
+
+const navItems = computed(() => [
+  { id: 'members', label: t('settings.members'), icon: '👥', count: memberCount.value },
+  { id: 'types', label: t('settings.workItemTypes'), icon: '📋', count: issueTypes.value.length },
+  { id: 'templates', label: t('settings.templates'), icon: '📦', count: 0 },
+  { id: 'ai', label: t('settings.ai'), icon: '🤖', count: 0 },
+  { id: 'fields', label: t('settings.fields'), icon: '📝', count: customFields.value.length },
+  { id: 'automations', label: t('settings.automations'), icon: '🤖', count: automations.value.length },
+  { id: 'relations', label: t('settings.relations'), icon: '🔗', count: relationTypes.value.length },
+  { id: 'integrations', label: t('settings.integrations'), icon: '🔌', count: 0 },
+  { id: 'roles', label: t('settings.roles'), icon: '🔑', count: 0 },
+])
 
 // ===== Load workspace and data =====
 async function loadWorkspace() {
@@ -123,22 +137,12 @@ onMounted(() => { loadWorkspace(); });
     <!-- Left Sidebar -->
     <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
       <div class="p-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-800">Workspace Settings</h2>
-        <p class="text-sm text-gray-500">Configure workspace-wide settings</p>
+        <h2 class="text-lg font-semibold text-gray-800">{{ t('workspace.settings') }}</h2>
+        <p class="text-sm text-gray-500">{{ t('workspace.settingsDesc', 'Configure workspace-wide settings') }}</p>
       </div>
       <nav class="flex-1 p-4 space-y-1">
         <button
-          v-for="item in [
-            { id: 'members', label: 'Members', icon: '👥', count: memberCount },
-            { id: 'types', label: 'Work Item Types', icon: '📋', count: issueTypes.length },
-            { id: 'templates', label: 'Templates', icon: '📦', count: 0 },
-            { id: 'ai', label: 'AI', icon: '🤖', count: 0 },
-            { id: 'fields', label: 'Custom Fields', icon: '📝', count: customFields.length },
-            { id: 'automations', label: 'Automations', icon: '🤖', count: automations.length },
-            { id: 'relations', label: 'Relations', icon: '🔗', count: relationTypes.length },
-            { id: 'integrations', label: 'Integrations', icon: '🔌', count: 0 },
-            { id: 'roles', label: 'Roles & Permissions', icon: '🔑', count: 0 },
-          ]"
+          v-for="item in navItems"
           :key="item.id"
           @click="activeSection = item.id"
           :class="['w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors', activeSection === item.id ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800']"

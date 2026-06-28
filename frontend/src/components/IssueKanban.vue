@@ -16,7 +16,7 @@
               <input
                 v-model="filters.search"
                 type="text"
-                placeholder="搜索工作项...（名称 / 编号）"
+                :placeholder="t('issueKanban.searchPlaceholder')"
                 class="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 @keydown.enter="reload"
               />
@@ -27,7 +27,7 @@
             <div class="flex-1 max-w-md" v-else>
               <RQLInput
                 v-model="rqlQuery"
-                placeholder="输入 RQL 查询... (例如: state = '待处理')"
+                :placeholder="t('issueKanban.rqlPlaceholder')"
                 :show-history="true"
                 :show-hints="true"
                 :error="rqlError"
@@ -35,81 +35,81 @@
               />
             </div>
             <select v-if="!showRQL" v-model="filters.state_id" @change="reload" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
-              <option value="0">所有状态</option>
+              <option value="0">{{ t('issueList.allStates') }}</option>
               <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
             <select v-model="filters.priority" @change="reload" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
-              <option value="">所有优先级</option>
-              <option value="urgent">紧急</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option><option value="none">无</option>
+              <option value="">{{ t('issueList.allPriorities') }}</option>
+              <option value="urgent">{{ t('issue.priorityUrgent') }}</option><option value="high">{{ t('issue.priorityHigh') }}</option><option value="medium">{{ t('issue.priorityMedium') }}</option><option value="low">{{ t('issue.priorityLow') }}</option><option value="none">{{ t('issue.priorityNone') }}</option>
             </select>
             <select v-model="groupBy" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600">
-              <option value="state">按状态</option>
-              <option value="assignee">按负责人</option>
-              <option value="priority">按优先级</option>
-              <option value="labels">按标签</option>
+              <option value="state">{{ t('issueKanban.groupByState') }}</option>
+              <option value="assignee">{{ t('issueKanban.groupByAssignee') }}</option>
+              <option value="priority">{{ t('issueKanban.groupByPriority') }}</option>
+              <option value="labels">{{ t('issueKanban.groupByLabels') }}</option>
             </select>
             <select v-model="swimlaneBy" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600">
-              <option value="">无泳道</option>
-              <option value="assignee">泳道: 负责人</option>
-              <option value="priority">泳道: 优先级</option>
-              <option value="type">泳道: 类型</option>
+              <option value="">{{ t('issueKanban.noSwimlane') }}</option>
+              <option value="assignee">{{ t('issueKanban.swimlaneAssignee') }}</option>
+              <option value="priority">{{ t('issueKanban.swimlanePriority') }}</option>
+              <option value="type">{{ t('issueKanban.swimlaneType') }}</option>
             </select>
           </div>
           <div class="flex items-center space-x-2 ml-3">
             <button @click="showAdvanced = !showAdvanced" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
-              高级搜索
+              {{ t('issueKanban.advancedSearch') }}
               <svg class="w-3 h-3 inline ml-1" :class="{ 'rotate-180': showAdvanced }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
-            <button @click="showImportModal = true" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">导入</button>
+            <button @click="showImportModal = true" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">{{ t('common.import') }}</button>
           </div>
         </div>
       </div>
       <!-- 高级搜索 -->
       <div v-if="showAdvanced" class="px-4 pb-3 border-t border-gray-100 pt-3 bg-gray-50">
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-xs text-gray-500 mb-1">周期</label>
+          <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.cycle') }}</label>
             <select v-model="filters.cycle_id" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
-              <option value="0">全部</option>
+              <option value="0">{{ t('common.all') }}</option>
               <option v-for="c in cycles" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select></div>
-          <div><label class="block text-xs text-gray-500 mb-1">负责人</label>
+          <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.assignee') }}</label>
             <UserSelect
               v-model="filtersAssignee"
               :users="memberOptions"
-              placeholder="全部"
+              :placeholder="t('common.all')"
               :clearable="true"
               @update:model-value="reload"
             /></div>
-          <div><label class="block text-xs text-gray-500 mb-1">开始日期</label>
+          <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.startDate') }}</label>
             <input v-model="filters.filter_start_date" type="date" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
-          <div><label class="block text-xs text-gray-500 mb-1">截止日期</label>
+          <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.targetDate') }}</label>
             <input v-model="filters.filter_target_date" type="date" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
         </div>
           <div v-if="customFields.length > 0" class="mt-3 pt-3 border-t border-gray-200">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-xs text-gray-500">自定义字段筛选 (AND)</span>
-              <button @click="addCFCondition" class="text-xs text-indigo-600 hover:text-indigo-800">+ 添加条件</button>
+              <span class="text-xs text-gray-500">{{ t('issueKanban.customFieldFilter') }}</span>
+              <button @click="addCFCondition" class="text-xs text-indigo-600 hover:text-indigo-800">{{ t('issueKanban.addCondition') }}</button>
             </div>
             <div v-for="(cond, idx) in cfConditions" :key="idx" class="flex gap-2 mb-2">
               <select v-model="cond.field_id" @change="reload" class="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm">
-                <option :value="0">选择字段</option>
+                <option :value="0">{{ t('issueKanban.selectField') }}</option>
                 <option v-for="cf in customFields" :key="cf.id" :value="cf.id">{{ cf.name }}</option>
               </select>
-              <input type="text" v-model="cond.value" @input="reload" placeholder="值" class="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm" />
+              <input type="text" v-model="cond.value" @input="reload" :placeholder="t('issueKanban.value')" class="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm" />
               <button @click="removeCFCondition(idx)" class="px-2 py-1.5 text-xs text-red-500 border border-red-200 rounded hover:bg-red-50">×</button>
             </div>
           </div>
-        <div class="mt-2 flex justify-end"><button @click="resetFilters" class="text-sm text-gray-500 hover:text-indigo-600">重置筛选</button></div>
+        <div class="mt-2 flex justify-end"><button @click="resetFilters" class="text-sm text-gray-500 hover:text-indigo-600">{{ t('issueKanban.resetFilters') }}</button></div>
       </div>
     </div>
 
     <!-- 批量操作工具栏 -->
     <div v-if="selectedIds.size > 0" class="sticky top-0 z-20 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 flex-wrap">
-      <span class="text-sm text-indigo-700 dark:text-indigo-300 font-medium">已选 {{ selectedIds.size }} 项</span>
+      <span class="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{{ t('issueList.selected') }} {{ selectedIds.size }} {{ t('common.items') }}</span>
 
       <div class="relative">
         <button @click="showBatchState = !showBatchState" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
-          更改状态
+          {{ t('issueList.changeState') }}
         </button>
         <div v-if="showBatchState" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
           <button v-for="s in states" :key="s.id" @click="batchChangeState(s.id)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">{{ s.name }}</button>
@@ -118,7 +118,7 @@
 
       <div class="relative">
         <button @click="showBatchPriority = !showBatchPriority" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
-          更改优先级
+          {{ t('issueList.changePriority') }}
         </button>
         <div v-if="showBatchPriority" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
           <button v-for="p in priorityOptions" :key="p.value" @click="batchChangePriority(p.value)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">{{ p.label }}</button>
@@ -127,18 +127,18 @@
 
       <div class="relative">
         <button @click="showBatchAssign = !showBatchAssign" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
-          批量分配
+          {{ t('issueList.batchAssign') }}
         </button>
         <div v-if="showBatchAssign" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 p-2 w-48">
-          <UserSelect v-model="batchAssigneeId" :users="memberOptions" placeholder="选择负责人" @update:model-value="batchAssign" />
+          <UserSelect v-model="batchAssigneeId" :users="memberOptions" :placeholder="t('issueList.selectAssignee')" @update:model-value="batchAssign" />
         </div>
       </div>
 
       <button @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
-        批量删除
+        {{ t('issueList.batchDelete') }}
       </button>
 
-      <button @click="clearSelection" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">取消选择</button>
+      <button @click="clearSelection" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">{{ t('issueList.clearSelection') }}</button>
     </div>
 
     <!-- Success toast -->
@@ -147,7 +147,7 @@
     </div>
 
     <!-- 看板列 -->
-    <div v-if="loading" class="text-center py-12 text-gray-400 text-sm">加载中...</div>
+    <div v-if="loading" class="text-center py-12 text-gray-400 text-sm">{{ t('common.loading') }}</div>
 
     <!-- 无泳道模式 -->
     <div v-else-if="!swimlaneBy" class="grid gap-4" :style="gridStyle">
@@ -162,7 +162,7 @@
             <h3 class="text-sm font-medium text-gray-700">{{ column.label }}</h3>
           </div>
           <div class="flex items-center space-x-1">
-            <button v-if="groupBy === 'state'" @click="openQuickCreate(column.key as number)" class="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-gray-200 rounded text-sm" title="快速创建">+</button>
+            <button v-if="groupBy === 'state'" @click="openQuickCreate(column.key as number)" class="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-gray-200 rounded text-sm" :title="t('issueKanban.quickCreate')">+</button>
             <span class="text-xs bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full">{{ (groupedIssues[column.key] || []).length }}</span>
           </div>
         </div>
@@ -184,10 +184,10 @@
                 <div v-for="(a, idx) in (issue.assignees || []).slice(0, 2)" :key="a.id" class="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[10px] font-medium text-white" :style="{ backgroundColor: assigneeColor(idx) }" :title="a.display_name || a.username">{{ getInitials(a.display_name || a.username) }}</div>
               </div>
               <span v-if="issue.cycle" class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{{ issue.cycle.name }}</span>
-              <button @click.stop="$emit('select', issue)" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-medium">详情</button>
+              <button @click.stop="$emit('select', issue)" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-medium">{{ t('issueKanban.details') }}</button>
             </div>
           </div>
-          <div v-if="!(groupedIssues[column.key] || []).length" class="text-center text-xs text-gray-400 py-6">拖放工作项到此处</div>
+          <div v-if="!(groupedIssues[column.key] || []).length" class="text-center text-xs text-gray-400 py-6">{{ t('issueKanban.dragHere') }}</div>
         </div>
       </div>
     </div>
@@ -203,7 +203,7 @@
         <div class="flex items-center space-x-2 mb-2 px-1">
           <span class="w-3 h-3 rounded-full flex-shrink-0" :style="{ backgroundColor: swimlane.color }"></span>
           <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">{{ swimlane.label }}</span>
-          <span class="text-xs text-gray-400">{{ countSwimlaneIssues(swimlane.key) }} 项</span>
+          <span class="text-xs text-gray-400">{{ countSwimlaneIssues(swimlane.key) }} {{ t('common.items') }}</span>
         </div>
         <div class="grid gap-3" :style="gridStyle">
           <div
@@ -253,6 +253,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import issueApi from '@/api/issue'
 import customFieldApi from '@/api/custom-field'
 import api from '@/api'
@@ -266,6 +267,7 @@ import * as issueTypeApi from '@/api/issue-type'
 
 const props = defineProps<{ projectId: number; workspaceId: number }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
+const { t } = useI18n()
 
 // RQL 搜索相关
 const {
@@ -300,13 +302,13 @@ const showBatchPriority = ref(false)
 const showBatchAssign = ref(false)
 const batchAssigneeId = ref<number | undefined>(undefined)
 
-const priorityOptions = [
-  { value: 'urgent', label: '紧急' },
-  { value: 'high', label: '高' },
-  { value: 'medium', label: '中' },
-  { value: 'low', label: '低' },
-  { value: 'none', label: '无' },
-]
+const priorityOptions = computed(() => [
+  { value: 'urgent', label: t('issue.priorityUrgent') },
+  { value: 'high', label: t('issue.priorityHigh') },
+  { value: 'medium', label: t('issue.priorityMedium') },
+  { value: 'low', label: t('issue.priorityLow') },
+  { value: 'none', label: t('issue.priorityNone') },
+])
 
 const toastMessage = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -421,15 +423,15 @@ const kanbanColumns = computed(() => {
         })
       }
     })
-    cols.push({ id: 'unassigned', label: '未分配', color: '#9ca3af', key: '__unassigned__' })
+    cols.push({ id: 'unassigned', label: t('issueKanban.unassigned'), color: '#9ca3af', key: '__unassigned__' })
     return cols
   } else if (groupBy.value === 'priority') {
     return [
-      { id: 'priority_urgent', label: '紧急', color: '#ef4444', key: 'urgent' },
-      { id: 'priority_high', label: '高', color: '#f97316', key: 'high' },
-      { id: 'priority_medium', label: '中', color: '#eab308', key: 'medium' },
-      { id: 'priority_low', label: '低', color: '#22c55e', key: 'low' },
-      { id: 'priority_none', label: '无', color: '#9ca3af', key: 'none' },
+      { id: 'priority_urgent', label: t('issue.priorityUrgent'), color: '#ef4444', key: 'urgent' },
+      { id: 'priority_high', label: t('issue.priorityHigh'), color: '#f97316', key: 'high' },
+      { id: 'priority_medium', label: t('issue.priorityMedium'), color: '#eab308', key: 'medium' },
+      { id: 'priority_low', label: t('issue.priorityLow'), color: '#22c55e', key: 'low' },
+      { id: 'priority_none', label: t('issue.priorityNone'), color: '#9ca3af', key: 'none' },
     ]
   } else {
     // labels
@@ -450,7 +452,7 @@ const kanbanColumns = computed(() => {
         })
       }
     })
-    cols.push({ id: 'nolabel', label: '无标签', color: '#9ca3af', key: '__nolabel__' })
+    cols.push({ id: 'nolabel', label: t('issueKanban.unassigned'), color: '#9ca3af', key: '__nolabel__' })
     return cols
   }
 })
@@ -478,17 +480,17 @@ const swimlaneKeys = computed(() => {
         })
       }
     })
-    keys.push({ key: '__none__', label: '未分配', color: '#9ca3af' })
+    keys.push({ key: '__none__', label: t('issueKanban.unassigned'), color: '#9ca3af' })
     return keys
   }
 
   if (swimlaneBy.value === 'priority') {
     return [
-      { key: 'urgent', label: '紧急', color: '#ef4444' },
-      { key: 'high', label: '高', color: '#f97316' },
-      { key: 'medium', label: '中', color: '#eab308' },
-      { key: 'low', label: '低', color: '#22c55e' },
-      { key: 'none', label: '无', color: '#9ca3af' },
+      { key: 'urgent', label: t('issue.priorityUrgent'), color: '#ef4444' },
+      { key: 'high', label: t('issue.priorityHigh'), color: '#f97316' },
+      { key: 'medium', label: t('issue.priorityMedium'), color: '#eab308' },
+      { key: 'low', label: t('issue.priorityLow'), color: '#22c55e' },
+      { key: 'none', label: t('issue.priorityNone'), color: '#9ca3af' },
     ]
   }
 
@@ -499,11 +501,11 @@ const swimlaneKeys = computed(() => {
       const tid = i.issue_type_id
       if (tid && !seen.has(tid)) {
         seen.add(tid)
-        const t = issueTypes.value.find((t: any) => t.id === tid)
-        keys.push({ key: String(tid), label: t?.name || `类型 #${tid}`, color: t?.color || '#6366f1' })
+        const it = issueTypes.value.find((type: any) => type.id === tid)
+        keys.push({ key: String(tid), label: it?.name || t('issueKanban.unassigned'), color: it?.color || '#6366f1' })
       }
     })
-    keys.push({ key: '__none__', label: '无类型', color: '#9ca3af' })
+    keys.push({ key: '__none__', label: t('issueKanban.unassigned'), color: '#9ca3af' })
     return keys
   }
 
@@ -655,7 +657,7 @@ async function batchChangeState(stateId: number) {
   try {
     await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { state_id: stateId })
     clearSelection()
-    showToast('状态已更新')
+    showToast(t('issueList.toastStateUpdated'))
     loadIssues()
   } catch (e) { console.error('Batch state failed:', e) }
 }
@@ -665,7 +667,7 @@ async function batchChangePriority(priority: string) {
   try {
     await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { priority: priority as any })
     clearSelection()
-    showToast('优先级已更新')
+    showToast(t('issueList.toastPriorityUpdated'))
     loadIssues()
   } catch (e) { console.error('Batch priority failed:', e) }
 }
@@ -677,7 +679,7 @@ async function batchAssign(userId: string | number | undefined) {
   try {
     await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { assignee_ids: [uid] })
     clearSelection()
-    showToast('负责人已分配')
+    showToast(t('issueList.toastAssigned'))
     loadIssues()
   } catch (e) { console.error('Batch assign failed:', e) }
 }
@@ -690,11 +692,11 @@ function clearSelection() {
 }
 
 async function execBatchDelete() {
-  if (!(await confirm(`确定要删除选中的 ${selectedIds.value.size} 个工作项吗？此操作不可撤销。`))) return
+  if (!(await confirm(t('issueList.confirmDelete').replace('{0}', String(selectedIds.value.size))))) return
   try {
     await issueApi.bulkDeleteIssues([...selectedIds.value])
     clearSelection()
-    showToast('已删除选中工作项')
+    showToast(t('issueList.toastDeleted'))
     loadIssues()
   } catch (e) { console.error('Batch delete failed:', e) }
 }

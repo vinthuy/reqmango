@@ -26,10 +26,10 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <button @click="showAICreate = true" class="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-medium rounded-md hover:from-indigo-600 hover:to-purple-700 transition shadow-sm">🤖 AI Create</button>
+            <button @click="showAICreate = true" class="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-medium rounded-md hover:from-indigo-600 hover:to-purple-700 transition shadow-sm">🤖 {{ t('project.aiCreate') }}</button>
             <button @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition shadow-sm">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              新建
+              {{ t('project.create') }}
             </button>
           </div>
         </div>
@@ -41,7 +41,7 @@
             :class="activeTab === tab.id ? 'bg-gray-200/70 dark:bg-gray-800 text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'">
             {{ tab.name }}
           </button>
-          <button @click="showPageConfig = true" class="px-2 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition text-sm" title="页面配置">
+          <button @click="showPageConfig = true" class="px-2 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition text-sm" :title="t('project.pageConfig')">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           </button>
         </nav>
@@ -164,27 +164,27 @@
       <div v-if="activeTab === 'updates'">
         <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold">项目更新</h3>
+            <h3 class="text-lg font-semibold">{{ t('project.updates.title') }}</h3>
             <button
               @click="showUpdateForm = true"
               class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700"
-            >发布更新</button>
+            >{{ t('project.updates.publish') }}</button>
           </div>
 
-          <div v-if="updatesLoading" class="text-gray-500 text-sm">加载中...</div>
+          <div v-if="updatesLoading" class="text-gray-500 text-sm">{{ t('common.loading') }}</div>
 
           <div v-else-if="projectUpdates.length === 0" class="text-center py-8 text-gray-400 text-sm">
-            暂无项目更新，发布第一条更新吧
+            {{ t('project.updates.empty') }}
           </div>
 
           <div v-else class="space-y-4">
             <div v-for="update in projectUpdates" :key="update.id" class="border border-gray-100 dark:border-gray-700 rounded-lg p-4">
               <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
-                  <span class="text-sm font-medium">{{ update.author?.display_name || '未知' }}</span>
+                  <span class="text-sm font-medium">{{ update.author?.display_name || t('common.unknown') }}</span>
                   <span class="text-xs px-2 py-0.5 rounded-full" :class="getUpdateStatusColor(update.status)">{{ getUpdateStatusLabel(update.status) }}</span>
                 </div>
-                <span class="text-xs text-gray-400">{{ new Date(update.created_at).toLocaleString('zh-CN') }}</span>
+                <span class="text-xs text-gray-400">{{ new Date(update.created_at).toLocaleString(locale === 'zh-CN' ? 'zh-CN' : 'en-US') }}</span>
               </div>
               <p class="text-sm text-gray-700 dark:text-gray-300">{{ update.content }}</p>
             </div>
@@ -195,8 +195,8 @@
 
     <!-- 空状态 -->
     <div v-else class="text-center py-12">
-      <p class="text-gray-500">项目不存在或加载失败</p>
-      <button @click="goBack" class="mt-4 text-indigo-600 hover:text-indigo-800 text-sm">返回</button>
+      <p class="text-gray-500">{{ t('project.notFound') }}</p>
+      <button @click="goBack" class="mt-4 text-indigo-600 hover:text-indigo-800 text-sm">{{ t('common.back') }}</button>
     </div>
   </div>
 
@@ -227,24 +227,24 @@
   <!-- Update Form Modal -->
   <div v-if="showUpdateForm" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-      <h2 class="text-lg font-semibold mb-4">发布项目更新</h2>
+      <h2 class="text-lg font-semibold mb-4">{{ t('project.updates.publish') }}</h2>
       <div class="space-y-3">
         <div>
-          <label class="text-sm text-gray-600 mb-1 block">状态</label>
+          <label class="text-sm text-gray-600 mb-1 block">{{ t('common.status') }}</label>
           <select v-model="updateForm.status" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600">
-            <option value="on_track">正常 (On Track)</option>
-            <option value="at_risk">有风险 (At Risk)</option>
-            <option value="off_track">偏离 (Off Track)</option>
+            <option value="on_track">{{ t('project.updates.statusOnTrack') }}</option>
+            <option value="at_risk">{{ t('project.updates.statusAtRisk') }}</option>
+            <option value="off_track">{{ t('project.updates.statusOffTrack') }}</option>
           </select>
         </div>
         <div>
-          <label class="text-sm text-gray-600 mb-1 block">内容 *</label>
-          <textarea v-model="updateForm.content" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600" rows="4" placeholder="简述当前进展、风险和计划..."></textarea>
+          <label class="text-sm text-gray-600 mb-1 block">{{ t('project.updates.content') }}</label>
+          <textarea v-model="updateForm.content" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600" rows="4" :placeholder="t('project.updates.contentPlaceholder')"></textarea>
         </div>
       </div>
       <div class="flex justify-end gap-2 mt-5">
-        <button @click="showUpdateForm = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
-        <button @click="submitUpdate" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">发布</button>
+        <button @click="showUpdateForm = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">{{ t('project.updates.cancel') }}</button>
+        <button @click="submitUpdate" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ t('project.updates.submit') }}</button>
       </div>
     </div>
   </div>
@@ -259,6 +259,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from '@/composables/useI18n'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi, listPageTabs } from '@/api/project'
 import { issueApi } from '@/api/issue'
@@ -292,6 +293,7 @@ import { useModuleStore } from '@/stores/module'
 
 const route = useRoute()
 const router = useRouter()
+const { t, locale } = useI18n()
 
 const workspace = ref<Workspace | null>(null)
 const project = ref<ProjectResponse | null>(null)
@@ -300,13 +302,13 @@ const activeTab = ref((route.query.tab as string) || 'issues')
 const issueView = ref((route.query.view as string) || 'list')
 const issueRefreshKey = ref(0)
 
-const views = [
-  { id: 'list' as const, label: '列表' },
-  { id: 'kanban' as const, label: '看板' },
-  { id: 'tree' as const, label: '树形' },
-  { id: 'calendar' as const, label: '日历' },
-  { id: 'gantt' as const, label: '甘特' },
-]
+const views = computed(() => [
+  { id: 'list' as const, label: t('project.view.list') },
+  { id: 'kanban' as const, label: t('project.view.kanban') },
+  { id: 'tree' as const, label: t('project.view.tree') },
+  { id: 'calendar' as const, label: t('project.view.calendar') },
+  { id: 'gantt' as const, label: t('project.view.gantt') },
+])
 
 const detailIssueId = ref<number | null>(null)
 const detailPanelVisible = ref(false)
@@ -344,7 +346,7 @@ async function loadUpdates() {
 
 async function submitUpdate() {
   if (!updateForm.value.content?.trim()) {
-      alert('请输入更新内容')
+      alert(t('project.updates.contentRequired'))
       return
     }
   try {
@@ -356,7 +358,7 @@ async function submitUpdate() {
 }
 
 function getUpdateStatusLabel(s: string) {
-  const map: Record<string, string> = { on_track: '正常', at_risk: '有风险', off_track: '偏离' }
+  const map: Record<string, string> = { on_track: t('project.updates.statusOnTrack'), at_risk: t('project.updates.statusAtRisk'), off_track: t('project.updates.statusOffTrack') }
   return map[s] || s
 }
 function getUpdateStatusColor(s: string) {
@@ -415,12 +417,12 @@ const moduleStore = useModuleStore()
 const { confirm } = useConfirm()
 
 async function handleModuleDelete(module: ModuleResponse | any) {
-  if (await confirm(`确定要删除模块 "${module.name}" 吗？`)) {
+  if (await confirm(t('project.deleteModuleConfirm', { name: module.name }))) {
     try {
       await moduleStore.deleteModuleAction(module.id)
     } catch (err) {
       console.error('Failed to delete module:', err)
-      alert('删除失败')
+      alert(t('project.deleteFailed'))
     }
   }
 }
@@ -431,15 +433,15 @@ const slug = ref('')
 
 const pageTabs = ref<ProjectPageTab[]>([])
 const showPageConfig = ref(false)
-const defaultTabs = [
-  { id: 'issues', name: '工作项' },
-  { id: 'cycles', name: '周期' },
-  { id: 'modules', name: '模块' },
-  { id: 'updates', name: '更新' },
-  { id: 'pages', name: '文档' },
-  { id: 'reports', name: '报表' },
-  { id: 'settings', name: '设置' },
-]
+const defaultTabs = computed(() => [
+  { id: 'issues', name: t('project.tab.issues') },
+  { id: 'cycles', name: t('project.tab.cycles') },
+  { id: 'modules', name: t('project.tab.modules') },
+  { id: 'updates', name: t('project.tab.updates') },
+  { id: 'pages', name: t('project.tab.pages') },
+  { id: 'reports', name: t('project.tab.reports') },
+  { id: 'settings', name: t('project.tab.settings') },
+])
 
 async function loadPageTabs() {
   try {
@@ -452,7 +454,7 @@ const computedTabs = computed(() => {
   if (pageTabs.value.length > 0) {
     return pageTabs.value.filter(t => t.visible).map(t => ({ id: t.route_key || `custom_${t.id}`, name: t.name }))
   }
-  return defaultTabs
+  return defaultTabs.value
 })
 
 function goBack() {
@@ -469,13 +471,13 @@ function handleViewSelect(view: SavedView) {
 }
 
 async function handleDeleteIssue(issue: any) {
-  if (await confirm(`确定要删除工作项 "${issue.name}" 吗？`)) {
+  if (await confirm(t('project.deleteIssueConfirm', { name: issue.name }))) {
     try {
       await issueApi.deleteIssue(issue.id)
       window.location.reload()
     } catch (err) {
       console.error('Failed to delete issue:', err)
-      alert('删除失败')
+      alert(t('project.deleteFailed'))
     }
   }
 }

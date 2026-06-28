@@ -2,7 +2,9 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import { workspaceApi } from '@/api/workspace'
+import { useI18n } from '@/composables/useI18n'
 import { projectApi } from '@/api/project'
 import type { Workspace } from '@/types'
 import type { ProjectResponse } from '@/types/project'
@@ -10,6 +12,7 @@ import type { ProjectResponse } from '@/types/project'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const workspaces = ref<Workspace[]>([])
 const projects = ref<ProjectResponse[]>([])
@@ -55,38 +58,37 @@ function logout() {
 const navItems = computed(() => {
   if (!isWorkspaceContext.value) return []
   return [
-    { label: '项目', path: '', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' },
-    { label: '路线图', path: '/roadmap', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
-    { label: 'Initiatives', path: '/initiatives', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
-    { label: '设置', path: '/settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+    { label: t('sidebar.projects'), path: '', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' },
+    { label: t('sidebar.roadmap'), path: '/roadmap', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
+    { label: t('sidebar.initiatives'), path: '/initiatives', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+    { label: t('sidebar.settings'), path: '/settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   ]
 })
 
 const projectNavItems = computed(() => {
   if (!isInProject.value) return []
   return [
-    { label: '工作项', path: '', query: {} },
-    { label: '周期', path: '', query: { tab: 'cycles' } },
-    { label: '模块', path: '', query: { tab: 'modules' } },
-    { label: '更新', path: '', query: { tab: 'updates' } },
-    { label: '文档', path: '/pages', query: {} },
-    { label: '设置', path: '/settings', query: {} },
-  ]
+    { label: t('project.tab.issues'), path: '', query: { tab: undefined } },
+    { label: t('project.tab.cycles'), path: '', query: { tab: 'cycles' } },
+    { label: t('project.tab.modules'), path: '', query: { tab: 'modules' } },
+    { label: t('project.tab.updates'), path: '', query: { tab: 'updates' } },
+    { label: t('project.tab.pages'), path: '/pages', query: { tab: undefined } },
+    { label: t('project.tab.settings'), path: '/settings', query: { tab: undefined } },
+  ] as { label: string; path: string; query: { tab?: string } }[]
 })
 
-function projectNavLink(item: { path: string; query: Record<string, string> }) {
+function projectNavLink(item: { path: string; query: { tab?: string } }) {
   const base = `/workspace/${workspaceSlug.value}/project/${route.params.id}`
   if (item.path) return base + item.path
-  if (Object.keys(item.query).length > 0) {
-    const qs = new URLSearchParams(item.query).toString()
-    return base + '?' + qs
+  if (item.query.tab) {
+    return base + '?tab=' + item.query.tab
   }
   return base
 }
 
-function isProjectNavActive(item: { path: string; query: Record<string, string> }) {
+function isProjectNavActive(item: { path: string; query: { tab?: string } }) {
   if (item.path) return route.path.startsWith(`/workspace/${workspaceSlug.value}/project/${route.params.id}${item.path}`)
-  if (item.query.tab) return route.query.tab === item.query.tab || (!route.query.tab && item.query.tab === 'issues')
+  if (item.query.tab) return route.query.tab === item.query.tab
   return route.path === `/workspace/${workspaceSlug.value}/project/${route.params.id}` && !route.query.tab
 }
 
@@ -126,7 +128,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 
     <!-- Project context indicator -->
     <div v-if="isInProject" class="flex items-center gap-1 ml-4 pl-4 border-l border-gray-200 dark:border-gray-700">
-      <span class="text-xs text-gray-400 dark:text-gray-500 mr-1">项目:</span>
+      <span class="text-xs text-gray-400 dark:text-gray-500 mr-1">{{ t('topbar.project') }}</span>
       <router-link v-for="item in projectNavItems" :key="item.label"
         :to="projectNavLink(item)"
         :class="[
@@ -167,6 +169,9 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         </button>
       </div>
     </div>
+
+    <!-- Language Switcher -->
+    <LanguageSwitcher />
 
     <!-- User / Logout -->
     <button @click="logout"

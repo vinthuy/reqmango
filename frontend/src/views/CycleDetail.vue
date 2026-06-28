@@ -12,10 +12,10 @@
           <span :class="statusBadgeClass">{{ cycle?.status }}</span>
         </div>
         <div class="flex items-center space-x-2">
-          <button v-if="cycle?.status === 'upcoming'" @click="handleStart" class="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">开始</button>
-          <button v-if="cycle?.status === 'active'" @click="handleEnd" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">结束</button>
-          <button v-if="cycle?.status !== 'completed' && cycle?.status !== 'cancelled'" @click="handleCancel" class="px-3 py-1.5 border border-gray-300 text-sm text-gray-600 rounded hover:bg-gray-50">取消</button>
-          <button @click="handleDelete" class="px-3 py-1.5 border border-red-300 text-sm text-red-600 rounded hover:bg-red-50">删除</button>
+          <button v-if="cycle?.status === 'upcoming'" @click="handleStart" class="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">{{ t('cycle.start') }}</button>
+          <button v-if="cycle?.status === 'active'" @click="handleEnd" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">{{ t('cycle.end') }}</button>
+          <button v-if="cycle?.status !== 'completed' && cycle?.status !== 'cancelled'" @click="handleCancel" class="px-3 py-1.5 border border-gray-300 text-sm text-gray-600 rounded hover:bg-gray-50">{{ t('cycle.cancel') }}</button>
+          <button @click="handleDelete" class="px-3 py-1.5 border border-red-300 text-sm text-red-600 rounded hover:bg-red-50">{{ t('cycle.delete') }}</button>
         </div>
       </div>
     </div>
@@ -32,7 +32,7 @@
 
       <!-- State Group Breakdown -->
       <div v-if="cycleStore.progress?.state_breakdown?.length" class="bg-white rounded-lg border border-gray-200 p-4">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">状态分布</h3>
+        <h3 class="text-sm font-medium text-gray-700 mb-3">{{ t('cycle.stateDistribution') }}</h3>
         <div class="space-y-2">
           <div v-for="sb in cycleStore.progress.state_breakdown" :key="sb.state" class="flex items-center gap-3">
             <span class="text-xs text-gray-600 w-16 shrink-0">{{ sb.state }}</span>
@@ -61,13 +61,13 @@
       <!-- Issues section -->
       <div class="bg-white rounded-lg border border-gray-200 p-4">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-medium text-gray-700">周期工作项 ({{ cycleStore.cycleIssues.length }})</h3>
+          <h3 class="text-sm font-medium text-gray-700">{{ t('cycle.cycleIssues', { count: cycleStore.cycleIssues.length }) }}</h3>
           <button
             v-if="cycle?.status === 'active' || cycle?.status === 'upcoming'"
             @click="toggleAddIssue"
             class="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
           >
-            + 添加工作项
+            {{ t('cycle.addIssue') }}
           </button>
         </div>
 
@@ -76,7 +76,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索项目内的工作项..."
+            :placeholder="t('cycle.searchIssuePlaceholder')"
             class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
             @input="searchIssues"
           />
@@ -94,18 +94,18 @@
               <span class="text-xs text-gray-400 ml-2 shrink-0">#{{ issue.sequence_id }}</span>
             </div>
             <div v-if="availableIssues.length === 0 && searched" class="text-sm text-gray-400 py-4 text-center">
-              没有可添加的工作项
+              {{ t('cycle.noAvailableIssues') }}
             </div>
           </div>
         </div>
 
-        <div v-if="cycleStore.cycleIssues.length === 0" class="text-sm text-gray-400 text-center py-8">暂无工作项</div>
+        <div v-if="cycleStore.cycleIssues.length === 0" class="text-sm text-gray-400 text-center py-8">{{ t('cycle.noIssues') }}</div>
         <div v-else class="space-y-2">
           <div v-for="issue in cycleStore.cycleIssues" :key="issue.id" class="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
             <span class="text-gray-900">{{ issue.name }}</span>
             <div class="flex items-center space-x-2">
               <span class="text-xs text-gray-400">#{{ issue.sequence_id }}</span>
-              <button @click="handleRemoveIssue(issue.id)" class="text-gray-400 hover:text-red-500" title="移除">
+              <button @click="handleRemoveIssue(issue.id)" class="text-gray-400 hover:text-red-500" :title="t('cycle.remove')">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -120,6 +120,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useCycleStore } from '@/stores/cycle'
 import { issueApi } from '@/api/issue'
@@ -129,6 +130,7 @@ import { useConfirm } from '@/composables/useConfirm'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const cycleStore = useCycleStore()
 const { confirm } = useConfirm()
 
@@ -159,13 +161,13 @@ function stateGroupColor(group: string): string {
   return colors[group] || '#9CA3AF'
 }
 
-const stateGroupLegend = [
-  { group: 'backlog', label: '待办池', color: '#6B7280' },
-  { group: 'unstarted', label: '未开始', color: '#3B82F6' },
-  { group: 'started', label: '进行中', color: '#F59E0B' },
-  { group: 'completed', label: '已完成', color: '#10B981' },
-  { group: 'cancelled', label: '已取消', color: '#EF4444' },
-]
+const stateGroupLegend = computed(() => [
+  { group: 'backlog', label: t('cycle.legendBacklog'), color: '#6B7280' },
+  { group: 'unstarted', label: t('cycle.legendUnstarted'), color: '#3B82F6' },
+  { group: 'started', label: t('cycle.legendStarted'), color: '#F59E0B' },
+  { group: 'completed', label: t('cycle.legendCompleted'), color: '#10B981' },
+  { group: 'cancelled', label: t('cycle.legendCancelled'), color: '#EF4444' },
+])
 
 onMounted(async () => {
   await cycleStore.fetchCycle(cycleId)
@@ -222,17 +224,17 @@ async function handleStart() {
   await cycleStore.fetchCycle(cycleId)
 }
 async function handleEnd() {
-  if (!(await confirm('确定要结束这个周期吗？'))) return
+  if (!(await confirm(t('cycle.confirmEnd')))) return
   await cycleStore.endCycle(cycleId)
   await cycleStore.fetchCycle(cycleId)
 }
 async function handleCancel() {
-  if (!(await confirm('确定要取消这个周期吗？'))) return
+  if (!(await confirm(t('cycle.confirmCancel')))) return
   await cycleStore.cancelCycle(cycleId)
   await cycleStore.fetchCycle(cycleId)
 }
 async function handleDelete() {
-  if (!(await confirm('确定要删除这个周期吗？此操作不可撤销。'))) return
+  if (!(await confirm(t('cycle.confirmDelete')))) return
   await cycleStore.deleteCycleAction(cycleId)
   router.back()
 }

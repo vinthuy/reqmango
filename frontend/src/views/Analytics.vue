@@ -6,7 +6,7 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
       </svg>
-      <span class="ml-3 text-gray-500">加载分析数据...</span>
+      <span class="ml-3 text-gray-500">{{ t('analytics.loading') }}</span>
     </div>
 
     <div v-else class="space-y-6">
@@ -17,9 +17,9 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
-            返回项目
+            {{ t('analytics.backToProject') }}
           </button>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">分析看板</h1>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ t('analytics.title') }}</h1>
           <p class="text-sm text-gray-500 mt-1">{{ projectName }}</p>
         </div>
       </div>
@@ -33,7 +33,7 @@
             </svg>
           </div>
           <div>
-            <p class="text-sm text-gray-500 dark:text-gray-400">总工作项</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('analytics.totalIssues') }}</p>
             <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ stats.total_issues ?? overviewData.total ?? 0 }}</p>
           </div>
         </div>
@@ -45,7 +45,7 @@
             </svg>
           </div>
           <div>
-            <p class="text-sm text-gray-500 dark:text-gray-400">已完成</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('analytics.completed') }}</p>
             <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ stats.completed_issues ?? overviewData.completed ?? 0 }}</p>
           </div>
         </div>
@@ -57,7 +57,7 @@
             </svg>
           </div>
           <div>
-            <p class="text-sm text-gray-500 dark:text-gray-400">进行中</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('analytics.inProgress') }}</p>
             <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ overviewData.inProgress ?? 0 }}</p>
           </div>
         </div>
@@ -69,7 +69,7 @@
             </svg>
           </div>
           <div>
-            <p class="text-sm text-gray-500">已逾期</p>
+            <p class="text-sm text-gray-500">{{ t('analytics.overdue') }}</p>
             <p class="text-2xl font-bold text-gray-900">{{ overdueCount }}</p>
           </div>
         </div>
@@ -79,7 +79,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Priority Distribution -->
         <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h3 class="text-sm font-semibold text-gray-700 mb-4">优先级分布</h3>
+          <h3 class="text-sm font-semibold text-gray-700 mb-4">{{ t('analytics.priorityDistribution') }}</h3>
           <div class="space-y-3">
             <div v-for="item in priorityDistribution" :key="item.key">
               <div class="flex items-center justify-between mb-1">
@@ -95,7 +95,7 @@
 
         <!-- State Distribution -->
         <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">状态分布</h3>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">{{ t('analytics.stateDistribution') }}</h3>
           <div class="space-y-3">
             <div v-for="item in stateDistribution" :key="item.key">
               <div class="flex items-center justify-between mb-1">
@@ -112,11 +112,11 @@
 
       <!-- Section 2.5: Flow Metrics (Cycle Time / Lead Time / WIP Aging) -->
       <div v-if="flowMetrics" class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">流程指标</h3>
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">{{ t('analytics.flowMetrics') }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- State Groups -->
           <div>
-            <h4 class="text-xs font-medium text-gray-500 mb-3">状态分布</h4>
+            <h4 class="text-xs font-medium text-gray-500 mb-3">{{ t('analytics.stateGroups') }}</h4>
             <div class="space-y-2">
               <div v-for="sg in flowMetrics.state_groups" :key="sg.group" class="flex items-center justify-between">
                 <span class="text-sm text-gray-600">{{ sg.group }}</span>
@@ -131,7 +131,7 @@
           </div>
           <!-- Issue Types -->
           <div>
-            <h4 class="text-xs font-medium text-gray-500 mb-3">工作项类型分布</h4>
+            <h4 class="text-xs font-medium text-gray-500 mb-3">{{ t('analytics.issueTypeDistribution') }}</h4>
             <div class="space-y-2">
               <div v-for="it in flowMetrics.issue_types" :key="it.type_name" class="flex items-center justify-between">
                 <span class="text-sm text-gray-600">{{ it.type_name }}</span>
@@ -143,7 +143,7 @@
 
         <!-- Trend 30 Days -->
         <div class="mt-6" v-if="flowMetrics.trend_30d && flowMetrics.trend_30d.length > 0">
-          <h4 class="text-xs font-medium text-gray-500 mb-3">近30天创建趋势</h4>
+          <h4 class="text-xs font-medium text-gray-500 mb-3">{{ t('analytics.trend30d') }}</h4>
           <div class="flex items-end gap-1 h-32">
             <div
               v-for="t in flowMetrics.trend_30d"
@@ -161,19 +161,19 @@
       <!-- Section 3: Sprint Burndown -->
       <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">冲刺燃尽图</h3>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">{{ t('analytics.sprintBurndown') }}</h3>
           <select
             v-model="selectedCycleId"
             class="border border-gray-300 rounded-md text-sm px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             @change="loadBurndown"
           >
-            <option :value="0">请选择冲刺周期</option>
+            <option :value="0">{{ t('analytics.selectCycle') }}</option>
             <option v-for="cycle in cycles" :key="cycle.id" :value="cycle.id">{{ cycle.name }}</option>
           </select>
         </div>
 
         <div v-if="!selectedCycleId" class="text-center py-12 text-gray-400 text-sm">
-          请选择一个冲刺周期以查看燃尽图
+          {{ t('analytics.selectCycleHint') }}
         </div>
 
         <div v-else-if="burndownLoading" class="text-center py-12">
@@ -186,12 +186,12 @@
         <div v-else-if="burndownData" class="burndown-chart">
           <div class="flex items-center gap-6 mb-4 text-xs text-gray-500">
             <span class="flex items-center gap-1.5">
-              <span class="w-3 h-0.5 bg-indigo-500 inline-block rounded"></span> 理想线
+              <span class="w-3 h-0.5 bg-indigo-500 inline-block rounded"></span> {{ t('analytics.idealLine') }}
             </span>
             <span class="flex items-center gap-1.5">
-              <span class="w-3 h-0.5 bg-orange-500 inline-block rounded"></span> 实际线
+              <span class="w-3 h-0.5 bg-orange-500 inline-block rounded"></span> {{ t('analytics.actualLine') }}
             </span>
-            <span>{{ burndownData.total_issues }} 工作项 | 已过去 {{ burndownData.days_elapsed }}/{{ burndownData.total_days }} 天</span>
+            <span>{{ t('analytics.burndownSummary', { total: burndownData.total_issues, elapsed: burndownData.days_elapsed, totalDays: burndownData.total_days }) }}</span>
           </div>
 
           <!-- SVG Burndown Chart -->
@@ -249,16 +249,16 @@
           </svg>
 
           <div class="mt-2 text-center text-xs" :class="burndownData.is_on_track ? 'text-green-600' : 'text-orange-600'">
-            {{ burndownData.is_on_track ? '✓ 进度正常' : '⚠ 进度落后' }}
+            {{ burndownData.is_on_track ? t('analytics.onTrack') : t('analytics.behind') }}
           </div>
         </div>
       </div>
 
       <!-- Section 4: Recent Activity -->
       <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">最近更新的工作项</h3>
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">{{ t('analytics.recentActivity') }}</h3>
         <div v-if="recentIssues.length === 0" class="text-center py-8 text-gray-400 text-sm">
-          暂无近期活动
+          {{ t('analytics.noRecentActivity') }}
         </div>
         <div v-else class="divide-y divide-gray-100">
           <div v-for="issue in recentIssues" :key="issue.id" class="flex items-center gap-3 py-3">
@@ -273,13 +273,13 @@
               </div>
               <p class="text-xs text-gray-400 mt-0.5">
                 <span class="text-gray-500">{{ issue.state_name }}</span>
-                &middot; 更新于 {{ formatDate(issue.updated_at) }}
+                &middot; {{ t('analytics.updatedAt') }} {{ formatDate(issue.updated_at) }}
               </p>
             </div>
             <button
               @click="openIssue(issue.id)"
               class="text-xs text-indigo-600 hover:text-indigo-800 shrink-0"
-            >查看</button>
+            >{{ t('analytics.view') }}</button>
           </div>
         </div>
       </div>
@@ -289,6 +289,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useRoute, useRouter } from 'vue-router'
 import { projectApi } from '@/api/project'
 import { issueApi } from '@/api/issue'
@@ -301,6 +302,7 @@ import type { CycleResponse, BurndownData } from '@/types/cycle'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(true)
 const projectName = ref('')
@@ -353,11 +355,11 @@ const overviewData = computed(() => ({
 
 // ---- Priority distribution ----
 const priorityConfig: Record<string, { label: string; color: string }> = {
-  urgent: { label: '紧急', color: '#ef4444' },
-  high: { label: '高', color: '#f59e0b' },
-  medium: { label: '中', color: '#3b82f6' },
-  low: { label: '低', color: '#10b981' },
-  none: { label: '无', color: '#9ca3af' },
+  urgent: { label: t('issue.priorityUrgent'), color: '#ef4444' },
+  high: { label: t('issue.priorityHigh'), color: '#f59e0b' },
+  medium: { label: t('issue.priorityMedium'), color: '#3b82f6' },
+  low: { label: t('issue.priorityLow'), color: '#10b981' },
+  none: { label: t('issue.priorityNone'), color: '#9ca3af' },
 }
 
 const priorityDistribution = computed(() => {
@@ -374,11 +376,11 @@ const priorityDistribution = computed(() => {
 
 // ---- State distribution ----
 const stateConfig: Record<string, { label: string; color: string }> = {
-  backlog: { label: '待办', color: '#9ca3af' },
-  todo: { label: '计划中', color: '#3b82f6' },
-  in_progress: { label: '进行中', color: '#f59e0b' },
-  done: { label: '已完成', color: '#10b981' },
-  cancelled: { label: '已取消', color: '#ef4444' },
+  backlog: { label: t('cycle.legendBacklog'), color: '#9ca3af' },
+  todo: { label: t('cycle.legendUnstarted'), color: '#3b82f6' },
+  in_progress: { label: t('cycle.legendStarted'), color: '#f59e0b' },
+  done: { label: t('cycle.legendCompleted'), color: '#10b981' },
+  cancelled: { label: t('cycle.legendCancelled'), color: '#ef4444' },
 }
 
 const stateDistribution = computed(() => {
@@ -482,7 +484,7 @@ function priorityClass(p: string) {
 }
 
 function priorityLabel(p: string) {
-  const m: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }
+  const m: Record<string, string> = { urgent: t('issue.priorityUrgent'), high: t('issue.priorityHigh'), medium: t('issue.priorityMedium'), low: t('issue.priorityLow'), none: t('issue.priorityNone') }
   return m[p] || p
 }
 

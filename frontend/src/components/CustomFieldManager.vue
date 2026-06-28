@@ -3,14 +3,14 @@
     <!-- 头部 -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">自定义字段</h2>
-        <p class="text-sm text-gray-500 mt-0.5">定义工作空间中可用的自定义字段（如优先级、版本号等）</p>
+        <h2 class="text-lg font-semibold text-gray-900">{{ t('customField.customFields') }}</h2>
+        <p class="text-sm text-gray-500 mt-0.5">{{ t('customField.managerDescription') }}</p>
       </div>
       <button v-if="mode !== 'display'" @click="openCreateModal" class="create-btn">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        新建字段
+        {{ t('customField.newField') }}
       </button>
     </div>
 
@@ -38,13 +38,13 @@
             <div class="flex items-center space-x-2">
               <span class="font-medium text-gray-900">{{ field.name }}</span>
               <span class="field-type-badge">{{ getFieldTypeName(field.field_type) }}</span>
-              <span v-if="field.is_required" class="badge-required">必填</span>
-              <span v-if="field.is_readonly" class="badge-readonly">只读</span>
-              <span v-if="!field.is_active" class="badge-inactive">已禁用</span>
+              <span v-if="field.is_required" class="badge-required">{{ t('customField.required') }}</span>
+              <span v-if="field.is_readonly" class="badge-readonly">{{ t('customField.readonly') }}</span>
+              <span v-if="!field.is_active" class="badge-inactive">{{ t('customField.disabled') }}</span>
             </div>
             <p v-if="field.description" class="text-xs text-gray-500 mt-0.5 truncate">{{ field.description }}</p>
             <p v-if="field.field_type === 'dropdown' && field.options?.length > 0" class="text-xs text-gray-400 mt-0.5">
-              {{ field.options?.length }} 个选项{{ field.is_multi_select ? ' (多选)' : '' }}
+              {{ field.options?.length }} {{ t('customField.optionCount') }}{{ field.is_multi_select ? t('customField.multiSelectSuffix') : '' }}
             </p>
           </div>
         </div>
@@ -52,7 +52,7 @@
           <button
             @click.stop="toggleActive(field)"
             class="icon-action"
-            :title="field.is_active ? '禁用' : '启用'"
+            :title="field.is_active ? t('customField.disable') : t('customField.enable')"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path v-if="field.is_active" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -62,7 +62,7 @@
           <button
             @click.stop="confirmDelete(field)"
             class="icon-action icon-action-danger"
-            title="删除"
+            :title="t('common.delete')"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -78,7 +78,7 @@
             :value="getFieldValue(field)"
             @input="(e: Event) => setFieldValue(field, (e.target as HTMLInputElement).value)"
             class="form-input text-sm"
-            :placeholder="field.placeholder || '输入值...'"
+            :placeholder="field.placeholder || t('customField.enterValue')"
           />
           <input
             v-else-if="field.field_type === 'number'"
@@ -88,7 +88,7 @@
             :min="field.number_min"
             :max="field.number_max"
             class="form-input text-sm"
-            placeholder="输入数字..."
+            :placeholder="t('customField.enterNumber')"
           />
           <input
             v-else-if="field.field_type === 'url'"
@@ -96,7 +96,7 @@
             :value="getFieldValue(field)"
             @input="(e: Event) => setFieldValue(field, (e.target as HTMLInputElement).value)"
             class="form-input text-sm"
-            placeholder="https://..."
+            :placeholder="t('customField.urlPlaceholder')"
           />
           <input
             v-else-if="field.field_type === 'date'"
@@ -115,7 +115,7 @@
               @change="(e: Event) => setFieldValue(field, (e.target as HTMLInputElement).checked)"
               class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
-            <span class="text-sm text-gray-700">{{ getFieldValue(field) ? '是' : '否' }}</span>
+            <span class="text-sm text-gray-700">{{ getFieldValue(field) ? t('customField.yes') : t('customField.no') }}</span>
           </label>
           <select
             v-else-if="field.field_type === 'dropdown' && !field.is_multi_select"
@@ -123,7 +123,7 @@
             @change="(e: Event) => setFieldValue(field, (e.target as HTMLSelectElement).value ? Number((e.target as HTMLSelectElement).value) : '')"
             class="form-input text-sm"
           >
-            <option value="">-- 选择 --</option>
+            <option value="">{{ t('customField.selectPlaceholder') }}</option>
             <option v-for="opt in field.options" :key="opt.id" :value="opt.id">{{ opt.value }}</option>
           </select>
           <div v-else-if="field.field_type === 'dropdown' && field.is_multi_select" class="flex flex-wrap gap-2">
@@ -148,7 +148,7 @@
             @change="(e: Event) => setFieldValue(field, [Number((e.target as HTMLSelectElement).value)])"
             class="form-input text-sm"
           >
-            <option value="">-- 选择 --</option>
+            <option value="">{{ t('customField.selectPlaceholder') }}</option>
             <option v-for="m in members" :key="m.id || m.user_id" :value="m.id || m.user_id">
               {{ m.display_name || m.username || m.name || m.email }}
             </option>
@@ -161,7 +161,7 @@
       <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
       </svg>
-      <p class="mt-2 text-sm text-gray-500">暂无自定义字段，点击上方按钮创建</p>
+      <p class="mt-2 text-sm text-gray-500">{{ t('customField.noCustomFieldsHint') }}</p>
     </div>
 
     <!-- 编辑抽屉 -->
@@ -171,9 +171,9 @@
           <div class="drawer-header">
             <div>
               <h3 class="drawer-title">
-                {{ isCreating ? '新建自定义字段' : '编辑: ' + (selectedField?.name || '') }}
+                {{ isCreating ? t('customField.createCustomField') : t('customField.editPrefix') + (selectedField?.name || '') }}
               </h3>
-              <p class="drawer-subtitle">配置自定义字段的属性</p>
+              <p class="drawer-subtitle">{{ t('customField.configureField') }}</p>
             </div>
             <button @click="closeDrawer" class="close-btn">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -184,12 +184,12 @@
 
           <div class="drawer-body">
             <div class="form-group">
-              <label class="form-label">名称 <span class="required">*</span></label>
-              <input v-model="formData.name" type="text" class="form-input" placeholder="输入字段名称" />
+              <label class="form-label">{{ t('customField.name') }} <span class="required">*</span></label>
+              <input v-model="formData.name" type="text" class="form-input" :placeholder="t('customField.enterFieldName')" />
             </div>
 
             <div class="form-group">
-              <label class="form-label">类型 <span class="required">*</span></label>
+              <label class="form-label">{{ t('customField.type') }} <span class="required">*</span></label>
               <select
                 v-model="formData.field_type"
                 :disabled="!isCreating"
@@ -203,34 +203,34 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">描述</label>
+              <label class="form-label">{{ t('customField.description') }}</label>
               <textarea
                 v-model="formData.description"
                 rows="2"
                 class="form-input"
-                placeholder="字段描述（可选）"
+                :placeholder="t('customField.descriptionPlaceholder2')"
               ></textarea>
             </div>
 
             <!-- 文本类型属性 -->
             <div v-if="formData.field_type === 'text'" class="form-group">
-              <label class="form-label">文本类型</label>
+              <label class="form-label">{{ t('customField.textType') }}</label>
               <select v-model="formData.text_type" class="form-input">
-                <option value="single">单行文本</option>
-                <option value="paragraph">多行文本</option>
-                <option value="readonly">只读文本</option>
+                <option value="single">{{ t('customField.singleLineText') }}</option>
+                <option value="paragraph">{{ t('customField.multiLineText') }}</option>
+                <option value="readonly">{{ t('customField.readonlyText') }}</option>
               </select>
             </div>
 
             <!-- 数字类型属性 -->
             <div v-if="formData.field_type === 'number'" class="space-y-3">
               <div class="form-group">
-                <label class="form-label">最小值</label>
-                <input v-model.number="formData.number_min" type="number" class="form-input" placeholder="最小值" />
+                <label class="form-label">{{ t('customField.minValue') }}</label>
+                <input v-model.number="formData.number_min" type="number" class="form-input" :placeholder="t('customField.minValue')" />
               </div>
               <div class="form-group">
-                <label class="form-label">最大值</label>
-                <input v-model.number="formData.number_max" type="number" class="form-input" placeholder="最大值" />
+                <label class="form-label">{{ t('customField.maxValue') }}</label>
+                <input v-model.number="formData.number_max" type="number" class="form-input" :placeholder="t('customField.maxValue')" />
               </div>
             </div>
 
@@ -239,14 +239,14 @@
               <div class="form-group">
                 <label class="checkbox-label">
                   <input v-model="formData.is_multi_select" type="checkbox" class="checkbox" />
-                  <span>允许多选</span>
+                  <span>{{ t('customField.allowMultiSelect') }}</span>
                 </label>
               </div>
 
               <div class="form-group">
                 <div class="flex items-center justify-between">
-                  <label class="form-label">选项列表</label>
-                  <button @click="addOption" class="text-sm text-indigo-600 hover:text-indigo-700">+ 添加选项</button>
+                  <label class="form-label">{{ t('customField.optionsList') }}</label>
+                  <button @click="addOption" class="text-sm text-indigo-600 hover:text-indigo-700">+ {{ t('customField.addOption') }}</button>
                 </div>
                 <div class="space-y-2 mt-2">
                   <div
@@ -264,7 +264,7 @@
                         v-model="option.value"
                         type="text"
                         class="form-input flex-1"
-                        :placeholder="'选项 ' + (index + 1)"
+                        :placeholder="t('customField.optionLabel2').replace('{index}', String(index + 1))"
                       />
                       <button
                         @click="removeOption(index)"
@@ -277,7 +277,7 @@
                     </div>
                   </div>
                   <div v-if="!formData.options || formData.options.length === 0" class="text-sm text-gray-400 text-center py-4">
-                    点击"添加选项"创建下拉选项
+                    {{ t('customField.addOptionHint') }}
                   </div>
                 </div>
               </div>
@@ -287,22 +287,22 @@
             <div class="form-group">
               <label class="checkbox-label">
                 <input v-model="formData.is_required" type="checkbox" class="checkbox" />
-                <span>必填字段</span>
+                <span>{{ t('customField.isRequired') }}</span>
               </label>
             </div>
 
             <div class="form-group">
               <label class="checkbox-label">
                 <input v-model="formData.is_readonly" type="checkbox" class="checkbox" />
-                <span>只读字段</span>
+                <span>{{ t('customField.isReadonly') }}</span>
               </label>
             </div>
           </div>
 
           <div class="drawer-footer">
-            <button @click="closeDrawer" class="btn btn-secondary">取消</button>
+            <button @click="closeDrawer" class="btn btn-secondary">{{ t('common.cancel') }}</button>
             <button @click="submitForm" class="btn btn-primary" :disabled="!formData.name">
-              {{ isCreating ? '创建' : '保存' }}
+              {{ isCreating ? t('common.create') : t('common.save') }}
             </button>
           </div>
         </div>
@@ -312,7 +312,7 @@
     <!-- 颜色选择器弹窗 -->
     <div v-if="showColorPicker" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center" @click.self="showColorPicker = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-sm">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">选择颜色</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('customField.selectColor') }}</h3>
         <div class="color-grid">
           <button
             v-for="color in COLOR_PALETTE"
@@ -324,8 +324,8 @@
           />
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showColorPicker = false" class="btn btn-secondary">取消</button>
-          <button @click="confirmColor" class="btn btn-primary">确定</button>
+          <button @click="showColorPicker = false" class="btn btn-secondary">{{ t('common.cancel') }}</button>
+          <button @click="confirmColor" class="btn btn-primary">{{ t('customField.confirm') }}</button>
         </div>
       </div>
     </div>
@@ -334,11 +334,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { CustomField, CustomFieldCreate, CustomFieldUpdate, CustomFieldOptionCreate } from '@/types/custom-field'
 import { CustomFieldTypeEnum, getFieldTypeName } from '@/types/custom-field'
 import { useConfirm } from '@/composables/useConfirm'
 import * as customFieldApi from '@/api/custom-field'
 import api from '@/api'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   workspaceId: number
@@ -363,13 +366,13 @@ const COLOR_PALETTE = [
 ]
 
 const fieldTypes = [
-  { value: CustomFieldTypeEnum.TEXT, label: '文本' },
-  { value: CustomFieldTypeEnum.NUMBER, label: '数字' },
-  { value: CustomFieldTypeEnum.DROPDOWN, label: '下拉选择' },
-  { value: CustomFieldTypeEnum.BOOLEAN, label: '布尔值' },
-  { value: CustomFieldTypeEnum.DATE, label: '日期' },
-  { value: CustomFieldTypeEnum.MEMBER, label: '成员选择' },
-  { value: CustomFieldTypeEnum.URL, label: '链接' },
+  { value: CustomFieldTypeEnum.TEXT, label: t('customField.typeText') },
+  { value: CustomFieldTypeEnum.NUMBER, label: t('customField.typeNumber') },
+  { value: CustomFieldTypeEnum.DROPDOWN, label: t('customField.typeSelect') },
+  { value: CustomFieldTypeEnum.BOOLEAN, label: t('customField.typeBoolean') },
+  { value: CustomFieldTypeEnum.DATE, label: t('customField.typeDate') },
+  { value: CustomFieldTypeEnum.MEMBER, label: t('customField.typeMember') },
+  { value: CustomFieldTypeEnum.URL, label: t('customField.typeUrl') },
 ]
 
 const customFields = ref<CustomField[]>([])
@@ -530,10 +533,13 @@ async function submitForm() {
 }
 
 async function toggleActive(field: CustomField) {
+  const actionKey = field.is_active ? 'customField.disableField' : 'customField.enableField'
+  const confirmTextKey = field.is_active ? 'customField.disable' : 'customField.enable'
+  const confirmMsgKey = field.is_active ? 'customField.confirmDisableField' : 'customField.confirmEnableField'
   if (await confirm({
-    title: field.is_active ? '禁用字段' : '启用字段',
-    message: `确定要${field.is_active ? '禁用' : '启用'}字段 "${field.name}" 吗？`,
-    confirmText: field.is_active ? '禁用' : '启用',
+    title: t(actionKey),
+    message: t(confirmMsgKey).replace('{name}', field.name),
+    confirmText: t(confirmTextKey),
     danger: field.is_active,
   })) {
     try {
@@ -547,10 +553,10 @@ async function toggleActive(field: CustomField) {
 
 async function confirmDelete(field: CustomField) {
   if (await confirm({
-    title: '删除字段',
-    message: `确定要删除字段 "${field.name}" 吗？此操作不可撤销。`,
+    title: t('customField.deleteField'),
+    message: t('customField.confirmDeleteFieldIrreversible').replace('{name}', field.name),
     danger: true,
-    confirmText: '删除'
+    confirmText: t('common.delete')
   })) {
     try {
       await customFieldApi.deleteCustomField(field.id)

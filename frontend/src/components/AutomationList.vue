@@ -4,10 +4,10 @@
       <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
         <span class="text-3xl">🤖</span>
       </div>
-      <h3 class="text-lg font-medium text-gray-700 mb-2">暂无自动化规则</h3>
-      <p class="text-gray-500 mb-4">创建自动化规则来简化您的工作流程</p>
+      <h3 class="text-lg font-medium text-gray-700 mb-2">{{ t('automation.emptyTitle') }}</h3>
+      <p class="text-gray-500 mb-4">{{ t('automation.emptyHint') }}</p>
       <button @click="$emit('create')" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-        + 创建自动化
+        + {{ t('automation.createAutomation') }}
       </button>
     </div>
 
@@ -38,7 +38,7 @@
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               ]"
             >
-              {{ automation.is_enabled ? '已启用' : '已停用' }}
+              {{ automation.is_enabled ? t('automation.enabled') : t('automation.disabled') }}
             </button>
             <button @click="$emit('edit', automation)" class="p-1 text-gray-400 hover:text-blue-600">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
@@ -63,7 +63,7 @@
               <span class="text-gray-400">|</span>
               <span class="inline-flex items-center px-2 py-1 rounded bg-blue-50 text-blue-700">
                 <span class="mr-1">🎯</span>
-                {{ getConditions(automation).length }} 个条件
+                {{ getConditions(automation).length }}{{ t('automation.conditionsCount') }}
               </span>
             </template>
 
@@ -72,7 +72,7 @@
               <span class="text-gray-400">|</span>
               <span class="inline-flex items-center px-2 py-1 rounded bg-green-50 text-green-700">
                 <span class="mr-1">🎬</span>
-                {{ getActions(automation).length }} 个动作
+                {{ getActions(automation).length }}{{ t('automation.actionsCount') }}
               </span>
             </template>
 
@@ -80,7 +80,7 @@
             <template v-if="automation.execution_count > 0">
               <span class="text-gray-400">|</span>
               <span class="text-gray-500 text-xs">
-                已执行 {{ automation.execution_count }} 次
+                {{ t('automation.executedCount') }} {{ automation.execution_count }}{{ t('automation.times') }}
               </span>
             </template>
           </div>
@@ -89,7 +89,7 @@
           <div v-if="getConditions(automation).length > 0" class="mt-3 text-xs text-gray-500">
             <span v-for="(cond, i) in getConditions(automation)" :key="i">
               {{ getFieldLabel(cond.field) }} {{ getOperatorLabel(cond.operator) }} {{ cond.value }}
-              <span v-if="i < getConditions(automation).length - 1"> 且 </span>
+              <span v-if="i < getConditions(automation).length - 1"> {{ t('automation.and') }} </span>
             </span>
           </div>
 
@@ -97,21 +97,24 @@
           <div v-if="getActions(automation).length > 0" class="mt-2 text-xs text-gray-500">
             <span v-for="(act, i) in getActions(automation)" :key="i">
               {{ getActionLabel(act.type) }}
-              <span v-if="i < getActions(automation).length - 1"> → </span>
+              <span v-if="i < getActions(automation).length - 1"> {{ t('automation.arrow') }} </span>
             </span>
           </div>
         </div>
       </div>
 
       <button @click="$emit('create')" class="w-full py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors">
-        + 添加自动化规则
+        + {{ t('automation.addRule') }}
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from '@/composables/useI18n';
 import { TriggerTypeOptions, ConditionOperatorOptions, ActionTypeOptions } from '@/types/workflow';
+
+const { t } = useI18n();
 
 defineProps<{
   automations: any[];
@@ -125,14 +128,7 @@ function getTriggerLabel(triggerType: string): string {
 }
 
 function getFieldLabel(field: string): string {
-  const labels: Record<string, string> = {
-    state_group: '状态分组',
-    priority: '优先级',
-    assignee: '分配人',
-    labels: '标签',
-    issue_type: '工作项类型',
-  };
-  return labels[field] || field;
+  return t(`automation.fieldLabels.${field}`) || field;
 }
 
 function getOperatorLabel(op: string): string {

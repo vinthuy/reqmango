@@ -3,11 +3,11 @@
     <div class="bg-white rounded-lg border border-gray-200">
       <div class="px-4 py-3 border-b border-gray-200">
         <div class="flex items-center justify-between">
-          <h3 class="text-sm font-medium text-gray-700">估算设置</h3>
+          <h3 class="text-sm font-medium text-gray-700">{{ t('estimatePoint.title') }}</h3>
         </div>
         
         <div class="mt-3 flex items-center space-x-4">
-          <span class="text-xs text-gray-500">估算模式:</span>
+          <span class="text-xs text-gray-500">{{ t('estimatePoint.mode') }}</span>
           <div class="flex space-x-1 bg-gray-100 rounded-lg p-1">
             <button
               v-for="mode in modes"
@@ -36,13 +36,13 @@
 
         <div v-else-if="currentMode === 'points'" class="space-y-2">
           <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-medium text-gray-700">估算点</span>
+            <span class="text-sm font-medium text-gray-700">{{ t('estimatePoint.estimatePoints') }}</span>
             <div class="flex items-center space-x-2">
               <button
                 @click="createDefaults('points')"
                 class="px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800"
               >
-                使用默认模板
+                {{ t('estimatePoint.useDefault') }}
               </button>
               <button
                 @click="$emit('create', 'points')"
@@ -51,7 +51,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                <span>添加</span>
+                <span>{{ t('estimatePoint.add') }}</span>
               </button>
             </div>
           </div>
@@ -60,9 +60,9 @@
             <svg class="h-10 w-10 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
             </svg>
-            <p class="mt-2 text-gray-500 text-sm">暂无估算点</p>
+            <p class="mt-2 text-gray-500 text-sm">{{ t('estimatePoint.noPoints') }}</p>
             <button @click="createDefaults('points')" class="mt-2 text-indigo-600 hover:text-indigo-800 text-sm">
-              使用默认模板创建
+              {{ t('estimatePoint.createWithDefault') }}
             </button>
           </div>
 
@@ -78,22 +78,22 @@
                 </div>
                 <div>
                   <p class="text-sm font-medium text-gray-900">{{ point.name }}</p>
-                  <p class="text-xs text-gray-500">值: {{ point.value }}</p>
+                  <p class="text-xs text-gray-500">{{ t('estimatePoint.value') }} {{ point.value }}</p>
                 </div>
               </div>
               <div class="flex items-center space-x-2">
-                <span v-if="point.is_default" class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">默认</span>
-                <button v-if="!point.is_default" @click="setDefault(point)" class="p-1 text-gray-400 hover:text-indigo-600" title="设为默认">
+                <span v-if="point.is_default" class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">{{ t('estimatePoint.default') }}</span>
+                <button v-if="!point.is_default" @click="setDefault(point)" class="p-1 text-gray-400 hover:text-indigo-600" :title="t('estimatePoint.setDefault')">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                   </svg>
                 </button>
-                <button @click="$emit('edit', point, 'points')" class="p-1 text-gray-400 hover:text-indigo-600" title="编辑">
+                <button @click="$emit('edit', point, 'points')" class="p-1 text-gray-400 hover:text-indigo-600" :title="t('estimatePoint.edit')">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </button>
-                <button @click="deleteItem(point, 'points')" class="p-1 text-gray-400 hover:text-red-600" title="删除">
+                <button @click="deleteItem(point, 'points')" class="p-1 text-gray-400 hover:text-red-600" :title="t('estimatePoint.delete')">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
@@ -105,13 +105,13 @@
 
         <div v-else-if="currentMode === 'categories'" class="space-y-2">
           <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-medium text-gray-700">T-Shirt 分类</span>
+            <span class="text-sm font-medium text-gray-700">{{ t('estimatePoint.categories') }}</span>
             <div class="flex items-center space-x-2">
               <button
                 @click="createDefaults('categories')"
                 class="px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800"
               >
-                使用默认模板
+                {{ t('estimatePoint.useDefault') }}
               </button>
               <button
                 @click="$emit('create', 'categories')"
@@ -120,7 +120,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                <span>添加</span>
+                <span>{{ t('estimatePoint.add') }}</span>
               </button>
             </div>
           </div>
@@ -129,9 +129,9 @@
             <svg class="h-10 w-10 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
             </svg>
-            <p class="mt-2 text-gray-500 text-sm">暂无分类</p>
+            <p class="mt-2 text-gray-500 text-sm">{{ t('estimatePoint.noCategories') }}</p>
             <button @click="createDefaults('categories')" class="mt-2 text-indigo-600 hover:text-indigo-800 text-sm">
-              使用默认模板创建
+              {{ t('estimatePoint.createWithDefault') }}
             </button>
           </div>
 
@@ -150,8 +150,8 @@
                 </div>
               </div>
               <div class="flex items-center space-x-2">
-                <span v-if="cat.is_default" class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">默认</span>
-                <button @click="deleteItem(cat, 'categories')" class="p-1 text-gray-400 hover:text-red-600" title="删除">
+                <span v-if="cat.is_default" class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">{{ t('estimatePoint.default') }}</span>
+                <button @click="deleteItem(cat, 'categories')" class="p-1 text-gray-400 hover:text-red-600" :title="t('estimatePoint.delete')">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
@@ -163,13 +163,13 @@
 
         <div v-else-if="currentMode === 'time'" class="space-y-2">
           <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-medium text-gray-700">时间估算</span>
+            <span class="text-sm font-medium text-gray-700">{{ t('estimatePoint.timeEstimates') }}</span>
             <div class="flex items-center space-x-2">
               <button
                 @click="createDefaults('time')"
                 class="px-2 py-1 text-xs text-indigo-600 hover:text-indigo-800"
               >
-                使用默认模板
+                {{ t('estimatePoint.useDefault') }}
               </button>
               <button
                 @click="$emit('create', 'time')"
@@ -178,7 +178,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                <span>添加</span>
+                <span>{{ t('estimatePoint.add') }}</span>
               </button>
             </div>
           </div>
@@ -187,9 +187,9 @@
             <svg class="h-10 w-10 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
             </svg>
-            <p class="mt-2 text-gray-500 text-sm">暂无时间选项</p>
+            <p class="mt-2 text-gray-500 text-sm">{{ t('estimatePoint.noTimeOptions') }}</p>
             <button @click="createDefaults('time')" class="mt-2 text-indigo-600 hover:text-indigo-800 text-sm">
-              使用默认模板创建
+              {{ t('estimatePoint.createWithDefault') }}
             </button>
           </div>
 
@@ -205,12 +205,12 @@
                 </div>
                 <div>
                   <p class="text-sm font-medium text-gray-900">{{ item.name }}</p>
-                  <p class="text-xs text-gray-500">{{ item.minutes }} 分钟</p>
+                  <p class="text-xs text-gray-500">{{ item.minutes }} {{ t('estimatePoint.minutes') }}</p>
                 </div>
               </div>
               <div class="flex items-center space-x-2">
-                <span v-if="item.is_default" class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">默认</span>
-                <button @click="deleteItem(item, 'time')" class="p-1 text-gray-400 hover:text-red-600" title="删除">
+                <span v-if="item.is_default" class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">{{ t('estimatePoint.default') }}</span>
+                <button @click="deleteItem(item, 'time')" class="p-1 text-gray-400 hover:text-red-600" :title="t('estimatePoint.delete')">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
@@ -228,7 +228,10 @@
 import { ref, onMounted, watch } from 'vue'
 import estimatePointApi from '@/api/estimate-point'
 import { useConfirm } from '@/composables/useConfirm'
+import { useI18n } from '@/composables/useI18n'
 import type { EstimatePoint, EstimateCategory, EstimateTime, EstimateMode } from '@/types/estimate-point'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   projectId: number
@@ -247,9 +250,9 @@ const categories = ref<EstimateCategory[]>([])
 const timeEstimates = ref<EstimateTime[]>([])
 
 const modes = [
-  { value: 'points' as EstimateMode, label: '点数' },
-  { value: 'categories' as EstimateMode, label: 'T-Shirt' },
-  { value: 'time' as EstimateMode, label: '时间' },
+  { value: 'points' as EstimateMode, label: t('estimatePoint.points') },
+  { value: 'categories' as EstimateMode, label: t('estimatePoint.tshirt') },
+  { value: 'time' as EstimateMode, label: t('estimatePoint.time') },
 ]
 
 onMounted(() => {
@@ -329,7 +332,7 @@ async function deleteItem(
   item: EstimatePoint | EstimateCategory | EstimateTime,
   mode: EstimateMode
 ) {
-  if (!(await confirm(`确定要删除 "${(item as EstimatePoint).name}" 吗？`))) return
+  if (!(await confirm(t('estimatePoint.confirmDelete').replace('{name}', (item as EstimatePoint).name)))) return
 
   try {
     if (mode === 'points') {

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useRoute } from 'vue-router'
 import api from '@/api'
 import type { Initiative } from '@/api/initiative'
 
 const route = useRoute()
+const { t } = useI18n()
 const slug = route.params.slug as string
 const workspaceId = ref<number>(0)
 const initiatives = ref<Initiative[]>([])
@@ -108,14 +110,14 @@ function getCycleStatusColor(cycle: any): string {
 
 const monthLabels = computed(() => timelineMonths.value.map(m => {
   const [, mo] = m.split('-')
-  return `${parseInt(mo)}月`
+  return t('roadmap.monthFormat', { month: parseInt(mo) })
 }))
 </script>
 
 <template>
   <div class="p-6 max-w-full mx-auto">
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">路线图</h1>
+      <h1 class="text-2xl font-bold">{{ t('roadmap.title') }}</h1>
       <div v-if="projects.length > 1" class="flex gap-2">
         <select v-model="selectedProjectId" @change="loadProjectData(selectedProjectId!)" class="border rounded-lg px-3 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600">
           <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
@@ -123,7 +125,7 @@ const monthLabels = computed(() => timelineMonths.value.map(m => {
       </div>
     </div>
 
-    <div v-if="loading" class="text-center py-16 text-gray-400">加载中...</div>
+    <div v-if="loading" class="text-center py-16 text-gray-400">{{ t('roadmap.loading') }}</div>
 
     <div v-else>
       <!-- When data exists, show timeline -->
@@ -192,17 +194,17 @@ const monthLabels = computed(() => timelineMonths.value.map(m => {
       <!-- Empty state - show when no data AND not loading -->
       <div v-else class="text-center py-16 text-gray-400">
         <div class="text-5xl mb-3">🗺️</div>
-        <p class="text-lg font-medium text-gray-500 dark:text-gray-400">暂无路线图数据</p>
-        <p class="text-sm mt-1 mb-6">创建 Initiative、Cycle 或 Module 后将在此显示时间线视图</p>
+        <p class="text-lg font-medium text-gray-500 dark:text-gray-400">{{ t('roadmap.empty') }}</p>
+        <p class="text-sm mt-1 mb-6">{{ t('roadmap.emptyHint') }}</p>
         <div class="flex items-center justify-center gap-3 flex-wrap">
           <router-link :to="`/workspace/${slug}/initiatives`" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">
-            + 创建 Initiative
+            {{ t('roadmap.createInitiative') }}
           </router-link>
           <router-link v-if="selectedProjectId" :to="`/workspace/${slug}/project/${selectedProjectId}/cycles/new`" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-            + 创建 Cycle
+            {{ t('roadmap.createCycle') }}
           </router-link>
           <router-link v-if="selectedProjectId" :to="`/workspace/${slug}/project/${selectedProjectId}?tab=modules`" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-            + 创建 Module
+            {{ t('roadmap.createModule') }}
           </router-link>
         </div>
       </div>

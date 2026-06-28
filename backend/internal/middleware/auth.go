@@ -8,23 +8,33 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/reqmango/backend/internal/i18n"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
+
+// AuthMiddleware validates JWT tokens and sets the current user in context.
+// msg returns a translated message for the given i18n key.
+func msg(c *gin.Context, key, fallback string) string {
+	lang := i18n.DetectLanguage(c.GetHeader("Accept-Language"))
+	if ql := c.Query("lang"); ql != "" { lang = ql }
+	if translated := i18n.T(lang, key); translated != key { return translated }
+	return fallback
+}
 
 // AuthMiddleware validates JWT tokens and sets the current user in context.
 func AuthMiddleware(db *gorm.DB, secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Missing authorization header"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "missing_auth_header", "Missing authorization header")})
 			c.Abort()
 			return
 		}
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid authorization header format"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "invalid_format", "Invalid authorization header format")})
 			c.Abort()
 			return
 		}
@@ -40,14 +50,14 @@ func AuthMiddleware(db *gorm.DB, secret string) gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid or expired token"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid or expired token")})
 			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid token claims"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid token claims")})
 			c.Abort()
 			return
 		}
@@ -55,14 +65,14 @@ func AuthMiddleware(db *gorm.DB, secret string) gin.HandlerFunc {
 		// Extract user ID from "sub" claim
 		sub, ok := claims["sub"].(string)
 		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid token subject"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid token subject")})
 			c.Abort()
 			return
 		}
 
 		userID, err := strconv.ParseUint(sub, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid user ID in token"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid user ID in token")})
 			c.Abort()
 			return
 		}
@@ -70,13 +80,13 @@ func AuthMiddleware(db *gorm.DB, secret string) gin.HandlerFunc {
 		// Look up user
 		var user model.User
 		if err := db.First(&user, userID).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "User not found"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "user_not_found", "User not found")})
 			c.Abort()
 			return
 		}
 
 		if !user.IsActive || user.DeletedAt.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Account is disabled"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "forbidden", "Account is disabled")})
 			c.Abort()
 			return
 		}

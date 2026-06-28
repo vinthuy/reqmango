@@ -14,7 +14,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
             </svg>
-            <span>卡片</span>
+            <span>{{ t('module.card') }}</span>
           </button>
           <button
             @click="viewMode = 'list'"
@@ -26,7 +26,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
-            <span>列表</span>
+            <span>{{ t('module.list') }}</span>
           </button>
           <button
             @click="viewMode = 'tree'"
@@ -38,7 +38,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
             </svg>
-            <span>树形</span>
+            <span>{{ t('module.tree') }}</span>
           </button>
         </div>
 
@@ -50,7 +50,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            <span>新建模块</span>
+            <span>{{ t('module.create') }}</span>
           </button>
         </div>
       </div>
@@ -64,7 +64,7 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <p class="mt-2 text-gray-500">加载中...</p>
+        <p class="mt-2 text-gray-500">{{ t('common.loading') }}</p>
       </div>
 
       <!-- 空状态 -->
@@ -72,9 +72,9 @@
         <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
-        <p class="mt-2 text-gray-500">暂无模块</p>
+        <p class="mt-2 text-gray-500">{{ t('module.noModules') }}</p>
         <button @click="$emit('create')" class="mt-3 text-indigo-600 hover:text-indigo-800 text-sm">
-          创建第一个模块
+          {{ t('module.createFirst') }}
         </button>
       </div>
 
@@ -107,11 +107,11 @@
             </div>
           </div>
           <div class="flex items-center space-x-3">
-            <span class="text-xs text-gray-400">{{ module.parent_id ? '子模块' : '顶级' }}</span>
+            <span class="text-xs text-gray-400">{{ module.parent_id ? t('module.submodule') : t('module.topLevel') }}</span>
             <button
               @click.stop="$emit('delete', module)"
               class="text-gray-400 hover:text-red-500 p-1"
-              title="删除"
+              :title="t('common.delete')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -135,10 +135,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import ModuleCard from './ModuleCard.vue'
 import ModuleTree from './ModuleTree.vue'
 import { useModuleStore } from '@/stores/module'
 import type { ModuleResponse, ModuleTreeNode } from '@/types/module'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   projectId: number

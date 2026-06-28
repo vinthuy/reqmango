@@ -4,7 +4,7 @@
       <!-- 头部 -->
       <div class="px-4 py-3 border-b border-gray-200">
         <div class="flex items-center justify-between">
-          <h3 class="text-sm font-medium text-gray-700">成员管理</h3>
+          <h3 class="text-sm font-medium text-gray-700">{{ t('projectMember.title') }}</h3>
           <button
             @click="openInviteModal"
             class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 flex items-center space-x-1"
@@ -12,7 +12,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            <span>添加成员</span>
+            <span>{{ t('projectMember.addMember') }}</span>
           </button>
         </div>
       </div>
@@ -32,7 +32,7 @@
           <svg class="h-10 w-10 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
-          <p class="mt-2 text-gray-500 text-sm">暂无成员</p>
+          <p class="mt-2 text-gray-500 text-sm">{{ t('projectMember.noMembers') }}</p>
         </div>
 
         <!-- 成员列表 -->
@@ -55,9 +55,9 @@
               @change="updateMemberRole(member.user_id, ($event.target as HTMLSelectElement).value)"
               class="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="member">成员</option>
-              <option value="admin">管理员</option>
-              <option value="viewer">查看者</option>
+              <option value="member">{{ t('projectMember.roleMember') }}</option>
+              <option value="admin">{{ t('projectMember.roleAdmin') }}</option>
+              <option value="viewer">{{ t('projectMember.roleViewer') }}</option>
             </select>
 
             <!-- 移除 -->
@@ -80,15 +80,14 @@
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     >
       <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <h3 class="text-lg font-semibold mb-4">添加成员</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ t('projectMember.addMember') }}</h3>
 
         <form @submit.prevent="inviteMember" class="space-y-4">
           <!-- 用户选择 -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              选择用户 *
+              {{ t('projectMember.selectUser') }}
             </label>
-            <!-- 已选择的用户 -->
             <div v-if="selectedUser" class="mb-2 p-2 bg-indigo-50 border border-indigo-200 rounded-md flex items-center justify-between">
               <div class="flex items-center space-x-2">
                 <div class="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-medium">
@@ -107,7 +106,7 @@
               <input
                 v-model="userSearchQuery"
                 type="text"
-                placeholder="搜索用户（昵称或邮箱）"
+                :placeholder="t('projectMember.searchUsers')"
                 class="w-full px-3 py-2 pl-9 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,10 +130,10 @@
                 </div>
               </div>
               <div v-if="filteredUsers.length === 0" class="px-3 py-4 text-center text-gray-500 text-sm">
-                未找到匹配的用户
+                {{ t('projectMember.noUsersFound') }}
               </div>
               <div v-if="filteredUsers.length > 20" class="px-3 py-2 text-center text-gray-500 text-xs bg-gray-50">
-                只显示前20条结果
+                {{ t('projectMember.showingTop20') }}
               </div>
             </div>
           </div>
@@ -142,15 +141,15 @@
           <!-- 角色 -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              角色
+              {{ t('projectMember.role') }}
             </label>
             <select
               v-model="inviteForm.role"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="member">成员</option>
-              <option value="admin">管理员</option>
-              <option value="viewer">查看者</option>
+              <option value="member">{{ t('projectMember.roleMember') }}</option>
+              <option value="admin">{{ t('projectMember.roleAdmin') }}</option>
+              <option value="viewer">{{ t('projectMember.roleViewer') }}</option>
             </select>
           </div>
 
@@ -161,14 +160,14 @@
               @click="closeInviteModal"
               class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
             >
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button
               type="submit"
               :disabled="submitting"
               class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
             >
-              {{ submitting ? '添加中...' : '添加' }}
+              {{ submitting ? t('projectMember.adding') : t('projectMember.add') }}
             </button>
           </div>
         </form>
@@ -183,7 +182,10 @@ import projectApi from '@/api/project'
 import { authApi } from '@/api/auth'
 import type { ProjectMember } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
+import { useI18n } from '@/composables/useI18n'
 import type { UserLite } from '@/types'
+
+const { t } = useI18n()
 
 // Props
 const props = defineProps<{
@@ -307,7 +309,7 @@ function getRoleLabel(role: number): string {
 // Invite member
 async function inviteMember() {
   if (!selectedUserId.value) {
-    alert('请选择用户')
+    alert(t('projectMember.pleaseSelectUser'))
     return
   }
   
@@ -323,11 +325,11 @@ async function inviteMember() {
     userSearchQuery.value = ''
     await loadMembers()
     emit('refresh')
-    alert('成员添加成功')
+    alert(t('projectMember.addSuccess'))
   } catch (error: any) {
     console.error('Failed to invite member:', error)
-    const errorMsg = error.response?.data?.message || error.message || '添加失败'
-    alert('添加失败: ' + errorMsg)
+    const errorMsg = error.response?.data?.message || error.message || t('projectMember.addFailed')
+    alert(t('projectMember.addFailed') + errorMsg)
   } finally {
     submitting.value = false
   }
@@ -345,14 +347,14 @@ async function updateMemberRole(memberId: number, role: string) {
     emit('refresh')
   } catch (error: any) {
     console.error('Failed to update member role:', error)
-    const errorMsg = error.response?.data?.message || error.message || '更新失败'
-    alert('更新失败: ' + errorMsg)
+    const errorMsg = error.response?.data?.message || error.message || t('projectMember.updateFailed')
+    alert(t('projectMember.updateFailed') + errorMsg)
   }
 }
 
 // Remove member
 async function removeMember(memberId: number) {
-  if (!(await confirm('确定要移除此成员吗？'))) return
+  if (!(await confirm(t('projectMember.confirmRemove')))) return
 
   try {
     await projectApi.removeProjectMember(props.projectId, memberId)

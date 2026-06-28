@@ -6,10 +6,12 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ShortcutsPanel from '@/components/ShortcutsPanel.vue'
 import TopBar from '@/components/TopBar.vue'
 import { useDarkMode } from '@/composables/useDarkMode'
+import { useI18n } from '@/composables/useI18n'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const { isDark, toggle: toggleTheme } = useDarkMode()
+const { t } = useI18n()
 const showShortcuts = ref(false)
 
 const showTopBar = computed(() => {
@@ -46,6 +48,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
     v-if="showTopBar"
     @click="toggleTheme"
     class="fixed bottom-4 right-4 w-8 h-8 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full shadow-md hover:shadow-lg transition flex items-center justify-center text-xs z-20"
-    :title="isDark ? '切换浅色' : '切换深色'"
+    :title="isDark ? t('app.lightMode') : t('app.darkMode')"
   >{{ isDark ? '☀️' : '🌙' }}</button>
 </template>

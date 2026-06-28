@@ -20,6 +20,7 @@ func SeedAll(db *gorm.DB) {
 	SeedRBACData(db)
 	SeedDemoData(db)
 	SeedConfigData(db)
+	SeedIssueTypesForAllWorkspaces(db)
 
 	fmt.Println("=== Data initialization complete ===")
 }
@@ -1020,4 +1021,28 @@ func weightedRandom(weights []int, rng *rand.Rand) int {
 		}
 	}
 	return len(weights) - 1
+}
+
+// SeedIssueTypesForAllWorkspaces ensures every workspace has issue types.
+func SeedIssueTypesForAllWorkspaces(db *gorm.DB) {
+	var workspaces []model.Workspace
+	db.Find(&workspaces)
+	for _, ws := range workspaces {
+		var count int64
+		db.Model(&model.IssueType{}).Where("workspace_id = ?", ws.ID).Count(&count)
+		if count > 0 { continue }
+		epic := model.IssueType{Name: "Epic", Color: "#8B5CF6", Icon: "layers", Description: "顶层史诗级工作项", Level: 0, IsDefault: true, Sequence: 1, WorkspaceID: ws.ID}
+		db.Create(&epic)
+		feature := model.IssueType{Name: "Feature", Color: "#6366F1", Icon: "star", Description: "功能特性", Level: 1, ParentTypeID: &epic.ID, Sequence: 2, WorkspaceID: ws.ID}
+		db.Create(&feature)
+		bug := model.IssueType{Name: "Bug", Color: "#EF4444", Icon: "bug", Description: "缺陷/问题", Level: 2, ParentTypeID: &feature.ID, Sequence: 3, WorkspaceID: ws.ID}
+		db.Create(&bug)
+		task := model.IssueType{Name: "Task", Color: "#10B981", Icon: "check-circle", Description: "开发任务", Level: 2, ParentTypeID: &feature.ID, Sequence: 4, WorkspaceID: ws.ID}
+		db.Create(&task)
+		story := model.IssueType{Name: "Story", Color: "#F59E0B", Icon: "bookmark", Description: "用户故事", Level: 1, ParentTypeID: &epic.ID, Sequence: 5, WorkspaceID: ws.ID}
+		db.Create(&story)
+		spike := model.IssueType{Name: "Spike", Color: "#06B6D4", Icon: "zap", Description: "技术调研/探索", Level: 1, ParentTypeID: &epic.ID, Sequence: 6, WorkspaceID: ws.ID}
+		db.Create(&spike)
+	}
+	fmt.Println("Seeded issue types for all workspaces")
 }

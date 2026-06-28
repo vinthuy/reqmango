@@ -6,7 +6,7 @@
       <!-- 侧滑面板 -->
       <div class="relative ml-auto w-full max-w-xl bg-white shadow-xl flex flex-col h-full overflow-hidden" :class="visible && 'animate-slide-in'">
         <div v-if="loading" class="flex items-center justify-center h-full">
-          <div class="text-gray-400 text-sm">加载中...</div>
+          <div class="text-gray-400 text-sm">{{ t('common.loading') }}</div>
         </div>
         <template v-else-if="issue">
           <!-- 头部 -->
@@ -25,7 +25,7 @@
                 v-if="!editing"
                 @click="startEdit"
                 class="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-300 rounded-md hover:bg-indigo-50"
-              >编辑</button>
+              >{{ t('common.edit') }}</button>
               <button @click="close" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
@@ -38,52 +38,52 @@
             <template v-if="editing">
               <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <label class="block text-xs text-gray-500 mb-1">状态</label>
+                  <label class="block text-xs text-gray-500 mb-1">{{ t('issue.state') }}</label>
                   <select v-model="editForm.state_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
                     <option v-for="s in stateOptions" :key="s.id" :value="s.id">{{ s.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <label class="block text-xs text-gray-500 mb-1">优先级</label>
+                  <label class="block text-xs text-gray-500 mb-1">{{ t('issue.priority') }}</label>
                   <select v-model="editForm.priority" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
-                    <option value="urgent">紧急</option>
-                    <option value="high">高</option>
-                    <option value="medium">中</option>
-                    <option value="low">低</option>
-                    <option value="none">无</option>
+                    <option value="urgent">{{ t('issue.priorityUrgent') }}</option>
+                    <option value="high">{{ t('issue.priorityHigh') }}</option>
+                    <option value="medium">{{ t('issue.priorityMedium') }}</option>
+                    <option value="low">{{ t('issue.priorityLow') }}</option>
+                    <option value="none">{{ t('issue.priorityNone') }}</option>
                   </select>
                 </div>
               </div>
               <div>
-                <label class="block text-xs text-gray-500 mb-1">类型</label>
+                <label class="block text-xs text-gray-500 mb-1">{{ t('issue.type') }}</label>
                 <select v-model="editForm.type_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
-                  <option :value="0">未设置</option>
+                  <option :value="0">{{ t('issueDetail.unset') }}</option>
                   <option v-for="t in issueTypeOptions" :key="t.id" :value="t.id">{{ t.name }}</option>
                 </select>
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <label class="block text-xs text-gray-500 mb-1">开始日期</label>
+                  <label class="block text-xs text-gray-500 mb-1">{{ t('issue.startDate') }}</label>
                   <input v-model="editForm.start_date" type="date" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
                 </div>
                 <div>
-                  <label class="block text-xs text-gray-500 mb-1">截止日期</label>
+                  <label class="block text-xs text-gray-500 mb-1">{{ t('issue.targetDate') }}</label>
                   <input v-model="editForm.target_date" type="date" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
                 </div>
               </div>
               <div>
-                <label class="block text-xs text-gray-500 mb-1">周期</label>
+                <label class="block text-xs text-gray-500 mb-1">{{ t('issue.cycle') }}</label>
                 <select v-model="editForm.cycle_id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
-                  <option :value="0">无</option>
+                  <option :value="0">{{ t('issueDetail.unset') }}</option>
                   <option v-for="c in cycleOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
                 </select>
               </div>
               <div>
-                <label class="block text-xs text-gray-500 mb-2">描述</label>
-                <RichTextEditor v-model="editForm.description_html" placeholder="输入工作项描述..." />
+                <label class="block text-xs text-gray-500 mb-2">{{ t('issue.description') }}</label>
+                <RichTextEditor v-model="editForm.description_html" :placeholder="t('issueDetail.descriptionPlaceholder')" />
               </div>
               <div v-if="issue">
-                <label class="block text-xs text-gray-500 mb-2">自定义属性</label>
+                <label class="block text-xs text-gray-500 mb-2">{{ t('issue.customFields') }}</label>
                 <CustomFieldManager
                   ref="panelCustomFieldRef"
                   :workspace-id="workspaceId"
@@ -100,14 +100,14 @@
             <template v-else>
               <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <label class="block text-xs text-gray-500 mb-1">状态</label>
+                  <label class="block text-xs text-gray-500 mb-1">{{ t('issue.state') }}</label>
                   <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium" :style="{ backgroundColor: (issue.state_color || '#6366f1') + '20', color: issue.state_color || '#6366f1' }">
                     <span class="w-2 h-2 rounded-full mr-1.5" :style="{ backgroundColor: issue.state_color || '#6366f1' }"></span>
                     {{ issue.state_name || '-' }}
                   </span>
                 </div>
                 <div>
-                  <label class="block text-xs text-gray-500 mb-1">优先级</label>
+                  <label class="block text-xs text-gray-500 mb-1">{{ t('issue.priority') }}</label>
                   <span :class="priorityClass(issue.priority)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium">
                     <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="priorityDot(issue.priority)"></span>
                     {{ priorityLabel(issue.priority) }}
@@ -116,7 +116,7 @@
               </div>
               <div v-if="issue.issue_type" class="grid grid-cols-1 gap-3">
                 <div>
-                  <label class="block text-xs text-gray-500 mb-1">类型</label>
+                  <label class="block text-xs text-gray-500 mb-1">{{ t('issue.type') }}</label>
                   <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                     <span class="w-2 h-2 rounded-full mr-1.5" :style="{ backgroundColor: issue.issue_type.color }"></span>
                     {{ issue.issue_type.name }}
@@ -124,7 +124,7 @@
                 </div>
               </div>
               <div v-if="issue.assignees && issue.assignees.length > 0">
-                <label class="block text-xs text-gray-500 mb-1">负责人</label>
+                <label class="block text-xs text-gray-500 mb-1">{{ t('issue.assignee') }}</label>
                 <div class="flex flex-wrap gap-1.5">
                   <span v-for="a in issue.assignees" :key="a.id" class="inline-flex items-center px-2 py-0.5 bg-gray-100 rounded text-sm text-gray-700">
                     {{ a.display_name || a.username || 'User #' + a.id }}
@@ -132,28 +132,28 @@
                 </div>
               </div>
               <div class="grid grid-cols-2 gap-3">
-                <div><label class="block text-xs text-gray-500 mb-1">开始日期</label><span class="text-sm text-gray-800">{{ issue.start_date || '-' }}</span></div>
-                <div><label class="block text-xs text-gray-500 mb-1">截止日期</label><span class="text-sm text-gray-800">{{ issue.target_date || '-' }}</span></div>
+                <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.startDate') }}</label><span class="text-sm text-gray-800">{{ issue.start_date || '-' }}</span></div>
+                <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.targetDate') }}</label><span class="text-sm text-gray-800">{{ issue.target_date || '-' }}</span></div>
               </div>
               <div v-if="issue.cycle_id">
-                <label class="block text-xs text-gray-500 mb-1">周期</label>
+                <label class="block text-xs text-gray-500 mb-1">{{ t('issue.cycle') }}</label>
                 <span class="inline-flex items-center px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-sm">Cycle #{{ issue.cycle_id }}</span>
               </div>
               <div v-if="issue.module_ids && issue.module_ids.length > 0">
-                <label class="block text-xs text-gray-500 mb-1">模块</label>
+                <label class="block text-xs text-gray-500 mb-1">{{ t('issueDetail.module') }}</label>
                 <div class="flex flex-wrap gap-1.5">
                   <span v-for="mid in issue.module_ids" :key="mid" class="inline-flex items-center px-2 py-0.5 bg-gray-100 rounded text-sm text-gray-700">#{{ mid }}</span>
                 </div>
               </div>
               <div>
-                <label class="block text-xs text-gray-500 mb-2">描述</label>
+                <label class="block text-xs text-gray-500 mb-2">{{ t('issue.description') }}</label>
                 <div v-if="issue.description_html" class="prose prose-sm max-w-none text-gray-700 bg-gray-50 rounded-md p-3" v-html="issue.description_html"></div>
-                <div v-else class="text-sm text-gray-400 italic">暂无描述</div>
+                <div v-else class="text-sm text-gray-400 italic">{{ t('issueDetail.noDescription') }}</div>
               </div>
               <div class="border-t border-gray-100 pt-3">
                 <div class="text-xs text-gray-400 space-y-1">
-                  <div>创建时间：{{ formatDate(issue.created_at) }}</div>
-                  <div>更新时间：{{ formatDate(issue.updated_at) }}</div>
+                  <div>{{ t('issueDetail.createdAt').replace('{0}', formatDate(issue.created_at)) }}</div>
+                  <div>{{ t('issueDetail.updatedAt').replace('{0}', formatDate(issue.updated_at)) }}</div>
                 </div>
               </div>
             </template>
@@ -161,16 +161,16 @@
 
           <!-- 底部操作栏 -->
           <div class="border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
-            <div class="text-xs text-gray-400">创建时间：{{ formatDate(issue.created_at) }}</div>
+            <div class="text-xs text-gray-400">{{ t('issueDetail.createdAt').replace('{0}', formatDate(issue.created_at)) }}</div>
             <div class="flex items-center space-x-2">
               <template v-if="editing">
-                <button @click="cancelEdit" class="px-4 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
+                <button @click="cancelEdit" class="px-4 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">{{ t('common.cancel') }}</button>
                 <button @click="saveEdit" :disabled="saving" class="px-4 py-1.5 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50">
-                  {{ saving ? '保存中...' : '保存' }}
+                  {{ saving ? t('issue.saving') : t('common.save') }}
                 </button>
               </template>
               <template v-else>
-                <button @click="deleteIssue" class="px-4 py-1.5 text-sm text-red-600 border border-red-300 rounded-md hover:bg-red-50">删除</button>
+                <button @click="deleteIssue" class="px-4 py-1.5 text-sm text-red-600 border border-red-300 rounded-md hover:bg-red-50">{{ t('common.delete') }}</button>
               </template>
             </div>
           </div>
@@ -186,10 +186,12 @@ import issueApi from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
 import api from '@/api'
 import { useConfirm } from '@/composables/useConfirm'
+import { useI18n } from '@/composables/useI18n'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
 
 const { confirm } = useConfirm()
+const { t, locale } = useI18n()
 
 const props = defineProps<{
   issueId: number | null
@@ -303,7 +305,7 @@ async function saveEdit() {
     emit('close')
   } catch (e) {
     console.error('Failed to save issue:', e)
-    alert('保存失败')
+    alert(t('issueDetail.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -314,14 +316,14 @@ function close() {
 }
 
 async function deleteIssue() {
-  if (issue.value && await confirm(`确定要删除工作项 "${issue.value.name}" 吗？`)) {
+  if (issue.value && await confirm(t('issueDetail.confirmDelete').replace('{0}', issue.value.name))) {
     emit('delete', issue.value)
   }
 }
 
 function formatDate(d: string) {
   if (!d) return '-'
-  return new Date(d).toLocaleString('zh-CN', { hour12: false })
+  return new Date(d).toLocaleString(locale.value, { hour12: false })
 }
 
 function priorityClass(p: string) {
@@ -343,7 +345,7 @@ function priorityDot(p: string) {
 
 function priorityLabel(p: string) {
   const m: Record<string, string> = {
-    urgent: '紧急', high: '高', medium: '中', low: '低', none: '无'
+    urgent: t('issue.priorityUrgent'), high: t('issue.priorityHigh'), medium: t('issue.priorityMedium'), low: t('issue.priorityLow'), none: t('issue.priorityNone')
   }
   return m[p] || p
 }

@@ -10,7 +10,7 @@
             </svg>
           </button>
           <h1 class="text-lg font-semibold text-gray-900">
-            {{ issue?.issue_type?.name || '工作项' }} #{{ issue?.sequence_id }}
+            {{ issue?.issue_type?.name || t('issue.unknown') }} #{{ issue?.sequence_id }}
           </h1>
         </div>
         <div class="flex items-center space-x-3">
@@ -19,7 +19,7 @@
             :disabled="saving"
             class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            {{ saving ? '保存中...' : '保存' }}
+            {{ saving ? t('issue.saving') : t('issue.save') }}
           </button>
         </div>
       </div>
@@ -35,23 +35,23 @@
             <input
               v-model="issueForm.name"
               type="text"
-              placeholder="工作项标题"
+              :placeholder="t('issue.titlePlaceholder')"
               class="w-full text-xl font-semibold border-0 focus:outline-none focus:ring-0"
             />
           </div>
 
           <!-- 描述 -->
           <div class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-sm font-medium text-gray-700 mb-3">描述</h3>
+            <h3 class="text-sm font-medium text-gray-700 mb-3">{{ t('issue.description') }}</h3>
             <RichTextEditor
               v-model="issueForm.description"
-              placeholder="添加描述..."
+              :placeholder="t('issue.descriptionPlaceholder')"
             />
           </div>
 
           <!-- 评论区 -->
           <div class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-sm font-medium text-gray-700 mb-4">评论</h3>
+            <h3 class="text-sm font-medium text-gray-700 mb-4">{{ t('issue.comments') }}</h3>
             <CommentList :issue-id="issueId" />
             <TimeTrackPanel :issue-id="issueId" />
             <RecurrenceConfig :issue-id="issueId" />
@@ -59,7 +59,7 @@
 
           <!-- 活动历史 -->
           <div v-if="activities.length > 0" class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-sm font-medium text-gray-700 mb-4">活动历史</h3>
+            <h3 class="text-sm font-medium text-gray-700 mb-4">{{ t('issue.activity') }}</h3>
             <div class="space-y-2">
               <div v-for="act in activities" :key="act.id" class="flex items-start space-x-3 text-sm">
                 <span class="text-xs text-gray-400 w-20 shrink-0">{{ formatActivityTime(act.created_at) }}</span>
@@ -70,7 +70,7 @@
 
           <!-- 自定义字段区域 -->
           <div class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-sm font-medium text-gray-700 mb-4">自定义属性</h3>
+            <h3 class="text-sm font-medium text-gray-700 mb-4">{{ t('issue.customFields') }}</h3>
             <CustomFieldManager
               ref="customFieldManagerRef"
               :workspace-id="workspaceId"
@@ -97,7 +97,7 @@
         <div class="space-y-6">
           <!-- 状态 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">状态</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.state') }}</label>
             <select
               v-model="issueForm.state_id"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -110,12 +110,12 @@
 
           <!-- 类型 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">类型</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.type') }}</label>
             <select
               v-model="issueForm.type_id"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">未设置</option>
+              <option value="">{{ t('issue.notSet') }}</option>
               <option v-for="it in issueTypes" :key="it.id" :value="it.id">
                 {{ it.name }}
               </option>
@@ -124,27 +124,27 @@
 
           <!-- 优先级 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">优先级</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.priority') }}</label>
             <select
               v-model="issueForm.priority"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="urgent">紧急</option>
-              <option value="high">高</option>
-              <option value="medium">中</option>
-              <option value="low">低</option>
-              <option value="none">无</option>
+              <option value="urgent">{{ t('issue.priorityUrgent') }}</option>
+              <option value="high">{{ t('issue.priorityHigh') }}</option>
+              <option value="medium">{{ t('issue.priorityMedium') }}</option>
+              <option value="low">{{ t('issue.priorityLow') }}</option>
+              <option value="none">{{ t('issue.priorityNone') }}</option>
             </select>
           </div>
 
           <!-- 负责人 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">负责人</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.assignee') }}</label>
             <select
               v-model="issueForm.assignee_id"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">未分配</option>
+              <option value="">{{ t('issue.unassigned') }}</option>
               <option v-for="member in projectMembers" :key="member.id" :value="member.id">
                 {{ member.display_name || member.email }}
               </option>
@@ -153,12 +153,12 @@
 
           <!-- 周期 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">周期</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.cycle') }}</label>
             <select
               v-model="issueForm.cycle_id"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">无周期</option>
+              <option value="">{{ t('issue.noCycle') }}</option>
               <option v-for="cycle in cycles" :key="cycle.id" :value="cycle.id">
                 {{ cycle.name }}
               </option>
@@ -167,12 +167,12 @@
 
           <!-- 模块 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">模块</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.module') }}</label>
             <select
               v-model="issueForm.module_id"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">无模块</option>
+              <option value="">{{ t('issue.noModule') }}</option>
               <option v-for="module in modules" :key="module.id" :value="module.id">
                 {{ module.name }}
               </option>
@@ -181,7 +181,7 @@
 
           <!-- 开始日期 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">开始日期</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.startDate') }}</label>
             <input
               v-model="issueForm.start_date"
               type="date"
@@ -191,7 +191,7 @@
 
           <!-- 目标日期 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">目标日期</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.targetDate') }}</label>
             <input
               v-model="issueForm.target_date"
               type="date"
@@ -201,7 +201,7 @@
 
           <!-- 标签 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">标签</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.labels') }}</label>
             <LabelSelector
               :project-id="projectId"
               v-model="selectedLabelIds"
@@ -211,37 +211,37 @@
 
           <!-- 关联关系 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">关联关系</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.relations') }}</label>
             <div v-if="relations.length > 0" class="space-y-2 mb-3">
               <div v-for="rel in relations" :key="rel.id" class="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
                 <div class="flex items-center space-x-2">
-                  <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{{ rel.relation_type?.outward_name || rel.relation_type?.name || '关联' }}</span>
+                  <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{{ rel.relation_type?.outward_name || rel.relation_type?.name || t('issue.relations') }}</span>
                   <span>#{{ rel.related_issue?.sequence_id || rel.related_issue_id }}</span>
                   <span class="text-gray-700 truncate max-w-[120px]">{{ rel.related_issue?.name || '' }}</span>
                 </div>
                 <button @click="deleteRelation(rel.id)" class="text-gray-400 hover:text-red-500">&times;</button>
               </div>
             </div>
-            <div v-if="!showAddRelation" class="text-xs text-gray-400">无关联关系</div>
-            <button v-if="!showAddRelation" @click="showAddRelation = true" class="text-xs text-indigo-600 hover:text-indigo-800 mt-1">+ 添加关联</button>
+            <div v-if="!showAddRelation" class="text-xs text-gray-400">{{ t('issue.noRelations') }}</div>
+            <button v-if="!showAddRelation" @click="showAddRelation = true" class="text-xs text-indigo-600 hover:text-indigo-800 mt-1">{{ t('issue.addRelation') }}</button>
             <div v-if="showAddRelation" class="mt-2 space-y-2">
               <select v-model="newRelation.type_id" class="w-full px-2 py-1 border rounded text-xs">
-                <option value="">选择关系类型</option>
+                <option value="">{{ t('issue.selectRelationType') }}</option>
                 <option v-for="rt in relationTypes" :key="rt.id" :value="rt.id">{{ rt.outward_name }} ({{ rt.name }})</option>
               </select>
-              <input v-model="newRelation.search" @input="searchRelatedIssues" type="text" placeholder="搜索工作项..." class="w-full px-2 py-1 border rounded text-xs" />
+              <input v-model="newRelation.search" @input="searchRelatedIssues" type="text" :placeholder="t('issue.searchIssuesPlaceholder')" class="w-full px-2 py-1 border rounded text-xs" />
               <div v-if="relationSearchResults.length > 0" class="max-h-24 overflow-y-auto border rounded">
                 <div v-for="r in relationSearchResults" :key="r.id" @click="addRelation(r)" class="px-2 py-1 hover:bg-indigo-50 cursor-pointer text-xs">
                   #{{ r.sequence_id }} {{ r.name?.substring(0, 30) }}
                 </div>
               </div>
-              <button @click="showAddRelation = false" class="text-xs text-gray-500">取消</button>
+              <button @click="showAddRelation = false" class="text-xs text-gray-500">{{ t('issue.cancel') }}</button>
             </div>
           </div>
 
           <!-- 关联文档页面 -->
           <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">关联文档</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.relatedPages') }}</label>
             <div v-if="pages.length > 0" class="space-y-2 mb-3">
               <div v-for="page in pages" :key="page.id" class="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
                 <div class="flex items-center space-x-2">
@@ -253,16 +253,16 @@
                 <button @click="removePage(page.id)" class="text-gray-400 hover:text-red-500">&times;</button>
               </div>
             </div>
-            <div v-if="!showAddPage" class="text-xs text-gray-400">无关联文档</div>
-            <button v-if="!showAddPage" @click="showAddPage = true" class="text-xs text-indigo-600 hover:text-indigo-800 mt-1">+ 添加文档</button>
+            <div v-if="!showAddPage" class="text-xs text-gray-400">{{ t('issue.noPages') }}</div>
+            <button v-if="!showAddPage" @click="showAddPage = true" class="text-xs text-indigo-600 hover:text-indigo-800 mt-1">{{ t('issue.addPage') }}</button>
             <div v-if="showAddPage" class="mt-2 space-y-2">
-              <input v-model="newPage.search" @input="searchPages" type="text" placeholder="搜索文档..." class="w-full px-2 py-1 border rounded text-xs" />
+              <input v-model="newPage.search" @input="searchPages" type="text" :placeholder="t('issue.searchPagesPlaceholder')" class="w-full px-2 py-1 border rounded text-xs" />
               <div v-if="pageSearchResults.length > 0" class="max-h-24 overflow-y-auto border rounded">
                 <div v-for="p in pageSearchResults" :key="p.id" @click="addPage(p)" class="px-2 py-1 hover:bg-indigo-50 cursor-pointer text-xs">
                   {{ p.title?.substring(0, 40) }}
                 </div>
               </div>
-              <button @click="showAddPage = false" class="text-xs text-gray-500">取消</button>
+              <button @click="showAddPage = false" class="text-xs text-gray-500">{{ t('issue.cancel') }}</button>
             </div>
           </div>
 
@@ -278,6 +278,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useRoute, useRouter } from 'vue-router'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
 import LabelSelector from '@/components/LabelSelector.vue'
@@ -300,6 +301,7 @@ import * as issueApiSearch from '@/api/issue'
 // Route params
 const route = useRoute()
 const router = useRouter()
+const { t, locale } = useI18n()
 const issueId = parseInt(route.params.issueId as string, 10) || 0
 
 let workspaceId = 0
@@ -450,7 +452,7 @@ function handleValuesUpdate(values: Record<string, any>) {
 async function saveIssue() {
   saving.value = true
   if (!issueForm.value.name?.trim()) {
-    if ((window as any).$toast) (window as any).$toast.error('请输入工作项名称')
+    if ((window as any).$toast) (window as any).$toast.error(t('issue.nameRequired'))
     return
   }
   try {
@@ -474,10 +476,10 @@ async function saveIssue() {
       await customFieldManagerRef.value.saveValues()
     }
 
-    alert('保存成功')
+    alert(t('issue.saveSuccess'))
   } catch (error) {
     console.error('Failed to save issue:', error)
-    alert('保存失败')
+    alert(t('issue.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -561,17 +563,18 @@ async function loadActivities() {
 
 function formatActivityTime(timeStr: string): string {
   const d = new Date(timeStr)
-  return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function formatActivity(act: any): string {
   const fieldMap: Record<string, string> = {
-    name: '标题', state_id: '状态', priority: '优先级', assignees: '负责人',
-    labels: '标签', cycle: '周期', description: '描述', created: '创建',
+    name: t('activity.name'), state_id: t('activity.state_id'), priority: t('activity.priority'),
+    assignees: t('activity.assignees'), labels: t('activity.labels'),
+    cycle: t('activity.cycle'), description: t('activity.description'), created: t('activity.created'),
   }
-  const verb = act.verb === 'created' ? '创建了工作项' : act.verb === 'updated' ? '更新了' : act.verb
+  const verb = act.verb === 'created' ? t('activity.createdIssue') : act.verb === 'updated' ? t('activity.updated') : act.verb
   const field = fieldMap[act.field || ''] || act.field || ''
-  if (act.verb === 'created') return '创建了工作项'
+  if (act.verb === 'created') return t('activity.createdIssue')
   if (act.old_value && act.new_value) return `${verb}${field}: ${act.old_value} → ${act.new_value}`
   return `${verb}${field}`
 }

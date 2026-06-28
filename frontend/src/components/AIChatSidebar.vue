@@ -6,7 +6,7 @@
         <div class="flex items-center gap-2">
           <span class="text-lg">🤖</span>
           <div>
-            <h3 class="font-semibold text-sm">AI Assistant</h3>
+            <h3 class="font-semibold text-sm">{{ t('ai.title') }}</h3>
             <p class="text-xs text-indigo-100">{{ projectName || 'Project' }}</p>
           </div>
         </div>
@@ -95,8 +95,8 @@
       <div ref="msgContainer" class="flex-1 overflow-y-auto p-4 space-y-3">
         <div v-if="messages.length === 0" class="text-center text-gray-400 mt-8">
           <div class="text-4xl mb-3">{{ mode === 'agent' ? '👥' : '🤖' }}</div>
-          <p class="text-sm font-medium">{{ mode === 'agent' ? 'Agent Mode' : 'AI Assistant Ready' }}</p>
-          <p class="text-xs mt-1">{{ mode === 'agent' ? 'Select an agent and give it a task' : 'Ask me about your project data!' }}</p>
+          <p class="text-sm font-medium">{{ mode === 'agent' ? t('ai.agentMode', 'Agent Mode') : t('ai.ready') }}</p>
+          <p class="text-xs mt-1">{{ mode === 'agent' ? t('ai.agentHint', 'Select an agent and give it a task') : t('ai.readyHint') }}</p>
           <div v-if="mode !== 'agent' && mode !== 'chart'" class="mt-4 space-y-2 text-xs text-left">
             <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send('有哪些紧急的Bug？')">💡 "有哪些紧急的Bug？"</div>
             <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send('项目进展如何？')">💡 "项目进展如何？"</div>
@@ -230,6 +230,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useAI } from '@/composables/useAI'
 import { renderMarkdown } from '@/composables/useMarkdown'
 import { generateChart } from '@/api/ai'
@@ -249,6 +250,7 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
+const { t } = useI18n()
 const { messages, isStreaming, error, sendMessage, cancel, clear } = useAI()
 const input = ref('')
 const mode = ref<'ask' | 'build' | 'chart' | 'agent'>('ask')
@@ -293,10 +295,10 @@ const filteredAgents = computed(() => {
 })
 
 const inputPlaceholder = computed(() => {
-  if (mode.value === 'agent') return selectedAgent.value ? `Ask ${selectedAgent.value.name} to do something...` : 'Select an agent first...'
-  if (mode.value === 'chart') return '输入图表需求，如：按状态分布饼图...'
-  if (mode.value === 'ask') return 'Ask anything about the project...'
-  return 'Describe what to build...'
+  if (mode.value === 'agent') return selectedAgent.value ? t('ai.agentTaskPlaceholder', `Ask ${selectedAgent.value.name} to do something...`) : t('ai.selectAgentFirst', 'Select an agent first...')
+  if (mode.value === 'chart') return t('ai.chartPlaceholder', '输入图表需求，如：按状态分布饼图...')
+  if (mode.value === 'ask') return t('ai.placeholder')
+  return t('ai.buildPlaceholder', 'Describe what to build...')
 })
 
 function close() {

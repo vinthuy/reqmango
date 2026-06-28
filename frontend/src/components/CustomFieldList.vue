@@ -3,7 +3,7 @@
     <!-- 头部 -->
     <div class="bg-white border-b border-gray-200 px-4 py-3">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-medium text-gray-700">自定义字段</h3>
+        <h3 class="text-sm font-medium text-gray-700">{{ t('customField.customFields') }}</h3>
         <button
           @click="$emit('create')"
           class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 flex items-center space-x-1"
@@ -11,7 +11,7 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          <span>创建字段</span>
+          <span>{{ t('customField.createField') }}</span>
         </button>
       </div>
     </div>
@@ -31,9 +31,9 @@
         <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <p class="mt-2 text-gray-500">暂无自定义字段</p>
+        <p class="mt-2 text-gray-500">{{ t('customField.noCustomFields') }}</p>
         <button @click="$emit('create')" class="mt-3 text-indigo-600 hover:text-indigo-800 text-sm">
-          创建第一个字段
+          {{ t('customField.createFirstField') }}
         </button>
       </div>
 
@@ -62,7 +62,7 @@
                     v-if="field.is_required"
                     class="px-1.5 py-0.5 text-xs bg-red-100 text-red-600 rounded"
                   >
-                    必填
+                    {{ t('customField.required') }}
                   </span>
                 </div>
 
@@ -80,7 +80,7 @@
                     {{ option.value }}
                   </span>
                   <span v-if="field.options.length > 5" class="text-xs text-gray-400">
-                    +{{ field.options.length - 5 }} 更多
+                    +{{ field.options.length - 5 }} {{ t('customField.more') }}
                   </span>
                 </div>
               </div>
@@ -91,7 +91,7 @@
               <button
                 @click="$emit('edit', field)"
                 class="p-1.5 text-gray-400 hover:text-indigo-600 rounded"
-                title="编辑"
+                :title="t('common.edit')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -100,7 +100,7 @@
               <button
                 @click="deleteField(field)"
                 class="p-1.5 text-gray-400 hover:text-red-600 rounded"
-                title="删除"
+                :title="t('common.delete')"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -116,9 +116,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import customFieldApi from '@/api/custom-field'
 import { useConfirm } from '@/composables/useConfirm'
 import type { CustomField } from '@/types/custom-field'
+
+const { t } = useI18n()
 
 // Props
 const props = defineProps<{
@@ -154,7 +157,7 @@ async function loadFields() {
 
 // Delete field
 async function deleteField(field: CustomField) {
-  if (!(await confirm(`确定要删除字段 "${field.name}" 吗？此操作不可恢复。`))) return
+  if (!(await confirm(t('customField.confirmDeleteField').replace('{name}', field.name)))) return
 
   try {
     await customFieldApi.deleteCustomField(field.id)
@@ -171,17 +174,17 @@ function hasOptions(fieldType: string): boolean {
 
 function getFieldTypeName(fieldType: string): string {
   const names: Record<string, string> = {
-    text: '文本',
-    number: '数字',
-    select: '下拉',
-    multi_select: '多选',
-    date: '日期',
-    checkbox: '复选框',
-    radio: '单选',
-    url: '链接',
-    email: '邮箱',
-    phone: '电话',
-    user: '用户'
+    text: t('customField.typeText'),
+    number: t('customField.typeNumber'),
+    select: t('customField.typeSelectShort'),
+    multi_select: t('customField.typeMultiSelect'),
+    date: t('customField.typeDate'),
+    checkbox: t('customField.typeCheckbox'),
+    radio: t('customField.typeRadio'),
+    url: t('customField.typeUrl'),
+    email: t('customField.typeEmail'),
+    phone: t('customField.typePhone'),
+    user: t('customField.typeUser')
   }
   return names[fieldType] || fieldType
 }
