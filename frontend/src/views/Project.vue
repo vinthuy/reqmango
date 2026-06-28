@@ -157,6 +157,10 @@
         />
       </div>
 
+      <div v-if="activeTab === 'reports'">
+        <ReportBuilder :project-id="projectId" />
+      </div>
+
       <div v-if="activeTab === 'updates'">
         <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div class="flex items-center justify-between mb-4">
@@ -247,8 +251,8 @@
 
   <button
     @click="showAIChat = true"
-    class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition flex items-center justify-center text-2xl z-40"
-    title="AI Assistant"
+    class="fixed bottom-16 right-4 w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition flex items-center justify-center text-xl z-30"
+    title="AI Assistant (Ctrl+J)"
   >🤖</button>
 </template>
 
@@ -280,6 +284,7 @@ import AIChatSidebar from '@/components/AIChatSidebar.vue'
 import AICreateDialog from '@/components/AICreateDialog.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
 import PageTabConfig from '@/components/PageTabConfig.vue'
+import ReportBuilder from '@/components/ReportBuilder.vue'
 import type { SavedView } from '@/types/saved-view'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
@@ -432,6 +437,7 @@ const defaultTabs = [
   { id: 'modules', name: '模块' },
   { id: 'updates', name: '更新' },
   { id: 'pages', name: '文档' },
+  { id: 'reports', name: '报表' },
   { id: 'settings', name: '设置' },
 ]
 

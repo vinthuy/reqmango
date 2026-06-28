@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ShortcutsPanel from '@/components/ShortcutsPanel.vue'
-import AppSidebar from '@/components/AppSidebar.vue'
+import TopBar from '@/components/TopBar.vue'
 import { useDarkMode } from '@/composables/useDarkMode'
 
 const route = useRoute()
@@ -12,7 +12,7 @@ const authStore = useAuthStore()
 const { isDark, toggle: toggleTheme } = useDarkMode()
 const showShortcuts = ref(false)
 
-const showSidebar = computed(() => {
+const showTopBar = computed(() => {
   const name = (route.name as string || '').toLowerCase()
   return name && !['login', 'register'].includes(name)
 })
@@ -32,8 +32,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="flex h-screen bg-gray-50 dark:bg-gray-900">
-    <AppSidebar v-if="showSidebar" />
+  <div class="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+    <TopBar v-if="showTopBar" />
     <main class="flex-1 overflow-auto">
       <router-view />
     </main>
@@ -43,9 +43,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   <ShortcutsPanel :visible="showShortcuts" @close="showShortcuts = false" />
 
   <button
-    v-if="showSidebar"
+    v-if="showTopBar"
     @click="toggleTheme"
-    class="fixed bottom-4 right-4 w-9 h-9 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full shadow-md hover:shadow-lg transition flex items-center justify-center text-sm z-40"
+    class="fixed bottom-4 right-4 w-8 h-8 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full shadow-md hover:shadow-lg transition flex items-center justify-center text-xs z-20"
     :title="isDark ? '切换浅色' : '切换深色'"
   >{{ isDark ? '☀️' : '🌙' }}</button>
 </template>

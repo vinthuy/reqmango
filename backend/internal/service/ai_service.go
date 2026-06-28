@@ -381,14 +381,21 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 				}
 			case "done":
 				if hasToolCalls && len(toolResults) > 0 {
-					// Send tool results back for LLM to synthesize
-					assistantMsg := Message{Role: "assistant", Content: "Tool calls executed"}
-					for _, tr := range toolResults {
-						messages = append(messages, Message{Role: "tool", Content: tr.Content})
+					// Synthesize results as a plain text message (reliable across all LLMs)
+					var sb strings.Builder
+					sb.WriteString("以下是查询获取的项目数据：\n<data>\n")
+					for i, tr := range toolResults {
+						sb.WriteString(fmt.Sprintf("[%d] %s\n", i+1, tr.Content))
 					}
-					messages = append(messages, assistantMsg)
-					// Continue conversation with tool results
-					synthCh, synthErr := s.llm.ChatStream(ctx, systemPrompt, messages, tools)
+					sb.WriteString("</data>\n\n")
+					sb.WriteString(fmt.Sprintf("用户问题：「%s」\n", messages[0].Content))
+					sb.WriteString("请基于以上真实数据，用中文给出分析总结。提炼关键数字，结构化呈现，给出行动建议。")
+
+					synthPrompt := systemPrompt + "\n\n你已获得项目数据。请基于实际数据进行分析汇报。像PM做Sprint Review：先说结论，再分要点，最后给下一步建议。"
+
+					synthCh, synthErr := s.llm.ChatStream(ctx, synthPrompt, []Message{
+						{Role: "user", Content: sb.String()},
+					}, nil)
 					if synthErr == nil {
 						for se := range synthCh {
 							outCh <- se

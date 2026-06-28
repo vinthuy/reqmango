@@ -106,14 +106,68 @@
 
         <div v-for="(msg, idx) in messages" :key="idx" class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
           <div
-            :class="['max-w-[85%] rounded-xl px-3 py-2 text-sm', msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-800']"
+            :class="[
+              'rounded-2xl px-4 py-2.5 leading-relaxed',
+              msg.role === 'user'
+                ? 'rounded-br-md bg-indigo-50 dark:bg-indigo-900/20 text-gray-900 dark:text-gray-100 font-medium max-w-[85%] ml-auto'
+                : 'rounded-bl-md bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 max-w-[85%]',
+              (msg.toolResults?.length || msg.chartConfig) ? 'max-w-[98%]' : 'max-w-[85%]'
+            ]"
           >
-            <div v-if="msg.role === 'assistant' && msg.toolCalls?.length" class="mb-2">
-              <div v-for="tc in msg.toolCalls" :key="tc.id" class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded mb-1">
-                🔧 {{ tc.name }}
+            <!-- AI Thinking Process (collapsible) -->
+            <div v-if="msg.role === 'assistant' && msg.toolResults?.length" class="mb-3">
+              <button
+                @click="toggleThinking(idx)"
+                class="w-full flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors group"
+              >
+                <span :class="['transition-transform', expandedThinking.has(idx) ? 'rotate-90' : '']">▶</span>
+                <span>🔍 思考过程</span>
+                <span class="text-gray-300 dark:text-gray-600">—</span>
+                <span>{{ summarizeThinking(msg.toolResults) }}</span>
+                <span class="ml-auto text-gray-300 dark:text-gray-600 group-hover:text-gray-400">{{ expandedThinking.has(idx) ? '收起' : '展开' }}</span>
+              </button>
+              <!-- Collapsible tool result cards -->
+              <div v-if="expandedThinking.has(idx)" class="mt-2 space-y-2 border-l-2 border-amber-200 dark:border-amber-800 pl-3">
+                <div v-for="(tr, ti) in msg.toolResults" :key="ti" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-[11px]">
+                  <div class="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                    <span>📋</span><span>{{ formatToolName(tr.toolName || '') }}</span>
+                    <span v-if="tr.rows?.length" class="text-gray-300">· {{ tr.rows.length }} 条</span>
+                  </div>
+                  <div class="overflow-x-auto">
+                    <table v-if="(tr.columns?.length || 0) > 1 || tr.columns?.[0] !== 'key'" class="w-full">
+                      <thead>
+                        <tr class="border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-850">
+                          <th v-for="col in (tr.columns || [])" :key="col" class="text-left px-2.5 py-1.5 text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap">{{ formatColName(col) }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(row, ri) in (tr.rows || [])" :key="ri" class="border-b border-gray-50 dark:border-gray-800 last:border-0">
+                          <td v-for="col in (tr.columns || [])" :key="col" class="px-2.5 py-1.5 whitespace-nowrap max-w-[200px] truncate" :title="String(row[col] ?? '')">
+                            <span v-if="col === 'name' && row['color']" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium" :style="{ backgroundColor: row['color'] + '20', color: row['color'] }">
+                              <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: row['color'] }"></span>{{ row[col] }}
+                            </span>
+                            <span v-else-if="col === 'priority' && row[col]" :class="['inline-block px-1.5 py-0.5 rounded text-[10px] font-medium', priorityBadge(row[col])]">{{ row[col] }}</span>
+                            <span v-else :class="col === 'name' || col === 'title' ? 'text-gray-800 dark:text-gray-200 font-medium' : 'text-gray-500 dark:text-gray-400'">{{ row[col] ?? '' }}</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div v-else class="divide-y divide-gray-50 dark:divide-gray-800">
+                      <div v-for="(row, ri) in (tr.rows || [])" :key="ri" class="flex px-2.5 py-1.5 gap-3">
+                        <span class="text-gray-400 shrink-0">{{ row.key }}</span>
+                        <span class="text-gray-800 dark:text-gray-200 truncate">{{ row.value }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="whitespace-pre-wrap" v-text="msg.content || (isStreaming && idx === messages.length - 1 ? '...' : '')"></div>
+
+            <!-- Text content (primary output) -->
+            <div v-if="msg.content" class="ai-content leading-relaxed" v-html="renderMarkdown(msg.content)"></div>
+            <div v-else-if="isStreaming && idx === messages.length - 1 && !msg.toolResults?.length" class="italic text-gray-400">...</div>
+
+            <!-- Chart -->
             <div v-if="msg.chartConfig" class="mt-2 bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700" style="min-width:250px">
               <AIChartRenderer :config="msg.chartConfig" />
             </div>
@@ -177,6 +231,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
 import { useAI } from '@/composables/useAI'
+import { renderMarkdown } from '@/composables/useMarkdown'
 import { generateChart } from '@/api/ai'
 import { agentApi } from '@/api/agent'
 import type { AIChartData } from '@/api/ai'
@@ -208,6 +263,28 @@ const showAgentPicker = ref(false)
 const mentionFilter = ref('')
 const showMentionPopup = ref(false)
 const mentionStartIdx = ref(-1)
+
+const expandedThinking = ref(new Set<number>())
+
+function toggleThinking(idx: number) {
+  if (expandedThinking.value.has(idx)) {
+    expandedThinking.value.delete(idx)
+  } else {
+    expandedThinking.value.add(idx)
+  }
+  // Trigger reactivity
+  expandedThinking.value = new Set(expandedThinking.value)
+}
+
+function summarizeThinking(results: any[]): string {
+  if (!results?.length) return ''
+  const parts = results.map(tr => {
+    const name = formatToolName(tr.toolName || '')
+    const count = tr.rows?.length || 0
+    return count ? `${name}(${count})` : name
+  })
+  return parts.join(' · ')
+}
 
 const filteredAgents = computed(() => {
   if (!mentionFilter.value) return agents.value.filter(a => a.status === 'active')
@@ -360,6 +437,37 @@ function scrollToBottom() {
       msgContainer.value.scrollTop = msgContainer.value.scrollHeight
     }
   })
+}
+
+function formatToolName(name: string): string {
+  const map: Record<string, string> = {
+    list_issues: '查询工作项', search_issues: '搜索工作项',
+    get_states: '获取状态列表', get_labels: '获取标签列表',
+    get_cycles: '获取迭代周期', get_modules: '获取模块列表',
+    get_issue: '获取工作项详情', list_issues_by_state: '按状态筛选',
+    get_project_stats: '项目统计', get_assignees: '获取成员列表',
+  }
+  return map[name] || name.replace(/_/g, ' ')
+}
+
+function formatColName(col: string): string {
+  const map: Record<string, string> = {
+    name: '名称', title: '标题', display_name: '名称', username: '用户名',
+    priority: '优先级', state: '状态', status: '状态',
+    color: '颜色', group: '分组', id: 'ID',
+    description: '描述', created_at: '创建时间', updated_at: '更新时间',
+    key: '字段', value: '值', email: '邮箱',
+  }
+  return map[col] || col
+}
+
+function priorityBadge(p: string): string {
+  const map: Record<string, string> = {
+    urgent: 'bg-red-100 text-red-700', high: 'bg-orange-100 text-orange-700',
+    medium: 'bg-yellow-100 text-yellow-700', low: 'bg-green-100 text-green-700',
+    none: 'bg-gray-100 text-gray-500',
+  }
+  return map[p] || 'bg-gray-100 text-gray-500'
 }
 
 watch(() => messages.value.length, scrollToBottom)

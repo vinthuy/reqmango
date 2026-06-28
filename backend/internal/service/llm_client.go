@@ -16,9 +16,10 @@ import (
 
 // Message represents a chat message.
 type Message struct {
-	Role    string     `json:"role"`    // "user" | "assistant" | "system"
+	Role    string     `json:"role"` // "user" | "assistant" | "system" | "tool"
 	Content string     `json:"content"`
-	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
 }
 
 // Tool defines a function the LLM can call.
@@ -162,8 +163,20 @@ func (c *LLMClient) isOpenAIProtocol() bool {
 	return c.provider == ProviderOpenAI || c.provider == ProviderDeepSeek
 }
 
+// hasValidAPIKey returns false for obviously invalid keys.
+func (c *LLMClient) hasValidAPIKey() bool {
+	return c.apiKey != "" &&
+		!strings.HasPrefix(c.apiKey, "sk-test") &&
+		!strings.HasPrefix(c.apiKey, "sk-your-") &&
+		!strings.Contains(c.apiKey, "infrastructure-testing") &&
+		!strings.Contains(c.apiKey, "change-me")
+}
+
 // ChatSync sends a synchronous (non-streaming) chat request.
 func (c *LLMClient) ChatSync(ctx context.Context, systemPrompt string, messages []Message, tools []Tool) (*ChatResponse, error) {
+	if !c.hasValidAPIKey() {
+		return nil, fmt.Errorf("AI 服务未配置：请在 工作空间设置 → AI 中配置有效的 API Key（当前 key 无效或为测试 key）")
+	}
 	req, err := c.buildRequest(systemPrompt, messages, tools, false)
 	if err != nil {
 		return nil, err
@@ -236,6 +249,9 @@ func (c *LLMClient) parseAnthropicResponse(body []byte) (*ChatResponse, error) {
 
 // ChatStream sends a streaming chat request. Returns a channel of StreamEvent.
 func (c *LLMClient) ChatStream(ctx context.Context, systemPrompt string, messages []Message, tools []Tool) (<-chan StreamEvent, error) {
+	if !c.hasValidAPIKey() {
+		return nil, fmt.Errorf("AI 服务未配置：请在 工作空间设置 → AI 中配置有效的 API Key（当前 key 无效或为测试 key）")
+	}
 	req, err := c.buildRequest(systemPrompt, messages, tools, true)
 	if err != nil {
 		return nil, err

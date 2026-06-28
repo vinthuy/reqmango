@@ -15,9 +15,17 @@ const progressData = ref<Record<number, any>>({})
 
 onMounted(async () => {
   // Get workspace info
-  const wsResp = await fetch(`/api/v1/workspaces/${slug}`)
-  const ws = (await wsResp.json()).data
-  if (ws) { workspaceId.value = ws.id; await load(ws.id) }
+  try {
+    const wsResp = await fetch(`/api/v1/workspaces/${slug}`)
+    if (!wsResp.ok) throw new Error(`Workspace fetch failed: ${wsResp.status}`)
+    const body = await wsResp.json()
+    const ws = body.data
+    if (ws) { workspaceId.value = ws.id; await load(ws.id) }
+  } catch (e) {
+    console.error('Initiatives: failed to load workspace', e)
+  } finally {
+    loading.value = false
+  }
 })
 
 async function load(wsId: number) {

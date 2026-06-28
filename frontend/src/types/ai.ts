@@ -24,8 +24,11 @@ export interface ToolCall {
 }
 
 export interface ToolResult {
-  tool_call_id: string
-  content: string
+  tool_call_id?: string
+  content?: string
+  toolName?: string
+  rows?: Record<string, any>[]
+  columns?: string[]
 }
 
 export interface AISearchRequest {

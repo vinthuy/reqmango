@@ -33,16 +33,18 @@ const router = createRouter({
       component: () => import('@/views/Workspace.vue'),
       meta: { requiresAuth: true }
     },
-    {
-      path: '/workspace/:slug/project/:id',
-      name: 'Project',
-      component: () => import('@/views/Project.vue'),
-      meta: { requiresAuth: true }
-    },
+    // Static workspace sub-routes MUST come before /project/:id
+    // or /roadmap will be captured as project id="roadmap"
     {
       path: '/workspace/:slug/roadmap',
       name: 'Roadmap',
       component: () => import('@/views/Roadmap.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/initiatives',
+      name: 'Initiatives',
+      component: () => import('@/views/Initiatives.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -55,6 +57,18 @@ const router = createRouter({
       path: '/workspace/:slug/settings',
       name: 'WorkspaceSettings',
       component: () => import('@/views/WorkspaceSettings.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/analytics',
+      name: 'WorkspaceAnalytics',
+      component: () => import('@/views/WorkspaceAnalytics.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/project/:id',
+      name: 'Project',
+      component: () => import('@/views/Project.vue'),
       meta: { requiresAuth: true }
     },
     {
@@ -144,12 +158,6 @@ const router = createRouter({
       path: '/workspace/:slug/project/:id/analytics',
       name: 'Analytics',
       component: () => import('@/views/Analytics.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/workspace/:slug/initiatives',
-      name: 'Initiatives',
-      component: () => import('@/views/Initiatives.vue'),
       meta: { requiresAuth: true }
     }
   ]
