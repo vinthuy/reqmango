@@ -1,7 +1,7 @@
 <template>
   <div class="issue-list bg-white rounded-lg border border-gray-200">
-    <!-- Row 1: 主工具栏 -->
-    <div class="px-4 py-2.5 border-b border-gray-100">
+    <!-- Row 1: 主工具栏 (hidden when unified filter bar is active) -->
+    <div v-if="!externalFilters" class="px-4 py-2.5 border-b border-gray-100">
       <div class="flex items-center gap-3">
         <!-- 搜索框 -->
         <div class="relative flex-1 max-w-sm">
@@ -362,7 +362,7 @@ import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import QuickFilterChips from '@/components/QuickFilterChips.vue'
 import * as issueTypeApi from '@/api/issue-type'
 
-const props = defineProps<{ projectId: number; workspaceId: number }>()
+const props = defineProps<{ projectId: number; workspaceId: number; externalFilters?: Record<string, any>; externalSearch?: string }>()
 const router = useRouter()
 const { t, locale } = useI18n()
 

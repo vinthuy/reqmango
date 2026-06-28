@@ -15,7 +15,7 @@ const TEST_USER = {
 test.describe('Authentication', () => {
   test('should show login page', async ({ page }) => {
     await page.goto('/login')
-    await expect(page.locator('h1')).toContainText('Reqman AI')
+    await expect(page.locator('h1')).toContainText('ReqMango')
     await expect(page.locator('input[type="email"], input[placeholder*="邮箱"]')).toBeVisible()
     await expect(page.locator('input[type="password"]')).toBeVisible()
   })

@@ -640,7 +640,13 @@
     "quickFilterDueSoon": "Due Soon",
     "clearFilters": "Clear Filters",
     "loading": "Loading...",
-    "creating": "Creating..."
+    "creating": "Creating...",
+    "opContains": "contains",
+    "opNotContains": "not contains",
+    "opEmpty": "empty",
+    "opNotEmpty": "not empty",
+    "inputValue": "Enter value",
+    "select": "Select"
   },
   "issueKanban": {
     "searchPlaceholder": "Search issues... (name / ID)",

@@ -49,28 +49,33 @@
 
       <!-- 标签页内容 -->
       <div v-if="activeTab === 'issues'">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <div class="inline-flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
-              <button v-for="v in views" :key="v.id" @click="issueView = v.id"
-                class="px-3 py-1.5 text-xs rounded-md transition-colors"
-                :class="issueView === v.id ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'">
-                {{ v.label }}
-              </button>
-            </div>
+        <!-- Unified Filter Bar (shared across all views) -->
+        <IssueFilterBar
+          :view-mode="issueView"
+          :states="states"
+          :cycles="cycles"
+          :labels="labels"
+          @update:view-mode="issueView = $event; triggerRefresh()"
+          @search="onFilterSearch"
+          @rql="onRQL"
+          class="mb-3"
+        >
+          <template #actions>
             <SavedViewSelector
               :project-id="projectId"
               :view-type="(issueView as 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt')"
               @select="handleViewSelect"
             />
-          </div>
-        </div>
+          </template>
+        </IssueFilterBar>
 
         <IssueList
           v-if="issueView === 'list'"
           :key="'list-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
+          :external-filters="issueFilters"
+          :external-search="issueSearch"
           @select="openDetailPanel"
           @delete="handleDeleteIssue"
         />
@@ -79,6 +84,8 @@
           :key="'kanban-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
+          :external-filters="issueFilters"
+          :external-search="issueSearch"
           @select="openDetailPanel"
         />
         <IssueTreeView
@@ -86,18 +93,24 @@
           :key="'tree-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
+          :external-filters="issueFilters"
+          :external-search="issueSearch"
           @select="openDetailPanel"
         />
         <IssueCalendar
           v-else-if="issueView === 'calendar'"
           :project-id="projectId"
           :workspace-id="workspaceId"
+          :external-filters="issueFilters"
+          :external-search="issueSearch"
           @select="openDetailPanel"
         />
         <IssueGantt
           v-else-if="issueView === 'gantt'"
           :project-id="projectId"
           :workspace-id="workspaceId"
+          :external-filters="issueFilters"
+          :external-search="issueSearch"
           @select="openDetailPanel"
           @create="router.push(`/workspace/${route.params.slug}/project/${projectId}/issues/new?view=tree`)"
         />
@@ -213,7 +226,7 @@
     :project-id="projectId"
     :workspace-id="workspaceId"
     @close="showAICreate = false"
-    @created="issueRefreshKey++"
+    @created="triggerRefresh()"
   />
   <CommandPalette
     :visible="showCommandPalette"
@@ -262,6 +275,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi, listPageTabs } from '@/api/project'
+import api from '@/api'
 import { issueApi } from '@/api/issue'
 import { projectUpdateApi, type ProjectUpdate } from '@/api/project-update'
 import type { Workspace } from '@/types'
@@ -286,6 +300,7 @@ import AICreateDialog from '@/components/AICreateDialog.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
 import PageTabConfig from '@/components/PageTabConfig.vue'
 import ReportBuilder from '@/components/ReportBuilder.vue'
+import IssueFilterBar from '@/components/IssueFilterBar.vue'
 import type { SavedView } from '@/types/saved-view'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
@@ -301,14 +316,34 @@ const loading = ref(false)
 const activeTab = ref((route.query.tab as string) || 'issues')
 const issueView = ref((route.query.view as string) || 'list')
 const issueRefreshKey = ref(0)
+function triggerRefresh() { issueRefreshKey.value++ }
 
-const views = computed(() => [
-  { id: 'list' as const, label: t('project.view.list') },
-  { id: 'kanban' as const, label: t('project.view.kanban') },
-  { id: 'tree' as const, label: t('project.view.tree') },
-  { id: 'calendar' as const, label: t('project.view.calendar') },
-  { id: 'gantt' as const, label: t('project.view.gantt') },
-])
+// Unified filter state
+const issueFilters = ref<Record<string, any>>({})
+const issueSearch = ref('')
+const states = ref<any[]>([])
+const cycles = ref<any[]>([])
+const labels = ref<any[]>([])
+const labelsList = ref<any[]>([])
+
+function onFilterSearch(query: string, conditions: any[]) {
+  issueSearch.value = query
+  // Convert filter conditions to API params
+  const params: Record<string, any> = {}
+  for (const c of conditions) {
+    if (c.operator === 'is_empty') { params[c.key] = 'IS_EMPTY' }
+    else if (c.operator === 'is_not_empty') { params[c.key] = 'IS_NOT_EMPTY' }
+    else if (c.operator === 'in') { params[c.key] = c.value.split(',').map((v: string) => v.trim()) }
+    else { params[c.key] = `${c.operator}:${c.value}` }
+  }
+  issueFilters.value = params
+  triggerRefresh()
+}
+function onRQL(query: string) {
+  issueFilters.value = { rql: query }
+  triggerRefresh()
+}
+
 
 const detailIssueId = ref<number | null>(null)
 const detailPanelVisible = ref(false)
@@ -390,7 +425,7 @@ function handleDetailDelete(issue: any) {
 }
 
 function handleDetailRefresh() {
-  issueRefreshKey.value++
+  triggerRefresh()
 }
 
 function openCyclePanel(cycle: CycleResponse) {
@@ -492,6 +527,12 @@ onMounted(async () => {
     workspaceId.value = workspace.value.id
     projectId.value = id
     project.value = await projectApi.getProject(id)
+    // Load filter data
+    Promise.allSettled([
+      api.get(`/projects/${id}/settings/states`).then(r => { states.value = r.data || [] }),
+      api.get(`/projects/${id}/settings/labels`).then(r => { labels.value = r.data || []; labelsList.value = r.data || [] }),
+      api.get(`/projects/${id}/cycles`).then(r => { cycles.value = (r.data?.data || r.data || []) }),
+    ]).catch(() => {})
     await loadUpdates()
     await loadPageTabs()
   } catch (err) {

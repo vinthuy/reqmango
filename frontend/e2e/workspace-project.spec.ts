@@ -57,7 +57,7 @@ test.describe('Workspace & Project', () => {
     // Should show home page content
     await expect(page.locator('body')).not.toContainText(/login/i)
     // Should have sidebar
-    await expect(page.locator('aside, nav, [class*="sidebar"]').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('header, aside, nav, [class*="sidebar"], [class*="Sidebar"], [class*="TopBar"]').first()).toBeVisible({ timeout: 5000 })
   })
 
   test('should navigate to workspace page', async ({ page }) => {

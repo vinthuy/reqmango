@@ -1,7 +1,7 @@
 <template>
   <div class="issue-kanban">
-    <!-- 搜索栏 -->
-    <div class="bg-white rounded-lg border border-gray-200 mb-4">
+    <!-- 搜索栏 (hidden when unified filter bar is active) -->
+    <div v-if="!externalFilters" class="bg-white rounded-lg border border-gray-200 mb-4">
       <div class="px-4 py-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3 flex-1">
@@ -265,7 +265,7 @@ import QuickCreateInput from '@/components/QuickCreateInput.vue'
 import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
 
-const props = defineProps<{ projectId: number; workspaceId: number }>()
+const props = defineProps<{ projectId: number; workspaceId: number; externalFilters?: Record<string, any>; externalSearch?: string }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
 const { t } = useI18n()
 

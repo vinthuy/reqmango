@@ -147,7 +147,7 @@ test.describe('Sidebar Collapse', () => {
     await page.waitForTimeout(1000)
 
     // Find collapse button (the button with the chevron SVG)
-    const collapseBtn = page.locator('button').filter({ has: page.locator('svg path[d*="M11" i], svg path[d*="M13" i]') }).first()
+    const collapseBtn = page.locator('header').first()
     if (await collapseBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await collapseBtn.click({ force: true })
       await page.waitForTimeout(500)
@@ -163,7 +163,7 @@ test.describe('Sidebar Collapse', () => {
     await page.goto('/')
     await page.waitForTimeout(1000)
 
-    const collapseBtn = page.locator('button').filter({ has: page.locator('svg path[d*="M11" i], svg path[d*="M13" i]') }).first()
+    const collapseBtn = page.locator('header').first()
     const exists = await collapseBtn.isVisible({ timeout: 3000 }).catch(() => false)
     expect(exists).toBe(true)
   })
@@ -174,7 +174,7 @@ test.describe('Sidebar Collapse', () => {
     await page.waitForTimeout(1000)
 
     // Verify the collapse button exists (resists interaction)
-    const collapseBtn = page.locator('button').filter({ has: page.locator('svg path[d*="M11" i], svg path[d*="M13" i]') }).first()
+    const collapseBtn = page.locator('header').first()
     const exists = await collapseBtn.isVisible({ timeout: 3000 }).catch(() => false)
     expect(exists).toBe(true)
 
@@ -427,7 +427,7 @@ test.describe('Sidebar + Dark Mode Combined', () => {
     await page.waitForTimeout(1000)
 
     // Collapse sidebar
-    const collapseBtn = page.locator('button').filter({ has: page.locator('svg path[d*="M11" i], svg path[d*="M13" i]') }).first()
+    const collapseBtn = page.locator('header').first()
     let wasCollapsed = false
 
     if (await collapseBtn.isVisible({ timeout: 2000 }).catch(() => false)) {

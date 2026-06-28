@@ -775,7 +775,13 @@
     "quickFilterDueSoon": "即将到期",
     "clearFilters": "清除筛选",
     "loading": "加载中...",
-    "creating": "创建中..."
+    "creating": "创建中...",
+    "opContains": "包含",
+    "opNotContains": "不包含",
+    "opEmpty": "为空",
+    "opNotEmpty": "不为空",
+    "inputValue": "输入值",
+    "select": "请选择"
   },
   "issueKanban": {
     "searchPlaceholder": "搜索工作项...（名称 / 编号）",
