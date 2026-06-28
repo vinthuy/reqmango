@@ -1,4 +1,4 @@
-# ReqManPy
+﻿# reqmango
 
 现代化的项目管理平台，支持工作项管理、自定义字段、类型模板、工作流和自动化。
 
@@ -24,15 +24,15 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://gitcode.com/yongfeng9m-/reqmanpy.git
-cd reqmanpy
+git clone https://gitcode.com/yongfeng9m-/reqmango.git
+cd reqmango
 ```
 
 ### 2. 配置数据库
 
 ```bash
 # 创建数据库
-psql -U postgres -c "CREATE DATABASE reqmanpy;"
+psql -U postgres -c "CREATE DATABASE reqmango;"
 ```
 
 ### 3. 配置后端
@@ -42,7 +42,7 @@ cd backend
 
 # 创建环境配置文件
 cat > .env << EOF
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/reqmanpy?sslmode=disable
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/reqmango?sslmode=disable
 SECRET_KEY=change-me-in-production-use-a-long-random-string
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 PORT=8000
@@ -86,7 +86,7 @@ cd frontend && npm run build
 ## 项目结构
 
 ```
-reqmanpy/
+reqmango/
 ├── backend/              # Go 后端
 │   ├── cmd/server/          # 入口
 │   ├── internal/

@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/reqmanpy/backend/internal/common"
-	"github.com/reqmanpy/backend/internal/config"
-	"github.com/reqmanpy/backend/internal/dto/request"
-	"github.com/reqmanpy/backend/internal/dto/response"
-	"github.com/reqmanpy/backend/internal/model"
+	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/config"
+	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/dto/response"
+	"github.com/reqmango/backend/internal/model"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )

@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { rqlApi } from '../api/rql'
 import type { RQLSearchRequest, RQLHistoryItem } from '../utils/rql/types'
 
-const HISTORY_KEY = 'reqman:rql:history'
+export const HISTORY_KEY = 'reqmango:rql:history'
 const MAX_HISTORY = 50
 
 export function useRQL() {

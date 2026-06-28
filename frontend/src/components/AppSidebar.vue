@@ -74,7 +74,7 @@ const navItems = computed(() => {
         <div class="w-6 h-6 bg-indigo-600 rounded flex items-center justify-center shrink-0">
           <span class="text-white text-xs font-bold">R</span>
         </div>
-        <span class="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">Reqman</span>
+        <span class="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">ReqMango</span>
       </button>
       <button @click="goHome" class="mx-auto" v-else>
         <div class="w-7 h-7 bg-indigo-600 rounded flex items-center justify-center">

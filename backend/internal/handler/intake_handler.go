@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/model"
+	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 

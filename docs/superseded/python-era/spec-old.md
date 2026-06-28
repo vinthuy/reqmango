@@ -1,4 +1,4 @@
-# Plane AI - SDD 规格文档
+﻿# Plane AI - SDD 规格文档
 
 ---
 
@@ -154,25 +154,25 @@
 
 | 文档类型 | 文件路径 | 状态 |
 |----------|----------|------|
-| Design | [docs/sdd/issue/design.md](file:///d:/code/reqmanpy/docs/sdd/issue/design.md) | ✅ 完成 |
-| Plan | [docs/sdd/issue/plan.md](file:///d:/code/reqmanpy/docs/sdd/issue/plan.md) | ✅ 完成 |
-| Task | [docs/sdd/issue/task.md](file:///d:/code/reqmanpy/docs/sdd/issue/task.md) | ✅ 完成 |
+| Design | [docs/sdd/issue/design.md](file:///d:/code/reqmango/docs/sdd/issue/design.md) | ✅ 完成 |
+| Plan | [docs/sdd/issue/plan.md](file:///d:/code/reqmango/docs/sdd/issue/plan.md) | ✅ 完成 |
+| Task | [docs/sdd/issue/task.md](file:///d:/code/reqmango/docs/sdd/issue/task.md) | ✅ 完成 |
 
 ### 5.2 Cycle（周期）模块
 
 | 文档类型 | 文件路径 | 状态 |
 |----------|----------|------|
-| Design | [docs/sdd/cycle/design.md](file:///d:/code/reqmanpy/docs/sdd/cycle/design.md) | 🔄 待开发 |
-| Plan | [docs/sdd/cycle/plan.md](file:///d:/code/reqmanpy/docs/sdd/cycle/plan.md) | 🔄 待开发 |
-| Task | [docs/sdd/cycle/task.md](file:///d:/code/reqmanpy/docs/sdd/cycle/task.md) | 🔄 待开发 |
+| Design | [docs/sdd/cycle/design.md](file:///d:/code/reqmango/docs/sdd/cycle/design.md) | 🔄 待开发 |
+| Plan | [docs/sdd/cycle/plan.md](file:///d:/code/reqmango/docs/sdd/cycle/plan.md) | 🔄 待开发 |
+| Task | [docs/sdd/cycle/task.md](file:///d:/code/reqmango/docs/sdd/cycle/task.md) | 🔄 待开发 |
 
 ### 5.3 Module（模块）模块
 
 | 文档类型 | 文件路径 | 状态 |
 |----------|----------|------|
-| Design | [docs/sdd/module/design.md](file:///d:/code/reqmanpy/docs/sdd/module/design.md) | 🔄 待开发 |
-| Plan | [docs/sdd/module/plan.md](file:///d:/code/reqmanpy/docs/sdd/module/plan.md) | 🔄 待开发 |
-| Task | [docs/sdd/module/task.md](file:///d:/code/reqmanpy/docs/sdd/module/task.md) | 🔄 待开发 |
+| Design | [docs/sdd/module/design.md](file:///d:/code/reqmango/docs/sdd/module/design.md) | 🔄 待开发 |
+| Plan | [docs/sdd/module/plan.md](file:///d:/code/reqmango/docs/sdd/module/plan.md) | 🔄 待开发 |
+| Task | [docs/sdd/module/task.md](file:///d:/code/reqmango/docs/sdd/module/task.md) | 🔄 待开发 |
 
 ---
 

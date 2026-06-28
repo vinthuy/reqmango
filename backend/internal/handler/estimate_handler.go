@@ -2,9 +2,9 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/common"
-	"github.com/reqmanpy/backend/internal/model"
-	"github.com/reqmanpy/backend/internal/service"
+	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/backend/internal/service"
 	"net/http"
 	"strconv"
 )

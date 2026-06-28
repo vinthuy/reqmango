@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Client is an HTTP client for the ReqManPy REST API.
+// Client is an HTTP client for the reqmango REST API.
 type Client struct {
 	baseURL    string
 	token      string

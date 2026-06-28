@@ -1,9 +1,9 @@
-import { ref, watchEffect } from 'vue'
+﻿import { ref, watchEffect } from 'vue'
 
 const isDark = ref(false)
 
 export function useDarkMode() {
-  const stored = localStorage.getItem('reqmanpy-dark-mode')
+  const stored = localStorage.getItem('reqmango-dark-mode')
   if (stored !== null) {
     isDark.value = stored === 'true'
   } else {
@@ -12,7 +12,7 @@ export function useDarkMode() {
 
   watchEffect(() => {
     document.documentElement.classList.toggle('dark', isDark.value)
-    localStorage.setItem('reqmanpy-dark-mode', String(isDark.value))
+    localStorage.setItem('reqmango-dark-mode', String(isDark.value))
   })
 
   function toggle() { isDark.value = !isDark.value }

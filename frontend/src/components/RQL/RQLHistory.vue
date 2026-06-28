@@ -34,8 +34,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-
-const HISTORY_KEY = 'reqman:rql:history'
+import { HISTORY_KEY } from '@/composables/useRQL'
 const history = ref<any[]>([])
 
 onMounted(() => {

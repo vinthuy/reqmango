@@ -150,7 +150,7 @@ func (s *Server) handleInitialize() initializeResult {
 			Tools: &toolsCapability{ListChanged: false},
 		},
 		ServerInfo: MCPServerInfo{
-			Name:    "reqmanpy-mcp",
+			Name:    "reqmango-mcp",
 			Version: "1.0.0",
 		},
 	}

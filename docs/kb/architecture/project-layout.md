@@ -1,4 +1,4 @@
-# Project Layout（项目目录结构）
+﻿# Project Layout（项目目录结构）
 
 **最后更新**: 2026-06-28
 
@@ -7,7 +7,7 @@
 ## 顶层结构
 
 ```
-reqmanpy/
+reqmango/
 ├── backend/              # Go 后端（主力）
 │   ├── cmd/server/          # 入口 (main.go)
 │   ├── internal/            # 内部代码
@@ -30,7 +30,7 @@ reqmanpy/
 ├── mcp-server/              # 独立 MCP Server（Go module）
 │   ├── main.go              # 入口（stdio MCP）
 │   ├── server.go            # JSON-RPC 2.0 协议
-│   ├── client.go            # ReqManPy REST API 客户端
+│   ├── client.go            # reqmango REST API 客户端
 │   ├── tools.go             # 34 个 MCP 工具定义
 │   └── go.mod               # 独立模块
 │

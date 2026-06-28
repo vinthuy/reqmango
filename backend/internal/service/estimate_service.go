@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/reqmanpy/backend/internal/model"
-	"github.com/reqmanpy/backend/internal/common"
+	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/backend/internal/common"
 	"gorm.io/gorm"
 )
 

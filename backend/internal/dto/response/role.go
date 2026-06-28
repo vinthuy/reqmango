@@ -1,6 +1,6 @@
 package response
 
-import "github.com/reqmanpy/backend/internal/model"
+import "github.com/reqmango/backend/internal/model"
 
 // RoleResponse for role API responses.
 type RoleResponse struct {

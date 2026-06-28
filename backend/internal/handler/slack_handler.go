@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/service"
+	"github.com/reqmango/backend/internal/service"
 )
 
 type SlackHandler struct {

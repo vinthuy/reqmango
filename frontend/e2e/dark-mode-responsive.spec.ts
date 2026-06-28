@@ -1,4 +1,4 @@
-/**
+﻿/**
  * E2E Tests — Dark Mode & Responsive Layout
  * 测试暗色模式切换、侧边栏、多分辨率适配
  */
@@ -70,7 +70,7 @@ test.describe('Dark Mode Toggle', () => {
 
     // Set via localStorage
     await page.evaluate(() => {
-      localStorage.setItem('reqmanpy-dark-mode', 'true')
+      localStorage.setItem('reqmango-dark-mode', 'true')
       document.documentElement.classList.add('dark')
     })
 
@@ -79,12 +79,12 @@ test.describe('Dark Mode Toggle', () => {
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(500)
 
-    const stored = await page.evaluate(() => localStorage.getItem('reqmanpy-dark-mode'))
+    const stored = await page.evaluate(() => localStorage.getItem('reqmango-dark-mode'))
     expect(stored).toBe('true')
 
     // Clean up
     await page.evaluate(() => {
-      localStorage.setItem('reqmanpy-dark-mode', 'false')
+      localStorage.setItem('reqmango-dark-mode', 'false')
       document.documentElement.classList.remove('dark')
     })
   })
@@ -279,7 +279,7 @@ test.describe('Dark Mode Readability', () => {
     await page.waitForTimeout(500)
     await page.evaluate(() => {
       document.documentElement.classList.add('dark')
-      localStorage.setItem('reqmanpy-dark-mode', 'true')
+      localStorage.setItem('reqmango-dark-mode', 'true')
     })
     await page.waitForTimeout(500)
 
@@ -295,7 +295,7 @@ test.describe('Dark Mode Readability', () => {
     await page.goto('/')
     await page.evaluate(() => {
       document.documentElement.classList.add('dark')
-      localStorage.setItem('reqmanpy-dark-mode', 'true')
+      localStorage.setItem('reqmango-dark-mode', 'true')
     })
     await page.waitForTimeout(300)
 

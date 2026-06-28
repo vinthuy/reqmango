@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/reqmanpy/backend/internal/common"
-	"github.com/reqmanpy/backend/internal/model"
+	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 

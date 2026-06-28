@@ -1,5 +1,5 @@
-{
-  "app": { "title": "ReqManPy", "loading": "Loading..." },
+﻿{
+  "app": { "title": "reqmango", "loading": "Loading..." },
   "nav": { "workspaces": "Workspaces", "projects": "Projects", "settings": "Settings", "logout": "Logout" },
   "project": {
     "issues": "Issues", "cycles": "Cycles", "modules": "Modules", "pages": "Pages", "settings": "Settings",

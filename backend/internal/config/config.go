@@ -34,7 +34,7 @@ func Load() *Config {
 	_ = viper.ReadInConfig()
 
 	cfg := &Config{
-		DatabaseURL:          getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/reqmanpy?sslmode=disable"),
+		DatabaseURL:          getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/reqmango?sslmode=disable"),
 		SecretKey:            getEnv("SECRET_KEY", "change-me-in-production"),
 		AccessTokenExpireMin: getEnvInt("ACCESS_TOKEN_EXPIRE_MINUTES", 10080),
 		Port:                 getEnv("PORT", "8000"),

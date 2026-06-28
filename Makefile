@@ -1,4 +1,4 @@
-.PHONY: up down build logs restart clean dev
+﻿.PHONY: up down build logs restart clean dev
 
 # Start all services
 up:
@@ -35,4 +35,4 @@ dev-backend:
 
 # Database shell
 db-shell:
-	docker-compose exec db psql -U reqmanpy -d reqmanpy
+	docker-compose exec db psql -U reqmango -d reqmango

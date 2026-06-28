@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/reqmanpy/backend/internal/common"
-	"github.com/reqmanpy/backend/internal/model"
+	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -398,7 +398,7 @@ func (s *AgentService) buildAgentSystemPrompt(agent *model.Agent, ctx *DispatchC
 		sb.WriteString(*agent.SystemPrompt)
 		sb.WriteString("\n\n")
 	} else {
-		sb.WriteString(fmt.Sprintf("You are %s, an AI agent in the ReqManPy project management system. ", agent.Name))
+		sb.WriteString(fmt.Sprintf("You are %s, an AI agent in the reqmango project management system. ", agent.Name))
 	}
 
 	sb.WriteString("You have access to tools that let you read and modify project data. ")

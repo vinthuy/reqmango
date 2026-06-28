@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reqmanpy/backend/internal/common"
-	"github.com/reqmanpy/backend/internal/model"
+	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -273,7 +273,7 @@ func (s *GitHubService) fetchIssuesFromGitHub(owner, repo, token string) ([]GitH
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "reqmanpy")
+	req.Header.Set("User-Agent", "reqmango")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}

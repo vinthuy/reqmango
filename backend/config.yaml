@@ -1,9 +1,9 @@
-server:
+﻿server:
   port: 8000
   debug: true
 
 database:
-  url: "postgres://postgres:postgres@localhost:5432/reqmanpy?sslmode=disable"
+  url: "postgres://postgres:postgres@localhost:5432/reqmango?sslmode=disable"
 
 jwt:
   secret: "change-me-in-production"

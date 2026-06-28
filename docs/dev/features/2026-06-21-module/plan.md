@@ -1,8 +1,8 @@
-# Module（模块）管理功能 Implementation Plan
+﻿# Module（模块）管理功能 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Complete Module CRUD with AppError pattern, ModuleIssue multi-many join table, progress/stats/tree API, Pinia store, side detail panel with add/remove issues, and inline form modal �?all integrated into Project tabs.
+**Goal:** Complete Module CRUD with AppError pattern, ModuleIssue multi-many join table, progress/stats/tree API, Pinia store, side detail panel with add/remove issues, and inline form modal �?all integrated into Project tabs.
 
 **Architecture:** Go backend (Gin + GORM) adds ModuleIssue join table + 6 new endpoints, refactors existing service/handler to use AppError. Vue 3 frontend adds Pinia store driving ModuleDetailPanel and ModuleFormModal, both within the Project tab layout (no new routes).
 
@@ -34,7 +34,7 @@
 
 ---
 
-### Task 1: Go Model �?ModuleIssue Join Table
+### Task 1: Go Model �?ModuleIssue Join Table
 
 **Files:**
 - Modify: `backend/internal/model/module.go`
@@ -101,7 +101,7 @@ git commit -m "feat(module): add ModuleIssue join table for many-to-many associa
 
 ---
 
-### Task 2: Go ModuleService �?Refactor + New Methods
+### Task 2: Go ModuleService �?Refactor + New Methods
 
 **Files:**
 - Modify: `backend/internal/service/module_service.go`
@@ -114,10 +114,10 @@ Replace the entire content of `backend/internal/service/module_service.go`:
 package service
 
 import (
-	"github.com/reqmanpy/backend/internal/common"
-	"github.com/reqmanpy/backend/internal/dto/request"
-	"github.com/reqmanpy/backend/internal/dto/response"
-	"github.com/reqmanpy/backend/internal/model"
+	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/dto/response"
+	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -524,7 +524,7 @@ git commit -m "feat(module): rewrite ModuleService with AppError, add issue/prog
 
 ---
 
-### Task 3: Go ModuleHandler �?Refactor + New Handlers
+### Task 3: Go ModuleHandler �?Refactor + New Handlers
 
 **Files:**
 - Modify: `backend/internal/handler/module_handler.go`
@@ -541,10 +541,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/common"
-	"github.com/reqmanpy/backend/internal/dto/request"
-	"github.com/reqmanpy/backend/internal/middleware"
-	"github.com/reqmanpy/backend/internal/service"
+	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/service"
 )
 
 type ModuleHandler struct {
@@ -769,7 +769,7 @@ Note: Both `cycle_handler.go` and `module_handler.go` define `appError` at packa
 
 - [ ] **Step 3: Fix appError conflict**
 
-In `backend/internal/handler/cycle_handler.go`, rename `func appError` �?`func cycleAppError` and update all call sites.
+In `backend/internal/handler/cycle_handler.go`, rename `func appError` �?`func cycleAppError` and update all call sites.
 
 OR: delete the standalone `appError` from both handlers, create a shared helper file `backend/internal/handler/helpers.go`:
 
@@ -779,7 +779,7 @@ package handler
 import (
 	"net/http"
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/common"
+	"github.com/reqmango/backend/internal/common"
 )
 
 func appError(c *gin.Context, err error) bool {
@@ -806,7 +806,7 @@ git commit -m "feat(module): rewrite ModuleHandler with AppError, add issue/prog
 
 ---
 
-### Task 4: Go Router �?Register New Module Routes
+### Task 4: Go Router �?Register New Module Routes
 
 **Files:**
 - Modify: `backend/internal/router/router.go`
@@ -853,7 +853,7 @@ git commit -m "feat(module): register issue/progress/stats/tree routes"
 
 ---
 
-### Task 5: Frontend �?Pinia Store
+### Task 5: Frontend �?Pinia Store
 
 **Files:**
 - Create: `frontend/src/stores/module.ts`
@@ -999,7 +999,7 @@ git commit -m "feat(module): add Pinia store for module management"
 
 ---
 
-### Task 6: Frontend �?Update ModuleList to use Store
+### Task 6: Frontend �?Update ModuleList to use Store
 
 **Files:**
 - Modify: `frontend/src/components/ModuleList.vue`
@@ -1052,7 +1052,7 @@ git commit -m "feat(module): update ModuleList to use Pinia store"
 
 ---
 
-### Task 7: Frontend �?ModuleFormModal
+### Task 7: Frontend �?ModuleFormModal
 
 **Files:**
 - Create: `frontend/src/components/ModuleFormModal.vue`
@@ -1075,9 +1075,9 @@ git commit -m "feat(module): update ModuleList to use Pinia store"
             <textarea v-model="form.description" rows="3" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="描述..."></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">父模�?/label>
+            <label class="block text-sm font-medium text-gray-700">父模�?/label>
             <select v-model="form.parent_id" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-              <option :value="undefined">无（顶级模块�?/option>
+              <option :value="undefined">无（顶级模块�?/option>
               <option v-for="m in moduleStore.modules" :key="m.id" :value="m.id" :disabled="m.id === editModule?.id">
                 {{ m.name }}
               </option>
@@ -1087,7 +1087,7 @@ git commit -m "feat(module): update ModuleList to use Pinia store"
         <div class="flex justify-end space-x-3 mt-6">
           <button @click="$emit('close')" class="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">取消</button>
           <button @click="handleSubmit" :disabled="submitting" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50">
-            {{ submitting ? '保存�?..' : (isEdit ? '保存' : '创建') }}
+            {{ submitting ? '保存�?..' : (isEdit ? '保存' : '创建') }}
           </button>
         </div>
         <div v-if="moduleStore.error" class="mt-3 text-sm text-red-600">{{ moduleStore.error }}</div>
@@ -1182,7 +1182,7 @@ git commit -m "feat(module): add ModuleFormModal for create/edit"
 
 ---
 
-### Task 8: Frontend �?ModuleDetailPanel + Project.vue Integration
+### Task 8: Frontend �?ModuleDetailPanel + Project.vue Integration
 
 **Files:**
 - Create: `frontend/src/components/ModuleDetailPanel.vue`
@@ -1236,13 +1236,13 @@ git commit -m "feat(module): add ModuleFormModal for create/edit"
         <!-- Issues -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <h4 class="text-sm font-medium text-gray-700">模块工作�?({{ moduleStore.moduleIssues.length }})</h4>
+            <h4 class="text-sm font-medium text-gray-700">模块工作�?({{ moduleStore.moduleIssues.length }})</h4>
             <button @click="toggleAddIssue" class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">+ 添加</button>
           </div>
 
           <!-- Add issue search -->
           <div v-if="showAddIssue" class="mb-3 border border-gray-200 rounded-md p-2">
-            <input v-model="searchQuery" type="text" placeholder="搜索工作�?.."
+            <input v-model="searchQuery" type="text" placeholder="搜索工作�?.."
               class="w-full px-2 py-1 text-sm border border-gray-300 rounded mb-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               @input="searchIssues" />
             <div class="max-h-40 overflow-y-auto space-y-1">
@@ -1251,11 +1251,11 @@ git commit -m "feat(module): add ModuleFormModal for create/edit"
                 <span class="text-gray-900 truncate flex-1">{{ issue.name }}</span>
                 <span class="text-xs text-gray-400 ml-2">#{{ issue.sequence_id }}</span>
               </div>
-              <div v-if="availableIssues.length === 0 && searched" class="text-xs text-gray-400 py-2 text-center">没有可添加的工作�?/div>
+              <div v-if="availableIssues.length === 0 && searched" class="text-xs text-gray-400 py-2 text-center">没有可添加的工作�?/div>
             </div>
           </div>
 
-          <div v-if="moduleStore.moduleIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">暂无工作�?/div>
+          <div v-if="moduleStore.moduleIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">暂无工作�?/div>
           <div v-else class="space-y-2">
             <div v-for="issue in moduleStore.moduleIssues" :key="issue.id" class="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
               <span class="text-gray-900 truncate flex-1">{{ issue.name }}</span>
@@ -1347,7 +1347,7 @@ async function handleRemoveIssue(issueId: number) {
 
 async function handleDelete() {
   if (!props.module) return
-  if (!confirm(`确定要删除模�?"${props.module.name}" 吗？此操作不可撤销。`)) return
+  if (!confirm(`确定要删除模�?"${props.module.name}" 吗？此操作不可撤销。`)) return
   await moduleStore.deleteModuleAction(props.module.id)
   emit('close')
 }
@@ -1392,7 +1392,7 @@ function handleModuleEdit(module: ModuleResponse) {
 
 function handleModuleDelete(module: ModuleResponse | any) {
   const m = module as ModuleResponse
-  if (confirm(`确定要删除模�?"${m.name}" 吗？`)) {
+  if (confirm(`确定要删除模�?"${m.name}" 吗？`)) {
     // Will be handled by the detail panel
   }
 }

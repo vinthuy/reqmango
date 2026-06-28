@@ -1,3 +1,3 @@
-module github.com/reqmanpy/mcp-server
+module github.com/reqmango/mcp-server
 
 go 1.22

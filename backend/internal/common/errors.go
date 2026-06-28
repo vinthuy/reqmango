@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/i18n"
+	"github.com/reqmango/backend/internal/i18n"
 )
 
 // AppError represents an application-level error with an HTTP status and business error code.

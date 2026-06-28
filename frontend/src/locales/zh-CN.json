@@ -1,5 +1,5 @@
-{
-  "app": { "title": "ReqManPy", "loading": "加载中..." },
+﻿{
+  "app": { "title": "reqmango", "loading": "加载中..." },
   "nav": { "workspaces": "工作空间", "projects": "项目", "settings": "设置", "logout": "退出登录" },
   "project": {
     "issues": "工作项管理", "cycles": "周期", "modules": "模块", "pages": "文档", "settings": "设置",

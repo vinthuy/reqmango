@@ -1,6 +1,6 @@
-# ReqManPy MCP Server
+﻿# reqmango MCP Server
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that enables AI assistants like **Claude**, **Cursor**, and **VS Code** to interact with your [ReqManPy](https://github.com/your-org/reqmanpy) project management instance.
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that enables AI assistants like **Claude**, **Cursor**, and **VS Code** to interact with your [reqmango](https://github.com/your-org/reqmango) project management instance.
 
 ## Quick Start
 
@@ -8,7 +8,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that en
 
 ```bash
 cd mcp-server
-go build -o reqmanpy-mcp .
+go build -o reqmango-mcp .
 ```
 
 ### 2. Configure
@@ -16,17 +16,17 @@ go build -o reqmanpy-mcp .
 Set these environment variables:
 
 ```bash
-export REQMANPY_API_URL="http://localhost:8000/api/v1"  # Your ReqManPy instance
-export REQMANPY_API_TOKEN="your-jwt-token-here"         # JWT Bearer token from ReqManPy
+export reqmango_API_URL="http://localhost:8000/api/v1"  # Your reqmango instance
+export reqmango_API_TOKEN="your-jwt-token-here"         # JWT Bearer token from reqmango
 ```
 
-To get an API token, log in to your ReqManPy instance and use the token from the auth login response.
+To get an API token, log in to your reqmango instance and use the token from the auth login response.
 
 ### 3. Test
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./reqmanpy-mcp
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | ./reqmanpy-mcp
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./reqmango-mcp
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | ./reqmango-mcp
 ```
 
 ---
@@ -38,11 +38,11 @@ Add this to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "reqmanpy": {
-      "command": "/path/to/reqmanpy-mcp",
+    "reqmango": {
+      "command": "/path/to/reqmango-mcp",
       "env": {
-        "REQMANPY_API_URL": "http://localhost:8000/api/v1",
-        "REQMANPY_API_TOKEN": "your-jwt-token-here"
+        "reqmango_API_URL": "http://localhost:8000/api/v1",
+        "reqmango_API_TOKEN": "your-jwt-token-here"
       }
     }
   }
@@ -56,10 +56,10 @@ Restart Claude Desktop. You should see 🔨 14 tools when you look at connected 
 ## Claude Code (CLI) Setup
 
 ```bash
-claude mcp add reqmanpy \
-  --command /path/to/reqmanpy-mcp \
-  --env REQMANPY_API_URL=http://localhost:8000/api/v1 \
-  --env REQMANPY_API_TOKEN=your-jwt-token-here
+claude mcp add reqmango \
+  --command /path/to/reqmango-mcp \
+  --env reqmango_API_URL=http://localhost:8000/api/v1 \
+  --env reqmango_API_TOKEN=your-jwt-token-here
 ```
 
 ---
@@ -71,11 +71,11 @@ Add to your `.vscode/mcp.json` or Cursor MCP config:
 ```json
 {
   "servers": {
-    "reqmanpy": {
-      "command": "/path/to/reqmanpy-mcp",
+    "reqmango": {
+      "command": "/path/to/reqmango-mcp",
       "env": {
-        "REQMANPY_API_URL": "http://localhost:8000/api/v1",
-        "REQMANPY_API_TOKEN": "your-jwt-token-here"
+        "reqmango_API_URL": "http://localhost:8000/api/v1",
+        "reqmango_API_TOKEN": "your-jwt-token-here"
       }
     }
   }
@@ -122,14 +122,14 @@ Once connected, you can ask your AI assistant things like:
 
 **"Parse error" on startup**: Make sure you're sending valid JSON (one line per message, newline-delimited).
 
-**API errors**: Verify `REQMANPY_API_URL` is correct and the ReqManPy instance is running.
+**API errors**: Verify `reqmango_API_URL` is correct and the reqmango instance is running.
 
-**401 Unauthorized**: Your `REQMANPY_API_TOKEN` may be expired. Generate a new one by logging in.
+**401 Unauthorized**: Your `reqmango_API_TOKEN` may be expired. Generate a new one by logging in.
 
-**Tool returns empty results**: Verify the IDs you're using exist in your ReqManPy instance (workspace_id, project_id, etc.).
+**Tool returns empty results**: Verify the IDs you're using exist in your reqmango instance (workspace_id, project_id, etc.).
 
 ---
 
 ## License
 
-MIT — same as ReqManPy.
+MIT — same as reqmango.

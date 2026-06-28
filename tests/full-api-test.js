@@ -1,4 +1,4 @@
-// Full product API test script - Node.js
+﻿// Full product API test script - Node.js
 const BASE = 'http://localhost:8000/api/v1';
 
 const results = [];
@@ -37,7 +37,7 @@ async function request(method, path, body = null) {
 }
 
 async function main() {
-  console.log('=== ReqManPy Full Product API Test ===\n');
+  console.log('=== reqmango Full Product API Test ===\n');
 
   // === 1. Auth Tests ===
   console.log('--- Auth ---');

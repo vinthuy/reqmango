@@ -1,0 +1,10 @@
+server:
+  port: 8000
+  debug: true
+
+database:
+  url: "postgres://postgres:postgres@localhost:5432/reqmanpy?sslmode=disable"
+
+jwt:
+  secret: "change-me-in-production"
+  access_token_expire_minutes: 10080

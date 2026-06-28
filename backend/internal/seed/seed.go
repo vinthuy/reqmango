@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/reqmanpy/backend/internal/common"
-	"github.com/reqmanpy/backend/internal/model"
+	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/model"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -432,7 +432,7 @@ func SeedConfigData(db *gorm.DB) {
 	if notifCount == 0 {
 		adminID := uint64(1)
 		db.Create(&model.Notification{
-			Title:       "Welcome to ReqManPy!",
+			Title:       "Welcome to reqmango!",
 			Message:     "Your project management platform is ready. Start by creating your first work item.",
 			Type:        "info",
 			Priority:    "medium",

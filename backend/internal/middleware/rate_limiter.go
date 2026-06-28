@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/model"
+	"github.com/reqmango/backend/internal/model"
 )
 
 // RateLimiter implements a per-key token bucket rate limiter.

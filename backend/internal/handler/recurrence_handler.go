@@ -4,9 +4,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/common"
-	"github.com/reqmanpy/backend/internal/dto/request"
-	"github.com/reqmanpy/backend/internal/service"
+	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/service"
 )
 
 type RecurrenceHandler struct{ svc *service.RecurrenceService }

@@ -1,4 +1,4 @@
-module github.com/reqmanpy/backend
+module github.com/reqmango/backend
 
 go 1.22
 

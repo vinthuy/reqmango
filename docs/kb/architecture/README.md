@@ -1,6 +1,6 @@
-# Architecture Overview
+﻿# Architecture Overview
 
-ReqManPy 采用前后端分离架构，Go + Vue 3 全栈。
+reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 **最后更新**: 2026-06-28
 

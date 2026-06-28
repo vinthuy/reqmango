@@ -3,8 +3,8 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"github.com/reqmanpy/backend/internal/middleware"
-	"github.com/reqmanpy/backend/internal/service"
+	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/service"
 	"strconv"
 )
 

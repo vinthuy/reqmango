@@ -1,6 +1,6 @@
-# ReqManPy Documentation
+﻿# reqmango Documentation
 
-ReqManPy 项目管理平台的文档中心。本文档库分为四大区域：
+reqmango 项目管理平台的文档中心。本文档库分为四大区域：
 
 - **Knowledge Base（全量知识库）**：描述系统**当前是什么**，是唯一真相来源
 - **Development Pipeline（增量需求开发）**：管理**正在构建什么**，有完整的生命周期
@@ -68,7 +68,7 @@ ReqManPy 项目管理平台的文档中心。本文档库分为四大区域：
 ```
 docs/
 ├── README.md                         # 你在这里
-├── reqmanpy-vs-planeai.md            # 竞品对标分析
+├── reqmango-vs-planeai.md            # 竞品对标分析
 ├── kb/                               # 全量知识库
 │   ├── PRD.md                        # 产品需求文档
 │   ├── architecture/                 # 架构参考（9 文档）

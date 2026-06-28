@@ -2,11 +2,11 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/config"
-	"github.com/reqmanpy/backend/internal/handler"
-	"github.com/reqmanpy/backend/internal/middleware"
-	"github.com/reqmanpy/backend/internal/rql"
-	"github.com/reqmanpy/backend/internal/service"
+	"github.com/reqmango/backend/internal/config"
+	"github.com/reqmango/backend/internal/handler"
+	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/rql"
+	"github.com/reqmango/backend/internal/service"
 	"gorm.io/gorm"
 )
 

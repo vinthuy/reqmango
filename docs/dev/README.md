@@ -1,6 +1,6 @@
-# Development Pipeline（增量需求开发）
+﻿# Development Pipeline（增量需求开发）
 
-本文档描述 ReqManPy 的增量功能开发流程。每个功能从需求提出到完成归档，遵循标准化的生命周期。
+本文档描述 reqmango 的增量功能开发流程。每个功能从需求提出到完成归档，遵循标准化的生命周期。
 
 ---
 

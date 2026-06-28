@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/service"
+	"github.com/reqmango/backend/internal/service"
 )
 
 // AutomationHandler handles HTTP requests for automation rules.

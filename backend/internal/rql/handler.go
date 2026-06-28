@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/dto/request"
 	"gorm.io/gorm"
 )
 

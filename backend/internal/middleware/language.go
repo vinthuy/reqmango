@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/i18n"
+	"github.com/reqmango/backend/internal/i18n"
 )
 
 // LanguageMiddleware detects and sets the user's preferred language.

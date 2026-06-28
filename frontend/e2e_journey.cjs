@@ -1,10 +1,10 @@
-const { chromium } = require('playwright');
+﻿const { chromium } = require('playwright');
 const BASE = 'http://localhost:5173';
 const API = 'http://localhost:8000/api/v1';
 
 (async () => {
   console.log('╔══════════════════════════════════════════════╗');
-  console.log('║   ReqManPy 端到端用户旅程测试                 ║');
+  console.log('║   reqmango 端到端用户旅程测试                 ║');
   console.log('╚══════════════════════════════════════════════╝\n');
 
   const browser = await chromium.launch({ headless: true });

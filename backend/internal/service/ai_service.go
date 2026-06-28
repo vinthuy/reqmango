@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reqmanpy/backend/internal/model"
+	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -33,7 +33,7 @@ func NewAIService(db *gorm.DB, llm *LLMClient, issueSvc *IssueService, projectSv
 
 func (s *AIService) buildSystemPrompt(ctx *AIContext) string {
 	parts := []string{
-		"你是 ReqManPy AI 助手，一个项目管理专家。你帮助用户管理需求、任务和 Bug。",
+		"你是 reqmango AI 助手，一个项目管理专家。你帮助用户管理需求、任务和 Bug。",
 		fmt.Sprintf("当前上下文：工作空间「%s」> 项目「%s」", ctx.WorkspaceName, ctx.ProjectName),
 	}
 	if ctx.PageTitle != "" {
@@ -583,7 +583,7 @@ type AISearchResponse struct {
 
 // Search translates natural language to a search query and executes it.
 func (s *AIService) Search(ctx context.Context, req *AISearchRequest, actx *AIContext) (*AISearchResponse, error) {
-	translatePrompt := fmt.Sprintf(`你是一个查询翻译器。将用户的自然语言需求翻译为 ReqManPy 查询，然后搜索并返回结果。
+	translatePrompt := fmt.Sprintf(`你是一个查询翻译器。将用户的自然语言需求翻译为 reqmango 查询，然后搜索并返回结果。
 
 项目信息：
 - 项目 ID: %d
@@ -1430,7 +1430,7 @@ func (s *AIService) toolWebSearch(args map[string]interface{}) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("web_search request failed: %w", err)
 	}
-	req.Header.Set("User-Agent", "ReqManPy/1.0 (AI Assistant Bot; +https://github.com/reqmanpy)")
+	req.Header.Set("User-Agent", "reqmango/1.0 (AI Assistant Bot; +https://github.com/reqmango)")
 
 	resp, err := client.Do(req)
 	if err != nil {

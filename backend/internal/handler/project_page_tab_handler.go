@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend/internal/middleware"
-	"github.com/reqmanpy/backend/internal/model"
-	"github.com/reqmanpy/backend/internal/service"
+	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/backend/internal/service"
 )
 
 type ProjectPageTabHandler struct {

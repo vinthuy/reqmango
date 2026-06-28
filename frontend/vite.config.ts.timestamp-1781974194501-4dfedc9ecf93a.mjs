@@ -1,8 +1,8 @@
-// vite.config.ts
-import { defineConfig } from "file:///D:/code/reqmanpy/frontend/node_modules/vite/dist/node/index.js";
-import vue from "file:///D:/code/reqmanpy/frontend/node_modules/@vitejs/plugin-vue/dist/index.mjs";
+﻿// vite.config.ts
+import { defineConfig } from "file:///D:/code/reqmango/frontend/node_modules/vite/dist/node/index.js";
+import vue from "file:///D:/code/reqmango/frontend/node_modules/@vitejs/plugin-vue/dist/index.mjs";
 import { resolve } from "path";
-var __vite_injected_original_dirname = "D:\\code\\reqmanpy\\frontend";
+var __vite_injected_original_dirname = "D:\\code\\reqmango\\frontend";
 var vite_config_default = defineConfig({
   plugins: [vue()],
   resolve: {
