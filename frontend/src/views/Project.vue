@@ -49,33 +49,36 @@
 
       <!-- 标签页内容 -->
       <div v-if="activeTab === 'issues'">
-        <!-- Unified Filter Bar (shared across all views) -->
-        <IssueFilterBar
+        <!-- Plane-style Filter Bar (shared across all views) -->
+        <FilterBar
+          ref="filterBarRef"
+          :project-id="projectId"
           :view-mode="issueView"
           :states="states"
           :cycles="cycles"
           :labels="labels"
           @update:view-mode="issueView = $event; triggerRefresh()"
-          @search="onFilterSearch"
-          @rql="onRQL"
+          @filters-changed="onFiltersChanged"
+          @group-by-change="onGroupByChange"
+          @sort-change="onSortChange"
+          @save-view="onSaveFilterView"
           class="mb-3"
         >
-          <template #actions>
+          <template #viewSelector>
             <SavedViewSelector
               :project-id="projectId"
               :view-type="(issueView as 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt')"
               @select="handleViewSelect"
             />
           </template>
-        </IssueFilterBar>
+        </FilterBar>
 
         <IssueList
           v-if="issueView === 'list'"
           :key="'list-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
-          :external-filters="issueFilters"
-          :external-search="issueSearch"
+          :rql="rql"
           @select="openDetailPanel"
           @delete="handleDeleteIssue"
         />
@@ -84,8 +87,7 @@
           :key="'kanban-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
-          :external-filters="issueFilters"
-          :external-search="issueSearch"
+          :rql="rql"
           @select="openDetailPanel"
         />
         <IssueTreeView
@@ -93,24 +95,21 @@
           :key="'tree-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
-          :external-filters="issueFilters"
-          :external-search="issueSearch"
+          :rql="rql"
           @select="openDetailPanel"
         />
         <IssueCalendar
           v-else-if="issueView === 'calendar'"
           :project-id="projectId"
           :workspace-id="workspaceId"
-          :external-filters="issueFilters"
-          :external-search="issueSearch"
+          :rql="rql"
           @select="openDetailPanel"
         />
         <IssueGantt
           v-else-if="issueView === 'gantt'"
           :project-id="projectId"
           :workspace-id="workspaceId"
-          :external-filters="issueFilters"
-          :external-search="issueSearch"
+          :rql="rql"
           @select="openDetailPanel"
           @create="router.push(`/workspace/${route.params.slug}/project/${projectId}/issues/new?view=tree`)"
         />
@@ -300,8 +299,10 @@ import AICreateDialog from '@/components/AICreateDialog.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
 import PageTabConfig from '@/components/PageTabConfig.vue'
 import ReportBuilder from '@/components/ReportBuilder.vue'
-import IssueFilterBar from '@/components/IssueFilterBar.vue'
+import FilterBar from '@/components/FilterBar.vue'
+import type { FilterCondition } from '@/types/filters'
 import type { SavedView } from '@/types/saved-view'
+import { createSavedView } from '@/api/saved-view'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
 import { useModuleStore } from '@/stores/module'
@@ -318,30 +319,40 @@ const issueView = ref((route.query.view as string) || 'list')
 const issueRefreshKey = ref(0)
 function triggerRefresh() { issueRefreshKey.value++ }
 
-// Unified filter state
-const issueFilters = ref<Record<string, any>>({})
-const issueSearch = ref('')
+// Plane-style filter state
+const rql = ref('')
+const filterBarRef = ref<InstanceType<typeof FilterBar> | null>(null)
 const states = ref<any[]>([])
 const cycles = ref<any[]>([])
 const labels = ref<any[]>([])
 const labelsList = ref<any[]>([])
 
-function onFilterSearch(query: string, conditions: any[]) {
-  issueSearch.value = query
-  // Convert filter conditions to API params
-  const params: Record<string, any> = {}
-  for (const c of conditions) {
-    if (c.operator === 'is_empty') { params[c.key] = 'IS_EMPTY' }
-    else if (c.operator === 'is_not_empty') { params[c.key] = 'IS_NOT_EMPTY' }
-    else if (c.operator === 'in') { params[c.key] = c.value.split(',').map((v: string) => v.trim()) }
-    else { params[c.key] = `${c.operator}:${c.value}` }
-  }
-  issueFilters.value = params
+function onFiltersChanged(newRql: string, _filters: FilterCondition[]) {
+  rql.value = newRql
   triggerRefresh()
 }
-function onRQL(query: string) {
-  issueFilters.value = { rql: query }
-  triggerRefresh()
+
+function onGroupByChange(_value: string) {
+  // Passed directly to view components via FilterBar's provide/inject
+}
+
+function onSortChange(_value: string) {
+  // Passed directly to view components via FilterBar's provide/inject
+}
+
+async function onSaveFilterView(data: { name: string; filters: FilterCondition[]; groupBy: string; sortBy: string; viewType: string }) {
+  try {
+    await createSavedView(projectId.value, {
+      name: data.name,
+      view_type: data.viewType as any,
+      filters: data.filters as any,
+      group_by: data.groupBy || undefined,
+      sort_config: [{ field: data.sortBy.split('_')[0], dir: data.sortBy.split('_')[1] as 'asc' | 'desc' }],
+      columns: [],
+    })
+  } catch (err) {
+    console.error('Failed to save view:', err)
+  }
 }
 
 
@@ -497,12 +508,19 @@ function goBack() {
 }
 
 function handleViewSelect(view: SavedView) {
-  if (view.view_type && (view.view_type === 'list' || view.view_type === 'kanban' || view.view_type === 'tree' || view.view_type === 'gantt' || view.view_type === 'calendar')) {
+  if (view.view_type && ['list', 'kanban', 'tree', 'gantt', 'calendar'].includes(view.view_type)) {
     issueView.value = view.view_type
   }
-  // Future: apply filters, sort, columns, groupBy from the view
-  // These would be passed as props to IssueList/IssueKanban
-  console.log('View selected:', view.name, view)
+  // Apply filters, sort, columns, groupBy from the view
+  if (filterBarRef.value) {
+    filterBarRef.value.restoreFromView({
+      id: view.id,
+      filters: view.filters,
+      group_by: view.group_by,
+      sort_config: view.sort_config,
+      view_type: view.view_type,
+    })
+  }
 }
 
 async function handleDeleteIssue(issue: any) {

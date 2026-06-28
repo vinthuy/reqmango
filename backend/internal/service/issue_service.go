@@ -12,6 +12,7 @@ import (
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/backend/internal/rql"
 	"gorm.io/gorm"
 )
 
@@ -180,6 +181,45 @@ func (s *IssueService) GetByID(issueID uint64) (*response.IssueResponse, error) 
 // List returns issues for a project with optional filters and total count.
 func (s *IssueService) List(projectID uint64, filters map[string]interface{}, limit, offset int) ([]response.IssueResponse, int64, error) {
 	baseQuery := s.db.Model(&model.Issue{}).Where("issues.project_id = ?", projectID)
+
+	// Handle RQL filter: use RQL service to get matching issue IDs
+	if rqlQuery, ok := filters["rql"]; ok && rqlQuery != nil && rqlQuery != "" {
+		queryStr := fmt.Sprint(rqlQuery)
+		if queryStr != "" {
+			rqlSvc := rql.NewRQLService()
+			rqlIssues, rqlTotal, rqlErr := rqlSvc.SearchIssues(s.db, projectID, queryStr, limit, offset)
+			if rqlErr != nil {
+				return nil, 0, common.BadRequest("RQL parse error: " + rqlErr.Error())
+			}
+			if len(rqlIssues) == 0 {
+				return []response.IssueResponse{}, rqlTotal, nil
+			}
+			ids := make([]uint64, len(rqlIssues))
+			for i, issue := range rqlIssues {
+				ids[i] = issue.ID
+			}
+			var issues []model.Issue
+			if err := s.db.Where("id IN ?", ids).
+				Preload("State").
+				Preload("IssueType").
+				Preload("AssigneeLinks.User").
+				Preload("LabelLinks.Label").
+				Preload("CycleLink").
+				Order("sort_order ASC, sequence_id DESC").
+				Find(&issues).Error; err != nil {
+				return nil, 0, common.Internal("Database error")
+			}
+			result := make([]response.IssueResponse, len(issues))
+			for i, issue := range issues {
+				resp, err := s.BuildIssueResponse(&issue)
+				if err != nil {
+					return nil, 0, err
+				}
+				result[i] = *resp
+			}
+			return result, rqlTotal, nil
+		}
+	}
 
 	// Apply filters
 	if stateID, ok := filters["state_id"]; ok && stateID != nil {

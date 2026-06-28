@@ -134,6 +134,9 @@ func (h *IssueHandler) List(c *gin.Context) {
 			filters["cf_and"] = conditions
 		}
 	}
+	if v := c.Query("rql"); v != "" {
+		filters["rql"] = v
+	}
 
 	issues, total, svcErr := h.svc.List(projectID, filters, p.Limit, p.Offset)
 	if svcErr != nil {

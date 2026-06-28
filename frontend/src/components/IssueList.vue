@@ -1,7 +1,7 @@
 <template>
-  <div class="issue-list bg-white rounded-lg border border-gray-200">
+  <div class="issue-list bg-white rounded-xl border border-gray-100">
     <!-- Row 1: 主工具栏 (hidden when unified filter bar is active) -->
-    <div v-if="!externalFilters" class="px-4 py-2.5 border-b border-gray-100">
+    <div v-if="!rql" class="px-4 py-2.5 border-b border-gray-100">
       <div class="flex items-center gap-3">
         <!-- 搜索框 -->
         <div class="relative flex-1 max-w-sm">
@@ -13,7 +13,7 @@
             type="text"
             :placeholder="t('issueList.searchPlaceholder')"
 
-            class="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-md text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+            class="w-full pl-9 pr-3 py-1.5 border border-gray-100 rounded-md text-sm bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-transparent transition-colors"
             @keydown.enter="search"
           />
         </div>
@@ -48,7 +48,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               <span>{{ t('issueList.filter') }}</span>
-              <span v-if="activeFilterCount > 0" class="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center">{{ activeFilterCount }}</span>
+              <span v-if="activeFilterCount > 0" class="w-4 h-4 rounded-full bg-neutral-700 text-white text-[10px] flex items-center justify-center">{{ activeFilterCount }}</span>
             </button>
 
             <!-- 筛选下拉菜单 -->
@@ -111,7 +111,7 @@
           </button>
 
           <!-- 新建 -->
-          <button @click="goToCreate" class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-md hover:bg-indigo-700 transition-colors font-medium">
+          <button @click="goToCreate" class="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 text-white text-xs rounded-md hover:bg-neutral-800 transition-colors font-medium">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
@@ -132,7 +132,7 @@
           @search="onRQLSearch"
         />
       </div>
-      <svg v-if="rqlLoading" class="animate-spin h-4 w-4 text-indigo-600 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <svg v-if="rqlLoading" class="animate-spin h-4 w-4 text-gray-500 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
       </svg>
@@ -144,7 +144,7 @@
       <span
         v-for="chip in activeFilterChips"
         :key="chip.key"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white border border-gray-200 text-gray-700 shadow-sm"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-50 border border-gray-100 text-gray-600"
       >
         <span class="text-gray-400">{{ chip.label }}:</span>
         <span class="font-medium">{{ chip.value }}</span>
@@ -154,7 +154,7 @@
           </svg>
         </button>
       </span>
-      <button @click="clearAllFilters" class="text-[11px] text-gray-400 hover:text-indigo-600 transition-colors ml-1">{{ t('issueList.clearAll') }}</button>
+      <button @click="clearAllFilters" class="text-[11px] text-gray-400 hover:text-gray-600 transition-colors ml-1">{{ t('issueList.clearAll') }}</button>
     </div>
 
     <!-- Row 3: 快速创建 -->
@@ -201,12 +201,12 @@
     </div>
 
     <!-- 批量操作工具栏 -->
-    <div v-if="selectedIds.size > 0" class="sticky top-0 z-20 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 flex-wrap">
-      <span class="text-sm text-indigo-700 dark:text-indigo-300 font-medium">{{ t('issueList.selected') }} {{ selectedIds.size }} {{ t('common.items') }}</span>
+    <div v-if="selectedIds.size > 0" class="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 flex-wrap">
+      <span class="text-sm text-gray-700 dark:text-gray-300 font-medium">{{ t('issueList.selected') }} {{ selectedIds.size }} {{ t('common.items') }}</span>
 
       <!-- 更改状态 -->
       <div class="relative">
-        <button @click="showBatchState = !showBatchState" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
+        <button @click="showBatchState = !showBatchState" class="px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
           {{ t('issueList.changeState') }}
         </button>
         <div v-if="showBatchState" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
@@ -216,7 +216,7 @@
 
       <!-- 更改优先级 -->
       <div class="relative">
-        <button @click="showBatchPriority = !showBatchPriority" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
+        <button @click="showBatchPriority = !showBatchPriority" class="px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
           {{ t('issueList.changePriority') }}
         </button>
         <div v-if="showBatchPriority" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
@@ -226,7 +226,7 @@
 
       <!-- 批量分配 -->
       <div class="relative">
-        <button @click="showBatchAssign = !showBatchAssign" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
+        <button @click="showBatchAssign = !showBatchAssign" class="px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
           {{ t('issueList.batchAssign') }}
         </button>
         <div v-if="showBatchAssign" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 p-2 w-48">
@@ -235,7 +235,7 @@
       </div>
 
       <!-- 批量删除 -->
-      <button @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+      <button @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-200 dark:border-red-800 rounded-md bg-white dark:bg-gray-700 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
         {{ t('issueList.batchDelete') }}
       </button>
 
@@ -250,7 +250,7 @@
     <!-- 列表内容 -->
     <div class="overflow-x-auto">
       <div v-if="loading" class="text-center py-16">
-        <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        <svg class="animate-spin h-8 w-8 text-gray-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
         <p class="mt-2 text-gray-500 text-sm">{{ t('common.loading') }}</p>
       </div>
       <div v-else-if="issues.length === 0" class="text-center py-16">
@@ -259,7 +259,7 @@
         <p class="mt-1 text-sm text-gray-400">{{ t('issueList.noIssuesHint') }}</p>
       </div>
       <table v-else class="w-full">
-        <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
+        <thead class="border-b border-gray-100 sticky top-0 bg-white">
           <tr>
             <th class="w-10 px-3 py-2.5 text-left">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" class="rounded border-gray-300" />
@@ -274,7 +274,7 @@
         <tbody>
           <tr v-for="issue in issues" :key="issue.id"
             class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
-            :class="{ 'bg-indigo-50/50': selectedIds.has(issue.id) }">
+            :class="{ 'bg-blue-50/50': selectedIds.has(issue.id) }">
             <td class="px-3 py-2.5" @click.stop>
               <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300" />
             </td>
@@ -282,7 +282,7 @@
               <!-- 编号 -->
               <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-400 font-mono">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
               <!-- 标题 -->
-              <span v-else-if="col.key === 'name'" class="text-sm text-gray-800 font-medium line-clamp-2 hover:text-indigo-600 transition-colors">{{ issue.name }}</span>
+              <span v-else-if="col.key === 'name'" class="text-sm text-gray-800 font-medium line-clamp-2 hover:text-gray-900 transition-colors">{{ issue.name }}</span>
               <!-- 优先级 -->
               <span v-else-if="col.key === 'priority'" :class="priorityClass(issue.priority)" class="text-xs px-1.5 py-0.5 rounded whitespace-nowrap">{{ priorityLabel(issue.priority) }}</span>
               <!-- 类型 -->
@@ -313,7 +313,7 @@
             </td>
             <td class="px-3 py-2.5" @click.stop>
               <div class="flex items-center gap-1">
-                <button @click="$emit('select', issue)" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">{{ t('issueList.view') }}</button>
+                <button @click="$emit('select', issue)" class="text-xs text-blue-500 hover:text-blue-700 font-medium">{{ t('issueList.view') }}</button>
               </div>
             </td>
           </tr>
@@ -329,7 +329,7 @@
         <template v-for="p in visiblePages" :key="p">
           <button v-if="p === '...'" disabled class="px-2 py-1 text-sm text-gray-400">...</button>
           <button v-else @click="page = Number(p)" class="px-3 py-1 border rounded text-sm transition-colors"
-            :class="page === Number(p) ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-gray-100'">{{ p }}</button>
+            :class="page === Number(p) ? 'bg-neutral-900 text-white border-neutral-900' : 'hover:bg-gray-100'">{{ p }}</button>
         </template>
         <button @click="page++" :disabled="page >= totalPages" class="px-3 py-1 border rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors">{{ t('issueList.nextPage') }}</button>
       </div>
@@ -362,7 +362,7 @@ import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import QuickFilterChips from '@/components/QuickFilterChips.vue'
 import * as issueTypeApi from '@/api/issue-type'
 
-const props = defineProps<{ projectId: number; workspaceId: number; externalFilters?: Record<string, any>; externalSearch?: string }>()
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string }>()
 const router = useRouter()
 const { t, locale } = useI18n()
 
@@ -752,6 +752,7 @@ async function loadIssues() {
   loading.value = true
   try {
     const params: any = { limit: limit.value, offset: (page.value - 1) * limit.value }
+    if (props.rql) params.rql = props.rql
     if (filters.value.state_id && filters.value.state_id > 0) params.state_id = filters.value.state_id
     if (filters.value.priority) params.priority = filters.value.priority
     if (filters.value.cycle_id && filters.value.cycle_id > 0) params.cycle_id = filters.value.cycle_id

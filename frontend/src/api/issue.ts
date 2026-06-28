@@ -65,6 +65,7 @@ export async function listIssues(
     if (filters.state_id) params.append('state_id', filters.state_id.toString())
     if (filters.priority) params.append('priority', filters.priority)
     if (filters.assignee_id) params.append('assignee_id', filters.assignee_id.toString())
+    if ((filters as any).rql) params.append('rql', (filters as any).rql as string)
     if (filters.parent_id) params.append('parent_id', filters.parent_id.toString())
     if (filters.cycle_id) params.append('cycle_id', filters.cycle_id.toString())
     if (filters.module_id) params.append('module_id', filters.module_id.toString())
