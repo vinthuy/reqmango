@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -53,15 +54,11 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Auto-apply template after creation
+	// Auto-apply template after creation (non-fatal on failure)
 	if req.TemplateID != nil {
 		if svcErr := h.templateSvc.Apply(*req.TemplateID, resp.ID); svcErr != nil {
-			if appErr, ok := svcErr.(*common.AppError); ok {
-				c.JSON(appErr.Code, gin.H{"message": appErr.Message})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to apply template"})
-			return
+			// Log warning but don't fail the request — project is already created
+			fmt.Printf("WARNING: project %d created but template %d apply failed: %v\n", resp.ID, *req.TemplateID, svcErr)
 		}
 	}
 

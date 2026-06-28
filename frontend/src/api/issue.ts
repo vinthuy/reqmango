@@ -332,7 +332,90 @@ export async function removeIssueCycle(
   return response.data
 }
 
-// ==================== Pages ====================
+// ==================== Bulk Advanced Operations ====================
+
+/**
+ * 批量转换工作项类型
+ */
+export async function bulkConvertIssueType(
+  projectId: number,
+  issueIds: number[],
+  issueTypeId: number
+): Promise<any> {
+  const res = await api.post(`/issues/bulk/convert-type?project_id=${projectId}`, {
+    issue_ids: issueIds,
+    issue_type_id: issueTypeId,
+  })
+  return res.data
+}
+
+/**
+ * 批量复制工作项到另一个项目
+ */
+export async function bulkCopyIssues(
+  projectId: number,
+  issueIds: number[],
+  targetProjectId: number
+): Promise<any> {
+  const res = await api.post(`/issues/bulk/copy?project_id=${projectId}`, {
+    issue_ids: issueIds,
+    target_project_id: targetProjectId,
+  })
+  return res.data
+}
+
+/**
+ * 批量移动工作项到另一个项目
+ */
+export async function bulkMoveIssues(
+  projectId: number,
+  issueIds: number[],
+  targetProjectId: number
+): Promise<any> {
+  const res = await api.post(`/issues/bulk/move?project_id=${projectId}`, {
+    issue_ids: issueIds,
+    target_project_id: targetProjectId,
+  })
+  return res.data
+}
+
+/**
+ * 合并两个工作项（source 合并到 target）
+ */
+export async function mergeIssues(
+  sourceIssueId: number,
+  targetIssueId: number
+): Promise<any> {
+  const res = await api.post(`/issues/${sourceIssueId}/merge`, {
+    target_issue_id: targetIssueId,
+  })
+  return res.data
+}
+
+// ==================== Flow Metrics ====================
+
+/**
+ * 获取工作项流转指标
+ */
+export async function getFlowMetrics(projectId: number): Promise<any> {
+  const res = await api.get(`/projects/${projectId}/issues/flow-metrics`)
+  return res.data
+}
+
+export interface AICommentRequest {
+  description_html: string
+  tone?: 'formal' | 'casual' | 'technical'
+}
+
+/**
+ * AI 生成工作项评论
+ */
+export async function generateAIComment(issueId: number, data: AICommentRequest): Promise<any> {
+  const res = await api.post(`/issues/${issueId}/ai-comment`, data)
+  return res.data
+}
+
+// ==================== Unified API Object ====================
 
 export async function listIssuePages(issueId: number): Promise<any[]> {
   const response = await api.get(`/issues/${issueId}/pages`)
@@ -349,7 +432,21 @@ export async function removeIssuePage(issueId: number, pageId: number): Promise<
   return response.data
 }
 
-// ==================== Export all ====================
+// ==================== Export ====================
+
+/**
+ * 导出工作项（支持 CSV 和 JSON 格式）
+ */
+export async function exportIssues(projectId: number, format: 'csv' | 'json' = 'csv'): Promise<void> {
+  const response = await api.get(`/issues/export?project_id=${projectId}&format=${format}`, {
+    responseType: 'blob'
+  })
+  const url = window.URL.createObjectURL(new Blob([response.data]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `issues.${format}`
+  a.click()
+}
 
 // ==================== Tree View ====================
 
@@ -418,6 +515,9 @@ export const issueApi = {
   // Search
   searchIssues,
   
+  // Export
+  exportIssues,
+  
   // Tree
   listTreeIssues,
   getIssueChildren,
@@ -443,7 +543,19 @@ export const issueApi = {
   // Pages
   listIssuePages,
   addIssuePage,
-  removeIssuePage
+  removeIssuePage,
+
+  // Bulk Advanced
+  bulkConvertIssueType,
+  bulkCopyIssues,
+  bulkMoveIssues,
+  mergeIssues,
+
+  // Flow Metrics
+  getFlowMetrics,
+
+  // AI
+  generateAIComment,
 }
 
 export default issueApi

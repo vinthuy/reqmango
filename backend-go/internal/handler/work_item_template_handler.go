@@ -67,7 +67,6 @@ func (h *WorkItemTemplateHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
 		return
 	}
-	_ = projectID
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -75,7 +74,7 @@ func (h *WorkItemTemplateHandler) Get(c *gin.Context) {
 		return
 	}
 
-	template, svcErr := h.svc.Get(id)
+	template, svcErr := h.svc.Get(projectID, id)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -118,7 +117,6 @@ func (h *WorkItemTemplateHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
 		return
 	}
-	_ = projectID
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -132,7 +130,7 @@ func (h *WorkItemTemplateHandler) Update(c *gin.Context) {
 		return
 	}
 
-	template, svcErr := h.svc.Update(id, &req)
+	template, svcErr := h.svc.Update(projectID, id, &req)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -150,7 +148,6 @@ func (h *WorkItemTemplateHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
 		return
 	}
-	_ = projectID
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -158,7 +155,7 @@ func (h *WorkItemTemplateHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Delete(id); svcErr != nil {
+	if svcErr := h.svc.Delete(projectID, id); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmanpy/backend-go/internal/common"
 	"github.com/reqmanpy/backend-go/internal/dto/request"
 	"github.com/reqmanpy/backend-go/internal/service"
 )
@@ -54,11 +55,11 @@ func (h *ReleaseHandler) Get(ctx *gin.Context) {
 
 	release, err := h.service.Get(projectID, releaseID)
 	if err != nil {
-		if err.Error() == "Release not found" {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		if appErr, ok := err.(*common.AppError); ok {
+			ctx.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 
@@ -71,17 +72,17 @@ func (h *ReleaseHandler) Update(ctx *gin.Context) {
 
 	var req request.ReleaseUpdateRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
 	release, err := h.service.Update(projectID, releaseID, &req)
 	if err != nil {
-		if err.Error() == "Release not found" {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		if appErr, ok := err.(*common.AppError); ok {
+			ctx.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 
@@ -93,11 +94,11 @@ func (h *ReleaseHandler) Delete(ctx *gin.Context) {
 	releaseID, _ := strconv.ParseUint(ctx.Param("releaseId"), 10, 64)
 
 	if err := h.service.Delete(projectID, releaseID); err != nil {
-		if err.Error() == "Release not found" {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		if appErr, ok := err.(*common.AppError); ok {
+			ctx.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 
@@ -146,11 +147,11 @@ func (h *ReleaseHandler) GetProgress(ctx *gin.Context) {
 
 	progress, err := h.service.GetProgress(projectID, releaseID)
 	if err != nil {
-		if err.Error() == "Release not found" {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		if appErr, ok := err.(*common.AppError); ok {
+			ctx.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 

@@ -35,9 +35,9 @@ func (s *WorkItemTemplateService) List(projectID uint64, issueTypeID *uint64) ([
 	return resps, nil
 }
 
-func (s *WorkItemTemplateService) Get(id uint64) (*response.WorkItemTemplateResponse, error) {
+func (s *WorkItemTemplateService) Get(projectID, id uint64) (*response.WorkItemTemplateResponse, error) {
 	var t model.WorkItemTemplate
-	if err := s.db.Preload("IssueType").Where("id = ?", id).First(&t).Error; err != nil {
+	if err := s.db.Preload("IssueType").Where("id = ? AND project_id = ?", id, projectID).First(&t).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, common.NotFound("Work item template not found")
 		}
@@ -99,9 +99,9 @@ func (s *WorkItemTemplateService) Create(projectID uint64, req *request.WorkItem
 	return &resp, nil
 }
 
-func (s *WorkItemTemplateService) Update(id uint64, req *request.WorkItemTemplateUpdate) (*response.WorkItemTemplateResponse, error) {
+func (s *WorkItemTemplateService) Update(projectID, id uint64, req *request.WorkItemTemplateUpdate) (*response.WorkItemTemplateResponse, error) {
 	var t model.WorkItemTemplate
-	if err := s.db.Where("id = ?", id).First(&t).Error; err != nil {
+	if err := s.db.Where("id = ? AND project_id = ?", id, projectID).First(&t).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, common.NotFound("Work item template not found")
 		}
@@ -158,7 +158,7 @@ func (s *WorkItemTemplateService) Update(id uint64, req *request.WorkItemTemplat
 		return nil, common.Internal("Failed to update work item template")
 	}
 
-	if err := s.db.Preload("IssueType").First(&t, id).Error; err != nil {
+	if err := s.db.Preload("IssueType").Where("id = ? AND project_id = ?", id, projectID).First(&t).Error; err != nil {
 		return nil, common.Internal("Failed to fetch updated work item template")
 	}
 
@@ -166,8 +166,8 @@ func (s *WorkItemTemplateService) Update(id uint64, req *request.WorkItemTemplat
 	return &resp, nil
 }
 
-func (s *WorkItemTemplateService) Delete(id uint64) error {
-	result := s.db.Where("id = ?", id).Delete(&model.WorkItemTemplate{})
+func (s *WorkItemTemplateService) Delete(projectID, id uint64) error {
+	result := s.db.Where("id = ? AND project_id = ?", id, projectID).Delete(&model.WorkItemTemplate{})
 	if result.Error != nil {
 		return common.Internal("Failed to delete work item template")
 	}

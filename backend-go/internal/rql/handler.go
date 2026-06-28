@@ -63,49 +63,6 @@ func (h *RQLHandler) Search(c *gin.Context) {
 }
 
 func (h *RQLHandler) searchIssues(c *gin.Context, req request.RQLSearchRequest) {
-	// 如果 RQL 为空，返回所有工作项
-	if req.RQL == "" {
-		// TODO: 实现空查询的默认行为
-		c.JSON(http.StatusOK, request.RQLSearchResponse{
-			Success: true,
-			Data: map[string]interface{}{
-				"items":     []interface{}{},
-				"total":     0,
-				"page":      req.Page,
-				"page_size": req.PageSize,
-			},
-		})
-		return
-	}
-
-	// 验证 RQL 语法（只做验证，不执行）
-	lexer := NewLexer(req.RQL)
-	tokens, lexErr := lexer.Tokenize()
-	if lexErr != nil {
-		c.JSON(http.StatusOK, request.RQLSearchResponse{
-			Success: false,
-			Error: &request.RQLError{
-				Code:    "RQL_LEX_ERROR",
-				Message: lexErr.Error(),
-			},
-		})
-		return
-	}
-
-	parser := NewParser(tokens)
-	_, parseErr := parser.Parse()
-	if parseErr != nil {
-		c.JSON(http.StatusOK, request.RQLSearchResponse{
-			Success: false,
-			Error: &request.RQLError{
-				Code:    "RQL_PARSE_ERROR",
-				Message: parseErr.Error(),
-			},
-		})
-		return
-	}
-
-	// 执行查询
 	issues, total, err := h.rqlService.SearchIssues(h.db, req.ProjectID, req.RQL, req.Page, req.PageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, request.RQLSearchResponse{

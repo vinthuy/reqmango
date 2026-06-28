@@ -449,6 +449,10 @@ function handleValuesUpdate(values: Record<string, any>) {
 // Save issue
 async function saveIssue() {
   saving.value = true
+  if (!issueForm.value.name?.trim()) {
+    if ((window as any).$toast) (window as any).$toast.error('请输入工作项名称')
+    return
+  }
   try {
     // Build update payload
     const data: any = {

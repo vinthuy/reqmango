@@ -13,7 +13,7 @@
           <div>
             <div class="flex items-center gap-2"><span class="font-medium text-gray-900 text-sm">{{ w.name }}</span><span :class="w.is_active?'text-green-600 bg-green-50':'text-gray-400 bg-gray-100'" class="px-1.5 py-0.5 text-xs rounded-full">{{ w.is_active?'Active':'Paused' }}</span></div>
             <div class="text-xs text-gray-400 mt-1 truncate max-w-md">{{ w.url }}</div>
-            <div class="flex gap-1 mt-1">{{ w.events.split(',').map(e=>e.trim()).map(e=>`<span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] rounded">${e}</span>`).join('') }}</div>
+            <div class="flex gap-1 mt-1"><span v-for="(ev, i) in w.events.split(',').map((e: string) => e.trim())" :key="i" class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] rounded">{{ ev }}</span></div>
           </div>
           <div class="flex gap-2">
             <button @click="editWebhook(w)" class="text-xs text-indigo-600 hover:text-indigo-800">Edit</button>
@@ -58,7 +58,7 @@ const form = reactive({ name:'', url:'', secret:'', eventsList:['issue_created',
 onMounted(()=>load())
 async function load(){ const r=await api.get(`/projects/${props.projectId}/webhooks`); webhooks.value=r.data||[] }
 
-function editWebhook(w:any){ editing.value=w; form.name=w.name; form.url=w.url; form.secret=''; form.eventsList=w.events.split(',').map((e:string)=>e.trim()); showForm=true }
+function editWebhook(w:any){ editing.value=w; form.name=w.name; form.url=w.url; form.secret=''; form.eventsList=w.events.split(',').map((e:string)=>e.trim()); showForm.value=true }
 
 async function save(){
   saving.value=true

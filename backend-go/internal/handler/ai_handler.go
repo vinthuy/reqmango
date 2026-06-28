@@ -50,8 +50,12 @@ func (h *AIHandler) buildContext(c *gin.Context) *service.AIContext {
 	// These would ideally come from a quick DB lookup; for now use IDs
 	if actx.ProjectID > 0 {
 		if projectSvc := h.getProjectInfo(actx.ProjectID); projectSvc != nil {
-			actx.ProjectName = projectSvc["name"].(string)
-			actx.ProjectIdentifier = projectSvc["identifier"].(string)
+			if name, ok := projectSvc["name"].(string); ok {
+				actx.ProjectName = name
+			}
+			if identifier, ok := projectSvc["identifier"].(string); ok {
+				actx.ProjectIdentifier = identifier
+			}
 		}
 	}
 
@@ -175,6 +179,29 @@ func (h *AIHandler) CreatePreview(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+}
+
+// ==================== Chart Generation ====================
+
+// Chart handles POST /projects/:projectId/ai/chart.
+func (h *AIHandler) Chart(c *gin.Context) {
+	var req service.AIChartRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	if req.Query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "query is required"})
+		return
+	}
+
+	actx := h.buildContext(c)
+	result, err := h.svc.GenerateChart(c.Request.Context(), &req, actx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
 // ==================== Page AI ====================

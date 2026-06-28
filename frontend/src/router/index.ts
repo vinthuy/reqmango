@@ -33,6 +33,18 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/workspace/:slug/roadmap',
+      name: 'Roadmap',
+      component: () => import('@/views/Roadmap.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/overview',
+      name: 'WorkspaceOverview',
+      component: () => import('@/views/WorkspaceOverview.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/workspace/:slug/settings',
       name: 'WorkspaceSettings',
       component: () => import('@/views/WorkspaceSettings.vue'),
@@ -119,6 +131,18 @@ const router = createRouter({
       path: '/workspace/:slug/project/:id/pages',
       name: 'ProjectPages',
       component: () => import('@/views/ProjectPages.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/project/:id/analytics',
+      name: 'Analytics',
+      component: () => import('@/views/Analytics.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/initiatives',
+      name: 'Initiatives',
+      component: () => import('@/views/Initiatives.vue'),
       meta: { requiresAuth: true }
     }
   ]

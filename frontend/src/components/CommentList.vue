@@ -64,7 +64,7 @@
               <span class="text-sm font-medium text-gray-900">{{ comment.author?.display_name || '用户' }}</span>
               <span class="text-xs text-gray-500">{{ formatTime(comment.created_at) }}</span>
             </div>
-            <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{{ comment.body || comment.content }}</div>
+            <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap" v-html="renderMentions(comment.body || comment.content)"></div>
           </div>
 
           <!-- 操作按钮 -->
@@ -94,6 +94,21 @@
             </button>
           </div>
 
+          <!-- 回复输入框 -->
+          <div v-if="replyingTo?.id === comment.id" class="mt-2">
+            <textarea
+              v-model="replyText"
+              placeholder="输入回复..."
+              rows="2"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+              @keydown.ctrl.enter="submitReply"
+            ></textarea>
+            <div class="flex justify-end space-x-2 mt-2">
+              <button @click="replyingTo = null; replyText = ''" class="px-3 py-1 text-xs border rounded hover:bg-gray-50">取消</button>
+              <button @click="submitReply" :disabled="!replyText.trim()" class="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50">回复</button>
+            </div>
+          </div>
+
           <!-- 回复列表 -->
           <div v-if="comment.replies && comment.replies.length > 0" class="mt-3 pl-4 border-l-2 border-gray-200 space-y-3">
             <div
@@ -111,7 +126,7 @@
                   <span class="text-xs font-medium text-gray-900">{{ reply.author?.display_name || '用户' }}</span>
                   <span class="text-xs text-gray-500">{{ formatTime(reply.created_at) }}</span>
                 </div>
-                <div class="mt-0.5 text-xs text-gray-700 whitespace-pre-wrap">{{ reply.body || reply.content }}</div>
+                <div class="mt-0.5 text-xs text-gray-700 whitespace-pre-wrap" v-html="renderMentions(reply.body || reply.content)"></div>
               </div>
             </div>
           </div>
@@ -142,6 +157,7 @@ import type { Comment, CommentCreate } from '@/types/comment'
 // Props
 const props = defineProps<{
   issueId: number
+  isAdmin?: boolean
 }>()
 
 // State
@@ -152,6 +168,8 @@ const loading = ref(false)
 const loadingMore = ref(false)
 const submitting = ref(false)
 const newComment = ref('')
+const replyText = ref('')
+const replyingTo = ref<Comment | null>(null)
 const currentUserId = ref<number | null>(authStore.user?.id || null)
 const page = ref(1)
 const hasMore = ref(false)
@@ -214,8 +232,39 @@ async function resolveComment(comment: Comment) {
 }
 
 function replyTo(comment: Comment) {
-  // TODO: 实现回复功能
-  console.log('Reply to comment:', comment.id)
+  if (replyingTo.value?.id === comment.id) {
+    replyingTo.value = null
+    replyText.value = ''
+  } else {
+    replyingTo.value = comment
+    replyText.value = ''
+  }
+}
+
+async function submitReply() {
+  if (!replyText.value.trim() || !replyingTo.value) return
+  submitting.value = true
+  try {
+    const data: CommentCreate = {
+      issue_id: props.issueId,
+      body: replyText.value.trim(),
+      parent_id: replyingTo.value.id,
+    } as any
+    const reply = await commentApi.createComment(data)
+    // Insert reply after the parent comment
+    const idx = comments.value.findIndex(c => c.id === replyingTo.value!.id)
+    if (idx !== -1) {
+      comments.value.splice(idx + 1, 0, reply)
+    } else {
+      comments.value.unshift(reply)
+    }
+    replyingTo.value = null
+    replyText.value = ''
+  } catch (error) {
+    console.error('Failed to submit reply:', error)
+  } finally {
+    submitting.value = false
+  }
 }
 
 async function deleteComment(comment: Comment) {
@@ -230,7 +279,7 @@ async function deleteComment(comment: Comment) {
 }
 
 function canDelete(comment: Comment): boolean {
-  // TODO: 实现权限检查
+  if (props.isAdmin) return true
   return comment.author_id === currentUserId.value
 }
 
@@ -249,6 +298,15 @@ function formatTime(timeStr: string) {
   if (days < 7) return `${days}天前`
 
   return date.toLocaleDateString('zh-CN')
+}
+
+function renderMentions(text: string | undefined): string {
+  if (!text) return ''
+  // Highlight @AI commands with special styling
+  text = text.replace(/@AI\s+\w[\w\s]*/g, '<span class="ai-mention px-1.5 py-0.5 rounded bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-300 font-medium border border-indigo-200 dark:border-indigo-700">🤖 $&</span>')
+  // Normal @mention highlighting
+  text = text.replace(/@(\w+)/g, '<span class="text-indigo-600 font-medium bg-indigo-50 dark:bg-indigo-900 dark:text-indigo-300 px-1 rounded">@$1</span>')
+  return text
 }
 
 // Load on mount

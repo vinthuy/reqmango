@@ -1,5 +1,10 @@
 <template>
-  <div class="issue-tree-view bg-white rounded-lg border border-gray-200">
+  <div class="issue-tree-view bg-white rounded-lg border border-gray-200 relative">
+    <!-- Success toast -->
+    <div v-if="toastMessage" class="absolute top-2 right-2 z-10 bg-green-50 border border-green-200 text-green-700 text-sm px-3 py-2 rounded-md shadow-sm transition-opacity">
+      {{ toastMessage }}
+    </div>
+
     <!-- Toolbar -->
     <div class="px-4 py-2.5 border-b border-gray-100">
       <div class="flex items-center gap-3">
@@ -48,8 +53,46 @@
       </div>
     </div>
 
+    <!-- 批量操作工具栏 -->
+    <div v-if="selectedIds.size > 0" class="sticky top-0 z-20 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg mx-4 mt-3 px-4 py-2 flex items-center gap-3 flex-wrap">
+      <span class="text-sm text-indigo-700 dark:text-indigo-300 font-medium">已选 {{ selectedIds.size }} 项</span>
+
+      <div class="relative">
+        <button @click="showBatchState = !showBatchState" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
+          更改状态
+        </button>
+        <div v-if="showBatchState" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
+          <button v-for="s in states" :key="s.id" @click="batchChangeState(s.id)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">{{ s.name }}</button>
+        </div>
+      </div>
+
+      <div class="relative">
+        <button @click="showBatchPriority = !showBatchPriority" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
+          更改优先级
+        </button>
+        <div v-if="showBatchPriority" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
+          <button v-for="p in priorityOptions" :key="p.value" @click="batchChangePriority(p.value)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">{{ p.label }}</button>
+        </div>
+      </div>
+
+      <div class="relative">
+        <button @click="showBatchAssign = !showBatchAssign" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
+          批量分配
+        </button>
+        <div v-if="showBatchAssign" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 p-2 w-48">
+          <UserSelect v-model="batchAssigneeId" :users="memberOptions" placeholder="选择负责人" @update:model-value="batchAssign" />
+        </div>
+      </div>
+
+      <button @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+        批量删除
+      </button>
+
+      <button @click="clearSelection" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">取消选择</button>
+    </div>
+
     <!-- Column header -->
-    <div class="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wider">
+    <div class="flex items-center px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
       <div class="w-8 shrink-0"></div>
       <div class="flex-1 min-w-0">标题</div>
       <div class="w-16 text-center shrink-0">优先级</div>
@@ -78,8 +121,11 @@
           :search-matched-path="getSearchMatchedPath(result)"
           :search-matched-id="result.matched_issue.id"
           :project-identifier="projectIdentifier"
+          :selected-ids="selectedIds"
           @toggle="toggleNode"
           @select="$emit('select', $event)"
+          @toggle-select="toggleSelect"
+          @create-child="handleCreateChild"
         />
       </div>
     </div>
@@ -102,8 +148,11 @@
         :children-map="childrenMap"
         :loading-children="loadingChildren"
         :project-identifier="projectIdentifier"
+        :selected-ids="selectedIds"
         @toggle="toggleNode"
         @select="$emit('select', $event)"
+        @toggle-select="toggleSelect"
+        @create-child="handleCreateChild"
       />
     </div>
 
@@ -127,8 +176,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import issueApi from '@/api/issue'
 import projectApi from '@/api/project'
+import api from '@/api'
 import type { TreeIssueResponse, TreeSearchResult } from '@/types/issue'
 import TreeNodeItem from './TreeNodeItem.vue'
+import UserSelect from '@/components/UserSelect.vue'
+import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps<{ projectId: number; workspaceId: number }>()
 
@@ -154,8 +206,43 @@ const expandedNodes = ref<Set<number>>(new Set())
 const childrenMap = ref<Map<number, TreeIssueResponse[]>>(new Map())
 const loadingChildren = ref<Set<number>>(new Set())
 
+// ---- Batch selection ----
+const selectedIds = ref(new Set<number>())
+const showBatchState = ref(false)
+const showBatchPriority = ref(false)
+const showBatchAssign = ref(false)
+const batchAssigneeId = ref<number | undefined>(undefined)
+const states = ref<any[]>([])
+const members = ref<any[]>([])
+
+const memberOptions = computed(() => members.value.map((m: any) => ({
+  id: m.user_id,
+  display_name: m.user?.display_name || m.user?.username,
+  email: m.user?.email
+})))
+
+const priorityOptions = [
+  { value: 'urgent', label: '紧急' },
+  { value: 'high', label: '高' },
+  { value: 'medium', label: '中' },
+  { value: 'low', label: '低' },
+  { value: 'none', label: '无' },
+]
+
+const { confirm } = useConfirm()
+
 // Debounce search timer
 let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+// Toast
+const toastMessage = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(msg: string) {
+  toastMessage.value = msg
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastMessage.value = '' }, 2500)
+}
 
 // ---- Computed ----
 const visiblePages = computed(() => {
@@ -326,6 +413,46 @@ function collapseAll() {
   expandedNodes.value = new Set()
 }
 
+async function handleCreateChild(payload: { parentId: number; name: string; priority: string }) {
+  try {
+    await issueApi.createIssue(props.projectId, props.workspaceId, {
+      name: payload.name,
+      priority: payload.priority as any,
+      state_id: 1,
+      parent_id: payload.parentId
+    })
+
+    // Update parent's sub_issues_count locally
+    const updateNodeInList = (list: TreeIssueResponse[]) => {
+      for (const node of list) {
+        if (node.id === payload.parentId) {
+          node.sub_issues_count = (node.sub_issues_count || 0) + 1
+          node.has_children = true
+          return
+        }
+      }
+    }
+    updateNodeInList(rootNodes.value)
+
+    // If parent is expanded, refresh its children
+    if (expandedNodes.value.has(payload.parentId)) {
+      const children = await issueApi.getIssueChildren(payload.parentId)
+      childrenMap.value.set(payload.parentId, children)
+    } else {
+      // Auto-expand parent to show the new child
+      expandedNodes.value.add(payload.parentId)
+      expandedNodes.value = new Set(expandedNodes.value)
+      const children = await issueApi.getIssueChildren(payload.parentId)
+      childrenMap.value.set(payload.parentId, children)
+    }
+
+    showToast('子工作项创建成功')
+  } catch (e) {
+    console.error('Failed to create child issue:', e)
+    showToast('创建失败，请重试')
+  }
+}
+
 async function loadChildrenSilent(nodeId: number) {
   try {
     const children = await issueApi.getIssueChildren(nodeId)
@@ -342,12 +469,79 @@ async function loadProjectInfo() {
 
 // ---- Lifecycle ----
 onMounted(() => {
-  Promise.all([loadRootNodes(), loadProjectInfo()])
+  Promise.all([loadRootNodes(), loadProjectInfo(), loadStates(), loadMembers()])
 })
 
 watch(page, () => {
   if (!isSearchMode.value) loadRootNodes()
 })
+
+// ---- Batch actions ----
+function toggleSelect(id: number) {
+  const s = new Set(selectedIds.value); s.has(id) ? s.delete(id) : s.add(id); selectedIds.value = s
+}
+
+async function batchChangeState(stateId: number) {
+  showBatchState.value = false
+  try {
+    await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { state_id: stateId })
+    clearSelection()
+    showToast('状态已更新')
+    reloadTree()
+  } catch (e) { console.error('Batch state failed:', e) }
+}
+
+async function batchChangePriority(priority: string) {
+  showBatchPriority.value = false
+  try {
+    await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { priority: priority as any })
+    clearSelection()
+    showToast('优先级已更新')
+    reloadTree()
+  } catch (e) { console.error('Batch priority failed:', e) }
+}
+
+async function batchAssign(userId: string | number | undefined) {
+  showBatchAssign.value = false
+  if (!userId) return
+  const uid = typeof userId === 'string' ? Number(userId) : userId
+  try {
+    await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { assignee_ids: [uid] })
+    clearSelection()
+    showToast('负责人已分配')
+    reloadTree()
+  } catch (e) { console.error('Batch assign failed:', e) }
+}
+
+function clearSelection() {
+  selectedIds.value = new Set()
+  showBatchState.value = false
+  showBatchPriority.value = false
+  showBatchAssign.value = false
+}
+
+async function execBatchDelete() {
+  if (!(await confirm(`确定要删除选中的 ${selectedIds.value.size} 个工作项吗？此操作不可撤销。`))) return
+  try {
+    await issueApi.bulkDeleteIssues([...selectedIds.value])
+    clearSelection()
+    showToast('已删除选中工作项')
+    reloadTree()
+  } catch (e) { console.error('Batch delete failed:', e) }
+}
+
+function reloadTree() {
+  childrenMap.value = new Map()
+  expandedNodes.value = new Set()
+  if (isSearchMode.value) { doSearch() } else { loadRootNodes() }
+}
+
+async function loadStates() {
+  try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ }
+}
+async function loadMembers() {
+  try { const r = await api.get(`/workspaces/${props.workspaceId}/members`); members.value = r.data } catch (e) { /* */ }
+}
 </script>
 
 <style scoped>

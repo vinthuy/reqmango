@@ -12,7 +12,7 @@
       <!-- Timeline line -->
       <div class="absolute left-8 top-0 bottom-0 w-0.5 bg-indigo-200 dark:bg-indigo-800"></div>
 
-      <div v-for="(rel, idx) in sortedReleases" :key="rel.id" class="relative pl-16 pb-8">
+      <div v-for="rel in sortedReleases" :key="rel.id" class="relative pl-16 pb-8">
         <!-- Timeline dot -->
         <div class="absolute left-6 w-5 h-5 rounded-full border-2 border-indigo-500 bg-white dark:bg-gray-800 z-10"
           :class="statusDot(rel.status)"></div>

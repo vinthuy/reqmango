@@ -14,7 +14,15 @@ func NewWebhookHandler(svc *service.WebhookService) *WebhookHandler { return &We
 
 func (h *WebhookHandler) List(c *gin.Context) {
 	pid, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
-	r, _ := h.svc.List(pid)
+	r, err := h.svc.List(pid)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.RespondError(c, appErr)
+			return
+		}
+		common.RespondError(c, common.Internal("Failed to list webhooks"))
+		return
+	}
 	common.RespondOK(c, r)
 }
 

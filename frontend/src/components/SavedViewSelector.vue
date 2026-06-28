@@ -96,7 +96,7 @@ const props = defineProps<{
   currentColumns?: string[]
   currentGroupBy?: string
   currentSortConfig?: { field: string; dir: 'asc' | 'desc' }[]
-  viewType?: 'list' | 'kanban' | 'tree'
+  viewType?: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
 }>()
 
 const emit = defineEmits<{
@@ -114,7 +114,7 @@ const deletingView = ref<SavedView | null>(null)
 
 const saveForm = ref({
   name: '',
-  view_type: 'list' as 'list' | 'kanban' | 'tree',
+  view_type: 'list' as 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar',
   is_shared: false,
 })
 

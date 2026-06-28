@@ -15,7 +15,7 @@ export function useAI() {
     text: string,
     projectId: number,
     workspaceId: number,
-    mode: 'ask' | 'build' = 'ask',
+    mode: 'ask' | 'build' | 'chart' = 'ask',
   ) {
     messages.value.push({ role: 'user', content: text })
     isStreaming.value = true

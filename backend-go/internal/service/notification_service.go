@@ -1,6 +1,9 @@
 package service
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/reqmanpy/backend-go/internal/common"
 	"github.com/reqmanpy/backend-go/internal/dto/request"
 	"github.com/reqmanpy/backend-go/internal/dto/response"
@@ -264,4 +267,40 @@ func (s *NotificationService) TriggerNotificationsBulk(db *gorm.DB, event, title
 	}
 
 	return db.Create(&notifications).Error
+}
+
+// CheckDueDateReminders finds issues due within 24 hours and sends reminder notifications.
+func (s *NotificationService) CheckDueDateReminders() error {
+	var issues []model.Issue
+	now := time.Now()
+	tomorrow := now.Add(24 * time.Hour)
+
+	s.db.Where("target_date <= ? AND target_date > ? AND archived_at IS NULL", tomorrow, now).
+		Preload("AssigneeLinks.User").Find(&issues)
+
+	for _, issue := range issues {
+		// Check if reminder already sent (by issue_id and type = reminder)
+		var count int64
+		s.db.Model(&model.Notification{}).
+			Where("issue_id = ? AND type = ? AND title LIKE ?", issue.ID, "reminder", "%到期%").
+			Count(&count)
+		if count > 0 {
+			continue
+		}
+
+		for _, link := range issue.AssigneeLinks {
+			projID := issue.ProjectID
+			issueID := issue.ID
+			_ = s.TriggerNotification(s.db,
+				"issue_due_soon",
+				fmt.Sprintf("工作项即将到期: %s", issue.Name),
+				"工作项将在24小时内到期",
+				link.UserID,
+				nil,
+				&projID,
+				&issueID,
+			)
+		}
+	}
+	return nil
 }

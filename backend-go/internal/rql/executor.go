@@ -56,6 +56,45 @@ func NewIssueQueryContext() *QueryContext {
 	}
 }
 
+// NewCycleQueryContext 创建 Cycle 查询上下文
+func NewCycleQueryContext() *QueryContext {
+	return &QueryContext{
+		TableName: "cycles",
+		FieldMap: map[string]FieldMapping{
+			"id":           {ColumnName: "id", FieldType: "number"},
+			"name":         {ColumnName: "name", FieldType: "string"},
+			"description":  {ColumnName: "description", FieldType: "string"},
+			"start_date":   {ColumnName: "start_date", FieldType: "date"},
+			"end_date":     {ColumnName: "end_date", FieldType: "date"},
+			"completed_at": {ColumnName: "completed_at", FieldType: "date"},
+			"cancelled_at": {ColumnName: "cancelled_at", FieldType: "date"},
+			"project_id":   {ColumnName: "project_id", FieldType: "number"},
+			"workspace_id": {ColumnName: "workspace_id", FieldType: "number"},
+			"created_at":   {ColumnName: "created_at", FieldType: "date"},
+			"updated_at":   {ColumnName: "updated_at", FieldType: "date"},
+		},
+	}
+}
+
+// NewModuleQueryContext 创建 Module 查询上下文
+func NewModuleQueryContext() *QueryContext {
+	return &QueryContext{
+		TableName: "modules",
+		FieldMap: map[string]FieldMapping{
+			"id":           {ColumnName: "id", FieldType: "number"},
+			"name":         {ColumnName: "name", FieldType: "string"},
+			"description":  {ColumnName: "description", FieldType: "string"},
+			"parent_id":    {ColumnName: "parent_id", FieldType: "number"},
+			"order":        {ColumnName: "order", FieldType: "number"},
+			"is_archived":  {ColumnName: "is_archived", FieldType: "string"},
+			"project_id":   {ColumnName: "project_id", FieldType: "number"},
+			"workspace_id": {ColumnName: "workspace_id", FieldType: "number"},
+			"created_at":   {ColumnName: "created_at", FieldType: "date"},
+			"updated_at":   {ColumnName: "updated_at", FieldType: "date"},
+		},
+	}
+}
+
 // Execute 执行 RQL AST 并将结果应用到 GORM 查询
 func (e *GORMExecutor) Execute(db *gorm.DB, node Node, ctx *QueryContext) (*gorm.DB, error) {
 	if node == nil {

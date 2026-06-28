@@ -11,6 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
+func strPtr(s string) *string { return &s }
+
 func SeedAll(db *gorm.DB) {
 	fmt.Println("=== Starting data initialization ===")
 	
@@ -444,6 +446,46 @@ func SeedConfigData(db *gorm.DB) {
 			ProjectID:   &proj.ID,
 		})
 		fmt.Println("  Created sample notifications")
+	}
+
+	var agentCount int64
+	db.Model(&model.Agent{}).Where("workspace_id = ?", ws.ID).Count(&agentCount)
+	if agentCount == 0 {
+		adminID := uint64(1)
+		// Built-in Triage Agent
+		db.Create(&model.Agent{
+			Name:        "Triage Agent",
+			Avatar:      "🏥",
+			AgentType:   "builtin",
+			Capabilities: []byte(`["analyze","search","comment","list"]`),
+			Status:      "active",
+			SystemPrompt: strPtr("You are a triage specialist. Analyze incoming issues and suggest the correct type, priority, labels, and assignee. Be concise and data-driven."),
+			WorkspaceID: ws.ID,
+			BaseModel:   model.BaseModel{CreatedByID: &adminID},
+		})
+		// Built-in Summary Agent
+		db.Create(&model.Agent{
+			Name:        "Summary Agent",
+			Avatar:      "📋",
+			AgentType:   "builtin",
+			Capabilities: []byte(`["summarize","analyze","list"]`),
+			Status:      "active",
+			SystemPrompt: strPtr("You are a project analyst. Summarize sprint progress, project health, and team performance. Provide actionable insights."),
+			WorkspaceID: ws.ID,
+			BaseModel:   model.BaseModel{CreatedByID: &adminID},
+		})
+		// Built-in Assistant Agent
+		db.Create(&model.Agent{
+			Name:        "Assistant Agent",
+			Avatar:      "🤖",
+			AgentType:   "builtin",
+			Capabilities: []byte(`["all"]`),
+			Status:      "active",
+			SystemPrompt: strPtr("You are a helpful project management assistant. Help users with any task — from searching issues to creating work items and analyzing data."),
+			WorkspaceID: ws.ID,
+			BaseModel:   model.BaseModel{CreatedByID: &adminID},
+		})
+		fmt.Println("  Created 3 built-in AI agents (Triage, Summary, Assistant)")
 	}
 
 	fmt.Println("--- Config seed complete ---")

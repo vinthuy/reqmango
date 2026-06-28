@@ -34,5 +34,24 @@ export const workspaceApi = {
 
   removeMember: async (wsParam: string, userId: number): Promise<void> => {
     await api.delete(`/workspaces/${wsParam}/members/${userId}`)
-  }
+  },
+
+  updateWorkspace: async (slug: string, data: Partial<WorkspaceCreate>): Promise<Workspace> => {
+    const response = await api.put(`/workspaces/${slug}`, data)
+    return response.data
+  },
+
+  deleteWorkspace: async (slug: string): Promise<void> => {
+    await api.delete(`/workspaces/${slug}`)
+  },
+
+  getAIConfig: async (workspaceId: number): Promise<any> => {
+    const response = await api.get(`/workspaces/${workspaceId}/ai-config`)
+    return response.data
+  },
+
+  updateAIConfig: async (workspaceId: number, data: Record<string, any>): Promise<any> => {
+    const response = await api.put(`/workspaces/${workspaceId}/ai-config`, data)
+    return response.data
+  },
 }

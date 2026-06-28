@@ -71,7 +71,7 @@ const handleLogin = async () => {
         
         <p class="mt-6 text-center text-gray-500">
           还没有账户？
-          <a href="/register" class="text-blue-600 hover:text-blue-700 font-medium">注册</a>
+          <router-link to="/register" class="text-blue-600 hover:text-blue-700 font-medium">注册</router-link>
         </p>
       </div>
     </div>

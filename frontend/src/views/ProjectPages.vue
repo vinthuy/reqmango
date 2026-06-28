@@ -107,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as pageApi from '@/api/page'
 import type { Page } from '@/types/page'
@@ -133,11 +133,6 @@ const deletingPage = ref<Page | null>(null)
 
 const editForm = reactive({ title: '', content: '' })
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
-
-// Simple computed helper (inline)
-function computed<T>(fn: () => T) {
-  return ref<T>(fn()) as any
-}
 
 onMounted(() => loadPages())
 

@@ -86,9 +86,13 @@ func (s *RQLService) SearchCycles(db *gorm.DB, projectID uint64, rqlQuery string
 	query := db.Model(&model.Cycle{}).
 		Where("project_id = ?", projectID)
 
-	// 目前简化处理：RQL 在 Cycle 上只支持简单查询
+	// 应用 RQL 条件
 	if ast != nil {
-		// TODO: 实现 Cycle 的 RQL 支持
+		var execErr error
+		query, execErr = s.executor.Execute(query, ast, NewCycleQueryContext())
+		if execErr != nil {
+			return nil, 0, execErr
+		}
 	}
 
 	// 计算总数
@@ -128,9 +132,13 @@ func (s *RQLService) SearchModules(db *gorm.DB, projectID uint64, rqlQuery strin
 		Where("project_id = ?", projectID).
 		Where("is_archived = ?", false)
 
-	// 目前简化处理：RQL 在 Module 上只支持简单查询
+	// 应用 RQL 条件
 	if ast != nil {
-		// TODO: 实现 Module 的 RQL 支持
+		var execErr error
+		query, execErr = s.executor.Execute(query, ast, NewModuleQueryContext())
+		if execErr != nil {
+			return nil, 0, execErr
+		}
 	}
 
 	// 计算总数

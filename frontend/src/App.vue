@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ShortcutsPanel from '@/components/ShortcutsPanel.vue'
+import AppSidebar from '@/components/AppSidebar.vue'
+import { useDarkMode } from '@/composables/useDarkMode'
 
+const route = useRoute()
 const authStore = useAuthStore()
-const dark = ref(false)
+const { isDark, toggle: toggleTheme } = useDarkMode()
 const showShortcuts = ref(false)
+
+const showSidebar = computed(() => {
+  const name = (route.name as string || '').toLowerCase()
+  return name && !['login', 'register'].includes(name)
+})
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === '?' && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
@@ -17,26 +26,26 @@ function onKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   if (authStore.token) authStore.fetchUser()
-  dark.value = localStorage.getItem('theme') === 'dark'
-  if (dark.value) document.documentElement.classList.add('dark')
   document.addEventListener('keydown', onKeydown)
 })
 onUnmounted(() => document.removeEventListener('keydown', onKeydown))
-
-function toggleTheme() {
-  dark.value = !dark.value
-  document.documentElement.classList.toggle('dark', dark.value)
-  localStorage.setItem('theme', dark.value ? 'dark' : 'light')
-}
 </script>
 
 <template>
-  <router-view />
+  <div class="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <AppSidebar v-if="showSidebar" />
+    <main class="flex-1 overflow-auto">
+      <router-view />
+    </main>
+  </div>
+
   <ConfirmDialog />
   <ShortcutsPanel :visible="showShortcuts" @close="showShortcuts = false" />
+
   <button
+    v-if="showSidebar"
     @click="toggleTheme"
-    class="fixed bottom-6 left-6 w-10 h-10 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full shadow-lg hover:shadow-xl transition flex items-center justify-center text-lg z-40"
-    :title="dark ? 'Switch to Light' : 'Switch to Dark'"
-  >{{ dark ? '☀️' : '🌙' }}</button>
+    class="fixed bottom-4 right-4 w-9 h-9 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full shadow-md hover:shadow-lg transition flex items-center justify-center text-sm z-40"
+    :title="isDark ? '切换浅色' : '切换深色'"
+  >{{ isDark ? '☀️' : '🌙' }}</button>
 </template>

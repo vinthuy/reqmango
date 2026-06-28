@@ -82,3 +82,11 @@ func (h *NotificationHandler) Delete(c *gin.Context) {
 	if err := h.svc.Delete(id, h.getCurrentUserID(c)); err != nil { common.RespondError(c, err); return }
 	common.RespondOK(c, gin.H{"message": "Notification deleted"})
 }
+
+func (h *NotificationHandler) CheckDueReminders(c *gin.Context) {
+	if err := h.svc.CheckDueDateReminders(); err != nil {
+		common.RespondError(c, common.Internal("Failed to check due date reminders"))
+		return
+	}
+	common.RespondOK(c, gin.H{"message": "Due date reminders checked"})
+}

@@ -19,7 +19,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	settingsSvc := service.NewProjectSettingsService(db)
 	notificationSvc := service.NewNotificationService(db)
 	webhookSvc := service.NewWebhookService(db)
-	issueSvc := service.NewIssueService(db, notificationSvc, webhookSvc)
+	automationSvc := service.NewAutomationService(db)
+	slackSvc := service.NewSlackService(db)
+	issueSvc := service.NewIssueService(db, notificationSvc, webhookSvc, automationSvc, slackSvc)
 	cycleSvc := service.NewCycleService(db)
 	moduleSvc := service.NewModuleService(db)
 	issueTypeSvc := service.NewIssueTypeService(db)
@@ -45,6 +47,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	reportH := handler.NewReportHandler(reportSvc)
 	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
 	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
+	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
+	mcpSvc := service.NewMCPService(db)
+	githubSvc := service.NewGitHubService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -74,6 +79,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	recurrenceH := handler.NewRecurrenceHandler(recurrenceSvc)
 	aiH := handler.NewAIHandler(aiSvc, db)
 	pageTabH := handler.NewProjectPageTabHandler(pageTabSvc)
+	agentH := handler.NewAgentHandler(agentSvc)
+	mcpH := handler.NewMCPHandler(mcpSvc)
+	githubH := handler.NewGitHubHandler(githubSvc)
+	slackH := handler.NewSlackHandler(slackSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -95,6 +104,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	{
 		// ---- Intake (public) ----
 		v1.POST("/intake/:projectId", intakeH.Submit)
+
+		// ---- GitHub Webhook (public) ----
+		v1.POST("/webhook/github/:id", githubH.Webhook)
 
 		// ---- Auth (public + protected) ----
 		auth := v1.Group("/auth")
@@ -123,7 +135,45 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			initiativeH := handler.NewInitiativeHandler(db)
 			workspaces.POST("/:wsParam/initiatives", initiativeH.Create)
 			workspaces.GET("/:wsParam/initiatives", initiativeH.List)
-		}
+
+				// AI Agents
+				workspaces.GET("/:wsParam/agents", agentH.List)
+				workspaces.POST("/:wsParam/agents", agentH.Create)
+				workspaces.GET("/:wsParam/agents/:id", agentH.GetByID)
+				workspaces.PUT("/:wsParam/agents/:id", agentH.Update)
+				workspaces.DELETE("/:wsParam/agents/:id", agentH.Delete)
+				workspaces.POST("/:wsParam/agents/:id/dispatch", agentH.Dispatch)
+				workspaces.GET("/:wsParam/agents/:id/activity", agentH.GetActivity)
+				workspaces.POST("/:wsParam/agents/:id/auto-triage", agentH.AutoTriage)
+				workspaces.POST("/:wsParam/agents/:id/auto-assign", agentH.AutoAssign)
+
+			// MCP Server
+			workspaces.GET("/:wsParam/mcp", mcpH.List)
+			workspaces.POST("/:wsParam/mcp", mcpH.Create)
+			workspaces.GET("/:wsParam/mcp/:id", mcpH.Get)
+			workspaces.PUT("/:wsParam/mcp/:id", mcpH.Update)
+			workspaces.DELETE("/:wsParam/mcp/:id", mcpH.Delete)
+			workspaces.POST("/:wsParam/mcp/:id/discover", mcpH.DiscoverTools)
+			workspaces.GET("/:wsParam/mcp/:id/tools", mcpH.GetTools)
+			workspaces.POST("/:wsParam/mcp/:id/execute", mcpH.ExecuteTool)
+
+			// GitHub integration
+			workspaces.GET("/:wsParam/github", githubH.List)
+			workspaces.POST("/:wsParam/github", githubH.Create)
+			workspaces.GET("/:wsParam/github/:id", githubH.Get)
+			workspaces.PUT("/:wsParam/github/:id", githubH.Update)
+			workspaces.DELETE("/:wsParam/github/:id", githubH.Delete)
+			workspaces.POST("/:wsParam/github/:id/sync", githubH.SyncIssues)
+
+			// Slack integration
+			workspaces.GET("/:wsParam/slack", slackH.List)
+			workspaces.POST("/:wsParam/slack", slackH.Create)
+			workspaces.GET("/:wsParam/slack/:id", slackH.Get)
+			workspaces.PUT("/:wsParam/slack/:id", slackH.Update)
+			workspaces.DELETE("/:wsParam/slack/:id", slackH.Delete)
+			workspaces.POST("/:wsParam/slack/:id/notify", slackH.SendNotification)
+			workspaces.POST("/:wsParam/slack/:id/test", slackH.TestNotification)
+	}
 
 		// Initiatives (top-level routes)
 		initiatives := v1.Group("/initiatives", authMiddleware)
@@ -345,6 +395,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	issues.POST("/:issueId/recurrence", recurrenceH.Create)
 	issues.GET("/:issueId/recurrence", recurrenceH.Get)
 	issues.POST("/:issueId/ai/comment", aiH.AssistComment)
+		issues.POST("/:issueId/agents/:agentId/mention", agentH.HandleMention)
 	issues.PUT("/:issueId/recurrence", recurrenceH.Update)
 	issues.DELETE("/:issueId/recurrence", recurrenceH.Delete)
 
@@ -510,14 +561,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			{
 				rqlGroup.POST("/search", rqlHandler.Search)
 			}
-			// ---- Automations (protected) ----
-			automations := v1.Group("/projects/:projectId/automations", authMiddleware)
-			{
-				automations.POST("", workflowH.CreateAutomation)
-				automations.GET("", workflowH.ListAutomations)
-				automations.PUT("/:id", workflowH.UpdateAutomation)
-				automations.DELETE("/:id", workflowH.DeleteAutomation)
-			}
 			// ---- AI (protected) ----
 			aiGroup := projects.Group("/:projectId/ai", authMiddleware)
 			{
@@ -527,7 +570,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				aiGroup.POST("/analyze", aiH.Analyze)
 				aiGroup.POST("/suggest-labels", aiH.SuggestLabels)
 			aiGroup.POST("/sprint-plan", aiH.SprintPlan)
+				aiGroup.POST("/chart", aiH.Chart)
 			}
+
+			// Agent project-level convenience routes
+			projects.POST("/:projectId/agent/auto-triage", agentH.AutoTriageProject)
+			projects.POST("/:projectId/agent/auto-assign", agentH.AutoAssignProject)
+
+			// Automation rules
+			automationH := handler.NewAutomationHandler(automationSvc)
+			projects.GET("/:projectId/automations", automationH.List)
+			projects.POST("/:projectId/automations", automationH.Create)
+			projects.GET("/:projectId/automations/:id", automationH.Get)
+			projects.PUT("/:projectId/automations/:id", automationH.Update)
+			projects.DELETE("/:projectId/automations/:id", automationH.Delete)
+			projects.POST("/:projectId/automations/:id/execute", automationH.Execute)
 
 			// ---- Notifications (protected) ----
 			notifications := v1.Group("/notifications", authMiddleware)

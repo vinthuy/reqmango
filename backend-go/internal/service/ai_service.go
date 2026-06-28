@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -54,6 +58,11 @@ func (s *AIService) buildSystemPrompt(ctx *AIContext) string {
 }
 
 // ==================== Tool Definitions ====================
+
+// GetTools returns all available AI tool definitions (exported for reuse by AgentService).
+func (s *AIService) GetTools() []Tool {
+	return s.getTools()
+}
 
 func (s *AIService) getTools() []Tool {
 	return []Tool{
@@ -264,6 +273,18 @@ func (s *AIService) getTools() []Tool {
 				Required: []string{"project_id"},
 			},
 		},
+		{
+			Name:        "web_search",
+			Description: "在互联网上搜索最新信息。当用户询问的知识超出你的训练数据范围，或需要实时信息时使用。返回标题、URL 和摘要。",
+			InputSchema: &ToolSchema{
+				Type: "object",
+				Properties: map[string]SchemaProp{
+					"query": {Type: "string", Description: "搜索查询字符串"},
+					"num":   {Type: "integer", Description: "返回结果数量，默认 5，最大 10"},
+				},
+				Required: []string{"query"},
+			},
+		},
 	}
 }
 
@@ -309,7 +330,17 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 		{Role: "user", Content: req.Message},
 	}
 
-	// TODO: if threadID > 0, load history from ai_messages and prepend
+	// Load thread history if available
+	if req.ThreadID > 0 {
+		var dbMessages []model.AIMessage
+		if err := s.db.Where("thread_id = ?", req.ThreadID).Order("created_at ASC").Find(&dbMessages).Error; err == nil {
+			var historyMsgs []Message
+			for _, m := range dbMessages {
+				historyMsgs = append(historyMsgs, Message{Role: m.Role, Content: m.Content})
+			}
+			messages = append(historyMsgs, messages...)
+		}
+	}
 
 	tools := s.getTools()
 	streamCh, err := s.llm.ChatStream(ctx, systemPrompt, messages, tools)
@@ -374,7 +405,169 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 	return outCh, nil
 }
 
-// ==================== Search ====================
+// ==================== AI Chart Generation ====================
+
+// AIChartRequest is the request for AI-powered chart generation.
+type AIChartRequest struct {
+	Query string `json:"query"` // natural language like "show issues by priority as pie"
+}
+
+// AIChartResponse is the structured chart config returned to the frontend.
+type AIChartResponse struct {
+	ChartType string              `json:"chart_type"` // bar | pie | doughnut | line | polarArea | radar
+	Title     string              `json:"title"`
+	Labels    []string            `json:"labels"`
+	Datasets  []AIChartDataset    `json:"datasets"`
+	Options   *AIChartOptions     `json:"options,omitempty"`
+}
+
+// AIChartDataset represents a single dataset in the chart.
+type AIChartDataset struct {
+	Label           string   `json:"label"`
+	Data            []float64 `json:"data"`
+	BackgroundColor []string `json:"backgroundColor,omitempty"`
+	BorderColor     []string `json:"borderColor,omitempty"`
+	Fill            *bool    `json:"fill,omitempty"`
+	Tension         float64  `json:"tension,omitempty"`
+}
+
+// AIChartOptions contains optional chart display config.
+type AIChartOptions struct {
+	IndexAxis  string `json:"indexAxis,omitempty"` // "x" | "y" for horizontal bar
+	Stacked    bool   `json:"stacked,omitempty"`
+	ShowLegend bool   `json:"showLegend,omitempty"`
+}
+
+// GenerateChart generates a chart from natural language query.
+func (s *AIService) GenerateChart(ctx context.Context, req *AIChartRequest, actx *AIContext) (*AIChartResponse, error) {
+	// 1. Gather project stats for LLM context
+	stats, _ := s.projectSvc.GetStatistics(actx.ProjectID)
+	summary, _ := s.projectSvc.GetIssuesSummary(actx.ProjectID)
+
+	// Build data context
+	started := summary.Issues["started"]
+	todo := summary.Issues["todo"]
+	_ = summary.Issues["completed"]
+	cancelled := summary.Issues["cancelled"]
+	inProgress := started // "started" = in progress
+
+	dataCtx := fmt.Sprintf(`项目数据:
+- 工作项总数: %d
+- 已完成: %d, 进行中: %d, 未开始: %d, 已取消: %d
+- 成员数: %d
+- 按状态: %v
+- 按优先级: %v`,
+		stats.TotalIssues, stats.CompletedIssues,
+		inProgress, todo, cancelled,
+		stats.ActiveMembers,
+		stats.States, stats.Priorities,
+	)
+
+	// 2. Ask LLM to determine chart config
+	prompt := fmt.Sprintf(`你是一个数据可视化专家。根据用户请求和数据上下文，生成图表配置。
+
+%s
+
+用户请求: %s
+
+请直接输出纯 JSON（不要 markdown 标记），格式如下:
+{
+  "chart_type": "bar|pie|doughnut|line|polarArea",
+  "title": "图表标题",
+  "labels": ["标签1", "标签2"],
+  "datasets": [{"label": "数据集标签", "data": [10, 20]}]
+}
+
+规则:
+1. 聚合类（按状态/优先级/类型/负责人统计数量）用 pie/doughnut/bar
+2. 趋势类（随时间变化）用 line
+3. 对比类用 bar（可为 horizontal）
+4. data 必须是真实统计数据，如果数据不足用 0 填充
+5. labels 用中文
+6. 不要编造数据，基于上面提供的数据上下文推算`, dataCtx, req.Query)
+
+	content, err := s.llm.Complete(ctx, "你是一个数据可视化专家。输出纯 JSON，不要有任何其他内容。", prompt)
+	if err != nil {
+		return nil, fmt.Errorf("AI chart generation failed: %w", err)
+	}
+
+	// 3. Parse LLM response into chart config
+	var chartResp AIChartResponse
+	if err := json.Unmarshal([]byte(content), &chartResp); err != nil {
+		return nil, fmt.Errorf("parse chart response: %w (raw: %s)", err, content[:min(len(content), 200)])
+	}
+
+	// 4. Generate colors for the chart
+	n := len(chartResp.Labels)
+	if n == 0 { n = len(chartResp.Datasets[0].Data) }
+
+	colors8 := []string{
+		"#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
+		"#f97316", "#eab308", "#22c55e", "#06b6d4",
+	}
+	bgColors := make([]string, n)
+	borderColors := make([]string, n)
+	for i := 0; i < n; i++ {
+		bgColors[i] = colors8[i%len(colors8)]
+		borderColors[i] = colors8[i%len(colors8)]
+	}
+
+	for i := range chartResp.Datasets {
+		if chartResp.Datasets[i].BackgroundColor == nil {
+			chartResp.Datasets[i].BackgroundColor = bgColors
+		}
+		if chartResp.Datasets[i].BorderColor == nil {
+			chartResp.Datasets[i].BorderColor = borderColors
+		}
+		if chartResp.Datasets[i].Tension == 0 {
+			chartResp.Datasets[i].Tension = 0.3
+		}
+	}
+
+	// 5. Fetch real data based on chart type
+	// Enhance with actual DB data
+	s.enrichChartData(&chartResp, actx)
+
+	return &chartResp, nil
+}
+
+// enrichChartData queries the database to fill in real numbers when the LLM can't get them.
+func (s *AIService) enrichChartData(chart *AIChartResponse, actx *AIContext) {
+	// If labels mention state/status keywords, query real state counts
+	labelsLower := make([]string, len(chart.Labels))
+	for i, l := range chart.Labels {
+		labelsLower[i] = strings.ToLower(l)
+	}
+
+	// Try to query real per-state counts
+	var states []model.State
+	s.db.Where("project_id = ?", actx.ProjectID).Find(&states)
+
+	hasStateLabels := false
+	for _, l := range labelsLower {
+		for _, st := range states {
+			if strings.Contains(l, strings.ToLower(st.Name)) || strings.Contains(strings.ToLower(st.Name), l) {
+				hasStateLabels = true
+				break
+			}
+		}
+	}
+
+	if hasStateLabels && len(chart.Datasets) > 0 {
+		newLabels := make([]string, 0, len(states))
+		newData := make([]float64, 0, len(states))
+		for _, st := range states {
+			var count int64
+			s.db.Model(&model.Issue{}).Where("project_id = ? AND state_id = ?", actx.ProjectID, st.ID).Count(&count)
+			newLabels = append(newLabels, st.Name)
+			newData = append(newData, float64(count))
+		}
+		chart.Labels = newLabels
+		chart.Datasets[0].Data = newData
+	}
+}
+
+// ==================== AI Search ====================
 
 // AISearchRequest is the NL search request.
 type AISearchRequest struct {
@@ -958,6 +1151,8 @@ func (s *AIService) executeTool(name string, rawInput json.RawMessage, actx *AIC
 		return s.toolListReleases(args, actx)
 	case "list_pages":
 		return s.toolListPages(args, actx)
+	case "web_search":
+		return s.toolWebSearch(args)
 	default:
 		return nil, fmt.Errorf("unknown tool: %s", name)
 	}
@@ -1199,6 +1394,131 @@ func (s *AIService) toolListPages(args map[string]interface{}, actx *AIContext) 
 		result[i] = map[string]interface{}{"id": p.ID, "title": p.Title, "depth": p.Depth}
 	}
 	return result, nil
+}
+
+// ==================== Web Search Tool ====================
+
+// searchResult represents a single web search result from DuckDuckGo lite.
+type searchResult struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+	Snippet string `json:"snippet"`
+}
+
+var (
+	// Patterns to extract results from DuckDuckGo lite HTML
+	ddgLinkRe    = regexp.MustCompile(`<a[^>]*href="([^"]*)"[^>]*>([^<]+)</a>`)
+	ddgSnippetRe = regexp.MustCompile(`<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)</td>`)
+	ddgResultRe  = regexp.MustCompile(`<tr[^>]*class="result[^"]*"[\s\S]*?</tr>`)
+)
+
+func (s *AIService) toolWebSearch(args map[string]interface{}) (any, error) {
+	query := getStrArg(args, "query", "")
+	if query == "" {
+		return nil, fmt.Errorf("query is required for web_search")
+	}
+	num := getIntArg(args, "num", 5)
+	if num > 10 {
+		num = 10
+	}
+
+	// DuckDuckGo Lite search (no API key required, returns simple HTML)
+	searchURL := fmt.Sprintf("https://lite.duckduckgo.com/lite/?q=%s", url.QueryEscape(query))
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", searchURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("web_search request failed: %w", err)
+	}
+	req.Header.Set("User-Agent", "ReqManPy/1.0 (AI Assistant Bot; +https://github.com/reqmanpy)")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("web_search failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024)) // 256KB limit
+	if err != nil {
+		return nil, fmt.Errorf("web_search read failed: %w", err)
+	}
+
+	results := parseDuckDuckGoLite(string(body), num)
+
+	return map[string]interface{}{
+		"query":   query,
+		"results": results,
+	}, nil
+}
+
+// parseDuckDuckGoLite parses the simple HTML from DuckDuckGo Lite search results.
+func parseDuckDuckGoLite(html string, maxResults int) []searchResult {
+	var results []searchResult
+
+	// Parse result rows
+	rows := ddgResultRe.FindAllString(html, -1)
+	for _, row := range rows {
+		if len(results) >= maxResults {
+			break
+		}
+
+		var result searchResult
+
+		// Extract link (title + URL from the <a> tag)
+		links := ddgLinkRe.FindAllStringSubmatch(row, -1)
+		for _, m := range links {
+			if len(m) >= 3 {
+				href := strings.TrimSpace(m[1])
+				title := strings.TrimSpace(m[2])
+				// Skip non-result links (CSS classes, etc.)
+				if title != "" && strings.HasPrefix(href, "http") && !strings.Contains(href, "duckduckgo.com") {
+					result.Title = stripHTML(title)
+					result.URL = href
+					break
+				}
+			}
+		}
+
+		// Extract snippet
+		snippets := ddgSnippetRe.FindAllStringSubmatch(row, -1)
+		if len(snippets) > 0 && len(snippets[0]) >= 2 {
+			result.Snippet = strings.TrimSpace(stripHTML(snippets[0][1]))
+		}
+
+		if result.Title != "" {
+			results = append(results, result)
+		}
+	}
+
+	// Fallback: if regex failed, try simple line-based parsing
+	if len(results) == 0 {
+		lines := strings.Split(html, "\n")
+		for _, line := range lines {
+			if len(results) >= maxResults {
+				break
+			}
+			matches := ddgLinkRe.FindStringSubmatch(line)
+			if len(matches) >= 3 {
+				href := strings.TrimSpace(matches[1])
+				title := strings.TrimSpace(matches[2])
+				if strings.HasPrefix(href, "http") && !strings.Contains(href, "duckduckgo.com") {
+					results = append(results, searchResult{
+						Title:   stripHTML(title),
+						URL:     href,
+						Snippet: "",
+					})
+				}
+			}
+		}
+	}
+
+	return results
+}
+
+// stripHTML removes HTML tags from a string.
+func stripHTML(s string) string {
+	re := regexp.MustCompile(`<[^>]*>`)
+	return strings.TrimSpace(re.ReplaceAllString(s, ""))
 }
 
 // ==================== Helpers ====================

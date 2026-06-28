@@ -76,6 +76,15 @@ func main() {
 		&model.TimeTrack{},
 		&model.RecurrenceRule{},
 		&model.Webhook{},
+		&model.Initiative{},
+		&model.InitiativeProject{},
+		&model.ProjectUpdate{},
+		&model.ProjectPageTab{},
+		&model.Agent{},
+		&model.AgentActivity{},
+		&model.MCPConfig{},
+		&model.GitHubConnection{},
+		&model.SlackConnection{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

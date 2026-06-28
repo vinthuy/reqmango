@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,13 @@ func (h *IntakeHandler) Submit(c *gin.Context) {
 	var project model.Project
 	if h.db.First(&project, projectID).Error != nil { c.JSON(404, gin.H{"message":"Project not found"}); return }
 	var defaultState model.State
-	h.db.Where("project_id = ? AND is_default = ?", projectID, true).First(&defaultState)
+	if err := h.db.Where("project_id = ? AND is_default = ?", projectID, true).First(&defaultState).Error; err != nil {
+		// Fallback: use first available state
+		if h.db.Where("project_id = ?", projectID).First(&defaultState).Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "No default state configured for project"})
+			return
+		}
+	}
 
 	intakeSource := "form"
 	intakeStatus := "pending"
@@ -73,9 +80,15 @@ func (h *IntakeHandler) Triage(c *gin.Context) {
 	if status == "accept" { status = "accepted" }
 	updates := map[string]interface{}{"intake_status": status}
 	if req.StateID != nil { updates["state_id"] = *req.StateID }
-	h.db.Model(&issue).Updates(updates)
+	if err := h.db.Model(&issue).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update issue"})
+		return
+	}
 	if req.Assignee != nil {
-		h.db.Create(&model.IssueAssignee{IssueID: issueID, UserID: *req.Assignee})
+		if err := h.db.Create(&model.IssueAssignee{IssueID: issueID, UserID: *req.Assignee}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to assign user"})
+			return
+		}
 	}
 	c.JSON(200, gin.H{"message":"Triage "+req.Action+" completed", "issue_id":issueID})
 }

@@ -87,4 +87,60 @@ export async function createPreviewWithAI(
   return response.data
 }
 
-export default { chatWithAI, searchWithAI, createPreviewWithAI }
+export default { chatWithAI, searchWithAI, createPreviewWithAI, generateChart }
+
+// ==================== AI 扩展端点 ====================
+
+/**
+ * AI Analyze — 分析工作项并生成洞察。
+ */
+export async function analyzeWithAI(projectId: number, issueId: number): Promise<any> {
+  const res = await api.post(`/projects/${projectId}/ai/analyze?issue_id=${issueId}`)
+  return res.data
+}
+
+/**
+ * AI Suggest Labels — 根据内容推荐标签。
+ */
+export async function suggestLabels(projectId: number, issueId: number): Promise<any> {
+  const res = await api.post(`/projects/${projectId}/ai/suggest-labels?issue_id=${issueId}`)
+  return res.data
+}
+
+/**
+ * AI Sprint Plan — 辅助冲刺计划。
+ */
+export async function sprintPlan(projectId: number): Promise<any> {
+  const res = await api.post(`/projects/${projectId}/ai/sprint-plan`)
+  return res.data
+}
+
+/**
+ * AI Chart — 自然语言生成结构化图表配置。
+ */
+export interface AIChartData {
+  chart_type: 'bar' | 'pie' | 'doughnut' | 'line' | 'polarArea'
+  title: string
+  labels: string[]
+  datasets: {
+    label: string
+    data: number[]
+    backgroundColor?: string[]
+    borderColor?: string[]
+    fill?: boolean
+    tension?: number
+  }[]
+  options?: {
+    indexAxis?: string
+    stacked?: boolean
+    showLegend?: boolean
+  }
+}
+
+export async function generateChart(
+  projectId: number,
+  query: string,
+): Promise<AIChartData> {
+  const response = await api.post(`/projects/${projectId}/ai/chart`, { query })
+  return response.data.data
+}

@@ -37,8 +37,8 @@ const handleRegister = async () => {
       password: password.value
     })
     await router.push('/login')
-  } catch (err) {
-    error.value = '注册失败，请检查信息是否正确'
+  } catch (err: any) {
+    error.value = err?.response?.data?.detail || err?.response?.data?.message || '注册失败，请检查信息是否正确'
   } finally {
     loading.value = false
   }

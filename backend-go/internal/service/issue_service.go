@@ -19,10 +19,12 @@ type IssueService struct {
 	db              *gorm.DB
 	notificationSvc *NotificationService
 	webhookSvc      *WebhookService
+	automationSvc   *AutomationService
+	slackSvc        *SlackService
 }
 
-func NewIssueService(db *gorm.DB, notificationSvc *NotificationService, webhookSvc *WebhookService) *IssueService {
-	return &IssueService{db: db, notificationSvc: notificationSvc, webhookSvc: webhookSvc}
+func NewIssueService(db *gorm.DB, notificationSvc *NotificationService, webhookSvc *WebhookService, automationSvc *AutomationService, slackSvc *SlackService) *IssueService {
+	return &IssueService{db: db, notificationSvc: notificationSvc, webhookSvc: webhookSvc, automationSvc: automationSvc, slackSvc: slackSvc}
 }
 
 // Create creates a new issue.
@@ -281,6 +283,76 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 			Find(&issues).Error; err != nil {
 			return nil, 0, common.Internal("Database error")
 		}
+	}
+
+	result := make([]response.IssueResponse, len(issues))
+	for i, issue := range issues {
+		resp, err := s.BuildIssueResponse(&issue)
+		if err != nil {
+			return nil, 0, err
+		}
+		result[i] = *resp
+	}
+	return result, total, nil
+}
+
+// ListByWorkspace returns issues across all projects in a workspace.
+func (s *IssueService) ListByWorkspace(workspaceID uint64, filters map[string]interface{}, limit, offset int) ([]response.IssueResponse, int64, error) {
+	var projectIDs []uint64
+	if err := s.db.Model(&model.Project{}).Where("workspace_id = ?", workspaceID).Pluck("id", &projectIDs).Error; err != nil {
+		return nil, 0, err
+	}
+	if len(projectIDs) == 0 {
+		return []response.IssueResponse{}, 0, nil
+	}
+	return s.listByProjects(projectIDs, filters, limit, offset)
+}
+
+func (s *IssueService) listByProjects(projectIDs []uint64, filters map[string]interface{}, limit, offset int) ([]response.IssueResponse, int64, error) {
+	baseQuery := s.db.Model(&model.Issue{}).Where("issues.project_id IN ?", projectIDs)
+
+	if stateID, ok := filters["state_id"]; ok && stateID != nil {
+		baseQuery = baseQuery.Where("issues.state_id = ?", stateID)
+	}
+	if priority, ok := filters["priority"]; ok && priority != nil {
+		baseQuery = baseQuery.Where("issues.priority = ?", priority)
+	}
+	if assigneeID, ok := filters["assignee_id"]; ok && assigneeID != nil {
+		baseQuery = baseQuery.Joins("JOIN issue_assignees ON issue_assignees.issue_id = issues.id").
+			Where("issue_assignees.user_id = ?", assigneeID)
+	}
+	if cycleID, ok := filters["cycle_id"]; ok && cycleID != nil {
+		baseQuery = baseQuery.Joins("JOIN issue_cycles ON issue_cycles.issue_id = issues.id").
+			Where("issue_cycles.cycle_id = ?", cycleID)
+	}
+	if search, ok := filters["search"]; ok && search != nil {
+		searchStr := fmt.Sprintf("%%%s%%", search)
+		baseQuery = baseQuery.Where("issues.name ILIKE ? OR COALESCE(issues.description_stripped, '') ILIKE ?",
+			searchStr, searchStr)
+	}
+	if issueTypeID, ok := filters["issue_type_id"]; ok && issueTypeID != nil {
+		baseQuery = baseQuery.Where("issues.issue_type_id = ?", issueTypeID)
+	}
+
+	var total int64
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var issues []model.Issue
+	if err := baseQuery.
+		Preload("State").
+		Preload("IssueType").
+		Preload("AssigneeLinks.User").
+		Preload("LabelLinks.Label").
+		Preload("CycleLink").
+		Preload("Parent").
+		Preload("Project").
+		Order("issues.sort_order ASC, issues.sequence_id DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&issues).Error; err != nil {
+		return nil, 0, err
 	}
 
 	result := make([]response.IssueResponse, len(issues))
@@ -1201,6 +1273,10 @@ func (s *IssueService) ImportFromCSV(projectID, workspaceID, userID uint64, csvC
 			item.Name = strings.TrimSpace(record[idx])
 		} else if idx, ok := headerIdx["标题"]; ok && idx < len(record) {
 			item.Name = strings.TrimSpace(record[idx])
+		} else if idx, ok := headerIdx["summary"]; ok && idx < len(record) {
+			item.Name = strings.TrimSpace(record[idx]) // Jira
+		} else if idx, ok := headerIdx["title"]; ok && idx < len(record) {
+			item.Name = strings.TrimSpace(record[idx]) // Linear
 		}
 
 		if idx, ok := headerIdx["description"]; ok && idx < len(record) {
@@ -1219,18 +1295,26 @@ func (s *IssueService) ImportFromCSV(projectID, workspaceID, userID uint64, csvC
 			item.StateName = strings.TrimSpace(record[idx])
 		} else if idx, ok := headerIdx["状态"]; ok && idx < len(record) {
 			item.StateName = strings.TrimSpace(record[idx])
+		} else if idx, ok := headerIdx["status"]; ok && idx < len(record) {
+			item.StateName = strings.TrimSpace(record[idx]) // Jira/Linear
 		}
 
 		if idx, ok := headerIdx["type"]; ok && idx < len(record) {
 			item.TypeName = strings.TrimSpace(record[idx])
 		} else if idx, ok := headerIdx["类型"]; ok && idx < len(record) {
 			item.TypeName = strings.TrimSpace(record[idx])
+		} else if idx, ok := headerIdx["issue type"]; ok && idx < len(record) {
+			item.TypeName = strings.TrimSpace(record[idx]) // Jira
 		}
 
 		if idx, ok := headerIdx["assignees"]; ok && idx < len(record) {
 			item.AssigneeEmails = splitAndTrim(record[idx], ",")
 		} else if idx, ok := headerIdx["负责人"]; ok && idx < len(record) {
 			item.AssigneeEmails = splitAndTrim(record[idx], ",")
+		} else if idx, ok := headerIdx["assignee"]; ok && idx < len(record) {
+			item.AssigneeEmails = splitAndTrim(record[idx], ",") // Jira/Linear
+		} else if idx, ok := headerIdx["reporter"]; ok && idx < len(record) {
+			item.AssigneeEmails = splitAndTrim(record[idx], ",") // Jira fallback
 		}
 
 		if idx, ok := headerIdx["labels"]; ok && idx < len(record) {
@@ -1243,18 +1327,26 @@ func (s *IssueService) ImportFromCSV(projectID, workspaceID, userID uint64, csvC
 			item.StartDate = strings.TrimSpace(record[idx])
 		} else if idx, ok := headerIdx["开始日期"]; ok && idx < len(record) {
 			item.StartDate = strings.TrimSpace(record[idx])
+		} else if idx, ok := headerIdx["created"]; ok && idx < len(record) {
+			item.StartDate = strings.TrimSpace(record[idx]) // Jira
+		} else if idx, ok := headerIdx["created at"]; ok && idx < len(record) {
+			item.StartDate = strings.TrimSpace(record[idx]) // Linear
 		}
 
 		if idx, ok := headerIdx["target_date"]; ok && idx < len(record) {
 			item.TargetDate = strings.TrimSpace(record[idx])
 		} else if idx, ok := headerIdx["截止日期"]; ok && idx < len(record) {
 			item.TargetDate = strings.TrimSpace(record[idx])
+		} else if idx, ok := headerIdx["due date"]; ok && idx < len(record) {
+			item.TargetDate = strings.TrimSpace(record[idx]) // Jira/Linear
 		}
 
 		if idx, ok := headerIdx["parent_title"]; ok && idx < len(record) {
 			item.ParentTitle = strings.TrimSpace(record[idx])
 		} else if idx, ok := headerIdx["父标题"]; ok && idx < len(record) {
 			item.ParentTitle = strings.TrimSpace(record[idx])
+		} else if idx, ok := headerIdx["parent"]; ok && idx < len(record) {
+			item.ParentTitle = strings.TrimSpace(record[idx]) // Jira/Linear
 		}
 
 		items = append(items, item)
@@ -1330,6 +1422,115 @@ func splitAndTrim(s, sep string) []string {
 		}
 	}
 	return result
+}
+
+// ==================== Flow Metrics & Export ====================
+
+// FlowMetrics contains aggregated issue counts by state.
+type FlowMetrics struct {
+	StateCounts map[string]int `json:"state_counts"`
+	PriorityCounts map[string]int `json:"priority_counts"`
+	TypeCounts map[string]int `json:"type_counts"`
+	Total int `json:"total"`
+}
+
+// GetFlowMetrics returns flow metrics for a project.
+func (s *IssueService) GetFlowMetrics(projectID uint64) (*FlowMetrics, error) {
+	metrics := &FlowMetrics{
+		StateCounts:    make(map[string]int),
+		PriorityCounts: make(map[string]int),
+		TypeCounts:     make(map[string]int),
+	}
+
+	var issues []model.Issue
+	if err := s.db.Where("project_id = ?", projectID).Preload("State").Preload("IssueType").Find(&issues).Error; err != nil {
+		return nil, err
+	}
+
+	metrics.Total = len(issues)
+	for _, issue := range issues {
+		stateName := "未知"
+		if issue.State.Name != "" {
+			stateName = issue.State.Name
+		}
+		metrics.StateCounts[stateName]++
+
+		priority := "none"
+		if issue.Priority != "" {
+			priority = issue.Priority
+		}
+		metrics.PriorityCounts[priority]++
+
+		typeName := "未知"
+		if issue.IssueType.Name != "" {
+			typeName = issue.IssueType.Name
+		}
+		metrics.TypeCounts[typeName]++
+	}
+
+	return metrics, nil
+}
+
+// ExportIssueItem is a simplified issue struct for CSV/JSON export.
+type ExportIssueItem struct {
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	Priority      string   `json:"priority"`
+	StateName     string   `json:"state_name"`
+	IssueTypeName string   `json:"issue_type_name"`
+	AssigneeNames []string `json:"assignee_names"`
+	LabelNames    []string `json:"label_names"`
+	StartDate     string   `json:"start_date"`
+	TargetDate    string   `json:"target_date"`
+	ParentName    string   `json:"parent_name"`
+}
+
+// ExportIssues returns all issues for a project in export-friendly format.
+func (s *IssueService) ExportIssues(projectID uint64) ([]ExportIssueItem, error) {
+	var issues []model.Issue
+	if err := s.db.Where("project_id = ?", projectID).
+		Preload("State").Preload("IssueType").Preload("AssigneeLinks.User").
+		Preload("LabelLinks.Label").Preload("Parent").
+		Order("issues.sequence_id ASC").
+		Find(&issues).Error; err != nil {
+		return nil, err
+	}
+
+	result := make([]ExportIssueItem, 0, len(issues))
+	for _, issue := range issues {
+		item := ExportIssueItem{
+			Name:      issue.Name,
+			Priority:  issue.Priority,
+			StartDate: "",
+			TargetDate: "",
+		}
+		if issue.DescriptionStripped != nil {
+			item.Description = *issue.DescriptionStripped
+		}
+		if issue.StartDate != nil {
+			item.StartDate = issue.StartDate.Format("2006-01-02")
+		}
+		if issue.TargetDate != nil {
+			item.TargetDate = issue.TargetDate.Format("2006-01-02")
+		}
+		if issue.State.Name != "" {
+			item.StateName = issue.State.Name
+		}
+		if issue.IssueType.Name != "" {
+			item.IssueTypeName = issue.IssueType.Name
+		}
+		for _, link := range issue.AssigneeLinks {
+			item.AssigneeNames = append(item.AssigneeNames, link.User.DisplayName)
+		}
+		for _, link := range issue.LabelLinks {
+			item.LabelNames = append(item.LabelNames, link.Label.Name)
+		}
+		if issue.Parent != nil {
+			item.ParentName = issue.Parent.Name
+		}
+		result = append(result, item)
+	}
+	return result, nil
 }
 
 func parseInt64(s string) (uint64, error) {

@@ -53,7 +53,7 @@
       <h4 class="text-sm font-medium text-gray-700 mb-3">已上传 ({{ attachments.length }})</h4>
       <div class="space-y-2">
         <div
-          v-for="attachment in attachments"
+          v-for="(attachment, idx) in attachments"
           :key="attachment.id"
           class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
           @click="previewAttachment(attachment, idx)"
@@ -110,7 +110,6 @@ import { ref, onMounted } from 'vue'
 import attachmentApi from '@/api/attachment'
 import { useConfirm } from '@/composables/useConfirm'
 import AttachmentPreview from '@/components/AttachmentPreview.vue'
-import type { Attachment } from '@/types/attachment'
 
 // Props
 const props = defineProps<{
@@ -120,12 +119,12 @@ const props = defineProps<{
 
 // State
 const { confirm } = useConfirm()
-const attachments = ref<Attachment[]>([])
+const attachments = ref<any[]>([])
 const uploadingFiles = ref<File[]>([])
 const showPreview = ref(false)
 const previewIdx = ref(0)
 
-function previewAttachment(_att: Attachment, idx: number) {
+function previewAttachment(_att: any, idx: number) {
   previewIdx.value = idx; showPreview.value = true
 }
 const isDragging = ref(false)
@@ -179,7 +178,7 @@ async function uploadFiles(files: File[]) {
   }
 }
 
-async function deleteAttachment(attachment: Attachment) {
+async function deleteAttachment(attachment: any) {
   if (!(await confirm(`确定要删除 "${attachment.name}" 吗？`))) return
   if (!props.issueId) return
 

@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmanpy/backend-go/internal/common"
@@ -66,9 +68,12 @@ func (h *IssueHandler) Create(c *gin.Context) {
 
 // List handles GET /issues/?project_id=int&workspace_id=int&filters...
 func (h *IssueHandler) List(c *gin.Context) {
-	projectID, err := strconv.ParseUint(c.Query("project_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project_id"})
+	projectID, _ := strconv.ParseUint(c.Query("project_id"), 10, 64)
+
+	// Support workspace-level list
+	workspaceID, _ := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if projectID == 0 && workspaceID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "project_id or workspace_id is required"})
 		return
 	}
 
@@ -142,6 +147,22 @@ func (h *IssueHandler) List(c *gin.Context) {
 
 	if issues == nil {
 		issues = make([]response.IssueResponse, 0)
+	}
+
+	if workspaceID > 0 && projectID == 0 {
+		var wsErr error
+		issues, total, wsErr = h.svc.ListByWorkspace(workspaceID, filters, p.Limit, p.Offset)
+		if wsErr != nil {
+			if appErr, ok := wsErr.(*common.AppError); ok {
+				c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+			return
+		}
+		if issues == nil {
+			issues = make([]response.IssueResponse, 0)
+		}
 	}
 
 	c.Header("X-Total-Count", fmt.Sprintf("%d", total))
@@ -619,6 +640,46 @@ func (h *IssueHandler) ImportJSON(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+// GetFlowMetrics handles GET /issues/flow-metrics?project_id=
+func (h *IssueHandler) GetFlowMetrics(c *gin.Context) {
+	projectID, _ := strconv.ParseUint(c.Query("project_id"), 10, 64)
+	if projectID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "project_id is required"})
+		return
+	}
+	metrics, err := h.svc.GetFlowMetrics(projectID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, metrics)
+}
+
+// Export handles GET /issues/export?project_id=&format=csv|json
+func (h *IssueHandler) Export(c *gin.Context) {
+	projectID, _ := strconv.ParseUint(c.Query("project_id"), 10, 64)
+	format := c.DefaultQuery("format", "json")
+
+	issues, err := h.svc.ExportIssues(projectID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	if format == "csv" {
+		c.Header("Content-Type", "text/csv; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=issues.csv")
+		writer := csv.NewWriter(c.Writer)
+		writer.Write([]string{"标题", "描述", "优先级", "状态", "类型", "负责人", "标签", "开始日期", "截止日期", "父标题"})
+		for _, issue := range issues {
+			writer.Write([]string{issue.Name, issue.Description, issue.Priority, issue.StateName, issue.IssueTypeName, strings.Join(issue.AssigneeNames, ","), strings.Join(issue.LabelNames, ","), issue.StartDate, issue.TargetDate, issue.ParentName})
+		}
+		writer.Flush()
+	} else {
+		c.JSON(http.StatusOK, issues)
+	}
 }
 
 // ImportCSV handles POST /issues/import/csv?project_id=int&workspace_id=int

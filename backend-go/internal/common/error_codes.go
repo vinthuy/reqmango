@@ -35,6 +35,7 @@ const (
 	ErrTimeEntryNotFound ErrorCode = "TIME_ENTRY_NOT_FOUND"
 	ErrRecurrenceNotFound ErrorCode = "RECURRENCE_NOT_FOUND"
 	ErrNotificationNotFound ErrorCode = "NOTIFICATION_NOT_FOUND"
+	ErrAgentNotFound       ErrorCode = "AGENT_NOT_FOUND"
 
 	// Validation errors
 	ErrRequiredField  ErrorCode = "REQUIRED_FIELD"
@@ -67,7 +68,8 @@ func (e ErrorCode) HTTPStatus() int {
 		return 403
 	case e == ErrNotFound || stringsHasSuffix(string(e), "_NOT_FOUND"):
 		return 404
-	case e == ErrAlreadyExists || e == ErrConflict || e == ErrDuplicateEntry:
+	case e == ErrAlreadyExists || e == ErrConflict || e == ErrDuplicateEntry ||
+		e == ErrAlreadyAssigned || e == ErrAlreadyLabelled:
 		return 409
 	case e == ErrValidation || e == ErrRequiredField || e == ErrInvalidFormat || e == ErrInvalidValue:
 		return 422

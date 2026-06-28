@@ -12,6 +12,7 @@ import type {
   ProjectStatistics,
   ProjectIssuesSummary
 } from '@/types/project'
+import type { ProjectPageTab } from '@/types/project-page-tab'
 
 // ==================== Project CRUD ====================
 
@@ -237,6 +238,34 @@ export async function getProjectIssuesSummary(
   return response.data
 }
 
+// ==================== Page Tabs ====================
+
+export async function listPageTabs(projectId: number): Promise<ProjectPageTab[]> {
+  const response = await api.get(`/projects/${projectId}/page-tabs`)
+  return response.data.data || []
+}
+
+export async function createPageTab(projectId: number, data: Partial<ProjectPageTab>): Promise<ProjectPageTab> {
+  const response = await api.post(`/projects/${projectId}/page-tabs`, data)
+  return response.data.data
+}
+
+export async function updatePageTab(projectId: number, tabId: number, updates: Record<string, unknown>): Promise<void> {
+  await api.put(`/projects/${projectId}/page-tabs/${tabId}`, updates)
+}
+
+export async function deletePageTab(projectId: number, tabId: number): Promise<void> {
+  await api.delete(`/projects/${projectId}/page-tabs/${tabId}`)
+}
+
+export async function batchSavePageTabs(projectId: number, tabs: Partial<ProjectPageTab>[]): Promise<void> {
+  await api.put(`/projects/${projectId}/page-tabs/batch`, { tabs })
+}
+
+export async function reorderPageTabs(projectId: number, ids: number[]): Promise<void> {
+  await api.put(`/projects/${projectId}/page-tabs/reorder`, { ids })
+}
+
 // ==================== Export all ====================
 
 export const projectApi = {
@@ -268,7 +297,15 @@ export const projectApi = {
   
   // Statistics
   getProjectStatistics,
-  getProjectIssuesSummary
+  
+  // Page Tabs
+  listPageTabs,
+  createPageTab,
+  updatePageTab,
+  deletePageTab,
+  batchSavePageTabs,
+  reorderPageTabs,
+  getProjectIssuesSummary,
 }
 
 export default projectApi

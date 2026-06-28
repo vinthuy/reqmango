@@ -5,7 +5,7 @@
 export interface AIChatRequest {
   message: string
   thread_id?: number
-  mode: 'ask' | 'build'
+  mode: 'ask' | 'build' | 'chart'
 }
 
 export interface StreamEvent {
@@ -60,4 +60,5 @@ export interface AIChatMessage {
   content: string
   toolCalls?: ToolCall[]
   toolResults?: ToolResult[]
+  chartConfig?: any
 }

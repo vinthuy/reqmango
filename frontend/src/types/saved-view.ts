@@ -6,7 +6,7 @@ export interface SavedView {
   id: number
   name: string
   description?: string
-  view_type: 'list' | 'kanban' | 'tree'
+  view_type: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
   filters: Record<string, any>
   sort_config: SortConfigEntry[]
   columns: string[]
@@ -27,7 +27,7 @@ export interface SortConfigEntry {
 export interface SavedViewCreate {
   name: string
   description?: string
-  view_type?: 'list' | 'kanban' | 'tree'
+  view_type?: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
   filters?: Record<string, any>
   sort_config?: SortConfigEntry[]
   columns?: string[]
@@ -38,7 +38,7 @@ export interface SavedViewCreate {
 export interface SavedViewUpdate {
   name?: string
   description?: string
-  view_type?: 'list' | 'kanban' | 'tree'
+  view_type?: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
   filters?: Record<string, any>
   sort_config?: SortConfigEntry[]
   columns?: string[]

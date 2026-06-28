@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmanpy/backend-go/internal/model"
@@ -17,7 +18,11 @@ func NewSSEHandler() *SSEHandler { return &SSEHandler{} }
 func (h *SSEHandler) Connect(c *gin.Context) {
 	user, exists := c.Get("currentUser")
 	if !exists { c.JSON(401, gin.H{"message":"Authentication required"}); return }
-	u := user.(*model.User)
+	u, ok := user.(*model.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Invalid user type"})
+		return
+	}
 
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")

@@ -1,5 +1,5 @@
 <template>
-  <div class="project-page min-h-screen bg-gray-50">
+  <div class="project-page min-h-screen bg-gray-50 dark:bg-gray-900">
     <!-- 加载状态 -->
     <div v-if="loading" class="flex items-center justify-center h-64">
       <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -9,91 +9,53 @@
     </div>
 
     <!-- 项目内容 -->
-    <div v-else-if="project" class="space-y-6">
-      <!-- 项目头部 -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6">
-        <div class="flex items-start justify-between">
-          <div class="flex items-center space-x-4">
-            <button @click="goBack" class="text-gray-400 hover:text-gray-600">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div
-              class="w-12 h-12 rounded-lg flex items-center justify-center text-white text-xl font-bold"
-              style="background-color: #6366f1"
-            >
+    <div v-else-if="project" class="space-y-4">
+      <!-- 项目头部 - clean top bar -->
+      <div class="px-2">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0" :style="{ backgroundColor: project.color || '#6366f1' }">
               {{ project.name?.charAt(0)?.toUpperCase() || 'P' }}
             </div>
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900">{{ project.name }}</h1>
-              <div class="flex items-center space-x-3 mt-1">
-                <span class="text-xs text-gray-500">{{ project.identifier }}</span>
-                <span v-if="project.description" class="text-sm text-gray-500">{{ project.description }}</span>
+            <div class="min-w-0">
+              <h1 class="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{{ project.name }}</h1>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-xs text-gray-400 dark:text-gray-500 font-mono">{{ project.identifier }}</span>
+                <span v-if="latestUpdateStatus" class="text-xs px-2 py-0.5 rounded-full" :class="getUpdateStatusColor(latestUpdateStatus)">{{ getUpdateStatusLabel(latestUpdateStatus) }}</span>
               </div>
             </div>
           </div>
-
-        </div>
-
-        <!-- 标签页导航 -->
-        <div class="mt-6 border-b border-gray-200">
-          <nav class="-mb-px flex space-x-6">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              @click="activeTab = tab.id"
-              class="py-2 px-1 border-b-2 text-sm font-medium transition-colors"
-              :class="activeTab === tab.id
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-            >
-              {{ tab.name }}
+          <div class="flex items-center gap-2 shrink-0">
+            <button @click="showAICreate = true" class="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-medium rounded-md hover:from-indigo-600 hover:to-purple-700 transition shadow-sm">🤖 AI Create</button>
+            <button @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition shadow-sm">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              新建
             </button>
-          </nav>
+          </div>
         </div>
+
+        <!-- 标签页导航 - horizontal pills -->
+        <nav class="flex items-center gap-1 border-b border-gray-200 dark:border-gray-800 pb-2">
+          <button v-for="tab in computedTabs" :key="tab.id" @click="activeTab = tab.id"
+            class="px-3.5 py-1.5 text-sm font-medium rounded-md transition-colors"
+            :class="activeTab === tab.id ? 'bg-gray-200/70 dark:bg-gray-800 text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'">
+            {{ tab.name }}
+          </button>
+          <button @click="showPageConfig = true" class="px-2 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition text-sm" title="页面配置">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          </button>
+        </nav>
       </div>
 
       <!-- 标签页内容 -->
       <div v-if="activeTab === 'issues'">
-        <!-- 视图切换 -->
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
-              <button
-                @click="issueView = 'list'"
-                class="px-3 py-1.5 text-sm rounded-md transition-colors"
-                :class="issueView === 'list' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
-              >
-                列表视图
-              </button>
-              <button
-                @click="issueView = 'kanban'"
-                class="px-3 py-1.5 text-sm rounded-md transition-colors"
-                :class="issueView === 'kanban' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
-              >
-                看板视图
-              </button>
-              <button
-                @click="issueView = 'tree'"
-                class="px-3 py-1.5 text-sm rounded-md transition-colors"
-                :class="issueView === 'tree' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
-              >
-                树形视图
-              </button>
-              <button
-                @click="issueView = 'calendar'"
-                class="px-3 py-1.5 text-sm rounded-md transition-colors"
-                :class="issueView === 'calendar' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
-              >
-                日历视图
-              </button>
-              <button
-                @click="issueView = 'gantt'"
-                class="px-3 py-1.5 text-sm rounded-md transition-colors"
-                :class="issueView === 'gantt' ? 'bg-white shadow text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'"
-              >
-                甘特图
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <div class="inline-flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+              <button v-for="v in views" :key="v.id" @click="issueView = v.id"
+                class="px-3 py-1.5 text-xs rounded-md transition-colors"
+                :class="issueView === v.id ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'">
+                {{ v.label }}
               </button>
             </div>
             <SavedViewSelector
@@ -101,20 +63,6 @@
               :view-type="(issueView as 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt')"
               @select="handleViewSelect"
             />
-          </div>
-          <div class="flex items-center gap-2">
-            <button
-              @click="showAICreate = true"
-              class="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm rounded-md hover:from-indigo-600 hover:to-purple-700 transition flex items-center gap-1"
-            >
-              🤖 AI Create
-            </button>
-            <button
-              @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)"
-              class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700"
-            >
-              新建工作项
-            </button>
           </div>
         </div>
 
@@ -151,7 +99,7 @@
           :project-id="projectId"
           :workspace-id="workspaceId"
           @select="openDetailPanel"
-          @create="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=tree`)"
+          @create="router.push(`/workspace/${route.params.slug}/project/${projectId}/issues/new?view=tree`)"
         />
       </div>
 
@@ -208,6 +156,37 @@
           @delete="handleModuleDelete"
         />
       </div>
+
+      <div v-if="activeTab === 'updates'">
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">项目更新</h3>
+            <button
+              @click="showUpdateForm = true"
+              class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700"
+            >发布更新</button>
+          </div>
+
+          <div v-if="updatesLoading" class="text-gray-500 text-sm">加载中...</div>
+
+          <div v-else-if="projectUpdates.length === 0" class="text-center py-8 text-gray-400 text-sm">
+            暂无项目更新，发布第一条更新吧
+          </div>
+
+          <div v-else class="space-y-4">
+            <div v-for="update in projectUpdates" :key="update.id" class="border border-gray-100 dark:border-gray-700 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">{{ update.author?.display_name || '未知' }}</span>
+                  <span class="text-xs px-2 py-0.5 rounded-full" :class="getUpdateStatusColor(update.status)">{{ getUpdateStatusLabel(update.status) }}</span>
+                </div>
+                <span class="text-xs text-gray-400">{{ new Date(update.created_at).toLocaleString('zh-CN') }}</span>
+              </div>
+              <p class="text-sm text-gray-700 dark:text-gray-300">{{ update.content }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 空状态 -->
@@ -239,6 +218,33 @@
     :workspace-id="workspaceId"
     @close="showCommandPalette = false"
   />
+  <PageTabConfig v-if="showPageConfig" :project-id="projectId" @close="showPageConfig = false" @saved="tabs => { pageTabs = tabs }" />
+
+  <!-- Update Form Modal -->
+  <div v-if="showUpdateForm" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+      <h2 class="text-lg font-semibold mb-4">发布项目更新</h2>
+      <div class="space-y-3">
+        <div>
+          <label class="text-sm text-gray-600 mb-1 block">状态</label>
+          <select v-model="updateForm.status" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600">
+            <option value="on_track">正常 (On Track)</option>
+            <option value="at_risk">有风险 (At Risk)</option>
+            <option value="off_track">偏离 (Off Track)</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm text-gray-600 mb-1 block">内容 *</label>
+          <textarea v-model="updateForm.content" class="w-full border rounded-lg px-3 py-2 dark:bg-gray-700 dark:border-gray-600" rows="4" placeholder="简述当前进展、风险和计划..."></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        <button @click="showUpdateForm = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+        <button @click="submitUpdate" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">发布</button>
+      </div>
+    </div>
+  </div>
+
   <button
     @click="showAIChat = true"
     class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition flex items-center justify-center text-2xl z-40"
@@ -247,13 +253,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceApi } from '@/api/workspace'
-import { projectApi } from '@/api/project'
+import { projectApi, listPageTabs } from '@/api/project'
 import { issueApi } from '@/api/issue'
+import { projectUpdateApi, type ProjectUpdate } from '@/api/project-update'
 import type { Workspace } from '@/types'
 import type { ProjectResponse } from '@/types/project'
+import type { ProjectPageTab } from '@/types/project-page-tab'
 import { useConfirm } from '@/composables/useConfirm'
 
 import IssueList from '@/components/IssueList.vue'
@@ -271,6 +279,7 @@ import SavedViewSelector from '@/components/SavedViewSelector.vue'
 import AIChatSidebar from '@/components/AIChatSidebar.vue'
 import AICreateDialog from '@/components/AICreateDialog.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
+import PageTabConfig from '@/components/PageTabConfig.vue'
 import type { SavedView } from '@/types/saved-view'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
@@ -285,6 +294,14 @@ const loading = ref(false)
 const activeTab = ref((route.query.tab as string) || 'issues')
 const issueView = ref((route.query.view as string) || 'list')
 const issueRefreshKey = ref(0)
+
+const views = [
+  { id: 'list' as const, label: '列表' },
+  { id: 'kanban' as const, label: '看板' },
+  { id: 'tree' as const, label: '树形' },
+  { id: 'calendar' as const, label: '日历' },
+  { id: 'gantt' as const, label: '甘特' },
+]
 
 const detailIssueId = ref<number | null>(null)
 const detailPanelVisible = ref(false)
@@ -301,6 +318,46 @@ const editingModule = ref<ModuleResponse | null>(null)
 const showAIChat = ref(false)
 const showAICreate = ref(false)
 const showCommandPalette = ref(false)
+
+// Project updates
+const projectUpdates = ref<ProjectUpdate[]>([])
+const showUpdateForm = ref(false)
+const updateForm = ref({ status: 'on_track', content: '' })
+const latestUpdateStatus = ref<string>('')
+const updatesLoading = ref(false)
+
+async function loadUpdates() {
+  updatesLoading.value = true
+  try {
+    projectUpdates.value = await projectUpdateApi.list(projectId.value, 10)
+    if (projectUpdates.value.length > 0) {
+      latestUpdateStatus.value = projectUpdates.value[0].status
+    }
+  } catch { projectUpdates.value = [] }
+  finally { updatesLoading.value = false }
+}
+
+async function submitUpdate() {
+  if (!updateForm.value.content?.trim()) {
+      alert('请输入更新内容')
+      return
+    }
+  try {
+    await projectUpdateApi.create(projectId.value, updateForm.value.status, updateForm.value.content)
+    updateForm.value = { status: 'on_track', content: '' }
+    showUpdateForm.value = false
+    await loadUpdates()
+  } catch (err) { console.error('Failed to submit update:', err) }
+}
+
+function getUpdateStatusLabel(s: string) {
+  const map: Record<string, string> = { on_track: '正常', at_risk: '有风险', off_track: '偏离' }
+  return map[s] || s
+}
+function getUpdateStatusColor(s: string) {
+  const map: Record<string, string> = { on_track: 'bg-green-100 text-green-700', at_risk: 'bg-yellow-100 text-yellow-700', off_track: 'bg-red-100 text-red-700' }
+  return map[s] || 'bg-gray-100'
+}
 
 watch(activeTab, (tab) => {
   if (tab === 'settings') {
@@ -336,7 +393,7 @@ function openCyclePanel(cycle: CycleResponse) {
 
 function goToCycleCreate() {
   const slug = route.params.slug as string
-  router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}/cycles/new?ws=${slug}`)
+  router.push(`/workspace/${route.params.slug}/project/${projectId.value}/cycles/new?ws=${slug}`)
 }
 
 function openModulePanel(module: ModuleResponse | any) {
@@ -367,20 +424,37 @@ const workspaceId = ref(0)
 const projectId = ref(0)
 const slug = ref('')
 
-const tabs = [
-  { id: 'issues', name: '工作项管理' },
+const pageTabs = ref<ProjectPageTab[]>([])
+const showPageConfig = ref(false)
+const defaultTabs = [
+  { id: 'issues', name: '工作项' },
   { id: 'cycles', name: '周期' },
   { id: 'modules', name: '模块' },
+  { id: 'updates', name: '更新' },
   { id: 'pages', name: '文档' },
   { id: 'settings', name: '设置' },
 ]
+
+async function loadPageTabs() {
+  try {
+    const tabs = await listPageTabs(projectId.value)
+    if (tabs.length > 0) pageTabs.value = tabs
+  } catch { /* use defaults */ }
+}
+
+const computedTabs = computed(() => {
+  if (pageTabs.value.length > 0) {
+    return pageTabs.value.filter(t => t.visible).map(t => ({ id: t.route_key || `custom_${t.id}`, name: t.name }))
+  }
+  return defaultTabs
+})
 
 function goBack() {
   router.push(`/workspace/${route.params.slug}`)
 }
 
 function handleViewSelect(view: SavedView) {
-  if (view.view_type && (view.view_type === 'list' || view.view_type === 'kanban' || view.view_type === 'tree')) {
+  if (view.view_type && (view.view_type === 'list' || view.view_type === 'kanban' || view.view_type === 'tree' || view.view_type === 'gantt' || view.view_type === 'calendar')) {
     issueView.value = view.view_type
   }
   // Future: apply filters, sort, columns, groupBy from the view
@@ -410,12 +484,14 @@ onMounted(async () => {
     workspaceId.value = workspace.value.id
     projectId.value = id
     project.value = await projectApi.getProject(id)
+    await loadUpdates()
+    await loadPageTabs()
   } catch (err) {
     console.error('Failed to load project:', err)
   } finally {
     loading.value = false
   }
-  document.addEventListener('keydown', (e: KeyboardEvent) => {
+  const handleKeydown = (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
       e.preventDefault()
       showAIChat.value = !showAIChat.value
@@ -424,6 +500,10 @@ onMounted(async () => {
       e.preventDefault()
       showCommandPalette.value = !showCommandPalette.value
     }
+  }
+  document.addEventListener('keydown', handleKeydown)
+  onUnmounted(() => {
+    document.removeEventListener('keydown', handleKeydown)
   })
 })
 </script>

@@ -2,7 +2,7 @@
   <div>
     <!-- This node -->
     <div
-      class="tree-node flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50"
+      class="tree-node flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 group"
       :class="{
         'bg-amber-50/60': isSearchMatched,
         'bg-blue-50/30': isInSearchPath && !isSearchMatched
@@ -12,10 +12,17 @@
     >
       <!-- Expand/Collapse toggle -->
       <div class="w-8 shrink-0 flex items-center justify-center">
+        <input
+          type="checkbox"
+          :checked="selectedIds.has(node.id)"
+          @click.stop
+          @change="$emit('toggle-select', node.id)"
+          class="rounded border-gray-300 dark:border-gray-500 w-3.5 h-3.5"
+        />
         <button
           v-if="node.has_children"
           @click.stop="$emit('toggle', node.id)"
-          class="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 transition-colors"
+          class="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ml-1"
         >
           <svg
             v-if="loadingChildren.has(node.id)"
@@ -68,7 +75,7 @@
 
       <!-- State -->
       <div class="w-20 text-center shrink-0">
-        <span class="text-xs text-gray-500">{{ node.state_name || '-' }}</span>
+        <span class="text-xs text-gray-500 dark:text-gray-400">{{ node.state_name || '-' }}</span>
       </div>
 
       <!-- Sub-issues count -->
@@ -81,6 +88,40 @@
         </span>
         <span v-else class="text-xs text-gray-300">-</span>
       </div>
+
+      <!-- Add child button (show on hover) -->
+      <div class="w-8 shrink-0 flex items-center justify-center">
+        <button
+          @click.stop="showChildForm = !showChildForm"
+          class="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors opacity-0 group-hover:opacity-100"
+          title="创建子工作项"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Inline child creation form -->
+    <div v-if="showChildForm" class="flex items-center gap-2 py-2 px-4 bg-gray-50 border-b border-gray-100" :style="{ paddingLeft: (16 + (depth + 1) * 24) + 'px' }">
+      <input
+        v-model="childName"
+        type="text"
+        placeholder="子工作项名称"
+        class="flex-1 min-w-0 border border-gray-300 rounded text-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        @keydown.enter="submitChild"
+        @keydown.escape="cancelChild"
+      />
+      <select v-model="childPriority" class="border border-gray-300 rounded text-sm px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0">
+        <option value="none">无</option>
+        <option value="low">低</option>
+        <option value="medium">中</option>
+        <option value="high">高</option>
+        <option value="urgent">紧急</option>
+      </select>
+      <button @click.stop="submitChild" :disabled="!childName.trim()" class="px-2 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 shrink-0">创建</button>
+      <button @click.stop="cancelChild" class="px-2 py-1 border border-gray-300 text-gray-600 text-xs rounded hover:bg-gray-100 shrink-0">取消</button>
     </div>
 
     <!-- Children (recursive) -->
@@ -94,10 +135,13 @@
         :children-map="childrenMap"
         :loading-children="loadingChildren"
         :project-identifier="projectIdentifier"
+        :selected-ids="selectedIds"
         :search-matched-path="searchMatchedPath"
         :search-matched-id="searchMatchedId"
         @toggle="$emit('toggle', $event)"
         @select="$emit('select', $event)"
+        @toggle-select="$emit('toggle-select', $event)"
+        @create-child="(payload) => $emit('create-child', payload)"
       />
     </template>
 
@@ -113,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { TreeIssueResponse } from '@/types/issue'
 
 const props = defineProps<{
@@ -125,16 +169,39 @@ const props = defineProps<{
   projectIdentifier: string
   searchMatchedPath?: number[]
   searchMatchedId?: number
+  selectedIds: Set<number>
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'toggle', nodeId: number): void
   (e: 'select', issue: any): void
+  (e: 'toggle-select', issueId: number): void
+  (e: 'create-child', payload: { parentId: number; name: string; priority: string }): void
 }>()
 
 // Check if this node is in the search-matched path or is the matched node itself
 const isSearchMatched = computed(() => props.searchMatchedId === props.node.id)
 const isInSearchPath = computed(() => props.searchMatchedPath?.includes(props.node.id) ?? false)
+
+// Child creation form state
+const showChildForm = ref(false)
+const childName = ref('')
+const childPriority = ref('medium')
+
+function submitChild() {
+  const name = childName.value.trim()
+  if (!name) return
+  emit('create-child', { parentId: props.node.id, name, priority: childPriority.value })
+  childName.value = ''
+  childPriority.value = 'medium'
+  showChildForm.value = false
+}
+
+function cancelChild() {
+  childName.value = ''
+  childPriority.value = 'medium'
+  showChildForm.value = false
+}
 
 function priorityClass(p: string) {
   const m: Record<string, string> = {

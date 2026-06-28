@@ -8,6 +8,7 @@ import AISettingsPanel from '@/components/AISettingsPanel.vue';
 import CustomFieldManager from '@/components/CustomFieldManager.vue';
 import AutomationForm from '@/components/AutomationForm.vue';
 import AutomationList from '@/components/AutomationList.vue';
+import WorkspaceIntegrations from '@/components/WorkspaceIntegrations.vue';
 import * as workflowApi from '@/api/workflow';
 import * as issueTypeApi from '@/api/issue-type';
 import * as customFieldApi from '@/api/custom-field';
@@ -134,6 +135,7 @@ onMounted(() => { loadWorkspace(); });
             { id: 'fields', label: 'Custom Fields', icon: '📝', count: customFields.length },
             { id: 'automations', label: 'Automations', icon: '🤖', count: automations.length },
             { id: 'relations', label: 'Relations', icon: '🔗', count: relationTypes.length },
+            { id: 'integrations', label: 'Integrations', icon: '🔌', count: 0 },
           ]"
           :key="item.id"
           @click="activeSection = item.id"
@@ -196,6 +198,11 @@ onMounted(() => { loadWorkspace(); });
       <!-- Relations Section -->
       <div v-if="activeSection === 'relations'" class="p-0">
         <RelationTypeManager :workspace-id="workspaceId" />
+      </div>
+
+      <!-- Integrations Section -->
+      <div v-if="activeSection === 'integrations'" class="p-0">
+        <WorkspaceIntegrations :workspace-id="workspaceId" :slug="slug" />
       </div>
     </main>
 

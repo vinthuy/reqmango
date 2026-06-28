@@ -1,5 +1,5 @@
 <template>
-  <div class="rich-text-editor">
+  <div class="rich-text-editor relative">
     <div class="toolbar">
       <button @click="formatText('bold')" class="toolbar-btn" title="加粗">
         <strong>B</strong>

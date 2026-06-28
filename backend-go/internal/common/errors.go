@@ -57,6 +57,7 @@ func AttachmentNotFound() *AppError { return NewError(ErrAttachmentNotFound, "At
 func TimeEntryNotFound() *AppError  { return NewError(ErrTimeEntryNotFound, "Time entry not found") }
 func RecurrenceNotFound() *AppError { return NewError(ErrRecurrenceNotFound, "Recurrence rule not found") }
 func NotificationNotFound() *AppError { return NewError(ErrNotificationNotFound, "Notification not found") }
+func AgentNotFound() *AppError          { return NewError(ErrAgentNotFound, "Agent not found") }
 
 // ==================== Standard Response Helpers ====================
 

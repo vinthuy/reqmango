@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/reqmanpy/backend-go/internal/common"
 	"github.com/reqmanpy/backend-go/internal/model"
 	"github.com/reqmanpy/backend-go/internal/service"
 	"net/http"
@@ -20,7 +21,11 @@ func (h *EstimateHandler) GetSettings(c *gin.Context) {
 	projectID, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
 	settings, err := h.service.GetSettings(projectID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, settings)

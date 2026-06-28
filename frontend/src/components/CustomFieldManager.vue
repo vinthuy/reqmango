@@ -6,7 +6,7 @@
         <h2 class="text-lg font-semibold text-gray-900">自定义字段</h2>
         <p class="text-sm text-gray-500 mt-0.5">定义工作空间中可用的自定义字段（如优先级、版本号等）</p>
       </div>
-      <button @click="openCreateModal" class="create-btn">
+      <button v-if="mode !== 'display'" @click="openCreateModal" class="create-btn">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -68,6 +68,91 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </button>
+        </div>
+
+        <!-- 值编辑区域（仅在显示模式且有 issueId 时显示） -->
+        <div v-if="mode === 'display' && issueId && field.is_active && !field.is_readonly" class="field-value-input">
+          <input
+            v-if="field.field_type === 'text'"
+            type="text"
+            :value="getFieldValue(field)"
+            @input="(e: Event) => setFieldValue(field, (e.target as HTMLInputElement).value)"
+            class="form-input text-sm"
+            :placeholder="field.placeholder || '输入值...'"
+          />
+          <input
+            v-else-if="field.field_type === 'number'"
+            type="number"
+            :value="getFieldValue(field)"
+            @input="(e: Event) => setFieldValue(field, (e.target as HTMLInputElement).value)"
+            :min="field.number_min"
+            :max="field.number_max"
+            class="form-input text-sm"
+            placeholder="输入数字..."
+          />
+          <input
+            v-else-if="field.field_type === 'url'"
+            type="url"
+            :value="getFieldValue(field)"
+            @input="(e: Event) => setFieldValue(field, (e.target as HTMLInputElement).value)"
+            class="form-input text-sm"
+            placeholder="https://..."
+          />
+          <input
+            v-else-if="field.field_type === 'date'"
+            type="date"
+            :value="getFieldValue(field)"
+            @input="(e: Event) => setFieldValue(field, (e.target as HTMLInputElement).value)"
+            class="form-input text-sm"
+          />
+          <label
+            v-else-if="field.field_type === 'boolean'"
+            class="flex items-center space-x-2 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              :checked="getFieldValue(field)"
+              @change="(e: Event) => setFieldValue(field, (e.target as HTMLInputElement).checked)"
+              class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span class="text-sm text-gray-700">{{ getFieldValue(field) ? '是' : '否' }}</span>
+          </label>
+          <select
+            v-else-if="field.field_type === 'dropdown' && !field.is_multi_select"
+            :value="getFieldValue(field)"
+            @change="(e: Event) => setFieldValue(field, (e.target as HTMLSelectElement).value ? Number((e.target as HTMLSelectElement).value) : '')"
+            class="form-input text-sm"
+          >
+            <option value="">-- 选择 --</option>
+            <option v-for="opt in field.options" :key="opt.id" :value="opt.id">{{ opt.value }}</option>
+          </select>
+          <div v-else-if="field.field_type === 'dropdown' && field.is_multi_select" class="flex flex-wrap gap-2">
+            <label v-for="opt in field.options" :key="opt.id" class="flex items-center space-x-1 text-sm">
+              <input
+                type="checkbox"
+                :checked="(getFieldValue(field) || []).includes(opt.id)"
+                @change="(e: Event) => {
+                  const cur = [...(getFieldValue(field) || [])]
+                  if ((e.target as HTMLInputElement).checked) { cur.push(opt.id) }
+                  else { const idx = cur.indexOf(opt.id); if (idx !== -1) cur.splice(idx, 1) }
+                  setFieldValue(field, cur)
+                }"
+                class="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600"
+              />
+              <span class="text-xs text-gray-600">{{ opt.value }}</span>
+            </label>
+          </div>
+          <select
+            v-else-if="field.field_type === 'member'"
+            :value="getFieldValue(field)?.[0] || ''"
+            @change="(e: Event) => setFieldValue(field, [Number((e.target as HTMLSelectElement).value)])"
+            class="form-input text-sm"
+          >
+            <option value="">-- 选择 --</option>
+            <option v-for="m in members" :key="m.id || m.user_id" :value="m.id || m.user_id">
+              {{ m.display_name || m.username || m.name || m.email }}
+            </option>
+          </select>
         </div>
       </div>
     </div>
@@ -253,6 +338,7 @@ import type { CustomField, CustomFieldCreate, CustomFieldUpdate, CustomFieldOpti
 import { CustomFieldTypeEnum, getFieldTypeName } from '@/types/custom-field'
 import { useConfirm } from '@/composables/useConfirm'
 import * as customFieldApi from '@/api/custom-field'
+import api from '@/api'
 
 const props = defineProps<{
   workspaceId: number
@@ -261,6 +347,10 @@ const props = defineProps<{
   issueTypeId?: number
   mode?: string
   members?: any[]
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:values', values: any[]): void
 }>()
 
 const { confirm } = useConfirm()
@@ -283,6 +373,7 @@ const fieldTypes = [
 ]
 
 const customFields = ref<CustomField[]>([])
+const fieldValues = ref<Record<number, any>>({})
 const showEditDrawer = ref(false)
 const isCreating = ref(false)
 const selectedField = ref<CustomField | null>(null)
@@ -319,10 +410,12 @@ async function loadData() {
     return
   }
   try {
-    console.log('CustomFieldManager: loading custom fields for workspaceId:', props.workspaceId)
     const result = await customFieldApi.listCustomFields(props.workspaceId)
-    console.log('CustomFieldManager: received', result.length, 'custom fields')
     customFields.value = result
+    // After loading fields, load existing values for this issue
+    if (props.issueId) {
+      await loadIssueValues()
+    }
   } catch (error: any) {
     console.error('CustomFieldManager: Failed to load custom fields:', error?.message || error)
   }
@@ -468,12 +561,78 @@ async function confirmDelete(field: CustomField) {
   }
 }
 
-async function saveValues() {
-  // TODO: 实现issue自定义字段值的保存逻辑
-  console.warn('CustomFieldManager.saveValues is not implemented')
+async function loadIssueValues() {
+  if (!props.issueId) return
+  try {
+    const response = await customFieldApi.getIssueCustomFieldsWithDefinitions(props.issueId)
+    if (response?.fields) {
+      const values: Record<number, any> = {}
+      for (const item of response.fields) {
+        if (item.field && item.value !== undefined) {
+          values[item.field.id] = item.value
+        }
+      }
+      fieldValues.value = values
+    }
+  } catch (error) {
+    console.error('Failed to load issue custom field values:', error)
+  }
 }
 
-defineExpose({ loadData, saveValues })
+function getFieldValue(field: CustomField): any {
+  // Return the current UI value, falling back to default
+  if (fieldValues.value[field.id] !== undefined) {
+    return fieldValues.value[field.id]
+  }
+  // Provide defaults per type
+  switch (field.field_type) {
+    case 'number': return field.number_default ?? ''
+    case 'boolean': return false
+    case 'dropdown': return field.is_multi_select ? [] : ''
+    case 'date': return ''
+    default: return ''
+  }
+}
+
+function setFieldValue(field: CustomField, val: any) {
+  fieldValues.value = { ...fieldValues.value, [field.id]: val }
+}
+
+async function saveValues() {
+  if (!props.issueId) {
+    console.warn('CustomFieldManager.saveValues: no issueId')
+    return
+  }
+
+  const updates: { field_id: number; value: string }[] = []
+  for (const field of customFields.value) {
+    if (!field.is_active || field.is_readonly) continue
+    const val = fieldValues.value[field.id]
+    if (val === undefined || val === null || val === '') continue
+
+    let stringVal: string
+    if (field.field_type === 'boolean') {
+      stringVal = val ? 'true' : 'false'
+    } else if (field.field_type === 'dropdown' || field.field_type === 'member') {
+      stringVal = JSON.stringify(Array.isArray(val) ? val : [val])
+    } else {
+      stringVal = String(val)
+    }
+
+    updates.push({ field_id: field.id, value: stringVal })
+  }
+
+  if (updates.length === 0) return
+
+  try {
+    const response = await api.post(`/custom-fields/issues/${props.issueId}/values/bulk`, { issue_id: props.issueId, values: updates })
+    emit('update:values', response.data)
+  } catch (error) {
+    console.error('Failed to save custom field values:', error)
+  }
+}
+
+defineExpose({ loadData, saveValues, loadIssueValues })
 
 onMounted(() => {
   loadData()
@@ -627,6 +786,10 @@ onMounted(() => {
 .slide-fade-enter-from .edit-drawer,
 .slide-fade-leave-to .edit-drawer {
   transform: translateX(100%);
+}
+
+.field-value-input {
+  @apply mt-3 pt-3 border-t border-gray-100;
 }
 
 .slide-fade-enter-from,

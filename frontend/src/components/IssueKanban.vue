@@ -42,6 +42,18 @@
               <option value="">所有优先级</option>
               <option value="urgent">紧急</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option><option value="none">无</option>
             </select>
+            <select v-model="groupBy" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600">
+              <option value="state">按状态</option>
+              <option value="assignee">按负责人</option>
+              <option value="priority">按优先级</option>
+              <option value="labels">按标签</option>
+            </select>
+            <select v-model="swimlaneBy" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600">
+              <option value="">无泳道</option>
+              <option value="assignee">泳道: 负责人</option>
+              <option value="priority">泳道: 优先级</option>
+              <option value="type">泳道: 类型</option>
+            </select>
           </div>
           <div class="flex items-center space-x-2 ml-3">
             <button @click="showAdvanced = !showAdvanced" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
@@ -91,80 +103,140 @@
       </div>
     </div>
 
+    <!-- 批量操作工具栏 -->
+    <div v-if="selectedIds.size > 0" class="sticky top-0 z-20 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 flex-wrap">
+      <span class="text-sm text-indigo-700 dark:text-indigo-300 font-medium">已选 {{ selectedIds.size }} 项</span>
+
+      <div class="relative">
+        <button @click="showBatchState = !showBatchState" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
+          更改状态
+        </button>
+        <div v-if="showBatchState" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
+          <button v-for="s in states" :key="s.id" @click="batchChangeState(s.id)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">{{ s.name }}</button>
+        </div>
+      </div>
+
+      <div class="relative">
+        <button @click="showBatchPriority = !showBatchPriority" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
+          更改优先级
+        </button>
+        <div v-if="showBatchPriority" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-32">
+          <button v-for="p in priorityOptions" :key="p.value" @click="batchChangePriority(p.value)" class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200">{{ p.label }}</button>
+        </div>
+      </div>
+
+      <div class="relative">
+        <button @click="showBatchAssign = !showBatchAssign" class="px-2.5 py-1 text-xs border border-indigo-300 dark:border-indigo-700 rounded-md bg-white dark:bg-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors">
+          批量分配
+        </button>
+        <div v-if="showBatchAssign" class="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 p-2 w-48">
+          <UserSelect v-model="batchAssigneeId" :users="memberOptions" placeholder="选择负责人" @update:model-value="batchAssign" />
+        </div>
+      </div>
+
+      <button @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+        批量删除
+      </button>
+
+      <button @click="clearSelection" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">取消选择</button>
+    </div>
+
+    <!-- Success toast -->
+    <div v-if="toastMessage" class="fixed top-4 right-4 z-50 bg-green-50 dark:bg-green-900/50 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-sm px-4 py-2 rounded-md shadow-lg transition-opacity">
+      {{ toastMessage }}
+    </div>
+
     <!-- 看板列 -->
     <div v-if="loading" class="text-center py-12 text-gray-400 text-sm">加载中...</div>
-    <div v-else class="grid gap-4" :style="gridStyle">
+
+    <!-- 无泳道模式 -->
+    <div v-else-if="!swimlaneBy" class="grid gap-4" :style="gridStyle">
       <div
-        v-for="state in states"
-        :key="state.id"
-        class="bg-gray-100 rounded-lg p-3 min-h-[200px]"
+        v-for="column in kanbanColumns"
+        :key="column.id"
+        class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 min-h-[200px]"
       >
-        <!-- 列头 -->
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center space-x-2">
-            <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: state.color || '#6366f1' }"></span>
-            <h3 class="text-sm font-medium text-gray-700">{{ state.name }}</h3>
+            <span class="w-2.5 h-2.5 rounded-full" :style="{ backgroundColor: column.color }"></span>
+            <h3 class="text-sm font-medium text-gray-700">{{ column.label }}</h3>
           </div>
           <div class="flex items-center space-x-1">
-            <button
-              @click="openQuickCreate(state.id)"
-              class="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-gray-200 rounded text-sm"
-              title="快速创建"
-            >
-              +
-            </button>
-            <span class="text-xs bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full">{{ groupedIssues[state.id]?.length || 0 }}</span>
+            <button v-if="groupBy === 'state'" @click="openQuickCreate(column.key as number)" class="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-gray-200 rounded text-sm" title="快速创建">+</button>
+            <span class="text-xs bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full">{{ (groupedIssues[column.key] || []).length }}</span>
           </div>
         </div>
-
-        <!-- 快速创建输入框 -->
-        <div v-if="quickCreateStateId === state.id" class="mb-3">
-          <QuickCreateInput
-            :project-id="projectId"
-            :workspace-id="workspaceId"
-            :issue-types="issueTypes"
-            :default-state-id="state.id"
-            :show-priority="false"
-            inline
-            show-cancel
-            @created="onQuickCreated"
-            @cancel="closeQuickCreate"
-          />
+        <div v-if="groupBy === 'state' && quickCreateStateId === column.key" class="mb-3">
+          <QuickCreateInput :project-id="projectId" :workspace-id="workspaceId" :issue-types="issueTypes" :default-state-id="(column.key as number)" :show-priority="false" inline show-cancel @created="onQuickCreated" @cancel="closeQuickCreate" />
         </div>
-
-        <!-- 卡片列表 -->
         <div class="space-y-2">
-          <div
-            v-for="issue in groupedIssues[state.id] || []"
-            :key="issue.id"
-            @click="$emit('select', issue)"
-            class="bg-white rounded-md border border-gray-200 p-2.5 cursor-pointer hover:shadow-md hover:border-indigo-300 transition-shadow"
-            draggable="true"
-            @dragstart="onDragStart($event, issue)"
-          >
+          <div v-for="issue in groupedIssues[column.key] || []" :key="issue.id" @click="$emit('select', issue)" class="bg-white dark:bg-gray-700 rounded-md border border-gray-200 dark:border-gray-600 p-2.5 cursor-pointer hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-600 transition-shadow relative group" draggable="true" @dragstart="onDragStart($event, issue)">
+            <div class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+              <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300 dark:border-gray-500 w-3.5 h-3.5" />
+            </div>
             <div class="flex items-start justify-between">
               <span class="text-xs text-gray-400 font-mono">DEMO-{{ issue.sequence_id }}</span>
-              <span :class="priorityDotClass(issue.priority)" class="w-1.5 h-1.5 rounded-full inline-block" :title="priorityLabel(issue.priority)"></span>
+              <span :class="priorityDotClass(issue.priority)" class="w-1.5 h-1.5 rounded-full inline-block"></span>
             </div>
-            <p class="text-sm text-gray-800 mt-1 leading-snug line-clamp-2">{{ issue.name }}</p>
+            <p class="text-sm text-gray-800 dark:text-gray-100 mt-1 leading-snug line-clamp-2">{{ issue.name }}</p>
             <div class="mt-2 flex items-center justify-between">
               <div class="flex -space-x-1">
-                <div
-                  v-for="(a, idx) in (issue.assignees || []).slice(0, 2)"
-                  :key="a.id"
-                  class="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[10px] font-medium text-white"
-                  :style="{ backgroundColor: assigneeColor(idx) }"
-                  :title="a.display_name || a.username"
-                >{{ getInitials(a.display_name || a.username) }}</div>
+                <div v-for="(a, idx) in (issue.assignees || []).slice(0, 2)" :key="a.id" class="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[10px] font-medium text-white" :style="{ backgroundColor: assigneeColor(idx) }" :title="a.display_name || a.username">{{ getInitials(a.display_name || a.username) }}</div>
               </div>
               <span v-if="issue.cycle" class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{{ issue.cycle.name }}</span>
               <button @click.stop="$emit('select', issue)" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-medium">详情</button>
             </div>
           </div>
+          <div v-if="!(groupedIssues[column.key] || []).length" class="text-center text-xs text-gray-400 py-6">拖放工作项到此处</div>
+        </div>
+      </div>
+    </div>
 
-          <!-- 空列 placeholder -->
-          <div v-if="!groupedIssues[state.id]?.length" class="text-center text-xs text-gray-400 py-6">
-            拖放工作项到此处
+    <!-- 泳道模式 -->
+    <div v-else class="swimlane-board space-y-6">
+      <div
+        v-for="swimlane in swimlaneKeys"
+        :key="swimlane.key"
+        class="swimlane-row"
+      >
+        <!-- 泳道标签 -->
+        <div class="flex items-center space-x-2 mb-2 px-1">
+          <span class="w-3 h-3 rounded-full flex-shrink-0" :style="{ backgroundColor: swimlane.color }"></span>
+          <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">{{ swimlane.label }}</span>
+          <span class="text-xs text-gray-400">{{ countSwimlaneIssues(swimlane.key) }} 项</span>
+        </div>
+        <div class="grid gap-3" :style="gridStyle">
+          <div
+            v-for="column in kanbanColumns"
+            :key="column.id"
+            class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 min-h-[120px]"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: column.color }"></span>
+                <h4 class="text-xs font-medium text-gray-500">{{ column.label }}</h4>
+              </div>
+              <span class="text-[10px] bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full">
+                {{ (swimlaneGroupedIssues?.[swimlane.key]?.[column.key] || []).length }}
+              </span>
+            </div>
+            <div class="space-y-1.5">
+              <div
+                v-for="issue in swimlaneGroupedIssues?.[swimlane.key]?.[column.key] || []"
+                :key="issue.id"
+                @click="$emit('select', issue)"
+                class="bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 p-2 cursor-pointer hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-600 transition-shadow relative group"
+                draggable="true"
+                @dragstart="onDragStart($event, issue)"
+              >
+                <div class="flex items-start justify-between">
+                  <span class="text-[10px] text-gray-400 font-mono">{{ issue.sequence_id }}</span>
+                  <span :class="priorityDotClass(issue.priority)" class="w-1.5 h-1.5 rounded-full inline-block"></span>
+                </div>
+                <p class="text-xs text-gray-800 dark:text-gray-100 mt-0.5 leading-snug line-clamp-2">{{ issue.name }}</p>
+              </div>
+              <div v-if="!(swimlaneGroupedIssues?.[swimlane.key]?.[column.key] || []).length" class="text-center text-[10px] text-gray-300 py-4">-</div>
+            </div>
           </div>
         </div>
       </div>
@@ -187,6 +259,7 @@ import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
 import { RQLInput } from '@/components/RQL'
 import { useRQL } from '@/composables/useRQL'
+import { useConfirm } from '@/composables/useConfirm'
 import QuickCreateInput from '@/components/QuickCreateInput.vue'
 import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
@@ -217,6 +290,34 @@ const cycles = ref<any[]>([])
 const members = ref<any[]>([])
 const loading = ref(false)
 const showAdvanced = ref(false)
+const groupBy = ref<'state' | 'assignee' | 'priority' | 'labels'>('state')
+const swimlaneBy = ref<'assignee' | 'priority' | 'type' | ''>('')
+
+// ---- Batch selection ----
+const selectedIds = ref(new Set<number>())
+const showBatchState = ref(false)
+const showBatchPriority = ref(false)
+const showBatchAssign = ref(false)
+const batchAssigneeId = ref<number | undefined>(undefined)
+
+const priorityOptions = [
+  { value: 'urgent', label: '紧急' },
+  { value: 'high', label: '高' },
+  { value: 'medium', label: '中' },
+  { value: 'low', label: '低' },
+  { value: 'none', label: '无' },
+]
+
+const toastMessage = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(msg: string) {
+  toastMessage.value = msg
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastMessage.value = '' }, 2500)
+}
+
+const { confirm } = useConfirm()
 
 const customFields = ref<any[]>([])
 const cfConditions = ref<Array<{ field_id: number; value: string }>>([])
@@ -236,25 +337,252 @@ const filtersAssignee = computed({
 })
 
 const groupedIssues = computed(() => {
-  const map: Record<number, any[]> = {}
-  states.value.forEach(s => { map[s.id] = [] })
-  issues.value.forEach(i => {
-    if (map[i.state_id]) map[i.state_id].push(i)
-  })
+  const map: Record<string, any[]> = {}
+
+  if (groupBy.value === 'state') {
+    states.value.forEach(s => { map[s.id] = [] })
+    issues.value.forEach(i => {
+      if (map[i.state_id]) map[i.state_id].push(i)
+    })
+  } else if (groupBy.value === 'assignee') {
+    // Build columns from unique assignees first
+    const seen = new Set<number>()
+    issues.value.forEach(i => {
+      if (i.assignees && i.assignees.length > 0) {
+        i.assignees.forEach((a: any) => {
+          if (!seen.has(a.id)) { seen.add(a.id); map[a.id] = [] }
+        })
+      }
+    })
+    map['__unassigned__'] = []
+    issues.value.forEach(i => {
+      if (i.assignees && i.assignees.length > 0) {
+        i.assignees.forEach((a: any) => {
+          if (map[a.id]) map[a.id].push(i)
+        })
+      } else {
+        map['__unassigned__'].push(i)
+      }
+    })
+  } else if (groupBy.value === 'priority') {
+    const keys = ['urgent', 'high', 'medium', 'low', 'none']
+    keys.forEach(k => { map[k] = [] })
+    issues.value.forEach(i => {
+      const key = i.priority || 'none'
+      if (map[key]) map[key].push(i)
+    })
+  } else if (groupBy.value === 'labels') {
+    const seen = new Set<number>()
+    issues.value.forEach(i => {
+      if (i.labels && i.labels.length > 0) {
+        i.labels.forEach((l: any) => {
+          if (!seen.has(l.id)) { seen.add(l.id); map[l.id] = [] }
+        })
+      }
+    })
+    map['__nolabel__'] = []
+    issues.value.forEach(i => {
+      if (i.labels && i.labels.length > 0) {
+        i.labels.forEach((l: any) => {
+          if (map[l.id]) map[l.id].push(i)
+        })
+      } else {
+        map['__nolabel__'].push(i)
+      }
+    })
+  }
+
   return map
 })
 
+const kanbanColumns = computed(() => {
+  if (groupBy.value === 'state') {
+    return states.value.map(s => ({
+      id: 'state_' + s.id,
+      label: s.name,
+      color: s.color || '#6366f1',
+      key: s.id,
+    }))
+  } else if (groupBy.value === 'assignee') {
+    const cols: Array<{ id: string; label: string; color: string; key: string | number }> = []
+    const seen = new Set<number>()
+    issues.value.forEach(i => {
+      if (i.assignees && i.assignees.length > 0) {
+        i.assignees.forEach((a: any) => {
+          if (!seen.has(a.id)) {
+            seen.add(a.id)
+            cols.push({
+              id: 'user_' + a.id,
+              label: a.display_name || a.username,
+              color: assigneeColor(cols.length),
+              key: a.id,
+            })
+          }
+        })
+      }
+    })
+    cols.push({ id: 'unassigned', label: '未分配', color: '#9ca3af', key: '__unassigned__' })
+    return cols
+  } else if (groupBy.value === 'priority') {
+    return [
+      { id: 'priority_urgent', label: '紧急', color: '#ef4444', key: 'urgent' },
+      { id: 'priority_high', label: '高', color: '#f97316', key: 'high' },
+      { id: 'priority_medium', label: '中', color: '#eab308', key: 'medium' },
+      { id: 'priority_low', label: '低', color: '#22c55e', key: 'low' },
+      { id: 'priority_none', label: '无', color: '#9ca3af', key: 'none' },
+    ]
+  } else {
+    // labels
+    const cols: Array<{ id: string; label: string; color: string; key: string | number }> = []
+    const seen = new Set<number>()
+    issues.value.forEach(i => {
+      if (i.labels && i.labels.length > 0) {
+        i.labels.forEach((l: any) => {
+          if (!seen.has(l.id)) {
+            seen.add(l.id)
+            cols.push({
+              id: 'label_' + l.id,
+              label: l.name,
+              color: l.color || '#6366f1',
+              key: l.id,
+            })
+          }
+        })
+      }
+    })
+    cols.push({ id: 'nolabel', label: '无标签', color: '#9ca3af', key: '__nolabel__' })
+    return cols
+  }
+})
+
 const gridStyle = computed(() => ({
-  gridTemplateColumns: `repeat(${states.value.length}, minmax(260px, 1fr))`
+  gridTemplateColumns: `repeat(${kanbanColumns.value.length}, minmax(260px, 1fr))`
 }))
+
+// ---- Swimlane support ----
+
+const swimlaneKeys = computed(() => {
+  if (!swimlaneBy.value) return []
+
+  if (swimlaneBy.value === 'assignee') {
+    const seen = new Set<string>()
+    const keys: Array<{ key: string; label: string; color: string }> = []
+    issues.value.forEach(i => {
+      if (i.assignees && i.assignees.length > 0) {
+        i.assignees.forEach((a: any) => {
+          const k = String(a.id)
+          if (!seen.has(k)) {
+            seen.add(k)
+            keys.push({ key: k, label: a.display_name || a.username, color: assigneeColor(keys.length) })
+          }
+        })
+      }
+    })
+    keys.push({ key: '__none__', label: '未分配', color: '#9ca3af' })
+    return keys
+  }
+
+  if (swimlaneBy.value === 'priority') {
+    return [
+      { key: 'urgent', label: '紧急', color: '#ef4444' },
+      { key: 'high', label: '高', color: '#f97316' },
+      { key: 'medium', label: '中', color: '#eab308' },
+      { key: 'low', label: '低', color: '#22c55e' },
+      { key: 'none', label: '无', color: '#9ca3af' },
+    ]
+  }
+
+  if (swimlaneBy.value === 'type') {
+    const seen = new Set<number>()
+    const keys: Array<{ key: string; label: string; color: string }> = []
+    issues.value.forEach(i => {
+      const tid = i.issue_type_id
+      if (tid && !seen.has(tid)) {
+        seen.add(tid)
+        const t = issueTypes.value.find((t: any) => t.id === tid)
+        keys.push({ key: String(tid), label: t?.name || `类型 #${tid}`, color: t?.color || '#6366f1' })
+      }
+    })
+    keys.push({ key: '__none__', label: '无类型', color: '#9ca3af' })
+    return keys
+  }
+
+  return []
+})
+
+function getSwimlaneKeyForIssue(issue: any): string {
+  if (swimlaneBy.value === 'assignee') {
+    if (issue.assignees && issue.assignees.length > 0) return String(issue.assignees[0].id)
+    return '__none__'
+  }
+  if (swimlaneBy.value === 'priority') {
+    return issue.priority || 'none'
+  }
+  if (swimlaneBy.value === 'type') {
+    return issue.issue_type_id ? String(issue.issue_type_id) : '__none__'
+  }
+  return '__none__'
+}
+
+const swimlaneGroupedIssues = computed(() => {
+  if (!swimlaneBy.value) return null
+
+  const result: Record<string, Record<string | number, any[]>> = {}
+  swimlaneKeys.value.forEach(s => { result[s.key] = {} })
+  if (groupBy.value === 'state') {
+    states.value.forEach(s => { swimlaneKeys.value.forEach(sk => { result[sk.key][s.id] = [] }) })
+  }
+
+  issues.value.forEach(i => {
+    const sk = getSwimlaneKeyForIssue(i)
+    if (!result[sk]) result[sk] = {}
+
+    if (groupBy.value === 'state') {
+      if (!result[sk][i.state_id]) result[sk][i.state_id] = []
+      result[sk][i.state_id].push(i)
+    } else if (groupBy.value === 'assignee') {
+      if (i.assignees && i.assignees.length > 0) {
+        i.assignees.forEach((a: any) => {
+          if (!result[sk][a.id]) result[sk][a.id] = []
+          result[sk][a.id].push(i)
+        })
+      } else {
+        if (!result[sk]['__unassigned__']) result[sk]['__unassigned__'] = []
+        result[sk]['__unassigned__'].push(i)
+      }
+    } else if (groupBy.value === 'priority') {
+      const k = i.priority || 'none'
+      if (!result[sk][k]) result[sk][k] = []
+      result[sk][k].push(i)
+    } else if (groupBy.value === 'labels') {
+      if (i.labels && i.labels.length > 0) {
+        i.labels.forEach((l: any) => {
+          if (!result[sk][l.id]) result[sk][l.id] = []
+          result[sk][l.id].push(i)
+        })
+      } else {
+        if (!result[sk]['__nolabel__']) result[sk]['__nolabel__'] = []
+        result[sk]['__nolabel__'].push(i)
+      }
+    }
+  })
+  return result
+})
+
+function countSwimlaneIssues(swimlaneKey: string): number {
+  if (!swimlaneGroupedIssues.value) return 0
+  const cols = swimlaneGroupedIssues.value[swimlaneKey]
+  if (!cols) return 0
+  let count = 0
+  for (const k of Object.keys(cols)) {
+    count += (cols[k] || []).length
+  }
+  return count
+}
 
 function priorityDotClass(p: string) {
   const m: Record<string, string> = { urgent: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-yellow-500', low: 'bg-green-500', none: 'bg-gray-400' }
   return m[p] || m.none
-}
-function priorityLabel(p: string) {
-  const m: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }
-  return m[p] || p
 }
 function getInitials(n: string) { return (n || '?')[0]?.toUpperCase() || '?' }
 function assigneeColor(i: number) { return ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] }
@@ -315,6 +643,60 @@ async function loadCycles() {
 }
 async function loadMembers() {
   try { const r = await api.get(`/workspaces/${props.workspaceId}/members`); members.value = r.data } catch (e) { /* */ }
+}
+
+// ---- Batch actions ----
+function toggleSelect(id: number) {
+  const s = new Set(selectedIds.value); s.has(id) ? s.delete(id) : s.add(id); selectedIds.value = s
+}
+
+async function batchChangeState(stateId: number) {
+  showBatchState.value = false
+  try {
+    await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { state_id: stateId })
+    clearSelection()
+    showToast('状态已更新')
+    loadIssues()
+  } catch (e) { console.error('Batch state failed:', e) }
+}
+
+async function batchChangePriority(priority: string) {
+  showBatchPriority.value = false
+  try {
+    await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { priority: priority as any })
+    clearSelection()
+    showToast('优先级已更新')
+    loadIssues()
+  } catch (e) { console.error('Batch priority failed:', e) }
+}
+
+async function batchAssign(userId: string | number | undefined) {
+  showBatchAssign.value = false
+  if (!userId) return
+  const uid = typeof userId === 'string' ? Number(userId) : userId
+  try {
+    await issueApi.bulkUpdateIssues(props.projectId, [...selectedIds.value], { assignee_ids: [uid] })
+    clearSelection()
+    showToast('负责人已分配')
+    loadIssues()
+  } catch (e) { console.error('Batch assign failed:', e) }
+}
+
+function clearSelection() {
+  selectedIds.value = new Set()
+  showBatchState.value = false
+  showBatchPriority.value = false
+  showBatchAssign.value = false
+}
+
+async function execBatchDelete() {
+  if (!(await confirm(`确定要删除选中的 ${selectedIds.value.size} 个工作项吗？此操作不可撤销。`))) return
+  try {
+    await issueApi.bulkDeleteIssues([...selectedIds.value])
+    clearSelection()
+    showToast('已删除选中工作项')
+    loadIssues()
+  } catch (e) { console.error('Batch delete failed:', e) }
 }
 </script>
 ```
