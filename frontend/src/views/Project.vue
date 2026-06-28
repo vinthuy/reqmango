@@ -59,8 +59,6 @@
           :labels="labels"
           @update:view-mode="issueView = $event; triggerRefresh()"
           @filters-changed="onFiltersChanged"
-          @group-by-change="onGroupByChange"
-          @sort-change="onSortChange"
           @save-view="onSaveFilterView"
           class="mb-3"
         >
@@ -332,22 +330,12 @@ function onFiltersChanged(newRql: string, _filters: FilterCondition[]) {
   triggerRefresh()
 }
 
-function onGroupByChange(_value: string) {
-  // Passed directly to view components via FilterBar's provide/inject
-}
-
-function onSortChange(_value: string) {
-  // Passed directly to view components via FilterBar's provide/inject
-}
-
-async function onSaveFilterView(data: { name: string; filters: FilterCondition[]; groupBy: string; sortBy: string; viewType: string }) {
+async function onSaveFilterView(data: { name: string; filters: FilterCondition[]; viewType: string }) {
   try {
     await createSavedView(projectId.value, {
       name: data.name,
       view_type: data.viewType as any,
       filters: data.filters as any,
-      group_by: data.groupBy || undefined,
-      sort_config: [{ field: data.sortBy.split('_')[0], dir: data.sortBy.split('_')[1] as 'asc' | 'desc' }],
       columns: [],
     })
   } catch (err) {

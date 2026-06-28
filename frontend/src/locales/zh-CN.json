@@ -864,6 +864,7 @@
     "stateGroupCompleted": "Completed",
     "stateGroupCancelled": "Cancelled",
     "orderBy": "Order by",
+    "instantHint": "即时生效",
     "orderLastCreated": "最后创建",
     "orderLastUpdated": "最后更新",
     "orderPriority": "优先级",

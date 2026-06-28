@@ -1,261 +1,151 @@
 <template>
-  <div class="filter-bar space-y-2">
-    <!-- ── Row 1: Filters button + chips + actions ── -->
-    <div class="flex items-center gap-2 flex-wrap">
-      <!-- Filters button with dropdown -->
-      <div class="relative" ref="fieldDropdownRef">
+  <div class="fb">
+    <!-- ═══ Row 1: Filters trigger + chips + add + clear ═══ -->
+    <div class="fb-r1">
+      <!-- Filters dropdown trigger -->
+      <div class="fb-drop-ctn" ref="dropRef">
         <button
-          @click="showFieldDropdown = !showFieldDropdown"
-          class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-colors"
-          :class="activeFilterCount > 0
-            ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-300'
-            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-750'"
+          class="fb-trigger"
+          :class="{ open: showDropdown }"
+          @click="showDropdown = !showDropdown"
         >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          <span>{{ t('filter.filterButton') }}</span>
-          <span v-if="activeFilterCount > 0" class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-bold">{{ activeFilterCount }}</span>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="fb-icon"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          {{ t('filter.filterButton') }}
+          <svg class="fb-chev" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
-
-        <!-- Field dropdown -->
-        <div v-if="showFieldDropdown" class="absolute top-full left-0 mt-1 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-40 py-1 max-h-64 overflow-y-auto" @click.stop>
-          <template v-for="field in FILTER_FIELDS" :key="field.key">
-            <button
-              @click="startEditing(field); showFieldDropdown = false"
-              class="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 transition flex items-center gap-2"
-            >
-              <span class="text-gray-400 w-3.5 text-center shrink-0">{{ getFieldIcon(field.key) }}</span>
-              <span>{{ t(field.labelKey) }}</span>
-            </button>
-          </template>
+        <div v-if="showDropdown" class="fb-dropdown" @click.stop>
+          <button
+            v-for="field in FILTER_FIELDS"
+            :key="field.key"
+            @click="addFilterField(field.key); showDropdown = false"
+          >{{ t(field.labelKey) }}</button>
         </div>
       </div>
 
-      <!-- ── Filter chips ── -->
-      <template v-for="(f, idx) in filterState.filters" :key="idx">
-        <!-- Inline editor if this chip is being edited -->
-        <div v-if="editingIndex === idx" class="flex items-center gap-1 animate-fadeIn" ref="editorRef">
-          <span class="text-xs font-medium text-gray-500">{{ t(FILTER_FIELDS.find(fi => fi.key === f.field)?.labelKey || '') }}</span>
-          <!-- Operator selector -->
-          <select
-            v-model="editOp"
-            class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-          >
-            <option v-for="op in currentField?.operators || []" :key="op" :value="op">{{ t('filter.op' + op.replace(/\s/g, '').replace(/^./, s => s.toUpperCase()).replace(/[^a-zA-Z]/g, '')) }}</option>
-          </select>
-          <!-- Value input -->
-          <template v-if="!NO_VALUE_OPERATORS.includes(editOp)">
-            <!-- date_range type -->
-            <template v-if="DATE_RANGE_OPERATORS.includes(editOp)">
-              <input type="date" v-model="editValStart" class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white dark:bg-gray-800" />
-              <span class="text-xs text-gray-400">to</span>
-              <input type="date" v-model="editValEnd" class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white dark:bg-gray-800" />
-            </template>
-            <!-- date type -->
-            <template v-else-if="currentField?.type === 'date'">
-              <input type="date" v-model="editVal" class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white dark:bg-gray-800" />
-            </template>
-            <!-- select / multi type -->
-            <template v-else-if="currentField?.type === 'select' || currentField?.type === 'multi'">
-              <select
-                v-if="!MULTI_VALUE_OPERATORS.includes(editOp)"
-                v-model="editVal"
-                class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white dark:bg-gray-800 max-w-36"
-              >
-                <option value="">{{ t('filter.selectValue') }}</option>
-                <option v-for="opt in currentOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-              </select>
-              <!-- multi select placeholder - simplified to single for now -->
-              <select
-                v-else
-                v-model="editVal"
-                class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white dark:bg-gray-800 max-w-36"
-              >
-                <option value="">{{ t('filter.selectValue') }}</option>
-                <option v-for="opt in currentOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-              </select>
-            </template>
-            <!-- text type -->
-            <template v-else>
-              <input
-                v-model="editVal"
-                type="text"
-                :placeholder="t('filter.enterValue')"
-                class="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white dark:bg-gray-800 w-32"
-              />
-            </template>
-          </template>
-          <button @click="applyEdit(idx)" class="p-0.5 text-green-600 hover:bg-green-50 rounded" title="Apply">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-          </button>
-          <button @click="cancelEdit()" class="p-0.5 text-gray-400 hover:bg-gray-100 rounded" title="Cancel">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-
-        <!-- Chip display -->
+      <!-- Chip row -->
+      <div class="fb-chip-row">
         <span
-          v-else
-          @click="startEditChip(idx)"
-          class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md cursor-pointer border transition-colors bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-300 group"
+          v-for="(f, idx) in filters"
+          :key="idx"
+          class="fb-chip"
+          @click="editFilter(idx)"
         >
-          <span class="font-medium">{{ t(FILTER_FIELDS.find(fi => fi.key === f.field)?.labelKey || f.field) }}</span>
-          <span class="text-indigo-400 dark:text-indigo-500">{{ getOperatorLabel(f.operator) }}</span>
-          <span v-if="f.displayValue" class="text-indigo-600 dark:text-indigo-400 truncate max-w-[120px]">{{ f.displayValue }}</span>
-          <button @click.stop="filterInstance.removeFilter(idx)" class="ml-0.5 p-0.5 rounded hover:bg-indigo-200 dark:hover:bg-indigo-800 opacity-0 group-hover:opacity-100 transition-opacity">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
+          <span class="cf">{{ fieldLabel(f.field) }}</span>
+          <span class="co">{{ opLabel(f.operator) }}</span>
+          <span v-if="!noValueOps.includes(f.operator)" class="cv">{{ f.displayValue || f.value }}</span>
+          <button class="cx" @click.stop="removeFilter(idx)">&times;</button>
         </span>
-      </template>
+        <button class="fb-add-btn" @click="showDropdown = true">
+          <svg class="fb-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          {{ t('filter.addFilter') }}
+        </button>
+      </div>
 
-      <!-- Add filter button (shown when not editing) -->
       <button
-        v-if="editingIndex === null && activeFilterCount > 0"
-        @click="openFieldDropdown"
-        class="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition"
-        :title="t('filter.addFilter')"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-      </button>
-
-      <!-- Clear all -->
-      <button
-        v-if="activeFilterCount > 0"
+        v-if="filters.length > 0"
+        class="fb-clear-btn"
         @click="clearAllFilters"
-        class="px-2 py-1 text-xs text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition ml-1"
-      >
-        {{ t('filter.clearAll') }}
-      </button>
+      >{{ t('filter.clearAll') }}</button>
+      <button v-else class="fb-clear-btn" style="visibility:hidden">{{ t('filter.clearAll') }}</button>
     </div>
 
-    <!-- ── Row 2: RQL collapsible area ── -->
-    <div class="relative">
-      <button
-        @click="showRQL = !showRQL"
-        class="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+    <!-- ═══ Row 2: Inline editor (no confirm — instant update) ═══ -->
+    <div v-if="editing" class="fb-editor">
+      <span class="fb-ed-label">{{ fieldLabel(editField) }}</span>
+      <select
+        v-model="editOp"
+        @change="applyEditInstant"
+        class="fb-ed-sel"
       >
-        <svg class="w-3 h-3" :class="{ 'rotate-90': showRQL }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-        <span>{{ t('filter.rqlToggle') }}</span>
-      </button>
-      <div v-if="showRQL" class="mt-1.5 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-md p-2">
-        <div class="flex items-start gap-2">
-          <textarea
-            :value="filterInstance.rql.value"
-            readonly
-            rows="2"
-            class="flex-1 text-xs font-mono bg-transparent text-gray-600 dark:text-gray-400 resize-none outline-none"
-            :placeholder="t('filter.rqlPlaceholder')"
-          ></textarea>
-          <div class="flex flex-col gap-1 shrink-0">
-            <button
-              @click="copyRQL"
-              class="px-2 py-0.5 text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition"
-              :title="t('filter.rqlCopy')"
-            >
-              {{ t('filter.rqlCopy') }}
-            </button>
-          </div>
-        </div>
-        <p class="text-[10px] text-gray-400 mt-1">{{ t('filter.rqlHint') }}</p>
-      </div>
+        <option v-for="op in currentOperators" :key="op" :value="op">{{ opLabel(op) }}</option>
+      </select>
+
+      <template v-if="!noValueOps.includes(editOp)">
+        <!-- Between / Not between → dual date -->
+        <template v-if="dateRangeOps.includes(editOp)">
+          <input type="date" v-model="editValStart" @change="applyEditInstant" class="fb-ed-inp" />
+          <span class="fb-ed-sep">&ndash;</span>
+          <input type="date" v-model="editValEnd" @change="applyEditInstant" class="fb-ed-inp" />
+        </template>
+        <!-- Single date -->
+        <template v-else-if="currentFieldDef?.type === 'date'">
+          <input type="date" v-model="editVal" @change="applyEditInstant" class="fb-ed-inp" />
+        </template>
+        <!-- Select / Multi -->
+        <template v-else-if="currentFieldDef?.type === 'select' || currentFieldDef?.type === 'multi'">
+          <select v-if="!multiOps.includes(editOp)" v-model="editVal" @change="applyEditInstant" class="fb-ed-sel">
+            <option value="">{{ t('filter.selectValue') }}</option>
+            <option v-for="opt in currentOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+          </select>
+          <select v-else v-model="editVal" @change="applyEditInstant" class="fb-ed-sel">
+            <option value="">{{ t('filter.selectValue') }}</option>
+            <option v-for="opt in currentOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+          </select>
+        </template>
+        <!-- Text -->
+        <template v-else>
+          <input
+            v-model="editVal"
+            @keydown.enter="applyEditInstant"
+            @blur="applyEditInstant"
+            type="text"
+            :placeholder="t('filter.enterValue')"
+            class="fb-ed-inp"
+          />
+        </template>
+      </template>
+      <span class="fb-ed-hint">&larr; {{ t('filter.instantHint') }}</span>
     </div>
 
-    <!-- ── Row 3: View bar (view toggle + save view) ── -->
-    <div class="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 pt-2">
-      <!-- View toggle -->
-      <div class="flex items-center gap-0.5">
+    <!-- ═══ Row 3: RQL area (collapsible) ═══ -->
+    <div class="fb-rql">
+      <button class="fb-rql-tog" @click="showRQL = !showRQL">
+        <svg class="fb-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" :style="{ transform: showRQL ? 'rotate(90deg)' : '' }"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        &lt;/&gt; RQL
+      </button>
+      <input
+        v-if="showRQL"
+        class="fb-rql-input"
+        :value="rqlStr"
+        readonly
+        :placeholder="t('filter.rqlPlaceholder')"
+      />
+      <template v-if="showRQL">
+        <button class="fb-rql-btn" @click="copyRQL">{{ t('filter.rqlCopy') }}</button>
+        <button class="fb-rql-btn rql-primary" @click="applyRQL">{{ t('filter.rqlApply') }}</button>
+      </template>
+    </div>
+
+    <!-- ═══ Row 4: Bottom bar — view toggle + save view ═══ -->
+    <div class="fb-bot">
+      <div class="fb-vt">
         <button
-          v-for="vm in viewModes" :key="vm.value"
+          v-for="vm in viewModes"
+          :key="vm.value"
+          :class="{ active: viewMode === vm.value }"
           @click="switchView(vm.value)"
-          class="px-2.5 py-1 text-xs font-medium rounded transition-colors"
-          :class="viewMode === vm.value
-            ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'"
-          :title="vm.label"
-        >
-          {{ vm.label }}
-        </button>
+        >{{ vm.label }}</button>
       </div>
-
-      <!-- Save view -->
-      <div class="flex items-center gap-2">
-        <button
-          v-if="activeFilterCount > 0 || groupBy || sortBy !== 'created_at_desc'"
-          @click="showSaveDialog = true"
-          class="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition shadow-sm"
-        >
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-          <span>{{ activeViewId ? t('filter.updateView') : t('filter.saveView') }}</span>
-        </button>
-
-        <!-- Existing SavedViewSelector -->
-        <slot name="viewSelector" />
-      </div>
+      <div class="fb-sp"></div>
+      <button class="fb-sv" @click="onSaveView">
+        <svg class="fb-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+        {{ t('filter.saveView') }}
+      </button>
     </div>
-
-    <!-- ── Group By + Order By row ── -->
-    <div class="flex items-center gap-4 border-t border-gray-100 dark:border-gray-800 pt-2">
-      <!-- Group By -->
-      <div class="flex items-center gap-1.5">
-        <span class="text-[11px] text-gray-400 uppercase tracking-wide">{{ t('filter.groupBy') }}</span>
-        <select v-model="groupBy" @change="onGroupByChange" class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-          <option value="">{{ t('filter.groupByNone') }}</option>
-          <option value="state_id">{{ t('filter.groupByState') }}</option>
-          <option value="priority">{{ t('filter.groupByPriority') }}</option>
-          <option value="assignee_id">{{ t('filter.groupByAssignee') }}</option>
-          <option value="label">{{ t('filter.groupByLabel') }}</option>
-          <option value="cycle_id">{{ t('filter.groupByCycle') }}</option>
-          <option value="module_id">{{ t('filter.groupByModule') }}</option>
-          <option value="type_id">{{ t('filter.groupByType') }}</option>
-        </select>
-      </div>
-
-      <!-- Order By -->
-      <div class="flex items-center gap-1.5">
-        <span class="text-[11px] text-gray-400 uppercase tracking-wide">{{ t('filter.orderBy') }}</span>
-        <select v-model="sortBy" @change="onSortChange" class="text-xs border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-          <option value="created_at_desc">{{ t('filter.orderLastCreated') }}</option>
-          <option value="updated_at_desc">{{ t('filter.orderLastUpdated') }}</option>
-          <option value="priority_desc">{{ t('filter.orderPriority') }}</option>
-          <option value="start_date_asc">{{ t('filter.orderStartDate') }}</option>
-          <option value="target_date_asc">{{ t('filter.orderDueDate') }}</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- ── Save view dialog ── -->
-    <teleport to="body">
-      <div v-if="showSaveDialog" class="fixed inset-0 bg-black/20 z-50 flex items-center justify-center" @click.self="showSaveDialog = false">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-5 w-full max-w-sm mx-4">
-          <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">{{ activeViewId ? t('filter.updateView') : t('filter.saveView') }}</h3>
-          <div class="space-y-3">
-            <div>
-              <label class="text-xs text-gray-500 mb-1 block">Name</label>
-              <input
-                v-model="saveViewName"
-                type="text"
-                class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                placeholder="e.g. Active bugs"
-                @keydown.enter="saveView"
-              />
-            </div>
-          </div>
-          <div class="flex justify-end gap-2 mt-4">
-            <button @click="showSaveDialog = false" class="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition">{{ t('common.cancel') }}</button>
-            <button @click="saveView" class="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition" :disabled="!saveViewName.trim()">{{ t('common.save') }}</button>
-          </div>
-        </div>
-      </div>
-    </teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import { FILTER_FIELDS, NO_VALUE_OPERATORS, MULTI_VALUE_OPERATORS, DATE_RANGE_OPERATORS, type FilterCondition } from '@/types/filters'
-import { useFilters, provideFilters } from '@/composables/useFilters'
+import {
+  FILTER_FIELDS,
+  NO_VALUE_OPERATORS,
+  MULTI_VALUE_OPERATORS,
+  DATE_RANGE_OPERATORS,
+  buildRQL,
+  type FilterCondition,
+} from '@/types/filters'
 
 const props = defineProps<{
   projectId: number
@@ -268,67 +158,40 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:viewMode', mode: string): void
   (e: 'filtersChanged', rql: string, filters: FilterCondition[]): void
-  (e: 'groupByChange', value: string): void
-  (e: 'sortChange', value: string): void
-  (e: 'saveView', data: { name: string; filters: FilterCondition[]; groupBy: string; sortBy: string; viewType: string }): void
+  (e: 'saveView', data: { name: string; filters: FilterCondition[]; viewType: string }): void
 }>()
 
 const { t } = useI18n()
 
-// ── Filter state ──
-const filterInstance = useFilters(props.projectId)
-provideFilters(filterInstance)
+// ── Constants ──
+const noValueOps = NO_VALUE_OPERATORS
+const multiOps = MULTI_VALUE_OPERATORS
+const dateRangeOps = DATE_RANGE_OPERATORS
 
-const filterState = filterInstance.state
-const activeFilterCount = filterInstance.activeFilterCount
-
-// ── UI state ──
-const showFieldDropdown = ref(false)
+// ── State ──
+const filters = ref<FilterCondition[]>([])
+const showDropdown = ref(false)
 const showRQL = ref(false)
-const editingIndex = ref<number | null>(null)
-const showSaveDialog = ref(false)
-const saveViewName = ref('')
-const activeViewId = ref<number | null>(null)
-const fieldDropdownRef = ref<HTMLElement | null>(null)
-const editorRef = ref<HTMLElement | null>(null)
-
-// ── View modes ──
-const viewModes = computed(() => [
-  { value: 'list', label: t('project.view.list') },
-  { value: 'kanban', label: t('project.view.kanban') },
-  { value: 'tree', label: t('project.view.tree') },
-  { value: 'calendar', label: t('project.view.calendar') },
-  { value: 'gantt', label: t('project.view.gantt') },
-])
-
-function switchView(mode: string) {
-  emit('update:viewMode', mode)
-}
-
-// ── Group By / Sort By ──
-const groupBy = ref('')
-const sortBy = ref('created_at_desc')
-
-function onGroupByChange() {
-  emit('groupByChange', groupBy.value)
-}
-function onSortChange() {
-  emit('sortChange', sortBy.value)
-}
-
-// ── Edit state ──
+const editing = ref(false)
 const editField = ref('')
 const editOp = ref('is')
 const editVal = ref<any>('')
 const editValStart = ref('')
 const editValEnd = ref('')
+const editIdx = ref(-1) // -1 = new filter
+const activeViewId = ref<number | null>(null)
 
-const currentField = computed(() => FILTER_FIELDS.find(f => f.key === editField.value))
+const dropRef = ref<HTMLElement | null>(null)
+
+// ── Computed ──
+const rqlStr = computed(() => buildRQL(filters.value))
+
+const currentFieldDef = computed(() => FILTER_FIELDS.find((f: any) => f.key === editField.value))
+
+const currentOperators = computed(() => currentFieldDef.value?.operators || ['is'])
 
 const currentOptions = computed(() => {
-  const cf = currentField.value
-  if (!cf) return []
-  const key = cf.key
+  const key = editField.value
   if (key === 'state_id') return props.states.map((s: any) => ({ value: String(s.id), label: s.name || s.label }))
   if (key === 'state_group') return [
     { value: 'backlog', label: t('filter.stateGroupBacklog') },
@@ -344,46 +207,49 @@ const currentOptions = computed(() => {
     { value: 'low', label: t('issue.priorityLow') },
     { value: 'none', label: t('issue.priorityNone') },
   ]
-  if (key === 'assignee_id') return [] // Loaded elsewhere
   if (key === 'cycle_id') return props.cycles.map((c: any) => ({ value: String(c.id), label: c.name }))
   if (key === 'label') return props.labels.map((l: any) => ({ value: l.name || l.label, label: l.name || l.label }))
-  if (key === 'module_id') return [] // Loaded elsewhere
-  if (key === 'type_id') return [] // Loaded elsewhere
   return []
 })
 
-// ── Field icons ──
-function getFieldIcon(field: string): string {
-  const icons: Record<string, string> = {
-    title: 'Aa', state_id: '⚑', state_group: '⬡', priority: '!',
-    assignee_id: '👤', label: '#', cycle_id: '↻', module_id: '□',
-    type_id: 'T', start_date: '▶', target_date: '■', created_at: '◉',
-  }
-  return icons[field] || '·'
+const viewModes = computed(() => [
+  { value: 'list', label: t('project.view.list') },
+  { value: 'kanban', label: t('project.view.kanban') },
+  { value: 'tree', label: t('project.view.tree') },
+  { value: 'calendar', label: t('project.view.calendar') },
+  { value: 'gantt', label: t('project.view.gantt') },
+])
+
+// ── Labels ──
+function fieldLabel(key: string) {
+  const f = FILTER_FIELDS.find((fi: any) => fi.key === key)
+  return f ? t(f.labelKey) : key
+}
+function opLabel(op: string) {
+  const key = 'op' + op.replace(/\s/g, '').replace(/^./, (s: string) => s.toUpperCase()).replace(/[^a-zA-Z]/g, '')
+  return t(('filter.' + key) as any) || op
 }
 
-// ── Operator label ──
-function getOperatorLabel(op: string): string {
-  const key = 'op' + op.replace(/\s/g, '').replace(/^./, s => s.toUpperCase()).replace(/[^a-zA-Z]/g, '')
-  return t('filter.' + key as any) || op
-}
-
-// ── Start editing (new filter) ──
-function startEditing(field: typeof FILTER_FIELDS[0]) {
-  editingIndex.value = -1 // -1 = new filter
-  editField.value = field.key
+// ── Add filter ──
+function addFilterField(fieldKey: string) {
+  const field = FILTER_FIELDS.find((f: any) => f.key === fieldKey)
+  if (!field) return
+  editIdx.value = -1
+  editField.value = fieldKey
   editOp.value = field.operators[0] || 'is'
   editVal.value = ''
   editValStart.value = ''
   editValEnd.value = ''
+  editing.value = true
 }
 
-function startEditChip(idx: number) {
-  const f = filterState.filters[idx]
-  editingIndex.value = idx
+// ── Edit existing filter ──
+function editFilter(idx: number) {
+  const f = filters.value[idx]
+  editIdx.value = idx
   editField.value = f.field
   editOp.value = f.operator
-  if (DATE_RANGE_OPERATORS.includes(f.operator) && Array.isArray(f.value)) {
+  if (dateRangeOps.includes(f.operator) && Array.isArray(f.value)) {
     editValStart.value = f.value[0] || ''
     editValEnd.value = f.value[1] || ''
     editVal.value = ''
@@ -392,26 +258,33 @@ function startEditChip(idx: number) {
     editValStart.value = ''
     editValEnd.value = ''
   }
+  editing.value = true
 }
 
-function openFieldDropdown() {
-  showFieldDropdown.value = true
-}
-
-function applyEdit(idx: number) {
+// ── Apply edit (instant — no confirm) ──
+function applyEditInstant() {
   const field = editField.value
-  if (!field) { cancelEdit(); return }
+  if (!field) return
 
-  // Build display label
+  // Build display value
   let displayValue = ''
-  let actualValue = editVal.value
-  if (DATE_RANGE_OPERATORS.includes(editOp.value)) {
+  let actualValue: any = editVal.value
+
+  if (dateRangeOps.includes(editOp.value)) {
+    if (!editValStart.value || !editValEnd.value) return // wait for both dates
     actualValue = [editValStart.value, editValEnd.value]
-    displayValue = `${editValStart.value} .. ${editValEnd.value}`
-  } else if (!NO_VALUE_OPERATORS.includes(editOp.value)) {
+    displayValue = `${editValStart.value} – ${editValEnd.value}`
+  } else if (!noValueOps.includes(editOp.value)) {
+    const oval = editVal.value ?? ''
+    if (multiOps.includes(editOp.value) && !Array.isArray(editVal.value)) {
+      // For multi ops, still use string
+    }
+    if (oval === '' && currentFieldDef.value?.type !== 'text') return // require value
     const opt = currentOptions.value.find((o: any) => o.value === String(editVal.value))
-    displayValue = opt?.label || String(editVal.value)
-    if (actualValue === '') return // Require a value for non-empty operators
+    displayValue = opt?.label || String(editVal.value !== undefined && editVal.value !== null ? editVal.value : '')
+    if (!oval && currentFieldDef.value?.type === 'text') {
+      displayValue = ''
+    }
   }
 
   const condition: FilterCondition = {
@@ -421,65 +294,62 @@ function applyEdit(idx: number) {
     displayValue,
   }
 
-  if (idx === -1) {
-    filterInstance.addFilter(condition)
+  if (editIdx.value === -1) {
+    filters.value.push(condition)
   } else {
-    filterInstance.updateFilter(idx, condition)
+    filters.value[editIdx.value] = condition
   }
-  cancelEdit()
+
+  editing.value = false
   emitFiltersChanged()
 }
 
-function cancelEdit() {
-  editingIndex.value = null
-  editField.value = ''
-  editOp.value = 'is'
-  editVal.value = ''
-  editValStart.value = ''
-  editValEnd.value = ''
+function removeFilter(idx: number) {
+  filters.value.splice(idx, 1)
+  editing.value = false
+  emitFiltersChanged()
 }
 
 function clearAllFilters() {
-  filterInstance.clearAll()
+  filters.value = []
+  editing.value = false
   emitFiltersChanged()
 }
 
 function emitFiltersChanged() {
-  emit('filtersChanged', filterInstance.rql.value, filterInstance.toJSON())
+  emit('filtersChanged', rqlStr.value, [...filters.value])
 }
 
 // ── RQL ──
 function copyRQL() {
-  navigator.clipboard?.writeText(filterInstance.rql.value)
+  navigator.clipboard?.writeText(rqlStr.value)
+}
+
+function applyRQL() {
+  // RQL → filters reverse sync (read-only display for now)
+  emit('filtersChanged', rqlStr.value, [...filters.value])
+}
+
+// ── View ──
+function switchView(mode: string) {
+  emit('update:viewMode', mode)
 }
 
 // ── Save view ──
-async function saveView() {
-  const name = saveViewName.value.trim()
-  if (!name) return
+function onSaveView() {
+  const name = activeViewId.value ? `Updated view ${new Date().toLocaleTimeString()}` : `View ${new Date().toLocaleTimeString()}`
   emit('saveView', {
     name,
-    filters: filterInstance.toJSON(),
-    groupBy: groupBy.value,
-    sortBy: sortBy.value,
+    filters: [...filters.value],
     viewType: props.viewMode,
   })
-  saveViewName.value = ''
-  showSaveDialog.value = false
 }
 
 // ── Restore from SavedView ──
 function restoreFromView(view: any) {
   activeViewId.value = view.id || null
   if (view.filters && Array.isArray(view.filters) && view.filters.length > 0) {
-    filterInstance.setFilters(view.filters)
-  }
-  if (view.group_by) {
-    groupBy.value = view.group_by
-  }
-  if (view.sort_config && view.sort_config.length > 0) {
-    const sc = view.sort_config[0]
-    sortBy.value = `${sc.field}_${sc.dir}`
+    filters.value = [...view.filters]
   }
   if (view.view_type) {
     switchView(view.view_type)
@@ -488,38 +358,267 @@ function restoreFromView(view: any) {
 }
 
 // ── Click outside ──
-function handleClickOutside(e: MouseEvent) {
-  if (showFieldDropdown.value && fieldDropdownRef.value && !fieldDropdownRef.value.contains(e.target as Node)) {
-    showFieldDropdown.value = false
-  }
-  if (editingIndex.value !== null && editorRef.value && !editorRef.value.contains(e.target as Node)) {
-    // Don't close inline editor on outside click — user must confirm/cancel
+function onClickOutside(e: MouseEvent) {
+  if (showDropdown.value && dropRef.value && !dropRef.value.contains(e.target as Node)) {
+    showDropdown.value = false
   }
 }
 
-onMounted(() => document.addEventListener('click', handleClickOutside))
-onUnmounted(() => document.removeEventListener('click', handleClickOutside))
+onMounted(() => document.addEventListener('click', onClickOutside))
+onUnmounted(() => document.removeEventListener('click', onClickOutside))
 
-// ── Watch rql changes → emit ──
-watch(() => filterState.filters.length, () => {
-  emitFiltersChanged()
-}, { deep: true })
+defineExpose({ restoreFromView, filters, rqlStr })
 
-// Expose for parent
-defineExpose({ restoreFromView, filterInstance, groupBy, sortBy })
+// ── Watch rql changes ──
+watch(rqlStr, () => {
+  // Auto-emit on change for save view consistency
+})
 </script>
 
 <style scoped>
-.filter-bar {
-  @apply px-4 py-2;
+/* ═══ Plane-Aligned FilterBar ═══ */
+.fb {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+/* Row 1 */
+.fb-r1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  flex-wrap: wrap;
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.15s ease-out;
+.fb-drop-ctn { position: relative; }
+
+.fb-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .12s;
+  white-space: nowrap;
 }
+.fb-trigger:hover { background: #f9fafb; border-color: #9ca3af; }
+.fb-trigger.open { background: #f3f4f6; border-color: #6b7280; }
+
+.fb-icon, .fb-icon-sm { width: 14px; height: 14px; }
+.fb-icon-sm { width: 11px; height: 11px; }
+.fb-chev { width: 10px; height: 10px; }
+
+.fb-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
+  z-index: 60;
+  width: 200px;
+  overflow: hidden;
+  padding: 4px;
+}
+.fb-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 12px;
+  color: #374151;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.fb-dropdown button:hover { background: #f3f4f6; }
+
+/* Chip */
+.fb-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+.fb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 7px;
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .12s;
+  white-space: nowrap;
+}
+.fb-chip:hover { background: #e0e7ff; border-color: #a5b4fc; }
+.fb-chip .cf { color: #6b7280; }
+.fb-chip .co { color: #9ca3af; }
+.fb-chip .cv { font-weight: 500; }
+.fb-chip .cx {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  margin-left: 1px;
+  display: flex;
+  align-items: center;
+}
+.fb-chip .cx:hover { color: #ef4444; }
+
+.fb-add-btn {
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  border: 1px dashed #cbd5e1;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all .12s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.fb-add-btn:hover { border-color: #3b82f6; color: #3b82f6; background: #f8faff; }
+
+.fb-clear-btn {
+  font-size: 11px;
+  color: #9ca3af;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+.fb-clear-btn:hover { color: #ef4444; }
+
+/* Inline editor */
+.fb-editor {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: #f9fafb;
+  border-bottom: 1px solid #eff6ff;
+  flex-wrap: wrap;
+}
+.fb-ed-label { font-size: 11px; color: #6b7280; font-weight: 500; white-space: nowrap; }
+.fb-ed-sel, .fb-ed-inp {
+  padding: 3px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 11px;
+  background: #fff;
+  outline: none;
+}
+.fb-ed-sel:focus, .fb-ed-inp:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.1); }
+.fb-ed-sep { color: #9ca3af; font-size: 11px; padding: 0 2px; }
+.fb-ed-hint { font-size: 10px; color: #6b7280; margin-left: 6px; }
+
+/* RQL */
+.fb-rql {
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: #fafbfc;
+}
+.fb-rql-tog {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.fb-rql-input {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  font-size: 11px;
+  font-family: monospace;
+  background: #f9fafb;
+}
+.fb-rql-btn {
+  padding: 2px 7px;
+  font-size: 10px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fb-rql-btn:hover { background: #f3f4f6; }
+.fb-rql-btn.rql-primary { background: #111827; color: #fff; border-color: #111827; }
+.fb-rql-btn.rql-primary:hover { background: #1f2937; }
+
+/* Bottom bar */
+.fb-bot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-top: 1px solid #f3f4f6;
+  background: #fff;
+}
+.fb-sp { flex: 1; }
+.fb-vt {
+  display: inline-flex;
+  background: #f3f4f6;
+  border-radius: 5px;
+  padding: 1px;
+}
+.fb-vt button {
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+.fb-vt button.active { background: #fff; color: #111827; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.fb-sv {
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 5px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.fb-sv:hover { border-color: #3b82f6; color: #3b82f6; }
 </style>
