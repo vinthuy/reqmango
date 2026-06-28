@@ -60,3 +60,6 @@ htmlcov/
 *.dylib
 node_modules/
 backend-go/uploads/
+
+# Private (do not distribute)
+.private/

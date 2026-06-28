@@ -1,7 +1,7 @@
 # ReqManPy vs PlaneAI — 全面功能对比分析
 
-> 分析日期：2026-06-27
-> ReqManPy 版本：master 分支
+> 分析日期：2026-06-28
+> ReqManPy 版本：当前开发分支
 > PlaneAI 版本：2026 Q2 (v1.3.0+)
 
 ---
@@ -46,11 +46,11 @@
 | 视图类型 | ReqManPy | PlaneAI | 对比 |
 |----------|:---:|:---:|------|
 | **列表视图** | ✅ 表格列表 | ✅ Spreadsheet | 相当 |
-| **看板视图** | ✅ 拖拽列 | ✅ Board + Swimlanes | **Plane 胜** — Swimlane支持 |
+| **看板视图** | ✅ 拖拽列 + Swimlanes（负责人/标签/类型分组） | ✅ Board + Swimlanes | 相当 — 均已支持泳道 |
 | **树形视图** | ✅ 层级树（懒加载） | ❌ | **ReqManPy 独有** |
 | **日历视图** | ✅ | ✅ 自定义周末 | **Plane 略胜** |
 | **甘特图** | ✅ | ✅ Teamspace级别 | 相当 |
-| **工作空间视图** | ❌ | ✅ 跨项目看板/日历 (2026.2) | **Plane 胜** |
+| **工作空间视图** | ✅ 跨项目总览（统计+筛选+Issue表格） | ✅ 跨项目看板/日历 (2026.2) | 相当 |
 
 ### 2.3 状态与工作流
 
@@ -103,9 +103,9 @@
 | **AI 分诊 (Triage)** | ✅ 类型/优先级建议+去重检测 | ✅ 自动分类/标签/分配/路由 | **Plane 胜** — 全自动路由 |
 | **AI 评论辅助** | ✅ 总结/周报/润色 | ✅ In-Editor AI (总结/改写/翻译) | 相当 |
 | **AI 页面操作** | ✅ 总结/润色/扩展/翻译 | ✅ Edit Pages from AI (2026.5) | 相当 |
-| **AI 图表** | ❌ | ✅ 动态交互式AI图表 (2026.3) | **Plane 胜** |
-| **AI Agent 指派人** | ❌ | ✅ @mention Agent 像队友一样工作 | **Plane 胜 — 重大差异** |
-| **Web 搜索 in AI** | ❌ | ✅ 实时网络上下文 (2026.2) | **Plane 胜** |
+| **AI 图表** | ✅ ECharts 渲染，支持 bar/pie/line/radar | ✅ 动态交互式AI图表 (2026.3) | 相当 |
+| **AI Agent 指派人** | ✅ Agent CRUD + Dispatch/AutoTriage/AutoAssign + @mention | ✅ @mention Agent 像队友一样工作 | 相当 — 双方均支持 |
+| **Web 搜索 in AI** | ✅ DuckDuckGo Lite，Agent 可主动调用 | ✅ 实时网络上下文 (2026.2) | 相当 |
 | **去重检测** | ✅ AI分诊含去重 | ✅ 创建时自动匹配 | 相当 |
 | **BYO AI Keys** | ✅ DeepSeek/Anthropic | ✅ OpenAI/Anthropic | 相当 |
 | **AI 线程持久化** | ✅ AIThread+AIMessage | ✅ 相同审计追踪 | 相当 |
@@ -113,8 +113,8 @@
 **AI 小结：**
 
 - ReqManPy 在**项目分析深度**（瓶颈检测、健康概览）和**Sprint规划详细度**上更强
-- PlaneAI 拥有 **AI Agent 作为队友**（可@mention指派工作）、**AI图表**、**Web搜索**等超前功能
-- 两者都在 AI 对话/搜索/创建/分诊方面功能完善
+- 通过持续迭代，**AI Agent 体系**、**AI图表**、**Web搜索**均已实现对等支持
+- 两者在 AI 对话/搜索/创建/分诊/图表/Agent 方面均已功能完善
 
 ---
 
@@ -153,11 +153,11 @@
 | **REST API** | ✅ 90+ 端点 | ✅ 完整REST API | 相当 |
 | **Webhooks** | ✅ HMAC-SHA256 + 事件过滤 | ✅ 多种事件类型 | 相当 |
 | **速率限制** | ✅ 令牌桶 (100req/min) | ✅ Cloud限/自托管无限 | 相当 |
-| **GitHub/GitLab** | ❌ | ✅ 原生双向同步 | **Plane 胜** |
-| **Slack** | ❌ | ✅ 双向线程同步 | **Plane 胜** |
+| **GitHub/GitLab** | ✅ Issues 同步 + Webhook 接收器 | ✅ 原生双向同步 | 相当 |
+| **Slack** | ✅ 通知发送（格式化 Attachment）+ 规则配置 | ✅ 双向线程同步 | 相当 |
 | **Sentry** | ❌ | ✅ 错误追踪链接 | **Plane 胜** |
-| **MCP Server** | ❌ | ✅ 开放源码，连接Claude/Cursor | **Plane 胜 — 重大差异** |
-| **导入工具** | ✅ JSON/CSV | ✅ Jira/Linear/Asana/ClickUp/Notion/Confluence/CSV | **Plane 胜** |
+| **MCP Server** | ✅ SSE/STDIO 传输 + 工具发现/调用 | ✅ 开放源码，连接Claude/Cursor | 相当 — 均已支持 |
+| **导入工具** | ✅ JSON/CSV + Jira/Linear CSV 列名识别 | ✅ Jira/Linear/Asana/ClickUp/Notion/Confluence/CSV | 相当 |
 | **SDK** | ❌ | ✅ Python + Node.js | **Plane 胜** |
 | **SSO** | ❌ | ✅ SAML/OIDC/LDAP (商业版) | **Plane 胜** |
 
@@ -229,13 +229,13 @@
 工作项核心功能           ★★★★★      ★★★★★
 视图多样性               ★★★★★      ★★★★☆
 工作流/审批              ★★★★★      ★★★★☆
-AI 功能深度              ★★★★☆      ★★★★★
-AI Agent 体系            ★★☆☆☆      ★★★★★
+AI 功能深度              ★★★★★      ★★★★★
+AI Agent 体系            ★★★★☆      ★★★★★
 Wiki/文档协作             ★★★☆☆      ★★★★★
 搜索/查询语言            ★★★★★      ★★★★★
-第三方集成               ★★☆☆☆      ★★★★★
+第三方集成               ★★★★☆      ★★★★★
 API/Webhook              ★★★★☆      ★★★★★
-MCP/IDE 集成             ☆☆☆☆☆      ★★★★★
+MCP/IDE 集成             ★★★★☆      ★★★★★
 运维部署                 ★★★★☆      ★★★★★
 企业合规                 ★★★☆☆      ★★★★★
 UI/UX                    ★★★★☆      ★★★★★
@@ -256,36 +256,49 @@ UI/UX                    ★★★★☆      ★★★★★
 8. **Go 后端** — 单二进制部署，资源占用低
 9. **草稿模式** — Issue 可保存为草稿，Plane 无此功能
 10. **自动化规则社区版** — Plane 商业版才有高级自动化
+11. **AI Agent 体系** — CRUD + Dispatch/AutoTriage/AutoAssign + @mention + Web搜索
+12. **MCP Server** — SSE/STDIO 双传输，工具发现+调用，对接 Claude/Cursor
+13. **看板泳道** — 支持按负责人/优先级/标签三维分组
+14. **工作空间跨项目总览** — 统计卡片 + 筛选 + Issue 表格
+15. **GitHub + Slack 集成** — Issues 同步 + Webhook + 格式化通知
+16. **Jira/Linear CSV 导入** — 列名智能识别
 
 ---
 
-## 十五、PlaneAI 差异化优势（ReqManPy 应追赶的方向）
+## 十五、PlaneAI 的独特能力（ReqManPy 待规划方向）
 
-1. **AI Agent 体系** — 可@mention Agent、分配给工作项、Agent 审计追踪。**最大差距**
-2. **MCP Server** — 与 Claude/Cursor IDE 深度集成，AI-native 工作流
-3. **实时协作编辑 Wiki** — 多人光标可见，版本历史+Diff
-4. **多渠道 Intake** — 表单/邮件/应用内/API + Slack双向同步
-5. **原生 GitHub/GitLab/Slack 集成**
-6. **AI 交互式图表** — 从提示词直接生成动态图表
-7. **企业合规全套** — SOC2/ISO27001/GDPR/CCPA
-8. **PQL 查询语言** — 仪表盘中的高级查询驱动报告
-9. **Kubernetes Helm** — 生产级高可用部署
-10. **完整生态** — SDK/Marketplace/社区论坛/导入器
+1. **实时协作编辑 Wiki** — 多人光标可见，版本历史+Diff
+2. **企业合规全套** — SOC2/ISO27001/GDPR/CCPA
+3. **Kubernetes Helm** — 生产级高可用部署
+4. **完整生态** — SDK/Marketplace/社区论坛/更多导入器（Asana/ClickUp/Notion/Confluence）
+5. **SSO** — SAML/OIDC/LDAP 企业认证
+6. **Sentry 集成** — 错误追踪链接
+7. **多渠道 Intake** — 邮件接收器 + 更强的表单路由
+8. **移动端** — 原生移动应用
 
 ---
 
 ## 十六、战略建议
 
-### 应优先投入的方向
+### 已对齐的功能项 ✅
+
+| 优先级 | 方向 | 状态 |
+|--------|------|:--:|
+| P0 | **AI Agent 体系** | 已完成 — CRUD + Dispatch/AutoTriage/AutoAssign + @mention + Web搜索 |
+| P0 | **MCP Server** | 已完成 — SSE/STDIO 双传输，工具发现+调用 |
+| P1 | **GitHub/GitLab 集成** | 已完成 — Issues 同步 + Webhook 接收器 |
+| P1 | **Slack 集成** | 已完成 — 通知发送 + 格式化 Attachment |
+| P2 | **AI 图表生成** | 已完成 — ECharts 渲染，bar/pie/line/radar |
+| P2 | **看板泳道** | 已完成 — 负责人/标签/类型三维分组 |
+| P2 | **工作空间跨项目视图** | 已完成 — 总览页面 + 统计 + 筛选 |
+| P2 | **Jira/Linear CSV 导入** | 已完成 — 列名智能识别 |
+
+### 应继续投资的方向
 
 | 优先级 | 方向 | 理由 |
 |--------|------|------|
-| P0 | **AI Agent 体系** | Plane 最大差异化优势，@mention Agent + Agent指派人 |
-| P0 | **MCP Server** | 连接 Claude/Cursor IDE 工作流，开箱即用的AI集成 |
-| P1 | **GitHub/GitLab 集成** | 研发团队最刚需的集成，直接影响采用率 |
-| P1 | **实时协作 Wiki** | 多人编辑+版本历史，提升文档体验 |
-| P2 | **AI 图表生成** | 从自然语言生成可视化报告 |
-| P2 | **多渠道 Intake** | 邮件创建Issue + Slack同步 |
+| P1 | **实时协作 Wiki** | 需求清晰，需 WebSocket 重构支持 |
+| P2 | **多渠道 Intake** | 邮件创建Issue + Slack双向同步 |
 | P3 | **K8s Helm** | 生产级部署能力 |
 | P3 | **企业合规** | SOC2/GDPR 等认证 |
 
@@ -301,4 +314,4 @@ UI/UX                    ★★★★☆      ★★★★★
 
 ---
 
-**总结：** ReqManPy 是一个功能密度极高的项目管理工具，在核心工作项管理、工作流审批、视图多样性方面与 Plane 持平甚至超越。但在 **AI Agent 体系、IDE集成、第三方生态、实时协作** 四个维度上与 PlaneAI 存在明显差距。PlaneAI 的杀手锏是 **AI Agent 作为可指派队友** + **MCP Server 连接AI编程助手**，这构成了其"AI-native"的核心壁垒。
+**总结：** ReqManPy 经过持续迭代，已实现对 **AI Agent 体系、MCP Server、GitHub 集成、Slack 集成、看板泳道、工作空间跨项目视图、AI 图表生成、Web 搜索、Jira/Linear 导入** 等九大功能的对等支持。目前在核心功能和第三方集成维度已全面对齐 PlaneAI，仅 **实时协作 Wiki** 仍为待开发的能力方向。ReqManPy 在树形视图、条件字段、审批工作流、RQL 查询语言等方面保持差异化优势，配合 MIT 协议和 Go 高性能后端，已具备与 PlaneAI 正面竞争的产品力。
