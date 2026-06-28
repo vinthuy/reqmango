@@ -13,12 +13,12 @@ reqmanpy/
 │   ├── internal/            # 内部代码
 │   │   ├── common/          # 公共工具（错误码、常量、分页）
 │   │   ├── config/          # 配置加载（Viper + 环境变量）
-│   │   ├── model/           # GORM 数据模型（34 文件）
-│   │   ├── dto/             # 请求/响应 DTO（45 文件）
-│   │   ├── service/         # 业务逻辑（35 文件）
-│   │   ├── handler/         # HTTP 处理器（37 文件）
+│   │   ├── model/           # GORM 数据模型（36 文件）
+│   │   ├── dto/             # 请求/响应 DTO（47 文件）
+│   │   ├── service/         # 业务逻辑（36 文件）
+│   │   ├── handler/         # HTTP 处理器（38 文件）
 │   │   ├── rql/             # RQL 查询语言引擎（9 文件）
-│   │   ├── middleware/      # 中间件（Auth/CORS/Lang/Log/RateLimit）
+│   │   ├── middleware/      # 中间件（Auth/Authz/CORS/Lang/Log/RateLimit）
 │   │   ├── i18n/            # 后端国际化 (en/zh JSON)
 │   │   ├── seed/            # 种子数据
 │   │   └── router/          # 路由注册（80+ 端点）
@@ -36,10 +36,10 @@ reqmanpy/
 │
 ├── frontend/                # Vue 3 前端
 │   ├── src/
-│   │   ├── api/             # 35 个 API 模块
-│   │   ├── types/           # 21 个 TypeScript 类型文件
+│   │   ├── api/             # 36 个 API 模块
+│   │   ├── types/           # 22 个 TypeScript 类型文件
 │   │   ├── stores/          # Pinia 状态管理（Auth/Cycle/Module）
-│   │   ├── composables/     # 5 个组合式函数
+│   │   ├── composables/     # 6 个组合式函数
 │   │   ├── views/           # 18 个页面级路由组件
 │   │   ├── components/      # 78 个可复用组件
 │   │   ├── router/          # 20 个路由定义
@@ -72,6 +72,11 @@ reqmanpy/
 | `backend-go/cmd/server/main.go` | Go 服务启动：初始化 DB、注册路由、启动 HTTP |
 | `backend-go/internal/router/router.go` | 所有 API 路由定义（80+ 端点） |
 | `backend-go/internal/middleware/auth.go` | JWT 认证中间件 |
+| `backend-go/internal/middleware/authorization.go` | RBAC 鉴权中间件（RequirePermission + RequireRoleLevel） |
+| `backend-go/internal/model/role.go` | 角色模型（Role + Level 枚举） |
+| `backend-go/internal/model/permission.go` | 权限模型（Permission + RolePermission 关联） |
+| `backend-go/internal/service/role_service.go` | RBAC 角色服务（8 方法） |
+| `backend-go/internal/seed/seed_rbac.go` | RBAC 种子数据（55 权限 + 3 角色） |
 | `backend-go/config/config.yaml` | 默认配置 |
 | `frontend/src/main.ts` | Vue 应用入口 |
 | `frontend/src/router/index.ts` | 前端 20 个路由定义 |
@@ -133,6 +138,7 @@ src/
 |----|------|
 | 后端框架 | Go 1.22 + Gin |
 | ORM | GORM (PostgreSQL 16) |
+| 鉴权 | RBAC 自定义角色 + 细粒度权限（resource:action） |
 | 认证 | JWT (golang-jwt/v5) + bcrypt |
 | 配置 | Viper (YAML + 环境变量) |
 | 前端框架 | Vue 3 + TypeScript + Vite |

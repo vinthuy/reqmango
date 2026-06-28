@@ -1,6 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    minRoleLevel?: number
+  }
+}
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -162,6 +169,14 @@ router.beforeEach(async (to) => {
       } catch {
         authStore.logout()
         return { name: 'Login' }
+      }
+    }
+
+    // RBAC: Check minimum role level if defined on route meta
+    if (to.meta.minRoleLevel) {
+      const user = authStore.user as any
+      if (!user?.is_superuser && (user?.role_level || 0) < to.meta.minRoleLevel) {
+        return { name: 'Home' }
       }
     }
   }

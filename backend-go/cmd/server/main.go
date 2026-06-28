@@ -85,6 +85,9 @@ func main() {
 		&model.MCPConfig{},
 		&model.GitHubConnection{},
 		&model.SlackConnection{},
+		&model.Role{},
+		&model.Permission{},
+		&model.RolePermission{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

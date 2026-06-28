@@ -16,9 +16,9 @@ backend-go/
 │   │   ├── error_codes.go          # 错误码定义（含 i18n 消息）
 │   │   ├── errors.go              # AppError 类型
 │   │   └── pagination.go          # 分页辅助
-│   ├── model/                      # GORM 模型（34 个文件）
+│   ├── model/                      # GORM 模型（36 个文件）
 │   │   ├── base.go                # BaseModel 嵌入结构（ID/CreatedAt/UpdatedAt/DeletedAt）
-│   │   ├── user.go                # User
+│   │   ├── user.go                # User（含 IsSuperuser、GetID、IsSuper 方法）
 │   │   ├── workspace.go           # Workspace, WorkspaceMember
 │   │   ├── project.go             # Project, ProjectMember
 │   │   ├── issue.go               # Issue, IssueAssignee, IssueLabel, IssueActivity
@@ -52,9 +52,11 @@ backend-go/
 │   │   ├── custom_field.go        # CustomField + 7 种类型
 │   │   ├── conditional_field.go   # ConditionalField（条件可见性）
 │   │   ├── initiative.go          # Initiative（跨项目战略目标）
-│   │   └── release.go             # Release + Roadmap
+│   │   ├── release.go             # Release + Roadmap
+│   │   ├── role.go                # Role + RoleLevel（Admin=20/Member=15/Guest=5）
+│   │   └── permission.go          # Permission + RolePermission 关联表
 │   ├── dto/
-│   │   ├── request/               # 请求 DTO（24 个文件）
+│   │   ├── request/               # 请求 DTO（25 个文件）
 │   │   │   ├── auth.go, workspace.go, project.go
 │   │   │   ├── issue.go, cycle.go, module.go, page.go
 │   │   │   ├── custom_field.go, conditional_field.go
@@ -65,10 +67,11 @@ backend-go/
 │   │   │   ├── project_template.go, work_item_template.go
 │   │   │   ├── type_template.go, issue_type.go
 │   │   │   ├── initiative.go, release.go, saved_view.go
+│   │   │   ├── role.go
 │   │   │   └── rql.go
-│   │   └── response/              # 响应 DTO（21 个文件）
+│   │   └── response/              # 响应 DTO（22 个文件）
 │   │       └── 对应 request 文件的响应结构体
-│   ├── service/                    # 业务逻辑（35 个文件）
+│   ├── service/                    # 业务逻辑（36 个文件）
 │   │   ├── auth_service.go        # JWT 签发与验证
 │   │   ├── workspace_service.go   # Workspace CRUD + 成员
 │   │   ├── project_service.go     # Project CRUD + 成员 + 统计 + 归档
@@ -103,11 +106,12 @@ backend-go/
 │   │   ├── type_template_service.go     # Workspace 类型模板
 │   │   ├── initiative_service.go        # Initiative CRUD
 │   │   ├── release_service.go    # Release + Roadmap
+│   │   ├── role_service.go       # RBAC 角色 + 权限查询（8 方法）
 │   │   ├── report_service.go     # 报表生成 + 图表数据
 │   │   ├── sse_hub.go            # SSE 实时事件中心
 │   │   └── llm_client.go         # LLM 客户端（DeepSeek/Anthropic）
-│   ├── handler/                    # HTTP Handler（37 个文件）
-│   │   └── 每个 service 对应一个 handler + sse_handler.go
+│   ├── handler/                    # HTTP Handler（38 个文件）
+│   │   └── 每个 service 对应一个 handler + sse_handler.go + role_handler.go
 │   ├── rql/                        # RQL 查询语言引擎（9 文件）
 │   │   ├── lexer.go               # 词法分析（tokenize）
 │   │   ├── parser.go              # 语法分析（AST 构建）
@@ -117,8 +121,9 @@ backend-go/
 │   │   ├── handler.go             # HTTP 端点 `/api/v1/rql/search`
 │   │   ├── service.go             # 查询服务
 │   │   └── *_test.go              # 3 个测试文件
-│   ├── middleware/                  # 中间件（5 个）
+│   ├── middleware/                  # 中间件（6 个）
 │   │   ├── auth.go                # JWT 认证：解析 Bearer token → 注入 currentUser
+│   │   ├── authorization.go       # RBAC 鉴权：RequirePermission / RequireRoleLevel
 │   │   ├── cors.go                # CORS 策略
 │   │   ├── language.go            # i18n 语言检测（Header/Query）
 │   │   ├── logger.go              # 请求日志
@@ -127,12 +132,9 @@ backend-go/
 │   │   ├── i18n.go / i18n_test.go # 国际化逻辑
 │   │   ├── messages_en.json       # 英文错误消息
 │   │   └── messages_zh.json       # 中文错误消息
-│   └── seed/seed.go               # 种子数据（20 用户 + 100 Issues + Workspace/Project）
-├── config/config.yaml              # 默认配置
-├── go.mod / go.sum                 # Go 依赖
-├── Dockerfile                       # 多阶段构建（go build → distroless）
-└── test_api.sh                      # API 测试脚本
-```
+│   └── seed/
+│       ├── seed.go                # 种子数据（20 用户 + 100 Issues + Workspace/Project）
+│       └── seed_rbac.go           # RBAC 种子（55 权限 + 3 默认角色）
 
 ---
 
@@ -213,6 +215,15 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 3. Auth 中间件解析 JWT，查询用户，注入 `c.Set("currentUser", user)`
 4. Handler 通过 `c.MustGet("currentUser").(*model.User)` 获取
 
+### RBAC 鉴权
+
+- `authorization.go` 提供 `RequirePermission(db, permCode)` 和 `RequireRoleLevel(db, minLevel)` 两个中间件
+- 超级用户（IsSuperuser=true）自动旁路所有权限检查
+- 权限格式：`resource:action`（如 `issue:create`, `workspace:manage`）
+- 角色级别：Admin=20（全部权限）、Member=15（创建编辑）、Guest=5（只读）
+- 支持 workspace-level 和 project-level 自定义角色
+- 5 个 RBAC API：`GET/POST /api/v1/workspaces/:wsParam/roles`、`PUT/DELETE /api/v1/workspaces/:wsParam/roles/:id`、`GET /api/v1/permissions`
+
 ### 限流
 
 - Token Bucket 算法，按用户 ID 或 IP 分组
@@ -254,6 +265,8 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 | `/webhook/github/:id` | GitHub Webhook 接收（公开端点） |
 | `/intake/:projectId` | 公开问题提交（无需认证） |
 | `/sse` | 实时事件推送 |
+| `/roles/` | RBAC 角色 CRUD + 权限列表 |
+| `/permissions/` | 全局权限枚举查询 |
 
 ---
 

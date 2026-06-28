@@ -1,6 +1,6 @@
 # Data Model（数据模型总览）
 
-**最后更新**: 2026-06-27
+**最后更新**: 2026-06-28
 
 ---
 
@@ -29,6 +29,8 @@ type BaseModel struct {
 Workspace 1──N WorkspaceMember N──1 User
 Workspace 1──N Project
 Project  1──N ProjectMember N──1 User
+Workspace 1──N Role
+Role     N──M Permission (role_permissions)
 Project  1──N State
 Project  1──N Label
 Project  1──N Issue
@@ -198,6 +200,14 @@ User     1──N Notification
 | `ai_threads` | title, workspace_id, project_id, user_id | AI 对话线程 |
 | `ai_messages` | thread_id, role, content, tool_calls (JSONB), tool_name | AI 对话消息 |
 
+### RBAC 权限系统 (3 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `roles` | name, description, scope, workspace_id, project_id, level(5/15/20), is_system, sort_order | 角色（系统默认 + 自定义） |
+| `permissions` | code (unique, 如 issue:create), name, description, resource, action, scope | 权限枚举（55 个） |
+| `role_permissions` | role_id + permission_id (复合主键) | 角色-权限多对多关联 |
+
 ---
 
 ## 关键设计决策
@@ -207,4 +217,5 @@ User     1──N Notification
 3. **JSONB 存储**: 筛选条件、自动化条件/动作、AI Tool Calls、模板默认值等灵活结构使用 JSONB
 4. **树形结构**: Module 和 Page 通过 `parent_id` 自引用，depth 字段冗余存储避免递归查询
 5. **多对多关联**: 使用显式关联表而非 GORM many2many，便于查询和扩展
-6. **AI 协议双支持**: Anthropic + OpenAI-compatible (DeepSeek) 双协议，按 provider 自动切换
+6. **RBAC 权限**: 55 个细粒度权限以 `resource:action` 格式编码，通过 `role_permissions` 关联表实现角色-权限绑定
+7. **AI 协议双支持**: Anthropic + OpenAI-compatible (DeepSeek) 双协议，按 provider 自动切换

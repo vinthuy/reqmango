@@ -2,7 +2,7 @@
 
 ReqManPy 采用前后端分离架构，Go + Vue 3 全栈。
 
-**最后更新**: 2026-06-27
+**最后更新**: 2026-06-28
 
 ---
 
@@ -49,11 +49,11 @@ ReqManPy 采用前后端分离架构，Go + Vue 3 全栈。
 
 | 层 | 目录 | 职责 |
 |----|------|------|
-| Handler | `internal/handler/` (27) | HTTP 请求绑定，调用 Service，写响应。不含业务逻辑 |
-| Service | `internal/service/` (26) | 纯业务逻辑，跨 Model 操作，返回 AppError |
-| Model | `internal/model/` (27) | GORM 模型定义，表结构映射 |
+| Handler | `internal/handler/` (28) | HTTP 请求绑定，调用 Service，写响应。不含业务逻辑 |
+| Service | `internal/service/` (27) | 纯业务逻辑，跨 Model 操作，返回 AppError |
+| Model | `internal/model/` (28) | GORM 模型定义，表结构映射 |
 | DTO | `internal/dto/` | 请求/响应结构体，与 Model 解耦 |
-| Middleware | `internal/middleware/` | JWT 认证、CORS、日志 |
+| Middleware | `internal/middleware/` | JWT 认证、RBAC 鉴权、CORS、日志 |
 | Router | `internal/router/` | 路由注册，挂载中间件和 Handler |
 | Common | `internal/common/` | 错误类型、常量、分页工具 |
 | RQL | `internal/rql/` | ReqMan Query Language (lexer/parser/executor) |
@@ -63,12 +63,12 @@ ReqManPy 采用前后端分离架构，Go + Vue 3 全栈。
 | 层 | 目录 | 职责 |
 |----|------|------|
 | Views | `src/views/` (16) | 页面级组件，对应路由 |
-| Components | `src/components/` (57) | 可复用组件 |
+| Components | `src/components/` (58) | 可复用组件 |
 | Stores | `src/stores/` (3) | Pinia 状态管理 |
-| API | `src/api/` (22) | Axios 封装，后端 API 调用 |
-| Types | `src/types/` (19) | TypeScript 类型定义 |
-| Composables | `src/composables/` (3) | 组合式函数 (useConfirm, useRQL, useAI) |
-| Router | `src/router/` | Vue Router 配置 (16 条路由) |
+| API | `src/api/` (23) | Axios 封装，后端 API 调用 |
+| Types | `src/types/` (20) | TypeScript 类型定义 |
+| Composables | `src/composables/` (4) | 组合式函数 (useConfirm, useRQL, useAI, usePermission) |
+| Router | `src/router/` | Vue Router 配置 (16 条路由，含 minRoleLevel 守卫) |
 
 ---
 
@@ -108,6 +108,7 @@ ReqManPy 采用前后端分离架构，Go + Vue 3 全栈。
 | Cover Image（封面图） | ✅ | ✅ | 工作项封面 |
 | Command Palette（⌘K） | ✅ | ✅ | 键盘快速导航 |
 | AI Settings（AI 配置） | ✅ | ✅ | Provider/Model/APIKey UI 配置 |
+| RBAC（权限角色） | ✅ | ✅ | 55 权限 + 3 默认角色 + 自定义角色管理 |
 
 ---
 
@@ -116,6 +117,3 @@ ReqManPy 采用前后端分离架构，Go + Vue 3 全栈。
 | 模块 | 说明 |
 |------|------|
 | Calendar/Gantt View | 日历/甘特图视图 |
-| Webhook/Integrations | GitHub/GitLab/Slack |
-| RBAC 自定义角色 | 基于 Permission 的权限方案 |
-| Multi-language | 多语言国际化 |

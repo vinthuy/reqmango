@@ -50,6 +50,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
+	roleSvc := service.NewRoleService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -83,6 +84,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	mcpH := handler.NewMCPHandler(mcpSvc)
 	githubH := handler.NewGitHubHandler(githubSvc)
 	slackH := handler.NewSlackHandler(slackSvc)
+	roleH := handler.NewRoleHandler(roleSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -173,7 +175,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.DELETE("/:wsParam/slack/:id", slackH.Delete)
 			workspaces.POST("/:wsParam/slack/:id/notify", slackH.SendNotification)
 			workspaces.POST("/:wsParam/slack/:id/test", slackH.TestNotification)
-	}
+
+			// RBAC Roles & Permissions
+			workspaces.GET("/:wsParam/roles", roleH.ListRoles)
+			workspaces.POST("/:wsParam/roles", roleH.CreateRole)
+			workspaces.PUT("/:wsParam/roles/:id", roleH.UpdateRole)
+			workspaces.DELETE("/:wsParam/roles/:id", roleH.DeleteRole)
+		}
+
+		// Permissions (global, read-only)
+		v1.GET("/permissions", authMiddleware, roleH.ListPermissions)
 
 		// Initiatives (top-level routes)
 		initiatives := v1.Group("/initiatives", authMiddleware)

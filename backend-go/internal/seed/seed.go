@@ -16,6 +16,7 @@ func strPtr(s string) *string { return &s }
 func SeedAll(db *gorm.DB) {
 	fmt.Println("=== Starting data initialization ===")
 	
+	SeedRBACData(db)
 	SeedDemoData(db)
 	SeedConfigData(db)
 	

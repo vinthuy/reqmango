@@ -28,3 +28,9 @@ type User struct {
 func (User) TableName() string {
 	return "users"
 }
+
+// GetID returns the user ID (used by middleware).
+func (u User) GetID() uint64 { return u.ID }
+
+// IsSuper returns true if the user is a superuser (used by authorization middleware).
+func (u User) IsSuper() bool { return u.IsSuperuser }
