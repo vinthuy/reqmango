@@ -27,7 +27,9 @@ type bucket struct {
 // NewRateLimiter creates a rate limiter.
 // limit: max requests per window (0 = unlimited)
 func NewRateLimiter(limit int, windowSec int) *RateLimiter {
-	if limit <= 0 { limit = 100 }
+	if limit <= 0 {
+		return &RateLimiter{limit: 0}
+	}
 	if windowSec <= 0 { windowSec = 60 }
 	rl := &RateLimiter{
 		buckets:  make(map[string]*bucket),
@@ -54,7 +56,13 @@ func (rl *RateLimiter) cleanup() {
 }
 
 // Middleware returns a Gin middleware that rate limits requests.
+// If limit is 0, rate limiting is disabled (no-op).
 func (rl *RateLimiter) Middleware() gin.HandlerFunc {
+	// If limit is 0, skip rate limiting entirely
+	if rl.limit <= 0 {
+		return func(c *gin.Context) { c.Next() }
+	}
+
 	return func(c *gin.Context) {
 		// Get rate limit key: user ID if authenticated, otherwise IP
 		key := c.ClientIP()

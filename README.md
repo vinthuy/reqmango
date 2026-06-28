@@ -90,18 +90,21 @@ reqmanpy/
 ├── backend-go/              # Go 后端
 │   ├── cmd/server/          # 入口
 │   ├── internal/
-│   │   ├── model/           # GORM 数据模型
-│   │   ├── dto/             # 请求/响应 DTO
-│   │   ├── service/         # 业务逻辑
-│   │   ├── handler/         # HTTP 处理器
-│   │   ├── middleware/      # JWT/CORS/日志
-│   │   ├── router/          # 路由注册
+│   │   ├── model/           # GORM 数据模型（34 文件）
+│   │   ├── dto/             # 请求/响应 DTO（45 文件）
+│   │   ├── service/         # 业务逻辑（35 文件）
+│   │   ├── handler/         # HTTP 处理器（37 文件）
+│   │   ├── rql/             # RQL 查询语言引擎
+│   │   ├── middleware/      # 中间件（Auth/CORS/Lang/Log/RateLimit）
+│   │   ├── i18n/            # 国际化 (en/zh)
+│   │   ├── seed/            # 种子数据
 │   │   ├── common/          # 公共工具
 │   │   └── config/          # 配置加载
 │   └── config/              # YAML 配置
+├── mcp-server/              # MCP Server
 ├── frontend/                # Vue 3 前端
 │   └── src/
-│       ├── api/             # API 调用
+│       ├── api/             # API 调用（35 模块）
 │       ├── types/           # TypeScript 类型
 │       ├── stores/          # Pinia 状态管理
 │       ├── views/           # 页面

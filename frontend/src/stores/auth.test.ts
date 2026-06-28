@@ -46,7 +46,7 @@ describe('Auth Store', () => {
 
   describe('login', () => {
     it('should set token and user on successful login', async () => {
-      const mockToken = { access_token: 'jwt-token-xyz' }
+      const mockToken = { access_token: 'jwt-token-xyz', token_type: 'Bearer', expires_at: '2099-12-31T23:59:59Z' }
       const mockUser = {
         id: 1,
         email: 'test@example.com',
@@ -106,7 +106,7 @@ describe('Auth Store', () => {
   describe('logout', () => {
     it('should clear user, token, and localStorage', async () => {
       // First login
-      vi.mocked(authApi.login).mockResolvedValue({ access_token: 'token' })
+      vi.mocked(authApi.login).mockResolvedValue({ access_token: 'token', token_type: 'Bearer', expires_at: '2099-12-31T23:59:59Z' })
       vi.mocked(authApi.getCurrentUser).mockResolvedValue({ id: 1 } as any)
 
       const store = useAuthStore()

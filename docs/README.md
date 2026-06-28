@@ -1,9 +1,10 @@
 # ReqManPy Documentation
 
-ReqManPy（基于 Plane）的项目管理平台文档中心。本文档库分为三大区域：
+ReqManPy 项目管理平台的文档中心。本文档库分为四大区域：
 
 - **Knowledge Base（全量知识库）**：描述系统**当前是什么**，是唯一真相来源
 - **Development Pipeline（增量需求开发）**：管理**正在构建什么**，有完整的生命周期
+- **Superpowers（AI 辅助设计）**：AI Agent 生成的设计文档和实现计划
 - **Superseded（历史归档）**：已过时的旧文档，仅供历史参考
 
 ---
@@ -13,14 +14,13 @@ ReqManPy（基于 Plane）的项目管理平台文档中心。本文档库分为
 | 想了解…… | 入口 |
 |----------|------|
 | 产品功能定义 | [kb/PRD.md](kb/PRD.md) |
-| 系统技术栈 | [kb/architecture/tech-stack.md](kb/architecture/tech-stack.md) |
+| 项目目录结构 | [kb/architecture/project-layout.md](kb/architecture/project-layout.md) |
 | Go 后端架构 | [kb/architecture/backend-go.md](kb/architecture/backend-go.md) |
-| Python 后端（遗留） | [kb/architecture/backend-python.md](kb/architecture/backend-python.md) |
 | 前端架构 | [kb/architecture/frontend.md](kb/architecture/frontend.md) |
 | 数据模型总览 | [kb/architecture/data-model.md](kb/architecture/data-model.md) |
 | API 约定 | [kb/architecture/api-conventions.md](kb/architecture/api-conventions.md) |
-| 项目目录结构 | [kb/architecture/project-layout.md](kb/architecture/project-layout.md) |
-| 各功能开发状态 | [dev/pipeline-status.md](dev/pipeline-status.md) |
+| 系统技术栈 | [kb/architecture/tech-stack.md](kb/architecture/tech-stack.md) |
+| 各功能开发状态 | [pipeline-status.md](dev/pipeline-status.md) |
 | 当前正在开发的功能 | [dev/active/](dev/active/) |
 | 如何开始一个新功能 | [dev/README.md](dev/README.md) |
 | 功能开发模板 | [dev/templates/](dev/templates/) |
@@ -56,9 +56,10 @@ ReqManPy（基于 Plane）的项目管理平台文档中心。本文档库分为
 
 | 层 | 当前 | 状态 |
 |----|------|------|
-| 后端（主） | Go + Gin + GORM + PostgreSQL | 主力开发中 |
-| 后端（遗留） | Python + FastAPI + SQLAlchemy | 逐步淘汰 |
-| 前端 | Vue 3 + TypeScript + Pinia + Tailwind CSS | 活跃开发 |
+| 后端 | Go + Gin + GORM + PostgreSQL 16 | 主力 |
+| MCP Server | Go (stdio/SSE) + JSON-RPC 2.0 | 独立模块 |
+| 前端 | Vue 3 + TypeScript + Pinia + Tailwind CSS | 主力 |
+| 遗留后端 | Python + FastAPI + SQLAlchemy | 已淘汰 |
 
 ---
 
@@ -66,15 +67,19 @@ ReqManPy（基于 Plane）的项目管理平台文档中心。本文档库分为
 
 ```
 docs/
-├── README.md                  # 你在这里
-├── kb/                        # 全量知识库
-│   ├── PRD.md                 # 产品需求文档
-│   ├── architecture/          # 架构参考
-│   └── changelog/             # KB 变更日志
-├── dev/                       # 增量需求开发
-│   ├── features/              # 功能设计文档
-│   ├── templates/             # 标准化模板
-│   ├── active/                # 当前活跃功能
-│   └── archive/               # 已完成归档
-└── superseded/                # 历史已淘汰文档
+├── README.md                         # 你在这里
+├── reqmanpy-vs-planeai.md            # 竞品对标分析
+├── kb/                               # 全量知识库
+│   ├── PRD.md                        # 产品需求文档
+│   ├── architecture/                 # 架构参考（9 文档）
+│   └── changelog/                    # KB 变更日志
+├── dev/                              # 增量需求开发
+│   ├── features/                     # 功能设计文档
+│   ├── templates/                    # 标准化模板
+│   ├── active/                       # 当前活跃功能
+│   └── archive/                      # 已完成归档
+├── superpowers/                      # AI 辅助设计
+│   ├── plans/                        # 实现计划
+│   └── specs/                        # 设计规范
+└── superseded/                       # 历史已淘汰文档
 ```

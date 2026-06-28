@@ -43,7 +43,7 @@ func Load() *Config {
 		AIProvider:           getEnv("AI_PROVIDER", "deepseek"),
 		AIModel:              getEnv("AI_MODEL", "deepseek-chat"),
 		AIBaseURL:            getEnv("AI_BASE_URL", "https://api.deepseek.com/v1"),
-		RateLimitRequests:    getEnvInt("RATE_LIMIT_REQUESTS", 100),
+		RateLimitRequests:    getEnvInt("RATE_LIMIT_REQUESTS", 500),
 		RateLimitWindowSec:   getEnvInt("RATE_LIMIT_WINDOW_SEC", 60),
 	}
 

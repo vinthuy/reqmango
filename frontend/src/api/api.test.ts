@@ -38,8 +38,8 @@ describe('API Client Configuration', () => {
         return config
       })
 
-      const config = { headers: {} }
-      const result = await api.interceptors.request.handlers[0]?.fulfilled(config)
+      const config = { headers: {} } as any
+      const result = await (api.interceptors.request.handlers as any)[0]?.fulfilled(config)
 
       if (result) {
         expect(result.headers.Authorization).toBe('Bearer test-jwt-token')
@@ -47,8 +47,8 @@ describe('API Client Configuration', () => {
     })
 
     it('should not add Authorization header when no token exists', async () => {
-      const api = axios.create({ baseURL: '/api/v1' })
-      api.interceptors.request.use((config) => {
+      const api2 = axios.create({ baseURL: '/api/v1' })
+      api2.interceptors.request.use((config) => {
         const token = localStorage.getItem('token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
@@ -56,8 +56,8 @@ describe('API Client Configuration', () => {
         return config
       })
 
-      const config = { headers: {} }
-      const result = await api.interceptors.request.handlers[0]?.fulfilled(config)
+      const config = { headers: {} } as any
+      const result = await (api2.interceptors.request.handlers as any)[0]?.fulfilled(config)
 
       if (result) {
         expect(result.headers.Authorization).toBeUndefined()
@@ -67,10 +67,9 @@ describe('API Client Configuration', () => {
 
   describe('Response Error Interceptor', () => {
     it('should handle 401 by clearing token and redirecting to login', async () => {
-      const mockWindow = { location: { href: '' } } as any
-      const api = axios.create({ baseURL: '/api/v1' })
+      const api3 = axios.create({ baseURL: '/api/v1' })
 
-      api.interceptors.response.use(
+      api3.interceptors.response.use(
         (response) => response,
         async (error) => {
           if (error.response?.status === 401) {
@@ -90,7 +89,7 @@ describe('API Client Configuration', () => {
       }
 
       try {
-        await api.interceptors.response.handlers[0]?.rejected(error)
+        await ((api3.interceptors.response.handlers as any)[0])?.rejected(error)
       } catch {
         // Expected rejection
       }
@@ -129,7 +128,7 @@ describe('API Client Configuration', () => {
       }
 
       try {
-        const result = await api.interceptors.response.handlers[0]?.rejected(error)
+        const result = await (api.interceptors.response.handlers as any)[0]?.rejected(error)
         // The retry would trigger another request, but we just verify the URL was updated
         if (result) {
           // Should have been retried
@@ -186,7 +185,7 @@ describe('API Module Structure', () => {
     const aiModule = await import('@/api/ai')
     expect(aiModule).toBeDefined()
     // AI has chatWithAI, searchWithAI, etc as named exports
-    expect(aiModule.chatWithAI || aiModule.aiApi).toBeDefined()
+    expect(aiModule.chatWithAI).toBeDefined()
   })
 
   it('should export cycle API methods', async () => {

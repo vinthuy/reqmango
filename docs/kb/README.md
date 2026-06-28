@@ -2,7 +2,7 @@
 
 KB 是 ReqManPy 系统的**唯一真相来源**，始终描述系统当前的实际状态。
 
-**最后更新**: 2026-06-26
+**最后更新**: 2026-06-28
 
 ## 维护原则
 
@@ -26,13 +26,12 @@ KB 是 ReqManPy 系统的**唯一真相来源**，始终描述系统当前的实
 
 ### 架构层
 - [architecture/README.md](architecture/README.md) — 架构总览 + 模块状态
-- [architecture/data-model.md](architecture/data-model.md) — 数据模型 (40+ 表)
-- [architecture/frontend.md](architecture/frontend.md) — 前端架构 (15 views, 50+ components)
+- [architecture/project-layout.md](architecture/project-layout.md) — 项目目录结构
+- [architecture/backend-go.md](architecture/backend-go.md) — Go 后端架构（34 Model / 35 Service / 37 Handler / 80+ 端点）
+- [architecture/frontend.md](architecture/frontend.md) — 前端架构（18 views / 78 components / 35 API 模块）
+- [architecture/data-model.md](architecture/data-model.md) — 数据模型（34 张表）
 - [architecture/api-conventions.md](architecture/api-conventions.md) — API 设计约定
 - [architecture/tech-stack.md](architecture/tech-stack.md) — 技术栈详情
-- [architecture/backend-go.md](architecture/backend-go.md) — Go 后端架构
-- [architecture/project-layout.md](architecture/project-layout.md) — 项目目录结构
-- [architecture/plane-enterprise-info-architecture.md](architecture/plane-enterprise-info-architecture.md) — Plane 信息架构 (对标参考)
 
 ### 功能设计文档
 - [architecture/saved-views-design.md](architecture/saved-views-design.md) — 保存视图
@@ -42,10 +41,7 @@ KB 是 ReqManPy 系统的**唯一真相来源**，始终描述系统当前的实
 - [architecture/relation-system-design.md](architecture/relation-system-design.md) — 关联类型系统
 
 ### 遗留
-- [architecture/backend-python.md](architecture/backend-python.md) — Python 后端 (已淘汰)
-
-### 开发计划
-- [../dev/plane-gap-implementation-plan.md](../dev/plane-gap-implementation-plan.md) — 差距补全计划 (28 Tasks)
+- [architecture/backend-python.md](architecture/backend-python.md) — Python 后端（已淘汰）
 
 ### 变更日志
 - [changelog/README.md](changelog/README.md) — KB 更新历史
