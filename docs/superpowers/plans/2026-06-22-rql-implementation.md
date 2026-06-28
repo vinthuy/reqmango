@@ -17,7 +17,7 @@
 ### 后端 (Go)
 
 ```
-backend-go/internal/
+backend/internal/
 ├── rql/
 │   ├── lexer.go       # 词法分析器
 │   ├── parser.go      # 语法分析器
@@ -95,12 +95,12 @@ frontend/src/
 ### Task 1: 后端 - AST 类型定义
 
 **Files:**
-- Create: `backend-go/internal/rql/ast.go`
+- Create: `backend/internal/rql/ast.go`
 
 - [ ] **Step 1: 创建 AST 类型定义**
 
 ```go
-// backend-go/internal/rql/ast.go
+// backend/internal/rql/ast.go
 
 package rql
 
@@ -202,7 +202,7 @@ func (e *RQLError) Error() string {
 - [ ] **Step 2: 提交**
 
 ```bash
-git add backend-go/internal/rql/ast.go
+git add backend/internal/rql/ast.go
 git commit -m "feat(rql): add RQL AST types"
 ```
 
@@ -211,12 +211,12 @@ git commit -m "feat(rql): add RQL AST types"
 ### Task 2: 后端 - 词法分析器
 
 **Files:**
-- Create: `backend-go/internal/rql/lexer.go`
+- Create: `backend/internal/rql/lexer.go`
 
 - [ ] **Step 1: 创建词法分析器**
 
 ```go
-// backend-go/internal/rql/lexer.go
+// backend/internal/rql/lexer.go
 
 package rql
 
@@ -438,7 +438,7 @@ func (l *Lexer) GetErrors() []ParseError {
 - [ ] **Step 2: 编写测试**
 
 ```go
-// backend-go/internal/rql/lexer_test.go
+// backend/internal/rql/lexer_test.go
 
 package rql
 
@@ -535,13 +535,13 @@ func TestLexer_Parentheses(t *testing.T) {
 - [ ] **Step 3: 运行测试**
 
 ```bash
-cd backend-go && go test ./internal/rql/... -v
+cd backend && go test ./internal/rql/... -v
 ```
 
 - [ ] **Step 4: 提交**
 
 ```bash
-git add backend-go/internal/rql/lexer.go backend-go/internal/rql/lexer_test.go
+git add backend/internal/rql/lexer.go backend/internal/rql/lexer_test.go
 git commit -m "feat(rql): implement RQL lexer"
 ```
 
@@ -550,12 +550,12 @@ git commit -m "feat(rql): implement RQL lexer"
 ### Task 3: 后端 - 语法分析器
 
 **Files:**
-- Create: `backend-go/internal/rql/parser.go`
+- Create: `backend/internal/rql/parser.go`
 
 - [ ] **Step 1: 创建语法分析器**
 
 ```go
-// backend-go/internal/rql/parser.go
+// backend/internal/rql/parser.go
 
 package rql
 
@@ -757,7 +757,7 @@ func (p *Parser) GetErrors() []ParseError {
 - [ ] **Step 2: 编写测试**
 
 ```go
-// backend-go/internal/rql/parser_test.go
+// backend/internal/rql/parser_test.go
 
 package rql
 
@@ -929,13 +929,13 @@ func TestParser_NestedParentheses(t *testing.T) {
 - [ ] **Step 3: 运行测试**
 
 ```bash
-cd backend-go && go test ./internal/rql/... -v
+cd backend && go test ./internal/rql/... -v
 ```
 
 - [ ] **Step 4: 提交**
 
 ```bash
-git add backend-go/internal/rql/parser.go backend-go/internal/rql/parser_test.go
+git add backend/internal/rql/parser.go backend/internal/rql/parser_test.go
 git commit -m "feat(rql): implement RQL parser"
 ```
 
@@ -944,12 +944,12 @@ git commit -m "feat(rql): implement RQL parser"
 ### Task 4: 后端 - SQL Query Builder
 
 **Files:**
-- Create: `backend-go/internal/rql/builder.go`
+- Create: `backend/internal/rql/builder.go`
 
 - [ ] **Step 1: 创建 Query Builder**
 
 ```go
-// backend-go/internal/rql/builder.go
+// backend/internal/rql/builder.go
 
 package rql
 
@@ -1116,7 +1116,7 @@ func (b *QueryBuilder) Reset() {
 - [ ] **Step 2: 提交**
 
 ```bash
-git add backend-go/internal/rql/builder.go
+git add backend/internal/rql/builder.go
 git commit -m "feat(rql): implement RQL query builder"
 ```
 
@@ -1125,13 +1125,13 @@ git commit -m "feat(rql): implement RQL query builder"
 ### Task 5: 后端 - HTTP Handler
 
 **Files:**
-- Create: `backend-go/internal/rql/handler.go`
-- Create: `backend-go/internal/dto/request/rql.go`
+- Create: `backend/internal/rql/handler.go`
+- Create: `backend/internal/dto/request/rql.go`
 
 - [ ] **Step 1: 创建 DTO**
 
 ```go
-// backend-go/internal/dto/request/rql.go
+// backend/internal/dto/request/rql.go
 
 package request
 
@@ -1158,14 +1158,14 @@ type RQLError struct {
 - [ ] **Step 2: 创建 Handler**
 
 ```go
-// backend-go/internal/rql/handler.go
+// backend/internal/rql/handler.go
 
 package rql
 
 import (
 	"net/http"
 
-	"reqman/backend-go/internal/dto/request"
+	"reqman/backend/internal/dto/request"
 
 	"github.com/gin-gonic/gin"
 )
@@ -1258,10 +1258,10 @@ func (h *RQLHandler) Search(c *gin.Context) {
 
 - [ ] **Step 3: 更新路由**
 
-在 `backend-go/internal/router/router.go` 中添加 RQL 路由：
+在 `backend/internal/router/router.go` 中添加 RQL 路由：
 
 ```go
-import "reqman/backend-go/internal/rql"
+import "reqman/backend/internal/rql"
 
 // 在 Setup 函数中添加
 rqlHandler := rql.NewRQLHandler()
@@ -1274,7 +1274,7 @@ rqlGroup := v1.Group("/rql")
 - [ ] **Step 4: 提交**
 
 ```bash
-git add backend-go/internal/rql/handler.go backend-go/internal/dto/request/rql.go backend-go/internal/router/router.go
+git add backend/internal/rql/handler.go backend/internal/dto/request/rql.go backend/internal/router/router.go
 git commit -m "feat(rql): add RQL HTTP handler and routes"
 ```
 

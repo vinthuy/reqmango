@@ -8,7 +8,7 @@
 
 ```
 reqmanpy/
-├── backend-go/              # Go 后端（主力）
+├── backend/              # Go 后端（主力）
 │   ├── cmd/server/          # 入口 (main.go)
 │   ├── internal/            # 内部代码
 │   │   ├── common/          # 公共工具（错误码、常量、分页）
@@ -69,15 +69,15 @@ reqmanpy/
 
 | 文件 | 用途 |
 |------|------|
-| `backend-go/cmd/server/main.go` | Go 服务启动：初始化 DB、注册路由、启动 HTTP |
-| `backend-go/internal/router/router.go` | 所有 API 路由定义（80+ 端点） |
-| `backend-go/internal/middleware/auth.go` | JWT 认证中间件 |
-| `backend-go/internal/middleware/authorization.go` | RBAC 鉴权中间件（RequirePermission + RequireRoleLevel） |
-| `backend-go/internal/model/role.go` | 角色模型（Role + Level 枚举） |
-| `backend-go/internal/model/permission.go` | 权限模型（Permission + RolePermission 关联） |
-| `backend-go/internal/service/role_service.go` | RBAC 角色服务（8 方法） |
-| `backend-go/internal/seed/seed_rbac.go` | RBAC 种子数据（55 权限 + 3 角色） |
-| `backend-go/config/config.yaml` | 默认配置 |
+| `backend/cmd/server/main.go` | Go 服务启动：初始化 DB、注册路由、启动 HTTP |
+| `backend/internal/router/router.go` | 所有 API 路由定义（80+ 端点） |
+| `backend/internal/middleware/auth.go` | JWT 认证中间件 |
+| `backend/internal/middleware/authorization.go` | RBAC 鉴权中间件（RequirePermission + RequireRoleLevel） |
+| `backend/internal/model/role.go` | 角色模型（Role + Level 枚举） |
+| `backend/internal/model/permission.go` | 权限模型（Permission + RolePermission 关联） |
+| `backend/internal/service/role_service.go` | RBAC 角色服务（8 方法） |
+| `backend/internal/seed/seed_rbac.go` | RBAC 种子数据（55 权限 + 3 角色） |
+| `backend/config/config.yaml` | 默认配置 |
 | `frontend/src/main.ts` | Vue 应用入口 |
 | `frontend/src/router/index.ts` | 前端 20 个路由定义 |
 | `frontend/src/api/index.ts` | Axios 实例 + 拦截器 |

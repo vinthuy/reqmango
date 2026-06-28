@@ -31,7 +31,7 @@ dev:
 
 # Local backend run
 dev-backend:
-	cd backend-go && go run ./cmd/server
+	cd backend && go run ./cmd/server
 
 # Database shell
 db-shell:

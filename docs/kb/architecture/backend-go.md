@@ -7,7 +7,7 @@
 ## 项目路径
 
 ```
-backend-go/
+backend/
 ├── cmd/server/main.go              # 入口
 ├── internal/
 │   ├── config/config.go            # 配置加载（Viper + 环境变量）

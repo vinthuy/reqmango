@@ -38,7 +38,7 @@ psql -U postgres -c "CREATE DATABASE reqmanpy;"
 ### 3. 配置后端
 
 ```bash
-cd backend-go
+cd backend
 
 # 创建环境配置文件
 cat > .env << EOF
@@ -75,7 +75,7 @@ npm run dev
 
 ```bash
 # 后端
-cd backend-go && go build -o server ./cmd/server/
+cd backend && go build -o server ./cmd/server/
 
 # 前端
 cd frontend && npm run build
@@ -87,7 +87,7 @@ cd frontend && npm run build
 
 ```
 reqmanpy/
-├── backend-go/              # Go 后端
+├── backend/              # Go 后端
 │   ├── cmd/server/          # 入口
 │   ├── internal/
 │   │   ├── model/           # GORM 数据模型（34 文件）
@@ -138,7 +138,7 @@ reqmanpy/
 ## 架构文档
 
 - [技术栈](docs/kb/architecture/tech-stack.md)
-- [Go 后端架构](docs/kb/architecture/backend-go.md)
+- [Go 后端架构](docs/kb/architecture/backend.md)
 - [前端架构](docs/kb/architecture/frontend.md)
 - [数据模型](docs/kb/architecture/data-model.md)
 - [API 约定](docs/kb/architecture/api-conventions.md)

@@ -15,7 +15,7 @@ ReqManPy 项目管理平台的文档中心。本文档库分为四大区域：
 |----------|------|
 | 产品功能定义 | [kb/PRD.md](kb/PRD.md) |
 | 项目目录结构 | [kb/architecture/project-layout.md](kb/architecture/project-layout.md) |
-| Go 后端架构 | [kb/architecture/backend-go.md](kb/architecture/backend-go.md) |
+| Go 后端架构 | [kb/architecture/backend.md](kb/architecture/backend.md) |
 | 前端架构 | [kb/architecture/frontend.md](kb/architecture/frontend.md) |
 | 数据模型总览 | [kb/architecture/data-model.md](kb/architecture/data-model.md) |
 | API 约定 | [kb/architecture/api-conventions.md](kb/architecture/api-conventions.md) |

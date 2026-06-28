@@ -1,7 +1,7 @@
-# {Feature Name} — Feature Design
+# {Feature Name} �?Feature Design
 
 **创建日期**: {YYYY-MM-DD}
-**状态**: Draft | Approved
+**状�?*: Draft | Approved
 **后端目标**: Go/Gin
 **前端**: Vue 3
 
@@ -11,10 +11,8 @@
 
 ### 1.1 用户故事
 
-> 作为 {角色}，我想要 {动作}，以便 {收益}。
-
-### 1.2 功能需求
-
+> 作为 {角色}，我想要 {动作}，以�?{收益}�?
+### 1.2 功能需�?
 - **R1**: {需求描述}
 - **R2**: {需求描述}
 
@@ -23,13 +21,12 @@
 - [ ] **AC1**: {验收条件}
 - [ ] **AC2**: {验收条件}
 
-### 1.4 不包含（Out of Scope）
-
+### 1.4 不包含（Out of Scope�?
 - {明确排除的内容}
 
 ### 1.5 依赖
 
-- KB 参考文档: [kb/architecture/xxx.md](../kb/architecture/xxx.md)
+- KB 参考文�? [kb/architecture/xxx.md](../kb/architecture/xxx.md)
 - 前置功能: {如果有}
 
 ---
@@ -70,15 +67,14 @@
 | name | string | 名称 |
 | created_at | time.Time | 创建时间 |
 
-#### 关联表: `{join_table}`
+#### 关联�? `{join_table}`
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | a_id | uint64 | 外键 A |
 | b_id | uint64 | 外键 B |
 
-### 2.3 服务层
-
+### 2.3 服务�?
 ```
 {ServiceName}:
   - {Method}(...): {简要逻辑描述}
@@ -86,7 +82,7 @@
 
 ### 2.4 前端组件
 
-| 组件 | 用途 | 类型 |
+| 组件 | 用�?| 类型 |
 |------|------|------|
 | {ComponentName}.vue | {用途} | Create/Modify |
 | {ComponentName}.vue | {用途} | Create/Modify |
@@ -100,8 +96,7 @@ export const use{Name}Store = defineStore('{name}', () => {
 })
 ```
 
-### 2.6 路由（如新增页面）
-
+### 2.6 路由（如新增页面�?
 | Route | View | Description |
 |-------|------|-------------|
 | /workspace/:slug/project/:id/{path} | {ViewName}.vue | {描述} |
@@ -110,12 +105,12 @@ export const use{Name}Store = defineStore('{name}', () => {
 
 | File | Action | Description |
 |------|--------|-------------|
-| `backend-go/internal/model/{name}.go` | Create | DB 模型 |
-| `backend-go/internal/dto/request/{name}.go` | Create | 请求 DTO |
-| `backend-go/internal/dto/response/{name}.go` | Create | 响应 DTO |
-| `backend-go/internal/service/{name}_service.go` | Create | 业务逻辑 |
-| `backend-go/internal/handler/{name}_handler.go` | Create | HTTP handler |
-| `backend-go/internal/router/router.go` | Modify | 注册路由 |
+| `backend/internal/model/{name}.go` | Create | DB 模型 |
+| `backend/internal/dto/request/{name}.go` | Create | 请求 DTO |
+| `backend/internal/dto/response/{name}.go` | Create | 响应 DTO |
+| `backend/internal/service/{name}_service.go` | Create | 业务逻辑 |
+| `backend/internal/handler/{name}_handler.go` | Create | HTTP handler |
+| `backend/internal/router/router.go` | Modify | 注册路由 |
 | `frontend/src/api/{name}.ts` | Create/Modify | API 调用 |
 | `frontend/src/types/{name}.ts` | Create/Modify | TypeScript 类型 |
 | `frontend/src/stores/{name}.ts` | Create/Modify | Pinia store |

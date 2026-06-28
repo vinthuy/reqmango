@@ -27,7 +27,7 @@ KB 是 ReqManPy 系统的**唯一真相来源**，始终描述系统当前的实
 ### 架构层
 - [architecture/README.md](architecture/README.md) — 架构总览 + 模块状态
 - [architecture/project-layout.md](architecture/project-layout.md) — 项目目录结构
-- [architecture/backend-go.md](architecture/backend-go.md) — Go 后端架构（36 Model / 36 Service / 38 Handler / 85+ 端点，含 RBAC）
+- [architecture/backend.md](architecture/backend.md) — Go 后端架构（36 Model / 36 Service / 38 Handler / 85+ 端点，含 RBAC）
 - [architecture/frontend.md](architecture/frontend.md) — 前端架构（18 views / 78 components / 35 API 模块）
 - [architecture/data-model.md](architecture/data-model.md) — 数据模型（37 张表，含 RBAC）
 - [architecture/api-conventions.md](architecture/api-conventions.md) — API 设计约定

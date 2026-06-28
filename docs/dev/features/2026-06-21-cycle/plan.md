@@ -27,11 +27,11 @@
 ### Vue Frontend (create/modify)
 | File | Responsibility |
 |------|---------------|
-| `stores/cycle.ts` | Pinia store — all state + actions |
-| `api/cycle.ts` | API client — adjusted to match Go routes |
-| `types/cycle.ts` | TypeScript types — aligned with Go responses |
-| `components/CycleCard.vue` | Card — updated for new data shape |
-| `components/CycleList.vue` | List — store-driven with pagination |
+| `stores/cycle.ts` | Pinia store �?all state + actions |
+| `api/cycle.ts` | API client �?adjusted to match Go routes |
+| `types/cycle.ts` | TypeScript types �?aligned with Go responses |
+| `components/CycleCard.vue` | Card �?updated for new data shape |
+| `components/CycleList.vue` | List �?store-driven with pagination |
 | `components/CycleDetailPanel.vue` | Side panel for Project tab |
 | `components/CycleProgressCard.vue` | Progress stats card group |
 | `components/CycleBurndownChart.vue` | SVG burndown chart |
@@ -42,16 +42,16 @@
 
 ---
 
-### Task 1: Go DTO — Request/Response Structs
+### Task 1: Go DTO �?Request/Response Structs
 
 **Files:**
-- Create: `backend-go/internal/dto/request/cycle.go`
-- Create: `backend-go/internal/dto/response/cycle.go`
+- Create: `backend/internal/dto/request/cycle.go`
+- Create: `backend/internal/dto/response/cycle.go`
 
 - [ ] **Step 1: Create request DTO**
 
 ```go
-// backend-go/internal/dto/request/cycle.go
+// backend/internal/dto/request/cycle.go
 package request
 
 // CycleCreateRequest is the request body for creating a cycle.
@@ -77,7 +77,7 @@ type CycleUpdateRequest struct {
 - [ ] **Step 2: Create response DTO**
 
 ```go
-// backend-go/internal/dto/response/cycle.go
+// backend/internal/dto/response/cycle.go
 package response
 
 import "time"
@@ -164,32 +164,32 @@ type BurndownData struct {
 }
 
 // UserLite is a compact user representation (reuse from issue response if possible).
-// Note: This type already exists in backend-go/internal/dto/response/auth.go or issue.go.
+// Note: This type already exists in backend/internal/dto/response/auth.go or issue.go.
 // If it does not exist, define it here. Check before creating.
 ```
 
 - [ ] **Step 3: Verify compilation**
 
-Run: `cd backend-go && go build ./...`
+Run: `cd backend && go build ./...`
 Expected: Should compile (no usages yet, but no syntax errors)
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend-go/internal/dto/request/cycle.go backend-go/internal/dto/response/cycle.go
+git add backend/internal/dto/request/cycle.go backend/internal/dto/response/cycle.go
 git commit -m "feat(cycle): add DTO request/response structs"
 ```
 
 ---
 
-### Task 2: Go Model — Add CancelledAt Field
+### Task 2: Go Model �?Add CancelledAt Field
 
 **Files:**
-- Modify: `backend-go/internal/model/cycle.go`
+- Modify: `backend/internal/model/cycle.go`
 
 - [ ] **Step 1: Update Cycle model**
 
-Replace the content of `backend-go/internal/model/cycle.go`:
+Replace the content of `backend/internal/model/cycle.go`:
 
 ```go
 package model
@@ -221,26 +221,26 @@ func (Cycle) TableName() string {
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd backend-go && go build ./...`
+Run: `cd backend && go build ./...`
 Expected: Compiles cleanly
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend-go/internal/model/cycle.go
+git add backend/internal/model/cycle.go
 git commit -m "feat(cycle): add CancelledAt field to Cycle model"
 ```
 
 ---
 
-### Task 3: Go CycleService — Full Business Logic
+### Task 3: Go CycleService �?Full Business Logic
 
 **Files:**
-- Modify: `backend-go/internal/service/cycle_service.go`
+- Modify: `backend/internal/service/cycle_service.go`
 
 - [ ] **Step 1: Write the complete service**
 
-Replace the entire content of `backend-go/internal/service/cycle_service.go`:
+Replace the entire content of `backend/internal/service/cycle_service.go`:
 
 ```go
 package service
@@ -248,10 +248,10 @@ package service
 import (
 	"time"
 
-	"github.com/reqmanpy/backend-go/internal/common"
-	"github.com/reqmanpy/backend-go/internal/dto/request"
-	"github.com/reqmanpy/backend-go/internal/dto/response"
-	"github.com/reqmanpy/backend-go/internal/model"
+	"github.com/reqmanpy/backend/internal/common"
+	"github.com/reqmanpy/backend/internal/dto/request"
+	"github.com/reqmanpy/backend/internal/dto/response"
+	"github.com/reqmanpy/backend/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -866,7 +866,7 @@ func (s *CycleService) GetBurndown(cycleID uint64) (*response.BurndownData, erro
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd backend-go && go build ./...`
+Run: `cd backend && go build ./...`
 Expected: Compiles cleanly. Check that `IssueService.buildIssueResponse` is exported (uppercase `B` in `BuildIssueResponse` if needed).
 
 Note: If `buildIssueResponse` is lowercase (unexported), the CycleService cannot call it. In that case, change it to `BuildIssueResponse` in `issue_service.go` or duplicate the issue-building logic in CycleService.
@@ -874,20 +874,20 @@ Note: If `buildIssueResponse` is lowercase (unexported), the CycleService cannot
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend-go/internal/service/cycle_service.go
+git add backend/internal/service/cycle_service.go
 git commit -m "feat(cycle): implement full CycleService with CRUD, status, issues, analysis"
 ```
 
 ---
 
-### Task 4: Go CycleHandler — HTTP Handlers
+### Task 4: Go CycleHandler �?HTTP Handlers
 
 **Files:**
-- Modify: `backend-go/internal/handler/cycle_handler.go`
+- Modify: `backend/internal/handler/cycle_handler.go`
 
 - [ ] **Step 1: Write the complete handler**
 
-Replace the entire content of `backend-go/internal/handler/cycle_handler.go`:
+Replace the entire content of `backend/internal/handler/cycle_handler.go`:
 
 ```go
 package handler
@@ -897,11 +897,11 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmanpy/backend-go/internal/common"
-	"github.com/reqmanpy/backend-go/internal/dto/request"
-	"github.com/reqmanpy/backend-go/internal/dto/response"
-	"github.com/reqmanpy/backend-go/internal/middleware"
-	"github.com/reqmanpy/backend-go/internal/service"
+	"github.com/reqmanpy/backend/internal/common"
+	"github.com/reqmanpy/backend/internal/dto/request"
+	"github.com/reqmanpy/backend/internal/dto/response"
+	"github.com/reqmanpy/backend/internal/middleware"
+	"github.com/reqmanpy/backend/internal/service"
 )
 
 type CycleHandler struct {
@@ -1242,26 +1242,26 @@ func (h *CycleHandler) GetBurndown(c *gin.Context) {
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd backend-go && go build ./...`
+Run: `cd backend && go build ./...`
 Expected: Compiles cleanly
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend-go/internal/handler/cycle_handler.go
+git add backend/internal/handler/cycle_handler.go
 git commit -m "feat(cycle): implement full CycleHandler with all endpoints"
 ```
 
 ---
 
-### Task 5: Go Router — Register Cycle Routes
+### Task 5: Go Router �?Register Cycle Routes
 
 **Files:**
-- Modify: `backend-go/internal/router/router.go`
+- Modify: `backend/internal/router/router.go`
 
 - [ ] **Step 1: Add cycle routes to router**
 
-In `backend-go/internal/router/router.go`, add the cycle route group AFTER the existing `projects.GET("/:projectId/cycles", cycleH.List)` line and BEFORE the `// ---- Issues` block.
+In `backend/internal/router/router.go`, add the cycle route group AFTER the existing `projects.GET("/:projectId/cycles", cycleH.List)` line and BEFORE the `// ---- Issues` block.
 
 Add this block after the existing cycleH.List route and the settings group:
 
@@ -1284,7 +1284,7 @@ Add this block after the existing cycleH.List route and the settings group:
 			}
 ```
 
-Also add the route for creating cycles — modify the existing project routes to include:
+Also add the route for creating cycles �?modify the existing project routes to include:
 
 ```go
 				projects.POST("/:projectId/cycles", cycleH.Create)     // ?workspace_id=
@@ -1292,60 +1292,60 @@ Also add the route for creating cycles — modify the existing project routes to
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd backend-go && go build ./internal/router/`
+Run: `cd backend && go build ./internal/router/`
 Expected: Compiles cleanly
 
 - [ ] **Step 3: Verify full build**
 
-Run: `cd backend-go && go build ./...`
+Run: `cd backend && go build ./...`
 Expected: No errors
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend-go/internal/router/router.go
+git add backend/internal/router/router.go
 git commit -m "feat(cycle): register all cycle API routes"
 ```
 
 ---
 
-### Task 6: Go — Fix buildIssueResponse Visibility
+### Task 6: Go �?Fix buildIssueResponse Visibility
 
 **Files:**
-- Modify: `backend-go/internal/service/issue_service.go`
+- Modify: `backend/internal/service/issue_service.go`
 
 - [ ] **Step 1: Export buildIssueResponse**
 
 If the build fails because `buildIssueResponse` is unexported, renamet it to `BuildIssueResponse` in `issue_service.go`:
 
 In `issue_service.go`, change:
-- `func (s *IssueService) buildIssueResponse` → `func (s *IssueService) BuildIssueResponse`
-- All internal call sites: `s.buildIssueResponse(` → `s.BuildIssueResponse(`
+- `func (s *IssueService) buildIssueResponse` �?`func (s *IssueService) BuildIssueResponse`
+- All internal call sites: `s.buildIssueResponse(` �?`s.BuildIssueResponse(`
 
 Update `cycle_service.go` accordingly:
-- `issueSvc.buildIssueResponse(&issue)` → `issueSvc.BuildIssueResponse(&issue)`
+- `issueSvc.buildIssueResponse(&issue)` �?`issueSvc.BuildIssueResponse(&issue)`
 
 - [ ] **Step 2: Verify full build**
 
-Run: `cd backend-go && go build ./...`
+Run: `cd backend && go build ./...`
 Expected: Compiles cleanly
 
 - [ ] **Step 3: Start server and test one endpoint**
 
-Run: `cd backend-go && ./server.exe`
+Run: `cd backend && ./server.exe`
 Test: `curl http://localhost:8080/api/v1/projects/1/cycles -H "Authorization: Bearer <valid_token>"`
 Expected: Empty array `{"items":[],"total":0,"limit":50,"offset":0}`
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend-go/internal/service/issue_service.go backend-go/internal/service/cycle_service.go
+git add backend/internal/service/issue_service.go backend/internal/service/cycle_service.go
 git commit -m "fix(cycle): export BuildIssueResponse for CycleService use"
 ```
 
 ---
 
-### Task 7: Frontend — Update Types & API Client
+### Task 7: Frontend �?Update Types & API Client
 
 **Files:**
 - Modify: `frontend/src/types/cycle.ts`
@@ -1353,10 +1353,10 @@ git commit -m "fix(cycle): export BuildIssueResponse for CycleService use"
 
 - [ ] **Step 1: Update TypeScript types to align with Go responses**
 
-Modify `frontend/src/types/cycle.ts` — adjust `CycleResponse`:
+Modify `frontend/src/types/cycle.ts` �?adjust `CycleResponse`:
 
 ```typescript
-// frontend/src/types/cycle.ts — adjust the CycleResponse interface
+// frontend/src/types/cycle.ts �?adjust the CycleResponse interface
 export interface CycleResponse extends CycleBase {
   id: number
   status: CycleStatus           // 'upcoming' | 'active' | 'completed' | 'cancelled'
@@ -1385,7 +1385,7 @@ export interface ProjectLite {
 Modify `frontend/src/api/cycle.ts`:
 
 ```typescript
-// frontend/src/api/cycle.ts — adjusted URL paths
+// frontend/src/api/cycle.ts �?adjusted URL paths
 import api from './index'
 import type { CycleCreate, CycleUpdate, CycleResponse, CycleProgress, CycleStatistics, BurndownData } from '@/types/cycle'
 
@@ -1485,7 +1485,7 @@ git commit -m "feat(cycle): update TypeScript types and API client for Go backen
 
 ---
 
-### Task 8: Frontend — Pinia Store
+### Task 8: Frontend �?Pinia Store
 
 **Files:**
 - Create: `frontend/src/stores/cycle.ts`
@@ -1706,7 +1706,7 @@ git commit -m "feat(cycle): add Pinia store for cycle management"
 
 ---
 
-### Task 9: Frontend — Update Existing Components (CycleCard, CycleList)
+### Task 9: Frontend �?Update Existing Components (CycleCard, CycleList)
 
 **Files:**
 - Modify: `frontend/src/components/CycleCard.vue`
@@ -1718,7 +1718,7 @@ In `CycleCard.vue`, the component already handles status display and progress. T
 - Props should accept `CycleResponse` from the updated types
 - Emit events remain the same
 
-No major structural changes needed — the existing Card is well-designed. Just review that `props.cycle.status` is read correctly (it's now a string from the API, not computed).
+No major structural changes needed �?the existing Card is well-designed. Just review that `props.cycle.status` is read correctly (it's now a string from the API, not computed).
 
 - [ ] **Step 2: Update CycleList to use store**
 
@@ -1753,7 +1753,7 @@ git commit -m "feat(cycle): update CycleCard and CycleList to use Pinia store"
 
 ---
 
-### Task 10: Frontend — New Components (CycleDetailPanel, CycleProgressCard, CycleBurndownChart)
+### Task 10: Frontend �?New Components (CycleDetailPanel, CycleProgressCard, CycleBurndownChart)
 
 **Files:**
 - Create: `frontend/src/components/CycleDetailPanel.vue`
@@ -1775,7 +1775,7 @@ git commit -m "feat(cycle): update CycleCard and CycleList to use Pinia store"
     <!-- Completed -->
     <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
       <div class="text-2xl font-bold text-green-600">{{ progress?.completed_issues ?? 0 }}</div>
-      <div class="text-xs text-gray-500 mt-1">已完成</div>
+      <div class="text-xs text-gray-500 mt-1">已完�?/div>
     </div>
 
     <!-- Progress % -->
@@ -1787,13 +1787,13 @@ git commit -m "feat(cycle): update CycleCard and CycleList to use Pinia store"
     <!-- Remaining -->
     <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
       <div class="text-2xl font-bold text-orange-600">{{ (progress?.total_issues ?? 0) - (progress?.completed_issues ?? 0) }}</div>
-      <div class="text-xs text-gray-500 mt-1">待完成</div>
+      <div class="text-xs text-gray-500 mt-1">待完�?/div>
     </div>
   </div>
 
   <!-- State Breakdown -->
   <div v-if="progress?.state_breakdown?.length" class="mt-4 bg-white rounded-lg border border-gray-200 p-4">
-    <h4 class="text-sm font-medium text-gray-700 mb-3">状态分布</h4>
+    <h4 class="text-sm font-medium text-gray-700 mb-3">状态分�?/h4>
     <div class="space-y-2">
       <div v-for="sb in progress.state_breakdown" :key="sb.state" class="flex items-center justify-between">
         <span class="text-sm text-gray-600">{{ sb.state }}</span>
@@ -1822,7 +1822,7 @@ function formatProgress(progress: number): string {
 <!-- frontend/src/components/CycleBurndownChart.vue -->
 <template>
   <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <h4 class="text-sm font-medium text-gray-700 mb-3">燃尽图</h4>
+    <h4 class="text-sm font-medium text-gray-700 mb-3">燃尽�?/h4>
 
     <div v-if="!data" class="text-center py-8 text-gray-400 text-sm">
       暂无燃尽图数据（需要设置起止日期）
@@ -1856,14 +1856,13 @@ function formatProgress(progress: number): string {
       <div class="flex items-center justify-center space-x-6 mt-3 text-xs text-gray-500">
         <div class="flex items-center">
           <div class="w-4 h-0.5 bg-gray-400 mr-1" style="border-top: 2px dashed #9CA3AF"></div>
-          理想线
-        </div>
+          理想�?        </div>
         <div class="flex items-center">
           <div class="w-4 h-0.5 bg-blue-500 mr-1"></div>
           实际完成
         </div>
         <div :class="data.is_on_track ? 'text-green-600' : 'text-red-600'">
-          {{ data.is_on_track ? '✓ 进度正常' : '⚠ 进度落后' }}
+          {{ data.is_on_track ? '�?进度正常' : '�?进度落后' }}
         </div>
       </div>
     </div>
@@ -1940,10 +1939,9 @@ const actualLinePoints = computed(() => {
 
         <!-- Issues in cycle -->
         <div>
-          <h4 class="text-sm font-medium text-gray-700 mb-2">周期工作项 ({{ cycleStore.cycleIssues.length }})</h4>
+          <h4 class="text-sm font-medium text-gray-700 mb-2">周期工作�?({{ cycleStore.cycleIssues.length }})</h4>
           <div v-if="cycleStore.cycleIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">
-            暂无工作项
-          </div>
+            暂无工作�?          </div>
           <div v-else class="space-y-2">
             <div
               v-for="issue in cycleStore.cycleIssues"
@@ -2024,7 +2022,7 @@ git commit -m "feat(cycle): add CycleDetailPanel, ProgressCard, BurndownChart co
 
 ---
 
-### Task 11: Frontend — Views (CycleCreate, CycleDetail) + Router Integration
+### Task 11: Frontend �?Views (CycleCreate, CycleDetail) + Router Integration
 
 **Files:**
 - Create: `frontend/src/views/CycleCreate.vue`
@@ -2032,7 +2030,7 @@ git commit -m "feat(cycle): add CycleDetailPanel, ProgressCard, BurndownChart co
 - Modify: `frontend/src/router/index.ts`
 - Modify: `frontend/src/views/Project.vue`
 
-- [ ] **Step 1: Create CycleCreate.vue — two-step wizard**
+- [ ] **Step 1: Create CycleCreate.vue �?two-step wizard**
 
 ```vue
 <!-- frontend/src/views/CycleCreate.vue -->
@@ -2046,7 +2044,7 @@ git commit -m "feat(cycle): add CycleDetailPanel, ProgressCard, BurndownChart co
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h1 class="text-lg font-semibold text-gray-900">创建新周期</h1>
+        <h1 class="text-lg font-semibold text-gray-900">创建新周�?/h1>
       </div>
     </div>
 
@@ -2067,7 +2065,7 @@ git commit -m "feat(cycle): add CycleDetailPanel, ProgressCard, BurndownChart co
       <div v-if="currentStep === 0" class="bg-white rounded-lg shadow-sm p-6 space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700">名称 <span class="text-red-500">*</span></label>
-          <input v-model="form.name" type="text" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="如: Sprint 1" />
+          <input v-model="form.name" type="text" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="�? Sprint 1" />
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700">描述</label>
@@ -2075,7 +2073,7 @@ git commit -m "feat(cycle): add CycleDetailPanel, ProgressCard, BurndownChart co
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">开始日期 <span class="text-red-500">*</span></label>
+            <label class="block text-sm font-medium text-gray-700">开始日�?<span class="text-red-500">*</span></label>
             <input v-model="form.start_date" type="date" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
           </div>
           <div>
@@ -2087,14 +2085,14 @@ git commit -m "feat(cycle): add CycleDetailPanel, ProgressCard, BurndownChart co
 
       <!-- Step 2: Select Issues -->
       <div v-if="currentStep === 1" class="bg-white rounded-lg shadow-sm p-6">
-        <p class="text-sm text-gray-500 mb-4">从 Backlog 中选择要加入此周期的工作项（可跳过，稍后添加）</p>
+        <p class="text-sm text-gray-500 mb-4">�?Backlog 中选择要加入此周期的工作项（可跳过，稍后添加）</p>
         <div class="max-h-96 overflow-y-auto space-y-2">
           <label v-for="issue in backlogIssues" :key="issue.id" class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
             <input type="checkbox" :value="issue.id" v-model="selectedIssueIds" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
             <span class="ml-3 text-sm text-gray-900">{{ issue.name }}</span>
             <span class="ml-auto text-xs text-gray-400">#{{ issue.sequence_id }}</span>
           </label>
-          <p v-if="backlogIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">暂无 Backlog 工作项</p>
+          <p v-if="backlogIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">暂无 Backlog 工作�?/p>
         </div>
       </div>
 
@@ -2104,18 +2102,18 @@ git commit -m "feat(cycle): add CycleDetailPanel, ProgressCard, BurndownChart co
         <div class="space-y-2 text-sm">
           <div class="flex"><span class="text-gray-500 w-20">名称:</span><span class="text-gray-900">{{ form.name }}</span></div>
           <div class="flex"><span class="text-gray-500 w-20">描述:</span><span class="text-gray-900">{{ form.description || '-' }}</span></div>
-          <div class="flex"><span class="text-gray-500 w-20">开始:</span><span class="text-gray-900">{{ form.start_date }}</span></div>
+          <div class="flex"><span class="text-gray-500 w-20">开�?</span><span class="text-gray-900">{{ form.start_date }}</span></div>
           <div class="flex"><span class="text-gray-500 w-20">结束:</span><span class="text-gray-900">{{ form.end_date || '-' }}</span></div>
-          <div class="flex"><span class="text-gray-500 w-20">工作项:</span><span class="text-gray-900">{{ selectedIssueIds.length }} 个</span></div>
+          <div class="flex"><span class="text-gray-500 w-20">工作�?</span><span class="text-gray-900">{{ selectedIssueIds.length }} �?/span></div>
         </div>
       </div>
 
       <!-- Navigation -->
       <div class="flex justify-between mt-6">
-        <button v-if="currentStep > 0" @click="currentStep--" class="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">上一步</button>
+        <button v-if="currentStep > 0" @click="currentStep--" class="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">上一�?/button>
         <div v-else></div>
 
-        <button v-if="currentStep < 2" @click="currentStep++" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">下一步</button>
+        <button v-if="currentStep < 2" @click="currentStep++" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">下一�?/button>
 
         <button
           v-if="currentStep === 2"
@@ -2123,7 +2121,7 @@ git commit -m "feat(cycle): add CycleDetailPanel, ProgressCard, BurndownChart co
           :disabled="submitting"
           class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50"
         >
-          {{ submitting ? '创建中...' : '创建周期' }}
+          {{ submitting ? '创建�?..' : '创建周期' }}
         </button>
       </div>
 
@@ -2148,7 +2146,7 @@ const cycleStore = useCycleStore()
 const workspaceId = Number(route.params.workspaceId)
 const projectId = Number(route.params.projectId)
 
-const steps = ['基本信息', '选择工作项', '确认']
+const steps = ['基本信息', '选择工作�?, '确认']
 
 const currentStep = ref(0)
 const submitting = ref(false)
@@ -2202,7 +2200,7 @@ async function submitCycle() {
 </script>
 ```
 
-- [ ] **Step 2: Create CycleDetail.vue — full detail page**
+- [ ] **Step 2: Create CycleDetail.vue �?full detail page**
 
 ```vue
 <!-- frontend/src/views/CycleDetail.vue -->
@@ -2221,7 +2219,7 @@ async function submitCycle() {
           <span :class="statusClass">{{ cycle?.status }}</span>
         </div>
         <div class="flex items-center space-x-2">
-          <button v-if="cycle?.status === 'upcoming'" @click="handleStart" class="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">开始</button>
+          <button v-if="cycle?.status === 'upcoming'" @click="handleStart" class="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">开�?/button>
           <button v-if="cycle?.status === 'active'" @click="handleEnd" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">结束</button>
           <button v-if="cycle?.status !== 'completed' && cycle?.status !== 'cancelled'" @click="handleCancel" class="px-3 py-1.5 border border-gray-300 text-sm text-gray-600 rounded hover:bg-gray-50">取消</button>
           <button @click="handleDelete" class="px-3 py-1.5 border border-red-300 text-sm text-red-600 rounded hover:bg-red-50">删除</button>
@@ -2246,10 +2244,9 @@ async function submitCycle() {
 
       <!-- Issues -->
       <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <h3 class="text-sm font-medium text-gray-700 mb-3">周期工作项</h3>
+        <h3 class="text-sm font-medium text-gray-700 mb-3">周期工作�?/h3>
         <div v-if="cycleStore.cycleIssues.length === 0" class="text-sm text-gray-400 text-center py-8">
-          暂无工作项
-        </div>
+          暂无工作�?        </div>
         <div v-else class="space-y-2">
           <div v-for="issue in cycleStore.cycleIssues" :key="issue.id" class="flex items-center p-2 bg-gray-50 rounded text-sm">
             <span class="text-gray-900">{{ issue.name }}</span>
@@ -2309,21 +2306,21 @@ async function handleStart() {
 }
 
 async function handleEnd() {
-  if (confirm('确定要结束这个周期吗？')) {
+  if (confirm('确定要结束这个周期吗�?)) {
     await cycleStore.endCycle(cycleId)
     await cycleStore.fetchCycle(cycleId)
   }
 }
 
 async function handleCancel() {
-  if (confirm('确定要取消这个周期吗？')) {
+  if (confirm('确定要取消这个周期吗�?)) {
     await cycleStore.cancelCycle(cycleId)
     await cycleStore.fetchCycle(cycleId)
   }
 }
 
 async function handleDelete() {
-  if (confirm('确定要删除这个周期吗？此操作不可撤销。')) {
+  if (confirm('确定要删除这个周期吗？此操作不可撤销�?)) {
     await cycleStore.deleteCycleAction(cycleId)
     router.back()
   }
@@ -2412,7 +2409,7 @@ git commit -m "feat(cycle): add CycleCreate, CycleDetail views and router integr
 
 - [ ] **Step 1: Start Go backend**
 
-Run: `cd backend-go && ./server.exe`
+Run: `cd backend && ./server.exe`
 Expected: Server starts on port 8080
 
 - [ ] **Step 2: Start Vue frontend**
@@ -2425,18 +2422,18 @@ Expected: Dev server starts, accessible at localhost
 Manual test:
 1. Login to the app
 2. Navigate to a project
-3. Click "周期" tab — should see empty state or existing cycles
-4. Click "新建周期" — should navigate to creation wizard
-5. Fill in name, dates → proceed → confirm → submit
+3. Click "周期" tab �?should see empty state or existing cycles
+4. Click "新建周期" �?should navigate to creation wizard
+5. Fill in name, dates �?proceed �?confirm �?submit
 6. Should redirect back to project, cycle list should show new cycle
 
 - [ ] **Step 4: Test status transitions**
 
 Manual test:
-1. Click on a cycle card → side panel opens
+1. Click on a cycle card �?side panel opens
 2. Verify progress/stats display
-3. Click "开始" → status changes to active
-4. Click "结束" → status changes to completed
+3. Click "开�? �?status changes to active
+4. Click "结束" �?status changes to completed
 
 - [ ] **Step 5: Test cycle detail page**
 
