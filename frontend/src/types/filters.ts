@@ -26,6 +26,7 @@ export interface GroupOption {
 }
 
 export const FILTER_FIELDS: FilterField[] = [
+  { key: 'sequence_id', dbKey: 'sequence_id', labelKey: 'filter.fieldSequenceId', type: 'number', valueType: 'number', operators: ['is', 'is not'] },
   { key: 'title', dbKey: 'name', labelKey: 'filter.fieldTitle', type: 'text', valueType: 'string', operators: ['is', 'is not', 'contains', 'does not contain'] },
   { key: 'state_id', dbKey: 'state_id', labelKey: 'filter.fieldState', type: 'select', valueType: 'number', operators: ['is', 'is any of', 'is not', 'is not any of'] },
   { key: 'state_group', dbKey: 'state_group', labelKey: 'filter.fieldStateGroup', type: 'select', valueType: 'string', operators: ['is', 'is any of', 'is not', 'is not any of'] },

@@ -918,6 +918,7 @@
     "delete": "Delete",
     "fieldQuickSearch": "Quick Search",
     "quickSearchPlaceholder": "Search by issue key or title...",
+    "fieldSequenceId": "ID",
     "fieldTitle": "Title",
     "fieldState": "State",
     "fieldStateGroup": "State Group",

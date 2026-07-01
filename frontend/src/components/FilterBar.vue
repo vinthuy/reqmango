@@ -295,24 +295,15 @@ function applyRQL() {
   let rqlStr = rqlText.value
   let extractedQuickSearch = ''
 
-  // 提取 sequence_id = N（工作项编号搜索）
-  const seqMatch = rqlStr.match(/sequence_id\s*=\s*(\d+)/i)
-  if (seqMatch) {
-    extractedQuickSearch = props.projectIdentifier
-      ? `${props.projectIdentifier}-${seqMatch[1]}`
-      : seqMatch[1]
-    rqlStr = rqlStr.replace(/sequence_id\s*=\s*\d+/i, '')
-  }
-
-  // 提取 (name LIKE "%keyword%" OR description LIKE "%keyword%")（关键词搜索）
+  // 提取 (name LIKE "%keyword%" OR description LIKE "%keyword%")（关键词快速搜索）
+  // 注意：sequence_id = N 不再提取到快速搜索，而是作为筛选条件保留（与筛选区的"编号"字段一致）
   const likeMatch = rqlStr.match(/\(name\s+LIKE\s+"%(.+?)%"\s+OR\s+description\s+LIKE\s+"%(.+?)%"\)/i)
   if (likeMatch) {
     extractedQuickSearch = likeMatch[1]
     rqlStr = rqlStr.replace(/\(name\s+LIKE\s+"%.+?%"\s+OR\s+description\s+LIKE\s+"%.+?%"\)/i, '')
+    // 清理残留的 AND
+    rqlStr = rqlStr.replace(/\s*AND\s*AND\s*/gi, ' AND ').replace(/^\s*AND\s*/i, '').replace(/\s*AND\s*$/i, '').trim()
   }
-
-  // 清理残留的 AND
-  rqlStr = rqlStr.replace(/\s*AND\s*AND\s*/gi, ' AND ').replace(/^\s*AND\s*/i, '').replace(/\s*AND\s*$/i, '').trim()
 
   state.quickSearch = extractedQuickSearch
 
@@ -554,6 +545,17 @@ onUnmounted(() => {
                 type="text"
                 :placeholder="t('filter.enterValue')"
                 class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none w-32"
+              />
+            </template>
+            <template v-else-if="getFieldType(filter.field) === 'number'">
+              <input
+                v-model="filter.value"
+                @input="handleValueChange(index, filter.value, filter.value)"
+                type="number"
+                min="1"
+                step="1"
+                :placeholder="t('filter.enterValue')"
+                class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none w-24"
               />
             </template>
             <template v-else-if="getFieldType(filter.field) === 'select'">

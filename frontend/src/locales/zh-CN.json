@@ -918,6 +918,7 @@
     "delete": "删除",
     "fieldQuickSearch": "快速搜索",
     "quickSearchPlaceholder": "搜索工作项编号或标题...",
+    "fieldSequenceId": "编号",
     "fieldTitle": "标题",
     "fieldState": "状态",
     "fieldStateGroup": "状态组",
