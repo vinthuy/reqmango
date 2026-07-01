@@ -1,20 +1,20 @@
 <template>
   <div class="workspace-overview p-6">
-    <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6">工作空间总览</h1>
+    <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6">{{ t('workspaceOverview.title') }}</h1>
 
     <!-- Project summary cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
       <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <div class="text-2xl font-bold text-indigo-600">{{ projects.length }}</div>
-        <div class="text-sm text-gray-500">项目数</div>
+        <div class="text-sm text-gray-500">{{ t('workspaceOverview.projectCount') }}</div>
       </div>
       <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <div class="text-2xl font-bold text-green-600">{{ totalIssues }}</div>
-        <div class="text-sm text-gray-500">工作项总数</div>
+        <div class="text-sm text-gray-500">{{ t('workspaceOverview.totalIssues') }}</div>
       </div>
       <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <div class="text-2xl font-bold text-orange-600">{{ issues.length }}</div>
-        <div class="text-sm text-gray-500">已加载</div>
+        <div class="text-sm text-gray-500">{{ t('workspaceOverview.loaded') }}</div>
       </div>
     </div>
 
@@ -22,30 +22,30 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
       <div class="flex flex-wrap gap-3 items-center">
         <select v-model="filters.projectId" @change="loadIssues" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
-          <option :value="0">所有项目</option>
+          <option :value="0">{{ t('workspaceOverview.allProjects') }}</option>
           <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
         </select>
         <select v-model="filters.priority" @change="loadIssues" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
-          <option value="">所有优先级</option>
-          <option value="urgent">紧急</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option><option value="none">无</option>
+          <option value="">{{ t('workspaceOverview.allPriorities') }}</option>
+          <option value="urgent">{{ t('issue.priorityUrgent') }}</option><option value="high">{{ t('issue.priorityHigh') }}</option><option value="medium">{{ t('issue.priorityMedium') }}</option><option value="low">{{ t('issue.priorityLow') }}</option><option value="none">{{ t('issue.priorityNone') }}</option>
         </select>
-        <input v-model="filters.search" @keydown.enter="loadIssues" placeholder="搜索..." class="px-3 py-1.5 border border-gray-300 rounded-md text-sm flex-1 max-w-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" />
-        <button @click="loadIssues" class="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">查询</button>
+        <input v-model="filters.search" @keydown.enter="loadIssues" :placeholder="t('workspaceOverview.searchPlaceholder')" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm flex-1 max-w-xs dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" />
+        <button @click="loadIssues" class="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">{{ t('workspaceOverview.query') }}</button>
       </div>
     </div>
 
     <!-- Issues table -->
     <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div v-if="loading" class="text-center py-8 text-gray-400 text-sm">加载中...</div>
+      <div v-if="loading" class="text-center py-8 text-gray-400 text-sm">{{ t('workspaceOverview.loading') }}</div>
       <table v-else class="w-full text-sm">
         <thead class="bg-gray-50 dark:bg-gray-700">
           <tr>
-            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">ID</th>
-            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">名称</th>
-            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">项目</th>
-            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">状态</th>
-            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">优先级</th>
-            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">负责人</th>
+            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">{{ t('workspaceOverview.id') }}</th>
+            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">{{ t('workspaceOverview.name') }}</th>
+            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">{{ t('workspaceOverview.project') }}</th>
+            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">{{ t('workspaceOverview.state') }}</th>
+            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">{{ t('workspaceOverview.priority') }}</th>
+            <th class="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">{{ t('workspaceOverview.assignee') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -65,7 +65,7 @@
             <td class="px-4 py-2 text-gray-500 text-xs">{{ (issue.assignees || []).map((a: any) => a.display_name || a.username).join(', ') || '-' }}</td>
           </tr>
           <tr v-if="issues.length === 0">
-            <td colspan="6" class="text-center py-8 text-gray-400 text-sm">暂无工作项</td>
+            <td colspan="6" class="text-center py-8 text-gray-400 text-sm">{{ t('workspaceOverview.noIssues') }}</td>
           </tr>
         </tbody>
       </table>
@@ -74,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from '@/composables/useI18n'
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import issueApi from '@/api/issue'
@@ -83,6 +84,7 @@ import api from '@/api'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const workspaceSlug = route.params.slug as string
 const projects = ref<any[]>([])
@@ -100,7 +102,7 @@ function priorityClass(p: string) {
   return m[p] || m.none
 }
 function priorityLabel(p: string) {
-  const m: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }
+  const m: Record<string, string> = { urgent: t('issue.priorityUrgent'), high: t('issue.priorityHigh'), medium: t('issue.priorityMedium'), low: t('issue.priorityLow'), none: t('issue.priorityNone') }
   return m[p] || p
 }
 

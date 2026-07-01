@@ -38,8 +38,8 @@ func (s *RQLService) SearchIssues(db *gorm.DB, projectID uint64, rqlQuery string
 
 	// 基础查询：只查询该项目的未归档工作项
 	query := db.Model(&model.Issue{}).
-		Where("project_id = ?", projectID).
-		Where("archived_at IS NULL")
+		Where("issues.project_id = ?", projectID).
+		Where("issues.archived_at IS NULL")
 
 	// 应用 RQL 条件
 	if ast != nil {
@@ -52,7 +52,7 @@ func (s *RQLService) SearchIssues(db *gorm.DB, projectID uint64, rqlQuery string
 
 	// 计算总数
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -97,7 +97,7 @@ func (s *RQLService) SearchCycles(db *gorm.DB, projectID uint64, rqlQuery string
 
 	// 计算总数
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -143,7 +143,7 @@ func (s *RQLService) SearchModules(db *gorm.DB, projectID uint64, rqlQuery strin
 
 	// 计算总数
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 

@@ -109,7 +109,7 @@ async function handleSaveAutomation(data: any) {
   } catch (e) { console.error('Failed to save automation:', e); }
 }
 async function handleDeleteAutomation(automation: any) {
-  if (!(await confirm({ title: '删除自动化', message: `确定要删除自动化规则 "${automation.name}" 吗？`, danger: true, confirmText: '删除' }))) return;
+  if (!(await confirm({ title: t('settings.deleteAutomationGeneric'), message: t('settings.confirmDeleteAutomationGeneric', { name: automation.name }), danger: true, confirmText: t('common.delete') }))) return;
   try {
     const pid = firstProjectId.value;
     if (pid) await workflowApi.deleteAutomation(pid, automation.id);
@@ -118,8 +118,8 @@ async function handleDeleteAutomation(automation: any) {
 }
 async function handleToggleAutomation(automation: any) {
   const newStatus = !automation.is_enabled;
-  const actionText = newStatus ? '启用' : '停用';
-  if (!(await confirm({ title: `${actionText}自动化规则`, message: `确定要${actionText}规则 "${automation.name}" 吗？`, danger: !newStatus, confirmText: actionText }))) return;
+  const action = newStatus ? t('workflow.enable') : t('workflow.disable');
+  if (!(await confirm({ title: newStatus ? t('settings.enableAutomation') : t('settings.disableAutomation'), message: t('settings.confirmToggleAutomation', { action, name: automation.name }), danger: !newStatus, confirmText: action }))) return;
   try {
     const pid = firstProjectId.value;
     if (pid) {

@@ -15,8 +15,8 @@
 
       <!-- Dropdown menu -->
       <div v-if="open" class="absolute left-0 top-full mt-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-1">
-        <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Saved Views</div>
-        <div v-if="views.length === 0" class="px-3 py-2 text-sm text-gray-400">No saved views yet</div>
+        <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">{{ t('filter.savedViews') }}</div>
+        <div v-if="views.length === 0" class="px-3 py-2 text-sm text-gray-400">{{ t('filter.noSavedViews') }}</div>
         <button
           v-for="view in views"
           :key="view.id"
@@ -27,17 +27,17 @@
           <span class="flex items-center gap-2">
             <span>{{ view.view_type === 'kanban' ? '📋' : '📃' }}</span>
             <span class="truncate max-w-[140px]">{{ view.name }}</span>
-            <span v-if="view.is_default" class="text-xs bg-indigo-100 text-indigo-600 px-1.5 rounded">Default</span>
+            <span v-if="view.is_default" class="text-xs bg-indigo-100 text-indigo-600 px-1.5 rounded">{{ t('filter.defaultViewBadge') }}</span>
           </span>
           <span class="hidden group-hover:flex items-center gap-1">
-            <button @click.stop="setDefault(view)" title="Set as default" class="text-gray-400 hover:text-indigo-600">⭐</button>
-            <button @click.stop="duplicateView(view)" title="Duplicate" class="text-gray-400 hover:text-indigo-600">📋</button>
-            <button @click.stop="promptDelete(view)" title="Delete" class="text-gray-400 hover:text-red-500">🗑️</button>
+            <button @click.stop="setDefault(view)" :title="t('filter.setAsDefault')" class="text-gray-400 hover:text-indigo-600">⭐</button>
+            <button @click.stop="duplicateView(view)" :title="t('filter.duplicateView')" class="text-gray-400 hover:text-indigo-600">📋</button>
+            <button @click.stop="promptDelete(view)" :title="t('filter.delete')" class="text-gray-400 hover:text-red-500">🗑️</button>
           </span>
         </button>
         <div class="border-t border-gray-100 mt-1 pt-1">
           <button @click="saveCurrent" class="w-full flex items-center gap-2 px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 transition">
-            <span>💾</span> Save current view
+            <span>💾</span> {{ t('filter.saveCurrentView') }}
           </button>
         </div>
       </div>
@@ -47,27 +47,30 @@
   <!-- Save View Modal -->
   <div v-if="showSaveModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showSaveModal = false">
     <div class="bg-white rounded-xl p-6 w-full max-w-md">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Save View</h3>
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('filter.saveView') }}</h3>
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input v-model="saveForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="e.g., My Bugs View" />
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('filter.viewNameLabel') }}</label>
+          <input v-model="saveForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" :placeholder="t('filter.viewNamePlaceholder')" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">View Type</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('filter.viewTypeLabel') }}</label>
           <select v-model="saveForm.view_type" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-            <option value="list">List</option>
-            <option value="kanban">Kanban</option>
+            <option value="list">{{ t('project.view.list') }}</option>
+            <option value="kanban">{{ t('project.view.kanban') }}</option>
+            <option value="tree">{{ t('project.view.tree') }}</option>
+            <option value="gantt">{{ t('project.view.gantt') }}</option>
+            <option value="calendar">{{ t('project.view.calendar') }}</option>
           </select>
         </div>
         <div class="flex items-center gap-2">
           <input v-model="saveForm.is_shared" type="checkbox" id="shared" class="rounded" />
-          <label for="shared" class="text-sm text-gray-700">Share with project members</label>
+          <label for="shared" class="text-sm text-gray-700">{{ t('filter.shareWithMembers') }}</label>
         </div>
       </div>
       <div class="flex justify-end space-x-3 mt-6">
-        <button @click="showSaveModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-        <button @click="doSave" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Save</button>
+        <button @click="showSaveModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('filter.cancel') }}</button>
+        <button @click="doSave" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ t('filter.save') }}</button>
       </div>
     </div>
   </div>
@@ -75,11 +78,11 @@
   <!-- Delete Confirm -->
   <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showDeleteConfirm = false">
     <div class="bg-white rounded-xl p-6 w-full max-w-sm">
-      <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete View</h3>
-      <p class="text-sm text-gray-500 mb-4">Delete "{{ deletingView?.name }}"? This cannot be undone.</p>
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ t('filter.deleteViewTitle') }}</h3>
+      <p class="text-sm text-gray-500 mb-4">{{ t('filter.deleteViewConfirm', { name: deletingView?.name || '' }) }}</p>
       <div class="flex justify-end space-x-3">
-        <button @click="showDeleteConfirm = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-        <button @click="doDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Delete</button>
+        <button @click="showDeleteConfirm = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('filter.cancel') }}</button>
+        <button @click="doDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">{{ t('filter.delete') }}</button>
       </div>
     </div>
   </div>
@@ -87,8 +90,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import * as savedViewApi from '@/api/saved-view'
 import type { SavedView, SavedViewCreate } from '@/types/saved-view'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   projectId: number
@@ -123,7 +129,9 @@ const currentViewName = computed(() => {
     const v = views.value.find(x => x.id === selectedViewId.value)
     if (v) return v.name
   }
-  return 'Default View'
+  const def = views.value.find(v => v.is_default)
+  if (def) return def.name
+  return t('filter.savedViews')
 })
 
 // Load views on mount and when projectId changes
@@ -133,10 +141,11 @@ watch(() => props.projectId, () => { loadViews(); selectedViewId.value = null })
 async function loadViews() {
   try {
     views.value = await savedViewApi.listSavedViews(props.projectId)
-    // Auto-select default view
+    // Auto-select and apply default view
     const def = views.value.find(v => v.is_default)
     if (def && !selectedViewId.value) {
       selectedViewId.value = def.id
+      emit('select', def)
     }
   } catch (e) { console.error('Failed to load saved views:', e) }
 }

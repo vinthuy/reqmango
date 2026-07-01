@@ -42,9 +42,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	timeTrackSvc := service.NewTimeTrackService(db)
 	recurrenceSvc := service.NewRecurrenceService(db)
 	reportSvc := service.NewReportService(db)
+	savedReportSvc := service.NewSavedReportService(db)
 	pageTabSvc := service.NewProjectPageTabService(db)
 	intakeH := handler.NewIntakeHandler(db)
 	reportH := handler.NewReportHandler(reportSvc)
+	savedReportH := handler.NewSavedReportHandler(savedReportSvc)
 	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
 	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
 	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
@@ -123,9 +125,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		{
 			workspaces.GET("", workspaceH.List)
 			workspaces.POST("", workspaceH.Create)
-			workspaces.GET("/:wsParam", workspaceH.Get)     // slug or numeric ID
-			workspaces.PATCH("/:wsParam", workspaceH.Update)      // numeric ID or slug
-			workspaces.DELETE("/:wsParam", workspaceH.Delete)     // numeric ID or slug
+			workspaces.GET("/:wsParam", workspaceH.Get)       // slug or numeric ID
+			workspaces.PATCH("/:wsParam", workspaceH.Update)  // numeric ID or slug
+			workspaces.DELETE("/:wsParam", workspaceH.Delete) // numeric ID or slug
 			workspaces.GET("/:wsParam/members", workspaceH.ListMembers)
 			workspaces.POST("/:wsParam/members", workspaceH.AddMember)
 			workspaces.PATCH("/:wsParam/members/:userId", workspaceH.UpdateMember)
@@ -138,16 +140,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/initiatives", initiativeH.Create)
 			workspaces.GET("/:wsParam/initiatives", initiativeH.List)
 
-				// AI Agents
-				workspaces.GET("/:wsParam/agents", agentH.List)
-				workspaces.POST("/:wsParam/agents", agentH.Create)
-				workspaces.GET("/:wsParam/agents/:id", agentH.GetByID)
-				workspaces.PUT("/:wsParam/agents/:id", agentH.Update)
-				workspaces.DELETE("/:wsParam/agents/:id", agentH.Delete)
-				workspaces.POST("/:wsParam/agents/:id/dispatch", agentH.Dispatch)
-				workspaces.GET("/:wsParam/agents/:id/activity", agentH.GetActivity)
-				workspaces.POST("/:wsParam/agents/:id/auto-triage", agentH.AutoTriage)
-				workspaces.POST("/:wsParam/agents/:id/auto-assign", agentH.AutoAssign)
+			// AI Agents
+			workspaces.GET("/:wsParam/agents", agentH.List)
+			workspaces.POST("/:wsParam/agents", agentH.Create)
+			workspaces.GET("/:wsParam/agents/:id", agentH.GetByID)
+			workspaces.PUT("/:wsParam/agents/:id", agentH.Update)
+			workspaces.DELETE("/:wsParam/agents/:id", agentH.Delete)
+			workspaces.POST("/:wsParam/agents/:id/dispatch", agentH.Dispatch)
+			workspaces.GET("/:wsParam/agents/:id/activity", agentH.GetActivity)
+			workspaces.POST("/:wsParam/agents/:id/auto-triage", agentH.AutoTriage)
+			workspaces.POST("/:wsParam/agents/:id/auto-assign", agentH.AutoAssign)
 
 			// MCP Server
 			workspaces.GET("/:wsParam/mcp", mcpH.List)
@@ -199,26 +201,30 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		// ---- Projects (protected) ----
 		projects := v1.Group("/projects", authMiddleware)
 		{
-			projects.POST("", projectH.Create)                        // ?workspace_id=
-			projects.GET("", projectH.List)                          // ?workspace_id=
+			projects.POST("", projectH.Create) // ?workspace_id=
+			projects.GET("", projectH.List)    // ?workspace_id=
 			projects.GET("/:projectId", projectH.Get)
 			projects.PATCH("/:projectId", projectH.Update)
 			projects.DELETE("/:projectId", projectH.Delete)
 			projects.POST("/:projectId/archive", projectH.Archive)
 			projects.POST("/:projectId/restore", projectH.Restore)
-			projects.GET("/:projectId/members", projectH.ListMembers)       // ?only_active=
-			projects.POST("/:projectId/members", projectH.AddMember)        // ?user_id=&role=
+			projects.GET("/:projectId/members", projectH.ListMembers)            // ?only_active=
+			projects.POST("/:projectId/members", projectH.AddMember)             // ?user_id=&role=
 			projects.PATCH("/:projectId/members/:userId", projectH.UpdateMember) // ?role=
 			projects.DELETE("/:projectId/members/:userId", projectH.RemoveMember)
 			projects.GET("/:projectId/statistics", projectH.GetStatistics)
-	projects.POST("/:projectId/reports", reportH.Generate)
-	projects.GET("/:projectId/intake", intakeH.ListPending)
-	projects.GET("/:projectId/webhooks", webhookH.List)
-	projects.POST("/:projectId/webhooks", webhookH.Create)
-	projects.PUT("/:projectId/webhooks/:id", webhookH.Update)
-	projects.DELETE("/:projectId/webhooks/:id", webhookH.Delete)
-	projects.POST("/:projectId/intake/:issueId/triage", intakeH.Triage)
-	projects.POST("/:projectId/intake/:issueId/ai-analyze", aiH.TriageAnalyze)
+			projects.POST("/:projectId/reports", reportH.Generate)
+			projects.GET("/:projectId/saved-reports", savedReportH.List)
+			projects.POST("/:projectId/saved-reports", savedReportH.Create)
+			projects.PATCH("/:projectId/saved-reports/:id", savedReportH.Update)
+			projects.DELETE("/:projectId/saved-reports/:id", savedReportH.Delete)
+			projects.GET("/:projectId/intake", intakeH.ListPending)
+			projects.GET("/:projectId/webhooks", webhookH.List)
+			projects.POST("/:projectId/webhooks", webhookH.Create)
+			projects.PUT("/:projectId/webhooks/:id", webhookH.Update)
+			projects.DELETE("/:projectId/webhooks/:id", webhookH.Delete)
+			projects.POST("/:projectId/intake/:issueId/triage", intakeH.Triage)
+			projects.POST("/:projectId/intake/:issueId/ai-analyze", aiH.TriageAnalyze)
 			projects.GET("/:projectId/issues-summary", projectH.GetIssuesSummary)
 			projects.PATCH("/:projectId/lead", projectH.UpdateProjectLead)
 			projects.GET("/:projectId/subscribers", projectH.ListSubscribers)
@@ -229,7 +235,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.GET("/:projectId/updates", projectUpdateH.List)
 			projects.POST("/:projectId/updates", projectUpdateH.Create)
 			projects.GET("/:projectId/cycles", cycleH.List)
-			projects.POST("/:projectId/cycles", cycleH.Create)     // ?workspace_id=
+			projects.POST("/:projectId/cycles", cycleH.Create) // ?workspace_id=
 
 			// ---- Pages ----
 			pages := projects.Group("/:projectId/pages", authMiddleware)
@@ -323,15 +329,15 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			settings := projects.Group("/:projectId/settings", authMiddleware)
 			{
 				// States
-				settings.POST("/states", settingsH.CreateState)              // ?workspace_id=
-				settings.GET("/states", settingsH.ListStates)               // ?include_inactive=
+				settings.POST("/states", settingsH.CreateState)                 // ?workspace_id=
+				settings.GET("/states", settingsH.ListStates)                   // ?include_inactive=
 				settings.POST("/states/default", settingsH.CreateDefaultStates) // ?workspace_id=
 				settings.GET("/states/:stateId", settingsH.GetState)
 				settings.PUT("/states/:stateId", settingsH.UpdateState)
 				settings.DELETE("/states/:stateId", settingsH.DeleteState)
 
 				// Labels
-				settings.POST("/labels", settingsH.CreateLabel)             // ?workspace_id=
+				settings.POST("/labels", settingsH.CreateLabel) // ?workspace_id=
 				settings.GET("/labels", settingsH.ListLabels)
 				settings.GET("/labels/:labelId", settingsH.GetLabel)
 				settings.PUT("/labels/:labelId", settingsH.UpdateLabel)
@@ -354,21 +360,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		issues := v1.Group("/issues", authMiddleware)
 		{
 			// CRUD
-			issues.POST("", issueH.Create)                       // ?project_id=&workspace_id=
-			issues.GET("", issueH.List)                          // ?project_id=&filters...
-			issues.GET("/tree", issueH.Tree)                     // ?project_id=&search=&limit=&offset=
-			issues.GET("/statistics", issueH.GetStatistics)       // ?project_id=
-			issues.GET("/flow-metrics", issueH.GetFlowMetrics)     // ?project_id=
-			issues.GET("/search", issueH.Search)                  // ?workspace_id=&query=
-			issues.POST("/bulk/update", issueH.BulkUpdate)        // ?project_id=
+			issues.POST("", issueH.Create)                     // ?project_id=&workspace_id=
+			issues.GET("", issueH.List)                        // ?project_id=&filters...
+			issues.GET("/tree", issueH.Tree)                   // ?project_id=&search=&limit=&offset=
+			issues.GET("/statistics", issueH.GetStatistics)    // ?project_id=
+			issues.GET("/flow-metrics", issueH.GetFlowMetrics) // ?project_id=
+			issues.GET("/search", issueH.Search)               // ?workspace_id=&query=
+			issues.POST("/bulk/update", issueH.BulkUpdate)     // ?project_id=
 			issues.POST("/bulk/delete", issueH.BulkDelete)
 			issues.POST("/bulk/copy", issueH.BulkCopy)
 			issues.POST("/bulk/move", issueH.BulkMove)
 			issues.POST("/merge", issueH.MergeDuplicates)
 
 			// Import
-			issues.POST("/import/json", issueH.ImportJSON)   // ?project_id=&workspace_id=
-			issues.POST("/import/csv", issueH.ImportCSV)     // ?project_id=&workspace_id=
+			issues.POST("/import/json", issueH.ImportJSON) // ?project_id=&workspace_id=
+			issues.POST("/import/csv", issueH.ImportCSV)   // ?project_id=&workspace_id=
 
 			// Export
 			issues.GET("/export", issueH.Export) // ?project_id=&format=csv|json
@@ -378,42 +384,42 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.PUT("/:issueId", issueH.Update)
 			issues.DELETE("/:issueId", issueH.Delete)
 			issues.POST("/:issueId/archive", issueH.Archive)
-			issues.GET("/:issueId/children", issueH.Children)     // tree lazy-load children
+			issues.GET("/:issueId/children", issueH.Children) // tree lazy-load children
 			issues.POST("/:issueId/restore", issueH.Restore)
 			issues.POST("/:issueId/convert-type", issueH.ConvertType)
 			issues.GET("/:issueId/activities", issueH.GetActivities) // ?limit=&offset=
 
 			// Assignees
-			issues.POST("/:issueId/assignees", issueH.AddAssignee)          // ?user_id=
+			issues.POST("/:issueId/assignees", issueH.AddAssignee) // ?user_id=
 			issues.DELETE("/:issueId/assignees/:userId", issueH.RemoveAssignee)
 
 			// Labels
-			issues.POST("/:issueId/labels", issueH.AddLabel)               // ?label_id=
+			issues.POST("/:issueId/labels", issueH.AddLabel) // ?label_id=
 			issues.DELETE("/:issueId/labels/:labelId", issueH.RemoveLabel)
 
 			// Cycle
-			issues.POST("/:issueId/cycle", issueH.SetCycle)                // ?cycle_id=
+			issues.POST("/:issueId/cycle", issueH.SetCycle) // ?cycle_id=
 			issues.DELETE("/:issueId/cycle", issueH.RemoveCycle)
 
-	// Time Tracks
-	issues.POST("/:issueId/time-tracks/start", timeTrackH.Start)
-	issues.POST("/:issueId/time-tracks/stop", timeTrackH.Stop)
-	issues.GET("/:issueId/time-tracks", timeTrackH.List)
-	issues.GET("/:issueId/time-tracks/summary", timeTrackH.Summary)
-	issues.DELETE("/:issueId/time-tracks/:id", timeTrackH.Delete)
+			// Time Tracks
+			issues.POST("/:issueId/time-tracks/start", timeTrackH.Start)
+			issues.POST("/:issueId/time-tracks/stop", timeTrackH.Stop)
+			issues.GET("/:issueId/time-tracks", timeTrackH.List)
+			issues.GET("/:issueId/time-tracks/summary", timeTrackH.Summary)
+			issues.DELETE("/:issueId/time-tracks/:id", timeTrackH.Delete)
 
-	// Recurrence
-	issues.POST("/:issueId/recurrence", recurrenceH.Create)
-	issues.GET("/:issueId/recurrence", recurrenceH.Get)
-	issues.POST("/:issueId/ai/comment", aiH.AssistComment)
-		issues.POST("/:issueId/agents/:agentId/mention", agentH.HandleMention)
-	issues.PUT("/:issueId/recurrence", recurrenceH.Update)
-	issues.DELETE("/:issueId/recurrence", recurrenceH.Delete)
+			// Recurrence
+			issues.POST("/:issueId/recurrence", recurrenceH.Create)
+			issues.GET("/:issueId/recurrence", recurrenceH.Get)
+			issues.POST("/:issueId/ai/comment", aiH.AssistComment)
+			issues.POST("/:issueId/agents/:agentId/mention", agentH.HandleMention)
+			issues.PUT("/:issueId/recurrence", recurrenceH.Update)
+			issues.DELETE("/:issueId/recurrence", recurrenceH.Delete)
 
 			// Pages
 			issues.GET("/:issueId/pages", issueH.ListPages)
-			issues.POST("/:issueId/pages", issueH.AddPage)                // ?page_id=
-			issues.DELETE("/:issueId/pages", issueH.RemovePage)           // ?page_id=
+			issues.POST("/:issueId/pages", issueH.AddPage)      // ?page_id=
+			issues.DELETE("/:issueId/pages", issueH.RemovePage) // ?page_id=
 
 			// Attachments
 			issues.GET("/:issueId/attachments", attachmentH.ListByIssue)
@@ -426,23 +432,23 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		modules := v1.Group("/modules", authMiddleware)
 		{
 			// CRUD
-			modules.POST("", moduleH.Create)                      // ?workspace_id=
-			modules.GET("", moduleH.List)                         // ?project_id=&workspace_id=&include_archived=
+			modules.POST("", moduleH.Create) // ?workspace_id=
+			modules.GET("", moduleH.List)    // ?project_id=&workspace_id=&include_archived=
 			modules.GET("/:moduleId", moduleH.Get)
 			modules.PUT("/:moduleId", moduleH.Update)
 			modules.DELETE("/:moduleId", moduleH.Delete)
-			
+
 			// Issues
-			modules.POST("/:moduleId/issues", moduleH.AddIssue)         // ?issue_id=
+			modules.POST("/:moduleId/issues", moduleH.AddIssue) // ?issue_id=
 			modules.DELETE("/:moduleId/issues/:issueId", moduleH.RemoveIssue)
 			modules.GET("/:moduleId/issues", moduleH.ListIssues)
-			
+
 			// Analysis
 			modules.GET("/:moduleId/progress", moduleH.GetProgress)
 			modules.GET("/:moduleId/statistics", moduleH.GetStatistics)
-			
+
 			// Tree
-			modules.GET("/tree", moduleH.GetTree)                       // ?project_id=
+			modules.GET("/tree", moduleH.GetTree) // ?project_id=
 		}
 		// ---- Cycles (protected) ----
 		cycles := v1.Group("/cycles", authMiddleware)
@@ -459,156 +465,156 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			cycles.GET("/:cycleId/progress", cycleH.GetProgress)
 			cycles.GET("/:cycleId/statistics", cycleH.GetStatistics)
 			cycles.GET("/:cycleId/burndown", cycleH.GetBurndown)
-			}
-
-			// ---- Issue Types (protected) ----
-			issueTypes := v1.Group("/issue-types", authMiddleware)
-			{
-				issueTypes.POST("", issueTypeH.Create)
-				issueTypes.GET("", issueTypeH.List)
-				issueTypes.GET("/:typeId", issueTypeH.Get)
-				issueTypes.PUT("/:typeId", issueTypeH.Update)
-				issueTypes.DELETE("/:typeId", issueTypeH.Delete)
-				issueTypes.PATCH("/:typeId/disable", issueTypeH.Disable)
-				issueTypes.GET("/:typeId/fields", issueTypeH.ListFields)
-				issueTypes.POST("/:typeId/fields", issueTypeH.AddField)
-				issueTypes.PUT("/:typeId/fields/:fieldId", issueTypeH.UpdateField)
-				issueTypes.DELETE("/:typeId/fields/:fieldId", issueTypeH.RemoveField)
-			}
-
-			// ---- Custom Fields (protected) ----
-			customFields := v1.Group("/custom-fields", authMiddleware)
-			{
-				customFields.POST("", customFieldH.Create)
-				customFields.GET("", customFieldH.List)
-				customFields.GET("/:fieldId", customFieldH.Get)
-				customFields.PUT("/:fieldId", customFieldH.Update)
-				customFields.DELETE("/:fieldId", customFieldH.Delete)
-				customFields.POST("/:fieldId/options", customFieldH.CreateOption)
-				customFields.PUT("/:fieldId/options/:optionId", customFieldH.UpdateOption)
-				customFields.DELETE("/:fieldId/options/:optionId", customFieldH.DeleteOption)
-				customFields.POST("/issues/:issueId/values", customFieldH.SetIssueValue)
-				customFields.GET("/issues/:issueId/values", customFieldH.ListIssueValues)
-				customFields.POST("/issues/:issueId/values/bulk", customFieldH.BulkSetIssueValues)
-				customFields.PUT("/issues/:issueId/values/:fieldId", customFieldH.UpdateIssueValue)
-				customFields.DELETE("/issues/:issueId/values/:fieldId", customFieldH.DeleteIssueValue)
-				customFields.GET("/issues/:issueId/fields", customFieldH.GetIssueFieldsWithValues)
 		}
 
-// ---- Conditional Fields (protected) ----
+		// ---- Issue Types (protected) ----
+		issueTypes := v1.Group("/issue-types", authMiddleware)
+		{
+			issueTypes.POST("", issueTypeH.Create)
+			issueTypes.GET("", issueTypeH.List)
+			issueTypes.GET("/:typeId", issueTypeH.Get)
+			issueTypes.PUT("/:typeId", issueTypeH.Update)
+			issueTypes.DELETE("/:typeId", issueTypeH.Delete)
+			issueTypes.PATCH("/:typeId/disable", issueTypeH.Disable)
+			issueTypes.GET("/:typeId/fields", issueTypeH.ListFields)
+			issueTypes.POST("/:typeId/fields", issueTypeH.AddField)
+			issueTypes.PUT("/:typeId/fields/:fieldId", issueTypeH.UpdateField)
+			issueTypes.DELETE("/:typeId/fields/:fieldId", issueTypeH.RemoveField)
+		}
+
+		// ---- Custom Fields (protected) ----
+		customFields := v1.Group("/custom-fields", authMiddleware)
+		{
+			customFields.POST("", customFieldH.Create)
+			customFields.GET("", customFieldH.List)
+			customFields.GET("/:fieldId", customFieldH.Get)
+			customFields.PUT("/:fieldId", customFieldH.Update)
+			customFields.DELETE("/:fieldId", customFieldH.Delete)
+			customFields.POST("/:fieldId/options", customFieldH.CreateOption)
+			customFields.PUT("/:fieldId/options/:optionId", customFieldH.UpdateOption)
+			customFields.DELETE("/:fieldId/options/:optionId", customFieldH.DeleteOption)
+			customFields.POST("/issues/:issueId/values", customFieldH.SetIssueValue)
+			customFields.GET("/issues/:issueId/values", customFieldH.ListIssueValues)
+			customFields.POST("/issues/:issueId/values/bulk", customFieldH.BulkSetIssueValues)
+			customFields.PUT("/issues/:issueId/values/:fieldId", customFieldH.UpdateIssueValue)
+			customFields.DELETE("/issues/:issueId/values/:fieldId", customFieldH.DeleteIssueValue)
+			customFields.GET("/issues/:issueId/fields", customFieldH.GetIssueFieldsWithValues)
+		}
+
+		// ---- Conditional Fields (protected) ----
 		conditionalFields := v1.Group("/conditional-fields", authMiddleware)
 		{
-			conditionalFields.POST("", conditionalFieldH.Create)                            // ?workspace_id=
-			conditionalFields.GET("", conditionalFieldH.List)                               // ?workspace_id=&field_id=
+			conditionalFields.POST("", conditionalFieldH.Create)                           // ?workspace_id=
+			conditionalFields.GET("", conditionalFieldH.List)                              // ?workspace_id=&field_id=
 			conditionalFields.GET("/:id", conditionalFieldH.Get)                           // ?workspace_id=
-			conditionalFields.PUT("/:id", conditionalFieldH.Update)                         // ?workspace_id=
+			conditionalFields.PUT("/:id", conditionalFieldH.Update)                        // ?workspace_id=
 			conditionalFields.DELETE("/:id", conditionalFieldH.Delete)                     // ?workspace_id=
-			conditionalFields.POST("/evaluate", conditionalFieldH.EvaluateFieldVisibility)  // ?workspace_id=
+			conditionalFields.POST("/evaluate", conditionalFieldH.EvaluateFieldVisibility) // ?workspace_id=
 		}
 
-// ---- Project Templates (protected) ----
-			templates := v1.Group("/templates", authMiddleware)
-			{
-				templates.POST("", templateH.Create)
-				templates.GET("", templateH.List)
-				templates.GET("/:templateId", templateH.Get)
-				templates.PUT("/:templateId", templateH.Update)
-				templates.DELETE("/:templateId", templateH.Delete)
-				templates.POST("/:templateId/types", templateH.AddType)
-				templates.DELETE("/:templateId/types/:typeId", templateH.RemoveType)
-				templates.POST("/:templateId/apply", templateH.Apply)
-			}
-// ---- Type Templates (Workspace-level) ----
-			typeTemplates := v1.Group("/type-templates", authMiddleware)
-			{
-				typeTemplates.POST("", typeTemplateH.Create)
-				typeTemplates.GET("", typeTemplateH.List)
-				typeTemplates.GET("/:id", typeTemplateH.Get)
-				typeTemplates.PUT("/:id", typeTemplateH.Update)
-				typeTemplates.DELETE("/:id", typeTemplateH.Delete)
-				typeTemplates.POST("/:id/fields", typeTemplateH.BindField)
-				typeTemplates.DELETE("/:id/fields/:fieldId", typeTemplateH.UnbindField)
-			}
-// ---- Relations (Workspace-level) ----
-			relations := v1.Group("/relations", authMiddleware)
-			{
-				relations.POST("/types", relationH.CreateType)
-				relations.GET("/types", relationH.ListTypes)
-				relations.PUT("/types/:id", relationH.UpdateType)
-				relations.DELETE("/types/:id", relationH.DeleteType)
-			}
-			// ---- Issue Relations ----
-			issues.POST("/:issueId/relations", relationH.CreateRelation)
-			issues.GET("/:issueId/relations", relationH.ListRelations)
-			v1.DELETE("/relations/:relationId", authMiddleware, relationH.DeleteRelation)
-// ---- Workflows (protected) ----
-			workflows := v1.Group("/projects/:projectId/workflows", authMiddleware)
-			{
-				workflows.POST("", workflowH.CreateWorkflow)
-				workflows.GET("", workflowH.ListWorkflows)
-				workflows.GET("/:workflowId", workflowH.GetWorkflow)
-				workflows.PUT("/:workflowId", workflowH.UpdateWorkflow)
-				workflows.DELETE("/:workflowId", workflowH.DeleteWorkflow)
-				workflows.POST("/:workflowId/transitions", workflowH.AddTransition)
-				workflows.PUT("/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
-				workflows.DELETE("/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
-			}
-			// ---- Comments (protected) ----
-			comments := v1.Group("/comments", authMiddleware)
-			{
-				comments.POST("", commentH.Create)
-				comments.GET("/issue/:issueId", commentH.ListByIssue)
-				comments.GET("/:commentId", commentH.Get)
-				comments.PATCH("/:commentId", commentH.Update)
-				comments.DELETE("/:commentId", commentH.Delete)
-				comments.POST("/:commentId/resolve", commentH.Resolve)
-				comments.POST("/:commentId/unresolve", commentH.Unresolve)
-			}
-			// ---- RQL (protected) ----
-			v1.POST("/pages/:pageId/ai", authMiddleware, aiH.PageAI)
+		// ---- Project Templates (protected) ----
+		templates := v1.Group("/templates", authMiddleware)
+		{
+			templates.POST("", templateH.Create)
+			templates.GET("", templateH.List)
+			templates.GET("/:templateId", templateH.Get)
+			templates.PUT("/:templateId", templateH.Update)
+			templates.DELETE("/:templateId", templateH.Delete)
+			templates.POST("/:templateId/types", templateH.AddType)
+			templates.DELETE("/:templateId/types/:typeId", templateH.RemoveType)
+			templates.POST("/:templateId/apply", templateH.Apply)
+		}
+		// ---- Type Templates (Workspace-level) ----
+		typeTemplates := v1.Group("/type-templates", authMiddleware)
+		{
+			typeTemplates.POST("", typeTemplateH.Create)
+			typeTemplates.GET("", typeTemplateH.List)
+			typeTemplates.GET("/:id", typeTemplateH.Get)
+			typeTemplates.PUT("/:id", typeTemplateH.Update)
+			typeTemplates.DELETE("/:id", typeTemplateH.Delete)
+			typeTemplates.POST("/:id/fields", typeTemplateH.BindField)
+			typeTemplates.DELETE("/:id/fields/:fieldId", typeTemplateH.UnbindField)
+		}
+		// ---- Relations (Workspace-level) ----
+		relations := v1.Group("/relations", authMiddleware)
+		{
+			relations.POST("/types", relationH.CreateType)
+			relations.GET("/types", relationH.ListTypes)
+			relations.PUT("/types/:id", relationH.UpdateType)
+			relations.DELETE("/types/:id", relationH.DeleteType)
+		}
+		// ---- Issue Relations ----
+		issues.POST("/:issueId/relations", relationH.CreateRelation)
+		issues.GET("/:issueId/relations", relationH.ListRelations)
+		v1.DELETE("/relations/:relationId", authMiddleware, relationH.DeleteRelation)
+		// ---- Workflows (protected) ----
+		workflows := v1.Group("/projects/:projectId/workflows", authMiddleware)
+		{
+			workflows.POST("", workflowH.CreateWorkflow)
+			workflows.GET("", workflowH.ListWorkflows)
+			workflows.GET("/:workflowId", workflowH.GetWorkflow)
+			workflows.PUT("/:workflowId", workflowH.UpdateWorkflow)
+			workflows.DELETE("/:workflowId", workflowH.DeleteWorkflow)
+			workflows.POST("/:workflowId/transitions", workflowH.AddTransition)
+			workflows.PUT("/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
+			workflows.DELETE("/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
+		}
+		// ---- Comments (protected) ----
+		comments := v1.Group("/comments", authMiddleware)
+		{
+			comments.POST("", commentH.Create)
+			comments.GET("/issue/:issueId", commentH.ListByIssue)
+			comments.GET("/:commentId", commentH.Get)
+			comments.PATCH("/:commentId", commentH.Update)
+			comments.DELETE("/:commentId", commentH.Delete)
+			comments.POST("/:commentId/resolve", commentH.Resolve)
+			comments.POST("/:commentId/unresolve", commentH.Unresolve)
+		}
+		// ---- RQL (protected) ----
+		v1.POST("/pages/:pageId/ai", authMiddleware, aiH.PageAI)
 
-	rqlHandler := rql.NewRQLHandler(db)
-			rqlGroup := v1.Group("/rql", authMiddleware)
-			{
-				rqlGroup.POST("/search", rqlHandler.Search)
-			}
-			// ---- AI (protected) ----
-			aiGroup := projects.Group("/:projectId/ai", authMiddleware)
-			{
-				aiGroup.POST("/chat", aiH.Chat)
-				aiGroup.POST("/search", aiH.Search)
-				aiGroup.POST("/create", aiH.CreatePreview)
-				aiGroup.POST("/analyze", aiH.Analyze)
-				aiGroup.POST("/suggest-labels", aiH.SuggestLabels)
+		rqlHandler := rql.NewRQLHandler(db)
+		rqlGroup := v1.Group("/rql", authMiddleware)
+		{
+			rqlGroup.POST("/search", rqlHandler.Search)
+		}
+		// ---- AI (protected) ----
+		aiGroup := projects.Group("/:projectId/ai", authMiddleware)
+		{
+			aiGroup.POST("/chat", aiH.Chat)
+			aiGroup.POST("/search", aiH.Search)
+			aiGroup.POST("/create", aiH.CreatePreview)
+			aiGroup.POST("/analyze", aiH.Analyze)
+			aiGroup.POST("/suggest-labels", aiH.SuggestLabels)
 			aiGroup.POST("/sprint-plan", aiH.SprintPlan)
-				aiGroup.POST("/chart", aiH.Chart)
-			}
+			aiGroup.POST("/chart", aiH.Chart)
+		}
 
-			// Agent project-level convenience routes
-			projects.POST("/:projectId/agent/auto-triage", agentH.AutoTriageProject)
-			projects.POST("/:projectId/agent/auto-assign", agentH.AutoAssignProject)
+		// Agent project-level convenience routes
+		projects.POST("/:projectId/agent/auto-triage", agentH.AutoTriageProject)
+		projects.POST("/:projectId/agent/auto-assign", agentH.AutoAssignProject)
 
-			// Automation rules
-			automationH := handler.NewAutomationHandler(automationSvc)
-			projects.GET("/:projectId/automations", automationH.List)
-			projects.POST("/:projectId/automations", automationH.Create)
-			projects.GET("/:projectId/automations/:id", automationH.Get)
-			projects.PUT("/:projectId/automations/:id", automationH.Update)
-			projects.DELETE("/:projectId/automations/:id", automationH.Delete)
-			projects.POST("/:projectId/automations/:id/execute", automationH.Execute)
+		// Automation rules
+		automationH := handler.NewAutomationHandler(automationSvc)
+		projects.GET("/:projectId/automations", automationH.List)
+		projects.POST("/:projectId/automations", automationH.Create)
+		projects.GET("/:projectId/automations/:id", automationH.Get)
+		projects.PUT("/:projectId/automations/:id", automationH.Update)
+		projects.DELETE("/:projectId/automations/:id", automationH.Delete)
+		projects.POST("/:projectId/automations/:id/execute", automationH.Execute)
 
-			// ---- Notifications (protected) ----
-			notifications := v1.Group("/notifications", authMiddleware)
-			{
-				notifications.GET("", notificationH.List)
-				notifications.GET("/summary", notificationH.GetSummary)
-				notifications.GET("/:id", notificationH.Get)
-				notifications.POST("", notificationH.Create)
-				notifications.POST("/bulk", notificationH.CreateBulk)
-				notifications.POST("/check-due-reminders", notificationH.CheckDueReminders)
-				notifications.PATCH("/:id/read", notificationH.MarkRead)
-				notifications.POST("/read-all", notificationH.MarkAllRead)
-				notifications.DELETE("/:id", notificationH.Delete)
-			}
+		// ---- Notifications (protected) ----
+		notifications := v1.Group("/notifications", authMiddleware)
+		{
+			notifications.GET("", notificationH.List)
+			notifications.GET("/summary", notificationH.GetSummary)
+			notifications.GET("/:id", notificationH.Get)
+			notifications.POST("", notificationH.Create)
+			notifications.POST("/bulk", notificationH.CreateBulk)
+			notifications.POST("/check-due-reminders", notificationH.CheckDueReminders)
+			notifications.PATCH("/:id/read", notificationH.MarkRead)
+			notifications.POST("/read-all", notificationH.MarkAllRead)
+			notifications.DELETE("/:id", notificationH.Delete)
+		}
 	}
 }

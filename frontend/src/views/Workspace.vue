@@ -49,7 +49,7 @@ const goToProject = (projectId: number) => {
 const createProject = async () => {
   error.value = ''
   if (!newProject.value.name || !newProject.value.identifier) {
-    error.value = !newProject.value.name ? '请输入项目名称' : '请输入项目标识符'
+    error.value = !newProject.value.name ? t('workspace.nameRequiredMsg') : t('workspace.slugRequiredMsg')
     return
   }
   if (!workspace.value) return
@@ -60,7 +60,7 @@ const createProject = async () => {
     showCreateModal.value = false
     newProject.value = { name: '', identifier: '', description: '' }
   } catch (err: any) {
-    error.value = err.response?.data?.detail || '创建项目失败'
+    error.value = err.response?.data?.detail || t('workspace.createFailedGeneric')
   } finally {
     createLoading.value = false
   }
@@ -76,7 +76,7 @@ onMounted(fetchWorkspace)
       <div>
         <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ workspace?.name || 'Workspace' }}</h1>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          {{ projects.length }} 个项目 ·
+          {{ t('workspace.projectCount', { count: projects.length }) }} ·
           <router-link :to="`/workspace/${workspace?.slug}/overview`" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
             {{ t('workspace.overview') }}
           </router-link>

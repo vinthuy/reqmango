@@ -157,8 +157,8 @@
         <div class="property-group">
           <label class="property-label">{{ t('issue.parentIssue') }}</label>
           <div class="relative">
-            <div v-if="selectedParent" class="flex items-center justify-between p-2 bg-indigo-50 rounded-md mb-1">
-              <span class="text-sm text-indigo-700">#{{ selectedParent.sequence_id }} {{ selectedParent.name }}</span>
+            <div v-if="selectedParent" class="flex items-center justify-between p-2 bg-gray-50 rounded-md mb-1">
+              <span class="text-sm text-gray-700">#{{ selectedParent.sequence_id }} {{ selectedParent.name }}</span>
               <button @click="selectedParent = null; formData.parent_id = ''" class="text-gray-400 hover:text-red-500">&times;</button>
             </div>
             <input
@@ -167,14 +167,14 @@
               @input="searchParents"
               type="text"
               :placeholder="t('issue.parentSearchPlaceholder')"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              class="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 text-sm"
             />
             <div v-if="parentResults.length > 0 && !selectedParent" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-36 overflow-y-auto">
               <div
                 v-for="p in parentResults"
                 :key="p.id"
                 @click="selectParent(p)"
-                class="px-3 py-2 hover:bg-indigo-50 cursor-pointer text-sm"
+                class="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm"
               >
                 <span class="font-medium">#{{ p.sequence_id }}</span> {{ p.name }}
               </div>
@@ -624,11 +624,11 @@ onMounted(() => {
 
 <style scoped>
 .issue-create-page {
-  @apply min-h-screen bg-gray-50 flex flex-col;
+  @apply min-h-screen bg-white flex flex-col;
 }
 
 .page-header {
-  @apply flex items-center space-x-4 px-6 py-4 bg-white border-b;
+  @apply flex items-center space-x-3 px-6 py-3 bg-white border-b border-gray-100;
 }
 
 .back-btn {
@@ -636,27 +636,27 @@ onMounted(() => {
 }
 
 .page-title {
-  @apply text-xl font-semibold text-gray-900;
+  @apply text-base font-semibold text-gray-800;
 }
 
 .page-content {
-  @apply flex flex-1 gap-6 p-6;
+  @apply flex flex-1;
 }
 
 .form-section {
-  @apply flex-1 bg-white rounded-lg border p-6;
+  @apply flex-1 bg-white border-r border-gray-100 p-6;
 }
 
 .properties-section {
-  @apply w-72 bg-white rounded-lg border p-6 h-fit;
+  @apply w-64 bg-white p-6 h-fit;
 }
 
 .form-group {
-  @apply mb-6;
+  @apply mb-5;
 }
 
 .form-label {
-  @apply block text-sm font-medium text-gray-700 mb-2;
+  @apply block text-xs font-medium text-gray-400 uppercase tracking-wide mb-2;
 }
 
 .required {
@@ -671,7 +671,7 @@ onMounted(() => {
 .form-textarea,
 .property-select,
 .property-input {
-  @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500;
+  @apply w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400;
 }
 
 .form-textarea {
@@ -683,11 +683,11 @@ onMounted(() => {
 }
 
 .type-option {
-  @apply flex items-center space-x-2 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-300 transition;
+  @apply flex items-center space-x-2 px-3 py-2 rounded-lg border border-gray-100 hover:border-gray-200 transition;
 }
 
 .type-option.active {
-  @apply border-indigo-500 bg-indigo-50;
+  @apply border-gray-300 bg-gray-50;
 }
 
 .type-icon {
@@ -699,23 +699,23 @@ onMounted(() => {
 }
 
 .property-label {
-  @apply block text-sm font-medium text-gray-700 mb-1;
+  @apply block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5;
 }
 
 .custom-fields {
-  @apply space-y-4;
+  @apply space-y-3;
 }
 
 .field-item {
-  @apply border border-gray-200 rounded-lg p-4;
+  @apply border border-gray-100 rounded-lg p-3;
 }
 
 .field-label {
-  @apply block text-sm font-medium text-gray-700 mb-2;
+  @apply block text-sm font-medium text-gray-600 mb-2;
 }
 
 .page-footer {
-  @apply flex items-center justify-end space-x-4 px-6 py-4 bg-white border-t;
+  @apply flex items-center justify-end space-x-3 px-6 py-3 bg-white border-t border-gray-100;
 }
 
 .btn {
@@ -723,10 +723,10 @@ onMounted(() => {
 }
 
 .btn-primary {
-  @apply bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply bg-neutral-900 text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-secondary {
-  @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+  @apply bg-gray-100 text-gray-600 hover:bg-gray-200;
 }
 </style>

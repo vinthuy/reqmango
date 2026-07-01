@@ -187,6 +187,10 @@ func (l *Lexer) readIdentifier() Token {
 		return Token{Type: TOKEN_LIKE, Value: upper, Position: start}
 	case "IN":
 		return Token{Type: TOKEN_IN, Value: upper, Position: start}
+	case "IS":
+		return Token{Type: TOKEN_IS, Value: upper, Position: start}
+	case "NULL":
+		return Token{Type: TOKEN_NULL, Value: upper, Position: start}
 	}
 
 	return Token{Type: TOKEN_IDENTIFIER, Value: value.String(), Position: start}

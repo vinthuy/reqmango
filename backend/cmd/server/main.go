@@ -88,6 +88,7 @@ func main() {
 		&model.Role{},
 		&model.Permission{},
 		&model.RolePermission{},
+		&model.SavedReport{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

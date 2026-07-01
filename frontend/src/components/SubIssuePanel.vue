@@ -2,7 +2,7 @@
   <div class="sub-issue-panel">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-sm font-medium text-gray-700 flex items-center">
-        <span>子工作项</span>
+        <span>{{ t('subIssue.title') }}</span>
         <span v-if="subIssues.length > 0" class="ml-2 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
           {{ completedCount }}/{{ subIssues.length }}
         </span>
@@ -14,7 +14,7 @@
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        <span>添加</span>
+        <span>{{ t('subIssue.add') }}</span>
       </button>
     </div>
 
@@ -22,7 +22,7 @@
       <svg class="h-10 w-10 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
-      <p class="mt-2 text-sm text-gray-500">暂无子工作项</p>
+      <p class="mt-2 text-sm text-gray-500">{{ t('subIssue.noSubIssues') }}</p>
     </div>
 
     <div v-else class="space-y-2">
@@ -97,7 +97,7 @@
               v-if="issue.sub_issues && issue.sub_issues.length > 0"
               class="text-xs text-gray-400 hover:text-indigo-600"
             >
-              {{ issue.sub_issues?.length }} 个子项
+              {{ t('subIssue.childCount', { count: issue.sub_issues?.length }) }}
             </button>
             <button
               @click.stop="$emit('edit', issue)"
@@ -117,30 +117,30 @@
         >
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span class="text-gray-500">开始日期</span>
+              <span class="text-gray-500">{{ t('subIssue.startDate') }}</span>
               <p class="text-gray-900 mt-1">{{ formatDate(issue.start_date) || '-' }}</p>
             </div>
             <div>
-              <span class="text-gray-500">目标日期</span>
+              <span class="text-gray-500">{{ t('subIssue.targetDate') }}</span>
               <p class="text-gray-900 mt-1">{{ formatDate(issue.target_date) || '-' }}</p>
             </div>
             <div>
-              <span class="text-gray-500">估算</span>
-              <p class="text-gray-900 mt-1">{{ issue.estimate_point_id ? '已设置' : '-' }}</p>
+              <span class="text-gray-500">{{ t('subIssue.estimate') }}</span>
+              <p class="text-gray-900 mt-1">{{ issue.estimate_point_id ? t('subIssue.set') : '-' }}</p>
             </div>
             <div>
-              <span class="text-gray-500">创建时间</span>
+              <span class="text-gray-500">{{ t('subIssue.createdAt') }}</span>
               <p class="text-gray-900 mt-1">{{ formatDate(issue.created_at) }}</p>
             </div>
           </div>
           
           <div v-if="issue.description_html" class="mt-4">
-            <span class="text-gray-500 text-xs">描述</span>
+            <span class="text-gray-500 text-xs">{{ t('subIssue.description') }}</span>
             <p class="text-sm text-gray-700 mt-1 line-clamp-2" v-html="issue.description_html"></p>
           </div>
 
           <div v-if="issue.sub_issues && issue.sub_issues.length > 0" class="mt-4 pt-4 border-t border-gray-100">
-            <span class="text-xs text-gray-500">孙工作项</span>
+            <span class="text-xs text-gray-500">{{ t('subIssue.grandchildren') }}</span>
             <div class="mt-2 space-y-1">
               <div
                 v-for="sub in issue.sub_issues"
@@ -163,6 +163,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 interface SubIssue {
   id: number
@@ -236,13 +239,13 @@ function getPriorityClass(priority: string): string {
 function getPriorityLabel(priority: string): string {
   switch (priority) {
     case 'urgent':
-      return '紧急'
+      return t('subIssue.urgent')
     case 'high':
-      return '高'
+      return t('subIssue.high')
     case 'medium':
-      return '中'
+      return t('subIssue.medium')
     case 'low':
-      return '低'
+      return t('subIssue.low')
     default:
       return '-'
   }

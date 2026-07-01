@@ -137,6 +137,12 @@ func (h *IssueHandler) List(c *gin.Context) {
 	if v := c.Query("rql"); v != "" {
 		filters["rql"] = v
 	}
+	if v := c.Query("sort_by"); v != "" {
+		filters["sort_by"] = v
+	}
+	if v := c.Query("sort_dir"); v != "" {
+		filters["sort_dir"] = v
+	}
 
 	issues, total, svcErr := h.svc.List(projectID, filters, p.Limit, p.Offset)
 	if svcErr != nil {
@@ -914,6 +920,9 @@ func (h *IssueHandler) Tree(c *gin.Context) {
 	p := common.ParsePagination(c.Query("limit"), c.Query("offset"), 20, 50)
 
 	filters := make(map[string]interface{})
+	if v := c.Query("rql"); v != "" {
+		filters["rql"] = v
+	}
 	if v := c.Query("state_id"); v != "" {
 		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
 			filters["state_id"] = id

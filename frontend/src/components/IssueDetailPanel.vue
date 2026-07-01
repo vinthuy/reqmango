@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div v-if="visible" class="fixed inset-0 z-50 flex">
       <!-- 遮罩层 -->
-      <div class="absolute inset-0 bg-black/30" @click="close"></div>
+      <div class="absolute inset-0 bg-black/20" @click="close"></div>
       <!-- 侧滑面板 -->
       <div class="relative ml-auto w-full max-w-xl bg-white shadow-xl flex flex-col h-full overflow-hidden" :class="visible && 'animate-slide-in'">
         <div v-if="loading" class="flex items-center justify-center h-full">
@@ -16,7 +16,7 @@
               <input
                 v-if="editing"
                 v-model="editForm.name"
-                class="flex-1 text-lg font-medium text-gray-900 border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                class="flex-1 text-lg font-medium text-gray-900 border border-gray-300 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
               />
               <span v-else class="text-lg font-medium text-gray-900 truncate">{{ issue.name }}</span>
             </div>
@@ -24,7 +24,7 @@
               <button
                 v-if="!editing"
                 @click="startEdit"
-                class="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-300 rounded-md hover:bg-indigo-50"
+                class="px-3 py-1.5 text-sm text-blue-500 border border-blue-200 rounded-md hover:bg-blue-50">
               >{{ t('common.edit') }}</button>
               <button @click="close" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -137,7 +137,7 @@
               </div>
               <div v-if="issue.cycle_id">
                 <label class="block text-xs text-gray-500 mb-1">{{ t('issue.cycle') }}</label>
-                <span class="inline-flex items-center px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-sm">Cycle #{{ issue.cycle_id }}</span>
+                <span class="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-sm">Cycle #{{ issue.cycle_id }}</span>
               </div>
               <div v-if="issue.module_ids && issue.module_ids.length > 0">
                 <label class="block text-xs text-gray-500 mb-1">{{ t('issueDetail.module') }}</label>
@@ -165,12 +165,12 @@
             <div class="flex items-center space-x-2">
               <template v-if="editing">
                 <button @click="cancelEdit" class="px-4 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">{{ t('common.cancel') }}</button>
-                <button @click="saveEdit" :disabled="saving" class="px-4 py-1.5 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50">
+                <button @click="saveEdit" :disabled="saving" class="px-4 py-1.5 text-sm text-white bg-neutral-900 rounded-md hover:bg-neutral-800 disabled:opacity-50">
                   {{ saving ? t('issue.saving') : t('common.save') }}
                 </button>
               </template>
               <template v-else>
-                <button @click="deleteIssue" class="px-4 py-1.5 text-sm text-red-600 border border-red-300 rounded-md hover:bg-red-50">{{ t('common.delete') }}</button>
+                <button @click="deleteIssue" class="px-4 py-1.5 text-sm text-red-500 border border-red-200 rounded-md hover:bg-red-50">{{ t('common.delete') }}</button>
               </template>
             </div>
           </div>

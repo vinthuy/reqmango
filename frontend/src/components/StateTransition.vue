@@ -3,7 +3,7 @@
     <!-- 头部 -->
     <div class="bg-white border-b border-gray-200 px-4 py-3">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-medium text-gray-700">状态转换</h3>
+        <h3 class="text-sm font-medium text-gray-700">{{ t('stateTransition.title') }}</h3>
         <button
           @click="showCreateModal = true"
           class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 flex items-center space-x-1"
@@ -11,7 +11,7 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          <span>添加转换</span>
+          <span>{{ t('stateTransition.addTransition') }}</span>
         </button>
       </div>
     </div>
@@ -31,9 +31,9 @@
         <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
         </svg>
-        <p class="mt-2 text-gray-500">暂无状态转换规则</p>
+        <p class="mt-2 text-gray-500">{{ t('stateTransition.noTransitions') }}</p>
         <button @click="showCreateModal = true" class="mt-3 text-indigo-600 hover:text-indigo-800 text-sm">
-          添加第一个转换
+          {{ t('stateTransition.addFirst') }}
         </button>
       </div>
 
@@ -65,7 +65,7 @@
                 v-if="transition.is_auto"
                 class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded"
               >
-                自动
+                {{ t('stateTransition.auto') }}
               </span>
             </div>
 
@@ -105,35 +105,35 @@
     >
       <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
         <h3 class="text-lg font-semibold mb-4">
-          {{ showEditModal ? '编辑状态转换' : '添加状态转换' }}
+          {{ showEditModal ? t('stateTransition.editTitle') : t('stateTransition.addTitle') }}
         </h3>
 
         <form @submit.prevent="submitTransition" class="space-y-4">
           <!-- 转换名称 -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              名称 *
+              {{ t('stateTransition.name') }} *
             </label>
             <input
               v-model="transitionForm.name"
               type="text"
               required
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="例如：待办 → 进行中"
+              :placeholder="t('stateTransition.namePlaceholder')"
             />
           </div>
 
           <!-- 源状态 -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              源状态 *
+              {{ t('stateTransition.sourceState') }} *
             </label>
             <select
               v-model="transitionForm.source_state_id"
               required
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="0">选择源状态</option>
+              <option value="0">{{ t('stateTransition.selectSourceState') }}</option>
               <option v-for="state in states" :key="state.id" :value="state.id">
                 {{ state.name }}
               </option>
@@ -143,14 +143,14 @@
           <!-- 目标状态 -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              目标状态 *
+              {{ t('stateTransition.targetState') }} *
             </label>
             <select
               v-model="transitionForm.target_state_id"
               required
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="0">选择目标状态</option>
+              <option value="0">{{ t('stateTransition.selectTargetState') }}</option>
               <option v-for="state in states" :key="state.id" :value="state.id">
                 {{ state.name }}
               </option>
@@ -160,7 +160,7 @@
           <!-- 描述 -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              描述
+              {{ t('stateTransition.description') }}
             </label>
             <textarea
               v-model="transitionForm.description"
@@ -177,7 +177,7 @@
                 type="checkbox"
                 class="w-4 h-4 text-indigo-600 border-gray-300 rounded"
               />
-              <span class="text-sm text-gray-700">允许自动转换</span>
+              <span class="text-sm text-gray-700">{{ t('stateTransition.allowAuto') }}</span>
             </label>
           </div>
 
@@ -188,13 +188,13 @@
               @click="closeModal"
               class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
             >
-              取消
+              {{ t('stateTransition.cancel') }}
             </button>
             <button
               type="submit"
               class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
             >
-              {{ showEditModal ? '保存' : '创建' }}
+              {{ showEditModal ? t('stateTransition.save') : t('stateTransition.create') }}
             </button>
           </div>
         </form>
@@ -207,7 +207,10 @@
 import { ref, onMounted } from 'vue'
 import workflowApi from '@/api/workflow'
 import { useConfirm } from '@/composables/useConfirm'
+import { useI18n } from '@/composables/useI18n'
 import type { StateTransition, StateTransitionCreate } from '@/types/workflow'
+
+const { t } = useI18n()
 
 // Props
 const props = defineProps<{
@@ -258,7 +261,7 @@ async function loadTransitions() {
 // Get state name by ID
 function getStateName(stateId: number): string {
   const state = props.states.find(s => s.id === stateId)
-  return state?.name || '未知'
+  return state?.name || t('stateTransition.unknown')
 }
 
 // Edit transition
@@ -276,7 +279,7 @@ function editTransition(transition: StateTransition) {
 
 // Delete transition
 async function deleteTransition(transition: StateTransition) {
-  if (!(await confirm('确定要删除此转换规则吗？'))) return
+  if (!(await confirm(t('stateTransition.confirmDelete')))) return
 
   try {
     await workflowApi.deleteStateTransition(transition.id)

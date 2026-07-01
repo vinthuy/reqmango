@@ -4,10 +4,10 @@
       <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-10">
         <h3 class="text-lg font-semibold text-gray-900 truncate">{{ cycle?.name }}</h3>
         <div class="flex items-center space-x-1">
-          <button v-if="cycle?.status === 'upcoming'" @click="handleStart" class="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">开始</button>
-          <button v-if="cycle?.status === 'active'" @click="handleEnd" class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">结束</button>
-          <button v-if="cycle?.status !== 'completed' && cycle?.status !== 'cancelled'" @click="handleCancel" class="px-2 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-50">取消</button>
-          <button @click="handleDelete" class="px-2 py-1 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50">删除</button>
+          <button v-if="cycle?.status === 'upcoming'" @click="handleStart" class="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">{{ t('cycleCard.start') }}</button>
+          <button v-if="cycle?.status === 'active'" @click="handleEnd" class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">{{ t('cycleCard.end') }}</button>
+          <button v-if="cycle?.status !== 'completed' && cycle?.status !== 'cancelled'" @click="handleCancel" class="px-2 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-50">{{ t('cycleCard.cancel') }}</button>
+          <button @click="handleDelete" class="px-2 py-1 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50">{{ t('cycleCard.delete') }}</button>
           <button @click="$emit('close')" class="p-1 text-gray-400 hover:text-gray-600 ml-1">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -36,13 +36,13 @@
         <!-- Issues section -->
         <div>
           <div class="flex items-center justify-between mb-2">
-            <h4 class="text-sm font-medium text-gray-700">周期工作项 ({{ cycleStore.cycleIssues.length }})</h4>
+            <h4 class="text-sm font-medium text-gray-700">{{ t('cycle.cycleIssues', { count: cycleStore.cycleIssues.length }) }}</h4>
             <button
               v-if="cycle?.status === 'active' || cycle?.status === 'upcoming'"
               @click="toggleAddIssue"
               class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
             >
-              + 添加
+              {{ t('cycle.addIssue') }}
             </button>
           </div>
 
@@ -51,7 +51,7 @@
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索工作项..."
+              :placeholder="t('cycle.searchIssuePlaceholder')"
               class="w-full px-2 py-1 text-sm border border-gray-300 rounded mb-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               @input="searchIssues"
             />
@@ -66,16 +66,16 @@
                 <span class="text-xs text-gray-400 ml-2">#{{ issue.sequence_id }}</span>
               </div>
               <div v-if="availableIssues.length === 0 && searchIssuesDone" class="text-xs text-gray-400 py-2 text-center">
-                没有可添加的工作项
+                {{ t('cycle.noAvailableIssues') }}
               </div>
             </div>
           </div>
 
-          <div v-if="cycleStore.cycleIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">暂无工作项</div>
+          <div v-if="cycleStore.cycleIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">{{ t('cycle.noIssues') }}</div>
           <div v-else class="space-y-2">
             <div v-for="issue in cycleStore.cycleIssues" :key="issue.id" class="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
               <span class="text-gray-900 truncate flex-1">{{ issue.name }}</span>
-              <button @click="handleRemoveIssue(issue.id)" class="ml-2 text-gray-400 hover:text-red-500" title="移除">
+              <button @click="handleRemoveIssue(issue.id)" class="ml-2 text-gray-400 hover:text-red-500" :title="t('cycle.remove')">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -96,6 +96,9 @@ import CycleProgressCard from './CycleProgressCard.vue'
 import CycleBurndownChart from './CycleBurndownChart.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import type { CycleResponse } from '@/types/cycle'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   cycle: CycleResponse | null
@@ -185,21 +188,21 @@ async function handleStart() {
 
 async function handleEnd() {
   if (!props.cycle) return
-  if (!(await confirm('确定要结束这个周期吗？'))) return
+  if (!(await confirm(t('cycle.confirmEndGeneric')))) return
   await cycleStore.endCycle(props.cycle.id)
   await cycleStore.fetchCycle(props.cycle.id)
 }
 
 async function handleCancel() {
   if (!props.cycle) return
-  if (!(await confirm('确定要取消这个周期吗？'))) return
+  if (!(await confirm(t('cycle.confirmCancelGeneric')))) return
   await cycleStore.cancelCycle(props.cycle.id)
   await cycleStore.fetchCycle(props.cycle.id)
 }
 
 async function handleDelete() {
   if (!props.cycle) return
-  if (!(await confirm('确定要删除这个周期吗？此操作不可撤销。'))) return
+  if (!(await confirm(t('cycle.confirmDeleteGeneric')))) return
   await cycleStore.deleteCycleAction(props.cycle.id)
   emit('close')
 }

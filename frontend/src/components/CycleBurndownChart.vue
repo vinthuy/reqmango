@@ -1,9 +1,9 @@
 <template>
   <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <h4 class="text-sm font-medium text-gray-700 mb-3">燃尽图</h4>
+    <h4 class="text-sm font-medium text-gray-700 mb-3">{{ t('cycleBurndown.title') }}</h4>
 
     <div v-if="!data" class="text-center py-8 text-gray-400 text-sm">
-      暂无燃尽图数据（需要设置起止日期）
+      {{ t('cycleBurndown.noData') }}
     </div>
 
     <div v-else>
@@ -16,10 +16,10 @@
       </div>
 
       <div class="flex items-center justify-center space-x-6 mt-3 text-xs text-gray-500">
-        <span class="flex items-center"><span class="w-4 border-t-2 border-dashed border-gray-400 mr-1"></span>理想线</span>
-        <span class="flex items-center"><span class="w-4 border-t-2 border-blue-500 mr-1"></span>实际完成</span>
+        <span class="flex items-center"><span class="w-4 border-t-2 border-dashed border-gray-400 mr-1"></span>{{ t('cycleBurndown.ideal') }}</span>
+        <span class="flex items-center"><span class="w-4 border-t-2 border-blue-500 mr-1"></span>{{ t('cycleBurndown.actual') }}</span>
         <span :class="data.is_on_track ? 'text-green-600 font-medium' : 'text-red-600 font-medium'">
-          {{ data.is_on_track ? '进度正常' : '进度落后' }}
+          {{ data.is_on_track ? t('cycleBurndown.onTrack') : t('cycleBurndown.behind') }}
         </span>
       </div>
     </div>
@@ -28,7 +28,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { BurndownData } from '@/types/cycle'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   data: BurndownData | null

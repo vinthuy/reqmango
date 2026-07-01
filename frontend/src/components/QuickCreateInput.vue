@@ -13,7 +13,7 @@
         ref="titleInput"
         v-model="quickCreate.title"
         type="text"
-        :placeholder="placeholder"
+        :placeholder="effectivePlaceholder"
         class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
         @keydown.enter="handleCreate"
         @keydown.esc="handleCancel"
@@ -50,9 +50,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import issueApi from '@/api/issue'
 import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   projectId: number
@@ -66,19 +68,20 @@ const props = withDefaults(defineProps<{
   autoFocus?: boolean
   inline?: boolean
 }>(), {
-  placeholder: '输入标题，按 Enter 快速创建...',
+  placeholder: '',
   showPriority: true,
   showCancel: false,
   autoFocus: false,
   inline: false
 })
 
+const effectivePlaceholder = computed(() => props.placeholder || t('quickCreate.placeholder'))
+
 const emit = defineEmits<{
   (e: 'created', issue: any): void
   (e: 'cancel'): void
 }>()
 
-const { t } = useI18n()
 const titleInput = ref<HTMLInputElement | null>(null)
 const creating = ref(false)
 

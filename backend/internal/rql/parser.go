@@ -128,13 +128,62 @@ func (p *Parser) parseComparison() Node {
 
 	token := p.current()
 
+	// IS NULL / IS NOT NULL
+	if token.Type == TOKEN_IS {
+		p.advance()
+		notNull := false
+		if p.match(TOKEN_NOT) {
+			notNull = true
+		}
+		p.expect(TOKEN_NULL, "期望 NULL")
+		if notNull {
+			return &NullCheck{Field: field, Operator: "IS NOT NULL"}
+		}
+		return &NullCheck{Field: field, Operator: "IS NULL"}
+	}
+
+	// NOT LIKE expression
+	if token.Type == TOKEN_NOT && p.peek().Type == TOKEN_LIKE {
+		p.advance() // consume NOT
+		p.advance() // consume LIKE
+		valueToken := p.expect(TOKEN_STRING, "期望字符串值")
+		return &LikeExpr{
+			Field:    field,
+			Value:    valueToken.Value,
+			Operator: "NOT LIKE",
+		}
+	}
+
 	// LIKE expression
 	if token.Type == TOKEN_LIKE {
 		p.advance()
 		valueToken := p.expect(TOKEN_STRING, "期望字符串值")
 		return &LikeExpr{
-			Field: field,
-			Value: valueToken.Value,
+			Field:    field,
+			Value:    valueToken.Value,
+			Operator: "LIKE",
+		}
+	}
+
+	// NOT IN expression
+	if token.Type == TOKEN_NOT && p.peek().Type == TOKEN_IN {
+		p.advance() // consume NOT
+		p.advance() // consume IN
+		p.expect(TOKEN_LPAREN, "期望 '('")
+
+		var values []interface{}
+		values = append(values, p.parseInValue())
+
+		for p.match(TOKEN_COMMA) {
+			values = append(values, p.parseInValue())
+		}
+
+		p.expect(TOKEN_RPAREN, "期望 ')'")
+
+		return &InExpr{
+			Field:    field,
+			Values:   values,
+			Operator: "NOT IN",
 		}
 	}
 
@@ -144,17 +193,18 @@ func (p *Parser) parseComparison() Node {
 		p.expect(TOKEN_LPAREN, "期望 '('")
 
 		var values []interface{}
-		values = append(values, p.expect(TOKEN_STRING, "期望字符串值").Value)
+		values = append(values, p.parseInValue())
 
 		for p.match(TOKEN_COMMA) {
-			values = append(values, p.expect(TOKEN_STRING, "期望字符串值").Value)
+			values = append(values, p.parseInValue())
 		}
 
 		p.expect(TOKEN_RPAREN, "期望 ')'")
 
 		return &InExpr{
-			Field:  field,
-			Values: values,
+			Field:    field,
+			Values:   values,
+			Operator: "IN",
 		}
 	}
 
@@ -185,6 +235,19 @@ func (p *Parser) parseComparison() Node {
 		Field:    field,
 		Operator: operator,
 		Value:    value,
+	}
+}
+
+// parseInValue parses a value inside an IN clause (string or number)
+func (p *Parser) parseInValue() interface{} {
+	token := p.current()
+	switch token.Type {
+	case TOKEN_STRING:
+		return p.advance().Value
+	case TOKEN_NUMBER:
+		return p.advance().Value
+	default:
+		return p.expect(TOKEN_STRING, "期望字符串或数字值").Value
 	}
 }
 

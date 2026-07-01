@@ -7,7 +7,7 @@
         type="text"
         :value="localValue.text_value"
         @input="updateTextValue(($event.target as HTMLInputElement).value)"
-        :placeholder="field.placeholder || '请输入' + field.name"
+        :placeholder="field.placeholder || t('customField.enterValue')"
         :disabled="field.is_readonly"
         :required="field.is_required"
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -16,7 +16,7 @@
         v-else
         :value="localValue.text_value"
         @input="updateTextValue(($event.target as HTMLTextAreaElement).value)"
-        :placeholder="field.placeholder || '请输入' + field.name"
+        :placeholder="field.placeholder || t('customField.enterValue')"
         :disabled="field.is_readonly"
         :required="field.is_required"
         rows="3"
@@ -38,7 +38,7 @@
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
       />
       <p v-if="field.number_min || field.number_max" class="text-xs text-gray-500 mt-1">
-        范围: {{ field.number_min ?? '-' }} ~ {{ field.number_max ?? '-' }}
+        {{ t('customField.range', { min: field.number_min ?? '-', max: field.number_max ?? '-' }) }}
       </p>
     </template>
 
@@ -53,7 +53,7 @@
         :required="field.is_required"
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
-        <option value="">请选择</option>
+        <option value="">{{ t('customField.selectPlaceholder') }}</option>
         <option
           v-for="option in activeOptions"
           :key="option.id"
@@ -96,7 +96,7 @@
           :disabled="field.is_readonly"
           class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
         />
-        <span class="text-sm text-gray-700">{{ localValue.boolean_value ? '是' : '否' }}</span>
+        <span class="text-sm text-gray-700">{{ localValue.boolean_value ? t('customField.yes') : t('customField.no') }}</span>
       </label>
     </template>
 
@@ -129,7 +129,7 @@
         target="_blank"
         class="text-sm text-indigo-600 hover:underline mt-1"
       >
-        打开链接
+        {{ t('customField.openLink') }}
       </a>
     </template>
 
@@ -143,7 +143,7 @@
         :required="field.is_required"
         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
-        <option value="">请选择成员</option>
+        <option value="">{{ t('customField.selectPlaceholder') }}</option>
         <option v-for="member in members" :key="member.id" :value="member.id">
           {{ member.display_name || member.email }}
         </option>
@@ -175,6 +175,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+const { t } = useI18n()
 import type {
   CustomFieldLite,
   IssueCustomFieldValueUpdate

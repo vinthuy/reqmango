@@ -18,6 +18,8 @@ const (
 	TOKEN_AND
 	TOKEN_OR
 	TOKEN_NOT
+	TOKEN_IS
+	TOKEN_NULL
 	TOKEN_LPAREN
 	TOKEN_RPAREN
 	TOKEN_COMMA
@@ -55,19 +57,29 @@ func (c *Comparison) nodeType() string { return "Comparison" }
 
 // LikeExpr 模糊匹配表达式
 type LikeExpr struct {
-	Field string
-	Value string
+	Field    string
+	Value    string
+	Operator string // "LIKE" | "NOT LIKE"
 }
 
 func (l *LikeExpr) nodeType() string { return "LikeExpr" }
 
 // InExpr IN 表达式
 type InExpr struct {
-	Field  string
-	Values []interface{}
+	Field    string
+	Values   []interface{}
+	Operator string // "IN" | "NOT IN"
 }
 
 func (i *InExpr) nodeType() string { return "InExpr" }
+
+// NullCheck IS NULL / IS NOT NULL 表达式
+type NullCheck struct {
+	Field    string
+	Operator string // "IS NULL" | "IS NOT NULL"
+}
+
+func (n *NullCheck) nodeType() string { return "NullCheck" }
 
 // NotExpr NOT 表达式
 type NotExpr struct {

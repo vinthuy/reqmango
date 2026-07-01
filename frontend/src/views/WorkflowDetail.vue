@@ -3,8 +3,10 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/api';
 import * as workflowApi from '@/api/workflow';
+import { useI18n } from '@/composables/useI18n';
 import { useConfirm } from '@/composables/useConfirm';
 
+const { t } = useI18n();
 const { confirm } = useConfirm();
 
 const route = useRoute();
@@ -149,15 +151,14 @@ function goBack() {
 
 async function toggleActive() {
   if (!workflowId.value || updatingStatus.value) return;
-  
+
   const newStatus = !isActive.value;
-  const actionText = newStatus ? '启用' : '停用';
-  
+
   if (!(await confirm({
-    title: `${actionText}工作流`,
-    message: `确定要${actionText}工作流 "${workflowName.value}" 吗？${newStatus ? '' : '停用后该工作流将不参与状态流转。'}`,
+    title: newStatus ? t('workflow.enableWorkflow') : t('workflow.disableWorkflow'),
+    message: newStatus ? t('workflow.confirmEnable', { name: workflowName.value }) : t('workflow.confirmDisable', { name: workflowName.value }),
     danger: !newStatus,
-    confirmText: actionText
+    confirmText: newStatus ? t('workflow.enable') : t('workflow.disable')
   }))) return;
   
   updatingStatus.value = true;

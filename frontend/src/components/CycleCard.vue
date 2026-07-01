@@ -19,7 +19,7 @@
     <!-- 进度条 -->
     <div class="mb-3">
       <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-        <span>进度</span>
+        <span>{{ t('cycleCard.progress') }}</span>
         <span>{{ cycle.progress }}%</span>
       </div>
       <div class="w-full bg-gray-200 rounded-full h-2">
@@ -35,11 +35,11 @@
     <div class="grid grid-cols-2 gap-3 mb-3">
       <div class="text-center p-2 bg-gray-50 rounded">
         <div class="text-lg font-semibold text-gray-900">{{ cycle.total_issues }}</div>
-        <div class="text-xs text-gray-500">总工作项</div>
+        <div class="text-xs text-gray-500">{{ t('cycleCard.totalIssues') }}</div>
       </div>
       <div class="text-center p-2 bg-gray-50 rounded">
         <div class="text-lg font-semibold text-green-600">{{ cycle.completed_issues }}</div>
-        <div class="text-xs text-gray-500">已完成</div>
+        <div class="text-xs text-gray-500">{{ t('cycleCard.completed') }}</div>
       </div>
     </div>
 
@@ -49,14 +49,14 @@
         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        开始: {{ formatDate(cycle.start_date) }}
+        {{ t('cycleCard.startDate') }}: {{ formatDate(cycle.start_date) }}
       </div>
       <div v-if="cycle.end_date" class="flex items-center" :class="{ 'text-red-500': isOverdue }">
         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        结束: {{ formatDate(cycle.end_date) }}
-        <span v-if="isOverdue" class="ml-1 text-red-500">(已过期)</span>
+        {{ t('cycleCard.endDate') }}: {{ formatDate(cycle.end_date) }}
+        <span v-if="isOverdue" class="ml-1 text-red-500">{{ t('cycleCard.expired') }}</span>
       </div>
     </div>
 
@@ -68,21 +68,21 @@
           @click.stop="$emit('start', cycle)"
           class="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
         >
-          开始
+          {{ t('cycleCard.start') }}
         </button>
         <button
           v-if="cycle.status === 'active'"
           @click.stop="$emit('end', cycle)"
           class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
         >
-          结束
+          {{ t('cycleCard.end') }}
         </button>
         <button
           v-if="cycle.status !== 'completed' && cycle.status !== 'cancelled'"
           @click.stop="$emit('cancel', cycle)"
           class="px-3 py-1 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
         >
-          取消
+          {{ t('cycleCard.cancel') }}
         </button>
       </div>
 
@@ -105,13 +105,13 @@
             @click="$emit('click'); showMenu = false"
             class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
           >
-            查看详情
+            {{ t('cycleCard.viewDetails') }}
           </button>
           <button
             @click="$emit('delete', cycle); showMenu = false"
             class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
           >
-            删除
+            {{ t('cycleCard.delete') }}
           </button>
         </div>
       </div>
@@ -122,6 +122,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { CycleResponse, CycleStatus } from '@/types/cycle'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 // Props
 const props = defineProps<{
@@ -154,12 +157,12 @@ function getStatusClass(status: CycleStatus): string {
 // Status text
 function getStatusText(status: CycleStatus): string {
   const texts: Record<CycleStatus, string> = {
-    upcoming: '即将开始',
-    active: '进行中',
-    completed: '已完成',
-    cancelled: '已取消'
+    upcoming: t('cycleCard.upcoming'),
+    active: t('cycleCard.active'),
+    completed: t('cycleCard.completed_status'),
+    cancelled: t('cycleCard.cancelled')
   }
-  return texts[status] || '未知'
+  return texts[status] || t('cycleCard.unknown')
 }
 
 // Progress bar class

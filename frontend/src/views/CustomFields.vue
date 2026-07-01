@@ -9,7 +9,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 class="text-lg font-semibold text-gray-900">自定义字段管理</h1>
+          <h1 class="text-lg font-semibold text-gray-900">{{ t('customFieldsPage.title') }}</h1>
         </div>
       </div>
     </div>
@@ -31,11 +31,13 @@
 </template>
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from '@/composables/useI18n'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
 import type { CustomField } from '@/types/custom-field'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const workspaceId = parseInt(route.params.workspaceId as string, 10)
 const projectId = parseInt(route.params.projectId as string, 10)
 

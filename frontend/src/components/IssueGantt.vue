@@ -9,9 +9,9 @@
       </div>
       <div class="flex items-center gap-2">
         <select v-model="groupBy" class="text-xs border border-gray-300 rounded px-2 py-1">
-          <option value="assignee">By Assignee</option>
-          <option value="state">By State</option>
-          <option value="none">Flat</option>
+          <option value="assignee">{{ t('issueGantt.groupByAssignee') }}</option>
+          <option value="state">{{ t('issueGantt.groupByState') }}</option>
+          <option value="none">{{ t('issueGantt.groupByFlat') }}</option>
         </select>
         <span class="text-xs text-gray-400">{{ issues.length }} issues</span>
       </div>
@@ -71,9 +71,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import api from '@/api'
 
-const props = defineProps<{ projectId: number; workspaceId: number }>()
+const { t } = useI18n()
+
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
 
 const issues = ref<any[]>([])
@@ -171,11 +174,16 @@ function priorityColor(p: string) {
 }
 
 onMounted(() => load())
-watch(() => props.projectId, () => load())
+watch(() => [props.projectId, props.rql], () => load())
 
 async function load() {
   try {
-    const r = await api.get(`/issues?project_id=${props.projectId}&limit=500`)
+    let url = `/issues?project_id=${props.projectId}&limit=500`
+    if (props.rql) url += `&rql=${encodeURIComponent(props.rql)}`
+    if (props.filterSortBy) {
+      url += `&sort_by=${props.filterSortBy}&sort_dir=${props.filterSortDir || 'desc'}`
+    }
+    const r = await api.get(url)
     issues.value = Array.isArray(r.data) ? r.data : []
   } catch (_) { issues.value = [] }
 }

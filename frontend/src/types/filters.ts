@@ -1,133 +1,274 @@
-/**
- * Filter Types — Plane-aligned filter condition definition
- *
- * Maps Plane semantic operators to RQL expressions internally.
- * Visual labels use Plane-style "is" / "contains" / "is any of" etc.
- */
 export interface FilterCondition {
-  /** 后端字段名 (state_id, priority, assignee_id, etc.) */
   field: string
-  /** 语义操作符: is / is not / is any of / is not any of / contains / does not contain / is empty / is not empty / before / after / before or on / after or on / between / not between */
   operator: string
-  /** 原始值 (string | number | string[] 多选) */
   value: any
-  /** 显示值 (中文/英文标签) */
   displayValue: string
 }
 
 export interface FilterField {
-  /** 后端字段名 */
   key: string
-  /** i18n key (filter.field*) */
+  dbKey: string
   labelKey: string
-  /** 字段类型决定值选择器样式 */
-  type: 'select' | 'multi' | 'date' | 'text' | 'date_range'
-  /** 可用操作符 */
+  type: 'select' | 'multi' | 'date' | 'text' | 'number' | 'date_range'
+  valueType: 'string' | 'number' | 'date'
   operators: string[]
 }
 
-export interface FilterOperator {
-  value: string
+export interface SortOption {
+  key: string
   labelKey: string
-  /** 是否需要输入值 */
-  needsValue: boolean
+  direction: 'asc' | 'desc'
 }
 
-export interface FilterHistoryItem {
-  id: string
-  timestamp: number
-  filters: FilterCondition[]
-  rql: string
-  projectId: number
+export interface GroupOption {
+  key: string
+  labelKey: string
 }
 
-/**
- * Complete Plane-aligned field definitions.
- * Ordered by relevance. Maps to Plane's filter dropdown.
- */
 export const FILTER_FIELDS: FilterField[] = [
-  { key: 'title',        labelKey: 'filter.fieldTitle',       type: 'text',       operators: ['is', 'is not', 'contains', 'does not contain'] },
-  { key: 'state_id',     labelKey: 'filter.fieldState',       type: 'select',     operators: ['is', 'is any of', 'is not', 'is not any of'] },
-  { key: 'state_group',  labelKey: 'filter.fieldStateGroup',  type: 'select',     operators: ['is', 'is any of', 'is not', 'is not any of'] },
-  { key: 'priority',     labelKey: 'filter.fieldPriority',    type: 'select',     operators: ['is', 'is any of', 'is not', 'is not any of'] },
-  { key: 'assignee_id',  labelKey: 'filter.fieldAssignee',    type: 'select',     operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty'] },
-  { key: 'label',        labelKey: 'filter.fieldLabel',       type: 'multi',      operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty'] },
-  { key: 'cycle_id',     labelKey: 'filter.fieldCycle',       type: 'select',     operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty'] },
-  { key: 'module_id',    labelKey: 'filter.fieldModule',      type: 'select',     operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty'] },
-  { key: 'type_id',      labelKey: 'filter.fieldType',        type: 'select',     operators: ['is', 'is any of', 'is not', 'is not any of'] },
-  { key: 'start_date',   labelKey: 'filter.fieldStartDate',   type: 'date',       operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty'] },
-  { key: 'target_date',  labelKey: 'filter.fieldTargetDate',  type: 'date',       operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty'] },
-  { key: 'created_at',   labelKey: 'filter.fieldCreatedAt',   type: 'date',       operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty'] },
+  { key: 'title', dbKey: 'name', labelKey: 'filter.fieldTitle', type: 'text', valueType: 'string', operators: ['is', 'is not', 'contains', 'does not contain'] },
+  { key: 'state_id', dbKey: 'state_id', labelKey: 'filter.fieldState', type: 'select', valueType: 'number', operators: ['is', 'is any of', 'is not', 'is not any of'] },
+  { key: 'state_group', dbKey: 'state_group', labelKey: 'filter.fieldStateGroup', type: 'select', valueType: 'string', operators: ['is', 'is any of', 'is not', 'is not any of'] },
+  { key: 'priority', dbKey: 'priority', labelKey: 'filter.fieldPriority', type: 'select', valueType: 'string', operators: ['is', 'is any of', 'is not', 'is not any of'] },
+  { key: 'assignee_id', dbKey: 'assignee_id', labelKey: 'filter.fieldAssignee', type: 'select', valueType: 'number', operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty', 'is not empty'] },
+  { key: 'label', dbKey: 'label', labelKey: 'filter.fieldLabel', type: 'multi', valueType: 'number', operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty', 'is not empty'] },
+  { key: 'cycle_id', dbKey: 'cycle_id', labelKey: 'filter.fieldCycle', type: 'select', valueType: 'number', operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty', 'is not empty'] },
+  { key: 'module_id', dbKey: 'module_id', labelKey: 'filter.fieldModule', type: 'select', valueType: 'number', operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty', 'is not empty'] },
+  { key: 'type_id', dbKey: 'issue_type_id', labelKey: 'filter.fieldType', type: 'select', valueType: 'number', operators: ['is', 'is any of', 'is not', 'is not any of'] },
+  { key: 'start_date', dbKey: 'start_date', labelKey: 'filter.fieldStartDate', type: 'date', valueType: 'date', operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty', 'is not empty'] },
+  { key: 'target_date', dbKey: 'target_date', labelKey: 'filter.fieldTargetDate', type: 'date', valueType: 'date', operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty', 'is not empty'] },
+  { key: 'created_at', dbKey: 'created_at', labelKey: 'filter.fieldCreatedAt', type: 'date', valueType: 'date', operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty', 'is not empty'] },
 ]
 
-/** No-value operators (don't need a value input) */
-export const NO_VALUE_OPERATORS = ['is empty', 'is not empty']
-
-/** Multi-value operators (value is string[]) */
-export const MULTI_VALUE_OPERATORS = ['is any of', 'is not any of']
-
-/** Date range operator (needs two date inputs) */
-export const DATE_RANGE_OPERATORS = ['between', 'not between']
-
-/** Operator → RQL symbol mapping */
-export const OPERATOR_TO_RQL: Record<string, string> = {
-  'is': '=',
-  'is not': '!=',
-  'is any of': 'IN',
-  'is not any of': 'NOT IN',
-  'contains': '~',
-  'does not contain': '!~',
-  'is empty': 'IS EMPTY',
-  'is not empty': 'IS NOT EMPTY',
-  'before': '<',
-  'after': '>',
-  'before or on': '<=',
-  'after or on': '>=',
-  'between': '>=',
-  'not between': '<',
+function formatValue(value: any, valueType: 'string' | 'number' | 'date'): string {
+  if (valueType === 'number') {
+    return String(value)
+  }
+  return `"${value}"`
 }
 
-/** State Group values */
-export const STATE_GROUPS = {
-  backlog: 'settings.stateGroupBacklog',
-  unstarted: 'settings.stateGroupUnstarted',
-  started: 'settings.stateGroupStarted',
-  completed: 'settings.stateGroupCompleted',
-  cancelled: 'settings.stateGroupCancelled',
-} as const
+export interface RQLResult {
+  filters: FilterCondition[]
+  sortBy?: SortOption
+}
 
-/**
- * Build an RQL string from a list of FilterConditions.
- * Each condition maps to its RQL equivalent and combined with AND.
- */
 export function buildRQL(filters: FilterCondition[]): string {
-  return filters
-    .map((c) => conditionToRQL(c))
-    .filter(Boolean)
-    .join(' AND ')
-}
+  if (filters.length === 0) return ''
 
-function conditionToRQL(c: FilterCondition): string | null {
-  const { field, operator, value } = c
-  if (NO_VALUE_OPERATORS.includes(operator)) {
-    return `${field} ${OPERATOR_TO_RQL[operator] || ''}`
-  }
-  if (!value && value !== 0 && value !== false) return null
+  const clauses: string[] = []
 
-  if (MULTI_VALUE_OPERATORS.includes(operator)) {
-    const vals = Array.isArray(value) ? value : [value]
-    const formatted = vals.map((v: any) => typeof v === 'string' ? `"${v}"` : v).join(', ')
-    return `${field} ${OPERATOR_TO_RQL[operator] || ''} [${formatted}]`
-  }
+  for (const filter of filters) {
+    let clause = ''
+    const { field, operator, value } = filter
 
-  if (DATE_RANGE_OPERATORS.includes(operator)) {
-    const [start, end] = Array.isArray(value) ? value : [value]
-    if (operator === 'between') {
-      return `${field} >= "${start}" AND ${field} <= "${end}"`
+    const fieldDef = FILTER_FIELDS.find(f => f.key === field)
+    const dbKey = fieldDef?.dbKey || field
+    const valueType = fieldDef?.valueType || 'string'
+
+    switch (operator) {
+      case 'is':
+        clause = `${dbKey} = ${formatValue(value, valueType)}`
+        break
+      case 'is not':
+        clause = `${dbKey} != ${formatValue(value, valueType)}`
+        break
+      case 'is any of':
+        const anyOfValues = Array.isArray(value) ? value : [value]
+        const formattedAnyOf = anyOfValues.map(v => formatValue(v, valueType)).join(', ')
+        clause = `${dbKey} IN (${formattedAnyOf})`
+        break
+      case 'is not any of':
+        const notAnyOfValues = Array.isArray(value) ? value : [value]
+        const formattedNotAnyOf = notAnyOfValues.map(v => formatValue(v, valueType)).join(', ')
+        clause = `${dbKey} NOT IN (${formattedNotAnyOf})`
+        break
+      case 'contains':
+        clause = `${dbKey} LIKE "%${value}%"`
+        break
+      case 'does not contain':
+        clause = `${dbKey} NOT LIKE "%${value}%"`
+        break
+      case 'is empty':
+        clause = `${dbKey} IS NULL`
+        break
+      case 'is not empty':
+        clause = `${dbKey} IS NOT NULL`
+        break
+      case 'before':
+        clause = `${dbKey} < "${value}"`
+        break
+      case 'after':
+        clause = `${dbKey} > "${value}"`
+        break
+      case 'before or on':
+        clause = `${dbKey} <= "${value}"`
+        break
+      case 'after or on':
+        clause = `${dbKey} >= "${value}"`
+        break
+      case 'between':
+        clause = `${dbKey} >= "${value[0]}" AND ${dbKey} <= "${value[1]}"`
+        break
+      case 'not between':
+        clause = `${dbKey} < "${value[0]}" OR ${dbKey} > "${value[1]}"`
+        break
     }
-    return `${field} < "${start}" OR ${field} > "${end}"`
+
+    if (clause) clauses.push(clause)
   }
 
-  const formatted = typeof value === 'string' ? `"${value}"` : value
-  return `${field} ${OPERATOR_TO_RQL[operator] || '='} ${formatted}`
+  return clauses.join(' AND ')
 }
+
+export function parseRQL(rqlStr: string): RQLResult {
+  if (!rqlStr.trim()) return { filters: [] }
+
+  const conditions: FilterCondition[] = []
+  let sortBy: SortOption | undefined
+
+  const clauses = rqlStr.split(' AND ')
+
+  for (const clause of clauses) {
+    const trimmed = clause.trim()
+    if (!trimmed) continue
+
+    const orderbyMatch = trimmed.match(/^orderby (\w+) (asc|desc)$/i)
+    if (orderbyMatch) {
+      sortBy = {
+        key: orderbyMatch[1],
+        labelKey: SORT_OPTIONS.find(s => s.key === orderbyMatch[1])?.labelKey || '',
+        direction: orderbyMatch[2].toLowerCase() as 'asc' | 'desc'
+      }
+      continue
+    }
+
+    let field: string = ''
+    let operator: string = ''
+    let value: any = ''
+    let displayValue: string = ''
+
+    const likeMatch = trimmed.match(/^(\w+) (NOT LIKE|LIKE) (%?"([^"]+)"%)?$/)
+    if (likeMatch) {
+      field = likeMatch[1]
+      operator = likeMatch[2] === 'LIKE' ? 'contains' : 'does not contain'
+      value = likeMatch[4] || ''
+      displayValue = value
+      conditions.push({ field, operator, value, displayValue })
+      continue
+    }
+
+    const inMatch = trimmed.match(/^(\w+) (NOT IN|IN) \((.*)\)$/)
+    if (inMatch) {
+      field = inMatch[1]
+      operator = inMatch[2] === 'IN' ? 'is any of' : 'is not any of'
+      const valuesStr = inMatch[3]
+      const values = valuesStr.split(',').map(v => {
+        const trimmedV = v.trim()
+        const quotedMatch = trimmedV.match(/^"([^"]+)"$/)
+        return quotedMatch ? quotedMatch[1] : trimmedV
+      })
+      value = values
+      displayValue = values.join(', ')
+      conditions.push({ field, operator, value, displayValue })
+      continue
+    }
+
+    const nullMatch = trimmed.match(/^(\w+) (IS NOT NULL|IS NULL)$/)
+    if (nullMatch) {
+      field = nullMatch[1]
+      operator = nullMatch[2] === 'IS NULL' ? 'is empty' : 'is not empty'
+      value = ''
+      displayValue = ''
+      conditions.push({ field, operator, value, displayValue })
+      continue
+    }
+
+    const comparisonMatch = trimmed.match(/^(\w+) ([=<>!]+) "%?([^"%]+)%?"?$/)
+    if (comparisonMatch) {
+      field = comparisonMatch[1]
+      const op = comparisonMatch[2]
+      value = comparisonMatch[3]
+      displayValue = value
+
+      switch (op) {
+        case '=':
+          operator = 'is'
+          break
+        case '!=':
+          operator = 'is not'
+          break
+        case '>':
+          operator = 'after'
+          break
+        case '<':
+          operator = 'before'
+          break
+        case '>=':
+          operator = 'after or on'
+          break
+        case '<=':
+          operator = 'before or on'
+          break
+      }
+
+      if (operator) {
+        conditions.push({ field, operator, value, displayValue })
+      }
+      continue
+    }
+
+    const simpleMatch = trimmed.match(/^(\w+) ([=<>!]+) "([^"]+)"$/)
+    if (simpleMatch) {
+      field = simpleMatch[1]
+      const op = simpleMatch[2]
+      value = simpleMatch[3]
+      displayValue = value
+
+      switch (op) {
+        case '=':
+          operator = 'is'
+          break
+        case '!=':
+          operator = 'is not'
+          break
+        case '>':
+          operator = 'after'
+          break
+        case '<':
+          operator = 'before'
+          break
+        case '>=':
+          operator = 'after or on'
+          break
+        case '<=':
+          operator = 'before or on'
+          break
+      }
+
+      if (operator) {
+        conditions.push({ field, operator, value, displayValue })
+      }
+    }
+  }
+
+  return { filters: conditions, sortBy }
+}
+
+export const SORT_OPTIONS: SortOption[] = [
+  { key: 'created_at', labelKey: 'filter.orderLastCreated', direction: 'desc' },
+  { key: 'updated_at', labelKey: 'filter.orderLastUpdated', direction: 'desc' },
+  { key: 'priority', labelKey: 'filter.orderPriority', direction: 'desc' },
+  { key: 'start_date', labelKey: 'filter.orderStartDate', direction: 'asc' },
+  { key: 'target_date', labelKey: 'filter.orderDueDate', direction: 'asc' },
+]
+
+export const GROUP_OPTIONS: GroupOption[] = [
+  { key: 'none', labelKey: 'filter.groupByNone' },
+  { key: 'state_id', labelKey: 'filter.groupByState' },
+  { key: 'priority', labelKey: 'filter.groupByPriority' },
+  { key: 'assignee_id', labelKey: 'filter.groupByAssignee' },
+  { key: 'label', labelKey: 'filter.groupByLabel' },
+  { key: 'cycle_id', labelKey: 'filter.groupByCycle' },
+  { key: 'module_id', labelKey: 'filter.groupByModule' },
+  { key: 'type_id', labelKey: 'filter.groupByType' },
+]

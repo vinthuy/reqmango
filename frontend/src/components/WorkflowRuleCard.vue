@@ -23,7 +23,7 @@
               class="px-2 py-0.5 text-xs rounded-full"
               :class="rule.is_enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
             >
-              {{ rule.is_enabled ? '已启用' : '已禁用' }}
+              {{ rule.is_enabled ? t('workflowRule.enabled') : t('workflowRule.disabled') }}
             </span>
           </div>
 
@@ -42,12 +42,12 @@
 
             <!-- 条件数量 -->
             <span v-if="rule.conditions && rule.conditions.length > 0" class="text-xs text-gray-500">
-              {{ rule.conditions.length }} 个条件
+              {{ t('workflowRule.conditionsCount', { count: rule.conditions.length }) }}
             </span>
 
             <!-- 动作数量 -->
             <span class="text-xs text-gray-500">
-              {{ rule.actions?.length || 0 }} 个动作
+              {{ t('workflowRule.actionsCount', { count: rule.actions?.length || 0 }) }}
             </span>
           </div>
         </div>
@@ -57,7 +57,7 @@
       <div class="flex items-center space-x-2 ml-4">
         <!-- 执行统计 -->
         <div v-if="rule.execution_count > 0" class="text-right mr-2">
-          <div class="text-xs text-gray-500">执行 {{ rule.execution_count }} 次</div>
+          <div class="text-xs text-gray-500">{{ t('workflowRule.executedCount', { count: rule.execution_count }) }}</div>
           <div v-if="rule.last_executed_at" class="text-xs text-gray-400">
             {{ formatDate(rule.last_executed_at) }}
           </div>
@@ -67,7 +67,7 @@
         <button
           @click="$emit('view-logs')"
           class="p-1.5 text-gray-400 hover:text-gray-600 rounded"
-          title="查看日志"
+          :title="t('workflowRule.viewLog')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -78,7 +78,7 @@
         <button
           @click="$emit('edit')"
           class="p-1.5 text-gray-400 hover:text-indigo-600 rounded"
-          title="编辑"
+          :title="t('workflowRule.edit')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -89,7 +89,7 @@
         <button
           @click="$emit('delete')"
           class="p-1.5 text-gray-400 hover:text-red-600 rounded"
-          title="删除"
+          :title="t('workflowRule.delete')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -102,14 +102,14 @@
     <div v-if="showDetails" class="mt-4 pt-4 border-t border-gray-100">
       <!-- 条件 -->
       <div v-if="rule.conditions && rule.conditions.length > 0" class="mb-3">
-        <h5 class="text-xs font-medium text-gray-500 mb-1">条件</h5>
+        <h5 class="text-xs font-medium text-gray-500 mb-1">{{ t('workflowRule.conditions') }}</h5>
         <div class="space-y-1">
           <div
             v-for="(condition, index) in rule.conditions"
             :key="index"
             class="text-xs text-gray-600 flex items-center space-x-1"
           >
-            <span v-if="index > 0" class="text-gray-400">且</span>
+            <span v-if="index > 0" class="text-gray-400">{{ t('automation.and') }}</span>
             <span class="font-medium">{{ condition.field }}</span>
             <span class="text-gray-400">{{ getOperatorName(condition.operator) }}</span>
             <span v-if="condition.value !== undefined" class="text-indigo-600">{{ condition.value }}</span>
@@ -119,7 +119,7 @@
 
       <!-- 动作 -->
       <div v-if="rule.actions && rule.actions.length > 0">
-        <h5 class="text-xs font-medium text-gray-500 mb-1">动作</h5>
+        <h5 class="text-xs font-medium text-gray-500 mb-1">{{ t('workflowRule.actions') }}</h5>
         <div class="space-y-1">
           <div
             v-for="(action, index) in rule.actions"
@@ -139,7 +139,7 @@
       @click="showDetails = !showDetails"
       class="mt-3 text-xs text-indigo-600 hover:text-indigo-800 flex items-center space-x-1"
     >
-      <span>{{ showDetails ? '收起' : '查看' }}详情</span>
+      <span>{{ showDetails ? t('workflowRule.hideDetails') : t('workflowRule.showDetails') }}{{ t('workflowRule.details') }}</span>
       <svg
         class="w-3 h-3 transition-transform"
         :class="{ 'rotate-180': showDetails }"
@@ -155,8 +155,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { AutomationRule, TriggerTypeEnum, ConditionOperatorEnum, ActionTypeEnum } from '@/types/workflow'
 import { getTriggerDisplayName, getActionDisplayName, getOperatorDisplayName } from '@/types/workflow'
+
+const { t } = useI18n()
 
 // Props
 defineProps<{

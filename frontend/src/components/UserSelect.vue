@@ -19,7 +19,7 @@
           v-model="searchText"
           type="text"
           class="search-input"
-          placeholder="搜索用户..."
+          :placeholder="t('userSelect.searchPlaceholder')"
           @keydown.escape="close"
           @keydown.enter.prevent="selectFirst"
         />
@@ -40,7 +40,7 @@
             <span class="user-email">{{ user.email }}</span>
           </div>
         </li>
-        <li v-if="filteredUsers.length === 0" class="no-results">无匹配用户</li>
+        <li v-if="filteredUsers.length === 0" class="no-results">{{ t('userSelect.noMatch') }}</li>
       </ul>
     </div>
   </div>
@@ -48,6 +48,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 interface UserOption {
   id: number

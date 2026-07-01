@@ -3,32 +3,32 @@
     <form @submit.prevent="handleSubmit" class="space-y-6">
       <!-- 基本信息 -->
       <div class="bg-white border border-gray-200 rounded-lg p-4">
-        <h3 class="text-sm font-medium text-gray-700 mb-4">基本信息</h3>
+        <h3 class="text-sm font-medium text-gray-700 mb-4">{{ t('automationForm.basicInfo') }}</h3>
 
         <!-- 规则名称 -->
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            规则名称 *
+            {{ t('workflowRule.ruleName') }} *
           </label>
           <input
             v-model="form.name"
             type="text"
             required
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="例如：工作项完成时通知负责人"
+            :placeholder="t('workflowRule.ruleNamePlaceholder')"
           />
         </div>
 
         <!-- 描述 -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            描述
+            {{ t('workflowRule.descriptionLabel') }}
           </label>
           <textarea
             v-model="form.description"
             rows="2"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="描述此规则的用途..."
+            :placeholder="t('workflowRule.descriptionPlaceholder')"
           />
         </div>
       </div>
@@ -36,38 +36,38 @@
       <!-- 触发器 -->
       <div class="bg-white border border-gray-200 rounded-lg p-4">
         <h3 class="text-sm font-medium text-gray-700 mb-4">
-          触发器
+          {{ t('workflowRule.trigger') }}
           <span class="text-red-500">*</span>
         </h3>
 
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            触发事件
+            {{ t('workflowRule.triggerEvent') }}
           </label>
           <select
             v-model="form.trigger.type"
             required
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">选择触发事件</option>
-            <option value="issue.created">工作项创建时</option>
-            <option value="issue.updated">工作项更新时</option>
-            <option value="issue.deleted">工作项删除时</option>
-            <option value="issue.assigned">工作项分配时</option>
-            <option value="issue.state_changed">状态变更时</option>
-            <option value="issue.priority_changed">优先级变更时</option>
-            <option value="issue.due_soon">截止日期临近时</option>
-            <option value="issue.due_date_passed">截止日期过期时</option>
-            <option value="cycle.started">周期开始时</option>
-            <option value="cycle.ended">周期结束时</option>
-            <option value="comment.added">添加评论时</option>
+            <option value="">{{ t('workflowRule.selectTrigger') }}</option>
+            <option value="issue.created">{{ t('workflowRule.trigger_issue_created') }}</option>
+            <option value="issue.updated">{{ t('workflowRule.trigger_issue_updated') }}</option>
+            <option value="issue.deleted">{{ t('workflowRule.trigger_issue_deleted') }}</option>
+            <option value="issue.assigned">{{ t('workflowRule.trigger_issue_assigned') }}</option>
+            <option value="issue.state_changed">{{ t('workflowRule.trigger_state_changed') }}</option>
+            <option value="issue.priority_changed">{{ t('workflowRule.trigger_priority_changed') }}</option>
+            <option value="issue.due_soon">{{ t('workflowRule.trigger_due_soon') }}</option>
+            <option value="issue.due_date_passed">{{ t('workflowRule.trigger_due_date_passed') }}</option>
+            <option value="cycle.started">{{ t('workflowRule.trigger_cycle_started') }}</option>
+            <option value="cycle.ended">{{ t('workflowRule.trigger_cycle_ended') }}</option>
+            <option value="comment.added">{{ t('workflowRule.trigger_comment_added') }}</option>
           </select>
         </div>
 
         <!-- 触发器附加参数 -->
         <div v-if="form.trigger.type === 'issue.due_soon'" class="mb-4">
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            提前天数
+            {{ t('workflowRule.daysBefore') }}
           </label>
           <input
             v-model.number="form.trigger.days_before"
@@ -81,7 +81,7 @@
       <!-- 条件 -->
       <div class="bg-white border border-gray-200 rounded-lg p-4">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-medium text-gray-700">条件</h3>
+          <h3 class="text-sm font-medium text-gray-700">{{ t('workflowRule.conditions') }}</h3>
           <button
             type="button"
             @click="addCondition"
@@ -90,12 +90,12 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            <span>添加条件</span>
+            <span>{{ t('workflowRule.addCondition') }}</span>
           </button>
         </div>
 
         <div v-if="form.conditions.length === 0" class="text-center py-4 text-gray-500 text-sm">
-          暂无条件（触发时将立即执行动作）
+          {{ t('workflowRule.noConditions') }}
         </div>
 
         <div v-else class="space-y-3">
@@ -108,28 +108,28 @@
               v-model="condition.field"
               class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">选择字段</option>
-              <option value="state">状态</option>
-              <option value="priority">优先级</option>
-              <option value="assignee">负责人</option>
-              <option value="labels">标签</option>
-              <option value="cycle">周期</option>
-              <option value="due_date">截止日期</option>
-              <option value="start_date">开始日期</option>
+              <option value="">{{ t('workflowRule.selectField') }}</option>
+              <option value="state">{{ t('workflowRule.state') }}</option>
+              <option value="priority">{{ t('workflowRule.priority') }}</option>
+              <option value="assignee">{{ t('workflowRule.assignee') }}</option>
+              <option value="labels">{{ t('workflowRule.labels') }}</option>
+              <option value="cycle">{{ t('workflowRule.cycle') }}</option>
+              <option value="due_date">{{ t('workflowRule.dueDate') }}</option>
+              <option value="start_date">{{ t('workflowRule.startDate') }}</option>
             </select>
 
             <select
               v-model="condition.operator"
               class="w-32 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="equals">等于</option>
-              <option value="not_equals">不等于</option>
-              <option value="contains">包含</option>
-              <option value="not_contains">不包含</option>
-              <option value="in">在列表中</option>
-              <option value="not_in">不在列表中</option>
-              <option value="is_empty">为空</option>
-              <option value="is_not_empty">不为空</option>
+              <option value="equals">{{ t('workflowRule.equals') }}</option>
+              <option value="not_equals">{{ t('workflowRule.notEquals') }}</option>
+              <option value="contains">{{ t('workflowRule.contains') }}</option>
+              <option value="not_contains">{{ t('workflowRule.notContains') }}</option>
+              <option value="in">{{ t('workflowRule.inList') }}</option>
+              <option value="not_in">{{ t('workflowRule.notInList') }}</option>
+              <option value="is_empty">{{ t('workflowRule.isEmpty') }}</option>
+              <option value="is_not_empty">{{ t('workflowRule.isNotEmpty') }}</option>
             </select>
 
             <input
@@ -137,7 +137,7 @@
               v-model="condition.value"
               type="text"
               class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="值"
+              :placeholder="t('workflowRule.value')"
             />
 
             <button
@@ -157,7 +157,7 @@
       <div class="bg-white border border-gray-200 rounded-lg p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-sm font-medium text-gray-700">
-            动作
+            {{ t('workflowRule.actions_label') }}
             <span class="text-red-500">*</span>
           </h3>
           <button
@@ -168,12 +168,12 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            <span>添加动作</span>
+            <span>{{ t('workflowRule.addAction') }}</span>
           </button>
         </div>
 
         <div v-if="form.actions.length === 0" class="text-center py-4 text-gray-500 text-sm">
-          请至少添加一个动作
+          {{ t('workflowRule.noActions') }}
         </div>
 
         <div v-else class="space-y-3">
@@ -187,15 +187,15 @@
                 v-model="action.type"
                 class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="">选择动作</option>
-                <option value="issue.update">更新工作项</option>
-                <option value="issue.assign">分配工作项</option>
-                <option value="issue.add_label">添加标签</option>
-                <option value="issue.remove_label">移除标签</option>
-                <option value="issue.change_state">改变状态</option>
-                <option value="issue.set_priority">设置优先级</option>
-                <option value="notification.create">创建通知</option>
-                <option value="email.send">发送邮件</option>
+                <option value="">{{ t('automationForm.selectAction') }}</option>
+                <option value="issue.update">{{ t('workflowRule.updateIssue') }}</option>
+                <option value="issue.assign">{{ t('workflowRule.assignIssue') }}</option>
+                <option value="issue.add_label">{{ t('workflowRule.addLabel') }}</option>
+                <option value="issue.remove_label">{{ t('workflowRule.removeLabel') }}</option>
+                <option value="issue.change_state">{{ t('workflowRule.changeState') }}</option>
+                <option value="issue.set_priority">{{ t('workflowRule.setPriority') }}</option>
+                <option value="notification.create">{{ t('workflowRule.createNotification') }}</option>
+                <option value="email.send">{{ t('workflowRule.sendEmail') }}</option>
               </select>
 
               <button
@@ -215,13 +215,13 @@
                 v-model="action.field"
                 type="text"
                 class="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                placeholder="字段名"
+                :placeholder="t('workflowRule.fieldName')"
               />
               <input
                 v-model="action.value"
                 type="text"
                 class="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                placeholder="新值"
+                :placeholder="t('workflowRule.newValue')"
               />
             </div>
 
@@ -230,7 +230,7 @@
                 v-model="action.state_id"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
               >
-                <option value="">选择状态</option>
+                <option value="">{{ t('workflowRule.selectState') }}</option>
                 <option v-for="state in states" :key="state.id" :value="state.id">
                   {{ state.name }}
                 </option>
@@ -242,7 +242,7 @@
                 v-model="action.message"
                 type="text"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                placeholder="通知内容"
+                :placeholder="t('workflowRule.notificationContent')"
               />
             </div>
           </div>
@@ -256,14 +256,14 @@
           @click="$emit('cancel')"
           class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
         >
-          取消
+          {{ t('workflowRule.cancel') }}
         </button>
         <button
           type="submit"
           :disabled="submitting || !isValid"
           class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
-          {{ submitting ? '保存中...' : (isEdit ? '保存' : '创建') }}
+          {{ submitting ? t('workflowRule.saving') : (isEdit ? t('workflowRule.save') : t('workflowRule.create')) }}
         </button>
       </div>
     </form>
@@ -272,8 +272,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { AutomationRule, AutomationRuleCreate, Trigger, Condition, Action } from '@/types/workflow'
 import { TriggerTypeEnum, ConditionOperatorEnum, ActionTypeEnum } from '@/types/workflow'
+
+const { t } = useI18n()
 
 // Props
 const props = defineProps<{

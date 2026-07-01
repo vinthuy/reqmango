@@ -34,14 +34,14 @@
               @click="archiveProject"
               class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
             >
-              归档
+              {{ t('projectDetail.archive') }}
             </button>
             <button
               v-else
               @click="restoreProject"
               class="px-3 py-1.5 text-sm text-green-600 border border-green-300 rounded-md hover:bg-green-50"
             >
-              恢复
+              {{ t('projectDetail.restore') }}
             </button>
 
             <!-- 设置 -->
@@ -49,7 +49,7 @@
               @click="$emit('settings')"
               class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
             >
-              设置
+              {{ t('projectDetail.settings') }}
             </button>
           </div>
         </div>
@@ -60,10 +60,10 @@
             class="px-2 py-1 text-xs rounded"
             :class="project.is_archived ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'"
           >
-            {{ project.is_archived ? '已归档' : '活跃' }}
+            {{ project.is_archived ? t('projectDetail.archived') : t('projectDetail.active') }}
           </span>
           <span class="text-xs text-gray-500">
-            创建于 {{ formatDate(project.created_at) }}
+            {{ t('projectDetail.createdAt') }} {{ formatDate(project.created_at) }}
           </span>
         </div>
       </div>
@@ -73,7 +73,7 @@
         <div class="bg-white rounded-lg border border-gray-200 p-4">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-500">总工作项</p>
+              <p class="text-sm text-gray-500">{{ t('projectDetail.totalIssues') }}</p>
               <p class="text-2xl font-semibold text-gray-900 mt-1">{{ statistics.total_issues }}</p>
             </div>
             <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -87,7 +87,7 @@
         <div class="bg-white rounded-lg border border-gray-200 p-4">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-500">进行中</p>
+              <p class="text-sm text-gray-500">{{ t('projectDetail.inProgress') }}</p>
               <p class="text-2xl font-semibold text-yellow-600 mt-1">{{ statistics.in_progress_issues }}</p>
             </div>
             <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -101,7 +101,7 @@
         <div class="bg-white rounded-lg border border-gray-200 p-4">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-500">已完成</p>
+              <p class="text-sm text-gray-500">{{ t('projectDetail.completed') }}</p>
               <p class="text-2xl font-semibold text-green-600 mt-1">{{ statistics.completed_issues }}</p>
             </div>
             <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -115,7 +115,7 @@
         <div class="bg-white rounded-lg border border-gray-200 p-4">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-500">成员数</p>
+              <p class="text-sm text-gray-500">{{ t('projectDetail.memberCount') }}</p>
               <p class="text-2xl font-semibold text-purple-600 mt-1">{{ statistics.member_count }}</p>
             </div>
             <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -140,8 +140,8 @@
               </svg>
             </div>
             <div>
-              <h3 class="font-medium text-gray-900">工作项</h3>
-              <p class="text-sm text-gray-500">{{ statistics.total_issues }} 个工作项</p>
+              <h3 class="font-medium text-gray-900">{{ t('projectDetail.issues') }}</h3>
+              <p class="text-sm text-gray-500">{{ t('projectDetail.issueCount', { count: statistics.total_issues }) }}</p>
             </div>
           </div>
         </button>
@@ -157,8 +157,8 @@
               </svg>
             </div>
             <div>
-              <h3 class="font-medium text-gray-900">周期</h3>
-              <p class="text-sm text-gray-500">管理迭代</p>
+              <h3 class="font-medium text-gray-900">{{ t('projectDetail.cycles') }}</h3>
+              <p class="text-sm text-gray-500">{{ t('projectDetail.cycleManage') }}</p>
             </div>
           </div>
         </button>
@@ -174,8 +174,8 @@
               </svg>
             </div>
             <div>
-              <h3 class="font-medium text-gray-900">模块</h3>
-              <p class="text-sm text-gray-500">组织工作</p>
+              <h3 class="font-medium text-gray-900">{{ t('projectDetail.modules') }}</h3>
+              <p class="text-sm text-gray-500">{{ t('projectDetail.moduleOrganize') }}</p>
             </div>
           </div>
         </button>
@@ -193,9 +193,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import projectApi from '@/api/project'
 import ProjectMemberList from './ProjectMemberList.vue'
 import type { ProjectResponse } from '@/types/project'
+
+const { t } = useI18n()
 
 // Props
 const props = defineProps<{

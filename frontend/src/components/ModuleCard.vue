@@ -20,8 +20,8 @@
 
     <!-- Footer -->
     <div class="flex items-center justify-between pt-3 border-t border-gray-100 text-xs text-gray-400">
-      <span v-if="module.parent_id">子模块</span>
-      <span v-else>顶级模块</span>
+      <span v-if="module.parent_id">{{ t('moduleCard.submodule') }}</span>
+      <span v-else>{{ t('moduleCard.topLevel') }}</span>
       <div class="relative" @click.stop>
         <button
           @click="showMenu = !showMenu"
@@ -40,13 +40,13 @@
             @click="$emit('click'); showMenu = false"
             class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
           >
-            查看详情
+            {{ t('moduleCard.viewDetails') }}
           </button>
           <button
             @click="$emit('delete', module); showMenu = false"
             class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
           >
-            删除
+            {{ t('moduleCard.delete') }}
           </button>
         </div>
       </div>
@@ -56,7 +56,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { ModuleResponse } from '@/types/module'
+
+const { t } = useI18n()
 
 // Props
 defineProps<{

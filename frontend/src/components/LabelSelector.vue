@@ -11,7 +11,7 @@
         {{ label.name }}
         <button @click.stop="toggleLabel(label)" class="ml-1 hover:opacity-70">&times;</button>
       </span>
-      <span v-if="selectedLabels.length === 0" class="text-xs text-gray-400">未选择标签</span>
+      <span v-if="selectedLabels.length === 0" class="text-xs text-gray-400">{{ t('labelSelector.noLabel') }}</span>
     </div>
 
     <!-- Dropdown toggle -->
@@ -19,7 +19,7 @@
       @click="open = !open"
       class="w-full px-3 py-1.5 text-xs text-gray-500 border border-dashed border-gray-300 rounded-md hover:border-gray-400 hover:text-gray-700 transition"
     >
-      + 添加标签
+      {{ t('labelSelector.addLabel') }}
     </button>
 
     <!-- Dropdown panel -->
@@ -36,7 +36,7 @@
         </button>
       </div>
       <div v-if="availableLabels.length === 0" class="text-xs text-gray-400 text-center py-2">
-        暂无可添加的标签
+        {{ t('labelSelector.noAvailable') }}
       </div>
     </div>
   </div>
@@ -44,6 +44,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 interface LabelItem {
   id: number

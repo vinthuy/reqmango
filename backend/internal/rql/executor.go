@@ -36,22 +36,28 @@ func NewIssueQueryContext() *QueryContext {
 	return &QueryContext{
 		TableName: "issues",
 		FieldMap: map[string]FieldMapping{
-			"id":           {ColumnName: "id", FieldType: "number"},
-			"name":         {ColumnName: "name", FieldType: "string"},
-			"description":  {ColumnName: "description_stripped", FieldType: "string"},
-			"state":        {ColumnName: "state_id", FieldType: "number", JoinTable: "states", JoinKey: "name"},
-			"priority":     {ColumnName: "priority", FieldType: "string"},
-			"assignee":     {ColumnName: "assignee_id", FieldType: "user", JoinTable: "issue_assignees"},
-			"reporter":     {ColumnName: "reporter_id", FieldType: "number"},
-			"label":        {ColumnName: "label_id", FieldType: "label", JoinTable: "issue_labels"},
-			"cycle":        {ColumnName: "cycle_id", FieldType: "cycle", JoinTable: "issue_cycles"},
-			"module":       {ColumnName: "module_id", FieldType: "module", JoinTable: "module_issues"},
-			"project_id":   {ColumnName: "project_id", FieldType: "number"},
-			"workspace_id": {ColumnName: "workspace_id", FieldType: "number"},
-			"created_at":   {ColumnName: "created_at", FieldType: "date"},
-			"updated_at":   {ColumnName: "updated_at", FieldType: "date"},
-			"start_date":   {ColumnName: "start_date", FieldType: "date"},
-			"target_date":  {ColumnName: "target_date", FieldType: "date"},
+			"id":             {ColumnName: "id", FieldType: "number"},
+			"name":           {ColumnName: "name", FieldType: "string"},
+			"description":    {ColumnName: "description_stripped", FieldType: "string"},
+			"state":          {ColumnName: "state_id", FieldType: "number", JoinTable: "states", JoinKey: "name"},
+			"state_id":       {ColumnName: "state_id", FieldType: "number"},
+			"state_group":    {ColumnName: "state_group", FieldType: "state_group"},
+			"priority":       {ColumnName: "priority", FieldType: "string"},
+			"assignee":       {ColumnName: "assignee_id", FieldType: "user", JoinTable: "issue_assignees"},
+			"assignee_id":    {ColumnName: "assignee_id", FieldType: "user", JoinTable: "issue_assignees"},
+			"reporter":       {ColumnName: "reporter_id", FieldType: "number"},
+			"label":          {ColumnName: "label_id", FieldType: "label", JoinTable: "issue_labels"},
+			"cycle":          {ColumnName: "cycle_id", FieldType: "cycle", JoinTable: "issue_cycles"},
+			"cycle_id":       {ColumnName: "cycle_id", FieldType: "cycle", JoinTable: "issue_cycles"},
+			"module":         {ColumnName: "module_id", FieldType: "module", JoinTable: "module_issues"},
+			"module_id":      {ColumnName: "module_id", FieldType: "module", JoinTable: "module_issues"},
+			"issue_type_id":  {ColumnName: "issue_type_id", FieldType: "number"},
+			"project_id":     {ColumnName: "project_id", FieldType: "number"},
+			"workspace_id":   {ColumnName: "workspace_id", FieldType: "number"},
+			"created_at":     {ColumnName: "created_at", FieldType: "date"},
+			"updated_at":     {ColumnName: "updated_at", FieldType: "date"},
+			"start_date":     {ColumnName: "start_date", FieldType: "date"},
+			"target_date":    {ColumnName: "target_date", FieldType: "date"},
 		},
 	}
 }
@@ -116,6 +122,8 @@ func (e *GORMExecutor) buildQuery(db *gorm.DB, node Node, ctx *QueryContext) (*g
 		return e.buildInExpr(db, n, ctx)
 	case *NotExpr:
 		return e.buildNotExpr(db, n, ctx)
+	case *NullCheck:
+		return e.buildNullCheck(db, n, ctx)
 	default:
 		return db, fmt.Errorf("unknown node type: %T", node)
 	}
@@ -218,13 +226,13 @@ func (e *GORMExecutor) buildEqual(db *gorm.DB, field string, value interface{}, 
 	case "string", "number", "date":
 		return db.Where(fmt.Sprintf("%s = ?", mapping.ColumnName), value), nil
 
+	case "state_group":
+		return db.Joins("JOIN states ON states.id = issues.state_id").
+			Where("states.group = ?", value), nil
+
 	case "user":
-		// assignee 特殊处理，需要关联查询
-		if field == "assignee" {
-			return db.Joins("JOIN issue_assignees ON issue_assignees.issue_id = issues.id").
-				Where("issue_assignees.user_id = ?", value), nil
-		}
-		return db.Where(fmt.Sprintf("%s = ?", mapping.ColumnName), value), nil
+		return db.Joins("JOIN issue_assignees ON issue_assignees.issue_id = issues.id").
+			Where("issue_assignees.user_id = ?", value), nil
 
 	case "label":
 		return db.Joins("JOIN issue_labels ON issue_labels.issue_id = issues.id").
@@ -253,13 +261,18 @@ func (e *GORMExecutor) buildLikeExpr(db *gorm.DB, expr *LikeExpr, ctx *QueryCont
 		return db, nil
 	}
 
-	pattern := "%" + expr.Value + "%"
+	pattern := expr.Value
+
+	op := "ILIKE"
+	if expr.Operator == "NOT LIKE" {
+		op = "NOT ILIKE"
+	}
 
 	switch mapping.FieldType {
 	case "string":
-		return db.Where(fmt.Sprintf("%s LIKE ?", mapping.ColumnName), pattern), nil
+		return db.Where(fmt.Sprintf("%s %s ?", mapping.ColumnName, op), pattern), nil
 	default:
-		return db.Where(fmt.Sprintf("%s LIKE ?", mapping.ColumnName), pattern), nil
+		return db.Where(fmt.Sprintf("%s %s ?", mapping.ColumnName, op), pattern), nil
 	}
 }
 
@@ -270,6 +283,9 @@ func (e *GORMExecutor) buildInExpr(db *gorm.DB, expr *InExpr, ctx *QueryContext)
 	}
 
 	if len(expr.Values) == 0 {
+		if expr.Operator == "NOT IN" {
+			return db.Where("1 = 1"), nil
+		}
 		return db.Where("1 = 0"), nil
 	}
 
@@ -280,7 +296,12 @@ func (e *GORMExecutor) buildInExpr(db *gorm.DB, expr *InExpr, ctx *QueryContext)
 		args[i] = v
 	}
 
-	whereClause := fmt.Sprintf("%s IN (%s)", mapping.ColumnName, strings.Join(placeholders, ", "))
+	op := "IN"
+	if expr.Operator == "NOT IN" {
+		op = "NOT IN"
+	}
+
+	whereClause := fmt.Sprintf("%s %s (%s)", mapping.ColumnName, op, strings.Join(placeholders, ", "))
 	return db.Where(whereClause, args...), nil
 }
 
@@ -290,4 +311,45 @@ func (e *GORMExecutor) buildNotExpr(db *gorm.DB, expr *NotExpr, ctx *QueryContex
 		return db, err
 	}
 	return db.Not(subDB), nil
+}
+
+func (e *GORMExecutor) buildNullCheck(db *gorm.DB, expr *NullCheck, ctx *QueryContext) (*gorm.DB, error) {
+	mapping, ok := ctx.FieldMap[expr.Field]
+	if !ok {
+		return db, nil
+	}
+
+	isNull := expr.Operator == "IS NULL"
+
+	switch mapping.FieldType {
+	case "user":
+		if isNull {
+			return db.Where("NOT EXISTS (SELECT 1 FROM issue_assignees WHERE issue_assignees.issue_id = issues.id)"), nil
+		}
+		return db.Where("EXISTS (SELECT 1 FROM issue_assignees WHERE issue_assignees.issue_id = issues.id)"), nil
+
+	case "label":
+		if isNull {
+			return db.Where("NOT EXISTS (SELECT 1 FROM issue_labels WHERE issue_labels.issue_id = issues.id)"), nil
+		}
+		return db.Where("EXISTS (SELECT 1 FROM issue_labels WHERE issue_labels.issue_id = issues.id)"), nil
+
+	case "cycle":
+		if isNull {
+			return db.Where("NOT EXISTS (SELECT 1 FROM issue_cycles WHERE issue_cycles.issue_id = issues.id)"), nil
+		}
+		return db.Where("EXISTS (SELECT 1 FROM issue_cycles WHERE issue_cycles.issue_id = issues.id)"), nil
+
+	case "module":
+		if isNull {
+			return db.Where("NOT EXISTS (SELECT 1 FROM module_issues WHERE module_issues.issue_id = issues.id)"), nil
+		}
+		return db.Where("EXISTS (SELECT 1 FROM module_issues WHERE module_issues.issue_id = issues.id)"), nil
+
+	default:
+		if isNull {
+			return db.Where(fmt.Sprintf("%s IS NULL", mapping.ColumnName)), nil
+		}
+		return db.Where(fmt.Sprintf("%s IS NOT NULL", mapping.ColumnName)), nil
+	}
 }

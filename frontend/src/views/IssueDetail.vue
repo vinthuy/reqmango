@@ -1,15 +1,15 @@
 <template>
-  <div class="issue-detail-page min-h-screen bg-gray-50">
+  <div class="issue-detail-page min-h-screen bg-white">
     <!-- 头部导航 -->
-    <div class="bg-white border-b border-gray-200 px-6 py-4">
+    <div class="bg-white border-b border-gray-100 px-6 py-3">
       <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-4">
-          <button @click="goBack" class="text-gray-500 hover:text-gray-700">
+        <div class="flex items-center space-x-3">
+          <button @click="goBack" class="text-gray-400 hover:text-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 class="text-lg font-semibold text-gray-900">
+          <h1 class="text-base font-semibold text-gray-800">
             {{ issue?.issue_type?.name || t('issue.unknown') }} #{{ issue?.sequence_id }}
           </h1>
         </div>
@@ -17,7 +17,7 @@
           <button
             @click="saveIssue"
             :disabled="saving"
-            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+            class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors"
           >
             {{ saving ? t('issue.saving') : t('issue.save') }}
           </button>
@@ -26,23 +26,23 @@
     </div>
 
     <!-- 主内容区域 -->
-    <div class="max-w-7xl mx-auto px-6 py-6">
-      <div class="grid grid-cols-3 gap-6">
+    <div class="max-w-5xl mx-auto px-6 py-6">
+      <div class="flex gap-8">
         <!-- 左侧：主要内容 -->
-        <div class="col-span-2 space-y-6">
+        <div class="flex-1 min-w-0 space-y-0 border border-gray-100 rounded-xl">
           <!-- 标题 -->
-          <div class="bg-white rounded-lg shadow-sm p-6">
+          <div class="px-6 py-4">
             <input
               v-model="issueForm.name"
               type="text"
               :placeholder="t('issue.titlePlaceholder')"
-              class="w-full text-xl font-semibold border-0 focus:outline-none focus:ring-0"
+              class="w-full text-lg font-semibold text-gray-800 border-0 focus:outline-none focus:ring-0 placeholder-gray-300"
             />
           </div>
 
           <!-- 描述 -->
-          <div class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-sm font-medium text-gray-700 mb-3">{{ t('issue.description') }}</h3>
+          <div class="px-6 py-4 border-t border-gray-100">
+            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">{{ t('issue.description') }}</h3>
             <RichTextEditor
               v-model="issueForm.description"
               :placeholder="t('issue.descriptionPlaceholder')"
@@ -50,16 +50,16 @@
           </div>
 
           <!-- 评论区 -->
-          <div class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-sm font-medium text-gray-700 mb-4">{{ t('issue.comments') }}</h3>
+          <div class="px-6 py-4 border-t border-gray-100">
+            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">{{ t('issue.comments') }}</h3>
             <CommentList :issue-id="issueId" />
             <TimeTrackPanel :issue-id="issueId" />
             <RecurrenceConfig :issue-id="issueId" />
           </div>
 
           <!-- 活动历史 -->
-          <div v-if="activities.length > 0" class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-sm font-medium text-gray-700 mb-4">{{ t('issue.activity') }}</h3>
+          <div v-if="activities.length > 0" class="px-6 py-4 border-t border-gray-100">
+            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">{{ t('issue.activity') }}</h3>
             <div class="space-y-2">
               <div v-for="act in activities" :key="act.id" class="flex items-start space-x-3 text-sm">
                 <span class="text-xs text-gray-400 w-20 shrink-0">{{ formatActivityTime(act.created_at) }}</span>
@@ -69,8 +69,8 @@
           </div>
 
           <!-- 自定义字段区域 -->
-          <div class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-sm font-medium text-gray-700 mb-4">{{ t('issue.customFields') }}</h3>
+          <div class="px-6 py-4 border-t border-gray-100">
+            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">{{ t('issue.customFields') }}</h3>
             <CustomFieldManager
               ref="customFieldManagerRef"
               :workspace-id="workspaceId"
@@ -84,7 +84,7 @@
           </div>
 
           <!-- 子工作项面板 -->
-          <div class="bg-white rounded-lg shadow-sm p-6">
+          <div class="px-6 py-4 border-t border-gray-100">
             <SubIssuePanel
               :sub-issues="subIssues"
               @create="createSubIssue"
@@ -94,13 +94,17 @@
         </div>
 
         <!-- 右侧：属性面板 -->
-        <div class="space-y-6">
+        <div class="w-64 shrink-0 border border-gray-100 rounded-xl h-fit">
+          <div class="px-4 py-3 border-b border-gray-100">
+            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide">{{ t('issue.properties') }}</h3>
+          </div>
+          <div class="divide-y divide-gray-100">
           <!-- 状态 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.state') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.state') }}</label>
             <select
               v-model="issueForm.state_id"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
             >
               <option v-for="state in states" :key="state.id" :value="state.id">
                 {{ state.name }}
@@ -109,11 +113,11 @@
           </div>
 
           <!-- 类型 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.type') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.type') }}</label>
             <select
               v-model="issueForm.type_id"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
             >
               <option value="">{{ t('issue.notSet') }}</option>
               <option v-for="it in issueTypes" :key="it.id" :value="it.id">
@@ -123,11 +127,11 @@
           </div>
 
           <!-- 优先级 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.priority') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.priority') }}</label>
             <select
               v-model="issueForm.priority"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
             >
               <option value="urgent">{{ t('issue.priorityUrgent') }}</option>
               <option value="high">{{ t('issue.priorityHigh') }}</option>
@@ -138,11 +142,11 @@
           </div>
 
           <!-- 负责人 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.assignee') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.assignee') }}</label>
             <select
               v-model="issueForm.assignee_id"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
             >
               <option value="">{{ t('issue.unassigned') }}</option>
               <option v-for="member in projectMembers" :key="member.id" :value="member.id">
@@ -152,11 +156,11 @@
           </div>
 
           <!-- 周期 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.cycle') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.cycle') }}</label>
             <select
               v-model="issueForm.cycle_id"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
             >
               <option value="">{{ t('issue.noCycle') }}</option>
               <option v-for="cycle in cycles" :key="cycle.id" :value="cycle.id">
@@ -166,11 +170,11 @@
           </div>
 
           <!-- 模块 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.module') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.module') }}</label>
             <select
               v-model="issueForm.module_id"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
             >
               <option value="">{{ t('issue.noModule') }}</option>
               <option v-for="module in modules" :key="module.id" :value="module.id">
@@ -180,28 +184,28 @@
           </div>
 
           <!-- 开始日期 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.startDate') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.startDate') }}</label>
             <input
               v-model="issueForm.start_date"
               type="date"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
             />
           </div>
 
           <!-- 目标日期 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.targetDate') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.targetDate') }}</label>
             <input
               v-model="issueForm.target_date"
               type="date"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
             />
           </div>
 
           <!-- 标签 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.labels') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{{ t('issue.labels') }}</label>
             <LabelSelector
               :project-id="projectId"
               v-model="selectedLabelIds"
@@ -210,12 +214,12 @@
           </div>
 
           <!-- 关联关系 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.relations') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{{ t('issue.relations') }}</label>
             <div v-if="relations.length > 0" class="space-y-2 mb-3">
               <div v-for="rel in relations" :key="rel.id" class="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
                 <div class="flex items-center space-x-2">
-                  <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{{ rel.relation_type?.outward_name || rel.relation_type?.name || t('issue.relations') }}</span>
+                  <span class="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">{{ rel.relation_type?.outward_name || rel.relation_type?.name || t('issue.relations') }}</span>
                   <span>#{{ rel.related_issue?.sequence_id || rel.related_issue_id }}</span>
                   <span class="text-gray-700 truncate max-w-[120px]">{{ rel.related_issue?.name || '' }}</span>
                 </div>
@@ -223,7 +227,7 @@
               </div>
             </div>
             <div v-if="!showAddRelation" class="text-xs text-gray-400">{{ t('issue.noRelations') }}</div>
-            <button v-if="!showAddRelation" @click="showAddRelation = true" class="text-xs text-indigo-600 hover:text-indigo-800 mt-1">{{ t('issue.addRelation') }}</button>
+            <button v-if="!showAddRelation" @click="showAddRelation = true" class="text-xs text-blue-500 hover:text-blue-700 mt-1">{{ t('issue.addRelation') }}</button>
             <div v-if="showAddRelation" class="mt-2 space-y-2">
               <select v-model="newRelation.type_id" class="w-full px-2 py-1 border rounded text-xs">
                 <option value="">{{ t('issue.selectRelationType') }}</option>
@@ -231,7 +235,7 @@
               </select>
               <input v-model="newRelation.search" @input="searchRelatedIssues" type="text" :placeholder="t('issue.searchIssuesPlaceholder')" class="w-full px-2 py-1 border rounded text-xs" />
               <div v-if="relationSearchResults.length > 0" class="max-h-24 overflow-y-auto border rounded">
-                <div v-for="r in relationSearchResults" :key="r.id" @click="addRelation(r)" class="px-2 py-1 hover:bg-indigo-50 cursor-pointer text-xs">
+                <div v-for="r in relationSearchResults" :key="r.id" @click="addRelation(r)" class="px-2 py-1 hover:bg-gray-50 cursor-pointer text-xs">
                   #{{ r.sequence_id }} {{ r.name?.substring(0, 30) }}
                 </div>
               </div>
@@ -240,8 +244,8 @@
           </div>
 
           <!-- 关联文档页面 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('issue.relatedPages') }}</label>
+          <div class="px-4 py-3">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{{ t('issue.relatedPages') }}</label>
             <div v-if="pages.length > 0" class="space-y-2 mb-3">
               <div v-for="page in pages" :key="page.id" class="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
                 <div class="flex items-center space-x-2">
@@ -254,11 +258,11 @@
               </div>
             </div>
             <div v-if="!showAddPage" class="text-xs text-gray-400">{{ t('issue.noPages') }}</div>
-            <button v-if="!showAddPage" @click="showAddPage = true" class="text-xs text-indigo-600 hover:text-indigo-800 mt-1">{{ t('issue.addPage') }}</button>
+            <button v-if="!showAddPage" @click="showAddPage = true" class="text-xs text-blue-500 hover:text-blue-700 mt-1">{{ t('issue.addPage') }}</button>
             <div v-if="showAddPage" class="mt-2 space-y-2">
               <input v-model="newPage.search" @input="searchPages" type="text" :placeholder="t('issue.searchPagesPlaceholder')" class="w-full px-2 py-1 border rounded text-xs" />
               <div v-if="pageSearchResults.length > 0" class="max-h-24 overflow-y-auto border rounded">
-                <div v-for="p in pageSearchResults" :key="p.id" @click="addPage(p)" class="px-2 py-1 hover:bg-indigo-50 cursor-pointer text-xs">
+                <div v-for="p in pageSearchResults" :key="p.id" @click="addPage(p)" class="px-2 py-1 hover:bg-gray-50 cursor-pointer text-xs">
                   {{ p.title?.substring(0, 40) }}
                 </div>
               </div>
@@ -267,12 +271,13 @@
           </div>
 
           <!-- 附件 -->
-          <div class="bg-white rounded-lg shadow-sm p-4">
+          <div class="px-4 py-3">
             <AttachmentManager :issue-id="issueId" :project-id="projectId" />
           </div>
         </div>
       </div>
     </div>
+  </div>
   </div>
 </template>
 

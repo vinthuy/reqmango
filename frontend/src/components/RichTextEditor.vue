@@ -1,33 +1,33 @@
 <template>
   <div class="rich-text-editor relative">
     <div class="toolbar">
-      <button @click="formatText('bold')" class="toolbar-btn" title="加粗">
+      <button @click="formatText('bold')" class="toolbar-btn" :title="t('editor.bold')">
         <strong>B</strong>
       </button>
-      <button @click="formatText('italic')" class="toolbar-btn" title="斜体">
+      <button @click="formatText('italic')" class="toolbar-btn" :title="t('editor.italic')">
         <em>I</em>
       </button>
-      <button @click="formatText('underline')" class="toolbar-btn" title="下划线">
+      <button @click="formatText('underline')" class="toolbar-btn" :title="t('editor.underline')">
         <u>U</u>
       </button>
-      <button @click="formatText('strikeThrough')" class="toolbar-btn" title="删除线">
+      <button @click="formatText('strikeThrough')" class="toolbar-btn" :title="t('editor.strikethrough')">
         <s>S</s>
       </button>
       <span class="toolbar-divider"></span>
-      <button @click="formatText('insertUnorderedList')" class="toolbar-btn" title="无序列表">
+      <button @click="formatText('insertUnorderedList')" class="toolbar-btn" :title="t('editor.bulletList')">
         ☰
       </button>
-      <button @click="formatText('insertOrderedList')" class="toolbar-btn" title="有序列表">
+      <button @click="formatText('insertOrderedList')" class="toolbar-btn" :title="t('editor.orderedList')">
         ≡
       </button>
       <span class="toolbar-divider"></span>
-      <button @click="formatText('justifyLeft')" class="toolbar-btn" title="左对齐">
+      <button @click="formatText('justifyLeft')" class="toolbar-btn" :title="t('editor.alignLeft')">
         ⌈
       </button>
-      <button @click="formatText('justifyCenter')" class="toolbar-btn" title="居中">
+      <button @click="formatText('justifyCenter')" class="toolbar-btn" :title="t('editor.alignCenter')">
         ⌉
       </button>
-      <button @click="formatText('justifyRight')" class="toolbar-btn" title="右对齐">
+      <button @click="formatText('justifyRight')" class="toolbar-btn" :title="t('editor.alignRight')">
         ⌊
       </button>
     </div>
@@ -44,6 +44,9 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   modelValue?: string

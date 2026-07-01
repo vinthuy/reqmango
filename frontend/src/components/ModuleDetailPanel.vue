@@ -4,8 +4,8 @@
       <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-10">
         <h3 class="text-lg font-semibold text-gray-900 truncate">{{ module?.name }}</h3>
         <div class="flex items-center space-x-1">
-          <button @click="module && $emit('edit', module)" class="px-2 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-50">编辑</button>
-          <button @click="handleDelete" class="px-2 py-1 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50">删除</button>
+          <button @click="module && $emit('edit', module)" class="px-2 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-50">{{ t('moduleDetail.edit') }}</button>
+          <button @click="handleDelete" class="px-2 py-1 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50">{{ t('moduleDetail.delete') }}</button>
           <button @click="$emit('close')" class="p-1 text-gray-400 hover:text-gray-600 ml-1">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -27,39 +27,39 @@
         <div v-if="moduleStore.progress" class="grid grid-cols-3 gap-3">
           <div class="text-center p-3 bg-gray-50 rounded">
             <div class="text-xl font-bold text-gray-900">{{ moduleStore.progress.total_issues }}</div>
-            <div class="text-xs text-gray-500">总数</div>
+            <div class="text-xs text-gray-500">{{ t('moduleDetail.total') }}</div>
           </div>
           <div class="text-center p-3 bg-gray-50 rounded">
             <div class="text-xl font-bold text-green-600">{{ moduleStore.progress.completed }}</div>
-            <div class="text-xs text-gray-500">完成</div>
+            <div class="text-xs text-gray-500">{{ t('moduleDetail.completed') }}</div>
           </div>
           <div class="text-center p-3 bg-gray-50 rounded">
             <div class="text-xl font-bold text-indigo-600">{{ moduleStore.progress.progress }}%</div>
-            <div class="text-xs text-gray-500">进度</div>
+            <div class="text-xs text-gray-500">{{ t('moduleDetail.progress') }}</div>
           </div>
         </div>
 
         <div>
           <div class="flex items-center justify-between mb-2">
-            <h4 class="text-sm font-medium text-gray-700">工作项 ({{ moduleStore.moduleIssues.length }})</h4>
-            <button @click="toggleAddIssue" class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">+ 添加</button>
+            <h4 class="text-sm font-medium text-gray-700">{{ t('moduleDetail.issueCount', { count: moduleStore.moduleIssues.length }) }}</h4>
+            <button @click="toggleAddIssue" class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">{{ t('moduleDetail.addIssue') }}</button>
           </div>
           <div v-if="showAddIssue" class="mb-3 border border-gray-200 rounded-md p-2">
-            <input v-model="searchQuery" type="text" placeholder="搜索工作项..."
+            <input v-model="searchQuery" type="text" :placeholder="t('moduleDetail.searchPlaceholder')"
               class="w-full px-2 py-1 text-sm border border-gray-300 rounded mb-2 focus:outline-none focus:ring-1 focus:ring-indigo-500" @input="searchIssues" />
             <div class="max-h-40 overflow-y-auto space-y-1">
               <div v-for="issue in availableIssues" :key="issue.id" @click="handleAddIssue(issue.id)" class="flex items-center p-1.5 hover:bg-indigo-50 rounded cursor-pointer text-sm">
                 <span class="text-gray-900 truncate flex-1">{{ issue.name }}</span>
                 <span class="text-xs text-gray-400 ml-2">#{{ issue.sequence_id }}</span>
               </div>
-              <div v-if="availableIssues.length === 0 && searched" class="text-xs text-gray-400 py-2 text-center">没有可添加的工作项</div>
+              <div v-if="availableIssues.length === 0 && searched" class="text-xs text-gray-400 py-2 text-center">{{ t('moduleDetail.noAvailable') }}</div>
             </div>
           </div>
-          <div v-if="moduleStore.moduleIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">暂无工作项</div>
+          <div v-if="moduleStore.moduleIssues.length === 0" class="text-sm text-gray-400 py-4 text-center">{{ t('moduleDetail.noIssues') }}</div>
           <div v-else class="space-y-2">
             <div v-for="issue in moduleStore.moduleIssues" :key="issue.id" class="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
               <span class="text-gray-900 truncate flex-1">{{ issue.name }}</span>
-              <button @click="handleRemoveIssue(issue.id)" class="ml-2 text-gray-400 hover:text-red-500" title="移除">
+              <button @click="handleRemoveIssue(issue.id)" class="ml-2 text-gray-400 hover:text-red-500" :title="t('moduleDetail.remove')">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -74,10 +74,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { useModuleStore } from '@/stores/module'
 import { issueApi } from '@/api/issue'
 import { useConfirm } from '@/composables/useConfirm'
 import type { ModuleResponse } from '@/types/module'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   module: ModuleResponse | null
@@ -132,7 +135,7 @@ async function handleRemoveIssue(issueId: number) {
 
 async function handleDelete() {
   if (!props.module) return
-  if (!(await confirm(`确定要删除模块 "${props.module.name}" 吗？此操作不可撤销。`))) return
+  if (!(await confirm(t('moduleDetail.confirmDelete', { name: props.module.name })))) return
   await moduleStore.deleteModuleAction(props.module.id)
   emit('close')
 }

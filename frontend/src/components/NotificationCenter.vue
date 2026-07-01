@@ -25,14 +25,14 @@
       >
         <!-- 头部 -->
         <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 class="font-semibold text-gray-900">通知</h3>
+          <h3 class="font-semibold text-gray-900">{{ t('notification.title') }}</h3>
           <div class="flex items-center space-x-2">
             <button
               v-if="unreadCount > 0"
               @click="markAllRead"
               class="text-xs text-indigo-600 hover:text-indigo-800"
             >
-              全部已读
+              {{ t('notification.markAllRead') }}
             </button>
             <button
               @click="togglePanel"
@@ -60,7 +60,7 @@
             <svg class="h-10 w-10 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
             </svg>
-            <p class="mt-2 text-gray-500 text-sm">暂无通知</p>
+            <p class="mt-2 text-gray-500 text-sm">{{ t('notification.noNotifications') }}</p>
           </div>
 
           <!-- 通知列表 -->
@@ -99,7 +99,7 @@
         <!-- 查看全部 -->
         <div v-if="notifications.length > 0" class="px-4 py-3 border-t border-gray-200 text-center">
           <a href="/notifications" class="text-sm text-indigo-600 hover:text-indigo-800">
-            查看全部通知
+            {{ t('notification.viewAll') }}
           </a>
         </div>
       </div>
@@ -109,8 +109,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import notificationApi from '@/api/notification'
 import type { Notification } from '@/types/notification'
+
+const { t } = useI18n()
 
 // State
 const notifications = ref<Notification[]>([])
@@ -188,10 +191,10 @@ function formatTime(timeStr: string) {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 7) return `${days}天前`
+  if (minutes < 1) return t('notification.justNow')
+  if (minutes < 60) return t('notification.minutesAgo', { minutes })
+  if (hours < 24) return t('notification.hoursAgo', { hours })
+  if (days < 7) return t('notification.daysAgo', { days })
 
   return date.toLocaleDateString('zh-CN')
 }

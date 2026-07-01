@@ -11,7 +11,7 @@ const error = ref('');
 const loading = ref(false);
 const handleLogin = async () => {
  if (!email.value || !password.value) {
- error.value = '请填写所有字段';
+ error.value = t('auth.fillAllFields');
  return;
  }
  loading.value = true;
@@ -20,7 +20,7 @@ const handleLogin = async () => {
  await router.push('/');
  }
  catch (err) {
- error.value = '登录失败，请检查邮箱和密码';
+ error.value = t('auth.loginFailed');
  }
  finally {
  loading.value = false;
@@ -34,7 +34,7 @@ const handleLogin = async () => {
       <div class="bg-white rounded-xl shadow-lg p-8">
         <div class="text-center mb-8">
           <h1 class="text-2xl font-bold text-gray-800">ReqMango AI</h1>
-          <p class="text-gray-500 mt-2">登录您的账户</p>
+          <p class="text-gray-500 mt-2">{{ t('auth.loginSubtitle') }}</p>
         </div>
         
         <form @submit.prevent="handleLogin">
@@ -44,7 +44,7 @@ const handleLogin = async () => {
               v-model="email"
               type="email"
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="请输入邮箱"
+              :placeholder="t('auth.emailPlaceholder')"
             />
           </div>
           
@@ -54,7 +54,7 @@ const handleLogin = async () => {
               v-model="password"
               type="password"
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="请输入密码"
+              :placeholder="t('auth.passwordPlaceholder')"
             />
           </div>
           

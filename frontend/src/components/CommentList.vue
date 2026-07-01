@@ -19,7 +19,7 @@
         <div class="flex-1">
           <textarea
             v-model="newComment"
-            placeholder="添加评论..."
+            :placeholder="t('comment.placeholder')"
             rows="3"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
             @keydown.ctrl.enter="submitComment"
@@ -30,7 +30,7 @@
               :disabled="!newComment.trim() || submitting"
               class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {{ submitting ? '发布中...' : '发布' }}
+              {{ submitting ? t('comment.publishing') : t('comment.publish') }}
             </button>
           </div>
         </div>
@@ -42,7 +42,7 @@
       <svg class="h-10 w-10 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
       </svg>
-      <p class="mt-2 text-gray-500 text-sm">暂无评论</p>
+      <p class="mt-2 text-gray-500 text-sm">{{ t('comment.noComments') }}</p>
     </div>
 
     <!-- 评论项 -->
@@ -61,7 +61,7 @@
         <div class="flex-1 min-w-0">
           <div class="bg-gray-50 rounded-lg px-4 py-3">
             <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-900">{{ comment.author?.display_name || '用户' }}</span>
+              <span class="text-sm font-medium text-gray-900">{{ comment.author?.display_name || t('comment.user') }}</span>
               <span class="text-xs text-gray-500">{{ formatTime(comment.created_at) }}</span>
             </div>
             <div class="mt-1 text-sm text-gray-700 whitespace-pre-wrap" v-html="renderMentions(comment.body || comment.content)"></div>
@@ -74,15 +74,15 @@
               @click="resolveComment(comment)"
               class="text-xs text-gray-500 hover:text-indigo-600"
             >
-              标记为已解决
+              {{ t('comment.markResolved') }}
             </button>
-            <span v-else class="text-xs text-green-600">已解决</span>
+            <span v-else class="text-xs text-green-600">{{ t('comment.resolved') }}</span>
 
             <button
               @click="replyTo(comment)"
               class="text-xs text-gray-500 hover:text-indigo-600"
             >
-              回复
+              {{ t('comment.reply') }}
             </button>
 
             <button
@@ -90,7 +90,7 @@
               @click="deleteComment(comment)"
               class="text-xs text-gray-500 hover:text-red-600"
             >
-              删除
+              {{ t('comment.delete') }}
             </button>
           </div>
 
@@ -98,14 +98,14 @@
           <div v-if="replyingTo?.id === comment.id" class="mt-2">
             <textarea
               v-model="replyText"
-              placeholder="输入回复..."
+              :placeholder="t('comment.replyPlaceholder')"
               rows="2"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
               @keydown.ctrl.enter="submitReply"
             ></textarea>
             <div class="flex justify-end space-x-2 mt-2">
-              <button @click="replyingTo = null; replyText = ''" class="px-3 py-1 text-xs border rounded hover:bg-gray-50">取消</button>
-              <button @click="submitReply" :disabled="!replyText.trim()" class="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50">回复</button>
+              <button @click="replyingTo = null; replyText = ''" class="px-3 py-1 text-xs border rounded hover:bg-gray-50">{{ t('comment.cancel') }}</button>
+              <button @click="submitReply" :disabled="!replyText.trim()" class="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50">{{ t('comment.reply') }}</button>
             </div>
           </div>
 
@@ -123,7 +123,7 @@
               </div>
               <div class="flex-1 bg-gray-50 rounded-lg px-3 py-2">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-medium text-gray-900">{{ reply.author?.display_name || '用户' }}</span>
+                  <span class="text-xs font-medium text-gray-900">{{ reply.author?.display_name || t('comment.user') }}</span>
                   <span class="text-xs text-gray-500">{{ formatTime(reply.created_at) }}</span>
                 </div>
                 <div class="mt-0.5 text-xs text-gray-700 whitespace-pre-wrap" v-html="renderMentions(reply.body || reply.content)"></div>
@@ -141,7 +141,7 @@
         :disabled="loadingMore"
         class="text-sm text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
       >
-        {{ loadingMore ? '加载中...' : '加载更多' }}
+        {{ loadingMore ? t('comment.loading') : t('comment.loadMore') }}
       </button>
     </div>
   </div>
@@ -152,6 +152,7 @@ import { ref, onMounted } from 'vue'
 import commentApi from '@/api/comment'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'
+import { useI18n } from '@/composables/useI18n'
 import type { Comment, CommentCreate } from '@/types/comment'
 
 // Props
@@ -163,6 +164,7 @@ const props = defineProps<{
 // State
 const { confirm } = useConfirm()
 const authStore = useAuthStore()
+const { t } = useI18n()
 const comments = ref<Comment[]>([])
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -268,7 +270,7 @@ async function submitReply() {
 }
 
 async function deleteComment(comment: Comment) {
-  if (!(await confirm('确定要删除这条评论吗？'))) return
+  if (!(await confirm(t('comment.confirmDelete')))) return
 
   try {
     await commentApi.deleteComment(comment.id)
@@ -292,10 +294,10 @@ function formatTime(timeStr: string) {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 7) return `${days}天前`
+  if (minutes < 1) return t('comment.justNow')
+  if (minutes < 60) return t('comment.minutesAgo', { minutes })
+  if (hours < 24) return t('comment.hoursAgo', { hours })
+  if (days < 7) return t('comment.daysAgo', { days })
 
   return date.toLocaleDateString('zh-CN')
 }

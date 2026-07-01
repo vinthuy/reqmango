@@ -97,19 +97,19 @@
               @click="$emit('click'); showMenu = false"
               class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
-              查看详情
+              {{ t('cycleCard.viewDetails') }}
             </button>
             <button
               @click="$emit('archive', issue); showMenu = false"
               class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
-              归档
+              {{ t('projectDetail.archive') }}
             </button>
             <button
               @click="$emit('delete', issue); showMenu = false"
               class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
             >
-              删除
+              {{ t('common.delete') }}
             </button>
           </div>
         </div>
@@ -136,7 +136,7 @@
         <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
-        {{ issue.module_ids.length }} 模块
+        {{ issue.module_ids.length }} {{ t('projectDetail.modules') }}
       </span>
     </div>
   </div>
@@ -144,6 +144,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+const { t } = useI18n()
 
 // Props
 defineProps<{

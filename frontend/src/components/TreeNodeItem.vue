@@ -94,7 +94,7 @@
         <button
           @click.stop="showChildForm = !showChildForm"
           class="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors opacity-0 group-hover:opacity-100"
-          title="创建子工作项"
+          :title="t('treeNode.createChild')"
         >
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -108,20 +108,20 @@
       <input
         v-model="childName"
         type="text"
-        placeholder="子工作项名称"
+        :placeholder="t('treeNode.childNamePlaceholder')"
         class="flex-1 min-w-0 border border-gray-300 rounded text-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         @keydown.enter="submitChild"
         @keydown.escape="cancelChild"
       />
       <select v-model="childPriority" class="border border-gray-300 rounded text-sm px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0">
-        <option value="none">无</option>
-        <option value="low">低</option>
-        <option value="medium">中</option>
-        <option value="high">高</option>
-        <option value="urgent">紧急</option>
+        <option value="none">{{ t('treeNode.none') }}</option>
+        <option value="low">{{ t('treeNode.low') }}</option>
+        <option value="medium">{{ t('treeNode.medium') }}</option>
+        <option value="high">{{ t('treeNode.high') }}</option>
+        <option value="urgent">{{ t('treeNode.urgent') }}</option>
       </select>
-      <button @click.stop="submitChild" :disabled="!childName.trim()" class="px-2 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 shrink-0">创建</button>
-      <button @click.stop="cancelChild" class="px-2 py-1 border border-gray-300 text-gray-600 text-xs rounded hover:bg-gray-100 shrink-0">取消</button>
+      <button @click.stop="submitChild" :disabled="!childName.trim()" class="px-2 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 disabled:opacity-50 shrink-0">{{ t('treeNode.create') }}</button>
+      <button @click.stop="cancelChild" class="px-2 py-1 border border-gray-300 text-gray-600 text-xs rounded hover:bg-gray-100 shrink-0">{{ t('treeNode.cancel') }}</button>
     </div>
 
     <!-- Children (recursive) -->
@@ -151,14 +151,17 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
       </svg>
-      加载子节点...
+      {{ t('treeNode.loadingChildren') }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { TreeIssueResponse } from '@/types/issue'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   node: TreeIssueResponse
@@ -215,7 +218,7 @@ function priorityClass(p: string) {
 }
 
 function priorityLabel(p: string) {
-  const m: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }
+  const m: Record<string, string> = { urgent: t('treeNode.urgent'), high: t('treeNode.high'), medium: t('treeNode.medium'), low: t('treeNode.low'), none: t('treeNode.none') }
   return m[p] || p
 }
 </script>

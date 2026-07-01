@@ -158,7 +158,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 
       <!-- Workspace dropdown -->
       <div v-if="showWorkspaceMenu" class="absolute right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[180px]">
-        <div class="px-3 py-1.5 text-[11px] text-gray-400 uppercase tracking-wider">工作空间</div>
+        <div class="px-3 py-1.5 text-[11px] text-gray-400 uppercase tracking-wider">{{ t('topbar.workspace') }}</div>
         <button v-for="ws in workspaces" :key="ws.id" @click="goToWorkspace(ws.slug)"
           :class="['w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2',
             ws.slug === workspaceSlug ? 'text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-900/20' : 'text-gray-700 dark:text-gray-300']">
@@ -176,7 +176,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
     <!-- User / Logout -->
     <button @click="logout"
       class="ml-1 p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-      title="退出登录">
+      :title="t('topbar.logout')">
       <div class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
         <span class="text-[11px] text-gray-600 dark:text-gray-300">{{ authStore.user?.email?.charAt(0)?.toUpperCase() || 'U' }}</span>
       </div>

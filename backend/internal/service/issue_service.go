@@ -178,16 +178,54 @@ func (s *IssueService) GetByID(issueID uint64) (*response.IssueResponse, error) 
 	return s.buildResponse(issueID)
 }
 
+// buildSortClause maps sort_by field name to DB column and returns ORDER BY clause.
+func (s *IssueService) buildSortClause(filters map[string]interface{}) string {
+	sortBy, _ := filters["sort_by"].(string)
+	sortDir, _ := filters["sort_dir"].(string)
+	if sortBy == "" {
+		return ""
+	}
+	if sortDir == "" {
+		sortDir = "desc"
+	}
+	if sortDir != "asc" && sortDir != "desc" {
+		sortDir = "desc"
+	}
+	colMap := map[string]string{
+		"sequence_id": "issues.sequence_id",
+		"name":        "issues.name",
+		"priority":    "issues.priority",
+		"state":       "issues.state_id",
+		"issue_type":  "issues.issue_type_id",
+		"created_at":  "issues.created_at",
+		"updated_at":  "issues.updated_at",
+		"start_date":  "issues.start_date",
+		"target_date": "issues.target_date",
+	}
+	col, ok := colMap[sortBy]
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("%s %s, issues.sort_order ASC, issues.sequence_id DESC", col, sortDir)
+}
+
 // List returns issues for a project with optional filters and total count.
 func (s *IssueService) List(projectID uint64, filters map[string]interface{}, limit, offset int) ([]response.IssueResponse, int64, error) {
 	baseQuery := s.db.Model(&model.Issue{}).Where("issues.project_id = ?", projectID)
+
+	// Build dynamic ORDER BY from sort_by / sort_dir
+	sortClause := s.buildSortClause(filters)
 
 	// Handle RQL filter: use RQL service to get matching issue IDs
 	if rqlQuery, ok := filters["rql"]; ok && rqlQuery != nil && rqlQuery != "" {
 		queryStr := fmt.Sprint(rqlQuery)
 		if queryStr != "" {
 			rqlSvc := rql.NewRQLService()
-			rqlIssues, rqlTotal, rqlErr := rqlSvc.SearchIssues(s.db, projectID, queryStr, limit, offset)
+			page := 1
+			if limit > 0 {
+				page = (offset / limit) + 1
+			}
+			rqlIssues, rqlTotal, rqlErr := rqlSvc.SearchIssues(s.db, projectID, queryStr, page, limit)
 			if rqlErr != nil {
 				return nil, 0, common.BadRequest("RQL parse error: " + rqlErr.Error())
 			}
@@ -199,14 +237,18 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 				ids[i] = issue.ID
 			}
 			var issues []model.Issue
-			if err := s.db.Where("id IN ?", ids).
+			q := s.db.Where("id IN ?", ids).
 				Preload("State").
 				Preload("IssueType").
 				Preload("AssigneeLinks.User").
 				Preload("LabelLinks.Label").
-				Preload("CycleLink").
-				Order("sort_order ASC, sequence_id DESC").
-				Find(&issues).Error; err != nil {
+				Preload("CycleLink")
+			if sortClause != "" {
+				q = q.Order(sortClause)
+			} else {
+				q = q.Order("sort_order ASC, sequence_id DESC")
+			}
+			if err := q.Find(&issues).Error; err != nil {
 				return nil, 0, common.Internal("Database error")
 			}
 			result := make([]response.IssueResponse, len(issues))
@@ -293,20 +335,34 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 	}
 
 	var issues []model.Issue
+	defaultOrder := "issues.sort_order ASC, issues.sequence_id DESC"
+	if sortClause != "" {
+		defaultOrder = sortClause
+	}
+
 	if needDedup {
-		// Use subquery to get distinct issue IDs, then fetch full rows
+		// Use subquery to get distinct issue IDs, then fetch full rows (with sort applied in subquery)
 		var ids []uint64
-		if err := baseQuery.Distinct("issues.id").Pluck("issues.id", &ids).Error; err != nil {
+		subBase := baseQuery
+		if sortClause != "" {
+			subBase = subBase.Order(sortClause)
+		}
+		if err := subBase.Distinct("issues.id").Limit(limit).Offset(offset).Pluck("issues.id", &ids).Error; err != nil {
 			return nil, 0, common.Internal("Database error")
 		}
 		if len(ids) > 0 {
+			idOrder := "CASE issues.id "
+			for i, id := range ids {
+				idOrder += fmt.Sprintf("WHEN %d THEN %d ", id, i)
+			}
+			idOrder += "END"
 			if err := s.db.Where("id IN ?", ids).
 				Preload("State").
 				Preload("IssueType").
 				Preload("AssigneeLinks.User").
 				Preload("LabelLinks.Label").
 				Preload("CycleLink").
-				Order("sort_order ASC, sequence_id DESC").
+				Order(idOrder).
 				Find(&issues).Error; err != nil {
 				return nil, 0, common.Internal("Database error")
 			}
@@ -318,7 +374,7 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 			Preload("AssigneeLinks.User").
 			Preload("LabelLinks.Label").
 			Preload("CycleLink").
-			Order("issues.sort_order ASC, issues.sequence_id DESC").
+			Order(defaultOrder).
 			Limit(limit).Offset(offset).
 			Find(&issues).Error; err != nil {
 			return nil, 0, common.Internal("Database error")
@@ -351,6 +407,8 @@ func (s *IssueService) ListByWorkspace(workspaceID uint64, filters map[string]in
 func (s *IssueService) listByProjects(projectIDs []uint64, filters map[string]interface{}, limit, offset int) ([]response.IssueResponse, int64, error) {
 	baseQuery := s.db.Model(&model.Issue{}).Where("issues.project_id IN ?", projectIDs)
 
+	sortClause := s.buildSortClause(filters)
+
 	if stateID, ok := filters["state_id"]; ok && stateID != nil {
 		baseQuery = baseQuery.Where("issues.state_id = ?", stateID)
 	}
@@ -379,6 +437,11 @@ func (s *IssueService) listByProjects(projectIDs []uint64, filters map[string]in
 		return nil, 0, err
 	}
 
+	defaultOrder := "issues.sort_order ASC, issues.sequence_id DESC"
+	if sortClause != "" {
+		defaultOrder = sortClause
+	}
+
 	var issues []model.Issue
 	if err := baseQuery.
 		Preload("State").
@@ -388,7 +451,7 @@ func (s *IssueService) listByProjects(projectIDs []uint64, filters map[string]in
 		Preload("CycleLink").
 		Preload("Parent").
 		Preload("Project").
-		Order("issues.sort_order ASC, issues.sequence_id DESC").
+		Order(defaultOrder).
 		Offset(offset).
 		Limit(limit).
 		Find(&issues).Error; err != nil {

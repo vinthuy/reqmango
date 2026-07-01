@@ -4,15 +4,15 @@
     <div class="page-header">
       <div class="header-left">
         <div>
-          <h1 class="page-title">工作项类型</h1>
-          <p class="page-subtitle">管理项目中的工作项类型</p>
+          <h1 class="page-title">{{ t('issueTypePage.title') }}</h1>
+          <p class="page-subtitle">{{ t('issueTypePage.description') }}</p>
         </div>
       </div>
       <button @click="openCreateModal" class="create-btn">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        新建类型
+        {{ t('issueTypePage.create') }}
       </button>
     </div>
 
@@ -54,9 +54,9 @@
             <h3 class="type-name">{{ type.name }}</h3>
             <div class="type-badges">
               <span class="badge badge-level">L{{ type.level || 0 }}</span>
-              <span v-if="type.is_default" class="badge badge-default">默认</span>
-              <span v-if="!type.is_active" class="badge badge-inactive">已禁用</span>
-              <span v-if="type.parent_type_id" class="badge badge-parent">父类型约束</span>
+              <span v-if="type.is_default" class="badge badge-default">{{ t('issueTypePage.default') }}</span>
+              <span v-if="!type.is_active" class="badge badge-inactive">{{ t('issueTypePage.disabled') }}</span>
+              <span v-if="type.parent_type_id" class="badge badge-parent">{{ t('issueTypePage.parentConstraint') }}</span>
             </div>
             <p v-if="type.description" class="type-description">{{ type.description }}</p>
           </div>
@@ -67,7 +67,7 @@
             v-if="!type.is_default"
             @click.stop="toggleActive(type)"
             class="action-btn"
-            :title="type.is_active ? '禁用' : '启用'"
+            :title="type.is_active ? t('issueTypePage.disableAction') : t('issueTypePage.enableAction')"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path v-if="type.is_active" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -78,7 +78,7 @@
             v-if="!type.is_default"
             @click.stop="confirmDelete(type)"
             class="action-btn action-btn-danger"
-            title="删除"
+            :title="t('issueTypePage.deleteAction')"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -93,8 +93,8 @@
       <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
-      <h3 class="text-lg font-medium text-gray-900">暂无工作项类型</h3>
-      <p class="text-gray-500">点击上方按钮创建第一个工作项类型</p>
+      <h3 class="text-lg font-medium text-gray-900">{{ t('issueTypePage.empty') }}</h3>
+      <p class="text-gray-500">{{ t('issueTypePage.emptyHint') }}</p>
     </div>
 
     <!-- 内嵌编辑抽屉 -->
@@ -104,9 +104,9 @@
           <div class="drawer-header">
             <div>
               <h2 class="drawer-title">
-                {{ isCreating ? '新建类型' : '编辑: ' + (selectedType?.name || '') }}
+                {{ isCreating ? t('issueTypePage.createTitle') : t('issueTypePage.editTitle') + ': ' + (selectedType?.name || '') }}
               </h2>
-              <p class="drawer-subtitle">配置工作项类型的属性和外观</p>
+              <p class="drawer-subtitle">{{ t('issueTypePage.drawerSubtitle') }}</p>
             </div>
             <button @click="closeDrawer" class="close-btn">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,7 +117,7 @@
 
           <div class="drawer-body">
             <div class="form-group">
-              <label class="form-label">预览</label>
+              <label class="form-label">{{ t('issueTypePage.preview') }}</label>
               <div class="type-preview" :class="{ 'is-default': formData.is_default }">
                 <div class="type-card-main">
                   <div class="type-icon" :style="{ backgroundColor: formData.color }">
@@ -146,10 +146,10 @@
                     </svg>
                   </div>
                   <div class="type-info">
-                    <h3 class="type-name">{{ formData.name || '未命名类型' }}</h3>
+                    <h3 class="type-name">{{ formData.name || t('issueTypePage.unnamed') }}</h3>
                     <div class="type-badges">
                       <span class="badge badge-level">L{{ formData.level || 0 }}</span>
-                      <span v-if="formData.is_default" class="badge badge-default">默认</span>
+                      <span v-if="formData.is_default" class="badge badge-default">{{ t('issueTypePage.default') }}</span>
                     </div>
                   </div>
                 </div>
@@ -157,17 +157,17 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">名称 <span class="required">*</span></label>
+              <label class="form-label">{{ t('issueTypePage.nameLabel') }} <span class="required">*</span></label>
               <input
                 v-model="formData.name"
                 type="text"
                 class="form-input"
-                placeholder="输入类型名称"
+                :placeholder="t('issueTypePage.namePlaceholder')"
               />
             </div>
 
             <div class="form-group">
-              <label class="form-label">图标</label>
+              <label class="form-label">{{ t('issueTypePage.iconLabel') }}</label>
               <div class="icon-grid">
                 <button
                   v-for="icon in ISSUE_TYPE_ICONS"
@@ -205,7 +205,7 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">颜色</label>
+              <label class="form-label">{{ t('issueTypePage.colorLabel') }}</label>
               <div class="color-grid">
                 <button
                   v-for="color in ISSUE_TYPE_COLORS"
@@ -219,45 +219,45 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label">描述</label>
-              <input v-model="formData.description" type="text" class="form-input" placeholder="类型描述" />
+              <label class="form-label">{{ t('issueTypePage.descriptionLabel') }}</label>
+              <input v-model="formData.description" type="text" class="form-input" :placeholder="t('issueTypePage.descriptionPlaceholder')" />
             </div>
 
             <div class="form-group">
-              <label class="form-label">层级 (Level)</label>
+              <label class="form-label">{{ t('issueTypePage.level') }}</label>
               <select v-model="formData.level" class="form-input">
-                <option :value="0">L0 - 根层级 (Epic级)</option>
-                <option :value="1">L1 - 第1层子级</option>
-                <option :value="2">L2 - 第2层子级</option>
-                <option :value="3">L3 - 第3层子级</option>
-                <option :value="4">L4 - 第4层子级</option>
-                <option :value="5">L5 - 第5层子级</option>
+                <option :value="0">{{ t('issueTypePage.level0') }}</option>
+                <option :value="1">{{ t('issueTypePage.level1') }}</option>
+                <option :value="2">{{ t('issueTypePage.level2') }}</option>
+                <option :value="3">{{ t('issueTypePage.level3') }}</option>
+                <option :value="4">{{ t('issueTypePage.level4') }}</option>
+                <option :value="5">{{ t('issueTypePage.level5') }}</option>
               </select>
             </div>
 
             <div class="form-group" v-if="(formData.level || 0) > 0">
-              <label class="form-label">父类型 (Parent Type)</label>
+              <label class="form-label">{{ t('issueTypePage.parentType') }}</label>
               <select v-model="formData.parent_type_id" class="form-input">
-                <option :value="undefined">无约束</option>
+                <option :value="undefined">{{ t('issueTypePage.noConstraint') }}</option>
                 <option v-for="t in parentTypeOptions" :key="t.id" :value="t.id">
                   {{ t.name }} (L{{ t.level }})
                 </option>
               </select>
-              <p class="text-xs text-gray-500 mt-1">限定此类型只能挂在选定的父类型下</p>
+              <p class="text-xs text-gray-500 mt-1">{{ t('issueTypePage.parentHint') }}</p>
             </div>
 
             <div class="form-group">
               <label class="checkbox-label">
                 <input v-model="formData.is_default" type="checkbox" class="checkbox" />
-                <span>设为默认类型</span>
+                <span>{{ t('issueTypePage.setDefault') }}</span>
               </label>
             </div>
           </div>
 
           <div class="drawer-footer">
-            <button @click="closeDrawer" class="btn btn-secondary">取消</button>
+            <button @click="closeDrawer" class="btn btn-secondary">{{ t('issueTypePage.cancel') }}</button>
             <button @click="submitForm" class="btn btn-primary" :disabled="!formData.name">
-              {{ isCreating ? '创建' : '保存' }}
+              {{ isCreating ? t('issueTypePage.createBtn') : t('issueTypePage.saveBtn') }}
             </button>
           </div>
         </div>
@@ -271,10 +271,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import type { IssueType, IssueTypeCreate, IssueTypeUpdate } from '@/types/issue-type'
 import { ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS, getIconName } from '@/types/issue-type'
+import { useI18n } from '@/composables/useI18n'
 import { useConfirm } from '@/composables/useConfirm'
 import * as issueTypeApi from '@/api/issue-type'
 
 const route = useRoute()
+const { t } = useI18n()
 const { confirm } = useConfirm()
 
 const projectId = computed(() => parseInt(route.params.projectId as string, 10))
@@ -378,10 +380,11 @@ async function submitForm() {
 
 // 切换启用状态
 async function toggleActive(type: IssueType) {
+  const action = type.is_active ? 'disableAction' : 'enableAction'
   if (await confirm({
-    title: type.is_active ? '禁用类型' : '启用类型',
-    message: `确定要${type.is_active ? '禁用' : '启用'}类型 "${type.name}" 吗？`,
-    confirmText: type.is_active ? '禁用' : '启用',
+    title: type.is_active ? t('issueTypePage.disableConfirmTitle') : t('issueTypePage.enableConfirmTitle'),
+    message: t('issueTypePage.confirmToggle', { action: t(`issueTypePage.${action}`), name: type.name }),
+    confirmText: t(`issueTypePage.${action}`),
     danger: type.is_active,
   })) {
     try {
@@ -396,10 +399,10 @@ async function toggleActive(type: IssueType) {
 // 确认删除
 async function confirmDelete(type: IssueType) {
   if (await confirm({
-    title: '删除类型',
-    message: `确定要删除类型 "${type.name}" 吗？此操作不可撤销。`,
+    title: t('issueTypePage.deleteConfirmTitle'),
+    message: t('issueTypePage.deleteConfirm', { name: type.name }),
     danger: true,
-    confirmText: '删除'
+    confirmText: t('issueTypePage.deleteBtn')
   })) {
     try {
       await issueTypeApi.deleteIssueType(type.id)

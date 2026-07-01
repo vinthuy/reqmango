@@ -22,7 +22,7 @@
           v-if="rql"
           @click="clearRQL"
           class="p-1 text-gray-400 hover:text-gray-600"
-          title="清除"
+          :title="t('rql.clear')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -32,7 +32,7 @@
           v-if="showHistory"
           @click="toggleHistory"
           class="p-1 text-gray-400 hover:text-gray-600"
-          title="历史"
+          :title="t('rql.historyTooltip')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -48,7 +48,7 @@
 
     <!-- 提示 -->
     <div v-if="showHints && !rql" class="mt-1 text-xs text-gray-400">
-      示例: <code class="bg-gray-100 px-1 rounded">state = "待处理" AND priority = "high"</code>
+      {{ t('rql.example') }}: <code class="bg-gray-100 px-1 rounded">state = "待处理" AND priority = "high"</code>
     </div>
 
     <!-- 历史记录面板 -->
@@ -63,6 +63,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import RQLHistory from './RQLHistory.vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -72,7 +75,7 @@ const props = withDefaults(defineProps<{
   error?: string | null
 }>(), {
   modelValue: '',
-  placeholder: '输入 RQL 查询...',
+  placeholder: t('rql.placeholder'),
   showHistory: true,
   showHints: true,
   error: null

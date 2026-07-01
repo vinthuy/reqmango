@@ -1,59 +1,45 @@
-/**
- * useFilters — Plane-style filter composable (Provide/Inject)
- *
- * Single source of truth for all filter state across views.
- * Features:
- *  - Semantic operator labels (is / is not / contains / is any of ...)
- *  - Instant updates (no confirm step)
- *  - RQL auto-derivation from FilterCondition[]
- *  - localStorage history
- *  - Serialization for URL / SavedView
- */
-import { reactive, computed, inject, provide } from 'vue'
-import type { FilterCondition, FilterHistoryItem } from '@/types/filters'
-import { buildRQL } from '@/types/filters'
+import { reactive, computed, provide, inject, type ComputedRef } from 'vue'
+import type { FilterCondition, SortOption, GroupOption } from '../types/filters'
+import { buildRQL, parseRQL } from '../types/filters'
 
 const FILTERS_KEY = Symbol('filters')
 
-// ── History (localStorage) ──
-const HISTORY_KEY_PREFIX = 'reqmango:filter_history:'
-const MAX_HISTORY = 30
-
-function loadHistory(projectId: number): FilterHistoryItem[] {
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY_PREFIX + projectId)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
+export interface FiltersState {
+  filters: FilterCondition[]
+  sortBy: SortOption | null
+  groupBy: GroupOption | null
 }
 
-function saveHistory(projectId: number, items: FilterHistoryItem[]) {
-  try {
-    const trimmed = items.slice(0, MAX_HISTORY)
-    localStorage.setItem(HISTORY_KEY_PREFIX + projectId, JSON.stringify(trimmed))
-  } catch { /* ignore quota errors */ }
+export interface FiltersContext {
+  state: FiltersState
+  rql: ComputedRef<string>
+  activeFilterCount: ComputedRef<number>
+  isEmpty: ComputedRef<boolean>
+  addFilter: (field: string, operator: string, value: any, displayValue: string) => void
+  removeFilter: (index: number) => void
+  updateFilter: (index: number, updates: Partial<FilterCondition>) => void
+  clearAll: () => void
+  restoreFromRQL: (rql: string) => void
+  setSortBy: (sort: SortOption | null) => void
+  setGroupBy: (group: GroupOption | null) => void
 }
 
-// ── Composable ──
-
-export function useFilters(projectId: number) {
-  const state = reactive<{
-    filters: FilterCondition[]
-  }>({
+export function useFilters() {
+  const state = reactive<FiltersState>({
     filters: [],
+    sortBy: null,
+    groupBy: null
   })
 
-  // ── Computed ──
+  const rql = computed<string>(() => {
+    return buildRQL(state.filters)
+  })
+  
+  const activeFilterCount = computed<number>(() => state.filters.length)
+  const isEmpty = computed<boolean>(() => activeFilterCount.value === 0)
 
-  const rql = computed(() => buildRQL(state.filters))
-  const activeFilterCount = computed(() => state.filters.length)
-  const isEmpty = computed(() => activeFilterCount.value === 0)
-
-  // ── CRUD (instant — no confirm step) ──
-
-  function addFilter(condition: FilterCondition): void {
-    state.filters.push(condition)
+  function addFilter(field: string, operator: string, value: any, displayValue: string): void {
+    state.filters.push({ field, operator, value, displayValue })
   }
 
   function removeFilter(index: number): void {
@@ -61,46 +47,36 @@ export function useFilters(projectId: number) {
   }
 
   function updateFilter(index: number, updates: Partial<FilterCondition>): void {
-    Object.assign(state.filters[index], updates)
+    const cond = state.filters[index]
+    Object.assign(cond, updates)
   }
 
   function clearAll(): void {
     state.filters = []
+    state.sortBy = null
+    state.groupBy = null
   }
 
-  function setFilters(filters: FilterCondition[]): void {
-    state.filters = [...filters]
+  function restoreFromRQL(rqlStr: string): void {
+    if (!rqlStr.trim()) {
+      state.filters = []
+      state.sortBy = null
+      return
+    }
+    const parsed = parseRQL(rqlStr)
+    state.filters = parsed.filters
+    state.sortBy = parsed.sortBy || null
   }
 
-  // ── Serialization ──
-
-  function toJSON(): FilterCondition[] {
-    return JSON.parse(JSON.stringify(state.filters))
+  function setSortBy(sort: SortOption | null): void {
+    state.sortBy = sort
   }
 
-  // ── History ──
-
-  function pushHistory(): void {
-    const history = loadHistory(projectId)
-    history.unshift({
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      timestamp: Date.now(),
-      filters: toJSON(),
-      rql: rql.value,
-      projectId,
-    })
-    saveHistory(projectId, history)
+  function setGroupBy(group: GroupOption | null): void {
+    state.groupBy = group
   }
 
-  function getHistory(): FilterHistoryItem[] {
-    return loadHistory(projectId)
-  }
-
-  function clearHistory(): void {
-    saveHistory(projectId, [])
-  }
-
-  return {
+  const context: FiltersContext = {
     state,
     rql,
     activeFilterCount,
@@ -109,24 +85,20 @@ export function useFilters(projectId: number) {
     removeFilter,
     updateFilter,
     clearAll,
-    setFilters,
-    toJSON,
-    pushHistory,
-    getHistory,
-    clearHistory,
+    restoreFromRQL,
+    setSortBy,
+    setGroupBy
   }
+
+  provide(FILTERS_KEY, context)
+
+  return context
 }
 
-// ── Provide / Inject ──
-
-export function provideFilters(instance: ReturnType<typeof useFilters>) {
-  provide(FILTERS_KEY, instance)
-}
-
-export function injectFilters(): ReturnType<typeof useFilters> {
-  const instance = inject<ReturnType<typeof useFilters>>(FILTERS_KEY)
-  if (!instance) {
-    throw new Error('injectFilters() must be called within a component tree that has provideFilters()')
+export function injectFilters(): FiltersContext {
+  const context = inject<FiltersContext>(FILTERS_KEY)
+  if (!context) {
+    throw new Error('useFilters must be called within a provider')
   }
-  return instance
+  return context
 }

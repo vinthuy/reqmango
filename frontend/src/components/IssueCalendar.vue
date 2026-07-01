@@ -45,7 +45,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api'
 
-const props = defineProps<{ projectId: number; workspaceId: number }>()
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
 
 interface CalendarDay {
@@ -105,12 +105,17 @@ function priorityColor(p: string) {
 }
 
 onMounted(() => load())
-watch(() => props.projectId, () => load())
+watch(() => [props.projectId, props.rql], () => load())
 
 async function load() {
   try {
-    // Fetch issues for a wide date range around current month
-    const r = await api.get(`/issues?project_id=${props.projectId}&limit=500`)
+    // Build query params with filters
+    let url = `/issues?project_id=${props.projectId}&limit=500`
+    if (props.rql) url += `&rql=${encodeURIComponent(props.rql)}`
+    if (props.filterSortBy) {
+      url += `&sort_by=${props.filterSortBy}&sort_dir=${props.filterSortDir || 'desc'}`
+    }
+    const r = await api.get(url)
     issues.value = Array.isArray(r.data) ? r.data : []
   } catch (_) { issues.value = [] }
 }

@@ -20,10 +20,10 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
       </svg>
       <p class="mt-2 text-sm text-gray-600">
-        拖拽文件到此处，或 <span class="text-indigo-600">点击上传</span>
+        {{ t('attachment.dropHint') }} <span class="text-indigo-600">{{ t('attachment.clickUpload') }}</span>
       </p>
       <p class="mt-1 text-xs text-gray-500">
-        支持任意文件类型
+        {{ t('attachment.supportAny') }}
       </p>
     </div>
 
@@ -50,7 +50,7 @@
 
     <!-- 附件列表 -->
     <div v-if="attachments.length > 0" class="mt-6">
-      <h4 class="text-sm font-medium text-gray-700 mb-3">已上传 ({{ attachments.length }})</h4>
+      <h4 class="text-sm font-medium text-gray-700 mb-3">{{ t('attachment.uploaded') }} {{ t('attachment.count', { count: attachments.length }) }}</h4>
       <div class="space-y-2">
         <div
           v-for="(attachment, idx) in attachments"
@@ -80,7 +80,7 @@
               :href="getDownloadUrl(attachment.id)"
               target="_blank"
               class="p-1.5 text-gray-400 hover:text-indigo-600 rounded"
-              title="下载"
+              :title="t('attachment.download')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -91,7 +91,7 @@
             <button
               @click="deleteAttachment(attachment)"
               class="p-1.5 text-gray-400 hover:text-red-600 rounded"
-              title="删除"
+              :title="t('attachment.delete')"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -107,9 +107,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import attachmentApi from '@/api/attachment'
 import { useConfirm } from '@/composables/useConfirm'
 import AttachmentPreview from '@/components/AttachmentPreview.vue'
+
+const { t } = useI18n()
 
 // Props
 const props = defineProps<{
@@ -179,7 +182,7 @@ async function uploadFiles(files: File[]) {
 }
 
 async function deleteAttachment(attachment: any) {
-  if (!(await confirm(`确定要删除 "${attachment.name}" 吗？`))) return
+  if (!(await confirm(t('attachment.confirmDelete', { name: attachment.name })))) return
   if (!props.issueId) return
 
   try {

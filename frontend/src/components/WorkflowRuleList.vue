@@ -4,15 +4,15 @@
     <div class="bg-white border-b border-gray-200 px-4 py-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-4">
-          <h3 class="text-sm font-medium text-gray-700">自动化规则</h3>
+          <h3 class="text-sm font-medium text-gray-700">{{ t('workflowRule.title') }}</h3>
           <!-- 启用/禁用筛选 -->
           <select
             v-model="filters.enabled"
             class="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">全部</option>
-            <option value="true">已启用</option>
-            <option value="false">已禁用</option>
+            <option value="">{{ t('workflowRule.all') }}</option>
+            <option value="true">{{ t('workflowRule.enabled') }}</option>
+            <option value="false">{{ t('workflowRule.disabled') }}</option>
           </select>
         </div>
 
@@ -25,7 +25,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
             </svg>
-            <span>从模板创建</span>
+            <span>{{ t('workflowRule.fromTemplate') }}</span>
           </button>
 
           <!-- 新建规则 -->
@@ -36,7 +36,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
-            <span>新建规则</span>
+            <span>{{ t('workflowRule.newRule') }}</span>
           </button>
         </div>
       </div>
@@ -50,7 +50,7 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <p class="mt-2 text-gray-500">加载中...</p>
+        <p class="mt-2 text-gray-500">{{ t('workflowRule.loading') }}</p>
       </div>
 
       <!-- 空状态 -->
@@ -58,9 +58,9 @@
         <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
-        <p class="mt-2 text-gray-500">暂无自动化规则</p>
+        <p class="mt-2 text-gray-500">{{ t('workflowRule.empty') }}</p>
         <button @click="$emit('create')" class="mt-3 text-indigo-600 hover:text-indigo-800 text-sm">
-          创建第一个规则
+          {{ t('workflowRule.createFirst') }}
         </button>
       </div>
 
@@ -82,9 +82,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import WorkflowRuleCard from './WorkflowRuleCard.vue'
 import workflowApi from '@/api/workflow'
 import type { AutomationRule } from '@/types/workflow'
+
+const { t } = useI18n()
 
 // Props
 const props = defineProps<{

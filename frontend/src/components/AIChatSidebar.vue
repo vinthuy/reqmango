@@ -14,21 +14,21 @@
           <button
             @click="mode = mode === 'ask' ? 'build' : 'ask'"
             :class="['px-2 py-1 text-xs rounded transition', mode === 'build' ? 'bg-amber-500 text-white' : 'bg-white/20 text-white']"
-            :title="mode === 'ask' ? '切换到 Build 模式' : '切换到 Ask 模式'"
+            :title="mode === 'ask' ? t('ai.buildMode') : t('ai.askMode')"
           >
             {{ mode === 'ask' ? '💬 Ask' : '🔧 Build' }}
           </button>
           <button
             @click="mode = mode === 'chart' ? 'ask' : 'chart'"
             :class="['px-2 py-1 text-xs rounded transition', mode === 'chart' ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white']"
-            title="AI 图表生成"
+            :title="t('ai.chartMode')"
           >
             📊
           </button>
           <button
             @click="mode = mode === 'agent' ? 'ask' : 'agent'"
             :class="['px-2 py-1 text-xs rounded transition', mode === 'agent' ? 'bg-violet-500 text-white' : 'bg-white/20 text-white']"
-            title="Agent 模式"
+            :title="t('ai.agentMode')"
           >
             👥
           </button>
@@ -75,19 +75,19 @@
       <!-- Quick Actions -->
       <div class="flex gap-1.5 px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex-wrap">
         <template v-if="mode === 'agent'">
-          <button @click="sendAgent('分析当前项目的健康状况')" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">📋 项目分析</button>
-          <button @click="sendAgent('总结当前Sprint的进展')" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">📊 Sprint总结</button>
-          <button @click="sendAgent('对未分类的Issue进行分诊')" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">🏥 分诊</button>
+          <button @click="sendAgent(t('ai.projectAnalysis'))" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">{{ t('ai.projectAnalysisLabel') }}</button>
+          <button @click="sendAgent(t('ai.sprintSummary'))" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">{{ t('ai.sprintSummaryLabel') }}</button>
+          <button @click="sendAgent(t('ai.triage'))" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">{{ t('ai.triageLabel') }}</button>
         </template>
         <template v-else-if="mode !== 'chart'">
-          <button @click="sendQuickAction('总结当前工作项的关键信息')" class="text-xs px-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100">📝 总结</button>
-          <button @click="sendQuickAction('分析这个工作项的风险和阻塞点')" class="text-xs px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 hover:bg-amber-100">⚠️ 风险</button>
-          <button @click="sendQuickAction('给出处理这个工作项的建议步骤')" class="text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 hover:bg-green-100">💡 建议</button>
+          <button @click="sendQuickAction(t('ai.summarizeIssue'))" class="text-xs px-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100">{{ t('ai.summarizeLabel') }}</button>
+          <button @click="sendQuickAction(t('ai.riskAnalysis'))" class="text-xs px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 hover:bg-amber-100">{{ t('ai.riskLabel') }}</button>
+          <button @click="sendQuickAction(t('ai.suggestSteps'))" class="text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 hover:bg-green-100">{{ t('ai.suggestLabel') }}</button>
         </template>
         <template v-else>
-          <button @click="sendChartQuery('按状态分布饼图')" class="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100">🥧 状态分布</button>
-          <button @click="sendChartQuery('按优先级柱状图')" class="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100">📊 优先级</button>
-          <button @click="sendChartQuery('近30天趋势折线图')" class="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100">📈 趋势</button>
+          <button @click="sendChartQuery(t('ai.chartPieState'))" class="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100">{{ t('ai.chartPieLabel') }}</button>
+          <button @click="sendChartQuery(t('ai.chartBarPriority'))" class="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100">{{ t('ai.chartBarLabel') }}</button>
+          <button @click="sendChartQuery(t('ai.chartLineTrend'))" class="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100">{{ t('ai.chartLineLabel') }}</button>
         </template>
       </div>
 
@@ -98,9 +98,9 @@
           <p class="text-sm font-medium">{{ mode === 'agent' ? t('ai.agentMode', 'Agent Mode') : t('ai.ready') }}</p>
           <p class="text-xs mt-1">{{ mode === 'agent' ? t('ai.agentHint', 'Select an agent and give it a task') : t('ai.readyHint') }}</p>
           <div v-if="mode !== 'agent' && mode !== 'chart'" class="mt-4 space-y-2 text-xs text-left">
-            <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send('有哪些紧急的Bug？')">💡 "有哪些紧急的Bug？"</div>
-            <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send('项目进展如何？')">💡 "项目进展如何？"</div>
-            <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send('列出所有进行中的任务')">💡 "列出所有进行中的任务"</div>
+            <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send(t('ai.suggestedQuestion1'))">💡 "{{ t('ai.suggestedQuestion1') }}"</div>
+            <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send(t('ai.suggestedQuestion2'))">💡 "{{ t('ai.suggestedQuestion2') }}"</div>
+            <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send(t('ai.suggestedQuestion3'))">💡 "{{ t('ai.suggestedQuestion3') }}"</div>
           </div>
         </div>
 
@@ -121,17 +121,17 @@
                 class="w-full flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors group"
               >
                 <span :class="['transition-transform', expandedThinking.has(idx) ? 'rotate-90' : '']">▶</span>
-                <span>🔍 思考过程</span>
+                <span>{{ t('ai.thinkingProcess') }}</span>
                 <span class="text-gray-300 dark:text-gray-600">—</span>
                 <span>{{ summarizeThinking(msg.toolResults) }}</span>
-                <span class="ml-auto text-gray-300 dark:text-gray-600 group-hover:text-gray-400">{{ expandedThinking.has(idx) ? '收起' : '展开' }}</span>
+                <span class="ml-auto text-gray-300 dark:text-gray-600 group-hover:text-gray-400">{{ expandedThinking.has(idx) ? t('ai.collapse') : t('ai.expand') }}</span>
               </button>
               <!-- Collapsible tool result cards -->
               <div v-if="expandedThinking.has(idx)" class="mt-2 space-y-2 border-l-2 border-amber-200 dark:border-amber-800 pl-3">
                 <div v-for="(tr, ti) in msg.toolResults" :key="ti" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-[11px]">
                   <div class="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
                     <span>📋</span><span>{{ formatToolName(tr.toolName || '') }}</span>
-                    <span v-if="tr.rows?.length" class="text-gray-300">· {{ tr.rows.length }} 条</span>
+                    <span v-if="tr.rows?.length" class="text-gray-300">· {{ tr.rows.length }} {{ t('ai.chartCount') }}</span>
                   </div>
                   <div class="overflow-x-auto">
                     <table v-if="(tr.columns?.length || 0) > 1 || tr.columns?.[0] !== 'key'" class="w-full">
@@ -442,25 +442,17 @@ function scrollToBottom() {
 }
 
 function formatToolName(name: string): string {
-  const map: Record<string, string> = {
-    list_issues: '查询工作项', search_issues: '搜索工作项',
-    get_states: '获取状态列表', get_labels: '获取标签列表',
-    get_cycles: '获取迭代周期', get_modules: '获取模块列表',
-    get_issue: '获取工作项详情', list_issues_by_state: '按状态筛选',
-    get_project_stats: '项目统计', get_assignees: '获取成员列表',
-  }
-  return map[name] || name.replace(/_/g, ' ')
+  if (!name) return ''
+  const key = 'ai.tool_' + name
+  const result = t(key)
+  return result !== key ? result : name.replace(/_/g, ' ')
 }
 
 function formatColName(col: string): string {
-  const map: Record<string, string> = {
-    name: '名称', title: '标题', display_name: '名称', username: '用户名',
-    priority: '优先级', state: '状态', status: '状态',
-    color: '颜色', group: '分组', id: 'ID',
-    description: '描述', created_at: '创建时间', updated_at: '更新时间',
-    key: '字段', value: '值', email: '邮箱',
-  }
-  return map[col] || col
+  if (!col) return ''
+  const key = 'ai.col_' + col
+  const result = t(key)
+  return result !== key ? result : col
 }
 
 function priorityBadge(p: string): string {

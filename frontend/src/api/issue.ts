@@ -53,6 +53,9 @@ export async function listIssues(
     cf_field_id?: number
     cf_value?: string
     cf_and?: string
+    rql?: string
+    sort_by?: string
+    sort_dir?: string
     limit?: number
     offset?: number
   }
@@ -65,7 +68,9 @@ export async function listIssues(
     if (filters.state_id) params.append('state_id', filters.state_id.toString())
     if (filters.priority) params.append('priority', filters.priority)
     if (filters.assignee_id) params.append('assignee_id', filters.assignee_id.toString())
-    if ((filters as any).rql) params.append('rql', (filters as any).rql as string)
+    if (filters.rql) params.append('rql', filters.rql)
+    if (filters.sort_by) params.append('sort_by', filters.sort_by)
+    if (filters.sort_dir) params.append('sort_dir', filters.sort_dir)
     if (filters.parent_id) params.append('parent_id', filters.parent_id.toString())
     if (filters.cycle_id) params.append('cycle_id', filters.cycle_id.toString())
     if (filters.module_id) params.append('module_id', filters.module_id.toString())
@@ -470,6 +475,7 @@ export async function listTreeIssues(
     priority?: string
     issue_type_id?: number
     search?: string
+    rql?: string
     limit?: number
     offset?: number
   }
@@ -481,6 +487,7 @@ export async function listTreeIssues(
     if (filters.priority) params.append('priority', filters.priority)
     if (filters.issue_type_id) params.append('issue_type_id', filters.issue_type_id.toString())
     if (filters.search) params.append('search', filters.search)
+    if (filters.rql) params.append('rql', filters.rql)
     if (filters.limit) params.append('limit', filters.limit.toString())
     if (filters.offset) params.append('offset', filters.offset.toString())
   }

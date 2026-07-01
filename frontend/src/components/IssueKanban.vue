@@ -1,105 +1,28 @@
 <template>
   <div class="issue-kanban">
-    <!-- 搜索栏 (hidden when unified filter bar is active) -->
-    <div v-if="!rql" class="bg-white rounded-lg border border-gray-200 mb-4">
-      <div class="px-4 py-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-3 flex-1">
-            <button
-              @click="showRQL = !showRQL"
-              class="px-3 py-1.5 text-sm border rounded-md transition-colors"
-              :class="showRQL ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'"
-            >
-              RQL
-            </button>
-            <div class="relative flex-1 max-w-md" v-if="!showRQL">
-              <input
-                v-model="filters.search"
-                type="text"
-                :placeholder="t('issueKanban.searchPlaceholder')"
-                class="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                @keydown.enter="reload"
-              />
-              <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <div class="flex-1 max-w-md" v-else>
-              <RQLInput
-                v-model="rqlQuery"
-                :placeholder="t('issueKanban.rqlPlaceholder')"
-                :show-history="true"
-                :show-hints="true"
-                :error="rqlError"
-                @search="onRQLSearch"
-              />
-            </div>
-            <select v-if="!showRQL" v-model="filters.state_id" @change="reload" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
-              <option value="0">{{ t('issueList.allStates') }}</option>
-              <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
-            </select>
-            <select v-model="filters.priority" @change="reload" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm">
-              <option value="">{{ t('issueList.allPriorities') }}</option>
-              <option value="urgent">{{ t('issue.priorityUrgent') }}</option><option value="high">{{ t('issue.priorityHigh') }}</option><option value="medium">{{ t('issue.priorityMedium') }}</option><option value="low">{{ t('issue.priorityLow') }}</option><option value="none">{{ t('issue.priorityNone') }}</option>
-            </select>
-            <select v-model="groupBy" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600">
-              <option value="state">{{ t('issueKanban.groupByState') }}</option>
-              <option value="assignee">{{ t('issueKanban.groupByAssignee') }}</option>
-              <option value="priority">{{ t('issueKanban.groupByPriority') }}</option>
-              <option value="labels">{{ t('issueKanban.groupByLabels') }}</option>
-            </select>
-            <select v-model="swimlaneBy" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600">
-              <option value="">{{ t('issueKanban.noSwimlane') }}</option>
-              <option value="assignee">{{ t('issueKanban.swimlaneAssignee') }}</option>
-              <option value="priority">{{ t('issueKanban.swimlanePriority') }}</option>
-              <option value="type">{{ t('issueKanban.swimlaneType') }}</option>
-            </select>
-          </div>
-          <div class="flex items-center space-x-2 ml-3">
-            <button @click="showAdvanced = !showAdvanced" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
-              {{ t('issueKanban.advancedSearch') }}
-              <svg class="w-3 h-3 inline ml-1" :class="{ 'rotate-180': showAdvanced }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-            <button @click="showImportModal = true" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">{{ t('common.import') }}</button>
-          </div>
+    <!-- 看板布局控制工具栏 (groupBy / swimlaneBy 是视图布局，不是筛选) -->
+    <div class="bg-white rounded-lg border border-gray-200 mb-4 px-4 py-2.5">
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-1.5">
+          <label class="text-xs text-gray-500">{{ t('issueKanban.groupBy') }}</label>
+          <select v-model="groupBy" class="px-2 py-1 border border-gray-300 rounded-md text-sm text-gray-600">
+            <option value="state">{{ t('issueKanban.groupByState') }}</option>
+            <option value="assignee">{{ t('issueKanban.groupByAssignee') }}</option>
+            <option value="priority">{{ t('issueKanban.groupByPriority') }}</option>
+            <option value="labels">{{ t('issueKanban.groupByLabels') }}</option>
+          </select>
         </div>
-      </div>
-      <!-- 高级搜索 -->
-      <div v-if="showAdvanced" class="px-4 pb-3 border-t border-gray-100 pt-3 bg-gray-50">
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.cycle') }}</label>
-            <select v-model="filters.cycle_id" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
-              <option value="0">{{ t('common.all') }}</option>
-              <option v-for="c in cycles" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select></div>
-          <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.assignee') }}</label>
-            <UserSelect
-              v-model="filtersAssignee"
-              :users="memberOptions"
-              :placeholder="t('common.all')"
-              :clearable="true"
-              @update:model-value="reload"
-            /></div>
-          <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.startDate') }}</label>
-            <input v-model="filters.filter_start_date" type="date" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
-          <div><label class="block text-xs text-gray-500 mb-1">{{ t('issue.targetDate') }}</label>
-            <input v-model="filters.filter_target_date" type="date" @change="reload" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" /></div>
+        <div class="flex items-center gap-1.5">
+          <label class="text-xs text-gray-500">{{ t('issueKanban.swimlane') }}</label>
+          <select v-model="swimlaneBy" class="px-2 py-1 border border-gray-300 rounded-md text-sm text-gray-600">
+            <option value="">{{ t('issueKanban.noSwimlane') }}</option>
+            <option value="assignee">{{ t('issueKanban.swimlaneAssignee') }}</option>
+            <option value="priority">{{ t('issueKanban.swimlanePriority') }}</option>
+            <option value="type">{{ t('issueKanban.swimlaneType') }}</option>
+          </select>
         </div>
-          <div v-if="customFields.length > 0" class="mt-3 pt-3 border-t border-gray-200">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs text-gray-500">{{ t('issueKanban.customFieldFilter') }}</span>
-              <button @click="addCFCondition" class="text-xs text-indigo-600 hover:text-indigo-800">{{ t('issueKanban.addCondition') }}</button>
-            </div>
-            <div v-for="(cond, idx) in cfConditions" :key="idx" class="flex gap-2 mb-2">
-              <select v-model="cond.field_id" @change="reload" class="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm">
-                <option :value="0">{{ t('issueKanban.selectField') }}</option>
-                <option v-for="cf in customFields" :key="cf.id" :value="cf.id">{{ cf.name }}</option>
-              </select>
-              <input type="text" v-model="cond.value" @input="reload" :placeholder="t('issueKanban.value')" class="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm" />
-              <button @click="removeCFCondition(idx)" class="px-2 py-1.5 text-xs text-red-500 border border-red-200 rounded hover:bg-red-50">×</button>
-            </div>
-          </div>
-        <div class="mt-2 flex justify-end"><button @click="resetFilters" class="text-sm text-gray-500 hover:text-indigo-600">{{ t('issueKanban.resetFilters') }}</button></div>
+        <div class="flex-1" />
+        <button @click="showImportModal = true" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">{{ t('common.import') }}</button>
       </div>
     </div>
 
@@ -252,50 +175,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import issueApi from '@/api/issue'
-import customFieldApi from '@/api/custom-field'
 import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
-import { RQLInput } from '@/components/RQL'
-import { useRQL } from '@/composables/useRQL'
 import { useConfirm } from '@/composables/useConfirm'
 import QuickCreateInput from '@/components/QuickCreateInput.vue'
 import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
 
-const props = defineProps<{ projectId: number; workspaceId: number; rql?: string }>()
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterGroupBy?: string }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
 const { t } = useI18n()
 
-// RQL 搜索相关
-const {
-  rql: rqlQuery,
-  error: rqlError,
-  search: doRQLSearch,
-  results: rqlResults
-} = useRQL()
-
-const showRQL = ref(false)
-
-const onRQLSearch = async (_query: string) => {
-  await doRQLSearch(props.projectId, 'issue')
-  if (rqlResults.value.length > 0) {
-    issues.value = rqlResults.value
-  }
-}
-
 const issues = ref<any[]>([])
 const states = ref<any[]>([])
-const cycles = ref<any[]>([])
 const members = ref<any[]>([])
 const loading = ref(false)
-const showAdvanced = ref(false)
 const groupBy = ref<'state' | 'assignee' | 'priority' | 'labels'>('state')
 const swimlaneBy = ref<'assignee' | 'priority' | 'type' | ''>('')
 
-// ---- Batch selection ----
+watch(() => props.filterGroupBy, (newGroupBy) => {
+  if (newGroupBy && newGroupBy !== 'none') {
+    const groupMap: Record<string, 'state' | 'assignee' | 'priority' | 'labels'> = {
+      'state_id': 'state',
+      'assignee_id': 'assignee',
+      'priority': 'priority',
+      'label': 'labels',
+    }
+    groupBy.value = groupMap[newGroupBy] || 'state'
+  }
+})
+
+// ── Batch selection ──
 const selectedIds = ref(new Set<number>())
 const showBatchState = ref(false)
 const showBatchPriority = ref(false)
@@ -321,23 +234,13 @@ function showToast(msg: string) {
 
 const { confirm } = useConfirm()
 
-const customFields = ref<any[]>([])
-const cfConditions = ref<Array<{ field_id: number; value: string }>>([])
-function addCFCondition() { cfConditions.value.push({ field_id: 0, value: '' }) }
-function removeCFCondition(idx: number) { cfConditions.value.splice(idx, 1); reload() }
-const filters = ref({ search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, filter_start_date: '', filter_target_date: '', cf_field_id: 0, cf_value: '' })
-
 const memberOptions = computed(() => members.value.map(m => ({
   id: m.user_id,
   display_name: m.user?.display_name || m.user?.username,
   email: m.user?.email
 })))
 
-const filtersAssignee = computed({
-  get: () => filters.value.assignee_id > 0 ? filters.value.assignee_id : undefined,
-  set: (v: number | undefined) => { filters.value.assignee_id = v || 0 }
-})
-
+// ═══ Grouping logic ═══
 const groupedIssues = computed(() => {
   const map: Record<string, any[]> = {}
 
@@ -347,7 +250,6 @@ const groupedIssues = computed(() => {
       if (map[i.state_id]) map[i.state_id].push(i)
     })
   } else if (groupBy.value === 'assignee') {
-    // Build columns from unique assignees first
     const seen = new Set<number>()
     issues.value.forEach(i => {
       if (i.assignees && i.assignees.length > 0) {
@@ -434,7 +336,6 @@ const kanbanColumns = computed(() => {
       { id: 'priority_none', label: t('issue.priorityNone'), color: '#9ca3af', key: 'none' },
     ]
   } else {
-    // labels
     const cols: Array<{ id: string; label: string; color: string; key: string | number }> = []
     const seen = new Set<number>()
     issues.value.forEach(i => {
@@ -461,8 +362,7 @@ const gridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${kanbanColumns.value.length}, minmax(260px, 1fr))`
 }))
 
-// ---- Swimlane support ----
-
+// ── Swimlane support ──
 const swimlaneKeys = computed(() => {
   if (!swimlaneBy.value) return []
 
@@ -593,21 +493,6 @@ function onDragStart(e: DragEvent, issue: any) {
   e.dataTransfer?.setData('text/plain', String(issue.id))
 }
 
-function reload() { loadIssues() }
-function resetFilters() {
-  filters.value = { search: '', state_id: 0, priority: '', cycle_id: 0, assignee_id: 0, filter_start_date: '', filter_target_date: '', cf_field_id: 0, cf_value: '' }
-  cfConditions.value = []
-  reload()
-}
-
-onMounted(() => Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes()]))
-async function loadCustomFields() {
-  try { customFields.value = await customFieldApi.listCustomFields(props.workspaceId, props.projectId) } catch { /* */ }
-}
-const issueTypes = ref<any[]>([])
-async function loadIssueTypes() {
-  try { issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId) } catch { /* */ }
-}
 const quickCreateStateId = ref<number | null>(null)
 function openQuickCreate(stateId: number) { quickCreateStateId.value = stateId }
 function closeQuickCreate() { quickCreateStateId.value = null }
@@ -616,20 +501,15 @@ function onQuickCreated() { quickCreateStateId.value = null; loadIssues() }
 const showImportModal = ref(false)
 function onImportSuccess() { loadIssues() }
 
+// ═══ Data loading — filters ONLY via props.rql (unified FilterBar) ═══
 async function loadIssues() {
   loading.value = true
   try {
     const params: any = { limit: 200 }
-    if (filters.value.state_id && filters.value.state_id > 0) params.state_id = filters.value.state_id
-    if (filters.value.priority) params.priority = filters.value.priority
-    if (filters.value.cycle_id && filters.value.cycle_id > 0) params.cycle_id = filters.value.cycle_id
-    if (filters.value.assignee_id && filters.value.assignee_id > 0) params.assignee_id = filters.value.assignee_id
-    if (filters.value.search) params.search = filters.value.search
-    if (filters.value.filter_start_date) params.start_date = filters.value.filter_start_date
-    if (filters.value.filter_target_date) params.target_date = filters.value.filter_target_date
-    const activeCF = cfConditions.value.filter(c => c.field_id > 0)
-    if (activeCF.length > 0) {
-      params.cf_and = JSON.stringify(activeCF)
+    if (props.rql) params.rql = props.rql
+    if (props.filterSortBy) {
+      params.sort_by = props.filterSortBy
+      params.sort_dir = props.filterSortDir || 'desc'
     }
     const result = await issueApi.listIssues(props.projectId, props.workspaceId, params)
     issues.value = result.items
@@ -637,17 +517,21 @@ async function loadIssues() {
   finally { loading.value = false }
 }
 
+onMounted(() => Promise.all([loadIssues(), loadStates(), loadMembers(), loadIssueTypes()]))
+watch(() => props.rql, () => loadIssues())
+
 async function loadStates() {
   try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ }
-}
-async function loadCycles() {
-  try { const r = await api.get(`/projects/${props.projectId}/cycles`); cycles.value = r.data } catch (e) { /* */ }
 }
 async function loadMembers() {
   try { const r = await api.get(`/workspaces/${props.workspaceId}/members`); members.value = r.data } catch (e) { /* */ }
 }
+const issueTypes = ref<any[]>([])
+async function loadIssueTypes() {
+  try { issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId) } catch { /* */ }
+}
 
-// ---- Batch actions ----
+// ── Batch actions ──
 function toggleSelect(id: number) {
   const s = new Set(selectedIds.value); s.has(id) ? s.delete(id) : s.add(id); selectedIds.value = s
 }
@@ -701,5 +585,3 @@ async function execBatchDelete() {
   } catch (e) { console.error('Batch delete failed:', e) }
 }
 </script>
-```
-
