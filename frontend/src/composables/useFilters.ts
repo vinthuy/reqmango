@@ -8,6 +8,7 @@ export interface FiltersState {
   filters: FilterCondition[]
   sortBy: SortOption | null
   groupBy: GroupOption | null
+  quickSearch: string
 }
 
 export interface FiltersContext {
@@ -22,20 +23,22 @@ export interface FiltersContext {
   restoreFromRQL: (rql: string) => void
   setSortBy: (sort: SortOption | null) => void
   setGroupBy: (group: GroupOption | null) => void
+  setQuickSearch: (query: string) => void
 }
 
 export function useFilters() {
   const state = reactive<FiltersState>({
     filters: [],
     sortBy: null,
-    groupBy: null
+    groupBy: null,
+    quickSearch: ''
   })
 
   const rql = computed<string>(() => {
-    return buildRQL(state.filters)
+    return buildRQL(state.filters, state.quickSearch)
   })
   
-  const activeFilterCount = computed<number>(() => state.filters.length)
+  const activeFilterCount = computed<number>(() => state.filters.length + (state.quickSearch ? 1 : 0))
   const isEmpty = computed<boolean>(() => activeFilterCount.value === 0)
 
   function addFilter(field: string, operator: string, value: any, displayValue: string): void {
@@ -55,6 +58,11 @@ export function useFilters() {
     state.filters = []
     state.sortBy = null
     state.groupBy = null
+    state.quickSearch = ''
+  }
+
+  function setQuickSearch(query: string): void {
+    state.quickSearch = query
   }
 
   function restoreFromRQL(rqlStr: string): void {
@@ -87,7 +95,8 @@ export function useFilters() {
     clearAll,
     restoreFromRQL,
     setSortBy,
-    setGroupBy
+    setGroupBy,
+    setQuickSearch
   }
 
   provide(FILTERS_KEY, context)

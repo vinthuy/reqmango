@@ -53,6 +53,7 @@
           :project-id="projectId"
           :workspace-id="workspaceId"
           :current-view="issueView"
+          :project-identifier="project?.identifier || ''"
           @view-change="handleViewChange"
           @filters-changed="handleFiltersChanged"
         />

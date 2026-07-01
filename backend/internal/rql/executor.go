@@ -37,6 +37,7 @@ func NewIssueQueryContext() *QueryContext {
 		TableName: "issues",
 		FieldMap: map[string]FieldMapping{
 			"id":             {ColumnName: "id", FieldType: "number"},
+			"sequence_id":    {ColumnName: "sequence_id", FieldType: "number"},
 			"name":           {ColumnName: "name", FieldType: "string"},
 			"description":    {ColumnName: "description_stripped", FieldType: "string"},
 			"state":          {ColumnName: "state_id", FieldType: "number", JoinTable: "states", JoinKey: "name"},

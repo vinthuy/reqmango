@@ -6,6 +6,8 @@ import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, parseRQL } from '../types/f
 import { useFilters } from '../composables/useFilters'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
 import type { SavedView } from '@/types/saved-view'
+import { listCustomFields } from '@/api/custom-field'
+import type { CustomField } from '@/types/custom-field'
 import api from '@/api'
 
 const { t } = useI18n()
@@ -14,6 +16,7 @@ const props = defineProps<{
   projectId: number
   workspaceId: number
   currentView: 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt'
+  projectIdentifier: string
 }>()
 
 const emit = defineEmits<{
@@ -21,7 +24,7 @@ const emit = defineEmits<{
   (e: 'filtersChanged', rql: string, sortBy: SortOption | null, groupBy: GroupOption | null): void
 }>()
 
-const { state, rql, isEmpty, removeFilter, clearAll, setSortBy, setGroupBy } = useFilters()
+const { state, rql, isEmpty, removeFilter, clearAll, setSortBy, setGroupBy, setQuickSearch } = useFilters()
 
 const showFieldDropdown = ref(false)
 const editingIndex = ref<number | null>(null)
@@ -37,6 +40,57 @@ const members = ref<any[]>([])
 const modules = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const labels = ref<any[]>([])
+const customFields = ref<CustomField[]>([])
+
+// Merge system fields with custom fields
+const allFilterFields = computed<FilterField[]>(() => {
+  const custom: FilterField[] = customFields.value.map(cf => {
+    const key = `cf_${cf.id}`
+    const isMulti = cf.field_type === 'dropdown' && cf.is_multi_select
+    return {
+      key,
+      dbKey: key,
+      labelKey: `__custom__${cf.name}`,
+      type: cf.field_type === 'dropdown' ? (isMulti ? 'multi' : 'select')
+        : cf.field_type === 'date' ? 'date'
+        : cf.field_type === 'boolean' ? 'select'
+        : cf.field_type === 'member' ? 'multi'
+        : 'text',
+      valueType: cf.field_type === 'number' ? 'number' : 'string',
+      operators: buildCustomFieldOperators(cf),
+    } as FilterField
+  })
+  return [...FILTER_FIELDS, ...custom]
+})
+
+function buildCustomFieldOperators(cf: CustomField): string[] {
+  switch (cf.field_type) {
+    case 'text':
+      return ['contains', 'does not contain', 'is empty', 'is not empty']
+    case 'number':
+      return ['is', 'is not', 'is empty', 'is not empty']
+    case 'dropdown':
+      return ['is', 'is any of', 'is not', 'is not any of', 'is empty', 'is not empty']
+    case 'boolean':
+      return ['is']
+    case 'date':
+      return ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty', 'is not empty']
+    case 'member':
+      return ['is', 'is any of', 'is not', 'is not any of', 'is empty', 'is not empty']
+    case 'url':
+      return ['contains', 'does not contain', 'is empty', 'is not empty']
+    default:
+      return ['is', 'is not', 'contains', 'does not contain', 'is empty', 'is not empty']
+  }
+}
+
+function getFieldLabel(fieldKey: string): string {
+  const custom = customFields.value.find(cf => `cf_${cf.id}` === fieldKey)
+  if (custom) return custom.name
+  const sys = FILTER_FIELDS.find(f => f.key === fieldKey)
+  if (sys) return t(sys.labelKey)
+  return fieldKey
+}
 
 const priorityOptions = [
   { value: 'none', label: t('issue.priorityNone') },
@@ -111,6 +165,12 @@ async function loadModules() {
   } catch (e) { /* */ }
 }
 
+async function loadCustomFields() {
+  try {
+    customFields.value = await listCustomFields(props.workspaceId, props.projectId)
+  } catch (e) { /* */ }
+}
+
 function toggleFieldDropdown(e: Event) {
   e.stopPropagation()
   showFieldDropdown.value = !showFieldDropdown.value
@@ -147,7 +207,7 @@ function selectField(field: FilterField) {
 
 function handleFieldChange(index: number, newFieldKey: string) {
   state.filters[index].field = newFieldKey
-  const fieldDef = FILTER_FIELDS.find(f => f.key === newFieldKey)
+  const fieldDef = allFilterFields.value.find(f => f.key === newFieldKey)
   state.filters[index].operator = fieldDef?.operators[0] || 'is'
   state.filters[index].value = ''
   state.filters[index].displayValue = ''
@@ -223,14 +283,50 @@ function copyRQL() {
 }
 
 function applyRQL() {
-  if (rqlText.value.trim()) {
-    const parsed = parseRQL(rqlText.value)
+  if (!rqlText.value.trim()) {
+    state.filters = []
+    state.sortBy = null
+    state.groupBy = null
+    state.quickSearch = ''
+    emit('filtersChanged', rql.value, state.sortBy, state.groupBy)
+    return
+  }
+
+  let rqlStr = rqlText.value
+  let extractedQuickSearch = ''
+
+  // 提取 sequence_id = N（工作项编号搜索）
+  const seqMatch = rqlStr.match(/sequence_id\s*=\s*(\d+)/i)
+  if (seqMatch) {
+    extractedQuickSearch = props.projectIdentifier
+      ? `${props.projectIdentifier}-${seqMatch[1]}`
+      : seqMatch[1]
+    rqlStr = rqlStr.replace(/sequence_id\s*=\s*\d+/i, '')
+  }
+
+  // 提取 (name LIKE "%keyword%" OR description LIKE "%keyword%")（关键词搜索）
+  const likeMatch = rqlStr.match(/\(name\s+LIKE\s+"%(.+?)%"\s+OR\s+description\s+LIKE\s+"%(.+?)%"\)/i)
+  if (likeMatch) {
+    extractedQuickSearch = likeMatch[1]
+    rqlStr = rqlStr.replace(/\(name\s+LIKE\s+"%.+?%"\s+OR\s+description\s+LIKE\s+"%.+?%"\)/i, '')
+  }
+
+  // 清理残留的 AND
+  rqlStr = rqlStr.replace(/\s*AND\s*AND\s*/gi, ' AND ').replace(/^\s*AND\s*/i, '').replace(/\s*AND\s*$/i, '').trim()
+
+  state.quickSearch = extractedQuickSearch
+
+  if (rqlStr) {
+    const parsed = parseRQL(rqlStr)
     state.filters = parsed.filters
     state.sortBy = parsed.sortBy || null
-    state.groupBy = null
-    rqlText.value = ''
-    emit('filtersChanged', rql.value, state.sortBy, state.groupBy)
+  } else {
+    state.filters = []
+    state.sortBy = null
   }
+  state.groupBy = null
+
+  emit('filtersChanged', rql.value, state.sortBy, state.groupBy)
 }
 
 function handleClickOutside(e: MouseEvent) {
@@ -243,12 +339,12 @@ function handleClickOutside(e: MouseEvent) {
 }
 
 function getOperatorsForField(fieldKey: string): string[] {
-  const field = FILTER_FIELDS.find(f => f.key === fieldKey)
+  const field = allFilterFields.value.find(f => f.key === fieldKey)
   return field?.operators || []
 }
 
 function getFieldType(fieldKey: string): FilterField['type'] {
-  const field = FILTER_FIELDS.find(f => f.key === fieldKey)
+  const field = allFilterFields.value.find(f => f.key === fieldKey)
   return field?.type || 'text'
 }
 
@@ -261,6 +357,7 @@ function getOperatorTranslation(operator: string): string {
 }
 
 function getOptionsForField(fieldKey: string): { value: any; label: string }[] {
+  // System fields
   switch (fieldKey) {
     case 'state_id':
       return states.value.map(s => ({ value: s.id, label: s.name }))
@@ -284,9 +381,27 @@ function getOptionsForField(fieldKey: string): { value: any; label: string }[] {
       ]
     case 'label':
       return labels.value.map(l => ({ value: l.id, label: l.name }))
-    default:
-      return []
   }
+  // Custom fields: dropdown, boolean, member
+  const cfKey = fieldKey.match(/^cf_(\d+)$/)
+  if (cfKey) {
+    const cf = customFields.value.find(c => c.id === parseInt(cfKey[1]))
+    if (cf) {
+      if (cf.field_type === 'boolean') {
+        return [
+          { value: 'true', label: t('common.yes') || 'Yes' },
+          { value: 'false', label: t('common.no') || 'No' },
+        ]
+      }
+      if (cf.field_type === 'dropdown' && cf.options) {
+        return cf.options.filter(o => o.is_active).map(o => ({ value: o.id, label: o.value }))
+      }
+      if (cf.field_type === 'member') {
+        return members.value.map(m => ({ value: m.user?.id || m.id, label: m.user?.display_name || m.display_name || m.email || 'Unknown' }))
+      }
+    }
+  }
+  return []
 }
 
 function selectSortOption(option: SortOption) {
@@ -344,7 +459,7 @@ function handleSavedViewSelect(view: SavedView) {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   if (props.projectId > 0) {
-    Promise.all([loadStates(), loadCycles(), loadMembers(), loadModules(), loadIssueTypes(), loadLabels()])
+    Promise.all([loadStates(), loadCycles(), loadMembers(), loadModules(), loadIssueTypes(), loadLabels(), loadCustomFields()])
   }
 })
 
@@ -355,6 +470,32 @@ onUnmounted(() => {
 
 <template>
   <div class="filter-bar border-b border-gray-200 bg-white">
+    <!-- 快速搜索（独立区域） -->
+    <div class="px-4 py-2 border-b border-gray-100">
+      <div class="relative max-w-xl">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          :value="state.quickSearch"
+          @input="setQuickSearch(($event.target as HTMLInputElement).value)"
+          type="text"
+          :placeholder="t('filter.quickSearchPlaceholder')"
+          class="w-full pl-9 pr-9 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 focus:bg-white transition-all"
+        />
+        <button
+          v-if="state.quickSearch"
+          @click="setQuickSearch('')"
+          class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-200 rounded transition-colors"
+        >
+          <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 筛选条件区域 -->
     <div class="px-4 py-2.5">
       <div class="flex items-center gap-3 flex-wrap">
         <div class="relative">
@@ -371,17 +512,17 @@ onUnmounted(() => {
             </svg>
           </button>
 
-          <div v-if="showFieldDropdown" class="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+          <div v-if="showFieldDropdown" class="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-y-auto">
             <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
               {{ t('filter.selectField') }}
             </div>
             <button
-              v-for="field in FILTER_FIELDS"
+              v-for="field in allFilterFields"
               :key="field.key"
               @click="selectField(field)"
               class="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
-              {{ t(field.labelKey) }}
+              {{ getFieldLabel(field.key) }}
             </button>
           </div>
         </div>
@@ -393,8 +534,8 @@ onUnmounted(() => {
               @change="(e) => handleFieldChange(index, (e.target as HTMLSelectElement).value)"
               class="text-sm bg-transparent border-none outline-none text-indigo-700"
             >
-              <option v-for="field in FILTER_FIELDS" :key="field.key" :value="field.key">
-                {{ t(field.labelKey) }}
+              <option v-for="field in allFilterFields" :key="field.key" :value="field.key">
+                {{ getFieldLabel(field.key) }}
               </option>
             </select>
             <select
@@ -474,7 +615,7 @@ onUnmounted(() => {
             </template>
           </div>
           <div v-else class="flex items-center gap-1 bg-indigo-50 text-indigo-700 rounded-full px-3 py-1">
-            <span class="text-sm">{{ t(FILTER_FIELDS.find(f => f.key === filter.field)?.labelKey || '') }}</span>
+            <span class="text-sm">{{ getFieldLabel(filter.field) }}</span>
             <span class="text-sm">{{ getOperatorTranslation(filter.operator) }}</span>
             <span class="text-sm font-medium">{{ filter.displayValue || filter.value }}</span>
             <button

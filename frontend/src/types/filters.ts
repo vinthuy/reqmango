@@ -52,10 +52,24 @@ export interface RQLResult {
   sortBy?: SortOption
 }
 
-export function buildRQL(filters: FilterCondition[]): string {
-  if (filters.length === 0) return ''
-
+export function buildRQL(filters: FilterCondition[], quickSearchValue?: string): string {
   const clauses: string[] = []
+
+  if (quickSearchValue) {
+    const qs = quickSearchValue.trim()
+    if (qs) {
+      const issueKeyMatch = qs.match(/^[A-Z]+-\d+$/)
+      if (issueKeyMatch) {
+        const parts = qs.split('-')
+        const sequenceId = parts[1]
+        clauses.push(`sequence_id = ${sequenceId}`)
+      } else {
+        clauses.push(`(name LIKE "%${qs}%" OR description LIKE "%${qs}%")`)
+      }
+    }
+  }
+
+  if (filters.length === 0 && !quickSearchValue) return ''
 
   for (const filter of filters) {
     let clause = ''
@@ -112,7 +126,7 @@ export function buildRQL(filters: FilterCondition[]): string {
       case 'not between':
         clause = `${dbKey} < "${value[0]}" OR ${dbKey} > "${value[1]}"`
         break
-    }
+      }
 
     if (clause) clauses.push(clause)
   }
@@ -147,11 +161,13 @@ export function parseRQL(rqlStr: string): RQLResult {
     let value: any = ''
     let displayValue: string = ''
 
-    const likeMatch = trimmed.match(/^(\w+) (NOT LIKE|LIKE) (%?"([^"]+)"%)?$/)
+    const likeMatch = trimmed.match(/^(\w+) (NOT LIKE|LIKE) "%([^"]+)"$/)
     if (likeMatch) {
       field = likeMatch[1]
       operator = likeMatch[2] === 'LIKE' ? 'contains' : 'does not contain'
-      value = likeMatch[4] || ''
+      // Strip trailing % from value (buildRQL wraps value with %...%)
+      let rawValue = likeMatch[3] || ''
+      value = rawValue.replace(/%$/, '')
       displayValue = value
       conditions.push({ field, operator, value, displayValue })
       continue
@@ -183,32 +199,21 @@ export function parseRQL(rqlStr: string): RQLResult {
       continue
     }
 
-    const comparisonMatch = trimmed.match(/^(\w+) ([=<>!]+) "%?([^"%]+)%?"?$/)
-    if (comparisonMatch) {
-      field = comparisonMatch[1]
-      const op = comparisonMatch[2]
-      value = comparisonMatch[3]
+    // Try quoted value (strings, dates)
+    const quotedMatch = trimmed.match(/^(\w+) ([=<>!]+) "([^"]+)"$/)
+    if (quotedMatch) {
+      field = quotedMatch[1]
+      const op = quotedMatch[2]
+      value = quotedMatch[3]
       displayValue = value
 
       switch (op) {
-        case '=':
-          operator = 'is'
-          break
-        case '!=':
-          operator = 'is not'
-          break
-        case '>':
-          operator = 'after'
-          break
-        case '<':
-          operator = 'before'
-          break
-        case '>=':
-          operator = 'after or on'
-          break
-        case '<=':
-          operator = 'before or on'
-          break
+        case '=':  operator = 'is'; break
+        case '!=': operator = 'is not'; break
+        case '>':  operator = 'after'; break
+        case '<':  operator = 'before'; break
+        case '>=': operator = 'after or on'; break
+        case '<=': operator = 'before or on'; break
       }
 
       if (operator) {
@@ -217,37 +222,27 @@ export function parseRQL(rqlStr: string): RQLResult {
       continue
     }
 
-    const simpleMatch = trimmed.match(/^(\w+) ([=<>!]+) "([^"]+)"$/)
-    if (simpleMatch) {
-      field = simpleMatch[1]
-      const op = simpleMatch[2]
-      value = simpleMatch[3]
+    // Try unquoted value (numbers)
+    const unquotedMatch = trimmed.match(/^(\w+) ([=<>!]+) (\S+)$/)
+    if (unquotedMatch) {
+      field = unquotedMatch[1]
+      const op = unquotedMatch[2]
+      value = unquotedMatch[3]
       displayValue = value
 
       switch (op) {
-        case '=':
-          operator = 'is'
-          break
-        case '!=':
-          operator = 'is not'
-          break
-        case '>':
-          operator = 'after'
-          break
-        case '<':
-          operator = 'before'
-          break
-        case '>=':
-          operator = 'after or on'
-          break
-        case '<=':
-          operator = 'before or on'
-          break
+        case '=':  operator = 'is'; break
+        case '!=': operator = 'is not'; break
+        case '>':  operator = 'after'; break
+        case '<':  operator = 'before'; break
+        case '>=': operator = 'after or on'; break
+        case '<=': operator = 'before or on'; break
       }
 
       if (operator) {
         conditions.push({ field, operator, value, displayValue })
       }
+      continue
     }
   }
 

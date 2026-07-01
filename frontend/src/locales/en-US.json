@@ -916,6 +916,8 @@
     "cancel": "Cancel",
     "save": "Save",
     "delete": "Delete",
+    "fieldQuickSearch": "Quick Search",
+    "quickSearchPlaceholder": "Search by issue key or title...",
     "fieldTitle": "Title",
     "fieldState": "State",
     "fieldStateGroup": "State Group",
