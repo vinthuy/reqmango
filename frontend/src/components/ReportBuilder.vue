@@ -563,7 +563,7 @@ async function saveReport() {
     await loadSavedReports()
   } catch (e) {
     console.error('Failed to save report:', e)
-    alert('Failed to save report')
+    alert(t('report.saveFailed'))
   } finally {
     saving.value = false
   }

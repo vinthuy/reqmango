@@ -188,16 +188,16 @@
             <!-- Custom Properties Binding (edit mode only) -->
             <div v-if="!isCreating && selectedType" class="form-group border-t border-gray-200 pt-4 mt-4">
               <div class="flex items-center justify-between mb-3">
-                <label class="form-label mb-0">Custom Properties</label>
+                <label class="form-label mb-0">{{ t('workspaceIssueType.customProperties') }}</label>
                 <button
                   @click="showFieldBindModal = true"
                   class="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
                   :disabled="availableFields.length === 0"
                 >
-                  + Add Property
+                  {{ t('workspaceIssueType.addProperty') }}
                 </button>
               </div>
-              <p class="text-xs text-gray-500 mb-3">Attach custom fields from the workspace field pool to this type.</p>
+              <p class="text-xs text-gray-500 mb-3">{{ t('workspaceIssueType.customPropertiesDesc') }}</p>
 
               <!-- Bound fields list -->
               <div v-if="typeFields.length > 0" class="space-y-2">
@@ -206,13 +206,13 @@
                   <div class="flex items-center space-x-2">
                     <span class="text-xs font-mono bg-gray-200 px-1.5 py-0.5 rounded">{{ getFieldTypeLabel(f.field_type || f.type) }}</span>
                     <span class="text-sm text-gray-700">{{ f.name || f.field_name || '#' + (f.field_id || f.id) }}</span>
-                    <span v-if="f.is_required" class="text-xs text-red-500">*Required</span>
+                    <span v-if="f.is_required" class="text-xs text-red-500">{{ t('workspaceIssueType.required') }}</span>
                   </div>
                   <button @click="handleRemoveField(f)" class="text-gray-400 hover:text-red-500 p-1">✕</button>
                 </div>
               </div>
               <div v-else class="text-center py-4 text-gray-400 text-sm border border-dashed border-gray-300 rounded-lg">
-                No properties attached. Click "+ Add Property" to bind fields from the workspace pool.
+                {{ t('workspaceIssueType.noProperties') }}
               </div>
             </div>
           </div>
@@ -230,8 +230,8 @@
     <!-- Field Bind Modal -->
     <div v-if="showFieldBindModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showFieldBindModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md max-h-[70vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Properties to "{{ selectedType?.name }}"</h3>
-        <p class="text-sm text-gray-500 mb-4">Select custom fields from the workspace pool to attach to this type.</p>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('workspaceIssueType.addPropertiesTitle') }} "{{ selectedType?.name }}"</h3>
+        <p class="text-sm text-gray-500 mb-4">{{ t('workspaceIssueType.addPropertiesDesc') }}</p>
         <div v-if="availableFields.length > 0" class="space-y-2">
           <div v-for="field in availableFields" :key="field.id"
             @click="handleAddField(field); showFieldBindModal = false"
@@ -244,10 +244,10 @@
           </div>
         </div>
         <div v-else class="text-center py-8 text-gray-400 text-sm">
-          All available fields are already bound. Create new fields in Custom Fields first.
+          {{ t('workspaceIssueType.allFieldsBound') }}
         </div>
         <div class="flex justify-end mt-4">
-          <button @click="showFieldBindModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">Close</button>
+          <button @click="showFieldBindModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">{{ t('common.close') }}</button>
         </div>
       </div>
     </div>
@@ -419,8 +419,8 @@ async function handleRemoveField(field: any) {
 }
 function getFieldTypeLabel(type: string): string {
   const map: Record<string, string> = {
-    text: 'Text', number: 'Number', dropdown: 'Dropdown',
-    boolean: 'Boolean', date: 'Date', member: 'Member', url: 'URL'
+    text: t('common.text'), number: t('common.number'), dropdown: t('common.dropdown'),
+    boolean: t('common.boolean'), date: t('common.date'), member: t('common.member'), url: t('common.url')
   }
   return map[type] || type
 }

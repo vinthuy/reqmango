@@ -141,7 +141,8 @@ export function parseRQL(rqlStr: string): RQLResult {
   const conditions: FilterCondition[] = []
   let sortBy: SortOption | undefined
 
-  const clauses = rqlStr.split(' AND ')
+  // Split by AND but preserve BETWEEN ranges (field >= "v1" AND field <= "v2")
+  const clauses = splitRQLClauses(rqlStr)
 
   for (const clause of clauses) {
     const trimmed = clause.trim()
@@ -154,6 +155,36 @@ export function parseRQL(rqlStr: string): RQLResult {
         labelKey: SORT_OPTIONS.find(s => s.key === orderbyMatch[1])?.labelKey || '',
         direction: orderbyMatch[2].toLowerCase() as 'asc' | 'desc'
       }
+      continue
+    }
+
+    // Try BETWEEN: field >= "v1" AND field <= "v2"
+    const betweenMatch = trimmed.match(/^(\w+)\s+>=\s+"([^"]+)"\s+AND\s+\1\s+<=\s+"([^"]+)"$/i)
+    if (betweenMatch) {
+      const field = betweenMatch[1]
+      const from = betweenMatch[2]
+      const to = betweenMatch[3]
+      conditions.push({
+        field,
+        operator: 'between',
+        value: [from, to],
+        displayValue: `${from} - ${to}`
+      })
+      continue
+    }
+
+    // Try NOT BETWEEN: field < "v1" OR field > "v2"
+    const notBetweenMatch = trimmed.match(/^(\w+)\s+<\s+"([^"]+)"\s+OR\s+\1\s+>\s+"([^"]+)"$/i)
+    if (notBetweenMatch) {
+      const field = notBetweenMatch[1]
+      const from = notBetweenMatch[2]
+      const to = notBetweenMatch[3]
+      conditions.push({
+        field,
+        operator: 'not between',
+        value: [from, to],
+        displayValue: `not ${from} - ${to}`
+      })
       continue
     }
 
@@ -248,6 +279,53 @@ export function parseRQL(rqlStr: string): RQLResult {
   }
 
   return { filters: conditions, sortBy }
+}
+
+/**
+ * Split RQL string by AND, but preserve BETWEEN compound clauses
+ * (e.g. "field >= 'v1' AND field <= 'v2'" stays together).
+ * Also handles NOT BETWEEN (field < "v1" OR field > "v2").
+ */
+function splitRQLClauses(rqlStr: string): string[] {
+  // Pre-process: merge BETWEEN and NOT BETWEEN patterns back together
+  // Replace "field >= \"v1\" AND field <= \"v2\"" with "field >= \"v1\" AND field <= \"v2\""
+  // (these will be handled by betweenMatch)
+  // Replace "field < \"v1\" OR field > \"v2\"" with the same preserved form
+
+  // Strategy: use a placeholder approach
+  const placeholders: { placeholder: string; original: string }[] = []
+  let processed = rqlStr
+  let counter = 0
+
+  // Find and protect BETWEEN patterns
+  const betweenRegex = /(\w+)\s+>=\s+"([^"]+)"\s+AND\s+\1\s+<=\s+"([^"]+)"/gi
+  processed = processed.replace(betweenRegex, (match) => {
+    const placeholder = `__BETWEEN_${counter}__`
+    placeholders.push({ placeholder, original: match })
+    counter++
+    return placeholder
+  })
+
+  // Find and protect NOT BETWEEN patterns
+  const notBetweenRegex = /(\w+)\s+<\s+"([^"]+)"\s+OR\s+\1\s+>\s+"([^"]+)"/gi
+  processed = processed.replace(notBetweenRegex, (match) => {
+    const placeholder = `__BETWEEN_${counter}__`
+    placeholders.push({ placeholder, original: match })
+    counter++
+    return placeholder
+  })
+
+  // Now split by AND safely
+  const parts = processed.split(' AND ').map(p => {
+    let result = p.trim()
+    // Restore placeholders
+    for (const { placeholder, original } of placeholders) {
+      result = result.replace(placeholder, original)
+    }
+    return result
+  })
+
+  return parts
 }
 
 export const SORT_OPTIONS: SortOption[] = [

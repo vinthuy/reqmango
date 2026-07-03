@@ -6,8 +6,8 @@
         <div class="flex items-center gap-2">
           <span class="text-xl">🤖</span>
           <div>
-            <h3 class="text-lg font-semibold text-gray-900">AI Smart Create</h3>
-            <p class="text-xs text-gray-500">Describe the work item in natural language</p>
+            <h3 class="text-lg font-semibold text-gray-900">{{ t('ai.smartCreate') }}</h3>
+            <p class="text-xs text-gray-500">{{ t('ai.smartCreateDesc') }}</p>
           </div>
         </div>
         <button @click="cancel" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
@@ -24,13 +24,13 @@
           @keydown.ctrl.enter="generate"
         ></textarea>
         <div class="flex justify-between items-center mt-2">
-          <span class="text-xs text-gray-400">Ctrl+Enter to generate</span>
+          <span class="text-xs text-gray-400">{{ t('ai.smartCreateHint') }}</span>
           <button
             @click="generate"
             :disabled="loading || !description.trim()"
             class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
           >
-            {{ loading ? 'Generating...' : 'Generate Preview' }}
+            {{ loading ? t('ai.generating') : t('ai.generatePreview') }}
           </button>
         </div>
       </div>
@@ -39,7 +39,7 @@
       <div class="flex-1 overflow-y-auto p-4">
         <div v-if="loading" class="text-center py-8 text-gray-400">
           <div class="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-          AI is analyzing your request...
+          {{ t('ai.analyzing') }}
         </div>
 
         <div v-else-if="preview" class="space-y-4">
@@ -49,23 +49,23 @@
 
           <div class="bg-gray-50 rounded-lg p-4 space-y-3">
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Title</label>
+              <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('issue.title') }}</label>
               <input v-model="preview.name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Priority</label>
+                <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('issue.priority') }}</label>
                 <select v-model="preview.priority" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option v-for="p in ['urgent','high','medium','low','none']" :key="p" :value="p">{{ p }}</option>
+                  <option v-for="p in ['urgent','high','medium','low','none']" :key="p" :value="p">{{ t(`issue.priority${p.charAt(0).toUpperCase() + p.slice(1)}`) || p }}</option>
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Type ID</label>
+                <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('issue.type') }} ID</label>
                 <input v-model.number="preview.type_id" type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
               </div>
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Description</label>
+              <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('issue.description') }}</label>
               <textarea v-model="preview.description" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"></textarea>
             </div>
           </div>
@@ -74,9 +74,9 @@
 
       <!-- Actions -->
       <div v-if="preview && !loading" class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
-        <button @click="cancel" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+        <button @click="cancel" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">{{ t('common.cancel') }}</button>
         <button @click="confirm" :disabled="creating" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition">
-          {{ creating ? 'Creating...' : 'Create Work Item' }}
+          {{ creating ? t('issue.creating') : t('issue.create') }}
         </button>
       </div>
     </div>

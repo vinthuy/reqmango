@@ -48,10 +48,7 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		stateID = defaultState.ID
 	}
 
-	// Auto-increment sequence_id
-	var maxSeq int
-	s.db.Model(&model.Issue{}).Where("project_id = ?", projectID).
-		Select("COALESCE(MAX(sequence_id), 0)").Scan(&maxSeq)
+	// SequenceID will be assigned inside the transaction below to prevent race conditions
 
 	priority := req.Priority
 	if priority == "" {
@@ -68,7 +65,6 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		DescriptionHTML:   descHTML,
 		DescriptionJSON:   req.DescriptionJSON,
 		Priority:          priority,
-		SequenceID:        maxSeq + 1,
 		SortOrder:         65535,
 		IsDraft:           false,
 		ProjectID:         projectID,
@@ -143,6 +139,12 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	}
 
 	tx := s.db.Begin()
+
+	// Auto-increment sequence_id (inside transaction to prevent race conditions)
+	var maxSeq int
+	tx.Model(&model.Issue{}).Where("project_id = ?", projectID).
+		Select("COALESCE(MAX(sequence_id), 0)").Scan(&maxSeq)
+	issue.SequenceID = maxSeq + 1
 
 	if err := tx.Create(issue).Error; err != nil {
 		tx.Rollback()
@@ -483,6 +485,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	// Track changes for activity
 	hasChanges := false
+	var oldStateID uint64 // Store old state ID for automation context
 
 	if req.Name != nil && *req.Name != issue.Name {
 		oldVal := issue.Name
@@ -501,10 +504,10 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		hasChanges = true
 	}
 	if req.StateID != nil && *req.StateID != issue.StateID {
-		oldStateID := issue.StateID
+		oldStateID = issue.StateID // Save to outer scope variable
 		newStateID := *req.StateID
 		// Workflow enforcement
-		if err := s.validateStateTransition(issue.ProjectID, oldStateID, newStateID, userID); err != nil {
+		if err := s.validateStateTransition(tx, issue.ProjectID, oldStateID, newStateID, userID); err != nil {
 			tx.Rollback()
 			return nil, err
 		}
@@ -654,9 +657,17 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	// Automation trigger: fire after commit for state changes
 	if req.StateID != nil {
+		// Fetch new state details for context
+		var newState model.State
+		s.db.First(&newState, *req.StateID)
+		
 		s.runAutomations(issueID, "state_changed", map[string]interface{}{
-			"issue_id": issueID, "new_state": fmt.Sprintf("%d", *req.StateID),
-			"project_id": issue.ProjectID, "priority": issue.Priority,
+			"issue_id":     issueID,
+			"old_state":    fmt.Sprintf("%d", oldStateID), // Use the saved old value
+			"new_state":    fmt.Sprintf("%d", *req.StateID),
+			"state_group":  newState.Group,
+			"project_id":   issue.ProjectID,
+			"priority":     issue.Priority,
 		})
 	}
 
@@ -783,14 +794,19 @@ func (s *IssueService) SetCycle(issueID, cycleID, actorID uint64) error {
 		return common.NotFound("Issue not found")
 	}
 
+	tx := s.db.Begin()
 	// Remove existing cycle
-	s.db.Where("issue_id = ?", issueID).Delete(&model.IssueCycle{})
+	tx.Where("issue_id = ?", issueID).Delete(&model.IssueCycle{})
 	// Set new cycle
-	if err := s.db.Create(&model.IssueCycle{IssueID: issueID, CycleID: cycleID}).Error; err != nil {
+	if err := tx.Create(&model.IssueCycle{IssueID: issueID, CycleID: cycleID}).Error; err != nil {
+		tx.Rollback()
 		return common.Internal("Failed to set cycle")
 	}
 
-	s.createActivity(s.db, issueID, "updated", strPtr("cycle"), nil, nil, nil, &actorID)
+	s.createActivity(tx, issueID, "updated", strPtr("cycle"), nil, nil, nil, &actorID)
+	if err := tx.Commit().Error; err != nil {
+		return common.Internal("Failed to commit transaction")
+	}
 	return nil
 }
 
@@ -904,7 +920,7 @@ func (s *IssueService) Suggest(projectID uint64, query string, limit int) ([]res
 	}
 
 	q := s.db.Model(&model.Issue{}).
-		Joins("JOIN projects ON projects.id = issues.project_id").
+		Preload("Project").
 		Where("issues.project_id = ? AND issues.archived_at IS NULL", projectID).
 		Where("issues.name ILIKE ? OR issues.sequence_id::text LIKE ?",
 			"%"+query+"%", "%"+query+"%").
@@ -973,7 +989,7 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 			if oldStateID == newStateID {
 				continue
 			}
-			if err := s.validateStateTransition(projectID, oldStateID, newStateID, userID); err != nil {
+			if err := s.validateStateTransition(tx, projectID, oldStateID, newStateID, userID); err != nil {
 				continue
 			}
 			issue.StateID = newStateID
@@ -1012,9 +1028,37 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 		return nil, common.Internal("Failed to commit bulk update")
 	}
 
+	// Automation trigger: fire after commit for state changes and other updates
+	if req.StateID != nil {
+		for _, issueID := range req.IssueIDs {
+			s.runAutomations(issueID, "state_changed", map[string]interface{}{
+				"issue_id":   issueID,
+				"new_state":  fmt.Sprintf("%d", *req.StateID),
+				"project_id": projectID,
+			})
+		}
+	} else if req.Priority != nil || req.AssigneeIDs != nil || req.LabelIDs != nil {
+		// Trigger issue_updated for other field changes
+		for _, issueID := range req.IssueIDs {
+			s.runAutomations(issueID, "issue_updated", map[string]interface{}{
+				"issue_id":   issueID,
+				"project_id": projectID,
+			})
+		}
+	}
+
 	var issues []model.Issue
 	if err := s.db.Preload("State").Preload("IssueType").Preload("AssigneeLinks.User").Preload("LabelLinks.Label").Preload("CycleLink").Where("id IN ?", req.IssueIDs).Find(&issues).Error; err != nil {
 		return nil, common.Internal("Failed to fetch updated issues")
+	}
+
+	result := make([]response.IssueResponse, len(issues))
+	for i, issue := range issues {
+		resp, err := s.BuildIssueResponse(&issue)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = *resp
 	}
 
 	results := make([]response.IssueResponse, 0, len(issues))
@@ -1185,15 +1229,16 @@ func strPtr(s string) *string {
 
 // validateStateTransition checks if moving from oldState to newState is allowed
 // by any active workflow in the project. Returns nil if allowed, error if blocked.
-func (s *IssueService) validateStateTransition(projectID, oldStateID, newStateID, userID uint64) error {
+// Uses the provided db (should be a transaction when called within one) for consistency.
+func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, oldStateID, newStateID, userID uint64) error {
 	var workflows []model.Workflow
-	s.db.Where("project_id = ? AND is_active = ?", projectID, true).Find(&workflows)
+	db.Where("project_id = ? AND is_active = ?", projectID, true).Find(&workflows)
 	if len(workflows) == 0 {
 		return nil // no workflows configured = allow all transitions
 	}
 	for _, wf := range workflows {
 		var transition model.StateTransition
-		err := s.db.Where("workflow_id = ? AND source_state_id = ? AND target_state_id = ?",
+		err := db.Where("workflow_id = ? AND source_state_id = ? AND target_state_id = ?",
 			wf.ID, oldStateID, newStateID).First(&transition).Error
 		if err != nil {
 			continue // not found in this workflow, try next
@@ -1216,7 +1261,7 @@ func (s *IssueService) validateStateTransition(projectID, oldStateID, newStateID
 			// Check role-based approval
 			if transition.RoleAllowed != "" {
 				var user model.User
-				if s.db.First(&user, userID).Error == nil {
+				if db.First(&user, userID).Error == nil {
 					// If role matches, allow
 					if transition.RoleAllowed == "admin" || transition.RoleAllowed == "workspace_admin" {
 						return nil
@@ -1228,8 +1273,8 @@ func (s *IssueService) validateStateTransition(projectID, oldStateID, newStateID
 		return nil // unknown rule_type, allow
 	}
 	var oldSt, newSt model.State
-	s.db.First(&oldSt, oldStateID)
-	s.db.First(&newSt, newStateID)
+	db.First(&oldSt, oldStateID)
+	db.First(&newSt, newStateID)
 	return common.BadRequest(fmt.Sprintf(
 		"Workflow rejected: transition from '%s' to '%s' is not allowed",
 		oldSt.Name, newSt.Name))
@@ -2322,7 +2367,7 @@ func (s *IssueService) MergeDuplicates(req *request.MergeDuplicatesRequest, user
 		for _, source := range sourceIssues {
 			for _, labelLink := range source.LabelLinks {
 				var exists bool
-				s.db.Model(&targetIssue).Where("label_id = ?", labelLink.LabelID).
+				tx.Model(&targetIssue).Where("issue_id = ? AND label_id = ?", targetIssue.ID, labelLink.LabelID).
 					First(&model.IssueLabel{}).Scan(&exists)
 				if !exists {
 					tx.Create(&model.IssueLabel{IssueID: targetIssue.ID, LabelID: labelLink.LabelID})
@@ -2335,7 +2380,7 @@ func (s *IssueService) MergeDuplicates(req *request.MergeDuplicatesRequest, user
 		for _, source := range sourceIssues {
 			for _, assigneeLink := range source.AssigneeLinks {
 				var exists bool
-				s.db.Model(&targetIssue).Where("user_id = ?", assigneeLink.UserID).
+				tx.Model(&targetIssue).Where("issue_id = ? AND user_id = ?", targetIssue.ID, assigneeLink.UserID).
 					First(&model.IssueAssignee{}).Scan(&exists)
 				if !exists {
 					tx.Create(&model.IssueAssignee{IssueID: targetIssue.ID, UserID: assigneeLink.UserID})

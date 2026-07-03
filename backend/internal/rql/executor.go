@@ -4,6 +4,7 @@ package rql
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"gorm.io/gorm"
@@ -209,8 +210,16 @@ func (e *GORMExecutor) buildComparisonRaw(expr *Comparison, ctx *QueryContext) (
 }
 
 func (e *GORMExecutor) buildCustomFieldComparison(fieldName, operator, value interface{}) (*rawCondition, error) {
-	fieldID := strings.TrimPrefix(fieldName.(string), "cf_")
-	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldID)
+	fieldNameStr, ok := fieldName.(string)
+	if !ok {
+		return nil, fmt.Errorf("custom field name must be a string")
+	}
+	fieldIDStr := strings.TrimPrefix(fieldNameStr, "cf_")
+	// Validate fieldID is a numeric value to prevent SQL injection
+	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err != nil {
+		return nil, fmt.Errorf("invalid custom field ID: %s", fieldIDStr)
+	}
+	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldIDStr)
 
 	var sql string
 	switch operator {
@@ -349,22 +358,28 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 }
 
 func (e *GORMExecutor) buildFullTextSearch(field, operator, value string) (*rawCondition, error) {
-	tsQuery := fmt.Sprintf("to_tsquery('english', '%s')", strings.ReplaceAll(value, " ", " & "))
-
+	// Sanitize: only allow alphanumeric, spaces, and common tsquery operators
+	// Use parameterized plainto_tsquery which is safe against injection
 	if operator == "NOT LIKE" {
 		return &rawCondition{
-			SQL: fmt.Sprintf("to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) !@@ %s", tsQuery),
+			SQL:  "to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) !@@ plainto_tsquery('english', ?)",
+			Args: []interface{}{value},
 		}, nil
 	}
 
 	return &rawCondition{
-		SQL: fmt.Sprintf("to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) @@ %s", tsQuery),
+		SQL:  "to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) @@ plainto_tsquery('english', ?)",
+		Args: []interface{}{value},
 	}, nil
 }
 
 func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string) (*rawCondition, error) {
-	fieldID := strings.TrimPrefix(fieldName, "cf_")
-	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldID)
+	fieldIDStr := strings.TrimPrefix(fieldName, "cf_")
+	// Validate fieldID is numeric to prevent SQL injection
+	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err != nil {
+		return nil, fmt.Errorf("invalid custom field ID: %s", fieldIDStr)
+	}
+	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldIDStr)
 
 	op := "ILIKE"
 	if operator == "NOT LIKE" {
@@ -461,8 +476,12 @@ func (e *GORMExecutor) buildCustomFieldIn(fieldName, operator string, values []i
 		return &rawCondition{SQL: "1 = 0"}, nil
 	}
 
-	fieldID := strings.TrimPrefix(fieldName, "cf_")
-	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldID)
+	fieldIDStr := strings.TrimPrefix(fieldName, "cf_")
+	// Validate fieldID is numeric to prevent SQL injection
+	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err != nil {
+		return nil, fmt.Errorf("invalid custom field ID: %s", fieldIDStr)
+	}
+	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldIDStr)
 
 	placeholders := make([]string, len(values))
 	args := make([]interface{}, len(values))

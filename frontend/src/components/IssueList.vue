@@ -185,7 +185,7 @@
                 <div v-else-if="col.key === 'assignees'" class="flex -space-x-1">
                   <div v-for="(a, idx) in (issue.assignees || []).slice(0, 3)" :key="a.id"
                     class="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[10px] font-medium text-white ring-2 ring-white"
-                    :style="{ backgroundColor: assigneeColor(idx) }" :title="a.display_name || a.username">{{ getInitials(a.display_name || a.username) }}</div>
+                    :style="{ backgroundColor: assigneeColor(Number(idx)) }" :title="a.display_name || a.username">{{ getInitials(a.display_name || a.username) }}</div>
                   <span v-if="!issue.assignees?.length" class="text-xs text-gray-400">-</span>
                 </div>
                 <!-- 周期 -->
@@ -245,7 +245,7 @@ import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
 import { highlightSearchTerm } from '@/utils/highlight'
 
-const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterGroupBy?: string; searchTerm?: string }>()
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterGroupBy?: string; searchTerm?: string; columns?: string[] }>()
 const router = useRouter()
 const { t, locale } = useI18n()
 
@@ -307,6 +307,18 @@ function toggleColumn(key: string) {
 function saveColumnPrefs() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...visibleColumnKeys.value]))
 }
+
+// Watch columns prop to restore from SavedView
+watch(() => props.columns, (cols) => {
+  if (cols && cols.length > 0) {
+    const allKeys = effectiveColumns.value.map(c => c.key)
+    const validCols = cols.filter(c => allKeys.includes(c))
+    if (validCols.length > 0) {
+      visibleColumnKeys.value = new Set(validCols)
+      saveColumnPrefs()
+    }
+  }
+}, { immediate: true })
 
 // ── Column sort state ──
 const sortBy = ref<string>('')
@@ -516,6 +528,8 @@ async function execBatchDelete() {
     clearSelection()
     showToast(t('issueList.toastDeleted'))
     loadIssues()
+    // Notify parent about deletion (e.g. to close detail panel)
+    emit('delete', null)
   } catch (e) { console.error('Batch delete failed:', e) }
 }
 

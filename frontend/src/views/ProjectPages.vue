@@ -4,8 +4,8 @@
     <aside class="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
       <div class="p-4 border-b border-gray-200">
         <div class="flex items-center justify-between">
-          <h2 class="font-semibold text-gray-800 text-sm">Pages</h2>
-          <button @click="createRootPage" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">+ New</button>
+          <h2 class="font-semibold text-gray-800 text-sm">{{ t('pages.title') }}</h2>
+          <button @click="createRootPage" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">{{ t('pages.new') }}</button>
         </div>
       </div>
       <div class="flex-1 overflow-y-auto p-2">
@@ -17,7 +17,7 @@
           @delete="promptDelete"
         />
         <div v-if="pageTree.length === 0 && !loading" class="text-center text-gray-400 py-8 text-sm">
-          No pages yet. Click "+ New" to create.
+          {{ t('pages.empty') }}
         </div>
       </div>
     </aside>
@@ -48,46 +48,46 @@
 
         <!-- AI Toolbar -->
         <div class="flex items-center gap-2 mb-2">
-          <span class="text-xs text-gray-400 mr-1">🤖 AI:</span>
-          <button @click="aiAction('summarize')" :disabled="aiLoading" class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">Summarize</button>
-          <button @click="aiAction('improve')" :disabled="aiLoading" class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">Improve</button>
-          <button @click="aiAction('generate')" :disabled="aiLoading" class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">Generate More</button>
-          <span v-if="aiLoading" class="text-xs text-indigo-500 animate-pulse">AI working...</span>
+          <span class="text-xs text-gray-400 mr-1">🤖 {{ t('ai.title') }}:</span>
+          <button @click="aiAction('summarize')" :disabled="aiLoading" class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{{ t('ai.summarize') }}</button>
+          <button @click="aiAction('improve')" :disabled="aiLoading" class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{{ t('ai.improve') }}</button>
+          <button @click="aiAction('generate')" :disabled="aiLoading" class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50">{{ t('ai.generate') }}</button>
+          <span v-if="aiLoading" class="text-xs text-indigo-500 animate-pulse">{{ t('ai.testing') }}</span>
         </div>
 
         <div class="bg-white rounded-lg border border-gray-200 p-4 min-h-[400px]">
           <textarea
-            v-model="editForm.content"
-            @blur="savePage"
-            class="w-full min-h-[400px] border-none focus:outline-none focus:ring-0 resize-none text-gray-700 leading-relaxed"
-            placeholder="Start writing... (Markdown supported)"
-          ></textarea>
+              v-model="editForm.content"
+              @blur="savePage"
+              class="w-full min-h-[400px] border-none focus:outline-none focus:ring-0 resize-none text-gray-700 leading-relaxed"
+              :placeholder="t('pages.placeholder')"
+            ></textarea>
         </div>
 
         <div class="mt-4 text-xs text-gray-400">
-          Last updated: {{ selectedPage.updated_at }}
-          <span v-if="selectedPage.archived_at" class="ml-2 text-amber-500">(Archived)</span>
+          {{ t('pages.lastUpdated') }}: {{ selectedPage.updated_at }}
+          <span v-if="selectedPage.archived_at" class="ml-2 text-amber-500">({{ t('pages.archived') }})</span>
         </div>
       </div>
 
       <div v-else class="flex items-center justify-center h-64 text-gray-400">
-        Select a page from the sidebar or create a new one.
+        {{ t('pages.selectHint') }}
       </div>
     </main>
 
     <!-- Create Page Modal -->
     <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showCreateModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Create Page</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('pages.create') }}</h3>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
-            <input v-model="newPageForm.title" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Page title" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('pages.title') }}</label>
+            <input v-model="newPageForm.title" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" :placeholder="t('pages.titlePlaceholder')" />
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showCreateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="doCreate" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Create</button>
+          <button @click="showCreateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('common.cancel') }}</button>
+          <button @click="doCreate" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ t('common.create') }}</button>
         </div>
       </div>
     </div>
@@ -95,11 +95,11 @@
     <!-- Delete Confirm -->
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showDeleteConfirm = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-sm">
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Page</h3>
-        <p class="text-sm text-gray-500 mb-4">Delete "{{ deletingPage?.title }}"? This cannot be undone.</p>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ t('pages.delete') }}</h3>
+        <p class="text-sm text-gray-500 mb-4">{{ t('pages.deleteConfirm').replace('{title}', deletingPage?.title || '') }}</p>
         <div class="flex justify-end space-x-3">
-          <button @click="showDeleteConfirm = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="doDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Delete</button>
+          <button @click="showDeleteConfirm = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('common.cancel') }}</button>
+          <button @click="doDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">{{ t('common.delete') }}</button>
         </div>
       </div>
     </div>
@@ -112,6 +112,9 @@ import { useRoute, useRouter } from 'vue-router'
 import * as pageApi from '@/api/page'
 import type { Page } from '@/types/page'
 import PageTree from '@/components/PageTree.vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -245,7 +248,7 @@ async function aiAction(action: string) {
     })
     if (!res.ok) {
       const err = await res.json()
-      alert('AI failed: ' + (err.message || 'Unknown error'))
+      alert(t('ai.failed') + (err.message || t('common.unknown')))
       return
     }
     const data = await res.json()
@@ -256,7 +259,7 @@ async function aiAction(action: string) {
     }
     savePage()
   } catch (e: any) {
-    alert('AI request failed: ' + e.message)
+    alert(t('ai.requestFailed') + e.message)
   } finally { aiLoading.value = false }
 }
 

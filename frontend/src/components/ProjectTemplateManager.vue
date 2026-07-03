@@ -1,8 +1,8 @@
 <template>
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
-      <div><h1 class="text-xl font-semibold text-gray-900">Project Templates</h1><p class="text-sm text-gray-500 mt-1">Create reusable project structures from type templates</p></div>
-      <button @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">+ Create Template</button>
+      <div><h1 class="text-xl font-semibold text-gray-900">{{ t('template.title') }}</h1><p class="text-sm text-gray-500 mt-1">{{ t('template.desc') }}</p></div>
+      <button @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">{{ t('template.create') }}</button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -12,11 +12,11 @@
           <div>
             <h3 class="font-medium text-gray-900">{{ tmpl.name }}</h3>
             <div class="flex items-center space-x-2 text-xs text-gray-400">
-              <span>{{ tmpl.types?.length || 0 }} types</span>
+              <span>{{ tmpl.types?.length || 0 }} {{ t('template.types') }}</span>
               <span v-if="parsedStates(tmpl).length" class="text-gray-300">·</span>
-              <span v-if="parsedStates(tmpl).length">{{ parsedStates(tmpl).length }} states</span>
+              <span v-if="parsedStates(tmpl).length">{{ parsedStates(tmpl).length }} {{ t('template.states') }}</span>
               <span v-if="parsedLabels(tmpl).length" class="text-gray-300">·</span>
-              <span v-if="parsedLabels(tmpl).length">{{ parsedLabels(tmpl).length }} labels</span>
+              <span v-if="parsedLabels(tmpl).length">{{ parsedLabels(tmpl).length }} {{ t('template.labels') }}</span>
             </div>
           </div>
         </div>
@@ -39,9 +39,9 @@
           >{{ s.name }}</span>
         </div>
         <div class="pt-3 border-t border-gray-100 flex space-x-2">
-          <button @click="openAddTypes(tmpl)" class="text-xs text-indigo-600 hover:text-indigo-800">+ Add Types</button>
-          <button @click="openApplyModal(tmpl)" class="text-xs text-green-600 hover:text-green-800">Apply</button>
-          <button @click="confirmDelete(tmpl)" class="text-xs text-red-500 hover:text-red-700">Delete</button>
+          <button @click="openAddTypes(tmpl)" class="text-xs text-indigo-600 hover:text-indigo-800">{{ t('template.addTypes') }}</button>
+          <button @click="openApplyModal(tmpl)" class="text-xs text-green-600 hover:text-green-800">{{ t('template.apply') }}</button>
+          <button @click="confirmDelete(tmpl)" class="text-xs text-red-500 hover:text-red-700">{{ t('common.delete') }}</button>
         </div>
       </div>
     </div>
@@ -49,47 +49,47 @@
     <!-- Create Modal -->
     <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showModal=false">
       <div class="bg-white rounded-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold mb-4">Create Project Template</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ t('template.create') }}</h3>
         <div class="space-y-3">
-          <div><label class="block text-sm font-medium mb-1">Name *</label><input v-model="form.name" class="w-full px-3 py-2 border rounded-lg" /></div>
-          <div><label class="block text-sm font-medium mb-1">Description</label><input v-model="form.description" class="w-full px-3 py-2 border rounded-lg" /></div>
+          <div><label class="block text-sm font-medium mb-1">{{ t('template.name') }} *</label><input v-model="form.name" class="w-full px-3 py-2 border rounded-lg" /></div>
+          <div><label class="block text-sm font-medium mb-1">{{ t('template.description') }}</label><input v-model="form.description" class="w-full px-3 py-2 border rounded-lg" /></div>
 
           <!-- States Section -->
           <div class="border-t pt-4 mt-4">
-            <h4 class="text-sm font-semibold text-gray-700 mb-2">Pre-configured States</h4>
+            <h4 class="text-sm font-semibold text-gray-700 mb-2">{{ t('template.preConfiguredStates') }}</h4>
             <div class="space-y-2">
               <div v-for="(st, idx) in templateStates" :key="idx" class="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg">
-                <input v-model="st.name" placeholder="State name" class="flex-1 px-2 py-1.5 border rounded text-sm" />
+                <input v-model="st.name" :placeholder="t('template.stateName')" class="flex-1 px-2 py-1.5 border rounded text-sm" />
                 <input type="color" v-model="st.color" class="w-8 h-8 border rounded cursor-pointer p-0.5" />
                 <select v-model="st.group" class="px-2 py-1.5 border rounded text-sm">
-                  <option value="backlog">Backlog</option>
-                  <option value="unstarted">Unstarted</option>
-                  <option value="started">Started</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="backlog">{{ t('template.stateGroup.backlog') }}</option>
+                  <option value="unstarted">{{ t('template.stateGroup.unstarted') }}</option>
+                  <option value="started">{{ t('template.stateGroup.started') }}</option>
+                  <option value="completed">{{ t('template.stateGroup.completed') }}</option>
+                  <option value="cancelled">{{ t('template.stateGroup.cancelled') }}</option>
                 </select>
                 <button @click="removeTemplateState(idx)" class="text-red-400 hover:text-red-600 text-lg leading-none px-1">&times;</button>
               </div>
             </div>
-            <button @click="addTemplateState" class="mt-2 text-xs text-blue-600 hover:text-blue-800">+ Add State</button>
+            <button @click="addTemplateState" class="mt-2 text-xs text-blue-600 hover:text-blue-800">{{ t('template.addState') }}</button>
           </div>
 
           <!-- Labels Section -->
           <div class="border-t pt-4 mt-4">
-            <h4 class="text-sm font-semibold text-gray-700 mb-2">Pre-configured Labels</h4>
+            <h4 class="text-sm font-semibold text-gray-700 mb-2">{{ t('template.preConfiguredLabels') }}</h4>
             <div class="space-y-2">
               <div v-for="(lb, idx) in templateLabels" :key="idx" class="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg">
-                <input v-model="lb.name" placeholder="Label name" class="flex-1 px-2 py-1.5 border rounded text-sm" />
+                <input v-model="lb.name" :placeholder="t('template.labelName')" class="flex-1 px-2 py-1.5 border rounded text-sm" />
                 <input type="color" v-model="lb.color" class="w-8 h-8 border rounded cursor-pointer p-0.5" />
                 <button @click="removeTemplateLabel(idx)" class="text-red-400 hover:text-red-600 text-lg leading-none px-1">&times;</button>
               </div>
             </div>
-            <button @click="addTemplateLabel" class="mt-2 text-xs text-blue-600 hover:text-blue-800">+ Add Label</button>
+            <button @click="addTemplateLabel" class="mt-2 text-xs text-blue-600 hover:text-blue-800">{{ t('template.addLabel') }}</button>
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showModal=false" class="px-4 py-2 border rounded-lg">Cancel</button>
-          <button @click="saveTemplate" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Create</button>
+          <button @click="showModal=false" class="px-4 py-2 border rounded-lg">{{ t('common.cancel') }}</button>
+          <button @click="saveTemplate" class="px-4 py-2 bg-blue-600 text-white rounded-lg">{{ t('common.create') }}</button>
         </div>
       </div>
     </div>
@@ -97,24 +97,24 @@
     <!-- Apply Template Modal -->
     <div v-if="showApplyModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeApplyModal">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold mb-4">Create Project from Template: {{ templateToApply?.name }}</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ t('template.createFromTemplate') }}: {{ templateToApply?.name }}</h3>
         <div v-if="applySuccess" class="text-center py-4">
           <div class="text-green-500 text-4xl mb-2">✓</div>
           <p class="text-gray-700 font-medium mb-4">{{ applySuccessMessage }}</p>
           <div class="flex justify-center space-x-3">
-            <button @click="goToProject" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Go to Project</button>
-            <button @click="closeApplyModal" class="px-4 py-2 border rounded-lg text-sm">Close</button>
+            <button @click="goToProject" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">{{ t('template.goToProject') }}</button>
+            <button @click="closeApplyModal" class="px-4 py-2 border rounded-lg text-sm">{{ t('common.close') }}</button>
           </div>
         </div>
         <div v-else>
           <div class="space-y-3">
-            <div><label class="block text-sm font-medium mb-1">Project Name *</label><input v-model="applyProjectName" class="w-full px-3 py-2 border rounded-lg" /></div>
-            <div><label class="block text-sm font-medium mb-1">Project Identifier *</label><input v-model="applyProjectIdentifier" class="w-full px-3 py-2 border rounded-lg" placeholder="e.g. my-project" /></div>
+            <div><label class="block text-sm font-medium mb-1">{{ t('template.projectName') }} *</label><input v-model="applyProjectName" class="w-full px-3 py-2 border rounded-lg" /></div>
+            <div><label class="block text-sm font-medium mb-1">{{ t('template.projectIdentifier') }} *</label><input v-model="applyProjectIdentifier" class="w-full px-3 py-2 border rounded-lg" :placeholder="t('template.projectIdentifierPlaceholder')" /></div>
           </div>
           <div class="flex justify-end space-x-3 mt-6">
-            <button @click="closeApplyModal" class="px-4 py-2 border rounded-lg" :disabled="applyLoading">Cancel</button>
+            <button @click="closeApplyModal" class="px-4 py-2 border rounded-lg" :disabled="applyLoading">{{ t('common.cancel') }}</button>
             <button @click="doApplyTemplate" class="px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50" :disabled="applyLoading || !applyProjectName.trim() || !applyProjectIdentifier.trim()">
-              {{ applyLoading ? 'Creating...' : 'Create Project' }}
+              {{ applyLoading ? t('common.creating') : t('template.createProject') }}
             </button>
           </div>
         </div>
@@ -124,7 +124,7 @@
     <!-- Add Types Modal -->
     <div v-if="showTypeModal && selected" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showTypeModal=false">
       <div class="bg-white rounded-xl p-6 w-full max-w-lg">
-        <h3 class="text-lg font-semibold mb-4">Add Types to {{ selected.name }}</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ t('template.addTypesTo') }} {{ selected.name }}</h3>
         <div class="space-y-2 max-h-64 overflow-y-auto">
           <div v-for="tt in availableTypeTemplates" :key="tt.id" class="flex items-center justify-between p-2 border rounded">
             <div class="flex items-center space-x-2">
@@ -133,13 +133,13 @@
               <span class="text-xs text-gray-400">L{{ tt.level }}</span>
             </div>
             <div class="flex items-center space-x-2">
-              <label class="text-xs"><input type="checkbox" v-model="typeRequired[tt.id]" /> Req</label>
-              <button @click="addType(tt)" class="text-xs text-indigo-600 hover:text-indigo-800">Add</button>
+              <label class="text-xs"><input type="checkbox" v-model="typeRequired[tt.id]" /> {{ t('template.required') }}</label>
+              <button @click="addType(tt)" class="text-xs text-indigo-600 hover:text-indigo-800">{{ t('common.add') }}</button>
             </div>
           </div>
-          <div v-if="!availableTypeTemplates.length" class="text-sm text-gray-400 text-center py-4">All type templates already added</div>
+          <div v-if="!availableTypeTemplates.length" class="text-sm text-gray-400 text-center py-4">{{ t('template.allTypesAdded') }}</div>
         </div>
-        <div class="flex justify-end mt-4"><button @click="showTypeModal=false" class="px-4 py-2 border rounded-lg">Done</button></div>
+        <div class="flex justify-end mt-4"><button @click="showTypeModal=false" class="px-4 py-2 border rounded-lg">{{ t('common.done') }}</button></div>
       </div>
     </div>
   </div>
@@ -152,11 +152,13 @@ import templateApi from '@/api/template'
 import * as issueTypeApi from '@/api/issue-type'
 import { createProject } from '@/api/project'
 import { useConfirm } from '@/composables/useConfirm'
+import { useI18n } from '@/composables/useI18n'
 
 const props = defineProps<{ workspaceId: number }>()
 
 const router = useRouter()
 const { confirm } = useConfirm()
+const { t } = useI18n()
 
 interface StateEntry {
   name: string
@@ -171,12 +173,12 @@ interface LabelEntry {
 }
 
 const DEFAULT_STATES: StateEntry[] = [
-  { name: 'Backlog', color: '#6B7280', group: 'backlog', sequence: 1 },
-  { name: 'Todo', color: '#3B82F6', group: 'unstarted', sequence: 2 },
-  { name: 'In Progress', color: '#F59E0B', group: 'started', sequence: 3 },
-  { name: 'In Review', color: '#8B5CF6', group: 'started', sequence: 4 },
-  { name: 'Done', color: '#10B981', group: 'completed', sequence: 5 },
-  { name: 'Cancelled', color: '#EF4444', group: 'cancelled', sequence: 6 },
+  { name: t('template.backlog'), color: '#6B7280', group: 'backlog', sequence: 1 },
+  { name: t('template.todo'), color: '#3B82F6', group: 'unstarted', sequence: 2 },
+  { name: t('template.inProgress'), color: '#F59E0B', group: 'started', sequence: 3 },
+  { name: t('template.inReview'), color: '#8B5CF6', group: 'started', sequence: 4 },
+  { name: t('template.done'), color: '#10B981', group: 'completed', sequence: 5 },
+  { name: t('template.cancelled'), color: '#EF4444', group: 'cancelled', sequence: 6 },
 ]
 
 const templates = ref<any[]>([])
@@ -318,9 +320,9 @@ function goToProject() {
 
 async function confirmDelete(tmpl: any) {
   if (await confirm({
-    title: 'Delete Template',
-    message: `Are you sure you want to delete "${tmpl.name}"? This action cannot be undone.`,
-    confirmText: 'Delete',
+    title: t('template.deleteTitle'),
+    message: t('relationType.deleteConfirm').replace('{name}', tmpl.name),
+    confirmText: t('common.delete'),
     danger: true,
   })) {
     await templateApi.deleteTemplate(tmpl.id); load()

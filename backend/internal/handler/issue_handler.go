@@ -13,7 +13,6 @@ import (
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/middleware"
-	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -144,25 +143,30 @@ func (h *IssueHandler) List(c *gin.Context) {
 		filters["sort_dir"] = v
 	}
 
-	issues, total, svcErr := h.svc.List(projectID, filters, p.Limit, p.Offset)
-	if svcErr != nil {
-		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
-		return
-	}
-
-	if issues == nil {
-		issues = make([]response.IssueResponse, 0)
-	}
-
+	// Determine whether to query by project or workspace
+	var issues []response.IssueResponse
+	var total int64
 	if workspaceID > 0 && projectID == 0 {
+		// Workspace-level query: list all projects in workspace
 		var wsErr error
 		issues, total, wsErr = h.svc.ListByWorkspace(workspaceID, filters, p.Limit, p.Offset)
 		if wsErr != nil {
 			if appErr, ok := wsErr.(*common.AppError); ok {
+				c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+			return
+		}
+		if issues == nil {
+			issues = make([]response.IssueResponse, 0)
+		}
+	} else {
+		// Project-level query
+		var svcErr error
+		issues, total, svcErr = h.svc.List(projectID, filters, p.Limit, p.Offset)
+		if svcErr != nil {
+			if appErr, ok := svcErr.(*common.AppError); ok {
 				c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 				return
 			}
@@ -706,11 +710,21 @@ func (h *IssueHandler) Export(c *gin.Context) {
 		c.Header("Content-Type", "text/csv; charset=utf-8")
 		c.Header("Content-Disposition", "attachment; filename=issues.csv")
 		writer := csv.NewWriter(c.Writer)
-		writer.Write([]string{"标题", "描述", "优先级", "状态", "类型", "负责人", "标签", "开始日期", "截止日期", "父标题"})
+		if err := writer.Write([]string{"标题", "描述", "优先级", "状态", "类型", "负责人", "标签", "开始日期", "截止日期", "父标题"}); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to write CSV header"})
+			return
+		}
 		for _, issue := range issues {
-			writer.Write([]string{issue.Name, issue.Description, issue.Priority, issue.StateName, issue.IssueTypeName, strings.Join(issue.AssigneeNames, ","), strings.Join(issue.LabelNames, ","), issue.StartDate, issue.TargetDate, issue.ParentName})
+			if err := writer.Write([]string{issue.Name, issue.Description, issue.Priority, issue.StateName, issue.IssueTypeName, strings.Join(issue.AssigneeNames, ","), strings.Join(issue.LabelNames, ","), issue.StartDate, issue.TargetDate, issue.ParentName}); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to write CSV row"})
+				return
+			}
 		}
 		writer.Flush()
+		if err := writer.Error(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to flush CSV"})
+			return
+		}
 	} else {
 		c.JSON(http.StatusOK, issues)
 	}
@@ -785,13 +799,9 @@ func (h *IssueHandler) AddPage(c *gin.Context) {
 		return
 	}
 
-	user, _ := c.Get("user")
-	var actorID uint64
-	if u, ok := user.(*model.User); ok {
-		actorID = u.ID
-	}
+	user := middleware.GetCurrentUser(c)
 
-	svcErr := h.svc.AddPage(issueID, pageID, actorID)
+	svcErr := h.svc.AddPage(issueID, pageID, user.ID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -817,13 +827,9 @@ func (h *IssueHandler) RemovePage(c *gin.Context) {
 		return
 	}
 
-	user, _ := c.Get("user")
-	var actorID uint64
-	if u, ok := user.(*model.User); ok {
-		actorID = u.ID
-	}
+	user := middleware.GetCurrentUser(c)
 
-	svcErr := h.svc.RemovePage(issueID, pageID, actorID)
+	svcErr := h.svc.RemovePage(issueID, pageID, user.ID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})

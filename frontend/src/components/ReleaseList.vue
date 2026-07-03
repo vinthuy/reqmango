@@ -29,10 +29,10 @@ const statusColors: Record<string, string> = {
 }
 
 const statusLabels: Record<string, string> = {
-  planned: 'Planned',
-  in_progress: 'In Progress',
-  released: 'Released',
-  cancelled: 'Cancelled'
+  planned: t('release.status.planned'),
+  in_progress: t('release.status.inProgress'),
+  released: t('release.status.released'),
+  cancelled: t('release.status.cancelled')
 }
 
 async function loadReleases() {
@@ -74,7 +74,7 @@ async function handleUpdate() {
 }
 
 async function handleDelete(release: Release) {
-  if (!(await confirm({ title: t('release.deleteTitle'), message: t('release.confirmDelete').replace('{name}', release.name), danger: true, confirmText: t('release.delete') }))) return
+  if (!(await confirm({ title: t('common.delete'), message: `确定要删除 ${release.name} 吗？`, danger: true, confirmText: t('common.delete') }))) return
   try {
     await releaseApi.delete(props.projectId, release.id)
     await loadReleases()
@@ -88,11 +88,11 @@ onMounted(loadReleases)
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">Releases</h2>
-        <p class="text-sm text-gray-500 mt-1">Manage project releases and track progress</p>
+        <h2 class="text-lg font-semibold text-gray-900">{{ t('release.title') }}</h2>
+        <p class="text-sm text-gray-500 mt-1">{{ t('release.desc') }}</p>
       </div>
       <button @click="openCreateModal" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">
-        + Create Release
+        {{ t('release.create') }}
       </button>
     </div>
 
@@ -101,7 +101,7 @@ onMounted(loadReleases)
     </div>
 
     <div v-else-if="releases.length === 0" class="text-center text-gray-400 py-12">
-      No releases yet. Click "+ Create Release" to add one.
+      {{ t('release.noReleases') }}
     </div>
 
     <div v-else class="space-y-4">
@@ -117,8 +117,8 @@ onMounted(loadReleases)
             </div>
             <p v-if="release.description" class="mt-1 text-sm text-gray-500">{{ release.description }}</p>
             <div class="mt-2 flex items-center gap-4 text-xs text-gray-400">
-              <span v-if="release.release_date">Release Date: {{ (release.release_date as string).split('T')[0] }}</span>
-              <span v-if="release.created_at">Created: {{ release.created_at.split('T')[0] }}</span>
+              <span v-if="release.release_date">{{ t('release.releaseDate') }}: {{ (release.release_date as string).split('T')[0] }}</span>
+              <span v-if="release.created_at">{{ t('common.createdAt') }}: {{ release.created_at.split('T')[0] }}</span>
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -136,37 +136,37 @@ onMounted(loadReleases)
     <!-- Create Modal -->
     <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showCreateModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Create Release</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('release.create') }}</h3>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-            <input v-model="createForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="e.g., Version 1.0" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('release.name') }}</label>
+            <input v-model="createForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('release.namePlaceholder')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Version</label>
-            <input v-model="createForm.version" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="e.g., 1.0.0" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('release.version') }}</label>
+            <input v-model="createForm.version" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('release.versionPlaceholder')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea v-model="createForm.description" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="Brief description"></textarea>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('release.description') }}</label>
+            <textarea v-model="createForm.description" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('release.descriptionPlaceholder')"></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('release.statusLabel') }}</label>
             <select v-model="createForm.status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-              <option value="planned">Planned</option>
-              <option value="in_progress">In Progress</option>
-              <option value="released">Released</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="planned">{{ t('release.status.planned') }}</option>
+              <option value="in_progress">{{ t('release.status.inProgress') }}</option>
+              <option value="released">{{ t('release.status.released') }}</option>
+              <option value="cancelled">{{ t('release.status.cancelled') }}</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Release Date (optional)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('release.releaseDate') }}</label>
             <input v-model="createForm.release_date" type="date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showCreateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="handleCreate" :disabled="!createForm.name || !createForm.version" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">Create</button>
+          <button @click="showCreateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('common.cancel') }}</button>
+          <button @click="handleCreate" :disabled="!createForm.name || !createForm.version" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">{{ t('common.create') }}</button>
         </div>
       </div>
     </div>
@@ -174,33 +174,33 @@ onMounted(loadReleases)
     <!-- Edit Modal -->
     <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showEditModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Edit Release</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('release.edit') }}</h3>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('release.name') }}</label>
             <input v-model="editForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Version</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('release.version') }}</label>
             <input v-model="editForm.version" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('release.description') }}</label>
             <textarea v-model="editForm.description" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('release.statusLabel') }}</label>
             <select v-model="editForm.status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-              <option value="planned">Planned</option>
-              <option value="in_progress">In Progress</option>
-              <option value="released">Released</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="planned">{{ t('release.status.planned') }}</option>
+              <option value="in_progress">{{ t('release.status.inProgress') }}</option>
+              <option value="released">{{ t('release.status.released') }}</option>
+              <option value="cancelled">{{ t('release.status.cancelled') }}</option>
             </select>
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showEditModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="handleUpdate" :disabled="!editForm.name || !editForm.version" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">Update</button>
+          <button @click="showEditModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('common.cancel') }}</button>
+          <button @click="handleUpdate" :disabled="!editForm.name || !editForm.version" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">{{ t('common.update') }}</button>
         </div>
       </div>
     </div>

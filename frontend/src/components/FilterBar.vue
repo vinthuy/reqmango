@@ -26,6 +26,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'viewChange', view: 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt'): void
   (e: 'filtersChanged', rql: string, sortBy: SortOption | null, groupBy: GroupOption | null): void
+  (e: 'columnsChanged', columns: string[]): void
 }>()
 
 const { state, rql, isEmpty, removeFilter, clearAll, setSortBy, setGroupBy, setQuickSearch, addToHistory } = useFilters()
@@ -154,7 +155,7 @@ async function loadMembers() {
 
 async function loadIssueTypes() {
   try {
-    const r = await api.get(`/projects/${props.projectId}/settings/issue-types`)
+    const r = await api.get(`/projects/${props.projectId}/issue-types`)
     issueTypes.value = r.data
   } catch (e) { /* */ }
 }
@@ -212,9 +213,18 @@ function selectSuggestion(suggestion: IssueSearchResult) {
 }
 
 function onSearchFocus() {
-  if (state.quickSearch.length >= 2 && searchSuggestions.value.length > 0) {
-    showSuggestions.value = true
+  if (state.quickSearch.length >= 2) {
+    fetchSuggestions(state.quickSearch)
+  } else {
+    showSuggestions.value = false
   }
+}
+
+function handleSearchSubmit() {
+  if (state.quickSearch.trim()) {
+    addToHistory(state.quickSearch.trim())
+  }
+  showSuggestions.value = false
 }
 
 function onSearchBlur() {
@@ -580,6 +590,10 @@ function handleSavedViewSelect(view: SavedView) {
   } else {
     setGroupBy(null)
   }
+  // Apply columns
+  if (view.columns && Array.isArray(view.columns) && view.columns.length > 0) {
+    emit('columnsChanged', view.columns as string[])
+  }
 }
 
 function handleSearchTemplateApply(template: SearchTemplate) {
@@ -628,6 +642,7 @@ onUnmounted(() => {
           @input="handleQuickSearchChange(($event.target as HTMLInputElement).value)"
           @focus="onSearchFocus"
           @blur="onSearchBlur"
+          @keyup.enter="handleSearchSubmit"
           type="text"
           :placeholder="t('filter.quickSearchPlaceholder')"
           class="w-full pl-9 pr-9 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 focus:bg-white transition-all"
@@ -642,7 +657,7 @@ onUnmounted(() => {
           </svg>
         </button>
         
-        <div v-if="showSuggestions || state.searchHistory.length > 0" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div v-if="showSuggestions || (state.searchHistory.length > 0 && state.quickSearch.length < 2)" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
           <template v-if="searchSuggestions.length > 0">
             <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
               {{ t('filter.suggestions') }}
@@ -657,11 +672,8 @@ onUnmounted(() => {
               <span class="text-sm text-gray-700 truncate">{{ suggestion.name }}</span>
             </div>
           </template>
-          <template v-if="state.searchHistory.length > 0">
-            <div v-if="searchSuggestions.length > 0" class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
-              {{ t('filter.searchHistory') }}
-            </div>
-            <div v-else class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
+          <template v-if="state.searchHistory.length > 0 && state.quickSearch.length < 2">
+            <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
               {{ t('filter.searchHistory') }}
             </div>
             <div

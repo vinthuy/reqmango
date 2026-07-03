@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import { agentApi } from '@/api/agent'
 import type { Agent, AgentCreateRequest, AgentUpdateRequest } from '@/types/agent'
 
@@ -20,14 +21,16 @@ const form = ref<AgentCreateRequest>({
   system_prompt: '',
 })
 
+const { t } = useI18n()
+
 const availableCapabilities = [
-  { key: 'search', label: 'Search' },
-  { key: 'create', label: 'Create Issues' },
-  { key: 'update', label: 'Update Issues' },
-  { key: 'analyze', label: 'Analyze' },
-  { key: 'comment', label: 'Comment' },
-  { key: 'list', label: 'List Resources' },
-  { key: 'summarize', label: 'Summarize' },
+  { key: 'search', label: t('agent.search') },
+  { key: 'create', label: t('agent.createIssues') },
+  { key: 'update', label: t('agent.updateIssues') },
+  { key: 'analyze', label: t('agent.analyze') },
+  { key: 'comment', label: t('agent.comment') },
+  { key: 'list', label: t('agent.listResources') },
+  { key: 'summarize', label: t('agent.summarize') },
 ]
 
 async function fetchAgents() {
@@ -113,12 +116,12 @@ onMounted(fetchAgents)
 <template>
   <div class="agent-list">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">AI Agents</h3>
+      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">{{ t('agent.title') }}</h3>
       <button
         @click="openCreate"
         class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
       >
-        + New Agent
+        {{ t('agent.newAgent') }}
       </button>
     </div>
 
@@ -130,8 +133,8 @@ onMounted(fetchAgents)
     <!-- Empty -->
     <div v-else-if="agents.length === 0" class="text-center py-8 text-gray-500">
       <p class="text-4xl mb-2">🤖</p>
-      <p>No AI agents configured yet.</p>
-      <p class="text-sm">Create one to enable automatic triage, assignment, and more.</p>
+      <p>{{ t('agent.noAgents') }}</p>
+      <p class="text-sm">{{ t('agent.noAgentsHint') }}</p>
     </div>
 
     <!-- Agent Cards -->
@@ -166,11 +169,11 @@ onMounted(fetchAgents)
                   {{ cap }}
                 </span>
                 <span
-                  v-if="!agent.capabilities || agent.capabilities.length === 0"
-                  class="text-xs text-gray-400 italic"
-                >
-                  all capabilities
-                </span>
+              v-if="!agent.capabilities || agent.capabilities.length === 0"
+              class="text-xs text-gray-400 italic"
+            >
+              {{ t('agent.allCapabilities') }}
+            </span>
               </div>
             </div>
           </div>
@@ -207,21 +210,21 @@ onMounted(fetchAgents)
       >
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
           <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
-            {{ editingAgent ? 'Edit Agent' : 'New Agent' }}
+            {{ editingAgent ? t('agent.editAgent') : t('agent.newAgentTitle') }}
           </h3>
 
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('agent.name') }}</label>
               <input
                 v-model="form.name"
                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="e.g. Triage Agent"
+                :placeholder="t('agent.namePlaceholder')"
               />
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Avatar (emoji)</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('agent.avatar') }}</label>
               <input
                 v-model="form.avatar"
                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
@@ -231,29 +234,29 @@ onMounted(fetchAgents)
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('agent.type') }}</label>
                 <select
                   v-model="form.agent_type"
                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
                 >
-                  <option value="builtin">Built-in</option>
-                  <option value="custom">Custom</option>
+                  <option value="builtin">{{ t('agent.typeBuiltin') }}</option>
+                  <option value="custom">{{ t('agent.typeCustom') }}</option>
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ t('agent.status') }}</label>
                 <select
                   v-model="form.status"
                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
                 >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active">{{ t('agent.statusActive') }}</option>
+                  <option value="inactive">{{ t('agent.statusInactive') }}</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Capabilities</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{{ t('agent.capabilities') }}</label>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="cap in availableCapabilities"
@@ -273,13 +276,13 @@ onMounted(fetchAgents)
 
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                System Prompt <span class="text-gray-400 font-normal">(optional)</span>
+                {{ t('agent.systemPrompt') }} <span class="text-gray-400 font-normal">{{ t('agent.systemPromptOptional') }}</span>
               </label>
               <textarea
                 v-model="form.system_prompt"
                 rows="3"
                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm"
-                placeholder="Custom instructions for this agent..."
+                :placeholder="t('agent.systemPromptPlaceholder')"
               ></textarea>
             </div>
           </div>
@@ -289,14 +292,14 @@ onMounted(fetchAgents)
               @click="showModal = false"
               class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             >
-              Cancel
+              {{ t('common.cancel') }}
             </button>
             <button
               @click="save"
               :disabled="saving || !form.name.trim()"
               class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
-              {{ saving ? 'Saving...' : 'Save' }}
+              {{ saving ? t('common.saving') : t('common.save') }}
             </button>
           </div>
         </div>

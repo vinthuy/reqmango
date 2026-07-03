@@ -56,6 +56,7 @@
           :project-identifier="project?.identifier || ''"
           @view-change="handleViewChange"
           @filters-changed="handleFiltersChanged"
+          @columns-changed="handleColumnsChanged"
         />
 
         <IssueList
@@ -68,6 +69,7 @@
           :filter-sort-dir="currentSortBy?.direction"
           :filter-group-by="currentGroupBy?.key"
           :search-term="searchTerm"
+          :columns="currentColumns"
           @select="openDetailPanel"
           @delete="handleDeleteIssue"
         />
@@ -272,7 +274,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi, listPageTabs } from '@/api/project'
-import api from '@/api'
 import { issueApi } from '@/api/issue'
 import { projectUpdateApi, type ProjectUpdate } from '@/api/project-update'
 import type { Workspace } from '@/types'
@@ -317,6 +318,7 @@ function triggerRefresh() { issueRefreshKey.value++ }
 const currentRQL = ref('')
 const currentSortBy = ref<any>(null)
 const currentGroupBy = ref<any>(null)
+const currentColumns = ref<string[]>([])
 
 const searchTerm = computed(() => extractSearchTerm(currentRQL.value))
 
@@ -327,15 +329,15 @@ function handleFiltersChanged(rql: string, sortBy: any = null, groupBy: any = nu
   triggerRefresh()
 }
 
+function handleColumnsChanged(columns: string[]) {
+  currentColumns.value = columns
+}
+
 function handleViewChange(view: 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt') {
   issueView.value = view
 }
 
-// Plane-style filter state
-const states = ref<any[]>([])
-const cycles = ref<any[]>([])
-const labels = ref<any[]>([])
-const labelsList = ref<any[]>([])
+// Note: FilterBar handles its own data loading (states, cycles, members, modules, issueTypes, labels, customFields)
 
 
 const detailIssueId = ref<number | null>(null)
@@ -499,7 +501,8 @@ async function handleDeleteIssue(issue: any) {
   if (await confirm(t('project.deleteIssueConfirm', { name: issue.name }))) {
     try {
       await issueApi.deleteIssue(issue.id)
-      window.location.reload()
+      detailPanelVisible.value = false
+      triggerRefresh()
     } catch (err) {
       console.error('Failed to delete issue:', err)
       alert(t('project.deleteFailed'))
@@ -517,12 +520,7 @@ onMounted(async () => {
     workspaceId.value = workspace.value.id
     projectId.value = id
     project.value = await projectApi.getProject(id)
-    // Load filter data
-    Promise.allSettled([
-      api.get(`/projects/${id}/settings/states`).then(r => { states.value = r.data || [] }),
-      api.get(`/projects/${id}/settings/labels`).then(r => { labels.value = r.data || []; labelsList.value = r.data || [] }),
-      api.get(`/projects/${id}/cycles`).then(r => { cycles.value = (r.data?.data || r.data || []) }),
-    ]).catch(() => {})
+    // Filter data is loaded by FilterBar component internally
     await loadUpdates()
     await loadPageTabs()
   } catch (err) {

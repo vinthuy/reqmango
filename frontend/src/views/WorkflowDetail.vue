@@ -201,8 +201,8 @@ onMounted(loadData);
           <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h2 class="font-semibold text-gray-800">Define Workflow</h2>
-                <p class="text-xs text-gray-500 mt-1">States are managed in Project Settings → States</p>
+                <h2 class="font-semibold text-gray-800">{{ t('workflow.define') }}</h2>
+                <p class="text-xs text-gray-500 mt-1">{{ t('settings.states') }} 在项目设置中管理</p>
               </div>
             </div>
 
@@ -250,7 +250,7 @@ onMounted(loadData);
           </div>
 
           <div class="mt-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200"><h2 class="font-semibold text-gray-800">Visualize Workflow</h2></div>
+            <div class="px-6 py-4 border-b border-gray-200"><h2 class="font-semibold text-gray-800">{{ t('workflow.visualize') }}</h2></div>
             <div class="p-6">
               <div class="flex items-center justify-center space-x-4 py-8 flex-wrap gap-4">
                 <div v-for="state in states" :key="state.id" class="flex flex-col items-center">
@@ -268,7 +268,7 @@ onMounted(loadData);
 
     <div v-if="showAddTransitionModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAddTransitionModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6"><h3 class="text-lg font-semibold text-gray-800">Add Transition</h3><button @click="showAddTransitionModal = false" class="text-gray-400 hover:text-gray-600">✕</button></div>
+        <div class="flex items-center justify-between mb-6"><h3 class="text-lg font-semibold text-gray-800">{{ t('workflow.addTransition') }}</h3><button @click="showAddTransitionModal = false" class="text-gray-400 hover:text-gray-600">✕</button></div>
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">From</label>

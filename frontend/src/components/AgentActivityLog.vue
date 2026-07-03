@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { agentApi } from '@/api/agent'
 import type { AgentActivity } from '@/types/agent'
+import { useI18n } from '@/composables/useI18n'
 
 const props = defineProps<{
   agentId: number
@@ -9,17 +10,19 @@ const props = defineProps<{
   issueId?: number
 }>()
 
+const { t } = useI18n()
+
 const activities = ref<AgentActivity[]>([])
 const loading = ref(false)
 
-const actionLabels: Record<string, string> = {
-  dispatch: 'Dispatched',
-  auto_triage: 'Auto Triage',
-  auto_assign: 'Auto Assign',
-  mention: 'Mentioned',
-  summarize: 'Summarized',
-  custom: 'Custom Task',
-}
+const actionLabels = computed(() => ({
+  dispatch: t('agent.dispatch'),
+  auto_triage: t('agent.autoTriage'),
+  auto_assign: t('agent.autoAssign'),
+  mention: t('agent.mention'),
+  summarize: t('agent.summarize'),
+  custom: t('agent.customTask'),
+}))
 
 const actionColors: Record<string, string> = {
   dispatch: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
@@ -46,14 +49,14 @@ watch(() => props.agentId, fetchActivities, { immediate: true })
 
 <template>
   <div class="agent-activity-log">
-    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">Activity Log</h4>
+    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">{{ t('agent.activity') }}</h4>
 
     <div v-if="loading" class="flex justify-center py-4">
       <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
     </div>
 
     <div v-else-if="activities.length === 0" class="text-center py-4 text-gray-400 text-sm">
-      No activity recorded yet.
+      {{ t('agent.noActivity') }}
     </div>
 
     <div v-else class="space-y-3">
@@ -75,7 +78,7 @@ watch(() => props.agentId, fetchActivities, { immediate: true })
               :class="actionColors[act.action] || 'bg-gray-100 text-gray-600'"
               class="text-xs px-1.5 py-0.5 rounded-full font-medium"
             >
-              {{ actionLabels[act.action] || act.action }}
+              {{ (actionLabels as Record<string, string>)[act.action] || act.action }}
             </span>
             <span class="text-xs text-gray-400">
               {{ new Date(act.executed_at).toLocaleString() }}

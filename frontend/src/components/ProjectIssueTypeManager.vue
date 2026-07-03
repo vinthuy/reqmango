@@ -2,19 +2,19 @@
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">Work Item Types</h2>
-        <p class="text-sm text-gray-500 mt-1">Configure which work item types are available in this project</p>
+        <h2 class="text-lg font-semibold text-gray-900">{{ $t('issueType.workItemTypes') }}</h2>
+        <p class="text-sm text-gray-500 mt-1">{{ $t('issueType.configureDesc') }}</p>
       </div>
       <button @click="copyFromWorkspace" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium" :disabled="copying">
-        {{ copying ? 'Copying...' : 'Copy from Workspace' }}
+        {{ copying ? $t('issueType.copying') : $t('issueType.copyFromWorkspace') }}
       </button>
     </div>
 
-    <div v-if="loading" class="text-center py-8 text-gray-400">Loading...</div>
+    <div v-if="loading" class="text-center py-8 text-gray-400">{{ $t('common.loading') }}</div>
 
     <div v-else-if="types.length === 0" class="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-      <p class="text-gray-500 mb-4">No issue types configured for this project yet.</p>
-      <button @click="copyFromWorkspace" class="text-indigo-600 hover:text-indigo-700 font-medium">Copy from Workspace →</button>
+      <p class="text-gray-500 mb-4">{{ $t('issueType.noTypes') }}</p>
+      <button @click="copyFromWorkspace" class="text-indigo-600 hover:text-indigo-700 font-medium">{{ $t('issueType.copyFromWorkspace') }} →</button>
     </div>
 
     <div v-else class="space-y-4">
@@ -37,7 +37,7 @@
             </button>
             <button @click="moveUp(index)" :disabled="index === 0" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↑</button>
             <button @click="moveDown(index)" :disabled="index === types.length - 1" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↓</button>
-            <button @click="saveReorder" v-if="reorderDirty" class="ml-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium">Save Order</button>
+            <button @click="saveReorder" v-if="reorderDirty" class="ml-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium">{{ $t('issueType.saveOrder') }}</button>
           </div>
         </div>
 
