@@ -655,21 +655,34 @@ func (s *AutomationService) PublishEvent(event Event) error {
 	return s.eventBus.Publish(event)
 }
 
-// AutomationService manages automation rules.
-type AutomationService struct {
-	db *gorm.DB
-	// Simple in-memory cycle detection: map[key]lastExecTime
-	executionHistory sync.Map // key: "issueID:triggerType", value: time.Time
-	maxExecutions    int      // max executions per issue within window
-	execWindow       time.Duration // time window for cycle detection
+// GetExecutionHistory 获取自动化执行历史（新增 API）
+func (s *AutomationService) GetExecutionHistory(issueID uint64, limit int) ([]AutomationExecution, error) {
+	var executions []AutomationExecution
+	if err := s.db.Where("issue_id = ?", issueID).Order("executed_at DESC").Limit(limit).Find(&executions).Error; err != nil {
+		return nil, common.Internal("Failed to get execution history")
+	}
+	return executions, nil
 }
 
-func NewAutomationService(db *gorm.DB) *AutomationService {
-	return &AutomationService{
-		db:              db,
-		maxExecutions:   10,                // max 10 executions per issue per window
-		execWindow:      5 * time.Minute,   // within 5 minutes
+// Helper functions
+
+func toUint64(v interface{}) (uint64, bool) {
+	switch val := v.(type) {
+	case float64:
+		return uint64(val), true
+	case int:
+		return uint64(val), true
+	case int64:
+		return uint64(val), true
+	case uint64:
+		return val, true
+	case string:
+		var n uint64
+		if _, err := fmt.Sscanf(val, "%d", &n); err == nil {
+			return n, true
+		}
 	}
+	return 0, false
 }
 
 // ======== Request/Response types ========
@@ -709,7 +722,7 @@ type AutomationResponse struct {
 	UpdatedAt      string `json:"updated_at"`
 }
 
-// ======== CRUD ========
+// ======== CRUD 方法（保留原有 API 兼容性）========
 
 func (s *AutomationService) List(projectID uint64) ([]AutomationResponse, error) {
 	var rules []model.AutomationRule
@@ -744,6 +757,13 @@ func (s *AutomationService) Create(projectID uint64, req *AutomationCreateReques
 		enabled = *req.IsEnabled
 	}
 
+	if err := validateJSON(req.Conditions); err != nil {
+		return nil, common.BadRequest("invalid conditions JSON: " + err.Error())
+	}
+	if err := validateJSON(req.Actions); err != nil {
+		return nil, common.BadRequest("invalid actions JSON: " + err.Error())
+	}
+
 	rule := model.AutomationRule{
 		Name:        req.Name,
 		Description: req.Description,
@@ -754,18 +774,11 @@ func (s *AutomationService) Create(projectID uint64, req *AutomationCreateReques
 		IsEnabled:   enabled,
 		Sequence:    req.Sequence,
 	}
-	if rule.Sequence == 0 {
-		rule.Sequence = 1
-	}
-
-	// Validate JSON
-	if err := s.validateJSON(req.Conditions, req.Actions); err != nil {
-		return nil, common.Validation(err.Error())
-	}
 
 	if err := s.db.Create(&rule).Error; err != nil {
 		return nil, common.Internal("Failed to create automation rule")
 	}
+
 	r := s.toResponse(&rule)
 	return &r, nil
 }
@@ -779,40 +792,38 @@ func (s *AutomationService) Update(id uint64, req *AutomationUpdateRequest) (*Au
 		return nil, common.Internal("Failed to get automation rule")
 	}
 
-	updates := map[string]interface{}{}
 	if req.Name != nil {
-		updates["name"] = *req.Name
+		rule.Name = *req.Name
 	}
 	if req.Description != nil {
-		updates["description"] = *req.Description
+		rule.Description = *req.Description
 	}
 	if req.TriggerType != nil {
-		updates["trigger_type"] = *req.TriggerType
+		rule.TriggerType = *req.TriggerType
 	}
 	if req.Conditions != nil {
-		if err := s.validateJSON(*req.Conditions, rule.Actions); err != nil {
-			return nil, common.Validation(err.Error())
+		if err := validateJSON(*req.Conditions); err != nil {
+			return nil, common.BadRequest("invalid conditions JSON: " + err.Error())
 		}
-		updates["conditions"] = *req.Conditions
+		rule.Conditions = *req.Conditions
 	}
 	if req.Actions != nil {
-		if err := s.validateJSON(rule.Conditions, *req.Actions); err != nil {
-			return nil, common.Validation(err.Error())
+		if err := validateJSON(*req.Actions); err != nil {
+			return nil, common.BadRequest("invalid actions JSON: " + err.Error())
 		}
-		updates["actions"] = *req.Actions
+		rule.Actions = *req.Actions
 	}
 	if req.IsEnabled != nil {
-		updates["is_enabled"] = *req.IsEnabled
+		rule.IsEnabled = *req.IsEnabled
 	}
 	if req.Sequence != nil {
-		updates["sequence"] = *req.Sequence
+		rule.Sequence = *req.Sequence
 	}
 
-	if err := s.db.Model(&rule).Updates(updates).Error; err != nil {
+	if err := s.db.Save(&rule).Error; err != nil {
 		return nil, common.Internal("Failed to update automation rule")
 	}
 
-	s.db.First(&rule, id)
 	r := s.toResponse(&rule)
 	return &r, nil
 }
@@ -831,63 +842,24 @@ func (s *AutomationService) Delete(id uint64) error {
 	return nil
 }
 
-// ======== Execution ========
-
-// ExecuteTrigger runs all matching automation rules for a given trigger event.
-func (s *AutomationService) ExecuteTrigger(projectID uint64, triggerType string, issueID uint64, context map[string]interface{}) []string {
-	// Cycle detection: check if this issue+trigger has been executed too many times recently
-	key := fmt.Sprintf("%d:%s", issueID, triggerType)
-	now := time.Now()
-	
-	if lastTime, ok := s.executionHistory.Load(key); ok {
-		if lastExecTime, isTime := lastTime.(time.Time); isTime {
-			if now.Sub(lastExecTime) < s.execWindow {
-				// Check execution count in window
-				execCount := 0
-				s.executionHistory.Range(func(k, v interface{}) bool {
-					if kStr, ok := k.(string); ok {
-						if strings.HasPrefix(kStr, fmt.Sprintf("%d:", issueID)) {
-							if vTime, ok := v.(time.Time); ok && now.Sub(vTime) < s.execWindow {
-								execCount++
-							}
-						}
-					}
-					return true
-				})
-				
-				if execCount >= s.maxExecutions {
-					log.Printf("[Automation] Cycle detected: issue %d trigger %s executed %d times in %v, skipping", 
-						issueID, triggerType, execCount, s.execWindow)
-					return nil
-				}
-			}
-		}
+// ExecuteTrigger 手动触发规则执行（用于测试）
+func (s *AutomationService) ExecuteTrigger(projectID uint64, triggerType string, issueID uint64, eventCtx map[string]interface{}) []string {
+	event := Event{
+		Type:      triggerType,
+		ProjectID: projectID,
+		IssueID:   issueID,
+		Context:   eventCtx,
+		Timestamp: time.Now(),
 	}
 	
-	// Record this execution
-	s.executionHistory.Store(key, now)
-
-	var rules []model.AutomationRule
-	if err := s.db.Where("project_id = ? AND trigger_type = ? AND is_enabled = ?", projectID, triggerType, true).
-		Order("sequence ASC").Find(&rules).Error; err != nil {
-		return nil
-	}
-
-	var results []string
-	for _, rule := range rules {
-		if s.evaluateConditions(rule.Conditions, context) {
-			actionResults := s.executeActions(rule.Actions, issueID, context)
-			results = append(results, actionResults...)
-
-			// Increment execution count
-			s.db.Model(&rule).Update("execution_count", rule.ExecutionCount+1)
-		}
-	}
-
-	return results
+	// 同步执行用于测试
+	ctx := context.Background()
+	_ = s.handleAutomationEvent(ctx, event)
+	
+	return []string{"Executed"}
 }
 
-// ======== Helpers ========
+// Helpers
 
 func (s *AutomationService) toResponse(rule *model.AutomationRule) AutomationResponse {
 	return AutomationResponse{
@@ -901,169 +873,15 @@ func (s *AutomationService) toResponse(rule *model.AutomationRule) AutomationRes
 		IsEnabled:      rule.IsEnabled,
 		Sequence:       rule.Sequence,
 		ExecutionCount: rule.ExecutionCount,
-		CreatedAt:      rule.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:      rule.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:      rule.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      rule.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
-func (s *AutomationService) validateJSON(conditions, actions string) error {
-	if conditions != "" && conditions != "[]" {
-		var conds []interface{}
-		if err := json.Unmarshal([]byte(conditions), &conds); err != nil {
-			return fmt.Errorf("invalid conditions JSON: %w", err)
-		}
-	}
-	if actions != "" && actions != "[]" {
-		var acts []interface{}
-		if err := json.Unmarshal([]byte(actions), &acts); err != nil {
-			return fmt.Errorf("invalid actions JSON: %w", err)
-		}
-	}
-	return nil
-}
-
-func (s *AutomationService) evaluateConditions(conditionsJSON string, context map[string]interface{}) bool {
-	if conditionsJSON == "" || conditionsJSON == "[]" {
-		return true // No conditions = always trigger
-	}
-
-	var conditions []map[string]interface{}
-	if err := json.Unmarshal([]byte(conditionsJSON), &conditions); err != nil {
-		return false
-	}
-
-	for _, cond := range conditions {
-		field, _ := cond["field"].(string)
-		op, _ := cond["operator"].(string)
-		value := cond["value"]
-
-		contextVal, ok := context[field]
-		if !ok {
-			return false
-		}
-
-		switch op {
-		case "equals":
-			if fmt.Sprintf("%v", contextVal) != fmt.Sprintf("%v", value) {
-				return false
-			}
-		case "not_equals":
-			if fmt.Sprintf("%v", contextVal) == fmt.Sprintf("%v", value) {
-				return false
-			}
-		case "contains":
-			ctxStr := fmt.Sprintf("%v", contextVal)
-			valStr := fmt.Sprintf("%v", value)
-			if !strings.Contains(ctxStr, valStr) {
-				return false
-			}
-		case "in":
-			// value should be an array
-			if valArr, ok := value.([]interface{}); ok {
-				found := false
-				ctxStr := fmt.Sprintf("%v", contextVal)
-				for _, v := range valArr {
-					if ctxStr == fmt.Sprintf("%v", v) {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return false
-				}
-			}
-		}
-	}
-
-	return true
-}
-
-func (s *AutomationService) executeActions(actionsJSON string, issueID uint64, context map[string]interface{}) []string {
-	if actionsJSON == "" || actionsJSON == "[]" {
+func validateJSON(s string) error {
+	if s == "" || s == "[]" {
 		return nil
 	}
-
-	var actions []map[string]interface{}
-	if err := json.Unmarshal([]byte(actionsJSON), &actions); err != nil {
-		log.Printf("[Automation] Failed to parse actions JSON for issue %d: %v", issueID, err)
-		return nil
-	}
-
-	var results []string
-
-	for _, action := range actions {
-		actionType, _ := action["type"].(string)
-		field, _ := action["field"].(string)
-		value := action["value"]
-
-		switch actionType {
-		case "set_field":
-			if field == "state_id" {
-				if stateID, ok := toUint64(value); ok {
-					if err := s.db.Model(&model.Issue{}).Where("id = ?", issueID).Update(field, stateID).Error; err != nil {
-						log.Printf("[Automation] Failed to set state for issue %d: %v", issueID, err)
-					} else {
-						results = append(results, fmt.Sprintf("Set state to %d", stateID))
-					}
-				}
-			} else if field == "priority" {
-				if err := s.db.Model(&model.Issue{}).Where("id = ?", issueID).Update(field, value).Error; err != nil {
-					log.Printf("[Automation] Failed to set %s for issue %d: %v", field, issueID, err)
-				} else {
-					results = append(results, fmt.Sprintf("Set %s to %v", field, value))
-				}
-			}
-		case "add_label":
-			if labelID, ok := toUint64(value); ok {
-				label := model.IssueLabel{IssueID: issueID, LabelID: labelID}
-				if err := s.db.Create(&label).Error; err != nil {
-					log.Printf("[Automation] Failed to add label %d to issue %d: %v", labelID, issueID, err)
-				} else {
-					results = append(results, fmt.Sprintf("Added label %d", labelID))
-				}
-			}
-		case "add_comment":
-			if comment, ok := value.(string); ok {
-				cmt := model.Comment{IssueID: issueID, Body: comment}
-				if err := s.db.Create(&cmt).Error; err != nil {
-					log.Printf("[Automation] Failed to add comment to issue %d: %v", issueID, err)
-				} else {
-					results = append(results, "Added automated comment")
-				}
-			}
-		case "assign_to":
-			if assigneeID, ok := toUint64(value); ok {
-				assignee := model.IssueAssignee{IssueID: issueID, UserID: assigneeID}
-				if err := s.db.Create(&assignee).Error; err != nil {
-					log.Printf("[Automation] Failed to assign user %d to issue %d: %v", assigneeID, issueID, err)
-				} else {
-					results = append(results, fmt.Sprintf("Assigned to user %d", assigneeID))
-				}
-			}
-		default:
-			log.Printf("[Automation] Unknown action type: %s for issue %d", actionType, issueID)
-		}
-	}
-
-	return results
+	var js json.RawMessage
+	return json.Unmarshal([]byte(s), &js)
 }
-
-func toUint64(v interface{}) (uint64, bool) {
-	switch val := v.(type) {
-	case float64:
-		return uint64(val), true
-	case int:
-		return uint64(val), true
-	case int64:
-		return uint64(val), true
-	case uint64:
-		return val, true
-	case string:
-		var n uint64
-		if _, err := fmt.Sscanf(val, "%d", &n); err == nil {
-			return n, true
-		}
-	}
-	return 0, false
-}
-

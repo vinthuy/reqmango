@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -162,6 +163,22 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	// Add labels
 	for _, labelID := range req.LabelIDs {
 		tx.Create(&model.IssueLabel{IssueID: issue.ID, LabelID: labelID})
+	}
+
+	// Save custom field values
+	for fieldID, value := range req.CustomFieldValues {
+		var stringValue string
+		switch v := value.(type) {
+		case string:
+			stringValue = v
+		default:
+			stringValue = fmt.Sprintf("%v", v)
+		}
+		tx.Create(&model.IssueCustomFieldValue{
+			IssueID:  issue.ID,
+			FieldID:  fieldID,
+			Value:    stringValue,
+		})
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -1281,16 +1298,30 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, oldStateI
 }
 
 // runAutomations executes automation rules for a given trigger type on an issue.
-// Called after transaction commit — uses the automation service's full engine.
+// Called after transaction commit — uses the automation service's event bus.
 func (s *IssueService) runAutomations(issueID uint64, triggerType string, context map[string]interface{}) {
 	if s.automationSvc == nil {
 		return
 	}
+	
 	var issue model.Issue
 	if err := s.db.First(&issue, issueID).Error; err != nil {
+		log.Printf("[IssueService] Failed to fetch issue %d for automation: %v", issueID, err)
 		return
 	}
-	_ = s.automationSvc.ExecuteTrigger(issue.ProjectID, triggerType, issueID, context)
+	
+	// 创建事件并发布到事件总线（异步执行）
+	event := Event{
+		Type:      triggerType,
+		ProjectID: issue.ProjectID,
+		IssueID:   issueID,
+		Context:   context,
+		Timestamp: time.Now(),
+	}
+	
+	if err := s.automationSvc.PublishEvent(event); err != nil {
+		log.Printf("[IssueService] Failed to publish automation event: %v", err)
+	}
 }
 
 // ImportFromJSON imports issues from a JSON array.

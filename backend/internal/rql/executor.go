@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -22,6 +23,8 @@ func NewGORMExecutor() *GORMExecutor {
 type QueryContext struct {
 	TableName string
 	FieldMap  map[string]FieldMapping
+	DB        *gorm.DB
+	ProjectID uint64
 }
 
 // FieldMapping 字段映射
@@ -40,7 +43,7 @@ type rawCondition struct {
 }
 
 // NewIssueQueryContext 创建 Issue 查询上下文
-func NewIssueQueryContext() *QueryContext {
+func NewIssueQueryContext(db *gorm.DB, projectID uint64) *QueryContext {
 	return &QueryContext{
 		TableName: "issues",
 		FieldMap: map[string]FieldMapping{
@@ -68,6 +71,8 @@ func NewIssueQueryContext() *QueryContext {
 			"start_date":    {ColumnName: "issues.start_date", FieldType: "date"},
 			"target_date":   {ColumnName: "issues.target_date", FieldType: "date"},
 		},
+		DB:        db,
+		ProjectID: projectID,
 	}
 }
 
@@ -186,7 +191,7 @@ func (e *GORMExecutor) buildComparisonRaw(expr *Comparison, ctx *QueryContext) (
 	mapping, ok := ctx.FieldMap[expr.Field]
 	if !ok {
 		if strings.HasPrefix(expr.Field, "cf_") {
-			return e.buildCustomFieldComparison(expr.Field, expr.Operator, expr.Value)
+			return e.buildCustomFieldComparison(expr.Field, expr.Operator, expr.Value, ctx)
 		}
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}
@@ -209,17 +214,35 @@ func (e *GORMExecutor) buildComparisonRaw(expr *Comparison, ctx *QueryContext) (
 	}
 }
 
-func (e *GORMExecutor) buildCustomFieldComparison(fieldName, operator, value interface{}) (*rawCondition, error) {
+func (e *GORMExecutor) buildCustomFieldComparison(fieldName, operator, value interface{}, ctx *QueryContext) (*rawCondition, error) {
 	fieldNameStr, ok := fieldName.(string)
 	if !ok {
 		return nil, fmt.Errorf("custom field name must be a string")
 	}
 	fieldIDStr := strings.TrimPrefix(fieldNameStr, "cf_")
-	// Validate fieldID is a numeric value to prevent SQL injection
-	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err != nil {
-		return nil, fmt.Errorf("invalid custom field ID: %s", fieldIDStr)
+
+	var fieldID uint64
+	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err == nil {
+		fieldID, _ = strconv.ParseUint(fieldIDStr, 10, 64)
+	} else {
+		if ctx.DB == nil {
+			return nil, fmt.Errorf("cannot resolve custom field name without DB context")
+		}
+		var projectID uint64
+		if ctx.ProjectID > 0 {
+			projectID = ctx.ProjectID
+		}
+		var field model.CustomField
+		err := ctx.DB.Where("name = ? AND is_active = ?", fieldIDStr, true).
+			Where("project_id = ? OR project_id IS NULL", projectID).
+			First(&field).Error
+		if err != nil {
+			return nil, fmt.Errorf("custom field not found: %s", fieldIDStr)
+		}
+		fieldID = field.ID
 	}
-	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldIDStr)
+
+	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %d", fieldID)
 
 	var sql string
 	switch operator {
@@ -332,7 +355,7 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 	mapping, ok := ctx.FieldMap[expr.Field]
 	if !ok {
 		if strings.HasPrefix(expr.Field, "cf_") {
-			return e.buildCustomFieldLike(expr.Field, expr.Operator, expr.Value)
+			return e.buildCustomFieldLike(expr.Field, expr.Operator, expr.Value, ctx)
 		}
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}
@@ -373,13 +396,31 @@ func (e *GORMExecutor) buildFullTextSearch(field, operator, value string) (*rawC
 	}, nil
 }
 
-func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string) (*rawCondition, error) {
+func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string, ctx *QueryContext) (*rawCondition, error) {
 	fieldIDStr := strings.TrimPrefix(fieldName, "cf_")
-	// Validate fieldID is numeric to prevent SQL injection
-	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err != nil {
-		return nil, fmt.Errorf("invalid custom field ID: %s", fieldIDStr)
+
+	var fieldID uint64
+	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err == nil {
+		fieldID, _ = strconv.ParseUint(fieldIDStr, 10, 64)
+	} else {
+		if ctx.DB == nil {
+			return nil, fmt.Errorf("cannot resolve custom field name without DB context")
+		}
+		var projectID uint64
+		if ctx.ProjectID > 0 {
+			projectID = ctx.ProjectID
+		}
+		var field model.CustomField
+		err := ctx.DB.Where("name = ? AND is_active = ?", fieldIDStr, true).
+			Where("project_id = ? OR project_id IS NULL", projectID).
+			First(&field).Error
+		if err != nil {
+			return nil, fmt.Errorf("custom field not found: %s", fieldIDStr)
+		}
+		fieldID = field.ID
 	}
-	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldIDStr)
+
+	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %d", fieldID)
 
 	op := "ILIKE"
 	if operator == "NOT LIKE" {
@@ -401,7 +442,7 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 	mapping, ok := ctx.FieldMap[expr.Field]
 	if !ok {
 		if strings.HasPrefix(expr.Field, "cf_") {
-			return e.buildCustomFieldIn(expr.Field, expr.Operator, expr.Values)
+			return e.buildCustomFieldIn(expr.Field, expr.Operator, expr.Values, ctx)
 		}
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}
@@ -468,7 +509,7 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 	return &rawCondition{SQL: sql, Args: args}, nil
 }
 
-func (e *GORMExecutor) buildCustomFieldIn(fieldName, operator string, values []interface{}) (*rawCondition, error) {
+func (e *GORMExecutor) buildCustomFieldIn(fieldName, operator string, values []interface{}, ctx *QueryContext) (*rawCondition, error) {
 	if len(values) == 0 {
 		if operator == "NOT IN" {
 			return &rawCondition{SQL: "1 = 1"}, nil
@@ -477,11 +518,29 @@ func (e *GORMExecutor) buildCustomFieldIn(fieldName, operator string, values []i
 	}
 
 	fieldIDStr := strings.TrimPrefix(fieldName, "cf_")
-	// Validate fieldID is numeric to prevent SQL injection
-	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err != nil {
-		return nil, fmt.Errorf("invalid custom field ID: %s", fieldIDStr)
+
+	var fieldID uint64
+	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err == nil {
+		fieldID, _ = strconv.ParseUint(fieldIDStr, 10, 64)
+	} else {
+		if ctx.DB == nil {
+			return nil, fmt.Errorf("cannot resolve custom field name without DB context")
+		}
+		var projectID uint64
+		if ctx.ProjectID > 0 {
+			projectID = ctx.ProjectID
+		}
+		var field model.CustomField
+		err := ctx.DB.Where("name = ? AND is_active = ?", fieldIDStr, true).
+			Where("project_id = ? OR project_id IS NULL", projectID).
+			First(&field).Error
+		if err != nil {
+			return nil, fmt.Errorf("custom field not found: %s", fieldIDStr)
+		}
+		fieldID = field.ID
 	}
-	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldIDStr)
+
+	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %d", fieldID)
 
 	placeholders := make([]string, len(values))
 	args := make([]interface{}, len(values))

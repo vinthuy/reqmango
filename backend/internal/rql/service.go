@@ -34,7 +34,7 @@ func (s *RQLService) SearchIssues(db *gorm.DB, projectID uint64, rqlQuery string
 	}
 
 	// 构建查询上下文
-	ctx := NewIssueQueryContext()
+	ctx := NewIssueQueryContext(db, projectID)
 
 	// 基础查询：只查询该项目的未归档工作项
 	query := db.Model(&model.Issue{}).

@@ -166,7 +166,7 @@ func (l *Lexer) readIdentifier() Token {
 
 	for l.position < len(l.input) {
 		char, size := utf8.DecodeRuneInString(l.input[l.position:])
-		if !unicode.IsLetter(char) && !unicode.IsDigit(char) && char != '_' {
+		if !unicode.IsLetter(char) && !unicode.IsDigit(char) && char != '_' && char != '-' {
 			break
 		}
 		value.WriteRune(char)
