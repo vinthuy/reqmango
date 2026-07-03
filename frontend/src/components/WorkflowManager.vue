@@ -31,7 +31,10 @@
       <div class="bg-white rounded-xl p-6 w-full max-w-md"><h3 class="text-lg font-semibold mb-4">Add Transition</h3>
         <div class="space-y-3"><div><label class="block text-sm font-medium mb-1">From State</label><select v-model="trans.from" class="w-full px-3 py-2 border rounded-lg"><option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option></select></div>
         <div><label class="block text-sm font-medium mb-1">To State</label><select v-model="trans.to" class="w-full px-3 py-2 border rounded-lg"><option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option></select></div>
-        <div><label class="block text-sm font-medium mb-1">Description</label><input v-model="trans.desc" class="w-full px-3 py-2 border rounded-lg" /></div></div>
+        <div><label class="block text-sm font-medium mb-1">Description</label><input v-model="trans.desc" class="w-full px-3 py-2 border rounded-lg" /></div>
+        <div><label class="block text-sm font-medium mb-1">Rule Type</label><select v-model="trans.rule_type" class="w-full px-3 py-2 border rounded-lg"><option value="allow">Allow</option><option value="approval">Approval</option></select></div>
+        <div v-if="trans.rule_type==='approval'"><label class="block text-sm font-medium mb-1">Approver IDs (comma-separated)</label><input v-model="trans.approver_ids" class="w-full px-3 py-2 border rounded-lg" placeholder="e.g. 49,50" /></div>
+        <div v-if="trans.rule_type==='approval'"><label class="block text-sm font-medium mb-1">Role Allowed</label><input v-model="trans.role_allowed" class="w-full px-3 py-2 border rounded-lg" placeholder="e.g. admin" /></div></div>
         <div class="flex justify-end space-x-3 mt-6"><button @click="showTrans=false" class="px-4 py-2 border rounded-lg">Cancel</button><button @click="saveTrans" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Add</button></div>
       </div>
     </div>
@@ -51,14 +54,14 @@ const { confirm } = useConfirm()
 const workflows = ref<any[]>([])
 const states = ref<any[]>([])
 const showModal = ref(false); const showTrans = ref(false); const selWid = ref(0)
-const form = ref({ name:'', desc:'' }); const trans = ref({ from:0, to:0, desc:'' })
+const form = ref({ name:'', desc:'' }); const trans = ref({ from:0, to:0, desc:'', rule_type:'allow', approver_ids:'', role_allowed:'' })
 
-async function load() { try { const [w,s] = await Promise.all([workflowApi.listWorkflows(props.projectId), api.get(`/projects/${props.projectId}/settings/states`)]); workflows.value = w; states.value = s.data } catch(e){ console.error(e) } }
+async function load() { try { const [w,s] = await Promise.all([workflowApi.listWorkflows(props.projectId), api.get(`/projects/${props.projectId}/settings/states`)]); workflows.value = Array.isArray(w) ? w : (w?.data ?? []); const statesRaw = s?.data ?? s; states.value = Array.isArray(statesRaw) ? statesRaw : [] } catch(e){ console.error(e) } }
 function openCreate() { form.value = { name:'', desc:'' }; showModal.value = true }
 async function save() { await workflowApi.createWorkflow(props.projectId, { name:form.value.name, description:form.value.desc }); showModal.value = false; load() }
 async function confirmDel(w:any) { if(await confirm(t('workflow.confirmDelete'))) { await workflowApi.deleteWorkflow(props.projectId, w.id); load() } }
-function openAddTrans(w:any) { selWid.value = w.id; trans.value = { from:0, to:0, desc:'' }; showTrans.value = true }
-async function saveTrans() { await workflowApi.addTransition(props.projectId, selWid.value, { from_state_id:trans.value.from, to_state_id:trans.value.to, description:trans.value.desc }); showTrans.value = false; load() }
+function openAddTrans(w:any) { selWid.value = w.id; trans.value = { from:0, to:0, desc:'', rule_type:'allow', approver_ids:'', role_allowed:'' }; showTrans.value = true }
+async function saveTrans() { await workflowApi.addTransition(props.projectId, selWid.value, { from_state_id:trans.value.from, to_state_id:trans.value.to, description:trans.value.desc, rule_type:trans.value.rule_type, approver_ids:trans.value.approver_ids || undefined, role_allowed:trans.value.role_allowed || undefined }); showTrans.value = false; load() }
 async function delTrans(tid:number) { await workflowApi.deleteTransition(props.projectId, selWid.value || (workflows.value.find(w=>w.transitions?.some((t:any)=>t.id===tid))?.id||0), tid); load() }
 onMounted(load)
 </script>
