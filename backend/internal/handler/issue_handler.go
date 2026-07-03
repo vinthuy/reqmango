@@ -373,6 +373,31 @@ func (h *IssueHandler) Search(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
+// Suggest handles GET /issues/suggest?project_id=int&query=str&limit=
+func (h *IssueHandler) Suggest(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Query("project_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project_id"})
+		return
+	}
+
+	query := c.Query("query")
+
+	p := common.ParsePagination(c.Query("limit"), "", 5, 20)
+
+	results, svcErr := h.svc.Suggest(projectID, query, p.Limit)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
 // ==================== Bulk Operations ====================
 
 // BulkUpdate handles POST /issues/bulk/update?project_id=int

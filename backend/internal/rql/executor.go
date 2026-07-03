@@ -184,6 +184,9 @@ func (e *GORMExecutor) buildBinaryRaw(expr *BinaryExpr, ctx *QueryContext) (*raw
 func (e *GORMExecutor) buildComparisonRaw(expr *Comparison, ctx *QueryContext) (*rawCondition, error) {
 	mapping, ok := ctx.FieldMap[expr.Field]
 	if !ok {
+		if strings.HasPrefix(expr.Field, "cf_") {
+			return e.buildCustomFieldComparison(expr.Field, expr.Operator, expr.Value)
+		}
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}
 
@@ -203,6 +206,35 @@ func (e *GORMExecutor) buildComparisonRaw(expr *Comparison, ctx *QueryContext) (
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", expr.Operator)
 	}
+}
+
+func (e *GORMExecutor) buildCustomFieldComparison(fieldName, operator, value interface{}) (*rawCondition, error) {
+	fieldID := strings.TrimPrefix(fieldName.(string), "cf_")
+	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldID)
+
+	var sql string
+	switch operator {
+	case "=":
+		sql = "icfv.value = ?"
+	case "!=":
+		sql = "icfv.value != ?"
+	case ">":
+		sql = "icfv.value > ?"
+	case "<":
+		sql = "icfv.value < ?"
+	case ">=":
+		sql = "icfv.value >= ?"
+	case "<=":
+		sql = "icfv.value <= ?"
+	default:
+		return nil, fmt.Errorf("unsupported operator for custom field: %s", operator)
+	}
+
+	return &rawCondition{
+		SQL:   sql,
+		Args:  []interface{}{value},
+		Joins: []string{join},
+	}, nil
 }
 
 func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*rawCondition, error) {
@@ -290,6 +322,9 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCondition, error) {
 	mapping, ok := ctx.FieldMap[expr.Field]
 	if !ok {
+		if strings.HasPrefix(expr.Field, "cf_") {
+			return e.buildCustomFieldLike(expr.Field, expr.Operator, expr.Value)
+		}
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}
 
@@ -298,15 +333,61 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 		op = "NOT ILIKE"
 	}
 
+	value := expr.Value
+	if !strings.ContainsAny(value, "%_") {
+		value = fmt.Sprintf("%%%s%%", value)
+	}
+
+	if expr.Field == "name" || expr.Field == "description" {
+		return e.buildFullTextSearch(expr.Field, expr.Operator, expr.Value)
+	}
+
 	return &rawCondition{
 		SQL:  fmt.Sprintf("%s %s ?", mapping.ColumnName, op),
-		Args: []interface{}{expr.Value},
+		Args: []interface{}{value},
+	}, nil
+}
+
+func (e *GORMExecutor) buildFullTextSearch(field, operator, value string) (*rawCondition, error) {
+	tsQuery := fmt.Sprintf("to_tsquery('english', '%s')", strings.ReplaceAll(value, " ", " & "))
+
+	if operator == "NOT LIKE" {
+		return &rawCondition{
+			SQL: fmt.Sprintf("to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) !@@ %s", tsQuery),
+		}, nil
+	}
+
+	return &rawCondition{
+		SQL: fmt.Sprintf("to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) @@ %s", tsQuery),
+	}, nil
+}
+
+func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string) (*rawCondition, error) {
+	fieldID := strings.TrimPrefix(fieldName, "cf_")
+	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldID)
+
+	op := "ILIKE"
+	if operator == "NOT LIKE" {
+		op = "NOT ILIKE"
+	}
+
+	if !strings.ContainsAny(value, "%_") {
+		value = fmt.Sprintf("%%%s%%", value)
+	}
+
+	return &rawCondition{
+		SQL:   fmt.Sprintf("icfv.value %s ?", op),
+		Args:  []interface{}{value},
+		Joins: []string{join},
 	}, nil
 }
 
 func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawCondition, error) {
 	mapping, ok := ctx.FieldMap[expr.Field]
 	if !ok {
+		if strings.HasPrefix(expr.Field, "cf_") {
+			return e.buildCustomFieldIn(expr.Field, expr.Operator, expr.Values)
+		}
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}
 
@@ -370,6 +451,37 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 
 	sql := fmt.Sprintf("%s %s (%s)", mapping.ColumnName, op, placeholderList)
 	return &rawCondition{SQL: sql, Args: args}, nil
+}
+
+func (e *GORMExecutor) buildCustomFieldIn(fieldName, operator string, values []interface{}) (*rawCondition, error) {
+	if len(values) == 0 {
+		if operator == "NOT IN" {
+			return &rawCondition{SQL: "1 = 1"}, nil
+		}
+		return &rawCondition{SQL: "1 = 0"}, nil
+	}
+
+	fieldID := strings.TrimPrefix(fieldName, "cf_")
+	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %s", fieldID)
+
+	placeholders := make([]string, len(values))
+	args := make([]interface{}, len(values))
+	for i, v := range values {
+		placeholders[i] = "?"
+		args[i] = v
+	}
+
+	op := "IN"
+	if operator == "NOT IN" {
+		op = "NOT IN"
+	}
+	placeholderList := strings.Join(placeholders, ", ")
+
+	return &rawCondition{
+		SQL:   fmt.Sprintf("icfv.value %s (%s)", op, placeholderList),
+		Args:  args,
+		Joins: []string{join},
+	}, nil
 }
 
 func (e *GORMExecutor) buildNotRaw(expr *NotExpr, ctx *QueryContext) (*rawCondition, error) {

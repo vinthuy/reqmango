@@ -65,7 +65,7 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string):
         const sequenceId = parts[1]
         clauses.push(`sequence_id = ${sequenceId}`)
       } else {
-        clauses.push(`(name LIKE "%${qs}%" OR description LIKE "%${qs}%")`)
+        clauses.push(`(name LIKE "${qs}" OR description LIKE "${qs}")`)
       }
     }
   }

@@ -89,10 +89,18 @@ func main() {
 		&model.Permission{},
 		&model.RolePermission{},
 		&model.SavedReport{},
+		&model.SearchTemplate{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
 	fmt.Println("Database migration completed")
+
+	// Create full-text search index for issues
+	db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_issues_search ON issues 
+		USING gin(to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')))
+	`)
+	fmt.Println("Full-text search index created")
 
 	seed.SeedAll(db)
 

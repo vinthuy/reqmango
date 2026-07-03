@@ -15,6 +15,9 @@ type SavedView struct {
 	// Filters: JSON blob storing the filter conditions
 	Filters json.RawMessage `gorm:"type:jsonb" json:"filters"`
 
+	// RQL query string for advanced search
+	RQL string `gorm:"type:text" json:"rql"`
+
 	// Sort configuration: JSON array of {field, direction}
 	SortConfig json.RawMessage `gorm:"type:jsonb" json:"sort_config"`
 

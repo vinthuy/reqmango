@@ -99,6 +99,7 @@ const { t } = useI18n()
 const props = defineProps<{
   projectId: number
   currentFilters?: Record<string, any>
+  currentRQL?: string
   currentColumns?: string[]
   currentGroupBy?: string
   currentSortConfig?: { field: string; dir: 'asc' | 'desc' }[]
@@ -107,7 +108,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', view: SavedView): void
-  (e: 'save-request', filters: Record<string, any>): void
+  (e: 'save-request', filters: Record<string, any>, rql?: string): void
 }>()
 
 // State
@@ -173,6 +174,7 @@ async function doSave() {
       name: saveForm.value.name.trim(),
       view_type: saveForm.value.view_type,
       filters: props.currentFilters || {},
+      rql: props.currentRQL || '',
       columns: props.currentColumns || [],
       sort_config: props.currentSortConfig || [],
       group_by: props.currentGroupBy,

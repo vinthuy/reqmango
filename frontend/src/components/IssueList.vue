@@ -168,7 +168,7 @@
                 <!-- 编号 -->
                 <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-400 font-mono">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
                 <!-- 标题 -->
-                <span v-else-if="col.key === 'name'" class="text-sm text-gray-800 font-medium line-clamp-2 hover:text-gray-900 transition-colors">{{ issue.name }}</span>
+                <span v-else-if="col.key === 'name'" class="text-sm text-gray-800 font-medium line-clamp-2 hover:text-gray-900 transition-colors" v-html="highlightSearchTerm(issue.name, props.searchTerm || '')"></span>
                 <!-- 优先级 -->
                 <span v-else-if="col.key === 'priority'" :class="priorityClass(issue.priority)" class="text-xs px-1.5 py-0.5 rounded whitespace-nowrap">{{ priorityLabel(issue.priority) }}</span>
                 <!-- 类型 -->
@@ -243,8 +243,9 @@ import { useConfirm } from '@/composables/useConfirm'
 import QuickCreateInput from '@/components/QuickCreateInput.vue'
 import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
+import { highlightSearchTerm } from '@/utils/highlight'
 
-const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterGroupBy?: string }>()
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterGroupBy?: string; searchTerm?: string }>()
 const router = useRouter()
 const { t, locale } = useI18n()
 

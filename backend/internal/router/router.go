@@ -32,6 +32,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	workflowSvc := service.NewWorkflowService(db)
 	commentSvc := service.NewCommentService(db, notificationSvc)
 	savedViewSvc := service.NewSavedViewService(db)
+	searchTemplateSvc := service.NewSearchTemplateService(db)
 	projectIssueTypeH := handler.NewProjectIssueTypeHandler(issueTypeSvc)
 	pageSvc := service.NewPageService(db)
 	witSvc := service.NewWorkItemTemplateService(db)
@@ -71,6 +72,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	commentH := handler.NewCommentHandler(commentSvc)
 	notificationH := handler.NewNotificationHandler(notificationSvc)
 	savedViewH := handler.NewSavedViewHandler(savedViewSvc)
+	searchTemplateH := handler.NewSearchTemplateHandler(searchTemplateSvc)
 	pageH := handler.NewPageHandler(pageSvc)
 	conditionalFieldH := handler.NewConditionalFieldHandler(conditionalFieldSvc)
 	witH := handler.NewWorkItemTemplateHandler(witSvc)
@@ -273,6 +275,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				views.POST("/:viewId/duplicate", savedViewH.Duplicate)
 			}
 
+			// ---- Search Templates ----
+			searchTemplates := projects.Group("/:projectId/search-templates", authMiddleware)
+			{
+				searchTemplates.GET("", searchTemplateH.List)
+				searchTemplates.POST("", searchTemplateH.Create)
+				searchTemplates.GET("/:templateId", searchTemplateH.Get)
+				searchTemplates.DELETE("/:templateId", searchTemplateH.Delete)
+				searchTemplates.POST("/:templateId/apply", searchTemplateH.Apply)
+			}
+
 			// ---- Work Item Templates ----
 			templates := projects.Group("/:projectId/work-item-templates", authMiddleware)
 			{
@@ -366,6 +378,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.GET("/statistics", issueH.GetStatistics)    // ?project_id=
 			issues.GET("/flow-metrics", issueH.GetFlowMetrics) // ?project_id=
 			issues.GET("/search", issueH.Search)               // ?workspace_id=&query=
+			issues.GET("/suggest", issueH.Suggest)            // ?project_id=&query=&limit=
 			issues.POST("/bulk/update", issueH.BulkUpdate)     // ?project_id=
 			issues.POST("/bulk/delete", issueH.BulkDelete)
 			issues.POST("/bulk/copy", issueH.BulkCopy)

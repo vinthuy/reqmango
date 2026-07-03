@@ -8,6 +8,7 @@ export interface SavedView {
   description?: string
   view_type: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
   filters: Record<string, any>
+  rql?: string
   sort_config: SortConfigEntry[]
   columns: string[]
   group_by?: string
@@ -29,6 +30,7 @@ export interface SavedViewCreate {
   description?: string
   view_type?: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
   filters?: Record<string, any>
+  rql?: string
   sort_config?: SortConfigEntry[]
   columns?: string[]
   group_by?: string
@@ -40,6 +42,7 @@ export interface SavedViewUpdate {
   description?: string
   view_type?: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
   filters?: Record<string, any>
+  rql?: string
   sort_config?: SortConfigEntry[]
   columns?: string[]
   group_by?: string

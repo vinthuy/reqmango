@@ -67,6 +67,7 @@
           :filter-sort-by="currentSortBy?.key"
           :filter-sort-dir="currentSortBy?.direction"
           :filter-group-by="currentGroupBy?.key"
+          :search-term="searchTerm"
           @select="openDetailPanel"
           @delete="handleDeleteIssue"
         />
@@ -299,6 +300,7 @@ import ReportBuilder from '@/components/ReportBuilder.vue'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
 import { useModuleStore } from '@/stores/module'
+import { extractSearchTerm } from '@/utils/highlight'
 
 const route = useRoute()
 const router = useRouter()
@@ -315,6 +317,8 @@ function triggerRefresh() { issueRefreshKey.value++ }
 const currentRQL = ref('')
 const currentSortBy = ref<any>(null)
 const currentGroupBy = ref<any>(null)
+
+const searchTerm = computed(() => extractSearchTerm(currentRQL.value))
 
 function handleFiltersChanged(rql: string, sortBy: any = null, groupBy: any = null) {
   currentRQL.value = rql

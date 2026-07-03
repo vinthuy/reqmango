@@ -3,12 +3,15 @@ import type { FilterCondition, SortOption, GroupOption } from '../types/filters'
 import { buildRQL, parseRQL } from '../types/filters'
 
 const FILTERS_KEY = Symbol('filters')
+const SEARCH_HISTORY_KEY = 'reqmango_search_history'
+const MAX_HISTORY_COUNT = 10
 
 export interface FiltersState {
   filters: FilterCondition[]
   sortBy: SortOption | null
   groupBy: GroupOption | null
   quickSearch: string
+  searchHistory: string[]
 }
 
 export interface FiltersContext {
@@ -24,6 +27,25 @@ export interface FiltersContext {
   setSortBy: (sort: SortOption | null) => void
   setGroupBy: (group: GroupOption | null) => void
   setQuickSearch: (query: string) => void
+  addToHistory: (query: string) => void
+  removeFromHistory: (index: number) => void
+  clearHistory: () => void
+}
+
+function loadSearchHistory(): string[] {
+  try {
+    const stored = localStorage.getItem(SEARCH_HISTORY_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch { /* */ }
+  return []
+}
+
+function saveSearchHistory(history: string[]): void {
+  try {
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history))
+  } catch { /* */ }
 }
 
 export function useFilters() {
@@ -31,7 +53,8 @@ export function useFilters() {
     filters: [],
     sortBy: null,
     groupBy: null,
-    quickSearch: ''
+    quickSearch: '',
+    searchHistory: loadSearchHistory()
   })
 
   const rql = computed<string>(() => {
@@ -65,6 +88,33 @@ export function useFilters() {
     state.quickSearch = query
   }
 
+  function addToHistory(query: string): void {
+    const trimmed = query.trim()
+    if (!trimmed) return
+    
+    const existingIndex = state.searchHistory.indexOf(trimmed)
+    if (existingIndex !== -1) {
+      state.searchHistory.splice(existingIndex, 1)
+    }
+    
+    state.searchHistory.unshift(trimmed)
+    if (state.searchHistory.length > MAX_HISTORY_COUNT) {
+      state.searchHistory.pop()
+    }
+    
+    saveSearchHistory(state.searchHistory)
+  }
+
+  function removeFromHistory(index: number): void {
+    state.searchHistory.splice(index, 1)
+    saveSearchHistory(state.searchHistory)
+  }
+
+  function clearHistory(): void {
+    state.searchHistory = []
+    saveSearchHistory(state.searchHistory)
+  }
+
   function restoreFromRQL(rqlStr: string): void {
     if (!rqlStr.trim()) {
       state.filters = []
@@ -96,7 +146,10 @@ export function useFilters() {
     restoreFromRQL,
     setSortBy,
     setGroupBy,
-    setQuickSearch
+    setQuickSearch,
+    addToHistory,
+    removeFromHistory,
+    clearHistory
   }
 
   provide(FILTERS_KEY, context)

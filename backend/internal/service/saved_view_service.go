@@ -56,6 +56,7 @@ func (s *SavedViewService) Create(req *request.SavedViewCreateRequest, projectID
 		Description: req.Description,
 		ViewType:    req.ViewType,
 		Filters:     normalizeJSON(req.Filters),
+		RQL:         req.RQL,
 		SortConfig:  normalizeJSON(req.SortConfig),
 		Columns:     normalizeJSON(req.Columns),
 		GroupBy:     req.GroupBy,
@@ -96,6 +97,9 @@ func (s *SavedViewService) Update(id, projectID, userID uint64, req *request.Sav
 	}
 	if req.Filters != nil {
 		updates["filters"] = normalizeJSON(*req.Filters)
+	}
+	if req.RQL != nil {
+		updates["rql"] = *req.RQL
 	}
 	if req.SortConfig != nil {
 		updates["sort_config"] = normalizeJSON(*req.SortConfig)
@@ -171,6 +175,7 @@ func (s *SavedViewService) Duplicate(id, projectID, userID uint64) (*response.Sa
 		Description: src.Description,
 		ViewType:    src.ViewType,
 		Filters:     src.Filters,
+		RQL:         src.RQL,
 		SortConfig:  src.SortConfig,
 		Columns:     src.Columns,
 		GroupBy:     src.GroupBy,
@@ -202,6 +207,7 @@ func viewToResponse(v *model.SavedView) response.SavedViewResponse {
 		Description: v.Description,
 		ViewType:    v.ViewType,
 		Filters:     v.Filters,
+		RQL:         v.RQL,
 		SortConfig:  v.SortConfig,
 		Columns:     v.Columns,
 		GroupBy:     v.GroupBy,

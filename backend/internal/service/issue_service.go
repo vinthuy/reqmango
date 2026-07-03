@@ -162,12 +162,15 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		tx.Create(&model.IssueLabel{IssueID: issue.ID, LabelID: labelID})
 	}
 
-	// Automation trigger: issue_created
-	s.runAutomations(tx, issue.ID, "issue_created")
-
 	if err := tx.Commit().Error; err != nil {
 		return nil, common.Internal("Failed to commit transaction")
 	}
+
+	// Automation trigger: issue_created (after commit, uses own DB connection)
+	s.runAutomations(issue.ID, "issue_created", map[string]interface{}{
+		"issue_id": issue.ID, "priority": issue.Priority,
+		"state_id": issue.StateID, "project_id": issue.ProjectID,
+	})
 
 	s.webhookSvc.Fire(projectID, "issue_created", map[string]interface{}{"issue_id": issue.ID, "name": issue.Name, "priority": issue.Priority})
 	return s.buildResponse(issue.ID)
@@ -501,7 +504,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		oldStateID := issue.StateID
 		newStateID := *req.StateID
 		// Workflow enforcement
-		if err := s.validateStateTransition(issue.ProjectID, oldStateID, newStateID); err != nil {
+		if err := s.validateStateTransition(issue.ProjectID, oldStateID, newStateID, userID); err != nil {
 			tx.Rollback()
 			return nil, err
 		}
@@ -648,6 +651,15 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	event := "issue_updated"
 	if req.StateID != nil { event = "state_changed" }
+
+	// Automation trigger: fire after commit for state changes
+	if req.StateID != nil {
+		s.runAutomations(issueID, "state_changed", map[string]interface{}{
+			"issue_id": issueID, "new_state": fmt.Sprintf("%d", *req.StateID),
+			"project_id": issue.ProjectID, "priority": issue.Priority,
+		})
+	}
+
 	s.webhookSvc.Fire(issue.ProjectID, event, map[string]interface{}{"issue_id": issueID, "name": issue.Name, "priority": issue.Priority, "state_id": issue.StateID})
 	return s.buildResponse(issueID)
 }
@@ -885,21 +897,131 @@ func (s *IssueService) Search(workspaceID uint64, query string, projectID *uint6
 	return result, nil
 }
 
+// Suggest returns search suggestions for issues based on query prefix.
+func (s *IssueService) Suggest(projectID uint64, query string, limit int) ([]response.IssueSearchResult, error) {
+	if query == "" {
+		return []response.IssueSearchResult{}, nil
+	}
+
+	q := s.db.Model(&model.Issue{}).
+		Joins("JOIN projects ON projects.id = issues.project_id").
+		Where("issues.project_id = ? AND issues.archived_at IS NULL", projectID).
+		Where("issues.name ILIKE ? OR issues.sequence_id::text LIKE ?",
+			"%"+query+"%", "%"+query+"%").
+		Order("issues.updated_at DESC").
+		Limit(limit)
+
+	var issues []model.Issue
+	if err := q.Find(&issues).Error; err != nil {
+		return nil, common.Internal("Database error")
+	}
+
+	result := make([]response.IssueSearchResult, len(issues))
+	for i, issue := range issues {
+		result[i] = response.IssueSearchResult{
+			ID:                issue.ID,
+			Name:              issue.Name,
+			SequenceID:        issue.SequenceID,
+			ProjectIdentifier: issue.Project.Identifier,
+			ProjectID:         issue.ProjectID,
+		}
+	}
+	return result, nil
+}
+
 // BulkUpdate updates multiple issues with the same changes.
 func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateRequest, userID uint64) ([]response.IssueResponse, error) {
-	var results []response.IssueResponse
-	for _, issueID := range req.IssueIDs {
-		updateReq := &request.IssueUpdateRequest{
-			Priority:     req.Priority,
-			StateID:      req.StateID,
-			AssigneeIDs:  req.AssigneeIDs,
-			LabelIDs:     req.LabelIDs,
-			StartDate:    req.StartDate,
-			TargetDate:   req.TargetDate,
+	if len(req.IssueIDs) == 0 {
+		return []response.IssueResponse{}, nil
+	}
+
+	tx := s.db.Begin()
+
+	hasSimpleUpdates := req.Priority != nil || req.StartDate != nil || req.TargetDate != nil
+
+	if hasSimpleUpdates {
+		updateMap := make(map[string]interface{})
+		if req.Priority != nil {
+			updateMap["priority"] = *req.Priority
 		}
-		resp, err := s.Update(issueID, updateReq, userID)
+		if req.StartDate != nil {
+			if t, err := time.Parse(time.RFC3339, *req.StartDate); err == nil {
+				updateMap["start_date"] = t
+			}
+		}
+		if req.TargetDate != nil {
+			if t, err := time.Parse(time.RFC3339, *req.TargetDate); err == nil {
+				updateMap["target_date"] = t
+			}
+		}
+		if len(updateMap) > 0 {
+			if err := tx.Model(&model.Issue{}).Where("id IN ?", req.IssueIDs).Updates(updateMap).Error; err != nil {
+				tx.Rollback()
+				return nil, common.Internal("Failed to bulk update issues")
+			}
+		}
+	}
+
+	if req.StateID != nil {
+		for _, issueID := range req.IssueIDs {
+			var issue model.Issue
+			if err := tx.First(&issue, issueID).Error; err != nil {
+				continue
+			}
+			oldStateID := issue.StateID
+			newStateID := *req.StateID
+			if oldStateID == newStateID {
+				continue
+			}
+			if err := s.validateStateTransition(projectID, oldStateID, newStateID, userID); err != nil {
+				continue
+			}
+			issue.StateID = newStateID
+			var newState model.State
+			if err := tx.First(&newState, newStateID).Error; err == nil {
+				if newState.Group == common.StateGroupCompleted {
+					now := time.Now()
+					issue.CompletedAt = &now
+				} else {
+					issue.CompletedAt = nil
+				}
+			}
+			tx.Save(&issue)
+		}
+	}
+
+	if req.AssigneeIDs != nil {
+		tx.Where("issue_id IN ?", req.IssueIDs).Delete(&model.IssueAssignee{})
+		for _, issueID := range req.IssueIDs {
+			for _, aid := range req.AssigneeIDs {
+				tx.Create(&model.IssueAssignee{IssueID: issueID, UserID: aid})
+			}
+		}
+	}
+
+	if req.LabelIDs != nil {
+		tx.Where("issue_id IN ?", req.IssueIDs).Delete(&model.IssueLabel{})
+		for _, issueID := range req.IssueIDs {
+			for _, lid := range req.LabelIDs {
+				tx.Create(&model.IssueLabel{IssueID: issueID, LabelID: lid})
+			}
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, common.Internal("Failed to commit bulk update")
+	}
+
+	var issues []model.Issue
+	if err := s.db.Preload("State").Preload("IssueType").Preload("AssigneeLinks.User").Preload("LabelLinks.Label").Preload("CycleLink").Where("id IN ?", req.IssueIDs).Find(&issues).Error; err != nil {
+		return nil, common.Internal("Failed to fetch updated issues")
+	}
+
+	results := make([]response.IssueResponse, 0, len(issues))
+	for _, issue := range issues {
+		resp, err := s.BuildIssueResponse(&issue)
 		if err != nil {
-			continue // Skip failed, continue with others
+			continue
 		}
 		results = append(results, *resp)
 	}
@@ -908,8 +1030,16 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 
 // BulkDelete deletes multiple issues.
 func (s *IssueService) BulkDelete(issueIDs []uint64) error {
-	for _, id := range issueIDs {
-		s.Delete(id)
+	if len(issueIDs) == 0 {
+		return nil
+	}
+	tx := s.db.Begin()
+	if err := tx.Where("id IN ?", issueIDs).Delete(&model.Issue{}).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to bulk delete issues")
+	}
+	if err := tx.Commit().Error; err != nil {
+		return common.Internal("Failed to commit bulk delete")
 	}
 	return nil
 }
@@ -1055,20 +1185,47 @@ func strPtr(s string) *string {
 
 // validateStateTransition checks if moving from oldState to newState is allowed
 // by any active workflow in the project. Returns nil if allowed, error if blocked.
-func (s *IssueService) validateStateTransition(projectID, oldStateID, newStateID uint64) error {
+func (s *IssueService) validateStateTransition(projectID, oldStateID, newStateID, userID uint64) error {
 	var workflows []model.Workflow
 	s.db.Where("project_id = ? AND is_active = ?", projectID, true).Find(&workflows)
 	if len(workflows) == 0 {
 		return nil // no workflows configured = allow all transitions
 	}
 	for _, wf := range workflows {
-		var count int64
-		s.db.Model(&model.StateTransition{}).
-			Where("workflow_id = ? AND source_state_id = ? AND target_state_id = ?",
-				wf.ID, oldStateID, newStateID).Count(&count)
-		if count > 0 {
-			return nil // allowed
+		var transition model.StateTransition
+		err := s.db.Where("workflow_id = ? AND source_state_id = ? AND target_state_id = ?",
+			wf.ID, oldStateID, newStateID).First(&transition).Error
+		if err != nil {
+			continue // not found in this workflow, try next
 		}
+		// Transition found — check rule_type
+		if transition.RuleType == "allow" {
+			return nil // simple allow, no restriction
+		}
+		if transition.RuleType == "approval" {
+			// Check if the user is an authorized approver
+			if transition.ApproverIDs != nil && *transition.ApproverIDs != "" {
+				allowedIDs := strings.Split(*transition.ApproverIDs, ",")
+				uidStr := fmt.Sprintf("%d", userID)
+				for _, id := range allowedIDs {
+					if strings.TrimSpace(id) == uidStr {
+						return nil // user is an approved approver
+					}
+				}
+			}
+			// Check role-based approval
+			if transition.RoleAllowed != "" {
+				var user model.User
+				if s.db.First(&user, userID).Error == nil {
+					// If role matches, allow
+					if transition.RoleAllowed == "admin" || transition.RoleAllowed == "workspace_admin" {
+						return nil
+					}
+				}
+			}
+			return common.BadRequest("Approval required: you are not authorized to approve this transition")
+		}
+		return nil // unknown rule_type, allow
 	}
 	var oldSt, newSt model.State
 	s.db.First(&oldSt, oldStateID)
@@ -1079,81 +1236,16 @@ func (s *IssueService) validateStateTransition(projectID, oldStateID, newStateID
 }
 
 // runAutomations executes automation rules for a given trigger type on an issue.
-// Called after state changes, issue creation, etc.
-func (s *IssueService) runAutomations(tx *gorm.DB, issueID uint64, triggerType string) {
+// Called after transaction commit — uses the automation service's full engine.
+func (s *IssueService) runAutomations(issueID uint64, triggerType string, context map[string]interface{}) {
+	if s.automationSvc == nil {
+		return
+	}
 	var issue model.Issue
-	if err := tx.First(&issue, issueID).Error; err != nil {
+	if err := s.db.First(&issue, issueID).Error; err != nil {
 		return
 	}
-
-	var rules []model.AutomationRule
-	tx.Where("project_id = ? AND trigger_type = ? AND is_enabled = ?",
-		issue.ProjectID, triggerType, true).Order("sequence").Find(&rules)
-
-	for _, rule := range rules {
-		// Parse conditions
-		if rule.Conditions != "" && rule.Conditions != "[]" {
-			if !s.matchAutomationConditions(tx, &issue, rule.Conditions) {
-				continue
-			}
-		}
-		// Execute actions
-		s.executeAutomationActions(tx, &issue, rule.Actions)
-	}
-}
-
-// matchAutomationConditions checks if the issue matches all conditions.
-func (s *IssueService) matchAutomationConditions(tx *gorm.DB, issue *model.Issue, conditionsJSON string) bool {
-	condStr := conditionsJSON
-	if condStr == "" || condStr == "[]" {
-		return true
-	}
-	// For now, check via string containment for known patterns
-	// priority equals: check issue.Priority
-	if issue.Priority == "urgent" && containsStr(condStr, `"value":"urgent"`) {
-		return true
-	}
-	if containsStr(condStr, `"field":"state_group"`) && containsStr(condStr, `"value":"completed"`) {
-		var st model.State
-		if tx.First(&st, issue.StateID).Error == nil && st.Group == "completed" {
-			return true
-		}
-	}
-	return false
-}
-
-// executeAutomationActions performs the actions defined in the rule.
-func (s *IssueService) executeAutomationActions(tx *gorm.DB, issue *model.Issue, actionsJSON string) {
-	if actionsJSON == "" || actionsJSON == "[]" {
-		return
-	}
-	// Execute known action patterns
-	if containsStr(actionsJSON, `"type":"assign"`) {
-		// Extract assignee user ID (value field)
-		// For simplicity: assign to user ID 1 (admin)
-		var existing int64
-		tx.Model(&model.IssueAssignee{}).Where("issue_id = ? AND user_id = ?", issue.ID, 1).Count(&existing)
-		if existing == 0 {
-			tx.Create(&model.IssueAssignee{IssueID: issue.ID, UserID: 1})
-		}
-	}
-	if containsStr(actionsJSON, `"type":"set_timestamp"`) && containsStr(actionsJSON, `"completed_at"`) {
-		now := time.Now()
-		tx.Model(issue).Update("completed_at", now)
-	}
-}
-
-func containsStr(s, substr string) bool {
-	return len(s) >= len(substr) && findSubstr(s, substr)
-}
-
-func findSubstr(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+	_ = s.automationSvc.ExecuteTrigger(issue.ProjectID, triggerType, issueID, context)
 }
 
 // ImportFromJSON imports issues from a JSON array.

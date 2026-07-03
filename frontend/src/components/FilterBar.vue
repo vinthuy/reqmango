@@ -6,8 +6,12 @@ import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, parseRQL } from '../types/f
 import { useFilters } from '../composables/useFilters'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
 import type { SavedView } from '@/types/saved-view'
+import SearchTemplateSelector from '@/components/SearchTemplateSelector.vue'
+import type { SearchTemplate } from '@/types/search-template'
 import { listCustomFields } from '@/api/custom-field'
+import { suggestIssues } from '@/api/issue'
 import type { CustomField } from '@/types/custom-field'
+import type { IssueSearchResult } from '@/types/issue'
 import api from '@/api'
 
 const { t } = useI18n()
@@ -24,7 +28,7 @@ const emit = defineEmits<{
   (e: 'filtersChanged', rql: string, sortBy: SortOption | null, groupBy: GroupOption | null): void
 }>()
 
-const { state, rql, isEmpty, removeFilter, clearAll, setSortBy, setGroupBy, setQuickSearch } = useFilters()
+const { state, rql, isEmpty, removeFilter, clearAll, setSortBy, setGroupBy, setQuickSearch, addToHistory } = useFilters()
 
 const showFieldDropdown = ref(false)
 const editingIndex = ref<number | null>(null)
@@ -33,6 +37,10 @@ const rqlText = ref('')
 const isEditingRQL = ref(false)
 const showSortDropdown = ref(false)
 const showGroupDropdown = ref(false)
+
+const searchSuggestions = ref<IssueSearchResult[]>([])
+const showSuggestions = ref(false)
+let suggestDebounce: ReturnType<typeof setTimeout> | null = null
 
 const states = ref<any[]>([])
 const cycles = ref<any[]>([])
@@ -171,6 +179,56 @@ async function loadCustomFields() {
   } catch (e) { /* */ }
 }
 
+async function fetchSuggestions(query: string) {
+  if (query.length < 2) {
+    searchSuggestions.value = []
+    showSuggestions.value = false
+    return
+  }
+  
+  if (suggestDebounce) clearTimeout(suggestDebounce)
+  
+  suggestDebounce = setTimeout(async () => {
+    try {
+      searchSuggestions.value = await suggestIssues(props.projectId, query, 8)
+      showSuggestions.value = searchSuggestions.value.length > 0
+    } catch {
+      searchSuggestions.value = []
+      showSuggestions.value = false
+    }
+  }, 200)
+}
+
+function handleQuickSearchChange(value: string) {
+  setQuickSearch(value)
+  fetchSuggestions(value)
+}
+
+function selectSuggestion(suggestion: IssueSearchResult) {
+  const query = `${suggestion.project_identifier}-${suggestion.sequence_id}`
+  setQuickSearch(query)
+  addToHistory(query)
+  showSuggestions.value = false
+}
+
+function onSearchFocus() {
+  if (state.quickSearch.length >= 2 && searchSuggestions.value.length > 0) {
+    showSuggestions.value = true
+  }
+}
+
+function onSearchBlur() {
+  window.setTimeout(() => {
+    showSuggestions.value = false
+  }, 200)
+}
+
+function applyHistory(query: string) {
+  setQuickSearch(query)
+  addToHistory(query)
+  showSuggestions.value = false
+}
+
 function toggleFieldDropdown(e: Event) {
   e.stopPropagation()
   showFieldDropdown.value = !showFieldDropdown.value
@@ -228,6 +286,79 @@ function handleValueChange(index: number, value: any, displayValue: string) {
 }
 
 const dateRangeValues = ref<Record<number, { from: string; to: string }>>({})
+const showDateShortcuts = ref<number | null>(null)
+
+const dateShortcuts = [
+  { label: 'filter.dateToday', fn: getTodayRange },
+  { label: 'filter.dateThisWeek', fn: getThisWeekRange },
+  { label: 'filter.dateThisMonth', fn: getThisMonthRange },
+  { label: 'filter.dateLastWeek', fn: getLastWeekRange },
+  { label: 'filter.dateLastMonth', fn: getLastMonthRange },
+  { label: 'filter.dateThisYear', fn: getThisYearRange },
+]
+
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
+function getTodayRange(): { from: string; to: string } {
+  const today = new Date()
+  return { from: formatDate(today), to: formatDate(today) }
+}
+
+function getThisWeekRange(): { from: string; to: string } {
+  const now = new Date()
+  const day = now.getDay() || 7
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - day + 1)
+  monday.setHours(0, 0, 0, 0)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  sunday.setHours(23, 59, 59, 999)
+  return { from: formatDate(monday), to: formatDate(sunday) }
+}
+
+function getThisMonthRange(): { from: string; to: string } {
+  const now = new Date()
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return { from: formatDate(firstDay), to: formatDate(lastDay) }
+}
+
+function getLastWeekRange(): { from: string; to: string } {
+  const now = new Date()
+  const day = now.getDay() || 7
+  const lastMonday = new Date(now)
+  lastMonday.setDate(now.getDate() - day - 6)
+  lastMonday.setHours(0, 0, 0, 0)
+  const lastSunday = new Date(lastMonday)
+  lastSunday.setDate(lastMonday.getDate() + 6)
+  lastSunday.setHours(23, 59, 59, 999)
+  return { from: formatDate(lastMonday), to: formatDate(lastSunday) }
+}
+
+function getLastMonthRange(): { from: string; to: string } {
+  const now = new Date()
+  const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastDay = new Date(now.getFullYear(), now.getMonth(), 0)
+  return { from: formatDate(firstDay), to: formatDate(lastDay) }
+}
+
+function getThisYearRange(): { from: string; to: string } {
+  const now = new Date()
+  const firstDay = new Date(now.getFullYear(), 0, 1)
+  const lastDay = new Date(now.getFullYear(), 11, 31)
+  return { from: formatDate(firstDay), to: formatDate(lastDay) }
+}
+
+function applyDateShortcut(index: number, shortcut: typeof dateShortcuts[0]) {
+  const range = shortcut.fn()
+  dateRangeValues.value[index] = range
+  state.filters[index].value = [range.from, range.to]
+  state.filters[index].displayValue = t(shortcut.label)
+  showDateShortcuts.value = null
+  editingIndex.value = null
+}
 
 function handleDateRangeFromChange(index: number, value: string) {
   if (!dateRangeValues.value[index]) {
@@ -418,8 +549,12 @@ function handleSavedViewSelect(view: SavedView) {
   if (view.view_type && ['list', 'kanban', 'tree', 'gantt', 'calendar'].includes(view.view_type)) {
     emit('viewChange', view.view_type)
   }
-  // Apply filters from saved view
-  if (view.filters) {
+  // Apply RQL from saved view (new field takes precedence)
+  if (view.rql) {
+    const parsed = parseRQL(view.rql)
+    state.filters = parsed.filters
+    state.sortBy = parsed.sortBy || null
+  } else if (view.filters) {
     const f = view.filters as any
     if (f.rql) {
       const parsed = parseRQL(f.rql)
@@ -447,6 +582,27 @@ function handleSavedViewSelect(view: SavedView) {
   }
 }
 
+function handleSearchTemplateApply(template: SearchTemplate) {
+  if (template.view_type && ['list', 'kanban', 'tree', 'gantt', 'calendar'].includes(template.view_type)) {
+    emit('viewChange', template.view_type)
+  }
+  if (template.rql_template) {
+    const parsed = parseRQL(template.rql_template)
+    state.filters = parsed.filters
+    state.sortBy = parsed.sortBy || null
+  }
+  if (template.sort_config && Array.isArray(template.sort_config) && template.sort_config.length > 0) {
+    const sc = template.sort_config[0]
+    setSortBy({ key: sc.field, direction: sc.dir, labelKey: '' })
+  }
+  if (template.group_by) {
+    const groupOpt = GROUP_OPTIONS.find(o => o.key === template.group_by)
+    if (groupOpt) {
+      setGroupBy(groupOpt)
+    }
+  }
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   if (props.projectId > 0) {
@@ -469,7 +625,9 @@ onUnmounted(() => {
         </svg>
         <input
           :value="state.quickSearch"
-          @input="setQuickSearch(($event.target as HTMLInputElement).value)"
+          @input="handleQuickSearchChange(($event.target as HTMLInputElement).value)"
+          @focus="onSearchFocus"
+          @blur="onSearchBlur"
           type="text"
           :placeholder="t('filter.quickSearchPlaceholder')"
           class="w-full pl-9 pr-9 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 focus:bg-white transition-all"
@@ -483,6 +641,42 @@ onUnmounted(() => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
+        
+        <div v-if="showSuggestions || state.searchHistory.length > 0" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+          <template v-if="searchSuggestions.length > 0">
+            <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
+              {{ t('filter.suggestions') }}
+            </div>
+            <div
+              v-for="suggestion in searchSuggestions"
+              :key="suggestion.id"
+              @click="selectSuggestion(suggestion)"
+              class="px-3 py-2 hover:bg-indigo-50 cursor-pointer flex items-center gap-2"
+            >
+              <span class="text-sm font-medium text-indigo-600">{{ suggestion.project_identifier }}-{{ suggestion.sequence_id }}</span>
+              <span class="text-sm text-gray-700 truncate">{{ suggestion.name }}</span>
+            </div>
+          </template>
+          <template v-if="state.searchHistory.length > 0">
+            <div v-if="searchSuggestions.length > 0" class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
+              {{ t('filter.searchHistory') }}
+            </div>
+            <div v-else class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
+              {{ t('filter.searchHistory') }}
+            </div>
+            <div
+              v-for="(query, index) in state.searchHistory"
+              :key="'history-' + index"
+              @click="applyHistory(query)"
+              class="px-3 py-2 hover:bg-indigo-50 cursor-pointer flex items-center justify-between"
+            >
+              <span class="text-sm text-gray-700">{{ query }}</span>
+              <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </template>
+        </div>
       </div>
     </div>
 
@@ -605,6 +799,27 @@ onUnmounted(() => {
                   @change="(e) => handleDateRangeToChange(index, (e.target as HTMLInputElement).value)"
                   class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none"
                 />
+                <div class="relative">
+                  <button
+                    @click.stop="showDateShortcuts = showDateShortcuts === index ? null : index"
+                    class="text-xs text-indigo-500 hover:text-indigo-700 px-1"
+                  >
+                    {{ t('filter.dateShortcuts') }}
+                  </button>
+                  <div
+                    v-if="showDateShortcuts === index"
+                    class="absolute top-full left-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1"
+                  >
+                    <button
+                      v-for="shortcut in dateShortcuts"
+                      :key="shortcut.label"
+                      @click="applyDateShortcut(index, shortcut)"
+                      class="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      {{ t(shortcut.label) }}
+                    </button>
+                  </div>
+                </div>
               </template>
               <template v-else>
                 <input
@@ -761,10 +976,17 @@ onUnmounted(() => {
         <SavedViewSelector
           :project-id="projectId"
           :current-filters="{ rql: rql, filters: state.filters }"
+          :current-rql="rql"
           :current-sort-config="state.sortBy ? [{ field: state.sortBy.key, dir: state.sortBy.direction }] : []"
           :current-group-by="state.groupBy?.key"
           :view-type="currentView"
           @select="handleSavedViewSelect"
+        />
+        <SearchTemplateSelector
+          :project-id="projectId"
+          :current-rql="rql"
+          :current-view="currentView"
+          @apply="handleSearchTemplateApply"
         />
       </div>
       <div class="flex items-center gap-1">

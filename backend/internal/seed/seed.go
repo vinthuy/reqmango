@@ -21,6 +21,7 @@ func SeedAll(db *gorm.DB) {
 	SeedDemoData(db)
 	SeedConfigData(db)
 	SeedIssueTypesForAllWorkspaces(db)
+	SeedSearchTemplates(db)
 
 	fmt.Println("=== Data initialization complete ===")
 }
@@ -1021,6 +1022,121 @@ func weightedRandom(weights []int, rng *rand.Rand) int {
 		}
 	}
 	return len(weights) - 1
+}
+
+func SeedSearchTemplates(db *gorm.DB) {
+	fmt.Println("--- Seeding search templates ---")
+
+	var projects []model.Project
+	db.Find(&projects)
+	if len(projects) == 0 {
+		fmt.Println("  No projects found, skipping search templates")
+		return
+	}
+
+	builtInTemplates := []struct {
+		Name        string
+		Description string
+		Icon        string
+		RQLTemplate string
+		ViewType    string
+		SortConfig  string
+		GroupBy     *string
+	}{
+		{
+			Name:        "我的待办",
+			Description: "分配给我的所有待处理任务",
+			Icon:        "📝",
+			RQLTemplate: "state_group IN ('backlog', 'unstarted', 'started') AND assignee_id IN ($CURRENT_USER)",
+			ViewType:    "list",
+			SortConfig:  `[{"field":"priority","dir":"desc"},{"field":"target_date","dir":"asc"}]`,
+		},
+		{
+			Name:        "本周到期",
+			Description: "本周即将到期的任务",
+			Icon:        "⏰",
+			RQLTemplate: "target_date >= $TODAY AND target_date <= $END_OF_WEEK AND state_group != 'completed'",
+			ViewType:    "list",
+			SortConfig:  `[{"field":"target_date","dir":"asc"}]`,
+		},
+		{
+			Name:        "高优先级",
+			Description: "所有高优先级和紧急任务",
+			Icon:        "🚨",
+			RQLTemplate: "priority IN ('high', 'urgent') AND state_group != 'completed'",
+			ViewType:    "list",
+			SortConfig:  `[{"field":"priority","dir":"desc"},{"field":"created_at","dir":"desc"}]`,
+		},
+		{
+			Name:        "我的已完成",
+			Description: "我完成的任务",
+			Icon:        "✅",
+			RQLTemplate: "state_group = 'completed' AND assignee_id IN ($CURRENT_USER)",
+			ViewType:    "list",
+			SortConfig:  `[{"field":"completed_at","dir":"desc"}]`,
+		},
+		{
+			Name:        "未分配任务",
+			Description: "还没有分配人的任务",
+			Icon:        "👤",
+			RQLTemplate: "assignee_id IS NULL AND state_group != 'completed'",
+			ViewType:    "list",
+			SortConfig:  `[{"field":"created_at","dir":"asc"}]`,
+		},
+		{
+			Name:        "需要关注",
+			Description: "超过一周未更新的任务",
+			Icon:        "🔔",
+			RQLTemplate: "updated_at <= $ONE_WEEK_AGO AND state_group != 'completed'",
+			ViewType:    "list",
+			SortConfig:  `[{"field":"updated_at","dir":"asc"}]`,
+		},
+		{
+			Name:        "待审核",
+			Description: "等待审核的任务",
+			Icon:        "🔍",
+			RQLTemplate: "state_group = 'review'",
+			ViewType:    "list",
+			SortConfig:  `[{"field":"updated_at","dir":"desc"}]`,
+		},
+		{
+			Name:        "看板视图",
+			Description: "按状态分组的看板视图",
+			Icon:        "📋",
+			RQLTemplate: "",
+			ViewType:    "kanban",
+			SortConfig:  `[{"field":"priority","dir":"desc"}]`,
+		},
+	}
+
+	for _, proj := range projects {
+		for _, bt := range builtInTemplates {
+			var exists model.SearchTemplate
+			if db.Where("project_id = ? AND name = ? AND is_built_in = ?", proj.ID, bt.Name, true).First(&exists).Error == nil {
+				continue
+			}
+
+			t := &model.SearchTemplate{
+				Name:        bt.Name,
+				Icon:        bt.Icon,
+				RQLTemplate: bt.RQLTemplate,
+				ViewType:    bt.ViewType,
+				SortConfig:  []byte(bt.SortConfig),
+				GroupBy:     bt.GroupBy,
+				IsBuiltIn:   true,
+				IsPublic:    true,
+				OwnerID:     nil,
+				ProjectID:   proj.ID,
+			}
+			desc := bt.Description
+			t.Description = &desc
+
+			if err := db.Create(t).Error; err != nil {
+				fmt.Printf("  WARN: failed to create search template %s for project %d: %v\n", bt.Name, proj.ID, err)
+			}
+		}
+	}
+	fmt.Printf("  Created search templates for %d projects\n", len(projects))
 }
 
 // SeedIssueTypesForAllWorkspaces ensures every workspace has issue types.

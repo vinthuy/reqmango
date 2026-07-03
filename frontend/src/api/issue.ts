@@ -180,6 +180,24 @@ export async function searchIssues(
   return response.data
 }
 
+/**
+ * 获取搜索建议
+ */
+export async function suggestIssues(
+  projectId: number,
+  query: string,
+  limit?: number
+): Promise<IssueSearchResult[]> {
+  const params = new URLSearchParams()
+  params.append('project_id', projectId.toString())
+  params.append('query', query)
+  
+  if (limit) params.append('limit', limit.toString())
+  
+  const response = await api.get(`/issues/suggest?${params.toString()}`)
+  return response.data
+}
+
 // ==================== Bulk Operations ====================
 
 /**
