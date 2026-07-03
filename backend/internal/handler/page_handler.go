@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -25,7 +26,7 @@ func (h *PageHandler) getProjectID(c *gin.Context) (uint64, error) {
 	return strconv.ParseUint(c.Param("projectId"), 10, 64)
 }
 
-func (h *PageHandler) getUserID(c *gin.Context) uint64 {
+func getUserIDFromContext(c *gin.Context) uint64 {
 	user, exists := c.Get("currentUser")
 	if !exists {
 		return 0
@@ -34,6 +35,10 @@ func (h *PageHandler) getUserID(c *gin.Context) uint64 {
 		return u.ID
 	}
 	return 0
+}
+
+func (h *PageHandler) getUserID(c *gin.Context) uint64 {
+	return getUserIDFromContext(c)
 }
 
 // List handles GET /projects/:projectId/pages
@@ -290,4 +295,120 @@ func (h *PageHandler) ListChildren(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, children)
+}
+
+// Lock handles POST /projects/:projectId/pages/:pageId/lock
+func (h *PageHandler) Lock(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+	pageID, err := strconv.ParseUint(c.Param("pageId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid page ID"})
+		return
+	}
+
+	page, svcErr := h.svc.Lock(pageID, projectID, h.getUserID(c))
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, page)
+}
+
+// Unlock handles POST /projects/:projectId/pages/:pageId/unlock
+func (h *PageHandler) Unlock(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+	pageID, err := strconv.ParseUint(c.Param("pageId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid page ID"})
+		return
+	}
+
+	page, svcErr := h.svc.Unlock(pageID, projectID, h.getUserID(c))
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, page)
+}
+
+// Export handles GET /projects/:projectId/pages/:pageId/export?format=md|html|txt
+func (h *PageHandler) Export(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+	pageID, err := strconv.ParseUint(c.Param("pageId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid page ID"})
+		return
+	}
+
+	format := c.DefaultQuery("format", "md")
+	filename, content, svcErr := h.svc.GetForExport(pageID, projectID, format)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	contentTypes := map[string]string{
+		"md":   "text/markdown; charset=utf-8",
+		"html": "text/html; charset=utf-8",
+		"txt":  "text/plain; charset=utf-8",
+	}
+	ct, ok := contentTypes[format]
+	if !ok {
+		ct = "text/plain; charset=utf-8"
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Data(http.StatusOK, ct, []byte(content))
+}
+
+// ConvertToIssue handles POST /projects/:projectId/pages/:pageId/convert-to-issue
+func (h *PageHandler) ConvertToIssue(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+	pageID, err := strconv.ParseUint(c.Param("pageId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid page ID"})
+		return
+	}
+
+	var req request.PageConvertRequest
+	c.ShouldBindJSON(&req)
+
+	issue, svcErr := h.svc.ConvertToIssue(pageID, projectID, h.getUserID(c), req.IssueTypeID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "Issue created", "issue": issue})
 }

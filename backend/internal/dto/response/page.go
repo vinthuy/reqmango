@@ -13,9 +13,19 @@ type PageResponse struct {
 	Sequence    int        `json:"sequence"`
 	ParentID    *uint64    `json:"parent_id"`
 	Depth       int        `json:"depth"`
-	ProjectID   uint64     `json:"project_id"`
-	WorkspaceID uint64     `json:"workspace_id"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	Children    []PageResponse `json:"children,omitempty"`
+
+	// Locking
+	LockedByID   *uint64    `json:"locked_by_id"`
+	LockedAt     *time.Time `json:"locked_at"`
+	LockedByName string     `json:"locked_by_name,omitempty"`
+
+	ProjectID   uint64 `json:"project_id"`
+	WorkspaceID uint64 `json:"workspace_id"`
+
+	CreatedByID *uint64   `json:"created_by_id"`
+	UpdatedByID *uint64   `json:"updated_by_id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+
+	Children []PageResponse `json:"children,omitempty"`
 }

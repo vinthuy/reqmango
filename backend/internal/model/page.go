@@ -18,6 +18,10 @@ type Page struct {
 	ParentID *uint64 `gorm:"index" json:"parent_id"`
 	Depth    int     `gorm:"default:0" json:"depth"` // max 5
 
+	// Locking (optimistic concurrency control)
+	LockedByID *uint64    `gorm:"column:locked_by_id" json:"locked_by_id"`
+	LockedAt   *time.Time `json:"locked_at"`
+
 	ProjectID   uint64 `gorm:"not null;index" json:"project_id"`
 	WorkspaceID uint64 `gorm:"not null" json:"workspace_id"`
 
@@ -25,6 +29,7 @@ type Page struct {
 	Project  Project `gorm:"foreignKey:ProjectID" json:"-"`
 	Parent   *Page   `gorm:"foreignKey:ParentID" json:"-"`
 	Children []Page  `gorm:"foreignKey:ParentID" json:"-"`
+	LockedBy *User   `gorm:"foreignKey:LockedByID" json:"-"`
 }
 
 func (Page) TableName() string {

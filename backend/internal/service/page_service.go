@@ -1,6 +1,10 @@
 package service
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
@@ -10,12 +14,16 @@ import (
 
 // PageService handles page business logic.
 type PageService struct {
-	db *gorm.DB
+	db              *gorm.DB
+	versionSvc      *PageVersionService
 }
 
 // NewPageService creates a new PageService.
 func NewPageService(db *gorm.DB) *PageService {
-	return &PageService{db: db}
+	return &PageService{
+		db:         db,
+		versionSvc: NewPageVersionService(db),
+	}
 }
 
 // List returns all pages for a project (flat list, not tree).
@@ -122,7 +130,7 @@ func (s *PageService) Create(req *request.PageCreateRequest, projectID, workspac
 	return &resp, nil
 }
 
-// Update updates a page.
+// Update updates a page. Auto-saves a version snapshot if content changed.
 func (s *PageService) Update(pageID, projectID, userID uint64, req *request.PageUpdateRequest) (*response.PageResponse, error) {
 	var p model.Page
 	if err := s.db.Where("id = ? AND project_id = ?", pageID, projectID).First(&p).Error; err != nil {
@@ -132,15 +140,28 @@ func (s *PageService) Update(pageID, projectID, userID uint64, req *request.Page
 		return nil, common.Internal("Failed to fetch page")
 	}
 
+	// Check lock
+	if p.LockedByID != nil && *p.LockedByID != userID && p.LockedAt != nil {
+		lockAge := time.Since(*p.LockedAt)
+		if lockAge < 30*time.Minute {
+			return nil, common.Validation("Page is locked by another user")
+		}
+		// Auto-release lock after 30 minutes
+	}
+
+	contentChanged := false
 	updates := map[string]interface{}{}
-	if req.Title != nil {
+	if req.Title != nil && *req.Title != p.Title {
 		updates["title"] = *req.Title
+		contentChanged = true
 	}
-	if req.Content != nil {
+	if req.Content != nil && *req.Content != p.Content {
 		updates["content"] = *req.Content
+		contentChanged = true
 	}
-	if req.ContentJSON != nil {
+	if req.ContentJSON != nil && (p.ContentJSON == nil || *req.ContentJSON != *p.ContentJSON) {
 		updates["content_json"] = req.ContentJSON
+		contentChanged = true
 	}
 	if req.Published != nil {
 		updates["published"] = *req.Published
@@ -155,9 +176,134 @@ func (s *PageService) Update(pageID, projectID, userID uint64, req *request.Page
 			return nil, common.Internal("Failed to update page")
 		}
 		s.db.First(&p, p.ID)
+
+		// Auto-save version if content changed
+		if contentChanged {
+			s.versionSvc.SaveVersion(p.ID, p.Title, p.Content, p.ContentJSON, userID)
+		}
 	}
 	resp := pageToResponse(&p)
 	return &resp, nil
+}
+
+// Lock locks a page for editing by a user.
+func (s *PageService) Lock(pageID, projectID, userID uint64) (*response.PageResponse, error) {
+	var p model.Page
+	if err := s.db.Where("id = ? AND project_id = ?", pageID, projectID).First(&p).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, common.NotFound("Page not found")
+		}
+		return nil, common.Internal("Failed to fetch page")
+	}
+
+	// Check if already locked by someone else
+	if p.LockedByID != nil && *p.LockedByID != userID && p.LockedAt != nil {
+		if time.Since(*p.LockedAt) < 30*time.Minute {
+			return nil, common.Validation("Page is currently locked by another user")
+		}
+	}
+
+	now := time.Now()
+	updates := map[string]interface{}{
+		"locked_by_id": userID,
+		"locked_at":    now,
+	}
+	if err := s.db.Model(&p).Updates(updates).Error; err != nil {
+		return nil, common.Internal("Failed to lock page")
+	}
+	s.db.First(&p, p.ID)
+	resp := pageToResponse(&p)
+	return &resp, nil
+}
+
+// Unlock unlocks a page.
+func (s *PageService) Unlock(pageID, projectID, userID uint64) (*response.PageResponse, error) {
+	var p model.Page
+	if err := s.db.Where("id = ? AND project_id = ?", pageID, projectID).First(&p).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, common.NotFound("Page not found")
+		}
+		return nil, common.Internal("Failed to fetch page")
+	}
+
+	// Only the locker or anyone can unlock after timeout
+	if p.LockedByID != nil && *p.LockedByID != userID && p.LockedAt != nil {
+		if time.Since(*p.LockedAt) < 30*time.Minute {
+			return nil, common.Validation("Page is locked by another user")
+		}
+	}
+
+	updates := map[string]interface{}{
+		"locked_by_id": nil,
+		"locked_at":    nil,
+	}
+	if err := s.db.Model(&p).Updates(updates).Error; err != nil {
+		return nil, common.Internal("Failed to unlock page")
+	}
+	s.db.First(&p, p.ID)
+	resp := pageToResponse(&p)
+	return &resp, nil
+}
+
+// GetForExport returns page content formatted for export.
+func (s *PageService) GetForExport(pageID, projectID uint64, format string) (string, string, error) {
+	var p model.Page
+	if err := s.db.Where("id = ? AND project_id = ?", pageID, projectID).First(&p).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", "", common.NotFound("Page not found")
+		}
+		return "", "", common.Internal("Failed to fetch page")
+	}
+
+	content := p.Content
+	if content == "" && p.ContentJSON != nil {
+		content = *p.ContentJSON
+	}
+
+	switch strings.ToLower(format) {
+	case "md", "markdown":
+		md := fmt.Sprintf("# %s\n\n%s\n\n---\n*Exported from ReqMango on %s*", p.Title, content, time.Now().Format("2006-01-02 15:04"))
+		return p.Title + ".md", md, nil
+	case "html":
+		html := fmt.Sprintf(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>%s</title></head><body><h1>%s</h1>%s<hr><em>Exported from ReqMango on %s</em></body></html>`,
+			p.Title, p.Title, content, time.Now().Format("2006-01-02 15:04"))
+		return p.Title + ".html", html, nil
+	default:
+		return p.Title + ".txt", content, nil
+	}
+}
+
+// ConvertToIssue converts a page into a new issue.
+func (s *PageService) ConvertToIssue(pageID, projectID, userID uint64, issueTypeID *uint64) (*model.Issue, error) {
+	var p model.Page
+	if err := s.db.Where("id = ? AND project_id = ?", pageID, projectID).First(&p).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, common.NotFound("Page not found")
+		}
+		return nil, common.Internal("Failed to fetch page")
+	}
+
+	// Create issue from page content
+	issue := &model.Issue{
+		Name:          p.Title,
+		DescriptionHTML: p.Content,
+		ProjectID:     p.ProjectID,
+		WorkspaceID:   p.WorkspaceID,
+	}
+	issue.CreatedByID = &userID
+
+	if issueTypeID != nil {
+		issue.IssueTypeID = issueTypeID
+	}
+
+	if err := s.db.Create(issue).Error; err != nil {
+		return nil, common.Internal("Failed to create issue from page")
+	}
+
+	// Link the page to the issue
+	s.db.Exec("INSERT INTO issue_pages (issue_id, page_id) VALUES (?, ?) ON CONFLICT DO NOTHING", issue.ID, p.ID)
+
+	return issue, nil
 }
 
 // Delete soft-deletes a page.
@@ -250,7 +396,7 @@ func (s *PageService) Move(pageID, projectID uint64, req *request.PageMoveReques
 // ==================== Helpers ====================
 
 func pageToResponse(p *model.Page) response.PageResponse {
-	return response.PageResponse{
+	resp := response.PageResponse{
 		ID:          p.ID,
 		Title:       p.Title,
 		Content:     p.Content,
@@ -260,10 +406,18 @@ func pageToResponse(p *model.Page) response.PageResponse {
 		Sequence:    p.Sequence,
 		ParentID:    p.ParentID,
 		Depth:       p.Depth,
+		LockedByID:  p.LockedByID,
+		LockedAt:    p.LockedAt,
 		ProjectID:   p.ProjectID,
 		WorkspaceID: p.WorkspaceID,
+		CreatedByID: p.CreatedByID,
+		UpdatedByID: p.UpdatedByID,
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,
 		Children:    nil,
 	}
+	if p.LockedBy != nil {
+		resp.LockedByName = p.LockedBy.DisplayName
+	}
+	return resp
 }
