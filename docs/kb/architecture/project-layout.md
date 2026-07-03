@@ -1,6 +1,6 @@
 ﻿# Project Layout（项目目录结构）
 
-**最后更新**: 2026-06-28
+**最后更新**: 2026-07-03
 
 ---
 
@@ -37,13 +37,13 @@ reqmango/
 ├── frontend/                # Vue 3 前端
 │   ├── src/
 │   │   ├── api/             # 36 个 API 模块
-│   │   ├── types/           # 22 个 TypeScript 类型文件
+│   │   ├── types/           # 22 个 TypeScript 类型文件（含 filters.ts）
 │   │   ├── stores/          # Pinia 状态管理（Auth/Cycle/Module）
-│   │   ├── composables/     # 6 个组合式函数
+│   │   ├── composables/     # 6 个组合式函数（含 useFilters.ts）
 │   │   ├── views/           # 18 个页面级路由组件
-│   │   ├── components/      # 78 个可复用组件
+│   │   ├── components/      # 79 个可复用组件（含 FilterBar.vue）
 │   │   ├── router/          # 20 个路由定义
-│   │   └── locales/         # 前端 i18n (en-US / zh-CN)
+│   │   └── locales/         # 前端 i18n (en-US / zh-CN，含 filter.* 命名空间)
 │   ├── e2e/                 # Playwright E2E 测试（5 文件）
 │   ├── tests/               # Vitest 单元测试（6 文件）
 │   ├── index.html / vite.config.ts / tailwind.config.js

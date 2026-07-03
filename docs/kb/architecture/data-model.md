@@ -1,6 +1,6 @@
 # Data Model（数据模型总览）
 
-**最后更新**: 2026-06-28
+**最后更新**: 2026-07-03
 
 ---
 
@@ -160,7 +160,7 @@ User     1──N Notification
 | 表 | 关键字段 | 说明 |
 |----|----------|------|
 | `releases` | name, version, status, release_date, project_id | 发布版本 |
-| `saved_views` | name, view_type, filters/sort_config/columns (JSONB), group_by, is_default, is_shared, owner_id, project_id | 保存的筛选视图 |
+| `saved_views` | name, view_type, filters/rql/sort_config/columns (JSONB), group_by, is_default, is_shared, owner_id, project_id | 保存的筛选视图（含完整恢复链路） |
 
 ### 通知 (1 表)
 

@@ -416,7 +416,26 @@
       "state_changed": "状态变更",
       "assignee_changed": "负责人变更",
       "comment_added": "评论添加"
-    }
+    },
+    "none": "无",
+    "current": "当前",
+    "default": "默认",
+    "noDescription": "无描述",
+    "enabled": "已启用",
+    "disabled": "已停用",
+    "transitions": "流转规则",
+    "preview": "预览",
+    "workflowNamePlaceholder": "例如：标准工作流",
+    "descriptionOptional": "描述（可选）",
+    "briefDescription": "简要描述",
+    "automationNamePlaceholder": "例如：自动分配Bug",
+    "automationDescriptionPlaceholder": "此自动化做什么？",
+    "conditionsPlaceholder": "[{\"field\":\"priority\",\"operator\":\"equals\",\"value\":\"urgent\"}]",
+    "actionsPlaceholder": "[{\"type\":\"assign\",\"field\":\"assignee\",\"value\":\"1\"}]",
+    "selectMemberPlaceholder": "选择成员...",
+    "add": "添加",
+    "editAutomation": "编辑自动化",
+    "workspaceAutomationsDesc": "工作空间级自动化规则"
   },
   "ai": {
     "title": "AI Assistant",

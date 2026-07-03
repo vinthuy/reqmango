@@ -1,6 +1,6 @@
 # API Conventions（API 设计约定）
 
-**最后更新**: 2026-06-21
+**最后更新**: 2026-07-03
 
 ---
 
@@ -127,21 +127,37 @@ GET /api/v1/issues?page=1&page_size=20
 
 | 接口 | 支持的过滤参数 |
 |------|---------------|
-| `GET /projects/:pid/issues` | `state_id`, `priority`, `search`, `label_id`, `assignee_id`, `cycle_id` |
+| `GET /projects/:pid/issues` | `state_id`, `priority`, `search`, `label_id`, `assignee_id`, `cycle_id`, `rql`, `sort_by`, `sort_order`, `group_by` |
 | `GET /projects/:pid/cycles` | `status` |
 | `GET /projects/:pid/modules` | `include_archived` |
 
 搜索参数 `search` 通常对 `name` 和 `description` 进行模糊匹配。
 
+### RQL 筛选
+
+支持通过 `rql` 查询参数传递 RQL 表达式进行高级筛选：
+
+```
+GET /api/v1/projects/1/issues?rql=priority="urgent" AND state_id IN (1,2)
+```
+
+RQL 支持 18 个字段（含 `state_group`、`assignee_id`、`label`、`cycle_id`、`module_id` 等），支持全文搜索（`LIKE`）、日期范围（`BETWEEN`）、空值检查（`IS NULL`/`IS NOT NULL`）、自定义字段（`cf_` 前缀）。
+
+### SavedView 筛选恢复
+
+视图保存时存储完整状态（`filters` JSONB + `rql` 字符串 + `sort_config` + `columns` + `group_by`），选择视图时全部恢复。
+
 ---
 
 ## 排序
 
-默认按 `created_at DESC`。部分接口支持 `sort_by` + `sort_order`：
+默认按 `created_at DESC`。支持 `sort_by` + `sort_order`：
 
 ```
 GET /api/v1/issues?sort_by=priority&sort_order=asc
 ```
+
+可选排序字段：`created_at`, `updated_at`, `priority`, `start_date`, `target_date`。
 
 ---
 

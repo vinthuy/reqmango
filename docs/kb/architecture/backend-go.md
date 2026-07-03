@@ -1,6 +1,6 @@
 ﻿# Go Backend Architecture（Go 后端架构）
 
-**最后更新**: 2026-06-28
+**最后更新**: 2026-07-03
 
 ---
 
@@ -44,7 +44,7 @@ backend/
 │   │   ├── ai_config.go           # AI 配置（用户级）
 │   │   ├── mcp.go                 # MCP Server 配置
 │   │   ├── automation.go          # AutomationRule（自动规则）
-│   │   ├── saved_view.go          # SavedView（视图预设）
+│   │   ├── saved_view.go          # SavedView（视图预设，含 sort_config/columns/group_by/RQL）
 │   │   ├── project_page_tab.go    # 项目页面 Tab 配置
 │   │   ├── project_update.go      # ProjectUpdate（状态时间线）
 │   │   ├── project_template.go    # ProjectTemplate
@@ -69,7 +69,7 @@ backend/
 │   │   │   ├── initiative.go, release.go, saved_view.go
 │   │   │   ├── role.go
 │   │   │   └── rql.go
-│   │   └── response/              # 响应 DTO（22 个文件）
+│   │   └── response/              # 响应 DTO（22 个文件，saved_view 含 sort_config/columns/group_by）
 │   │       └── 对应 request 文件的响应结构体
 │   ├── service/                    # 业务逻辑（36 个文件）
 │   │   ├── auth_service.go        # JWT 签发与验证

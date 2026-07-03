@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-07-03 — FilterBar 统一筛选栏重构 + SavedView 增强
+
+**类型**: Feature + Documentation
+
+**变更内容**:
+- 新增 `FilterBar.vue` 统一筛选栏组件，替代旧分散筛选组件（IssueFilterBar/QuickFilterChips/RQLInput）
+- 新增 `useFilters.ts` composable（Provide/Inject 架构，RQL 双向同步）
+- 新增 `types/filters.ts`（FilterCondition/FilterField 类型 + FILTER_FIELDS 12 字段 + buildRQL/parseRQL）
+- SavedView 扩展：新增 `sort_config`, `columns`, `group_by`, `rql` 字段
+- RQL executor 增强：新增 `state_group` 字段映射、日期 BETWEEN 语法支持
+- 语义操作符系统：is/is not/contains/is any of/between 等 14 种操作符
+- 筛选字段扩充至 12 个，排序选项 5 种，分组选项 8 种
+- i18n 新增 `filter.*` 命名空间（zh-CN + en-US）
+- KB 同步更新：README.md, architecture/README.md, data-model.md, frontend.md, saved-views-design.md, backend-go.md, project-layout.md
+
+**影响文件**:
+- 前端新增：FilterBar.vue, useFilters.ts, types/filters.ts
+- 后端修改：saved_view.go (model/dto), executor.go (state_group), issue_handler.go (sort)
+- 修改文件：Project.vue, IssueList.vue, SavedViewSelector.vue, locales/*.json
+
+---
+
 ## 2026-06-27 — 差距补全计划收官：28/28 Tasks + KB 最终同步
 
 **类型**: Feature + Documentation

@@ -1,6 +1,6 @@
 # Frontend Architecture（前端架构）
 
-**最后更新**: 2026-06-27
+**最后更新**: 2026-07-03
 
 ---
 
@@ -42,6 +42,7 @@ frontend/src/
 │   ├── index.ts
 │   ├── ai.ts, attachment.ts, comment.ts
 │   ├── custom-field.ts, cycle.ts, estimate-point.ts
+│   ├── filters.ts          — 筛选条件类型 + FILTER_FIELDS + buildRQL/parseRQL
 │   ├── issue.ts, issue-type.ts, module.ts
 │   ├── notification.ts, page.ts, project.ts
 │   ├── project-settings.ts, release.ts, saved-view.ts
@@ -63,7 +64,7 @@ frontend/src/
 │   ├── CustomFields.vue, IssueTypeList.vue
 │   ├── IntakeForm.vue, WorkflowDetail.vue
 │
-├── components/ (57 组件)
+├── components/ (58 组件)
 │   ├── AI: AIChatSidebar.vue, AICreateDialog.vue, AISettingsPanel.vue
 │   ├── Palette: CommandPalette.vue
 │   ├── Issue: IssueCard.vue, IssueList.vue, IssueKanban.vue,
@@ -85,6 +86,7 @@ frontend/src/
 │   ├── Release: ReleaseList.vue
 │   ├── Estimate: EstimatePointManager.vue
 │   ├── Page: PageTree.vue
+│   ├── Filter: FilterBar.vue — 统一筛选栏（替代旧筛选组件）
 │   ├── View: SavedViewSelector.vue, QuickFilterChips.vue
 │   ├── Import: ImportIssuesModal.vue, QuickCreateInput.vue
 │   ├── Common: CommentList.vue, AttachmentManager.vue,
@@ -95,10 +97,12 @@ frontend/src/
 │   │           RelationTypeManager.vue, WorkspaceMemberList.vue
 │   └── RQL: RQLHistory.vue, RQLInput.vue
 │
-└── composables/ (3 组合式函数)
-    ├── useConfirm.ts — 确认对话框
-    ├── useRQL.ts     — RQL 查询历史
-    └── useAI.ts      — AI SSE 消费
+└── composables/ (5 组合式函数)
+    ├── useConfirm.ts  — 确认对话框
+    ├── useRQL.ts      — RQL 查询历史
+    ├── useAI.ts       — AI SSE 消费
+    ├── useFilters.ts  — 筛选状态管理（Provide/Inject 架构，RQL 双向同步）
+    └── usePermission.ts — RBAC 权限检查
 ```
 
 ## 路由表

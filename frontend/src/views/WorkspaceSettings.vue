@@ -188,8 +188,8 @@ onMounted(() => { loadWorkspace(); });
       <div v-if="!loading && activeSection === 'automations'" class="p-6">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h1 class="text-xl font-semibold text-gray-900">Automations</h1>
-            <p class="text-sm text-gray-500 mt-1">Workspace-level automation rules</p>
+            <h1 class="text-xl font-semibold text-gray-900">{{ t('settings.automations') }}</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ t('settings.workspaceAutomationsDesc') }}</p>
           </div>
         </div>
         <AutomationList
@@ -221,7 +221,7 @@ onMounted(() => { loadWorkspace(); });
     <div v-if="showAutomationForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAutomationForm = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">{{ editingAutomation ? 'Edit Automation' : 'Create Automation' }}</h3>
+          <h3 class="text-lg font-semibold text-gray-900">{{ editingAutomation ? t('settings.editAutomation') : t('settings.createAutomation') }}</h3>
           <button @click="showAutomationForm = false" class="text-gray-400 hover:text-gray-600">✕</button>
         </div>
         <div class="flex-1 overflow-y-auto">

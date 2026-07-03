@@ -108,7 +108,7 @@ const menuItems = computed(() => [
 ])
 
 const currentMenuLabel = computed(() => {
-  const item = menuItems.find(i => i.id === activeSection.value)
+  const item = menuItems.value.find((i: { id: string }) => i.id === activeSection.value)
   return item?.label || ''
 })
 
@@ -440,9 +440,9 @@ onMounted(async () => {
       <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 class="text-xl font-semibold text-gray-800">{{ currentMenuLabel }}</h1>
-          <p class="text-sm text-gray-500 mt-1">Configure project-level settings</p>
+          <p class="text-sm text-gray-500 mt-1">{{ t('settings.configureProject') }}</p>
         </div>
-        <button @click="goBack" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">← Back to Project</button>
+        <button @click="goBack" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">{{ t('settings.backToProject') }}</button>
       </header>
 
       <div v-if="loading" class="flex items-center justify-center h-64"><div class="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div></div>
@@ -451,28 +451,28 @@ onMounted(async () => {
         <!-- Overview -->
         <div v-if="!loading && activeSection === 'overview'" class="bg-white rounded-lg border border-gray-200">
           <div class="p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Project Overview</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ t('settings.projectOverview') }}</h2>
             <div class="grid grid-cols-3 gap-4">
               <div class="p-4 bg-gray-50 rounded-lg">
-                <p class="text-sm text-gray-500">Total States</p>
+                <p class="text-sm text-gray-500">{{ t('settings.totalStates') }}</p>
                 <p class="text-2xl font-bold text-gray-800">{{ totalStates }}</p>
               </div>
               <div class="p-4 bg-gray-50 rounded-lg">
-                <p class="text-sm text-gray-500">Members</p>
+                <p class="text-sm text-gray-500">{{ t('settings.members') }}</p>
                 <p class="text-2xl font-bold text-gray-800">{{ stats.membersCount }}</p>
               </div>
               <div class="p-4 bg-gray-50 rounded-lg">
-                <p class="text-sm text-gray-500">Project Lead</p>
+                <p class="text-sm text-gray-500">{{ t('settings.projectLead') }}</p>
                 <p class="text-lg font-bold text-gray-800">{{ project?.project_lead?.display_name || getMemberDisplay(getMemberById(project?.project_lead_id)) || '—' }}</p>
               </div>
             </div>
             <div class="pt-4 mt-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-              <p class="text-gray-600">{{ project?.description || 'No description' }}</p>
+              <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('settings.description') }}</label>
+              <p class="text-gray-600">{{ project?.description || t('settings.noDescription') }}</p>
             </div>
           </div>
           <div class="px-6 py-4 border-t border-gray-200">
-            <button @click="handleEditProject" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">Edit Project</button>
+            <button @click="handleEditProject" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">{{ t('settings.editProject') }}</button>
           </div>
         </div>
 
@@ -484,14 +484,14 @@ onMounted(async () => {
 
           <!-- Default Assignee -->
           <div class="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Default Assignee</h3>
-            <p class="text-sm text-gray-500 mb-4">New issues will be assigned to this member by default.</p>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ t('settings.defaultAssignee') }}</h3>
+            <p class="text-sm text-gray-500 mb-4">{{ t('settings.newIssuesAssigned') }}</p>
             <div class="flex items-center gap-3">
               <select
                 v-model.number="defaultAssigneeId"
                 class="flex-1 max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
-                <option :value="null">None</option>
+                <option :value="null">{{ t('settings.none') }}</option>
                 <option v-for="m in members" :key="m.user_id" :value="m.user_id">
                   {{ getMemberDisplay(m) }}
                 </option>
@@ -501,24 +501,24 @@ onMounted(async () => {
                 :disabled="updatingAssignee"
                 class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
               >
-                {{ updatingAssignee ? 'Saving...' : 'Save' }}
+                {{ updatingAssignee ? t('settings.saving') : t('settings.save') }}
               </button>
             </div>
             <div v-if="getMemberById(defaultAssigneeId)" class="mt-3 text-sm text-gray-600">
-              Current: <span class="font-medium">{{ getMemberDisplay(getMemberById(defaultAssigneeId)) }}</span>
+              {{ t('settings.current') }}: <span class="font-medium">{{ getMemberDisplay(getMemberById(defaultAssigneeId)) }}</span>
             </div>
           </div>
 
           <!-- Project Lead -->
           <div class="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Project Lead</h3>
-            <p class="text-sm text-gray-500 mb-4">Designate the project lead responsible for this project.</p>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ t('settings.projectLead') }}</h3>
+            <p class="text-sm text-gray-500 mb-4">{{ t('settings.designateProjectLead') }}</p>
             <div class="flex items-center gap-3">
               <select
                 v-model.number="projectLeadId"
                 class="flex-1 max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
-                <option :value="null">None</option>
+                <option :value="null">{{ t('settings.none') }}</option>
                 <option v-for="m in members" :key="m.user_id" :value="m.user_id">
                   {{ getMemberDisplay(m) }}
                 </option>
@@ -528,18 +528,18 @@ onMounted(async () => {
                 :disabled="updatingLead"
                 class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
               >
-                {{ updatingLead ? 'Saving...' : 'Save' }}
+                {{ updatingLead ? t('settings.saving') : t('settings.save') }}
               </button>
             </div>
             <div v-if="getMemberById(projectLeadId)" class="mt-3 text-sm text-gray-600">
-              Current: <span class="font-medium">{{ getMemberDisplay(getMemberById(projectLeadId)) }}</span>
+              {{ t('settings.current') }}: <span class="font-medium">{{ getMemberDisplay(getMemberById(projectLeadId)) }}</span>
             </div>
           </div>
 
           <!-- Project Subscribers -->
           <div class="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Project Subscribers</h3>
-            <p class="text-sm text-gray-500 mb-4">Subscribers receive notifications about project updates.</p>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ t('settings.subscribers') }}</h3>
+            <p class="text-sm text-gray-500 mb-4">{{ t('settings.subscribersReceive') }}</p>
             <div v-if="subscribers.length > 0" class="divide-y divide-gray-100 border border-gray-200 rounded-lg mb-4">
               <div v-for="sub in subscribers" :key="sub.id" class="px-4 py-3 flex items-center justify-between">
                 <div>
@@ -548,12 +548,12 @@ onMounted(async () => {
                   </span>
                   <span v-if="sub.user?.username" class="text-sm text-gray-400 ml-2">@{{ sub.user.username }}</span>
                 </div>
-                <button @click="handleRemoveSubscriber(sub.user_id)" class="text-gray-400 hover:text-red-500 text-sm font-medium">Remove</button>
+                <button @click="handleRemoveSubscriber(sub.user_id)" class="text-gray-400 hover:text-red-500 text-sm font-medium">{{ t('settings.remove') }}</button>
               </div>
             </div>
-            <div v-else class="text-sm text-gray-400 py-4">No subscribers yet.</div>
+            <div v-else class="text-sm text-gray-400 py-4">{{ t('settings.noSubscribers') }}</div>
             <button @click="openSubscriberPicker" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">
-              + Add Subscriber
+              + {{ t('settings.addSubscriber') }}
             </button>
           </div>
         </div>
@@ -561,9 +561,9 @@ onMounted(async () => {
         <!-- States -->
         <div v-if="!loading && activeSection === 'states'" class="space-y-6">
           <div class="flex items-center justify-between">
-            <div><h2 class="text-lg font-semibold text-gray-900">Work Item States</h2><p class="text-sm text-gray-500 mt-1">5 fixed state groups. Manage states within each group.</p></div>
+            <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.workItemStates') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.stateGroupsDesc') }}</p></div>
             <div class="flex gap-2">
-              <button v-if="states.length === 0" @click="handleCreateDefaultStates" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">Create Default States</button>
+              <button v-if="states.length === 0" @click="handleCreateDefaultStates" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">{{ t('settings.createDefaultStates') }}</button>
             </div>
           </div>
           <div v-for="group in stateGroups" :key="group.id" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -573,21 +573,21 @@ onMounted(async () => {
                 <span class="text-xs text-gray-400">{{ group.description }}</span>
                 <span class="text-xs bg-gray-200 px-2 py-0.5 rounded-full">{{ group.states.length }}</span>
               </div>
-              <button @click="handleAddState(group.id)" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">+ Add State</button>
+              <button @click="handleAddState(group.id)" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">+ {{ t('settings.addState') }}</button>
             </div>
             <div class="divide-y divide-gray-100">
               <div v-for="state in group.states" :key="state.id" class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer" @click="handleEditState(group.id, state)">
                 <div class="flex items-center space-x-3">
                   <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: state.color }"></div>
                   <span class="text-sm text-gray-800">{{ state.name }}</span>
-                  <span v-if="state.is_default" class="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">Default</span>
+                  <span v-if="state.is_default" class="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">{{ t('settings.default') }}</span>
                 </div>
                 <div class="flex items-center space-x-2">
                   <button @click.stop="handleEditState(group.id, state)" class="p-1 text-gray-400 hover:text-gray-600">✏️</button>
                   <button @click.stop="handleDeleteState(group.id, state)" class="p-1 text-gray-400 hover:text-red-500">🗑️</button>
                 </div>
               </div>
-              <div v-if="group.states.length === 0" class="px-4 py-6 text-center text-gray-400 text-sm">No states in this group. Click "+ Add State" to add one.</div>
+              <div v-if="group.states.length === 0" class="px-4 py-6 text-center text-gray-400 text-sm">{{ t('settings.noStates') }}</div>
             </div>
           </div>
         </div>
@@ -595,8 +595,8 @@ onMounted(async () => {
         <!-- Labels -->
         <div v-if="!loading && activeSection === 'labels'" class="space-y-6">
           <div class="flex items-center justify-between">
-            <div><h2 class="text-lg font-semibold text-gray-900">Labels</h2><p class="text-sm text-gray-500 mt-1">Categorize work items with color-coded labels</p></div>
-            <button @click="handleAddLabel" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ Add Label</button>
+            <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.labels') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.labelsDesc') }}</p></div>
+            <button @click="handleAddLabel" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.addLabel') }}</button>
           </div>
           <div class="bg-white rounded-xl border border-gray-200 p-6">
             <div class="flex flex-wrap gap-3">
@@ -605,7 +605,7 @@ onMounted(async () => {
                 <span class="text-sm font-medium" :style="{ color: label.color }">{{ label.name }}</span>
                 <button @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
               </div>
-              <div v-if="labels.length === 0" class="w-full text-center text-gray-400 py-8">No labels. Click "+ Add Label" to create.</div>
+              <div v-if="labels.length === 0" class="w-full text-center text-gray-400 py-8">{{ t('settings.noLabels') }}</div>
             </div>
           </div>
         </div>
@@ -651,8 +651,8 @@ onMounted(async () => {
         <!-- Workflows -->
         <div v-if="!loading && activeSection === 'workflows'" class="space-y-6">
           <div class="flex items-center justify-between">
-            <div><h2 class="text-lg font-semibold text-gray-900">Workflows</h2><p class="text-sm text-gray-500 mt-1">Manage state transition rules for this project</p></div>
-            <button @click="handleAddWorkflow" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ Create Workflow</button>
+            <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.workflows') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.workflowsDesc') }}</p></div>
+            <button @click="handleAddWorkflow" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createWorkflow') }}</button>
           </div>
           <div class="grid gap-4">
             <div v-for="workflow in workflows" :key="workflow.id" class="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-md transition-all">
@@ -661,7 +661,7 @@ onMounted(async () => {
                   <div class="flex items-center justify-between">
                     <div>
                       <h3 class="font-medium text-gray-900">{{ workflow.name }}</h3>
-                      <p class="mt-1 text-sm text-gray-500">{{ (workflow.transitions || []).length }} transitions</p>
+                      <p class="mt-1 text-sm text-gray-500">{{ (workflow.transitions || []).length }} {{ t('settings.transitions') }}</p>
                     </div>
                     <span class="text-gray-400">→</span>
                   </div>
@@ -669,15 +669,15 @@ onMounted(async () => {
                 <button @click.stop="handleDeleteWorkflow(workflow)" class="ml-3 text-gray-400 hover:text-red-500 p-1">✕</button>
               </div>
             </div>
-            <div v-if="workflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">No workflows configured. Click "+ Create Workflow" to add.</div>
+            <div v-if="workflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">{{ t('settings.noWorkflows') }}</div>
           </div>
         </div>
 
         <!-- Automations -->
         <div v-if="!loading && activeSection === 'automations'" class="space-y-6">
           <div class="flex items-center justify-between">
-            <div><h2 class="text-lg font-semibold text-gray-900">Automations</h2><p class="text-sm text-gray-500 mt-1">Project-level automation rules</p></div>
-            <button @click="handleAddAutomation" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ Create Automation</button>
+            <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.automations') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.automationsDesc') }}</p></div>
+            <button @click="handleAddAutomation" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createAutomation') }}</button>
           </div>
           <div class="space-y-4">
             <div v-for="automation in automations" :key="automation.id" class="bg-white rounded-xl border border-gray-200 p-4">
@@ -688,39 +688,39 @@ onMounted(async () => {
                   </div>
                   <div>
                     <h3 class="font-medium text-gray-900">{{ automation.name }}</h3>
-                    <p class="text-sm text-gray-500">{{ automation.description || 'No description' }}</p>
+                    <p class="text-sm text-gray-500">{{ automation.description || t('settings.noDescription') }}</p>
                   </div>
                 </div>
                 <div class="flex items-center space-x-3">
                   <span :class="['px-3 py-1 rounded-full text-xs font-medium', automation.is_enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500']">
-                    {{ automation.is_enabled ? 'Enabled' : 'Disabled' }}
+                    {{ automation.is_enabled ? t('settings.enabled') : t('settings.disabled') }}
                   </span>
                   <button @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500">🗑️</button>
                 </div>
               </div>
               <div class="mt-4 pt-4 border-t border-gray-100">
                 <div class="flex items-center space-x-2 text-sm">
-                  <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-medium">Trigger: {{ automation.trigger_type }}</span>
+                  <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-medium">{{ t('settings.trigger') }}: {{ t(`settings.triggerTypes.${automation.trigger_type}`) || automation.trigger_type }}</span>
                 </div>
               </div>
             </div>
-            <div v-if="automations.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">No automations. Click "+ Create Automation" to add.</div>
+            <div v-if="automations.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">{{ t('settings.noAutomations') }}</div>
           </div>
         </div>
 
         <!-- Delete Project -->
         <div v-if="!loading && activeSection === 'delete'" class="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 class="text-lg font-semibold text-gray-800 mb-4">Delete Project</h2>
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ t('settings.deleteProject') }}</h2>
           <div class="bg-red-50 border border-red-200 rounded-lg p-4">
             <div class="flex items-start gap-3">
               <span class="text-2xl">⚠️</span>
               <div>
-                <h3 class="font-medium text-red-800">Permanently Delete This Project</h3>
-                <p class="text-sm text-red-700 mt-1">This action will permanently delete the project and all related data including issues, comments, and attachments. This action cannot be undone.</p>
+                <h3 class="font-medium text-red-800">{{ t('settings.permanentlyDelete') }}</h3>
+                <p class="text-sm text-red-700 mt-1">{{ t('settings.deleteProjectDesc') }}</p>
               </div>
             </div>
             <button @click="showDeleteConfirm = true" class="mt-4 w-full px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition">
-              Delete Project
+              {{ t('settings.deleteProject') }}
             </button>
           </div>
         </div>
@@ -731,25 +731,25 @@ onMounted(async () => {
     <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showEditModal = false">
       <div class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-800">Edit Project</h3>
+          <h3 class="text-lg font-semibold text-gray-800">{{ t('settings.editProject') }}</h3>
           <button @click="showEditModal = false" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
         </div>
         <div v-if="settingsError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{{ settingsError }}</div>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-            <input v-model="editForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Project name" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.projectName') }}</label>
+            <input v-model="editForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" :placeholder="t('settings.namePlaceholder')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Identifier</label>
-            <input v-model="editForm.identifier" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 uppercase" placeholder="PROJ" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.projectIdentifier') }}</label>
+            <input v-model="editForm.identifier" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 uppercase" :placeholder="t('settings.identifierPlaceholder')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea v-model="editForm.description" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Project description"></textarea>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.projectDescription') }}</label>
+            <textarea v-model="editForm.description" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" :placeholder="t('settings.descriptionPlaceholder')"></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.projectColor') }}</label>
             <div class="flex items-center gap-2">
               <input v-model="editForm.color" type="color" class="w-10 h-10 rounded border border-gray-300 cursor-pointer" />
               <input v-model="editForm.color" type="text" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="#6366f1" />
@@ -757,9 +757,9 @@ onMounted(async () => {
           </div>
         </div>
         <div class="flex gap-3 mt-6">
-          <button @click="showEditModal = false" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+          <button @click="showEditModal = false" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">{{ t('settings.cancel') }}</button>
           <button @click="handleSaveProject" :disabled="settingsLoading" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition">
-            {{ settingsLoading ? 'Saving...' : 'Save' }}
+            {{ settingsLoading ? t('settings.saving') : t('settings.save') }}
           </button>
         </div>
       </div>
@@ -771,15 +771,15 @@ onMounted(async () => {
         <div class="flex items-center gap-3 mb-4">
           <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-xl">⚠️</div>
           <div>
-            <h3 class="text-lg font-semibold text-gray-800">Confirm Delete</h3>
-            <p class="text-sm text-gray-500">This action cannot be undone</p>
+            <h3 class="text-lg font-semibold text-gray-800">{{ t('settings.confirmDelete') }}</h3>
+            <p class="text-sm text-gray-500">{{ t('settings.cannotUndo') }}</p>
           </div>
         </div>
-        <p class="text-gray-600 mb-6">Are you sure you want to delete <strong>{{ project?.name }}</strong>? This will permanently delete all related issues, comments, and attachments.</p>
+        <p class="text-gray-600 mb-6" v-html="t('settings.deleteProjectConfirm').replace('{name}', `<strong>${project?.name}</strong>`)"></p>
         <div class="flex gap-3">
-          <button @click="showDeleteConfirm = false" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+          <button @click="showDeleteConfirm = false" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">{{ t('settings.cancel') }}</button>
           <button @click="handleDeleteProject" :disabled="deleteLoading" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition">
-            {{ deleteLoading ? 'Deleting...' : 'Delete Project' }}
+            {{ deleteLoading ? t('settings.deleting') : t('settings.deleteProject') }}
           </button>
         </div>
       </div>
@@ -788,10 +788,10 @@ onMounted(async () => {
     <!-- State Modal -->
     <div v-if="showStateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showStateModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingState ? 'Edit State' : 'Add State' }}</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingState ? t('settings.editState') : t('settings.addState') }}</h3>
         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Name</label><input v-model="newStateForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Color</label><input v-model="newStateForm.color" type="color" class="w-full h-12 border border-gray-300 rounded-lg cursor-pointer" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="newStateForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.color') }}</label><input v-model="newStateForm.color" type="color" class="w-full h-12 border border-gray-300 rounded-lg cursor-pointer" /></div>
           <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.stateGroup') }}</label>
             <select v-model="newStateForm.groupId" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
               <option v-for="g in stateGroups" :key="g.id" :value="g.id">{{ g.name }}</option>
@@ -799,8 +799,8 @@ onMounted(async () => {
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showStateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="handleSaveState" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingState ? 'Update' : 'Create' }}</button>
+          <button @click="showStateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
+          <button @click="handleSaveState" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingState ? t('settings.update') : t('settings.create') }}</button>
         </div>
       </div>
     </div>
@@ -808,15 +808,15 @@ onMounted(async () => {
     <!-- Label Modal -->
     <div v-if="showLabelModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showLabelModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingLabel ? 'Edit Label' : 'Add Label' }}</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingLabel ? t('settings.editLabel') : t('settings.addLabel') }}</h3>
         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Name</label><input v-model="newLabelForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Color</label><input v-model="newLabelForm.color" type="color" class="w-full h-12 border border-gray-300 rounded-lg cursor-pointer" /></div>
-          <div class="mt-2"><div class="inline-flex items-center px-4 py-2 rounded-full" :style="{ backgroundColor: newLabelForm.color + '20' }"><div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: newLabelForm.color }"></div><span class="text-sm font-medium" :style="{ color: newLabelForm.color }">{{ newLabelForm.name || 'Preview' }}</span></div></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="newLabelForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.color') }}</label><input v-model="newLabelForm.color" type="color" class="w-full h-12 border border-gray-300 rounded-lg cursor-pointer" /></div>
+          <div class="mt-2"><div class="inline-flex items-center px-4 py-2 rounded-full" :style="{ backgroundColor: newLabelForm.color + '20' }"><div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: newLabelForm.color }"></div><span class="text-sm font-medium" :style="{ color: newLabelForm.color }">{{ newLabelForm.name || t('settings.preview') }}</span></div></div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showLabelModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="handleSaveLabel" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingLabel ? 'Update' : 'Create' }}</button>
+          <button @click="showLabelModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
+          <button @click="handleSaveLabel" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingLabel ? t('settings.update') : t('settings.create') }}</button>
         </div>
       </div>
     </div>
@@ -824,14 +824,14 @@ onMounted(async () => {
     <!-- Workflow Modal -->
     <div v-if="showWorkflowModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showWorkflowModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Create Workflow</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('settings.createWorkflow') }}</h3>
         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Name</label><input v-model="newWorkflowForm.name" type="text" placeholder="e.g., Standard Workflow" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label><input v-model="newWorkflowForm.description" type="text" placeholder="Brief description" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="newWorkflowForm.name" type="text" :placeholder="t('settings.workflowNamePlaceholder')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.descriptionOptional') }}</label><input v-model="newWorkflowForm.description" type="text" :placeholder="t('settings.briefDescription')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showWorkflowModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="handleSaveWorkflow" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Create</button>
+          <button @click="showWorkflowModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
+          <button @click="handleSaveWorkflow" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ t('settings.create') }}</button>
         </div>
       </div>
     </div>
@@ -839,32 +839,32 @@ onMounted(async () => {
     <!-- Automation Modal -->
     <div v-if="showAutomationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAutomationModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-lg">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Create Automation</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('settings.createAutomation') }}</h3>
         <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Name</label><input v-model="newAutomationForm.name" type="text" placeholder="e.g., Auto-assign bugs" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label><input v-model="newAutomationForm.description" type="text" placeholder="What does this automation do?" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="newAutomationForm.name" type="text" :placeholder="t('settings.automationNamePlaceholder')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.descriptionOptional') }}</label><input v-model="newAutomationForm.description" type="text" :placeholder="t('settings.automationDescriptionPlaceholder')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
           <div class="p-4 bg-gray-50 rounded-lg">
-            <div class="text-sm font-medium text-gray-700 mb-2">Trigger</div>
+            <div class="text-sm font-medium text-gray-700 mb-2">{{ t('settings.trigger') }}</div>
             <select v-model="newAutomationForm.trigger" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              <option value="issue_created">Issue Created</option>
-              <option value="issue_updated">Issue Updated</option>
-              <option value="state_changed">State Changed</option>
-              <option value="assignee_changed">Assignee Changed</option>
-              <option value="comment_added">Comment Added</option>
+              <option value="issue_created">{{ t('settings.triggerTypes.issue_created') }}</option>
+              <option value="issue_updated">{{ t('settings.triggerTypes.issue_updated') }}</option>
+              <option value="state_changed">{{ t('settings.triggerTypes.state_changed') }}</option>
+              <option value="assignee_changed">{{ t('settings.triggerTypes.assignee_changed') }}</option>
+              <option value="comment_added">{{ t('settings.triggerTypes.comment_added') }}</option>
             </select>
           </div>
           <div class="p-4 bg-gray-50 rounded-lg">
-            <div class="text-sm font-medium text-gray-700 mb-2">Conditions (JSON)</div>
-            <textarea v-model="newAutomationForm.conditions" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono" placeholder='[{"field":"priority","operator":"equals","value":"urgent"}]'></textarea>
+            <div class="text-sm font-medium text-gray-700 mb-2">{{ t('settings.conditions') }} (JSON)</div>
+            <textarea v-model="newAutomationForm.conditions" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono" :placeholder="t('settings.conditionsPlaceholder')"></textarea>
           </div>
           <div class="p-4 bg-gray-50 rounded-lg">
-            <div class="text-sm font-medium text-gray-700 mb-2">Actions (JSON)</div>
-            <textarea v-model="newAutomationForm.actions" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono" placeholder='[{"type":"assign","field":"assignee","value":"1"}]'></textarea>
+            <div class="text-sm font-medium text-gray-700 mb-2">{{ t('settings.actions') }} (JSON)</div>
+            <textarea v-model="newAutomationForm.actions" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono" :placeholder="t('settings.actionsPlaceholder')"></textarea>
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showAutomationModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="handleSaveAutomation" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Create</button>
+          <button @click="showAutomationModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
+          <button @click="handleSaveAutomation" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ t('settings.create') }}</button>
         </div>
       </div>
     </div>
@@ -872,12 +872,12 @@ onMounted(async () => {
     <!-- Subscriber Picker Modal -->
     <div v-if="showSubscriberPicker" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showSubscriberPicker = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Subscriber</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('settings.addSubscriber') }}</h3>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Select Member</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.selectMember') }}</label>
             <select v-model.number="subscriberPickerUserId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-              <option :value="null" disabled>Select a member...</option>
+              <option :value="null" disabled>{{ t('settings.selectMemberPlaceholder') }}</option>
               <option v-for="m in members" :key="m.user_id" :value="m.user_id">
                 {{ getMemberDisplay(m) }}
               </option>
@@ -885,8 +885,8 @@ onMounted(async () => {
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showSubscriberPicker = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="handleAddSubscriber" :disabled="!subscriberPickerUserId" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition">Add</button>
+          <button @click="showSubscriberPicker = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
+          <button @click="handleAddSubscriber" :disabled="!subscriberPickerUserId" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition">{{ t('settings.add') }}</button>
         </div>
       </div>
     </div>

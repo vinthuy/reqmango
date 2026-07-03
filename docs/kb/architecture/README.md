@@ -2,7 +2,7 @@
 
 reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
-**最后更新**: 2026-06-28
+**最后更新**: 2026-07-03
 
 ---
 
@@ -66,8 +66,8 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 | Components | `src/components/` (58) | 可复用组件 |
 | Stores | `src/stores/` (3) | Pinia 状态管理 |
 | API | `src/api/` (23) | Axios 封装，后端 API 调用 |
-| Types | `src/types/` (20) | TypeScript 类型定义 |
-| Composables | `src/composables/` (4) | 组合式函数 (useConfirm, useRQL, useAI, usePermission) |
+| Types | `src/types/` (21) | TypeScript 类型定义（含 filters.ts） |
+| Composables | `src/composables/` (5) | 组合式函数 (useConfirm, useRQL, useAI, usePermission, useFilters) |
 | Router | `src/router/` | Vue Router 配置 (16 条路由，含 minRoleLevel 守卫) |
 
 ---
@@ -111,6 +111,13 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 | RBAC（权限角色） | ✅ | ✅ | 55 权限 + 3 默认角色 + 自定义角色管理 |
 
 ---
+
+## 当前推进中
+
+| 模块 | 说明 |
+|------|------|
+| FilterBar 统一筛选栏 | 统一筛选入口 + RQL 双向同步 + 语义操作符 + State Group + Group By/Order By |
+| SavedView 增强 | 新增 sort_config / columns / group_by 字段，Views 完整恢复链路 |
 
 ## 未来可扩展
 

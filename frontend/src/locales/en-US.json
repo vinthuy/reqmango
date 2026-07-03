@@ -416,7 +416,26 @@
       "state_changed": "State Changed",
       "assignee_changed": "Assignee Changed",
       "comment_added": "Comment Added"
-    }
+    },
+    "none": "None",
+    "current": "Current",
+    "default": "Default",
+    "noDescription": "No description",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "transitions": "transitions",
+    "preview": "Preview",
+    "workflowNamePlaceholder": "e.g., Standard Workflow",
+    "descriptionOptional": "Description (optional)",
+    "briefDescription": "Brief description",
+    "automationNamePlaceholder": "e.g., Auto-assign bugs",
+    "automationDescriptionPlaceholder": "What does this automation do?",
+    "conditionsPlaceholder": "[{\"field\":\"priority\",\"operator\":\"equals\",\"value\":\"urgent\"}]",
+    "actionsPlaceholder": "[{\"type\":\"assign\",\"field\":\"assignee\",\"value\":\"1\"}]",
+    "selectMemberPlaceholder": "Select a member...",
+    "add": "Add",
+    "editAutomation": "Edit Automation",
+    "workspaceAutomationsDesc": "Workspace-level automation rules"
   },
   "ai": {
     "title": "AI Assistant",
