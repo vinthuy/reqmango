@@ -89,23 +89,23 @@ function getMemberById(userId: number | null | undefined): any | undefined {
 }
 
 // ===== Menu items =====
-const menuItems = [
-  { id: 'overview', label: 'Overview', icon: '📊' },
-  { id: 'members', label: 'Members', icon: '👥' },
-  { id: 'states', label: 'States', icon: '🔄' },
-  { id: 'labels', label: 'Labels', icon: '🏷️' },
-  { id: 'issue-types', label: 'Issue Types', icon: '📐' },
-  { id: 'templates', label: 'Templates', icon: '📋' },
-  { id: 'modules', label: 'Modules', icon: '📦' },
-  { id: 'cycles', label: 'Cycles', icon: '🔄' },
-  { id: 'releases', label: 'Releases', icon: '🚀' },
-  { id: 'webhooks', label: 'Webhooks', icon: '🔌' },
-  { id: 'custom-fields', label: 'Custom Fields', icon: '🔧' },
-  { id: 'estimate-points', label: 'Estimate Points', icon: '📏' },
-  { id: 'workflows', label: 'Workflows', icon: '⚙️' },
-  { id: 'automations', label: 'Automations', icon: '🤖' },
-  { id: 'delete', label: 'Delete Project', icon: '🗑️' },
-]
+const menuItems = computed(() => [
+  { id: 'overview', label: t('settings.overview'), icon: '📊' },
+  { id: 'members', label: t('settings.members'), icon: '👥' },
+  { id: 'states', label: t('settings.states'), icon: '🔄' },
+  { id: 'labels', label: t('settings.labels'), icon: '🏷️' },
+  { id: 'issue-types', label: t('settings.issueTypes'), icon: '📐' },
+  { id: 'templates', label: t('settings.templates'), icon: '📋' },
+  { id: 'modules', label: t('settings.modules'), icon: '📦' },
+  { id: 'cycles', label: t('settings.cycles'), icon: '🔄' },
+  { id: 'releases', label: t('settings.releases'), icon: '🚀' },
+  { id: 'webhooks', label: t('settings.webhooks'), icon: '🔌' },
+  { id: 'custom-fields', label: t('settings.customFields'), icon: '🔧' },
+  { id: 'estimate-points', label: t('settings.estimatePoints'), icon: '📏' },
+  { id: 'workflows', label: t('settings.workflows'), icon: '⚙️' },
+  { id: 'automations', label: t('settings.automations'), icon: '🤖' },
+  { id: 'delete', label: t('settings.deleteProject'), icon: '🗑️' },
+])
 
 const currentMenuLabel = computed(() => {
   const item = menuItems.find(i => i.id === activeSection.value)
@@ -113,18 +113,28 @@ const currentMenuLabel = computed(() => {
 })
 
 // ===== State groups =====
-const STATE_GROUPS = [
-  { id: 'backlog', name: 'Backlog', description: t('settings.stateGroupBacklog') },
-  { id: 'unstarted', name: 'Unstarted', description: t('settings.stateGroupUnstarted') },
-  { id: 'started', name: 'Started', description: t('settings.stateGroupStarted') },
-  { id: 'completed', name: 'Completed', description: t('settings.stateGroupCompleted') },
-  { id: 'cancelled', name: 'Cancelled', description: t('settings.stateGroupCancelled') },
-] as const
+const STATE_GROUP_KEYS = ['backlog', 'unstarted', 'started', 'completed', 'cancelled'] as const
 
 const stateGroups = computed(() => {
-  return STATE_GROUPS.map(group => ({
-    ...group,
-    states: states.value.filter((s: any) => s.group === group.id)
+  const groupNames: Record<string, string> = {
+    backlog: t('settings.stateGroupBacklogName'),
+    unstarted: t('settings.stateGroupUnstartedName'),
+    started: t('settings.stateGroupStartedName'),
+    completed: t('settings.stateGroupCompletedName'),
+    cancelled: t('settings.stateGroupCancelledName'),
+  }
+  const groupDescriptions: Record<string, string> = {
+    backlog: t('settings.stateGroupBacklog'),
+    unstarted: t('settings.stateGroupUnstarted'),
+    started: t('settings.stateGroupStarted'),
+    completed: t('settings.stateGroupCompleted'),
+    cancelled: t('settings.stateGroupCancelled'),
+  }
+  return STATE_GROUP_KEYS.map(id => ({
+    id,
+    name: groupNames[id],
+    description: groupDescriptions[id],
+    states: states.value.filter((s: any) => s.group === id)
   }))
 })
 
@@ -782,9 +792,9 @@ onMounted(async () => {
         <div class="space-y-4">
           <div><label class="block text-sm font-medium text-gray-700 mb-1">Name</label><input v-model="newStateForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
           <div><label class="block text-sm font-medium text-gray-700 mb-1">Color</label><input v-model="newStateForm.color" type="color" class="w-full h-12 border border-gray-300 rounded-lg cursor-pointer" /></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">Group</label>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.stateGroup') }}</label>
             <select v-model="newStateForm.groupId" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              <option v-for="g in STATE_GROUPS" :key="g.id" :value="g.id">{{ g.name }}</option>
+              <option v-for="g in stateGroups" :key="g.id" :value="g.id">{{ g.name }}</option>
             </select>
           </div>
         </div>

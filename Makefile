@@ -1,4 +1,6 @@
-﻿.PHONY: up down build logs restart clean dev
+﻿.PHONY: up down build logs restart clean dev dev-backend db-shell lint lint-fix test test-backend test-frontend ci coverage
+
+# ======== Docker ========
 
 # Start all services
 up:
@@ -25,7 +27,9 @@ restart:
 clean:
 	docker-compose down -v
 
-# Development mode (frontend only, assumes backend and DB are running locally)
+# ======== Development ========
+
+# Frontend dev server
 dev:
 	cd frontend && npm run dev
 
@@ -36,3 +40,34 @@ dev-backend:
 # Database shell
 db-shell:
 	docker-compose exec db psql -U reqmango -d reqmango
+
+# ======== Lint ========
+
+lint:
+	cd backend && golangci-lint run ./...
+	cd frontend && npx eslint src/ --ext .ts,.vue
+
+lint-fix:
+	cd backend && golangci-lint run --fix ./...
+	cd frontend && npx eslint src/ --ext .ts,.vue --fix
+
+# ======== Test ========
+
+test-backend:
+	cd backend && go test -race -coverprofile=coverage.out ./internal/...
+
+test-frontend:
+	cd frontend && npx vitest run
+
+test: test-backend test-frontend
+
+coverage:
+	cd backend && go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: backend/coverage.html"
+
+# ======== CI ========
+
+ci: lint test
+	cd backend && go build ./cmd/server
+	cd frontend && npx vite build
+	@echo "CI: all checks passed"
