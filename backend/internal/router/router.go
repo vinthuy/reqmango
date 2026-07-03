@@ -616,6 +616,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		projects.DELETE("/:projectId/automations/:id", automationH.Delete)
 		projects.POST("/:projectId/automations/:id/execute", automationH.Execute)
 
+		// Execution history
+		v1.GET("/issues/:issueId/automation-history", authMiddleware, automationH.GetExecutionHistory)
+
 		// ---- Notifications (protected) ----
 		notifications := v1.Group("/notifications", authMiddleware)
 		{

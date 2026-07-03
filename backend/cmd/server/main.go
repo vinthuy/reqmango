@@ -56,6 +56,7 @@ func main() {
 		&model.IssueRelation{},
 		&model.Workflow{},
 		&model.AutomationRule{},
+		&model.AutomationExecution{},
 		&model.Comment{},
 		&model.Notification{},
 		&model.SavedView{},

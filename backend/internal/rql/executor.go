@@ -222,8 +222,14 @@ func (e *GORMExecutor) buildCustomFieldComparison(fieldName, operator, value int
 	fieldIDStr := strings.TrimPrefix(fieldNameStr, "cf_")
 
 	var fieldID uint64
+	var fieldType string
 	if _, err := strconv.ParseUint(fieldIDStr, 10, 64); err == nil {
 		fieldID, _ = strconv.ParseUint(fieldIDStr, 10, 64)
+		if ctx.DB != nil {
+			var f model.CustomField
+			ctx.DB.Select("field_type").First(&f, fieldID)
+			fieldType = f.FieldType
+		}
 	} else {
 		if ctx.DB == nil {
 			return nil, fmt.Errorf("cannot resolve custom field name without DB context")
@@ -232,32 +238,44 @@ func (e *GORMExecutor) buildCustomFieldComparison(fieldName, operator, value int
 		if ctx.ProjectID > 0 {
 			projectID = ctx.ProjectID
 		}
-		var field model.CustomField
+		var fields []model.CustomField
 		err := ctx.DB.Where("name = ? AND is_active = ?", fieldIDStr, true).
 			Where("project_id = ? OR project_id IS NULL", projectID).
-			First(&field).Error
+			Order(fmt.Sprintf("CASE WHEN project_id = %d THEN 0 ELSE 1 END", projectID)).
+			Find(&fields).Error
 		if err != nil {
 			return nil, fmt.Errorf("custom field not found: %s", fieldIDStr)
 		}
-		fieldID = field.ID
+		if len(fields) == 0 {
+			return nil, fmt.Errorf("custom field not found: %s", fieldIDStr)
+		}
+		fieldID = fields[0].ID
+		fieldType = fields[0].FieldType
 	}
 
-	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %d", fieldID)
+	alias := fmt.Sprintf("icfv_%d", fieldID)
+	join := fmt.Sprintf("JOIN issue_custom_field_values %s ON %s.issue_id = issues.id AND %s.field_id = %d", alias, alias, alias, fieldID)
+
+	// For number fields, cast to numeric for proper numeric comparison
+	valueExpr := fmt.Sprintf("%s.value", alias)
+	if fieldType == "number" {
+		valueExpr = fmt.Sprintf("CAST(%s.value AS NUMERIC)", alias)
+	}
 
 	var sql string
 	switch operator {
 	case "=":
-		sql = "icfv.value = ?"
+		sql = valueExpr + " = ?"
 	case "!=":
-		sql = "icfv.value != ?"
+		sql = valueExpr + " != ?"
 	case ">":
-		sql = "icfv.value > ?"
+		sql = valueExpr + " > ?"
 	case "<":
-		sql = "icfv.value < ?"
+		sql = valueExpr + " < ?"
 	case ">=":
-		sql = "icfv.value >= ?"
+		sql = valueExpr + " >= ?"
 	case "<=":
-		sql = "icfv.value <= ?"
+		sql = valueExpr + " <= ?"
 	default:
 		return nil, fmt.Errorf("unsupported operator for custom field: %s", operator)
 	}
@@ -410,17 +428,22 @@ func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string, c
 		if ctx.ProjectID > 0 {
 			projectID = ctx.ProjectID
 		}
-		var field model.CustomField
+		var fields []model.CustomField
 		err := ctx.DB.Where("name = ? AND is_active = ?", fieldIDStr, true).
 			Where("project_id = ? OR project_id IS NULL", projectID).
-			First(&field).Error
+			Order(fmt.Sprintf("CASE WHEN project_id = %d THEN 0 ELSE 1 END", projectID)).
+			Find(&fields).Error
 		if err != nil {
 			return nil, fmt.Errorf("custom field not found: %s", fieldIDStr)
 		}
-		fieldID = field.ID
+		if len(fields) == 0 {
+			return nil, fmt.Errorf("custom field not found: %s", fieldIDStr)
+		}
+		fieldID = fields[0].ID
 	}
 
-	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %d", fieldID)
+	alias := fmt.Sprintf("icfv_%d", fieldID)
+	join := fmt.Sprintf("JOIN issue_custom_field_values %s ON %s.issue_id = issues.id AND %s.field_id = %d", alias, alias, alias, fieldID)
 
 	op := "ILIKE"
 	if operator == "NOT LIKE" {
@@ -432,7 +455,7 @@ func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string, c
 	}
 
 	return &rawCondition{
-		SQL:   fmt.Sprintf("icfv.value %s ?", op),
+		SQL:   fmt.Sprintf("%s.value %s ?", alias, op),
 		Args:  []interface{}{value},
 		Joins: []string{join},
 	}, nil
@@ -530,17 +553,22 @@ func (e *GORMExecutor) buildCustomFieldIn(fieldName, operator string, values []i
 		if ctx.ProjectID > 0 {
 			projectID = ctx.ProjectID
 		}
-		var field model.CustomField
+		var fields []model.CustomField
 		err := ctx.DB.Where("name = ? AND is_active = ?", fieldIDStr, true).
 			Where("project_id = ? OR project_id IS NULL", projectID).
-			First(&field).Error
+			Order(fmt.Sprintf("CASE WHEN project_id = %d THEN 0 ELSE 1 END", projectID)).
+			Find(&fields).Error
 		if err != nil {
 			return nil, fmt.Errorf("custom field not found: %s", fieldIDStr)
 		}
-		fieldID = field.ID
+		if len(fields) == 0 {
+			return nil, fmt.Errorf("custom field not found: %s", fieldIDStr)
+		}
+		fieldID = fields[0].ID
 	}
 
-	join := fmt.Sprintf("JOIN issue_custom_field_values icfv ON icfv.issue_id = issues.id AND icfv.field_id = %d", fieldID)
+	alias := fmt.Sprintf("icfv_%d", fieldID)
+	join := fmt.Sprintf("JOIN issue_custom_field_values %s ON %s.issue_id = issues.id AND %s.field_id = %d", alias, alias, alias, fieldID)
 
 	placeholders := make([]string, len(values))
 	args := make([]interface{}, len(values))
@@ -556,7 +584,7 @@ func (e *GORMExecutor) buildCustomFieldIn(fieldName, operator string, values []i
 	placeholderList := strings.Join(placeholders, ", ")
 
 	return &rawCondition{
-		SQL:   fmt.Sprintf("icfv.value %s (%s)", op, placeholderList),
+		SQL:   fmt.Sprintf("%s.value %s (%s)", alias, op, placeholderList),
 		Args:  args,
 		Joins: []string{join},
 	}, nil

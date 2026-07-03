@@ -468,22 +468,6 @@ func handleClose(action Action, context map[string]interface{}, db *gorm.DB) err
 	}).Error
 }
 
-// ======== 新架构：执行历史追踪 ========
-
-// AutomationExecution 自动化执行历史记录
-type AutomationExecution struct {
-	ID           uint64    `json:"id" gorm:"primaryKey"`
-	RuleID       uint64    `json:"rule_id" gorm:"index"`
-	IssueID      uint64    `json:"issue_id" gorm:"index"`
-	TriggerType  string    `json:"trigger_type"`
-	ContextJSON  string    `json:"context_json" gorm:"type:jsonb"` // 执行时的上下文快照
-	ActionsTaken string    `json:"actions_taken" gorm:"type:jsonb"` // 实际执行的动作列表
-	Status       string    `json:"status"` // success, failed, skipped
-	Error        string    `json:"error,omitempty"`
-	Duration     int64     `json:"duration"` // 执行耗时（毫秒）
-	ExecutedAt   time.Time `json:"executed_at" gorm:"index"`
-}
-
 // ======== 重构后的 AutomationService ========
 
 // AutomationService 重构后的自动化服务（参考 Plane 架构）
@@ -633,7 +617,7 @@ func (s *AutomationService) recordExecutionHistory(event Event, results []string
 	actionsJSON, _ := json.Marshal(results)
 	duration := time.Since(startTime).Milliseconds()
 	
-	execution := AutomationExecution{
+	execution := model.AutomationExecution{
 		RuleID:       0, // TODO: 跟踪具体规则 ID
 		IssueID:      event.IssueID,
 		TriggerType:  event.Type,
@@ -656,8 +640,8 @@ func (s *AutomationService) PublishEvent(event Event) error {
 }
 
 // GetExecutionHistory 获取自动化执行历史（新增 API）
-func (s *AutomationService) GetExecutionHistory(issueID uint64, limit int) ([]AutomationExecution, error) {
-	var executions []AutomationExecution
+func (s *AutomationService) GetExecutionHistory(issueID uint64, limit int) ([]model.AutomationExecution, error) {
+	var executions []model.AutomationExecution
 	if err := s.db.Where("issue_id = ?", issueID).Order("executed_at DESC").Limit(limit).Find(&executions).Error; err != nil {
 		return nil, common.Internal("Failed to get execution history")
 	}

@@ -89,6 +89,28 @@ func (h *AutomationHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, rule)
 }
 
+// GetExecutionHistory handles GET /issues/:issueId/automation-history
+func (h *AutomationHandler) GetExecutionHistory(c *gin.Context) {
+	issueID, err := strconv.ParseUint(c.Param("issueId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	limit := 10
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	history, svcErr := h.svc.GetExecutionHistory(issueID, limit)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, history)
+}
+
 // Delete handles DELETE /projects/:projectId/automations/:id
 func (h *AutomationHandler) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
