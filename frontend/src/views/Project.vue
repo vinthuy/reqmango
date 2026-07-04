@@ -65,8 +65,9 @@
           :project-id="projectId"
           :workspace-id="workspaceId"
           :rql="currentRQL"
-          :filter-sort-by="currentSortBy?.key"
-          :filter-sort-dir="currentSortBy?.direction"
+          :filter-sort-config="sortConfigJson"
+          :filter-sort-by="currentSortBy[0]?.key"
+          :filter-sort-dir="currentSortBy[0]?.direction"
           :filter-group-by="currentGroupBy?.key"
           :search-term="searchTerm"
           :columns="currentColumns"
@@ -79,8 +80,9 @@
           :project-id="projectId"
           :workspace-id="workspaceId"
           :rql="currentRQL"
-          :filter-sort-by="currentSortBy?.key"
-          :filter-sort-dir="currentSortBy?.direction"
+          :filter-sort-config="sortConfigJson"
+          :filter-sort-by="currentSortBy[0]?.key"
+          :filter-sort-dir="currentSortBy[0]?.direction"
           @select="openDetailPanel"
         />
         <IssueTreeView
@@ -89,8 +91,9 @@
           :project-id="projectId"
           :workspace-id="workspaceId"
           :rql="currentRQL"
-          :filter-sort-by="currentSortBy?.key"
-          :filter-sort-dir="currentSortBy?.direction"
+          :filter-sort-config="sortConfigJson"
+          :filter-sort-by="currentSortBy[0]?.key"
+          :filter-sort-dir="currentSortBy[0]?.direction"
           :filter-group-by="currentGroupBy?.key"
           @select="openDetailPanel"
         />
@@ -99,8 +102,9 @@
           :project-id="projectId"
           :workspace-id="workspaceId"
           :rql="currentRQL"
-          :filter-sort-by="currentSortBy?.key"
-          :filter-sort-dir="currentSortBy?.direction"
+          :filter-sort-config="sortConfigJson"
+          :filter-sort-by="currentSortBy[0]?.key"
+          :filter-sort-dir="currentSortBy[0]?.direction"
           @select="openDetailPanel"
         />
         <IssueGantt
@@ -108,8 +112,9 @@
           :project-id="projectId"
           :workspace-id="workspaceId"
           :rql="currentRQL"
-          :filter-sort-by="currentSortBy?.key"
-          :filter-sort-dir="currentSortBy?.direction"
+          :filter-sort-config="sortConfigJson"
+          :filter-sort-by="currentSortBy[0]?.key"
+          :filter-sort-dir="currentSortBy[0]?.direction"
           @select="openDetailPanel"
           @create="router.push(`/workspace/${route.params.slug}/project/${projectId}/issues/new?view=tree`)"
         />
@@ -219,6 +224,8 @@
     :workspace-id="workspaceId"
     :project-name="project?.name"
     @close="showAIChat = false"
+    @quick-create="handleAIQuickCreate"
+    @save-as-page="handleAISaveAsPage"
   />
   <AICreateDialog
     :visible="showAICreate"
@@ -316,13 +323,23 @@ const issueRefreshKey = ref(0)
 function triggerRefresh() { issueRefreshKey.value++ }
 
 const currentRQL = ref('')
-const currentSortBy = ref<any>(null)
+const currentSortBy = ref<any[]>([])  // multi-sort array
 const currentGroupBy = ref<any>(null)
 const currentColumns = ref<string[]>([])
 
 const searchTerm = computed(() => extractSearchTerm(currentRQL.value))
 
-function handleFiltersChanged(rql: string, sortBy: any = null, groupBy: any = null) {
+// Compute sort_config JSON string for API
+const sortConfigJson = computed(() => {
+  if (!currentSortBy.value || currentSortBy.value.length === 0) return ''
+  const config = currentSortBy.value.map((s: any) => ({
+    field: s.key || s.field,
+    dir: s.direction || s.dir || 'desc'
+  }))
+  return JSON.stringify(config)
+})
+
+function handleFiltersChanged(rql: string, sortBy: any[] = [], groupBy: any = null) {
   currentRQL.value = rql
   currentSortBy.value = sortBy
   currentGroupBy.value = groupBy
@@ -354,7 +371,31 @@ const editingModule = ref<ModuleResponse | null>(null)
 // AI state
 const showAIChat = ref(false)
 const showAICreate = ref(false)
+const showQuickCreate = ref(false)
+const quickCreatePreview = ref<Record<string, any>>({})
 const showCommandPalette = ref(false)
+
+// AI result action handlers
+function handleAIQuickCreate(preview: Record<string, any>) {
+  quickCreatePreview.value = preview
+  showAICreate.value = true  // Reuse existing AICreateDialog with prefilled data
+  // Pre-fill the AI create dialog textarea
+  nextTick(() => {
+    const textarea = document.querySelector('.ai-create-dialog textarea') as HTMLTextAreaElement
+    if (textarea && preview.description) {
+      textarea.value = preview.description
+      textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+  })
+}
+
+function handleAISaveAsPage(data: { title: string; content: string }) {
+  const slug = route.params.slug as string
+  const pageUrl = `/workspace/${slug}/project/${projectId.value}/pages`
+  // Open page create in new tab with prefilled content via URL hash
+  const encoded = encodeURIComponent(`# ${data.title}\n\n${data.content}`)
+  window.open(`${pageUrl}?content=${encoded}`, '_blank')
+}
 
 // Project updates
 const projectUpdates = ref<ProjectUpdate[]>([])

@@ -224,17 +224,19 @@ type Action struct {
 type DefaultActionExecutor struct {
 	handlers map[string]ActionHandler
 	db       *gorm.DB
+	agentSvc *AgentService // 用于 dispatch_agent 动作
 }
 
-func NewDefaultActionExecutor(db *gorm.DB) *DefaultActionExecutor {
+func NewDefaultActionExecutor(db *gorm.DB, agentSvc *AgentService) *DefaultActionExecutor {
 	executor := &DefaultActionExecutor{
 		handlers: make(map[string]ActionHandler),
 		db:       db,
+		agentSvc: agentSvc,
 	}
-	
+
 	// 注册内置动作处理器
 	executor.registerBuiltinActions()
-	
+
 	return executor
 }
 
@@ -249,6 +251,7 @@ func (e *DefaultActionExecutor) registerBuiltinActions() {
 	e.RegisterAction("set_priority", e.handleSetPriority)
 	e.RegisterAction("archive", e.handleArchive)
 	e.RegisterAction("close", handleClose)
+	e.RegisterAction("dispatch_agent", e.handleDispatchAgent)
 }
 
 func (e *DefaultActionExecutor) RegisterAction(actionType string, handler ActionHandler) {
@@ -449,6 +452,53 @@ func (e *DefaultActionExecutor) handleArchive(action Action, context map[string]
 	return db.Model(&model.Issue{}).Where("id = ?", issueID).Update("archived", true).Error
 }
 
+func (e *DefaultActionExecutor) handleDispatchAgent(action Action, context map[string]interface{}, db *gorm.DB) error {
+	if e.agentSvc == nil {
+		return fmt.Errorf("agent service not available")
+	}
+
+	issueID, _ := context["issue_id"].(uint64)
+	projectID, _ := context["project_id"].(uint64)
+
+	// Get agent_id from action value
+	agentID, ok := toUint64(action.Value)
+	if !ok {
+		return fmt.Errorf("invalid agent_id: %v", action.Value)
+	}
+
+	// Build task description from action field or default
+	task := action.Field
+	if task == "" {
+		task = fmt.Sprintf("处理工作项 #%d 的自动化触发", issueID)
+	}
+
+	// Build dispatch context
+	var issueIDPtr *uint64
+	if issueID > 0 {
+		issueIDPtr = &issueID
+	}
+	var projectIDPtr *uint64
+	if projectID > 0 {
+		projectIDPtr = &projectID
+	}
+
+	dispatchCtx := &DispatchContext{
+		IssueID:     issueIDPtr,
+		ProjectID:   projectIDPtr,
+		TriggeredBy: "automation",
+	}
+
+	// Use system user (user ID 1) as the actor for automation-triggered dispatches
+	_, err := e.agentSvc.DispatchAgent(agentID, 1, task, dispatchCtx)
+	if err != nil {
+		log.Printf("[Automation] Agent dispatch failed: agent=%d issue=%d err=%v", agentID, issueID, err)
+		return err
+	}
+
+	log.Printf("[Automation] Agent dispatched: agent=%d issue=%d task=%s", agentID, issueID, task)
+	return nil
+}
+
 func handleClose(action Action, context map[string]interface{}, db *gorm.DB) error {
 	issueID, ok := context["issue_id"].(uint64)
 	if !ok {
@@ -484,7 +534,7 @@ type AutomationService struct {
 func NewAutomationService(db *gorm.DB) *AutomationService {
 	eventBus := NewInMemoryEventBus()
 	ruleEngine := NewDefaultConditionEvaluator()
-	actionExecutor := NewDefaultActionExecutor(db)
+	actionExecutor := NewDefaultActionExecutor(db, nil) // agentSvc set via SetAgentService after construction
 	
 	service := &AutomationService{
 		db:              db,
@@ -641,6 +691,13 @@ func (s *AutomationService) recordExecutionHistory(event Event, results []string
 }
 
 // PublishEvent 发布事件到事件总线（供 IssueService 调用）
+// SetAgentService sets the agent service on the action executor (breaks circular dependency).
+func (s *AutomationService) SetAgentService(agentSvc *AgentService) {
+	if exec, ok := s.actionExecutor.(*DefaultActionExecutor); ok {
+		exec.agentSvc = agentSvc
+	}
+}
+
 func (s *AutomationService) PublishEvent(event Event) error {
 	return s.eventBus.Publish(event)
 }

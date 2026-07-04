@@ -170,6 +170,25 @@
             <!-- Chart -->
             <div v-if="msg.chartConfig" class="mt-2 bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700" style="min-width:250px">
               <AIChartRenderer :config="msg.chartConfig" />
+              <!-- Chart action buttons -->
+              <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <button @click="openQuickCreate(msg)" class="flex items-center gap-1 px-2 py-1 text-[11px] bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors" :title="t('ai.createIssue')">
+                  <span>📋</span> {{ t('ai.createIssue') || 'Create Issues' }}
+                </button>
+                <button @click="saveChartToDashboard(msg)" class="flex items-center gap-1 px-2 py-1 text-[11px] bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors" :title="t('ai.saveToDashboard')">
+                  <span>📊</span> {{ t('ai.saveToDashboard') || 'Dashboard' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Action buttons for AI responses with structured data -->
+            <div v-if="msg.role === 'assistant' && msg.content && !msg.toolResults?.length" class="flex items-center gap-2 mt-2">
+              <button @click="openQuickCreate(msg)" class="flex items-center gap-1 px-2 py-1 text-[11px] bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors" :title="t('ai.createIssue')">
+                <span>📋</span> {{ t('ai.createIssue') || 'Create Issues' }}
+              </button>
+              <button @click="saveContentAsPage(msg)" class="flex items-center gap-1 px-2 py-1 text-[11px] bg-amber-50 text-amber-600 rounded-md hover:bg-amber-100 transition-colors" :title="t('ai.saveAsPage')">
+                <span>📝</span> {{ t('ai.saveAsPage') || 'Save as Page' }}
+              </button>
             </div>
           </div>
         </div>
@@ -248,6 +267,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
+  (e: 'quickCreate', preview: Record<string, any>): void
+  (e: 'saveAsPage', data: { title: string; content: string }): void
 }>()
 
 const { t } = useI18n()
@@ -462,6 +483,42 @@ function priorityBadge(p: string): string {
     none: 'bg-gray-100 text-gray-500',
   }
   return map[p] || 'bg-gray-100 text-gray-500'
+}
+
+// ─── AI Result Actions ───
+function openQuickCreate(msg: any) {
+  // Extract structured data from AI response for pre-fill
+  const preview: Record<string, any> = { name: '', description: msg.content?.slice(0, 200) || '' }
+
+  // Try to parse key insights from content
+  if (msg.content) {
+    const lines = msg.content.split('\n').filter((l: string) => l.trim())
+    if (lines.length > 0) {
+      // Use first meaningful line as title
+      const title = lines[0].replace(/^[#*\-\d.]+\s*/, '').trim()
+      if (title.length > 3) preview.name = title.slice(0, 120)
+    }
+  }
+
+  // Emit quick create event
+  emit('quickCreate', preview)
+}
+
+function saveChartToDashboard(msg: any) {
+  // Store chart config in localStorage for dashboard
+  if (msg.chartConfig) {
+    try {
+      const key = 'ai_chart_save_' + Date.now()
+      localStorage.setItem(key, JSON.stringify(msg.chartConfig))
+      alert(t('ai.chartSaved') || 'Chart saved! You can add it to your dashboard.')
+    } catch (e) { /* */ }
+  }
+}
+
+function saveContentAsPage(msg: any) {
+  if (msg.content) {
+    emit('saveAsPage', { title: t('ai.aiReport') || 'AI Report', content: msg.content })
+  }
 }
 
 watch(() => messages.value.length, scrollToBottom)

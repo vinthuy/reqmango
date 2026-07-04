@@ -48,9 +48,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	intakeH := handler.NewIntakeHandler(db)
 	reportH := handler.NewReportHandler(reportSvc)
 	savedReportH := handler.NewSavedReportHandler(savedReportSvc)
+	dashboardSvc := service.NewDashboardService(db)
+	dashboardH := handler.NewDashboardHandler(dashboardSvc)
 	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
 	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
 	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
+	automationSvc.SetAgentService(agentSvc) // break circular dependency: automation -> agent -> issue -> automation
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
 	roleSvc := service.NewRoleService(db)
@@ -273,6 +276,25 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				views.DELETE("/:viewId", savedViewH.Delete)
 				views.POST("/:viewId/set-default", savedViewH.SetDefault)
 				views.POST("/:viewId/duplicate", savedViewH.Duplicate)
+			}
+
+			// ---- Dashboards ----
+			dashboards := projects.Group("/:projectId/dashboards", authMiddleware)
+			{
+				dashboards.GET("", dashboardH.List)
+				dashboards.POST("", dashboardH.Create)
+				dashboards.GET("/:id", dashboardH.Get)
+				dashboards.PUT("/:id", dashboardH.Update)
+				dashboards.DELETE("/:id", dashboardH.Delete)
+				dashboards.POST("/:id/set-default", dashboardH.SetDefault)
+				dashboards.POST("/:id/duplicate", dashboardH.Duplicate)
+				dashboards.GET("/:id/full", dashboardH.GetFull)
+
+				// Widget CRUD
+				dashboards.POST("/:id/widgets", dashboardH.AddWidget)
+				dashboards.PUT("/:id/widgets/:widgetId", dashboardH.UpdateWidget)
+				dashboards.DELETE("/:id/widgets/:widgetId", dashboardH.DeleteWidget)
+				dashboards.PUT("/:id/widgets/reorder", dashboardH.ReorderWidgets)
 			}
 
 			// ---- Search Templates ----
