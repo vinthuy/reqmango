@@ -321,7 +321,7 @@ function goToProject() {
 async function confirmDelete(tmpl: any) {
   if (await confirm({
     title: t('template.deleteTitle'),
-    message: t('relationType.deleteConfirm').replace('{name}', tmpl.name),
+    message: t('settings.confirmDeleteAutomationGeneric', { name: tmpl.name }),
     confirmText: t('common.delete'),
     danger: true,
   })) {

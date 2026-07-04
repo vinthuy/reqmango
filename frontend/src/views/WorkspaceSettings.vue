@@ -11,12 +11,19 @@ import AutomationForm from '@/components/AutomationForm.vue';
 import AutomationList from '@/components/AutomationList.vue';
 import WorkspaceIntegrations from '@/components/WorkspaceIntegrations.vue'
 import RoleManagement from '@/components/RoleManagement.vue';
+import PluginManager from '@/views/PluginManager.vue';
 import * as workflowApi from '@/api/workflow';
 import * as issueTypeApi from '@/api/issue-type';
 import * as customFieldApi from '@/api/custom-field';
 import * as relationApi from '@/api/relation';
 import { workspaceApi } from '@/api/workspace';
 import { listProjects } from '@/api/project';
+import templateApi from '@/api/template';
+import { pluginApi } from '@/api/plugin';
+import { roleApi } from '@/api/role';
+import { mcpApi } from '@/api/mcp';
+import { githubApi } from '@/api/github';
+import { slackApi } from '@/api/slack';
 import { useConfirm } from '@/composables/useConfirm';
 
 const { confirm } = useConfirm();
@@ -36,17 +43,22 @@ const customFields = ref<any[]>([]);
 const automations = ref<any[]>([]);
 const relationTypes = ref<any[]>([]);
 const memberCount = ref(0);
+const templateCount = ref(0);
+const pluginCount = ref(0);
+const roleCount = ref(0);
+const integrationCount = ref(0);
 
 const navItems = computed(() => [
   { id: 'members', label: t('settings.members'), icon: '👥', count: memberCount.value },
   { id: 'types', label: t('settings.workItemTypes'), icon: '📋', count: issueTypes.value.length },
-  { id: 'templates', label: t('settings.templates'), icon: '📦', count: 0 },
+  { id: 'templates', label: t('settings.templates'), icon: '📦', count: templateCount.value },
   { id: 'ai', label: t('settings.ai'), icon: '🤖', count: 0 },
   { id: 'fields', label: t('settings.fields'), icon: '📝', count: customFields.value.length },
   { id: 'automations', label: t('settings.automations'), icon: '🤖', count: automations.value.length },
   { id: 'relations', label: t('settings.relations'), icon: '🔗', count: relationTypes.value.length },
-  { id: 'integrations', label: t('settings.integrations'), icon: '🔌', count: 0 },
-  { id: 'roles', label: t('settings.roles'), icon: '🔑', count: 0 },
+  { id: 'integrations', label: t('settings.integrations'), icon: '🔌', count: integrationCount.value },
+  { id: 'roles', label: t('settings.roles'), icon: '🔑', count: roleCount.value },
+  { id: 'plugins', label: t('settings.plugins'), icon: '🧩', count: pluginCount.value },
 ])
 
 // ===== Load workspace and data =====
@@ -73,12 +85,26 @@ async function loadAllData() {
       pid ? workflowApi.listAutomations(pid) : Promise.resolve([]),
       relationApi.listRelationTypes(wid),
       slug.value ? workspaceApi.listMembers(slug.value) : Promise.resolve([]),
+      templateApi.listTemplates(wid),
+      pluginApi.list(wid),
+      roleApi.listRoles(wid),
+      mcpApi.list(wid),
+      githubApi.list(wid),
+      slackApi.list(wid),
     ]);
     issueTypes.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value) ? results[0].value : []) : [];
     customFields.value = results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : []) : [];
     automations.value = results[2].status === 'fulfilled' ? (Array.isArray(results[2].value) ? results[2].value : []) : [];
     relationTypes.value = results[3].status === 'fulfilled' ? (Array.isArray(results[3].value) ? results[3].value : []) : [];
     memberCount.value = results[4].status === 'fulfilled' ? (Array.isArray(results[4].value) ? results[4].value.length : 0) : 0;
+    templateCount.value = results[5].status === 'fulfilled' ? (Array.isArray(results[5].value) ? results[5].value.length : 0) : 0;
+    pluginCount.value = results[6].status === 'fulfilled' ? (Array.isArray(results[6].value) ? results[6].value.length : 0) : 0;
+    const roles = results[7].status === 'fulfilled' ? results[7].value : null;
+    roleCount.value = roles?.data?.length || (Array.isArray(roles) ? roles.length : 0);
+    const mcp = results[8].status === 'fulfilled' ? (Array.isArray(results[8].value) ? results[8].value : []) : [];
+    const github = results[9].status === 'fulfilled' ? (Array.isArray(results[9].value) ? results[9].value : []) : [];
+    const slack = results[10].status === 'fulfilled' ? (Array.isArray(results[10].value) ? results[10].value : []) : [];
+    integrationCount.value = mcp.length + github.length + slack.length;
   } catch (e) { console.error('Failed to load data:', e); }
   finally { loading.value = false; }
 }
@@ -214,6 +240,11 @@ onMounted(() => { loadWorkspace(); });
       <!-- Roles & Permissions Section -->
       <div v-if="activeSection === 'roles'" class="p-0">
         <RoleManagement />
+      </div>
+
+      <!-- Plugins Section -->
+      <div v-if="activeSection === 'plugins'" class="p-0">
+        <PluginManager :workspace-id="workspaceId" />
       </div>
     </main>
 

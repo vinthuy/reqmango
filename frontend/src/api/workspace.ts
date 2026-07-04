@@ -37,7 +37,7 @@ export const workspaceApi = {
   },
 
   updateWorkspace: async (slug: string, data: Partial<WorkspaceCreate>): Promise<Workspace> => {
-    const response = await api.put(`/workspaces/${slug}`, data)
+    const response = await api.patch(`/workspaces/${slug}`, data)
     return response.data
   },
 

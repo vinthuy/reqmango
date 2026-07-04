@@ -214,11 +214,10 @@ func (h *WorkspaceHandler) resolveWsParam(c *gin.Context) (uint64, bool) {
 	return ws.ID, true
 }
 
-// Update handles PATCH /workspaces/:id
+// Update handles PATCH /workspaces/:wsParam
 func (h *WorkspaceHandler) Update(c *gin.Context) {
-	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+	workspaceID, ok := h.resolveWsParam(c)
+	if !ok {
 		return
 	}
 
@@ -241,11 +240,10 @@ func (h *WorkspaceHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// Delete handles DELETE /workspaces/:id
+// Delete handles DELETE /workspaces/:wsParam
 func (h *WorkspaceHandler) Delete(c *gin.Context) {
-	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+	workspaceID, ok := h.resolveWsParam(c)
+	if !ok {
 		return
 	}
 
