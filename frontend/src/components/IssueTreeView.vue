@@ -272,10 +272,12 @@ function collapseAll() {
 
 async function handleCreateChild(payload: { parentId: number; name: string; priority: string }) {
   try {
+    // Use first available state as default, fallback to 1
+    const defaultStateId = states.value.length > 0 ? states.value[0]?.id : 1
     await issueApi.createIssue(props.projectId, props.workspaceId, {
       name: payload.name,
       priority: payload.priority as any,
-      state_id: 1,
+      state_id: defaultStateId,
       parent_id: payload.parentId
     })
 
@@ -395,7 +397,11 @@ function reloadTree() {
 }
 
 async function loadStates() {
-  try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ }
+  try {
+    const r = await api.get(`/projects/${props.projectId}/settings/states`)
+    const raw = r.data
+    states.value = Array.isArray(raw) ? raw : (raw?.data ?? [])
+  } catch (e) { /* */ }
 }
 async function loadMembers() {
   try { const r = await api.get(`/workspaces/${props.workspaceId}/members`); members.value = r.data } catch (e) { /* */ }

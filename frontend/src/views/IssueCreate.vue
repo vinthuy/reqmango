@@ -605,8 +605,18 @@ watch(selectedTypeId, (newTypeId) => {
   }
 })
 
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  await loadData()
+  // Auto-populate parent from query param (e.g. ?parent_id=X from IssueDetail)
+  const parentId = route.query.parent_id
+  if (parentId) {
+    try {
+      const parent = await issueApi.getIssue(Number(parentId))
+      if (parent) selectParent(parent)
+    } catch (e) {
+      console.error('Failed to load parent issue:', e)
+    }
+  }
 })
 </script>
 

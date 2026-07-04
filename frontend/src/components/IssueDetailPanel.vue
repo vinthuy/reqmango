@@ -13,6 +13,15 @@
           <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
             <div class="flex items-center space-x-3 min-w-0 flex-1">
               <span class="text-sm text-gray-400 font-mono shrink-0">#{{ issue.sequence_id }}</span>
+              <!-- Parent link -->
+              <a
+                v-if="issue.parent_id"
+                :href="`/workspace/${workspaceSlug}/project/${projectId}/issues/${issue.parent_id}`"
+                class="text-xs text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded transition-colors shrink-0"
+                @click.prevent="navigateTo(issue.parent_id)"
+              >
+                {{ t('issue.parent') || 'Parent' }}
+              </a>
               <input
                 v-if="editing"
                 v-model="editForm.name"
@@ -181,7 +190,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import issueApi from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
 import api from '@/api'
@@ -190,8 +200,18 @@ import { useI18n } from '@/composables/useI18n'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
 
+const router = useRouter()
+const route = useRoute()
 const { confirm } = useConfirm()
 const { t, locale } = useI18n()
+
+const workspaceSlug = computed(() => (route.params as any).slug as string || '')
+function navigateTo(issueId: number) {
+  const slug = workspaceSlug.value
+  if (slug) {
+    router.push(`/workspace/${slug}/project/${props.projectId}/issues/${issueId}`)
+  }
+}
 
 const props = defineProps<{
   issueId: number | null

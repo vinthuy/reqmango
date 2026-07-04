@@ -12,6 +12,19 @@
           <h1 class="text-base font-semibold text-gray-800">
             {{ issue?.issue_type?.name || t('issue.unknown') }} #{{ issue?.sequence_id }}
           </h1>
+          <!-- 父级导航 -->
+          <div v-if="issue?.parent_id" class="flex items-center gap-1.5 ml-2">
+            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7l5 5-5 5" />
+            </svg>
+            <a
+              :href="`/workspace/${route.params.slug}/project/${route.params.id}/issues/${issue.parent_id}`"
+              class="text-sm text-indigo-600 hover:text-indigo-700 hover:underline transition-colors"
+              @click.prevent="router.push({ path: `/workspace/${route.params.slug}/project/${route.params.id}/issues/${issue.parent_id}` })"
+            >
+              {{ t('issue.parentIssue') || 'Parent' }}: {{ issue.parent?.name || '#' + issue.parent_id }}
+            </a>
+          </div>
         </div>
         <div class="flex items-center space-x-3">
           <button
