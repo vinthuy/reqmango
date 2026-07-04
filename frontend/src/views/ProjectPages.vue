@@ -42,6 +42,9 @@
             <span v-if="saving" class="text-xs text-indigo-500 animate-pulse">Saving...</span>
             <span v-if="saved" class="text-xs text-green-600">Saved</span>
             <span v-if="saveError" class="text-xs text-red-500">{{ saveError }}</span>
+            <button @click="showVersionPanel = !showVersionPanel" class="text-sm text-gray-500 hover:text-gray-700" :class="{ 'text-indigo-600': showVersionPanel }">
+              {{ t('pages.history') }}
+            </button>
             <button @click="archiveCurrent" class="text-sm text-gray-500 hover:text-gray-700">
               {{ selectedPage.archived_at ? 'Restore' : 'Archive' }}
             </button>
@@ -58,13 +61,24 @@
           <span v-if="aiLoading" class="text-xs text-indigo-500 animate-pulse">{{ t('ai.testing') }}</span>
         </div>
 
-        <div class="bg-white rounded-lg border border-gray-200 p-4 min-h-[400px]">
-          <textarea
+        <div class="flex gap-4">
+          <div class="flex-1 bg-white rounded-lg border border-gray-200 p-4 min-h-[400px]">
+            <TipTapEditor
               v-model="editForm.content"
-              @blur="savePage"
-              class="w-full min-h-[400px] border-none focus:outline-none focus:ring-0 resize-none text-gray-700 leading-relaxed"
+              @update:modelValue="onContentChange"
               :placeholder="t('pages.placeholder')"
-            ></textarea>
+              class="min-h-[400px]"
+            />
+          </div>
+          
+          <!-- Version History Panel -->
+          <div v-if="showVersionPanel && selectedPage" class="w-72 shrink-0">
+            <PageVersionPanel
+              :page-id="selectedPage.id"
+              :project-id="projectId"
+              @restore="onVersionRestore"
+            />
+          </div>
         </div>
 
         <div class="mt-4 text-xs text-gray-400">
@@ -99,7 +113,7 @@
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showDeleteConfirm = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-sm">
         <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ t('pages.delete') }}</h3>
-        <p class="text-sm text-gray-500 mb-4">{{ t('pages.deleteConfirm').replace('{title}', deletingPage?.title || '') }}</p>
+        <p class="text-sm text-gray-500 mb-4">{{ t('pages.deleteConfirm', { title: deletingPage?.title || '' }) }}</p>
         <div class="flex justify-end space-x-3">
           <button @click="showDeleteConfirm = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('common.cancel') }}</button>
           <button @click="doDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">{{ t('common.delete') }}</button>
@@ -115,9 +129,13 @@ import { useRoute, useRouter } from 'vue-router'
 import * as pageApi from '@/api/page'
 import type { Page } from '@/types/page'
 import PageTree from '@/components/PageTree.vue'
+import TipTapEditor from '@/components/TipTapEditor.vue'
+import PageVersionPanel from '@/components/PageVersionPanel.vue'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
+const toast = useToast()
 
 const route = useRoute()
 const router = useRouter()
@@ -142,6 +160,7 @@ let saveTimeout: ReturnType<typeof setTimeout> | null = null
 const saving = ref(false)
 const saved = ref(false)
 const saveError = ref('')
+const showVersionPanel = ref(false)
 
 onMounted(() => loadPages())
 
@@ -190,6 +209,18 @@ async function selectPage(page: Page) {
     editForm.title = full.title
     editForm.content = full.content || ''
   } catch (e) { console.error('Failed to load page:', e) }
+}
+
+function onContentChange(content: string) {
+  editForm.content = content
+  debouncedSave()
+}
+
+function onVersionRestore() {
+  // Reload the current page after version restore
+  if (selectedPage.value) {
+    selectPage(selectedPage.value)
+  }
 }
 
 function debouncedSave() {
@@ -274,7 +305,7 @@ async function aiAction(action: string) {
     })
     if (!res.ok) {
       const err = await res.json()
-      alert(t('ai.failed') + (err.message || t('common.unknown')))
+      toast.error(t('ai.failed') + (err.message || t('common.unknown')))
       return
     }
     const data = await res.json()
@@ -285,7 +316,7 @@ async function aiAction(action: string) {
     }
     savePage()
   } catch (e: any) {
-    alert(t('ai.requestFailed') + e.message)
+    toast.error(t('ai.requestFailed') + e.message)
   } finally { aiLoading.value = false }
 }
 

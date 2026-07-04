@@ -176,6 +176,33 @@ func (h *IssueTypeHandler) Disable(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Issue type status updated"})
 }
 
+func (h *IssueTypeHandler) ReorderWorkspace(c *gin.Context) {
+	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
+
+	var req struct {
+		TypeIDs []uint64 `json:"type_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
+		return
+	}
+
+	if svcErr := h.svc.ReorderWorkspace(workspaceID, req.TypeIDs); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Issue types reordered"})
+}
+
 // ==================== Field Association ====================
 
 func (h *IssueTypeHandler) ListFields(c *gin.Context) {

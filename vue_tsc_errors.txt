@@ -1,0 +1,13 @@
+src/components/AIChatSidebar.vue(441,16): error TS6133: 'loadIssueTypes' is declared but its value is never read.
+src/components/AIChatSidebar.vue(445,63): error TS2339: Property 'data' does not exist on type 'never'.
+src/components/AIChatSidebar.vue(457,7): error TS2353: Object literal may only specify known properties, and 'workspace_id' does not exist in type 'AICreateRequest'.
+src/components/AICopilot.vue(465,63): error TS2339: Property 'data' does not exist on type 'never'.
+src/components/AICopilot.vue(477,7): error TS2353: Object literal may only specify known properties, and 'workspace_id' does not exist in type 'AICreateRequest'.
+src/components/PageTemplateSelector.vue(47,15): error TS6133: 'onMounted' is declared but its value is never read.
+src/components/PageVersionPanel.vue(44,78): error TS2322: Type 'number | null' is not assignable to type 'string | number'.
+  Type 'null' is not assignable to type 'string | number'.
+src/components/PageVersionPanel.vue(91,13): error TS6133: 'json' is declared but its value is never read.
+src/components/TipTapEditor.vue(93,40): error TS2339: Property 'charCount' does not exist on type 'CharacterCountStorage'.
+src/components/TipTapEditor.vue(184,43): error TS2559: Type 'false' has no properties in common with type 'SetContentOptions'.
+src/components/TipTapEditor.vue(195,50): error TS2559: Type 'false' has no properties in common with type 'SetContentOptions'.
+src/views/IssueCreate.vue(225,1): error TS6133: 'customFieldApi' is declared but its value is never read.

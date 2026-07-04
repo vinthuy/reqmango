@@ -2,6 +2,8 @@
 
 > 参考 PlaneAI Enterprise Grid 设计，适配当前项目
 
+**最后更新**: 2026-07-04
+
 ---
 
 ## 1. PlaneAI 参考模型
@@ -171,10 +173,33 @@ POST   /api/v1/templates/:id/apply                应用到项目(实例化)
 
 ```
 GET    /api/v1/projects/:id/issue-types            项目内已有类型
-POST   /api/v1/projects/:id/issue-types/import    从模板导入类型
+POST   /api/v1/projects/:id/issue-types            项目内创建类型
+POST   /api/v1/projects/:id/issue-types/copy-from-workspace  从工作空间复制
+PATCH  /api/v1/projects/:id/issue-types/reorder    项目内排序
 ```
 
-### 3.4 层级查询
+### 3.4 工作空间级别类型管理
+
+```
+POST   /api/v1/issue-types?workspace_id=N          创建类型
+GET    /api/v1/issue-types?workspace_id=N          列表
+GET    /api/v1/issue-types/:typeId                 详情
+PUT    /api/v1/issue-types/:typeId                 更新
+DELETE /api/v1/issue-types/:typeId                 删除
+PATCH  /api/v1/issue-types/:typeId/disable         启用/禁用
+PATCH  /api/v1/issue-types/reorder-workspace?workspace_id=N  工作空间级别排序
+```
+
+### 3.5 类型字段绑定
+
+```
+GET    /api/v1/issue-types/:typeId/fields          获取已绑定字段
+POST   /api/v1/issue-types/:typeId/fields          添加字段绑定
+PUT    /api/v1/issue-types/:typeId/fields/:fieldId 更新字段绑定（切换必填等）
+DELETE /api/v1/issue-types/:typeId/fields/:fieldId 移除字段绑定
+```
+
+### 3.6 层级查询
 
 ```
 GET    /api/v1/issues/hierarchy?project_id=N       项目工作项层级树
@@ -189,20 +214,44 @@ GET    /api/v1/issues/:id/children                  子工作项列表(按层级
 |------|------|------|
 | 自定义字段 CRUD | ✅ | ✅ |
 | 类型模板 CRUD | ✅ | ✅ TypeTemplateManager |
-| 字段绑定 | ✅ | ✅ |
+| 字段绑定 | ✅ | ✅ IssueTypeList页面 |
 | 层级定义 (Level/ParentTypeID) | ✅ | ✅ |
-| 项目模板 CRUD | ✅ | ⏳ |
-| 模板添加类型 | ✅ | ⏳ |
-| 应用到项目(实例化) | ⏳ | ⏳ |
-| 层级校验 (创建/编辑) | ✅ | ⏳ |
-| 层级树查询 | ⏳ | ⏳ |
-| 项目模板 UI | ⏳ | ⏳ |
+| 项目模板 CRUD | ✅ | ✅ |
+| 模板添加类型 | ✅ | ✅ |
+| 应用到项目(实例化) | ✅ | ✅ |
+| 层级校验 (创建/编辑) | ✅ | ✅ |
+| 层级树查询 | ✅ | ✅ |
+| 项目模板 UI | ✅ | ✅ |
+| 工作空间级别排序 | ✅ | ✅ |
+| 启用/禁用类型 | ✅ | ✅ |
+| 从工作空间复制到项目 | ✅ | ✅ |
 
 ---
 
-## 5. 待实现优先级
+## 5. 最新改进 (2026-07-04)
 
-1. **模板实例化** (apply to project) — 核心闭环
-2. **项目模板管理 UI** — 可用性
-3. **层级树查询** — 展示
+### IssueTypeList页面增强
+- 新增自定义字段绑定UI
+- 支持显示已绑定字段列表
+- 支持添加新字段绑定
+- 支持移除字段绑定
+- 支持切换字段必填状态
+
+### 模板应用修复
+- `CopyFromWorkspace` 方法现在会正确复制字段关联
+- 从工作空间复制类型时，会同时复制 `IssueTypeField` 关联
+
+### 工作空间级别排序
+- 新增 `ReorderWorkspace` API：`PATCH /issue-types/reorder-workspace?workspace_id=`
+- 支持工作空间级别类型的排序操作
+
+---
+
+## 6. 待实现优先级
+
+1. ~~**模板实例化** (apply to project) — 核心闭环~~ ✅ 已完成
+2. ~~**项目模板管理 UI** — 可用性~~ ✅ 已完成
+3. ~~**层级树查询** — 展示~~ ✅ 已完成
 4. **关系系统** (依赖/关联) — 后续增强
+5. **批量创建/导入类型** — 提升效率
+6. **类型使用统计** — 显示每个类型关联的Issue数量

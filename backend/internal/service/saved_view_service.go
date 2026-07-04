@@ -1,8 +1,6 @@
 package service
 
 import (
-	"encoding/json"
-
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
@@ -194,15 +192,6 @@ func (s *SavedViewService) Duplicate(id, projectID, userID uint64) (*response.Sa
 	}
 	resp := viewToResponse(&clone)
 	return &resp, nil
-}
-
-// ==================== Helpers ====================
-
-func normalizeJSON(raw json.RawMessage) json.RawMessage {
-	if raw == nil || string(raw) == "" || string(raw) == "null" {
-		return json.RawMessage("{}")
-	}
-	return raw
 }
 
 func viewToResponse(v *model.SavedView) response.SavedViewResponse {

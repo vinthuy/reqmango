@@ -1,6 +1,7 @@
 import { reactive, computed, provide, inject, type ComputedRef } from 'vue'
 import type { FilterCondition, SortOption, GroupOption, SubGroupOption } from '../types/filters'
 import { buildRQL, parseRQL, FILTER_FIELDS } from '../types/filters'
+import { useAuthStore } from '../stores/auth'
 
 const FILTERS_KEY = Symbol('filters')
 const SEARCH_HISTORY_KEY = 'reqmango_search_history'
@@ -57,6 +58,8 @@ function saveSearchHistory(history: string[]): void {
 }
 
 export function useFilters() {
+  const auth = useAuthStore()
+  
   const state = reactive<FiltersState>({
     filters: [],
     sortBy: [],
@@ -67,7 +70,7 @@ export function useFilters() {
   })
 
   const rql = computed<string>(() => {
-    return buildRQL(state.filters, state.quickSearch)
+    return buildRQL(state.filters, state.quickSearch, auth.user?.id)
   })
   
   const activeFilterCount = computed<number>(() => state.filters.length + (state.quickSearch ? 1 : 0))

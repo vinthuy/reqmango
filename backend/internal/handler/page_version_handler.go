@@ -41,7 +41,7 @@ func (h *PageVersionHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid page ID"})
 		return
 	}
-	versionNumber, err := strconv.Atoi(c.Param("versionNumber"))
+	versionNumber, err := strconv.Atoi(c.Param("versionId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid version number"})
 		return
@@ -62,7 +62,7 @@ func (h *PageVersionHandler) Restore(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid page ID"})
 		return
 	}
-	versionNumber, err := strconv.Atoi(c.Param("versionNumber"))
+	versionNumber, err := strconv.Atoi(c.Param("versionId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid version number"})
 		return

@@ -14,14 +14,14 @@ type InitiativeService struct{ db *gorm.DB }
 
 func NewInitiativeService(db *gorm.DB) *InitiativeService { return &InitiativeService{db} }
 
-func (s *InitiativeService) Create(workspaceID uint64, req request.CreateInitiativeReq) (*model.Initiative, error) {
+func (s *InitiativeService) Create(workspaceID uint64, req request.CreateInitiativeReq, userID uint64) (*model.Initiative, error) {
 	status := req.Status
 	if status == "" {
 		status = "active"
 	}
 	initiative := model.Initiative{
 		WorkspaceID: workspaceID, Name: req.Name, Description: req.Description,
-		Color: req.Color, Status: status, CreatedByID: 1,
+		Color: req.Color, Status: status, CreatedByID: userID,
 	}
 	if req.TargetDate != "" {
 		t, _ := time.Parse("2006-01-02", req.TargetDate)
@@ -39,10 +39,15 @@ func (s *InitiativeService) Create(workspaceID uint64, req request.CreateInitiat
 	}
 	if len(req.ProjectIDs) > 0 {
 		for _, pid := range req.ProjectIDs {
-			tx.Create(&model.InitiativeProject{InitiativeID: initiative.ID, ProjectID: pid})
+			if err := tx.Create(&model.InitiativeProject{InitiativeID: initiative.ID, ProjectID: pid}).Error; err != nil {
+				tx.Rollback()
+				return nil, err
+			}
 		}
 	}
-	tx.Commit()
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
 	s.db.Preload("Projects").First(&initiative, initiative.ID)
 	return &initiative, nil
 }
@@ -50,6 +55,13 @@ func (s *InitiativeService) Create(workspaceID uint64, req request.CreateInitiat
 func (s *InitiativeService) List(workspaceID uint64) ([]model.Initiative, error) {
 	var initiatives []model.Initiative
 	err := s.db.Where("workspace_id = ?", workspaceID).
+		Preload("Projects").Order("sort_order ASC, created_at DESC").Find(&initiatives).Error
+	return initiatives, err
+}
+
+func (s *InitiativeService) Search(workspaceID uint64, query string) ([]model.Initiative, error) {
+	var initiatives []model.Initiative
+	err := s.db.Where("workspace_id = ? AND name ILIKE ?", workspaceID, "%"+query+"%").
 		Preload("Projects").Order("sort_order ASC, created_at DESC").Find(&initiatives).Error
 	return initiatives, err
 }
@@ -138,9 +150,9 @@ func (s *InitiativeService) GetProgress(id uint64) (map[string]interface{}, erro
 	}
 
 	return map[string]interface{}{
-		"total_issues":    totalIssues,
+		"total_issues":     totalIssues,
 		"completed_issues": completedIssues,
-		"progress":        progress,
-		"project_count":   len(initiative.Projects),
+		"progress":         progress,
+		"project_count":    len(initiative.Projects),
 	}, nil
 }

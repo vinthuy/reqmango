@@ -120,6 +120,62 @@ func (s *CycleService) buildResponse(cycle *model.Cycle) *response.CycleResponse
 	return resp
 }
 
+// buildResponseWithData constructs a CycleResponse using preloaded data to avoid N+1 queries.
+func (s *CycleService) buildResponseWithData(cycle *model.Cycle, projectsMap map[uint64]*model.Project, usersMap map[uint64]*model.User) *response.CycleResponse {
+	total, completed, err := s.countIssues(cycle.ID)
+	if err != nil {
+		log.Printf("cycle: error counting issues for cycle %d: %v", cycle.ID, err)
+	}
+	progress := 0.0
+	if total > 0 {
+		progress = float64(completed) / float64(total) * 100
+	}
+
+	var endDateStr *string
+	if cycle.EndDate != nil {
+		val := cycle.EndDate.Format("2006-01-02")
+		endDateStr = &val
+	}
+
+	resp := &response.CycleResponse{
+		ID:              cycle.ID,
+		Name:            cycle.Name,
+		Description:     cycle.Description,
+		Status:          computeStatus(cycle),
+		Progress:        float64(int(progress*100)) / 100,
+		TotalIssues:     total,
+		CompletedIssues: completed,
+		StartDate:       cycle.StartDate.Format("2006-01-02"),
+		EndDate:         endDateStr,
+		ProjectID:       cycle.ProjectID,
+		WorkspaceID:     cycle.WorkspaceID,
+		CreatedAt:       cycle.CreatedAt,
+		UpdatedAt:       cycle.UpdatedAt,
+		CreatedByID:     cycle.CreatedByID,
+		UpdatedByID:     cycle.UpdatedByID,
+	}
+
+	if project, ok := projectsMap[cycle.ProjectID]; ok {
+		resp.Project = &response.ProjectLite{
+			ID:         project.ID,
+			Name:       project.Name,
+			Identifier: project.Identifier,
+		}
+	}
+
+	if cycle.CreatedByID != nil {
+		if user, ok := usersMap[*cycle.CreatedByID]; ok {
+			resp.OwnedBy = &response.UserLite{
+				ID:          user.ID,
+				DisplayName: user.DisplayName,
+				Email:       user.Email,
+			}
+		}
+	}
+
+	return resp
+}
+
 // ==================== CRUD ====================
 
 func (s *CycleService) Create(workspaceID, userID uint64, req *request.CycleCreateRequest) (*response.CycleResponse, error) {
@@ -203,12 +259,98 @@ func (s *CycleService) ListByProject(projectID uint64, status string, limit, off
 	}
 
 	page := filtered[start:end]
+
+	// Batch load projects and users to avoid N+1 queries
+	projectIDs := make(map[uint64]bool)
+	userIDs := make(map[uint64]bool)
+	for _, c := range page {
+		projectIDs[c.ProjectID] = true
+		if c.CreatedByID != nil {
+			userIDs[*c.CreatedByID] = true
+		}
+	}
+
+	projectsMap := make(map[uint64]*model.Project)
+	usersMap := make(map[uint64]*model.User)
+
+	if len(projectIDs) > 0 {
+		ids := make([]uint64, 0, len(projectIDs))
+		for id := range projectIDs {
+			ids = append(ids, id)
+		}
+		var projects []model.Project
+		s.db.Where("id IN ?", ids).Find(&projects)
+		for i := range projects {
+			projectsMap[projects[i].ID] = &projects[i]
+		}
+	}
+	if len(userIDs) > 0 {
+		ids := make([]uint64, 0, len(userIDs))
+		for id := range userIDs {
+			ids = append(ids, id)
+		}
+		var users []model.User
+		s.db.Where("id IN ?", ids).Find(&users)
+		for i := range users {
+			usersMap[users[i].ID] = &users[i]
+		}
+	}
+
 	result := make([]response.CycleResponse, len(page))
 	for i, c := range page {
-		result[i] = *s.buildResponse(&c)
+		result[i] = *s.buildResponseWithData(&c, projectsMap, usersMap)
 	}
 
 	return result, total, nil
+}
+
+func (s *CycleService) Search(projectID uint64, query string) ([]response.CycleResponse, error) {
+	var cycles []model.Cycle
+	if err := s.db.Where("project_id = ? AND name ILIKE ?", projectID, "%"+query+"%").Order("start_date DESC").Find(&cycles).Error; err != nil {
+		return nil, common.Internal("Database error")
+	}
+
+	// Batch load to avoid N+1
+	projectIDs := make(map[uint64]bool)
+	userIDs := make(map[uint64]bool)
+	for _, c := range cycles {
+		projectIDs[c.ProjectID] = true
+		if c.CreatedByID != nil {
+			userIDs[*c.CreatedByID] = true
+		}
+	}
+
+	projectsMap := make(map[uint64]*model.Project)
+	usersMap := make(map[uint64]*model.User)
+
+	if len(projectIDs) > 0 {
+		ids := make([]uint64, 0, len(projectIDs))
+		for id := range projectIDs {
+			ids = append(ids, id)
+		}
+		var projects []model.Project
+		s.db.Where("id IN ?", ids).Find(&projects)
+		for i := range projects {
+			projectsMap[projects[i].ID] = &projects[i]
+		}
+	}
+	if len(userIDs) > 0 {
+		ids := make([]uint64, 0, len(userIDs))
+		for id := range userIDs {
+			ids = append(ids, id)
+		}
+		var users []model.User
+		s.db.Where("id IN ?", ids).Find(&users)
+		for i := range users {
+			usersMap[users[i].ID] = &users[i]
+		}
+	}
+
+	result := make([]response.CycleResponse, len(cycles))
+	for i, c := range cycles {
+		result[i] = *s.buildResponseWithData(&c, projectsMap, usersMap)
+	}
+	return result, nil
 }
 
 func (s *CycleService) Update(cycleID, userID uint64, req *request.CycleUpdateRequest) (*response.CycleResponse, error) {
@@ -261,10 +403,17 @@ func (s *CycleService) Delete(cycleID uint64) error {
 	if err := s.db.First(&cycle, cycleID).Error; err != nil {
 		return common.NotFound("Cycle not found")
 	}
-	if err := s.db.Where("cycle_id = ?", cycleID).Delete(&model.IssueCycle{}).Error; err != nil {
+
+	tx := s.db.Begin()
+	if err := tx.Where("cycle_id = ?", cycleID).Delete(&model.IssueCycle{}).Error; err != nil {
+		tx.Rollback()
 		return common.Internal("Failed to cleanup cycle issues")
 	}
-	return s.db.Delete(&cycle).Error
+	if err := tx.Delete(&cycle).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to delete cycle")
+	}
+	return tx.Commit().Error
 }
 
 // ==================== Status Transitions ====================

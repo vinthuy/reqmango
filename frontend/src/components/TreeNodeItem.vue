@@ -141,7 +141,7 @@
         @toggle="$emit('toggle', $event)"
         @select="$emit('select', $event)"
         @toggle-select="$emit('toggle-select', $event)"
-        @create-child="(payload) => $emit('create-child', payload)"
+        @create-child="(payload: any) => $emit('create-child', payload)"
       />
     </template>
 

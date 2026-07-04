@@ -37,6 +37,14 @@
             <span>{{ t('common.import') }}</span>
           </button>
 
+          <!-- 导出 -->
+          <button @click="handleExport" class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>{{ t('common.export') }}</span>
+          </button>
+
           <!-- 新建 -->
           <button @click="goToCreate" class="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 text-white text-xs rounded-md hover:bg-neutral-800 transition-colors font-medium">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -625,6 +633,16 @@ function formatDate(d: string | null | undefined) { if (!d) return '-'; return n
 
 // ── Actions ──
 function goToCreate() { router.push(`/workspaces/${props.workspaceId}/projects/${props.projectId}/issues/new`) }
+
+async function handleExport() {
+  try {
+    await issueApi.exportIssues(props.projectId, 'csv')
+    toast.success(t('issueList.exportSuccess'))
+  } catch (e) {
+    console.error('Export failed:', e)
+    toast.error(t('issueList.exportFailed'))
+  }
+}
 function onQuickCreated() { page.value = 1; loadIssues() }
 function onImportSuccess() { page.value = 1; loadIssues() }
 
@@ -677,7 +695,7 @@ function clearSelection() {
 }
 
 async function execBatchDelete() {
-  if (!(await confirm(t('issueList.confirmDelete').replace('{0}', String(selectedIds.value.size))))) return
+  if (!(await confirm(t('issueList.confirmDelete', { 0: String(selectedIds.value.size) })))) return
   try {
     await issueApi.bulkDeleteIssues([...selectedIds.value])
     clearSelection()

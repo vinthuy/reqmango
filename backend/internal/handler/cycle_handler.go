@@ -102,6 +102,25 @@ func (h *CycleHandler) List(c *gin.Context) {
 	})
 }
 
+// Search handles GET /projects/:projectId/cycles/search?q=xxx
+func (h *CycleHandler) Search(c *gin.Context) {
+	projectID, err := h.parseProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "query parameter 'q' is required"})
+		return
+	}
+	cycles, svcErr := h.svc.Search(projectID, query)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": cycles})
+}
+
 // Get handles GET /cycles/:cycleId
 func (h *CycleHandler) Get(c *gin.Context) {
 	cycleID, err := h.parseCycleID(c)

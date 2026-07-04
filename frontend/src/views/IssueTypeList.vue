@@ -252,6 +252,39 @@
                 <span>{{ t('issueTypePage.setDefault') }}</span>
               </label>
             </div>
+
+            <!-- 自定义字段绑定 -->
+            <div v-if="!isCreating && selectedType" class="form-group">
+              <label class="form-label">{{ t('issueTypePage.customFields') }}</label>
+              <div class="field-binding-list">
+                <div v-for="field in boundFields" :key="field.field_id" class="field-binding-item">
+                  <span class="field-name">{{ field.name || `字段 #${field.field_id}` }}</span>
+                  <label class="field-required-toggle">
+                    <input type="checkbox" :checked="field.is_required" @change="toggleFieldRequired(field)" />
+                    <span>{{ t('issueTypePage.required') }}</span>
+                  </label>
+                  <button @click="removeField(field)" class="field-remove-btn" :title="t('issueTypePage.removeField')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div v-if="boundFields.length === 0" class="no-fields-hint">
+                  {{ t('issueTypePage.noFieldsBound') }}
+                </div>
+              </div>
+              <div class="add-field-section">
+                <select v-model="selectedFieldToAdd" class="form-input field-select">
+                  <option :value="null">{{ t('issueTypePage.selectFieldToAdd') }}</option>
+                  <option v-for="field in availableFields" :key="field.id" :value="field.id">
+                    {{ field.name }}
+                  </option>
+                </select>
+                <button @click="addField" class="btn btn-secondary btn-sm" :disabled="!selectedFieldToAdd">
+                  {{ t('issueTypePage.addField') }}
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="drawer-footer">
@@ -269,11 +302,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import type { IssueType, IssueTypeCreate, IssueTypeUpdate } from '@/types/issue-type'
+import type { IssueType, IssueTypeCreate, IssueTypeUpdate, IssueTypeField } from '@/types/issue-type'
+import type { CustomField } from '@/types/custom-field'
 import { ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS, getIconName } from '@/types/issue-type'
 import { useI18n } from '@/composables/useI18n'
 import { useConfirm } from '@/composables/useConfirm'
 import * as issueTypeApi from '@/api/issue-type'
+import api from '@/api/index'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -288,6 +323,17 @@ const loading = ref(false)
 const showEditDrawer = ref(false)
 const isCreating = ref(false)
 const selectedType = ref<IssueType | null>(null)
+
+// 自定义字段相关状态
+const boundFields = ref<(IssueTypeField & { CustomField?: CustomField })[]>([])
+const allCustomFields = ref<CustomField[]>([])
+const selectedFieldToAdd = ref<number | null>(null)
+
+// 可添加的字段（排除已绑定的）
+const availableFields = computed(() => {
+  const boundIds = new Set(boundFields.value.map(f => f.field_id))
+  return allCustomFields.value.filter(f => !boundIds.has(f.id))
+})
 
 // 表单数据
 const formData = ref<IssueTypeCreate & IssueTypeUpdate>({
@@ -338,7 +384,7 @@ function openCreateModal() {
 }
 
 // 打开编辑
-function openEditModal(type: IssueType) {
+async function openEditModal(type: IssueType) {
   isCreating.value = false
   selectedType.value = type
   formData.value = {
@@ -352,6 +398,80 @@ function openEditModal(type: IssueType) {
     sequence: type.sequence
   }
   showEditDrawer.value = true
+  
+  // 加载已绑定字段
+  await loadBoundFields(type.id)
+}
+
+// 加载已绑定的字段
+async function loadBoundFields(typeId: number) {
+  try {
+    boundFields.value = await issueTypeApi.getIssueTypeFields(typeId)
+  } catch (error) {
+    console.error('Failed to load bound fields:', error)
+    boundFields.value = []
+  }
+}
+
+// 加载所有自定义字段
+async function loadAllCustomFields() {
+  try {
+    const response = await api.get('/custom-fields', { params: { workspace_id: workspaceId.value } })
+    allCustomFields.value = response.data
+  } catch (error) {
+    console.error('Failed to load custom fields:', error)
+    allCustomFields.value = []
+  }
+}
+
+// 添加字段到类型
+async function addField() {
+  if (!selectedType.value || !selectedFieldToAdd.value) return
+  
+  try {
+    await issueTypeApi.addFieldToIssueType(selectedType.value.id, {
+      field_id: selectedFieldToAdd.value,
+      is_required: false,
+      sequence: boundFields.value.length + 1
+    })
+    selectedFieldToAdd.value = null
+    await loadBoundFields(selectedType.value.id)
+  } catch (error) {
+    console.error('Failed to add field:', error)
+  }
+}
+
+// 移除字段
+async function removeField(field: IssueTypeField) {
+  if (!selectedType.value) return
+  
+  if (await confirm({
+    title: t('issueTypePage.removeFieldTitle'),
+    message: t('issueTypePage.removeFieldConfirm', { name: field.name || `字段 #${field.field_id}` }),
+    danger: true,
+    confirmText: t('issueTypePage.removeBtn')
+  })) {
+    try {
+      await issueTypeApi.removeFieldFromIssueType(selectedType.value.id, field.field_id)
+      await loadBoundFields(selectedType.value.id)
+    } catch (error) {
+      console.error('Failed to remove field:', error)
+    }
+  }
+}
+
+// 切换字段必填状态
+async function toggleFieldRequired(field: IssueTypeField) {
+  if (!selectedType.value) return
+  
+  try {
+    await issueTypeApi.updateIssueTypeField(selectedType.value.id, field.field_id, {
+      is_required: !field.is_required
+    })
+    await loadBoundFields(selectedType.value.id)
+  } catch (error) {
+    console.error('Failed to toggle field required:', error)
+  }
 }
 
 // 关闭抽屉
@@ -359,6 +479,8 @@ function closeDrawer() {
   showEditDrawer.value = false
   selectedType.value = null
   isCreating.value = false
+  boundFields.value = []
+  selectedFieldToAdd.value = null
 }
 
 // 提交表单
@@ -413,8 +535,9 @@ async function confirmDelete(type: IssueType) {
   }
 }
 
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  await loadData()
+  await loadAllCustomFields()
 })
 </script>
 
@@ -603,6 +726,47 @@ onMounted(() => {
 
 .checkbox {
   @apply w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500;
+}
+
+/* 字段绑定样式 */
+.field-binding-list {
+  @apply space-y-2 mb-3;
+}
+
+.field-binding-item {
+  @apply flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200;
+}
+
+.field-name {
+  @apply text-sm font-medium text-gray-700 flex-1;
+}
+
+.field-required-toggle {
+  @apply flex items-center space-x-1 text-xs text-gray-500 mr-2 cursor-pointer;
+}
+
+.field-required-toggle input {
+  @apply w-3 h-3 rounded border-gray-300 text-indigo-600;
+}
+
+.field-remove-btn {
+  @apply p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600 transition;
+}
+
+.no-fields-hint {
+  @apply text-sm text-gray-400 text-center py-2;
+}
+
+.add-field-section {
+  @apply flex items-center space-x-2;
+}
+
+.field-select {
+  @apply flex-1;
+}
+
+.btn-sm {
+  @apply px-3 py-1 text-sm;
 }
 
 .btn {

@@ -3,76 +3,76 @@
     <!-- Toolbar -->
     <div v-if="editor && !locked" class="tiptap-toolbar">
       <div class="toolbar-group">
-        <button @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" title="Bold (Ctrl+B)">
+        <button @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" :title="t('editor.boldShortcut')">
           <strong>B</strong>
         </button>
-        <button @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }" title="Italic (Ctrl+I)">
+        <button @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }" :title="t('editor.italicShortcut')">
           <em>I</em>
         </button>
-        <button @click="editor.chain().focus().toggleUnderline().run()" :class="{ 'is-active': editor.isActive('underline') }" title="Underline (Ctrl+U)">
+        <button @click="editor.chain().focus().toggleUnderline().run()" :class="{ 'is-active': editor.isActive('underline') }" :title="t('editor.underlineShortcut')">
           <u>U</u>
         </button>
-        <button @click="editor.chain().focus().toggleStrike().run()" :class="{ 'is-active': editor.isActive('strike') }" title="Strikethrough">
+        <button @click="editor.chain().focus().toggleStrike().run()" :class="{ 'is-active': editor.isActive('strike') }" :title="t('editor.strikethrough')">
           <s>S</s>
         </button>
-        <button @click="editor.chain().focus().toggleHighlight().run()" :class="{ 'is-active': editor.isActive('highlight') }" title="Highlight">
+        <button @click="editor.chain().focus().toggleHighlight().run()" :class="{ 'is-active': editor.isActive('highlight') }" :title="t('editor.highlight')">
           <span class="highlight-icon">H</span>
         </button>
-        <button @click="editor.chain().focus().toggleCode().run()" :class="{ 'is-active': editor.isActive('code') }" title="Inline Code">
+        <button @click="editor.chain().focus().toggleCode().run()" :class="{ 'is-active': editor.isActive('code') }" :title="t('editor.inlineCode')">
           <code>&lt;/&gt;</code>
         </button>
       </div>
       <span class="toolbar-divider"></span>
       <div class="toolbar-group">
-        <button @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }" title="Heading 1">
+        <button @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }" :title="t('editor.heading1')">
           H1
         </button>
-        <button @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }" title="Heading 2">
+        <button @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }" :title="t('editor.heading2')">
           H2
         </button>
-        <button @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }" title="Heading 3">
+        <button @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }" :title="t('editor.heading3')">
           H3
         </button>
       </div>
       <span class="toolbar-divider"></span>
       <div class="toolbar-group">
-        <button @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor.isActive('bulletList') }" title="Bullet List">
+        <button @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor.isActive('bulletList') }" :title="t('editor.bulletList')">
           •≡
         </button>
-        <button @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'is-active': editor.isActive('orderedList') }" title="Ordered List">
+        <button @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'is-active': editor.isActive('orderedList') }" :title="t('editor.orderedList')">
           1.≡
         </button>
-        <button @click="editor.chain().focus().toggleTaskList().run()" :class="{ 'is-active': editor.isActive('taskList') }" title="Task List">
+        <button @click="editor.chain().focus().toggleTaskList().run()" :class="{ 'is-active': editor.isActive('taskList') }" :title="t('editor.taskList')">
           ☑
         </button>
-        <button @click="editor.chain().focus().toggleBlockquote().run()" :class="{ 'is-active': editor.isActive('blockquote') }" title="Blockquote">
+        <button @click="editor.chain().focus().toggleBlockquote().run()" :class="{ 'is-active': editor.isActive('blockquote') }" :title="t('editor.blockquote')">
           ❝
         </button>
-        <button @click="editor.chain().focus().toggleCodeBlock().run()" :class="{ 'is-active': editor.isActive('codeBlock') }" title="Code Block">
+        <button @click="editor.chain().focus().toggleCodeBlock().run()" :class="{ 'is-active': editor.isActive('codeBlock') }" :title="t('editor.codeBlock')">
           { }
         </button>
       </div>
       <span class="toolbar-divider"></span>
       <div class="toolbar-group">
-        <button @click="editor.chain().focus().setTextAlign('left').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'left' }) }" title="Align Left">
+        <button @click="editor.chain().focus().setTextAlign('left').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'left' }) }" :title="t('editor.alignLeft')">
           ═╪
         </button>
-        <button @click="editor.chain().focus().setTextAlign('center').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'center' }) }" title="Align Center">
+        <button @click="editor.chain().focus().setTextAlign('center').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'center' }) }" :title="t('editor.alignCenter')">
           ═╪═
         </button>
-        <button @click="editor.chain().focus().setTextAlign('right').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }" title="Align Right">
+        <button @click="editor.chain().focus().setTextAlign('right').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }" :title="t('editor.alignRight')">
           ╪═
         </button>
       </div>
       <span class="toolbar-divider"></span>
       <div class="toolbar-group">
-        <button @click="addLink" :class="{ 'is-active': editor.isActive('link') }" title="Add Link">
+        <button @click="addLink" :class="{ 'is-active': editor.isActive('link') }" :title="t('editor.addLink')">
           🔗
         </button>
-        <button @click="addImage" title="Add Image">
+        <button @click="addImage" :title="t('editor.addImage')">
           🖼
         </button>
-        <button @click="editor.chain().focus().setHorizontalRule().run()" title="Horizontal Rule">
+        <button @click="editor.chain().focus().setHorizontalRule().run()" :title="t('editor.horizontalRule')">
           —
         </button>
       </div>
@@ -90,7 +90,7 @@
 
     <!-- Character Count -->
     <div v-if="editor && showCharCount" class="char-count">
-      {{ editor.storage.characterCount.charCount() }} {{ t('pages.characters') }}
+      {{ (editor.storage.characterCount as any).charCount() }} {{ t('pages.characters') }}
     </div>
   </div>
 </template>
@@ -181,7 +181,7 @@ watch(() => props.modelValue, (val) => {
     const isEmpty = val === '' || val === '<p></p>'
     const currentEmpty = currentHtml === '' || currentHtml === '<p></p>'
     if (isEmpty && currentEmpty) return
-    editor.value.commands.setContent(val, false)
+    editor.value.commands.setContent(val)
   }
 })
 
@@ -192,7 +192,7 @@ watch(() => props.contentJson, (val) => {
     if (parsed && typeof parsed === 'object' && parsed.type) {
       const currentJson = editor.value.getJSON()
       if (JSON.stringify(parsed) !== JSON.stringify(currentJson)) {
-        editor.value.commands.setContent(parsed, false)
+        editor.value.commands.setContent(parsed)
       }
     }
   } catch { /* ignore */ }

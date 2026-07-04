@@ -58,3 +58,11 @@ func (h *TimeTrackHandler) Delete(c *gin.Context) {
 	c.JSON(200, gin.H{"message":"Time entry deleted"})
 }
 
+// ProjectSummary returns aggregated time tracking stats for a project.
+func (h *TimeTrackHandler) ProjectSummary(c *gin.Context) {
+	projectID, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	r, err := h.svc.ProjectSummary(projectID)
+	if err != nil { common.RespondError(c, err); return }
+	c.JSON(200, r)
+}
+

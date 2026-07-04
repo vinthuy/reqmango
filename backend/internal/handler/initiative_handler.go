@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 	"gorm.io/gorm"
 )
@@ -18,6 +19,14 @@ func NewInitiativeHandler(db *gorm.DB) *InitiativeHandler {
 	return &InitiativeHandler{svc: service.NewInitiativeService(db)}
 }
 
+func (h *InitiativeHandler) getUserID(c *gin.Context) uint64 {
+	u, _ := c.Get("currentUser")
+	if u, ok := u.(*model.User); ok {
+		return u.ID
+	}
+	return 0
+}
+
 func (h *InitiativeHandler) Create(c *gin.Context) {
 	var req request.CreateInitiativeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -28,7 +37,7 @@ func (h *InitiativeHandler) Create(c *gin.Context) {
 	if wsID == 0 {
 		wsID = req.WorkspaceID
 	}
-	initiative, err := h.svc.Create(wsID, req)
+	initiative, err := h.svc.Create(wsID, req, h.getUserID(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -39,6 +48,21 @@ func (h *InitiativeHandler) Create(c *gin.Context) {
 func (h *InitiativeHandler) List(c *gin.Context) {
 	wsID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
 	initiatives, err := h.svc.List(wsID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": initiatives})
+}
+
+func (h *InitiativeHandler) Search(c *gin.Context) {
+	wsID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter 'q' is required"})
+		return
+	}
+	initiatives, err := h.svc.Search(wsID, query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

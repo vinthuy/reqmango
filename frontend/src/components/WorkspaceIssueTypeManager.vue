@@ -367,7 +367,7 @@ async function toggleActive(type: IssueType) {
   const actionKey = type.is_active ? 'workspaceIssueType.disableAction' : 'workspaceIssueType.enableAction'
   if (await confirm({
     title: t(type.is_active ? 'workspaceIssueType.disableConfirmTitle' : 'workspaceIssueType.enableConfirmTitle'),
-    message: t('workspaceIssueType.confirmToggleMessage').replace('{action}', t(actionKey)).replace('{name}', type.name),
+    message: t('workspaceIssueType.confirmToggleMessage', { action: t(actionKey), name: type.name }),
     confirmText: t(actionKey),
     danger: type.is_active,
   })) {
@@ -383,7 +383,7 @@ async function toggleActive(type: IssueType) {
 async function confirmDelete(type: IssueType) {
   if (await confirm({
     title: t('workspaceIssueType.deleteConfirmTitle'),
-    message: t('workspaceIssueType.deleteConfirmMessage').replace('{name}', type.name),
+    message: t('workspaceIssueType.deleteConfirmMessage', { name: type.name }),
     danger: true,
     confirmText: t('workspaceIssueType.deleteConfirmBtn')
   })) {

@@ -61,8 +61,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import api from '@/api'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{ projectId: number }>()
+const toast = useToast()
 defineEmits<{ (e: 'showForm'): void }>()
 
 const items = ref<any[]>([])
@@ -92,7 +94,7 @@ async function triage(issueId: number, action: string) {
   try {
     await api.post(`/projects/${props.projectId}/intake/${issueId}/triage`, { action })
     load()
-  } catch (e: any) { alert(e.response?.data?.message || 'Failed') }
+  } catch (e: any) { toast.error(e.response?.data?.message || 'Failed') }
 }
 
 function formatDate(d: string) { return new Date(d).toLocaleDateString() }

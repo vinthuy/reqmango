@@ -41,7 +41,7 @@
 
     <!-- Preview -->
     <div v-if="previewContent !== null" class="version-preview border-t border-gray-200 p-3">
-      <div class="text-xs text-gray-500 mb-2">{{ t('pages.previewVersion', { num: selectedVersion }) }}</div>
+      <div class="text-xs text-gray-500 mb-2">{{ t('pages.previewVersion', { num: selectedVersion ?? 0 }) }}</div>
       <div class="preview-content prose prose-sm max-w-none" v-html="previewContent"></div>
     </div>
   </div>
@@ -52,8 +52,10 @@ import { ref, onMounted } from 'vue'
 import type { PageVersion } from '@/types/page'
 import * as pageApi from '@/api/page'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
+const toast = useToast()
 
 const props = defineProps<{
   projectId: number
@@ -88,8 +90,8 @@ async function previewVersion(v: PageVersion) {
   selectedVersion.value = v.version_number
   if (v.content_json) {
     try {
-      const json = typeof v.content_json === 'string' ? JSON.parse(v.content_json) : v.content_json
-      // Show content as-is; full TipTap rendering would require a read-only editor
+      // Validate JSON parseable, but use v.content for display
+      JSON.parse(typeof v.content_json === 'string' ? v.content_json : JSON.stringify(v.content_json))
       previewContent.value = v.content || `<p>${t('pages.versionContentAvailable')}</p>`
     } catch {
       previewContent.value = v.content
@@ -107,7 +109,7 @@ async function restoreVersion(versionNumber: number) {
     emit('restored')
   } catch (e) {
     console.error('Failed to restore version:', e)
-    alert(t('pages.restoreFailed'))
+    toast.error(t('pages.restoreFailed'))
   } finally {
     restoring.value = false
   }

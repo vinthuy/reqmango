@@ -67,20 +67,20 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	}
 
 	issue := &model.Issue{
-		Name:              req.Name,
-		DescriptionHTML:   descHTML,
-		DescriptionJSON:   req.DescriptionJSON,
-		Priority:          priority,
-		SortOrder:         65535,
-		IsDraft:           false,
-		ProjectID:         projectID,
-		WorkspaceID:       workspaceID,
-		StateID:           stateID,
-		ParentID:          req.ParentID,
-		ExternalID:        req.ExternalID,
-		ExternalSource:    req.ExternalSource,
-		CoverImageURL:     req.CoverImageURL,
-		IssueTypeID:       req.TypeID,
+		Name:            req.Name,
+		DescriptionHTML: descHTML,
+		DescriptionJSON: req.DescriptionJSON,
+		Priority:        priority,
+		SortOrder:       65535,
+		IsDraft:         false,
+		ProjectID:       projectID,
+		WorkspaceID:     workspaceID,
+		StateID:         stateID,
+		ParentID:        req.ParentID,
+		ExternalID:      req.ExternalID,
+		ExternalSource:  req.ExternalSource,
+		CoverImageURL:   req.CoverImageURL,
+		IssueTypeID:     req.TypeID,
 	}
 
 	// Hierarchy validation
@@ -180,9 +180,9 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 			stringValue = fmt.Sprintf("%v", v)
 		}
 		tx.Create(&model.IssueCustomFieldValue{
-			IssueID:  issue.ID,
-			FieldID:  fieldID,
-			Value:    stringValue,
+			IssueID: issue.ID,
+			FieldID: fieldID,
+			Value:   stringValue,
 		})
 	}
 
@@ -273,7 +273,19 @@ func (s *IssueService) List(projectID uint64, filters map[string]interface{}, li
 			if limit > 0 {
 				page = (offset / limit) + 1
 			}
-			rqlIssues, rqlTotal, rqlErr := rqlSvc.SearchIssues(s.db, projectID, queryStr, page, limit)
+			// Extract current user ID for template variable resolution ($CURRENT_USER)
+			var currentUserID uint64
+			if uid, ok := filters["current_user_id"]; ok {
+				switch v := uid.(type) {
+				case uint64:
+					currentUserID = v
+				case uint:
+					currentUserID = uint64(v)
+				case float64:
+					currentUserID = uint64(v)
+				}
+			}
+			rqlIssues, rqlTotal, rqlErr := rqlSvc.SearchIssuesWithUser(s.db, projectID, queryStr, page, limit, currentUserID)
 			if rqlErr != nil {
 				return nil, 0, common.BadRequest("RQL parse error: " + rqlErr.Error())
 			}
@@ -550,7 +562,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		oldStateID = issue.StateID // Save to outer scope variable
 		newStateID := *req.StateID
 		// Workflow enforcement
-		if err := s.validateStateTransition(tx, issue.ProjectID, oldStateID, newStateID, userID); err != nil {
+		if err := s.validateStateTransition(tx, issue.ProjectID, issueID, oldStateID, newStateID, userID); err != nil {
 			tx.Rollback()
 			return nil, err
 		}
@@ -696,21 +708,23 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	}
 
 	event := "issue_updated"
-	if req.StateID != nil { event = "state_changed" }
+	if req.StateID != nil {
+		event = "state_changed"
+	}
 
 	// Automation trigger: fire after commit for state changes
 	if req.StateID != nil {
 		// Fetch new state details for context
 		var newState model.State
 		s.db.First(&newState, *req.StateID)
-		
+
 		s.runAutomations(issueID, "state_changed", map[string]interface{}{
-			"issue_id":     issueID,
-			"old_state":    fmt.Sprintf("%d", oldStateID), // Use the saved old value
-			"new_state":    fmt.Sprintf("%d", *req.StateID),
-			"state_group":  newState.Group,
-			"project_id":   issue.ProjectID,
-			"priority":     issue.Priority,
+			"issue_id":    issueID,
+			"old_state":   fmt.Sprintf("%d", oldStateID), // Use the saved old value
+			"new_state":   fmt.Sprintf("%d", *req.StateID),
+			"state_group": newState.Group,
+			"project_id":  issue.ProjectID,
+			"priority":    issue.Priority,
 		})
 	}
 
@@ -841,6 +855,12 @@ func (s *IssueService) SetCycle(issueID, cycleID, actorID uint64) error {
 	var issue model.Issue
 	if err := s.db.First(&issue, issueID).Error; err != nil {
 		return common.NotFound("Issue not found")
+	}
+
+	// Validate cycle exists
+	var cycle model.Cycle
+	if err := s.db.First(&cycle, cycleID).Error; err != nil {
+		return common.NotFound("Cycle not found")
 	}
 
 	tx := s.db.Begin()
@@ -1038,7 +1058,7 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 			if oldStateID == newStateID {
 				continue
 			}
-			if err := s.validateStateTransition(tx, projectID, oldStateID, newStateID, userID); err != nil {
+			if err := s.validateStateTransition(tx, projectID, issueID, oldStateID, newStateID, userID); err != nil {
 				continue
 			}
 			issue.StateID = newStateID
@@ -1279,9 +1299,26 @@ func strPtr(s string) *string {
 // validateStateTransition checks if moving from oldState to newState is allowed
 // by any active workflow in the project. Returns nil if allowed, error if blocked.
 // Uses the provided db (should be a transaction when called within one) for consistency.
-func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, oldStateID, newStateID, userID uint64) error {
+func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, oldStateID, newStateID, userID uint64) error {
+	// Get issue type ID if available for workflow filtering
+	var issueTypeID *uint64
+	var issue model.Issue
+	if err := db.Select("issue_type_id").First(&issue, issueID).Error; err == nil && issue.IssueTypeID != nil {
+		issueTypeID = issue.IssueTypeID
+	}
+
+	// Query active workflows, optionally filtered by issue type
 	var workflows []model.Workflow
-	db.Where("project_id = ? AND is_active = ?", projectID, true).Find(&workflows)
+	query := db.Where("project_id = ? AND is_active = ?", projectID, true)
+	if issueTypeID != nil {
+		// Include workflows bound to this issue type OR workflows with no issue type binding
+		query = query.Where("(issue_type_id = ? OR issue_type_id IS NULL)", *issueTypeID)
+	} else {
+		// Only include workflows with no issue type binding
+		query = query.Where("issue_type_id IS NULL")
+	}
+	query.Find(&workflows)
+
 	if len(workflows) == 0 {
 		return nil // no workflows configured = allow all transitions
 	}
@@ -1307,12 +1344,32 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, oldStateI
 					}
 				}
 			}
-			// Check role-based approval
+			// Check role-based approval using actual RBAC roles
 			if transition.RoleAllowed != "" {
-				var user model.User
-				if db.First(&user, userID).Error == nil {
-					// If role matches, allow
-					if transition.RoleAllowed == "admin" || transition.RoleAllowed == "workspace_admin" {
+				var userRoleLevel int
+				// Check workspace member role
+				var member struct {
+					Role int
+				}
+				if err := db.Raw("SELECT role FROM workspace_members WHERE user_id = ? AND workspace_id = (SELECT workspace_id FROM projects WHERE id = ?) LIMIT 1",
+					userID, projectID).Scan(&member).Error; err == nil {
+					userRoleLevel = member.Role
+				}
+				// Check project member role (may override workspace role)
+				var prjMember struct {
+					Role int
+				}
+				if err := db.Raw("SELECT role FROM project_members WHERE user_id = ? AND project_id = ? LIMIT 1",
+					userID, projectID).Scan(&prjMember).Error; err == nil && prjMember.Role > userRoleLevel {
+					userRoleLevel = prjMember.Role
+				}
+				// Get the role level for the allowed role name
+				var allowedRole struct {
+					Level int
+				}
+				if err := db.Raw("SELECT level FROM roles WHERE name = ? AND workspace_id IS NULL LIMIT 1",
+					transition.RoleAllowed).Scan(&allowedRole).Error; err == nil {
+					if userRoleLevel >= allowedRole.Level {
 						return nil
 					}
 				}
@@ -1335,13 +1392,13 @@ func (s *IssueService) runAutomations(issueID uint64, triggerType string, contex
 	if s.automationSvc == nil {
 		return
 	}
-	
+
 	var issue model.Issue
 	if err := s.db.First(&issue, issueID).Error; err != nil {
 		log.Printf("[IssueService] Failed to fetch issue %d for automation: %v", issueID, err)
 		return
 	}
-	
+
 	// 创建事件并发布到事件总线（异步执行）
 	event := Event{
 		Type:      triggerType,
@@ -1350,7 +1407,7 @@ func (s *IssueService) runAutomations(issueID uint64, triggerType string, contex
 		Context:   context,
 		Timestamp: time.Now(),
 	}
-	
+
 	if err := s.automationSvc.PublishEvent(event); err != nil {
 		log.Printf("[IssueService] Failed to publish automation event: %v", err)
 	}
@@ -1652,6 +1709,28 @@ func (s *IssueService) ImportFromCSV(projectID, workspaceID, userID uint64, csvC
 			item.ParentTitle = strings.TrimSpace(record[idx]) // Jira/Linear
 		}
 
+		if idx, ok := headerIdx["module"]; ok && idx < len(record) {
+			item.ModuleName = strings.TrimSpace(record[idx])
+		} else if idx, ok := headerIdx["模块"]; ok && idx < len(record) {
+			item.ModuleName = strings.TrimSpace(record[idx])
+		}
+
+		if idx, ok := headerIdx["cycle"]; ok && idx < len(record) {
+			item.CycleName = strings.TrimSpace(record[idx])
+		} else if idx, ok := headerIdx["周期"]; ok && idx < len(record) {
+			item.CycleName = strings.TrimSpace(record[idx])
+		}
+
+		if idx, ok := headerIdx["estimate"]; ok && idx < len(record) {
+			if v, err := strconv.ParseFloat(strings.TrimSpace(record[idx]), 64); err == nil {
+				item.EstimatePoints = &v
+			}
+		} else if idx, ok := headerIdx["估点"]; ok && idx < len(record) {
+			if v, err := strconv.ParseFloat(strings.TrimSpace(record[idx]), 64); err == nil {
+				item.EstimatePoints = &v
+			}
+		}
+
 		items = append(items, item)
 	}
 
@@ -1731,10 +1810,10 @@ func splitAndTrim(s, sep string) []string {
 
 // FlowMetrics contains aggregated issue counts by state.
 type FlowMetrics struct {
-	StateCounts map[string]int `json:"state_counts"`
+	StateCounts    map[string]int `json:"state_counts"`
 	PriorityCounts map[string]int `json:"priority_counts"`
-	TypeCounts map[string]int `json:"type_counts"`
-	Total int `json:"total"`
+	TypeCounts     map[string]int `json:"type_counts"`
+	Total          int            `json:"total"`
 }
 
 // GetFlowMetrics returns flow metrics for a project.
@@ -1802,9 +1881,9 @@ func (s *IssueService) ExportIssues(projectID uint64) ([]ExportIssueItem, error)
 	result := make([]ExportIssueItem, 0, len(issues))
 	for _, issue := range issues {
 		item := ExportIssueItem{
-			Name:      issue.Name,
-			Priority:  issue.Priority,
-			StartDate: "",
+			Name:       issue.Name,
+			Priority:   issue.Priority,
+			StartDate:  "",
 			TargetDate: "",
 		}
 		if issue.DescriptionStripped != nil {
@@ -1935,20 +2014,20 @@ func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) ([]
 
 	for _, issue := range issues {
 		copiedIssue := &model.Issue{
-			Name:              issue.Name,
-			DescriptionHTML:   issue.DescriptionHTML,
-			DescriptionJSON:   issue.DescriptionJSON,
-			Priority:          issue.Priority,
-			SequenceID:        issue.SequenceID,
-			SortOrder:         issue.SortOrder,
-			IsDraft:           issue.IsDraft,
-			ProjectID:         req.TargetProjectID,
-			WorkspaceID:       targetProject.WorkspaceID,
-			StateID:           issue.StateID,
-			Depth:             issue.Depth,
-			ExternalID:        issue.ExternalID,
-			ExternalSource:    issue.ExternalSource,
-			IssueTypeID:       issue.IssueTypeID,
+			Name:            issue.Name,
+			DescriptionHTML: issue.DescriptionHTML,
+			DescriptionJSON: issue.DescriptionJSON,
+			Priority:        issue.Priority,
+			SequenceID:      issue.SequenceID,
+			SortOrder:       issue.SortOrder,
+			IsDraft:         issue.IsDraft,
+			ProjectID:       req.TargetProjectID,
+			WorkspaceID:     targetProject.WorkspaceID,
+			StateID:         issue.StateID,
+			Depth:           issue.Depth,
+			ExternalID:      issue.ExternalID,
+			ExternalSource:  issue.ExternalSource,
+			IssueTypeID:     issue.IssueTypeID,
 		}
 
 		if issue.StartDate != nil {
@@ -1996,21 +2075,21 @@ func (s *IssueService) copySubtasks(tx *gorm.DB, sourceParentID, targetParentID,
 
 	for _, subtask := range subtasks {
 		copiedSubtask := &model.Issue{
-			Name:              subtask.Name,
-			DescriptionHTML:   subtask.DescriptionHTML,
-			DescriptionJSON:   subtask.DescriptionJSON,
-			Priority:          subtask.Priority,
-			SequenceID:        subtask.SequenceID,
-			SortOrder:         subtask.SortOrder,
-			IsDraft:           subtask.IsDraft,
-			ProjectID:         targetProjectID,
-			WorkspaceID:       workspaceID,
-			StateID:           subtask.StateID,
-			ParentID:          &targetParentID,
-			Depth:             subtask.Depth,
-			ExternalID:        subtask.ExternalID,
-			ExternalSource:    subtask.ExternalSource,
-			IssueTypeID:       subtask.IssueTypeID,
+			Name:            subtask.Name,
+			DescriptionHTML: subtask.DescriptionHTML,
+			DescriptionJSON: subtask.DescriptionJSON,
+			Priority:        subtask.Priority,
+			SequenceID:      subtask.SequenceID,
+			SortOrder:       subtask.SortOrder,
+			IsDraft:         subtask.IsDraft,
+			ProjectID:       targetProjectID,
+			WorkspaceID:     workspaceID,
+			StateID:         subtask.StateID,
+			ParentID:        &targetParentID,
+			Depth:           subtask.Depth,
+			ExternalID:      subtask.ExternalID,
+			ExternalSource:  subtask.ExternalSource,
+			IssueTypeID:     subtask.IssueTypeID,
 		}
 
 		if subtask.StartDate != nil {
@@ -2058,8 +2137,8 @@ func (s *IssueService) BulkMove(req *request.BulkMoveRequest, userID uint64) ([]
 		sourceProjectID := issue.ProjectID
 
 		if err := tx.Model(&issue).Updates(map[string]interface{}{
-			"project_id":  req.TargetProjectID,
-			"workspace_id": targetProject.WorkspaceID,
+			"project_id":    req.TargetProjectID,
+			"workspace_id":  targetProject.WorkspaceID,
 			"updated_by_id": userID,
 		}).Error; err != nil {
 			tx.Rollback()
@@ -2095,7 +2174,7 @@ func (s *IssueService) moveSubtasks(tx *gorm.DB, parentID, targetProjectID, work
 
 	for _, subtask := range subtasks {
 		tx.Model(&subtask).Updates(map[string]interface{}{
-			"project_id":  targetProjectID,
+			"project_id":   targetProjectID,
 			"workspace_id": workspaceID,
 		})
 
@@ -2253,8 +2332,8 @@ func (s *IssueService) TreeSearch(projectID uint64, search string, limit, offset
 			rootResp := buildTreeIssueFromModel(&matched, nil)
 			rootResp.IsSearchMatch = true
 			results = append(results, response.TreeSearchResult{
-				RootIssue:    *rootResp,
-				MatchedIssue: *rootResp,
+				RootIssue:     *rootResp,
+				MatchedIssue:  *rootResp,
 				AncestorChain: []response.AncestorInfo{},
 			})
 			continue
@@ -2292,8 +2371,8 @@ func (s *IssueService) TreeSearch(projectID uint64, search string, limit, offset
 			rootResp := buildTreeIssueFromModel(&matched, nil)
 			rootResp.IsSearchMatch = true
 			results = append(results, response.TreeSearchResult{
-				RootIssue:    *rootResp,
-				MatchedIssue: *rootResp,
+				RootIssue:     *rootResp,
+				MatchedIssue:  *rootResp,
 				AncestorChain: []response.AncestorInfo{},
 			})
 			continue

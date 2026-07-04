@@ -1,0 +1,22 @@
+Workspaces: 3
+Projects: 4
+Issues: 50
+Traceback (most recent call last):
+  File "D:\Program Files\python\Lib\site-packages\requests\models.py", line 1116, in json
+    return complexjson.loads(self.text, **kwargs)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\python\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "D:\Program Files\python\Lib\json\decoder.py", line 348, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 1 column 5 (char 4)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "d:\code\reqmango\verify_seed.py", line 31, in <module>
+    st = requests.get(f"{BASE}/projects/{pid}/states", params={"workspace_id": wid}, headers=h).json()
+  File "D:\Program Files\python\Lib\site-packages\requests\models.py", line 1120, in json
+    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+requests.exceptions.JSONDecodeError: Extra data: line 1 column 5 (char 4)

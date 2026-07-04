@@ -81,9 +81,12 @@ export async function searchWithAI(
  */
 export async function createPreviewWithAI(
   projectId: number,
+  workspaceId: number,
   request: AICreateRequest,
 ): Promise<AICreateResponse> {
-  const response = await api.post(`/projects/${projectId}/ai/create`, request)
+  const response = await api.post(`/projects/${projectId}/ai/create`, request, {
+    params: { workspace_id: workspaceId },
+  })
   return response.data
 }
 
@@ -119,7 +122,7 @@ export async function sprintPlan(projectId: number): Promise<any> {
  * AI Chart — 自然语言生成结构化图表配置。
  */
 export interface AIChartData {
-  chart_type: 'bar' | 'pie' | 'doughnut' | 'line' | 'polarArea'
+  chart_type: 'bar' | 'pie' | 'doughnut' | 'line' | 'polarArea' | 'radar'
   title: string
   labels: string[]
   datasets: {
@@ -139,8 +142,11 @@ export interface AIChartData {
 
 export async function generateChart(
   projectId: number,
+  workspaceId: number,
   query: string,
 ): Promise<AIChartData> {
-  const response = await api.post(`/projects/${projectId}/ai/chart`, { query })
+  const response = await api.post(`/projects/${projectId}/ai/chart`, { query }, {
+    params: { workspace_id: workspaceId },
+  })
   return response.data.data
 }

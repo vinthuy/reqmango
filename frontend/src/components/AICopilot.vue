@@ -437,7 +437,7 @@ const filteredAgents = computed(() => {
 })
 
 const inputPlaceholder = computed(() => {
-  if (mode.value === 'agent') return selectedAgent.value ? t('ai.agentTaskPlaceholder').replace('{name}', selectedAgent.value.name) : t('ai.selectAgentFirst')
+  if (mode.value === 'agent') return selectedAgent.value ? t('ai.agentTaskPlaceholder', { name: selectedAgent.value.name }) : t('ai.selectAgentFirst')
   if (mode.value === 'chart') return t('ai.chartPlaceholder')
   if (mode.value === 'ask') return t('ai.placeholder')
   return t('ai.buildPlaceholder')

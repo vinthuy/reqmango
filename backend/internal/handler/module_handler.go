@@ -79,6 +79,34 @@ func (h *ModuleHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, modules)
 }
 
+func (h *ModuleHandler) Search(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Query("project_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "query parameter 'q' is required"})
+		return
+	}
+	modules, svcErr := h.svc.Search(projectID, workspaceID, query)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": modules})
+}
+
 func (h *ModuleHandler) Get(c *gin.Context) {
 	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {

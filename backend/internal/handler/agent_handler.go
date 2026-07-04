@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
 )
@@ -137,6 +138,39 @@ func (h *AgentHandler) GetActivity(c *gin.Context) {
 	}
 
 	activities, svcErr := h.svc.GetActivity(agentID)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, activities)
+}
+
+// ListWorkspaceActivity handles GET /workspaces/:wsParam/agents/activity
+func (h *AgentHandler) ListWorkspaceActivity(c *gin.Context) {
+	wsID := h.resolveWorkspaceID(c)
+	if wsID == 0 {
+		return
+	}
+	agentIDStr := c.Query("agent_id")
+	action := c.Query("action")
+	limitStr := c.Query("limit")
+
+	var agentID *uint64
+	if agentIDStr != "" {
+		id, err := strconv.ParseUint(agentIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent_id"})
+			return
+		}
+		agentID = &id
+	}
+	limit := 50
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	activities, svcErr := h.svc.ListWorkspaceActivity(wsID, agentID, action, limit)
 	if appError(c, svcErr) {
 		return
 	}
@@ -307,4 +341,29 @@ func (h *AgentHandler) resolveWorkspaceID(c *gin.Context) uint64 {
 	}
 	c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace identifier"})
 	return 0
+}
+
+// UpdateActivityFeedback handles PATCH /workspaces/:wsParam/agents/activity/:id/feedback
+func (h *AgentHandler) UpdateActivityFeedback(c *gin.Context) {
+	activityID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid activity ID"})
+		return
+	}
+	var req struct {
+		Rating int `json:"rating" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	if svcErr := h.svc.UpdateActivityFeedback(activityID, req.Rating); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Feedback recorded"})
 }

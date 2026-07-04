@@ -78,6 +78,8 @@
         v-for="column in kanbanColumns"
         :key="column.id"
         class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 min-h-[200px]"
+        @dragover.prevent="onDragOver"
+        @drop.prevent="onDrop($event, column.key)"
       >
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center space-x-2">
@@ -504,6 +506,29 @@ function assigneeColor(i: number) { return ['#6366f1', '#10b981', '#f59e0b', '#e
 
 function onDragStart(e: DragEvent, issue: any) {
   e.dataTransfer?.setData('text/plain', String(issue.id))
+  e.dataTransfer?.setData('application/kanban', JSON.stringify({ issueId: issue.id, sourceGroup: issue.state_id }))
+}
+
+function onDragOver(e: DragEvent) {
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+}
+
+async function onDrop(e: DragEvent, targetGroup: any) {
+  const issueId = e.dataTransfer?.getData('text/plain')
+  if (!issueId) return
+  
+  const draggedIssue = issues.value.find(i => i.id === Number(issueId))
+  if (!draggedIssue) return
+  
+  // If grouping by state, update the issue's state
+  if (groupBy.value === 'state' && draggedIssue.state_id !== targetGroup) {
+    try {
+      await issueApi.updateIssue(Number(issueId), { state_id: targetGroup })
+      loadIssues()
+    } catch (err) {
+      console.error('Failed to update issue state:', err)
+    }
+  }
 }
 
 const quickCreateStateId = ref<number | null>(null)
@@ -591,7 +616,7 @@ function clearSelection() {
 }
 
 async function execBatchDelete() {
-  if (!(await confirm(t('issueList.confirmDelete').replace('{0}', String(selectedIds.value.size))))) return
+  if (!(await confirm(t('issueList.confirmDelete', { 0: String(selectedIds.value.size) })))) return
   try {
     await issueApi.bulkDeleteIssues([...selectedIds.value])
     clearSelection()

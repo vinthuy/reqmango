@@ -183,9 +183,11 @@ import { authApi } from '@/api/auth'
 import type { ProjectMember } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import type { UserLite } from '@/types'
 
 const { t } = useI18n()
+const toast = useToast()
 
 // Props
 const props = defineProps<{
@@ -309,7 +311,7 @@ function getRoleLabel(role: number): string {
 // Invite member
 async function inviteMember() {
   if (!selectedUserId.value) {
-    alert(t('projectMember.pleaseSelectUser'))
+    toast.warning(t('projectMember.pleaseSelectUser'))
     return
   }
   
@@ -325,11 +327,11 @@ async function inviteMember() {
     userSearchQuery.value = ''
     await loadMembers()
     emit('refresh')
-    alert(t('projectMember.addSuccess'))
+    toast.success(t('projectMember.addSuccess'))
   } catch (error: any) {
     console.error('Failed to invite member:', error)
     const errorMsg = error.response?.data?.message || error.message || t('projectMember.addFailed')
-    alert(t('projectMember.addFailed') + errorMsg)
+    toast.error(t('projectMember.addFailed') + errorMsg)
   } finally {
     submitting.value = false
   }
@@ -348,7 +350,7 @@ async function updateMemberRole(memberId: number, role: string) {
   } catch (error: any) {
     console.error('Failed to update member role:', error)
     const errorMsg = error.response?.data?.message || error.message || t('projectMember.updateFailed')
-    alert(t('projectMember.updateFailed') + errorMsg)
+    toast.error(t('projectMember.updateFailed') + errorMsg)
   }
 }
 

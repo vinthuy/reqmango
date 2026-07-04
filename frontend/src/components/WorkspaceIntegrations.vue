@@ -219,9 +219,11 @@ import { slackApi, type SlackConnection } from '@/api/slack'
 import { workspaceApi } from '@/api/workspace'
 import { listProjects } from '@/api/project'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{ workspaceId: number; slug: string }>()
 const { t } = useI18n()
+const toast = useToast()
 
 const tabs = computed(() => [
   { id: 'mcp', label: t('integrations.tabs.mcp') },
@@ -290,10 +292,10 @@ async function createGitHub() {
   try { await githubApi.create(workspaceId.value, ghForm.value); showGitHubModal.value = false; await loadGitHub() } catch (e) { console.error(e) }
 }
 async function syncGitHub(conn: GitHubConnection) {
-  try { await githubApi.syncIssues(workspaceId.value, conn.id); alert(t('integrations.github.syncCompleted')); await loadGitHub() } catch (e) { console.error(e) }
+  try { await githubApi.syncIssues(workspaceId.value, conn.id); toast.success(t('integrations.github.syncCompleted')); await loadGitHub() } catch (e) { console.error(e) }
 }
 async function confirmDelGitHub(conn: GitHubConnection) {
-  if (confirm(t('integrations.github.deleteConfirm').replace('{name}', `${conn.repo_owner}/${conn.repo_name}`))) {
+  if (confirm(t('integrations.github.deleteConfirm', { name: `${conn.repo_owner}/${conn.repo_name}` }))) {
     try { await githubApi.delete(workspaceId.value, conn.id); await loadGitHub() } catch (e) { console.error(e) }
   }
 }
@@ -309,10 +311,10 @@ async function createSlack() {
   try { await slackApi.create(workspaceId.value, slForm.value); showSlackModal.value = false; await loadSlack() } catch (e) { console.error(e) }
 }
 async function testSlack(conn: SlackConnection) {
-  try { const r = await slackApi.testNotification(workspaceId.value, conn.id); alert(t('integrations.slack.testSent').replace('{channel}', r.channel).replace('{status}', r.status)) } catch (e: any) { alert(t('integrations.slack.testFailed') + (e?.message || t('common.unknown'))) }
+  try { const r = await slackApi.testNotification(workspaceId.value, conn.id); toast.success(t('integrations.slack.testSent', { channel: r.channel, status: r.status })) } catch (e: any) { toast.error(t('integrations.slack.testFailed') + (e?.message || t('common.unknown'))) }
 }
 async function confirmDelSlack(conn: SlackConnection) {
-  if (confirm(t('integrations.slack.deleteConfirm').replace('{channel}', conn.channel_name))) {
+  if (confirm(t('integrations.slack.deleteConfirm', { channel: conn.channel_name }))) {
     try { await slackApi.delete(workspaceId.value, conn.id); await loadSlack() } catch (e) { console.error(e) }
   }
 }

@@ -24,6 +24,7 @@ export interface AgentActivity {
   executed_at: string
   agent_name: string
   task_context?: string
+  rating?: number | null                     // 1=positive, -1=negative, null=no feedback
   created_at: string
 }
 

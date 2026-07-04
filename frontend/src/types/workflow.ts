@@ -76,29 +76,29 @@ export const ConditionOperatorOptions = [
 ]
 
 export enum ActionTypeEnum {
-  // 工作项动作
-  ISSUE_UPDATE = 'issue.update',
-  ISSUE_ASSIGN = 'issue.assign',
-  ISSUE_ADD_LABEL = 'issue.add_label',
-  ISSUE_REMOVE_LABEL = 'issue.remove_label',
-  ISSUE_CHANGE_STATE = 'issue.change_state',
-  ISSUE_SET_PRIORITY = 'issue.set_priority',
-  ISSUE_ADD_COMMENT = 'issue.add_comment',
-  ISSUE_SET_DUE_DATE = 'issue.set_due_date',
-  
-  // 通知动作
-  NOTIFICATION_CREATE = 'notification.create',
-  EMAIL_SEND = 'email.send',
+  CHANGE_STATE = 'change_state',
+  SET_PRIORITY = 'set_priority',
+  ASSIGN_TO = 'assign_to',
+  UNASSIGN = 'unassign',
+  ADD_LABEL = 'add_label',
+  REMOVE_LABEL = 'remove_label',
+  ADD_COMMENT = 'add_comment',
+  SET_FIELD = 'set_field',
+  ARCHIVE = 'archive',
+  CLOSE = 'close',
+  DISPATCH_AGENT = 'dispatch_agent',
 }
 
 export const ActionTypeOptions = [
-  { value: 'issue.change_state', label: '更新状态', icon: '🔄' },
-  { value: 'issue.set_priority', label: '设置优先级', icon: '⚡' },
-  { value: 'issue.assign', label: '分配给', icon: '👤' },
-  { value: 'issue.add_label', label: '添加标签', icon: '🏷️' },
-  { value: 'issue.remove_label', label: '移除标签', icon: '❌' },
-  { value: 'issue.add_comment', label: '添加评论', icon: '💬' },
-  { value: 'notification.create', label: '发送通知', icon: '🔔' },
+  { value: 'change_state', label: '更新状态', icon: '🔄' },
+  { value: 'set_priority', label: '设置优先级', icon: '⚡' },
+  { value: 'assign_to', label: '分配给', icon: '👤' },
+  { value: 'unassign', label: '取消分配', icon: '👥' },
+  { value: 'add_label', label: '添加标签', icon: '🏷️' },
+  { value: 'remove_label', label: '移除标签', icon: '❌' },
+  { value: 'add_comment', label: '添加评论', icon: '💬' },
+  { value: 'set_field', label: '设置字段', icon: '📝' },
+  { value: 'dispatch_agent', label: '调度 Agent', icon: '🤖' },
 ]
 
 // ==================== State Transition ====================
@@ -151,14 +151,9 @@ export interface Condition {
 }
 
 export interface Action {
-  type: ActionTypeEnum
+  type: string
   field?: string
   value?: any
-  label?: string
-  state_id?: number
-  message?: string
-  subject?: string
-  recipients?: number[]
 }
 
 export interface AutomationRule {
@@ -166,9 +161,9 @@ export interface AutomationRule {
   name: string
   description?: string
   is_enabled: boolean
-  trigger: Trigger
-  conditions: Condition[]
-  actions: Action[]
+  trigger_type: string
+  conditions: string
+  actions: string
   execution_count: number
   last_executed_at?: string
   project_id: number
@@ -182,19 +177,18 @@ export interface AutomationRuleCreate {
   name: string
   description?: string
   is_enabled?: boolean
-  trigger: Trigger
-  conditions?: Condition[]
-  actions?: Action[]
-  project_id: number
+  trigger_type: string
+  conditions?: string
+  actions?: string
 }
 
 export interface AutomationRuleUpdate {
   name?: string
   description?: string
   is_enabled?: boolean
-  trigger?: Trigger
-  conditions?: Condition[]
-  actions?: Action[]
+  trigger_type?: string
+  conditions?: string
+  actions?: string
 }
 
 export interface AutomationRuleLite {
@@ -261,16 +255,17 @@ export function getTriggerDisplayName(triggerType: TriggerTypeEnum): string {
  */
 export function getActionDisplayName(actionType: ActionTypeEnum): string {
   const names: Record<ActionTypeEnum, string> = {
-    [ActionTypeEnum.ISSUE_UPDATE]: '更新工作项',
-    [ActionTypeEnum.ISSUE_ASSIGN]: '分配工作项',
-    [ActionTypeEnum.ISSUE_ADD_LABEL]: '添加标签',
-    [ActionTypeEnum.ISSUE_REMOVE_LABEL]: '移除标签',
-    [ActionTypeEnum.ISSUE_CHANGE_STATE]: '改变状态',
-    [ActionTypeEnum.ISSUE_SET_PRIORITY]: '设置优先级',
-    [ActionTypeEnum.ISSUE_ADD_COMMENT]: '添加评论',
-    [ActionTypeEnum.ISSUE_SET_DUE_DATE]: '设置截止日期',
-    [ActionTypeEnum.NOTIFICATION_CREATE]: '创建通知',
-    [ActionTypeEnum.EMAIL_SEND]: '发送邮件',
+    [ActionTypeEnum.CHANGE_STATE]: '改变状态',
+    [ActionTypeEnum.SET_PRIORITY]: '设置优先级',
+    [ActionTypeEnum.ASSIGN_TO]: '分配工作项',
+    [ActionTypeEnum.UNASSIGN]: '取消分配',
+    [ActionTypeEnum.ADD_LABEL]: '添加标签',
+    [ActionTypeEnum.REMOVE_LABEL]: '移除标签',
+    [ActionTypeEnum.ADD_COMMENT]: '添加评论',
+    [ActionTypeEnum.SET_FIELD]: '设置字段',
+    [ActionTypeEnum.ARCHIVE]: '归档',
+    [ActionTypeEnum.CLOSE]: '关闭',
+    [ActionTypeEnum.DISPATCH_AGENT]: '调度 Agent',
   }
   return names[actionType] || actionType
 }
@@ -319,16 +314,17 @@ export function getTriggerIcon(triggerType: TriggerTypeEnum): string {
  */
 export function getActionIcon(actionType: ActionTypeEnum): string {
   const icons: Record<ActionTypeEnum, string> = {
-    [ActionTypeEnum.ISSUE_UPDATE]: 'edit-2',
-    [ActionTypeEnum.ISSUE_ASSIGN]: 'user-plus',
-    [ActionTypeEnum.ISSUE_ADD_LABEL]: 'tag',
-    [ActionTypeEnum.ISSUE_REMOVE_LABEL]: 'x-circle',
-    [ActionTypeEnum.ISSUE_CHANGE_STATE]: 'git-branch',
-    [ActionTypeEnum.ISSUE_SET_PRIORITY]: 'flag',
-    [ActionTypeEnum.ISSUE_ADD_COMMENT]: 'message-circle',
-    [ActionTypeEnum.ISSUE_SET_DUE_DATE]: 'calendar',
-    [ActionTypeEnum.NOTIFICATION_CREATE]: 'bell',
-    [ActionTypeEnum.EMAIL_SEND]: 'mail',
+    [ActionTypeEnum.CHANGE_STATE]: 'git-branch',
+    [ActionTypeEnum.SET_PRIORITY]: 'flag',
+    [ActionTypeEnum.ASSIGN_TO]: 'user-plus',
+    [ActionTypeEnum.UNASSIGN]: 'user-minus',
+    [ActionTypeEnum.ADD_LABEL]: 'tag',
+    [ActionTypeEnum.REMOVE_LABEL]: 'x-circle',
+    [ActionTypeEnum.ADD_COMMENT]: 'message-circle',
+    [ActionTypeEnum.SET_FIELD]: 'edit-2',
+    [ActionTypeEnum.ARCHIVE]: 'archive',
+    [ActionTypeEnum.CLOSE]: 'x-circle',
+    [ActionTypeEnum.DISPATCH_AGENT]: 'zap',
   }
   return icons[actionType] || 'zap'
 }

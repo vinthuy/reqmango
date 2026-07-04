@@ -89,10 +89,13 @@ func main() {
 		&model.Role{},
 		&model.Permission{},
 		&model.RolePermission{},
+		&model.FieldPermission{},
 		&model.SavedReport{},
 		&model.SearchTemplate{},
 		&model.SavedDashboard{},
 		&model.DashboardWidget{},
+		&model.Plugin{},
+		&model.PluginEventLog{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

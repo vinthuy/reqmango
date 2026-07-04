@@ -86,18 +86,23 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import { useRoute, useRouter } from 'vue-router'
 import { useCycleStore } from '@/stores/cycle'
 import { issueApi } from '@/api/issue'
+import { workspaceApi } from '@/api/workspace'
 import type { IssueResponse } from '@/types/issue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 const cycleStore = useCycleStore()
 
-const workspaceId = Number(route.params.workspaceId)
-const projectId = Number(route.params.projectId)
+// Support both route styles: /workspace/:slug/project/:id and /workspaces/:workspaceId/projects/:projectId
+const projectId = Number(route.params.id || route.params.projectId)
+const wsSlug = ref(route.params.slug as string || route.query.ws as string || '')
+const workspaceId = ref(Number(route.params.workspaceId) || 0)
 const steps = [t('cycle.stepBasic'), t('cycle.stepSelectIssues'), t('cycle.stepConfirm')]
 const currentStep = ref(0)
 const submitting = ref(false)
@@ -113,8 +118,15 @@ const selectedIssueIds = ref<number[]>([])
 const backlogIssues = ref<IssueResponse[]>([])
 
 onMounted(async () => {
+  // Fetch workspace ID from slug if not already set
+  if (workspaceId.value === 0 && wsSlug.value) {
+    try {
+      const ws = await workspaceApi.getBySlug(wsSlug.value)
+      workspaceId.value = ws.id
+    } catch { /* ignore */ }
+  }
   try {
-    const result = await issueApi.listIssues(projectId, workspaceId, { limit: 100 })
+    const result = await issueApi.listIssues(projectId, workspaceId.value, { limit: 100 })
     backlogIssues.value = (result?.items || []).filter(
       (i: any) => !i.cycle_id && i.state_group !== 'completed' && i.state_group !== 'cancelled'
     )
@@ -125,16 +137,14 @@ onMounted(async () => {
 
 function nextStep() {
   if (currentStep.value === 0 && !form.value.name.trim()) {
-    alert(t('cycle.nameRequired'))
+    toast.warning(t('cycle.nameRequired'))
     return
   }
   currentStep.value++
 }
 
-const wsSlug = (route.query.ws as string) || ''
-
 function projectPage() {
-  return `/workspace/${wsSlug}/project/${projectId}?tab=cycles`
+  return `/workspace/${wsSlug.value}/project/${projectId}?tab=cycles`
 }
 
 function goBack() {
@@ -147,11 +157,11 @@ function goBack() {
 
 async function submitCycle() {
   submitting.value = true
-  const created = await cycleStore.createCycleAction(projectId, workspaceId, {
+  const created = await cycleStore.createCycleAction(projectId, workspaceId.value, {
     name: form.value.name,
     description: form.value.description || undefined,
-    start_date: new Date(form.value.start_date).toISOString(),
-    end_date: form.value.end_date ? new Date(form.value.end_date).toISOString() : undefined,
+    start_date: new Date(form.value.start_date + 'T00:00:00').toISOString(),
+    end_date: form.value.end_date ? new Date(form.value.end_date + 'T23:59:59').toISOString() : undefined,
     project_id: projectId,
   })
 

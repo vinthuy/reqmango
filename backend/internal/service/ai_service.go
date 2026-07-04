@@ -17,11 +17,13 @@ import (
 
 // AIService provides AI-powered features on top of the existing services.
 type AIService struct {
-	db          *gorm.DB
-	llm         *LLMClient
-	issueSvc    *IssueService
-	projectSvc  *ProjectService
-	rqlSvc      interface{ Search(string) ([]model.Issue, error) } // light ref — real call uses db directly
+	db         *gorm.DB
+	llm        *LLMClient
+	issueSvc   *IssueService
+	projectSvc *ProjectService
+	rqlSvc     interface {
+		Search(string) ([]model.Issue, error)
+	} // light ref — real call uses db directly
 }
 
 // NewAIService creates an AIService.
@@ -72,13 +74,13 @@ func (s *AIService) getTools() []Tool {
 			InputSchema: &ToolSchema{
 				Type: "object",
 				Properties: map[string]SchemaProp{
-					"project_id": {Type: "integer", Description: "项目 ID"},
-					"query":      {Type: "string", Description: "搜索关键词（标题模糊匹配）"},
-					"priority":   {Type: "string", Enum: []string{"urgent", "high", "medium", "low", "none"}, Description: "优先级"},
-					"state_id":   {Type: "integer", Description: "状态 ID"},
+					"project_id":  {Type: "integer", Description: "项目 ID"},
+					"query":       {Type: "string", Description: "搜索关键词（标题模糊匹配）"},
+					"priority":    {Type: "string", Enum: []string{"urgent", "high", "medium", "low", "none"}, Description: "优先级"},
+					"state_id":    {Type: "integer", Description: "状态 ID"},
 					"assignee_id": {Type: "integer", Description: "负责人用户 ID"},
-					"type_id":    {Type: "integer", Description: "工作项类型 ID"},
-					"limit":      {Type: "integer", Description: "返回数量上限，默认 20"},
+					"type_id":     {Type: "integer", Description: "工作项类型 ID"},
+					"limit":       {Type: "integer", Description: "返回数量上限，默认 20"},
 				},
 			},
 		},
@@ -120,11 +122,11 @@ func (s *AIService) getTools() []Tool {
 			InputSchema: &ToolSchema{
 				Type: "object",
 				Properties: map[string]SchemaProp{
-					"issue_id":     {Type: "integer", Description: "工作项 ID"},
-					"name":         {Type: "string", Description: "新标题"},
-					"priority":     {Type: "string", Enum: []string{"urgent", "high", "medium", "low", "none"}},
-					"state_id":     {Type: "integer", Description: "新状态 ID"},
-					"description":  {Type: "string", Description: "新描述"},
+					"issue_id":    {Type: "integer", Description: "工作项 ID"},
+					"name":        {Type: "string", Description: "新标题"},
+					"priority":    {Type: "string", Enum: []string{"urgent", "high", "medium", "low", "none"}},
+					"state_id":    {Type: "integer", Description: "新状态 ID"},
+					"description": {Type: "string", Description: "新描述"},
 				},
 				Required: []string{"issue_id"},
 			},
@@ -352,6 +354,15 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 	outCh := make(chan StreamEvent, 64)
 	go func() {
 		defer close(outCh)
+		// emit sends to outCh but exits early if context is cancelled
+		emit := func(evt StreamEvent) bool {
+			select {
+			case outCh <- evt:
+				return true
+			case <-ctx.Done():
+				return false
+			}
+		}
 		var toolResults []ToolResult
 		hasToolCalls := false
 
@@ -359,10 +370,12 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 			switch evt.Type {
 			case "tool_call":
 				hasToolCalls = true
-				outCh <- evt // forward to client
+				if !emit(evt) {
+					return
+				} // forward to client
 				// Execute tool
 				if evt.ToolCall != nil {
-					result, execErr := s.executeTool(evt.ToolCall.Name, evt.ToolCall.Input, actx)
+					result, execErr := s.ExecuteTool(evt.ToolCall.Name, evt.ToolCall.Input, actx)
 					content := ""
 					if execErr != nil {
 						content = fmt.Sprintf(`{"error":"%s"}`, execErr.Error())
@@ -374,9 +387,11 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 						ToolCallID: evt.ToolCall.ID,
 						Content:    content,
 					})
-					outCh <- StreamEvent{
+					if !emit(StreamEvent{
 						Type:       "tool_result",
 						ToolResult: &toolResults[len(toolResults)-1],
+					}) {
+						return
 					}
 				}
 			case "done":
@@ -398,13 +413,21 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 					}, nil)
 					if synthErr == nil {
 						for se := range synthCh {
-							outCh <- se
+							if !emit(se) {
+								return
+							}
 						}
+						// Synthesis stream already emitted its own "done", skip the original
+						continue
 					}
 				}
-				outCh <- evt
+				if !emit(evt) {
+					return
+				}
 			default:
-				outCh <- evt
+				if !emit(evt) {
+					return
+				}
 			}
 		}
 	}()
@@ -421,21 +444,21 @@ type AIChartRequest struct {
 
 // AIChartResponse is the structured chart config returned to the frontend.
 type AIChartResponse struct {
-	ChartType string              `json:"chart_type"` // bar | pie | doughnut | line | polarArea | radar
-	Title     string              `json:"title"`
-	Labels    []string            `json:"labels"`
-	Datasets  []AIChartDataset    `json:"datasets"`
-	Options   *AIChartOptions     `json:"options,omitempty"`
+	ChartType string           `json:"chart_type"` // bar | pie | doughnut | line | polarArea | radar
+	Title     string           `json:"title"`
+	Labels    []string         `json:"labels"`
+	Datasets  []AIChartDataset `json:"datasets"`
+	Options   *AIChartOptions  `json:"options,omitempty"`
 }
 
 // AIChartDataset represents a single dataset in the chart.
 type AIChartDataset struct {
-	Label           string   `json:"label"`
+	Label           string    `json:"label"`
 	Data            []float64 `json:"data"`
-	BackgroundColor []string `json:"backgroundColor,omitempty"`
-	BorderColor     []string `json:"borderColor,omitempty"`
-	Fill            *bool    `json:"fill,omitempty"`
-	Tension         float64  `json:"tension,omitempty"`
+	BackgroundColor []string  `json:"backgroundColor,omitempty"`
+	BorderColor     []string  `json:"borderColor,omitempty"`
+	Fill            *bool     `json:"fill,omitempty"`
+	Tension         float64   `json:"tension,omitempty"`
 }
 
 // AIChartOptions contains optional chart display config.
@@ -506,7 +529,9 @@ func (s *AIService) GenerateChart(ctx context.Context, req *AIChartRequest, actx
 
 	// 4. Generate colors for the chart
 	n := len(chartResp.Labels)
-	if n == 0 { n = len(chartResp.Datasets[0].Data) }
+	if n == 0 {
+		n = len(chartResp.Datasets[0].Data)
+	}
 
 	colors8 := []string{
 		"#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
@@ -583,8 +608,8 @@ type AISearchRequest struct {
 
 // AISearchResponse is the NL search response.
 type AISearchResponse struct {
-	RQL         string `json:"rql"`
-	Explanation string `json:"explanation"`
+	RQL         string                   `json:"rql"`
+	Explanation string                   `json:"explanation"`
 	Issues      []map[string]interface{} `json:"issues"`
 }
 
@@ -604,33 +629,31 @@ func (s *AIService) Search(ctx context.Context, req *AISearchRequest, actx *AICo
 		actx.ProjectID, actx.ProjectIdentifier, req.Query)
 
 	tools := s.getTools()
-	// Filter to only read-only tools for search
 	readOnlyTools := filterReadOnlyTools(tools)
 
-	resp, err := s.llm.ChatSync(ctx, translatePrompt, []Message{{Role: "user", Content: req.Query}}, readOnlyTools)
+	var issues []map[string]interface{}
+
+	resp, err := s.llm.ChatSyncWithTools(ctx, translatePrompt, []Message{{Role: "user", Content: req.Query}}, readOnlyTools, func(name string, input json.RawMessage) (string, error) {
+		result, execErr := s.ExecuteTool(name, input, actx)
+		if execErr != nil {
+			return "", execErr
+		}
+		// Capture search results as they come back
+		if name == "search_issues" {
+			if arr, ok := result.([]map[string]interface{}); ok {
+				issues = arr
+			}
+		}
+		b, _ := json.Marshal(result)
+		return string(b), nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Execute any tool calls from the response
-	var issues []map[string]interface{}
-	var explanation string
-	explanation = resp.Content
-
-	for _, tc := range resp.ToolCalls {
-		if tc.Name == "search_issues" {
-			result, execErr := s.executeTool(tc.Name, tc.Input, actx)
-			if execErr == nil {
-				if arr, ok := result.([]map[string]interface{}); ok {
-					issues = arr
-				}
-			}
-		}
-	}
-
 	return &AISearchResponse{
-		RQL:         "", // NL search doesn't expose RQL directly
-		Explanation: explanation,
+		RQL:         "",
+		Explanation: resp.Content,
 		Issues:      issues,
 	}, nil
 }
@@ -650,50 +673,67 @@ type AICreateResponse struct {
 
 // CreatePreview parses a natural language description into a structured issue preview.
 func (s *AIService) CreatePreview(ctx context.Context, req *AICreateRequest, actx *AIContext) (*AICreateResponse, error) {
+	// Gather real project data to include in the prompt
+	var states []model.State
+	s.db.Where("project_id = ? AND is_active = ?", actx.ProjectID, true).Order("sequence").Find(&states)
+	stateInfo := make([]string, len(states))
+	for i, st := range states {
+		stateInfo[i] = fmt.Sprintf("%d:%s(%s)", st.ID, st.Name, st.Group)
+	}
+
+	var types []model.IssueType
+	s.db.Where("workspace_id = ? AND is_active = ? AND project_id IS NULL", actx.WorkspaceID, true).Find(&types)
+	typeInfo := make([]string, len(types))
+	for i, t := range types {
+		typeInfo[i] = fmt.Sprintf("%d:%s", t.ID, t.Name)
+	}
+
+	var members []model.ProjectMember
+	s.db.Preload("User").Where("project_id = ?", actx.ProjectID).Find(&members)
+	memberInfo := make([]string, len(members))
+	for i, m := range members {
+		memberInfo[i] = fmt.Sprintf("%d:%s", m.UserID, m.User.DisplayName)
+	}
+
 	createPrompt := fmt.Sprintf(`你是一个工作项创建助手。将用户的自然语言描述解析为结构化的工作项预览。
 
-当前项目信息：
-- 项目 ID: %d
-- 工作空间 ID: %d
-- 项目标识符: %s
-- 可用类型: 先用 list_issue_types 查询
-- 可用状态: 先用 list_states 查询
-- 可用成员: 先用 list_members 查询
+当前项目：%s（标识符: %s）
+
+可用状态（ID:名称(分组)）：%s
+可用类型（ID:名称）：%s
+可用成员（ID:显示名）：%s
 
 解析规则：
-1. 提取标题：问题的简短描述
-2. 识别类型：Bug/Feature/Task/Epic 等
-3. 识别优先级：P0/紧急=urgent, P1/高=high, P2/中=medium, P3/低=low, 未提及=none
-4. 识别人名→查成员列表匹配用户 ID
+1. 提取标题：问题的简短描述（不要包含"创建"等动词前缀）
+2. 识别类型：根据关键词匹配上述可用类型，选最接近的。不确定就留空。
+3. 识别优先级：P0/紧急/crash=urgent, P1/高=high, P2/中=medium, P3/低=low, 未提及=none
+4. 识别人名→匹配上述成员ID。只使用列出的成员ID。
 5. 识别日期→格式 YYYY-MM-DD
-6. 生成详细描述（Markdown 格式）
+6. 生成详细描述（Markdown 格式，包含复现步骤、期望行为等）
 
-先查询可用数据，然后返回 JSON：
+只输出纯JSON，不要markdown标记，不要其他文字：
 {
-  "preview": {
-    "name": "标题",
-    "description": "详细描述",
-    "priority": "high",
-    "type_id": 4,
-    "state_id": 1,
-    "assignee_ids": [3],
-    "label_ids": [],
-    "target_date": "2026-07-03"
-  },
-  "explanation": "解析说明"
+  "name": "标题",
+  "description": "详细描述",
+  "priority": "high",
+  "type_id": 4,
+  "state_id": 1,
+  "assignee_ids": [3],
+  "label_ids": [],
+  "target_date": "2026-07-03"
 }`,
-		actx.ProjectID, actx.WorkspaceID, actx.ProjectIdentifier)
+		actx.ProjectName, actx.ProjectIdentifier,
+		strings.Join(stateInfo, ", "),
+		strings.Join(typeInfo, ", "),
+		strings.Join(memberInfo, ", "))
 
-	tools := s.getTools()
-	readOnlyTools := filterReadOnlyTools(tools)
-
-	resp, err := s.llm.ChatSync(ctx, createPrompt, []Message{{Role: "user", Content: req.Description}}, readOnlyTools)
+	content, err := s.llm.Complete(ctx, "你是一个工作项创建助手。只输出纯JSON，不要任何markdown标记或额外文字。", createPrompt)
 	if err != nil {
 		return nil, err
 	}
 
-	// Try to extract the JSON preview from the response
-	preview := extractJSON(resp.Content)
+	// Parse preview from LLM response, then return a cleaner explanation
+	preview := extractJSON(content)
 	if preview == nil {
 		preview = map[string]interface{}{
 			"name":        req.Description,
@@ -702,9 +742,15 @@ func (s *AIService) CreatePreview(ctx context.Context, req *AICreateRequest, act
 		}
 	}
 
+	// Build a friendly explanation instead of the raw LLM output
+	explanation := "已根据你的描述生成工作项预览"
+	if name, ok := preview["name"].(string); ok && name != "" {
+		explanation = fmt.Sprintf("已生成预览: %s", name)
+	}
+
 	return &AICreateResponse{
 		Preview:     preview,
-		Explanation: resp.Content,
+		Explanation: explanation,
 	}, nil
 }
 
@@ -712,18 +758,18 @@ func (s *AIService) CreatePreview(ctx context.Context, req *AICreateRequest, act
 
 // AIAnalyzeResponse is the response for the AI analysis endpoint.
 type AIAnalyzeResponse struct {
-	Summary       string                   `json:"summary"`
-	Insights      []string                 `json:"insights"`
-	Bottlenecks   []AIBottleneck           `json:"bottlenecks,omitempty"`
-	Stats         map[string]interface{}   `json:"stats"`
+	Summary     string                 `json:"summary"`
+	Insights    []string               `json:"insights"`
+	Bottlenecks []AIBottleneck         `json:"bottlenecks,omitempty"`
+	Stats       map[string]interface{} `json:"stats"`
 }
 
 // AIBottleneck represents a detected bottleneck.
 type AIBottleneck struct {
-	IssueID      uint64 `json:"issue_id"`
-	IssueName    string `json:"issue_name"`
-	DaysInState  int    `json:"days_in_state"`
-	StateName    string `json:"state_name"`
+	IssueID     uint64 `json:"issue_id"`
+	IssueName   string `json:"issue_name"`
+	DaysInState int    `json:"days_in_state"`
+	StateName   string `json:"state_name"`
 }
 
 // Analyze generates an AI-powered analysis of the project.
@@ -797,9 +843,9 @@ func (s *AIService) Analyze(ctx context.Context, actx *AIContext) (*AIAnalyzeRes
 	if err := json.Unmarshal([]byte(content), &result); err != nil {
 		// Fallback: wrap raw content
 		result = AIAnalyzeResponse{
-			Summary:   content[:min(len(content), 200)],
-			Insights:  []string{},
-			Stats:     map[string]interface{}{"raw_analysis": content},
+			Summary:  content[:min(len(content), 200)],
+			Insights: []string{},
+			Stats:    map[string]interface{}{"raw_analysis": content},
 		}
 	}
 
@@ -809,16 +855,21 @@ func (s *AIService) Analyze(ctx context.Context, actx *AIContext) (*AIAnalyzeRes
 		progressPct = float64(stats.CompletedIssues) / float64(stats.TotalIssues) * 100
 	}
 	result.Stats = map[string]interface{}{
-		"total_issues":    stats.TotalIssues,
-		"completed":       stats.CompletedIssues,
-		"progress_pct":    int(progressPct),
-		"active_members":  stats.ActiveMembers,
-		"issues_summary":  summary,
+		"total_issues":   stats.TotalIssues,
+		"completed":      stats.CompletedIssues,
+		"progress_pct":   int(progressPct),
+		"active_members": stats.ActiveMembers,
+		"issues_summary": summary,
 	}
 	return &result, nil
 }
 
-func min(a, b int) int { if a < b { return a }; return b }
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 // ==================== AI Labels ====================
 
@@ -829,10 +880,10 @@ type AILabelResponse struct {
 
 // AILabelSuggestion is a single label suggestion.
 type AILabelSuggestion struct {
-	LabelID   uint64  `json:"label_id"`
-	LabelName string  `json:"label_name"`
+	LabelID    uint64  `json:"label_id"`
+	LabelName  string  `json:"label_name"`
 	Confidence float64 `json:"confidence"`
-	Reason    string  `json:"reason"`
+	Reason     string  `json:"reason"`
 }
 
 // SuggestLabels uses AI to suggest labels for an issue.
@@ -845,7 +896,9 @@ func (s *AIService) SuggestLabels(ctx context.Context, projectID uint64, name, d
 	}
 
 	labelList := make([]string, len(labels))
-	for i, l := range labels { labelList[i] = fmt.Sprintf("%d:%s", l.ID, l.Name) }
+	for i, l := range labels {
+		labelList[i] = fmt.Sprintf("%d:%s", l.ID, l.Name)
+	}
 
 	prompt := fmt.Sprintf(`根据工作项标题和描述，从以下标签中选择最合适的1-3个标签。
 可用标签: %s
@@ -860,7 +913,12 @@ func (s *AIService) SuggestLabels(ctx context.Context, projectID uint64, name, d
 		return s.ruleBasedLabels(labels, name, description), nil
 	}
 
-	var parsed struct{ Labels []struct{ ID uint64 `json:"id"`; Reason string `json:"reason"` } `json:"labels"` }
+	var parsed struct {
+		Labels []struct {
+			ID     uint64 `json:"id"`
+			Reason string `json:"reason"`
+		} `json:"labels"`
+	}
 	if json.Unmarshal([]byte(result), &parsed) != nil {
 		return s.ruleBasedLabels(labels, name, description), nil
 	}
@@ -914,10 +972,10 @@ func (s *AIService) AssistComment(ctx context.Context, req *AICommentRequest) (*
 
 // AISprintPlanResponse is the AI-generated sprint plan.
 type AISprintPlanResponse struct {
-	RecommendedCapacity int              `json:"recommended_capacity"`
-	SuggestedIssues     []uint64         `json:"suggested_issues"`
-	Reasoning           string           `json:"reasoning"`
-	Risks               []string         `json:"risks"`
+	RecommendedCapacity int      `json:"recommended_capacity"`
+	SuggestedIssues     []uint64 `json:"suggested_issues"`
+	Reasoning           string   `json:"reasoning"`
+	Risks               []string `json:"risks"`
 }
 
 // SprintPlan generates AI sprint planning recommendations.
@@ -929,7 +987,7 @@ func (s *AIService) SprintPlan(ctx context.Context, projectID uint64) (*AISprint
 	var backlogIssues []model.Issue
 	var backlogState model.State
 	s.db.Where("project_id = ? AND \"group\" = ?", projectID, "backlog").First(&backlogState)
-	s.db.Where("project_id = ? AND state_id = ? AND priority IN (?)", projectID, backlogState.ID, []string{"urgent","high"}).
+	s.db.Where("project_id = ? AND state_id = ? AND priority IN (?)", projectID, backlogState.ID, []string{"urgent", "high"}).
 		Order("priority, sequence_id").Limit(20).Find(&backlogIssues)
 
 	// Build data summary
@@ -965,10 +1023,14 @@ func (s *AIService) SprintPlan(ctx context.Context, projectID uint64) (*AISprint
 	if err != nil {
 		// Fallback: simple average
 		avg := 10
-		if len(completedCycles) > 0 { avg = 10 }
+		if len(completedCycles) > 0 {
+			avg = 10
+		}
 		ids := make([]uint64, 0)
 		for i, iss := range backlogIssues {
-			if i >= avg { break }
+			if i >= avg {
+				break
+			}
 			ids = append(ids, iss.ID)
 		}
 		return &AISprintPlanResponse{
@@ -985,7 +1047,9 @@ func (s *AIService) SprintPlan(ctx context.Context, projectID uint64) (*AISprint
 	}
 	ids := make([]uint64, 0)
 	for i, iss := range backlogIssues {
-		if i >= plan.RecommendedCapacity { break }
+		if i >= plan.RecommendedCapacity {
+			break
+		}
 		ids = append(ids, iss.ID)
 	}
 	plan.SuggestedIssues = ids
@@ -1018,11 +1082,11 @@ func (s *AIService) ruleBasedLabels(labels []model.Label, name, description stri
 
 // AITriageResponse is the AI-powered triage analysis result.
 type AITriageResponse struct {
-	SuggestedType     string `json:"suggested_type"`
-	SuggestedPriority string `json:"suggested_priority"`
-	HasDuplicates     bool   `json:"has_duplicates"`
+	SuggestedType     string   `json:"suggested_type"`
+	SuggestedPriority string   `json:"suggested_priority"`
+	HasDuplicates     bool     `json:"has_duplicates"`
 	DuplicateIDs      []uint64 `json:"duplicate_ids"`
-	Summary           string `json:"summary"`
+	Summary           string   `json:"summary"`
 }
 
 // TriageAnalyze runs AI analysis on an intake issue.
@@ -1038,7 +1102,9 @@ func (s *AIService) TriageAnalyze(ctx context.Context, issueID uint64, projectID
 		Limit(5).Find(&dupes)
 
 	dupIDs := make([]uint64, len(dupes))
-	for i, d := range dupes { dupIDs[i] = d.ID }
+	for i, d := range dupes {
+		dupIDs[i] = d.ID
+	}
 
 	// Build prompt
 	prompt := fmt.Sprintf(`分析以下新提交的工作项，给出分类建议。
@@ -1062,8 +1128,13 @@ func (s *AIService) TriageAnalyze(ctx context.Context, issueID uint64, projectID
 		name := strings.ToLower(issue.Name)
 		st := "Task"
 		sp := "medium"
-		if strings.Contains(name, "bug") || strings.Contains(name, "错误") || strings.Contains(name, "崩溃") { st = "Bug"; sp = "high" }
-		if strings.Contains(name, "登录") || strings.Contains(name, "支付") { sp = "urgent" }
+		if strings.Contains(name, "bug") || strings.Contains(name, "错误") || strings.Contains(name, "崩溃") {
+			st = "Bug"
+			sp = "high"
+		}
+		if strings.Contains(name, "登录") || strings.Contains(name, "支付") {
+			sp = "urgent"
+		}
 		return &AITriageResponse{
 			SuggestedType: st, SuggestedPriority: sp,
 			HasDuplicates: len(dupes) > 0, DuplicateIDs: dupIDs,
@@ -1084,9 +1155,9 @@ func (s *AIService) TriageAnalyze(ctx context.Context, issueID uint64, projectID
 
 // PageAIRequest is the request for Page AI operations.
 type PageAIRequest struct {
-	Action   string `json:"action"`   // generate | summarize | improve | translate
-	Content  string `json:"content"`  // selected text (or full page content)
-	Context  string `json:"context"`  // additional context (e.g., "write a PRD section")
+	Action  string `json:"action"`  // generate | summarize | improve | translate
+	Content string `json:"content"` // selected text (or full page content)
+	Context string `json:"context"` // additional context (e.g., "write a PRD section")
 }
 
 // PageAIResponse is the response for Page AI.
@@ -1117,7 +1188,7 @@ func (s *AIService) PageAI(ctx context.Context, req *PageAIRequest) (*PageAIResp
 
 // ==================== Tool Execution ====================
 
-func (s *AIService) executeTool(name string, rawInput json.RawMessage, actx *AIContext) (any, error) {
+func (s *AIService) ExecuteTool(name string, rawInput json.RawMessage, actx *AIContext) (any, error) {
 	var args map[string]interface{}
 	if err := json.Unmarshal(rawInput, &args); err != nil {
 		args = map[string]interface{}{}
@@ -1218,11 +1289,11 @@ func (s *AIService) toolCreateIssue(args map[string]interface{}, actx *AIContext
 	}
 
 	iss := &model.Issue{
-		Name:        name,
+		Name:            name,
 		DescriptionHTML: getStrArg(args, "description", ""),
-		Priority:    getStrArg(args, "priority", "none"),
-		ProjectID:   projectID,
-		WorkspaceID: workspaceID,
+		Priority:        getStrArg(args, "priority", "none"),
+		ProjectID:       projectID,
+		WorkspaceID:     workspaceID,
 	}
 	if typeID := getUintArg(args, "type_id", 0); typeID > 0 {
 		iss.IssueTypeID = &typeID
@@ -1253,10 +1324,18 @@ func (s *AIService) toolGetIssue(args map[string]interface{}) (any, error) {
 func (s *AIService) toolUpdateIssue(args map[string]interface{}) (any, error) {
 	id := getUintArg(args, "issue_id", 0)
 	updates := map[string]interface{}{}
-	if v := getStrArg(args, "name", ""); v != "" { updates["name"] = v }
-	if v := getStrArg(args, "priority", ""); v != "" { updates["priority"] = v }
-	if v := getUintArg(args, "state_id", 0); v > 0 { updates["state_id"] = v }
-	if v := getStrArg(args, "description", ""); v != "" { updates["description_html"] = v }
+	if v := getStrArg(args, "name", ""); v != "" {
+		updates["name"] = v
+	}
+	if v := getStrArg(args, "priority", ""); v != "" {
+		updates["priority"] = v
+	}
+	if v := getUintArg(args, "state_id", 0); v > 0 {
+		updates["state_id"] = v
+	}
+	if v := getStrArg(args, "description", ""); v != "" {
+		updates["description_html"] = v
+	}
 	if err := s.db.Model(&model.Issue{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 		return nil, err
 	}
@@ -1407,8 +1486,8 @@ func (s *AIService) toolListPages(args map[string]interface{}, actx *AIContext) 
 
 // searchResult represents a single web search result from DuckDuckGo lite.
 type searchResult struct {
-	Title string `json:"title"`
-	URL   string `json:"url"`
+	Title   string `json:"title"`
+	URL     string `json:"url"`
 	Snippet string `json:"snippet"`
 }
 

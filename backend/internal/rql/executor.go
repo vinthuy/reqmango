@@ -399,18 +399,39 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 }
 
 func (e *GORMExecutor) buildFullTextSearch(field, operator, value string) (*rawCondition, error) {
-	// Sanitize: only allow alphanumeric, spaces, and common tsquery operators
-	// Use parameterized plainto_tsquery which is safe against injection
+	// Strip LIKE wildcards (% and _) before passing to tsquery
+	// plainto_tsquery does not understand SQL LIKE wildcards
+	cleanValue := strings.Trim(value, "%")
+	cleanValue = strings.ReplaceAll(cleanValue, "_", "\\_")
+	// Also strip leading/trailing % if embedded
+	cleanValue = strings.Trim(cleanValue, "%")
+
+	if cleanValue == "" {
+		// Fallback to simple ILIKE if value contains only wildcards
+		if operator == "NOT LIKE" {
+			return &rawCondition{
+				SQL:  "COALESCE(name, '') || ' ' || COALESCE(description_stripped, '') NOT ILIKE ?",
+				Args: []interface{}{"%" + value + "%"},
+			}, nil
+		}
+		return &rawCondition{
+			SQL:  "COALESCE(name, '') || ' ' || COALESCE(description_stripped, '') ILIKE ?",
+			Args: []interface{}{"%" + value + "%"},
+		}, nil
+	}
+
+	// Use 'simple' config for Chinese/CJK compatibility
+	// 'english' only stems English words and ignores Chinese characters
 	if operator == "NOT LIKE" {
 		return &rawCondition{
-			SQL:  "to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) !@@ plainto_tsquery('english', ?)",
-			Args: []interface{}{value},
+			SQL:  "to_tsvector('simple', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) !@@ plainto_tsquery('simple', ?)",
+			Args: []interface{}{cleanValue},
 		}, nil
 	}
 
 	return &rawCondition{
-		SQL:  "to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) @@ plainto_tsquery('english', ?)",
-		Args: []interface{}{value},
+		SQL:  "to_tsvector('simple', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) @@ plainto_tsquery('simple', ?)",
+		Args: []interface{}{cleanValue},
 	}, nil
 }
 

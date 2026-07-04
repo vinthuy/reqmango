@@ -1,10 +1,7 @@
 import api from './index'
+import type { Initiative, InitiativeCreateRequest, InitiativeUpdateRequest, InitiativeProgress } from '@/types/initiative'
 
-export interface Initiative {
-  id: number; workspace_id: number; name: string; description?: string
-  color?: string; status: string; target_date?: string; start_date?: string
-  sort_order: number; projects?: any[]; created_by?: any; created_at: string
-}
+export type { Initiative, InitiativeCreateRequest, InitiativeUpdateRequest, InitiativeProgress }
 
 export async function listInitiatives(workspaceId: number): Promise<Initiative[]> {
   const r = await api.get(`/workspaces/${workspaceId}/initiatives`); return r.data.data || []

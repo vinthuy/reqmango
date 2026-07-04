@@ -13,8 +13,9 @@ type ProjectCreateRequest struct {
 
 // ProjectUpdateRequest is the request body for updating a project.
 type ProjectUpdateRequest struct {
-	Name        string     `json:"name"`
-	Description *string    `json:"description"`
-	IsPublic    *bool      `json:"is_public"`
-	ArchivedAt  *string    `json:"archived_at"` // ISO date string, null to unarchive
+	Name              string     `json:"name"`
+	Description       *string    `json:"description"`
+	IsPublic          *bool      `json:"is_public"`
+	ArchivedAt        *string    `json:"archived_at"`        // ISO date string, null to unarchive
+	DefaultAssigneeID *uint64    `json:"default_assignee_id"`
 }

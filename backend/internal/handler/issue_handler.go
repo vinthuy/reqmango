@@ -101,6 +101,7 @@ func (h *IssueHandler) List(c *gin.Context) {
 	p := common.ParsePagination(c.Query("limit"), c.Query("offset"), 50, 100)
 
 	filters := make(map[string]interface{})
+	filters["current_user_id"] = user.ID
 
 	if v := c.Query("state_id"); v != "" {
 		if id, err := strconv.ParseUint(v, 10, 64); err == nil {
@@ -808,6 +809,21 @@ func (h *IssueHandler) ImportCSV(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// ExportCSVTemplate downloads a CSV template for issue import.
+func (h *IssueHandler) ExportCSVTemplate(c *gin.Context) {
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=issue_import_template.csv")
+
+	// Write BOM for Excel compatibility
+	c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
+
+	// Write header
+	c.Writer.Write([]byte("name,description,priority,state,type,assignees,labels,start_date,target_date,parent_title,module,cycle,estimate\n"))
+	c.Writer.Write([]byte("示例工作项,这是一个示例描述,high,待处理,Bug,user@example.com,标签1,2024-01-01,2024-01-15,,示例模块,,3\n"))
+
+	c.Status(http.StatusOK)
+}
+
 func (h *IssueHandler) ListPages(c *gin.Context) {
 	issueID, err := h.parseIssueID(c)
 	if err != nil {
@@ -963,6 +979,8 @@ func (h *IssueHandler) ConvertType(c *gin.Context) {
 
 // Tree handles GET /issues/tree?project_id=int&limit=&offset=&search=&state_id=&priority=
 func (h *IssueHandler) Tree(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
 	projectID, err := strconv.ParseUint(c.Query("project_id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project_id"})
@@ -993,6 +1011,7 @@ func (h *IssueHandler) Tree(c *gin.Context) {
 	p := common.ParsePagination(c.Query("limit"), c.Query("offset"), 20, 50)
 
 	filters := make(map[string]interface{})
+	filters["current_user_id"] = user.ID
 	if v := c.Query("rql"); v != "" {
 		filters["rql"] = v
 	}

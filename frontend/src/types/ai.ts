@@ -51,6 +51,7 @@ export interface IssueLite {
 
 export interface AICreateRequest {
   description: string
+  workspace_id?: number
 }
 
 export interface AICreateResponse {

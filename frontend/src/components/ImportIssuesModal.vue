@@ -37,7 +37,13 @@
               <li><code>start_date</code> / 开始日期 - YYYY-MM-DD</li>
               <li><code>target_date</code> / 截止日期 - YYYY-MM-DD</li>
               <li><code>parent_title</code> / 父标题 - 父工作项标题</li>
+              <li><code>module</code> / 模块 - 模块名称</li>
+              <li><code>cycle</code> / 周期 - 周期名称</li>
+              <li><code>estimate</code> / 估点 - 数字</li>
             </ul>
+            <button @click="handleDownloadTemplate" class="mt-3 text-sm text-indigo-600 hover:text-indigo-800 underline">
+              {{ t('import.downloadTemplate') }}
+            </button>
           </div>
 
           <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-400 transition-colors cursor-pointer"
@@ -89,6 +95,18 @@
               placeholder='[{"name":"工作项1","priority":"high"},{"name":"工作项2"}]'
             ></textarea>
           </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div v-if="importing" class="mt-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm text-gray-600">{{ t('import.importing') }}</span>
+            <span class="text-sm text-indigo-600">{{ importProgress }}%</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300" :style="{ width: importProgress + '%' }"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">{{ t('import.pleaseWait') }}</p>
         </div>
 
         <div v-if="importResult" class="mt-6">
@@ -157,6 +175,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
 const jsonText = ref('')
 const importing = ref(false)
+const importProgress = ref(0)
 const importResult = ref<ImportResult | null>(null)
 
 const canImport = computed(() => {
@@ -207,9 +226,26 @@ function formatFileSize(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+async function handleDownloadTemplate() {
+  try {
+    await issueApi.downloadImportTemplate()
+  } catch (e) {
+    console.error('Failed to download template:', e)
+  }
+}
+
 async function handleImport() {
   importing.value = true
+  importProgress.value = 0
   importResult.value = null
+  
+  // Simulate progress
+  const progressInterval = setInterval(() => {
+    if (importProgress.value < 90) {
+      importProgress.value += 10
+    }
+  }, 200)
+  
   try {
     let result: ImportResult
     if (mode.value === 'csv' && selectedFile.value) {
@@ -218,11 +254,13 @@ async function handleImport() {
       const items = JSON.parse(jsonText.value)
       result = await issueApi.importIssuesJSON(props.projectId, props.workspaceId, items)
     }
+    importProgress.value = 100
     importResult.value = result
     if (result.success_count > 0) {
       emit('success', result)
     }
   } catch (e: any) {
+    importProgress.value = 100
     importResult.value = {
       success_count: 0,
       fail_count: 1,
@@ -230,6 +268,7 @@ async function handleImport() {
       imported_ids: []
     }
   } finally {
+    clearInterval(progressInterval)
     importing.value = false
   }
 }

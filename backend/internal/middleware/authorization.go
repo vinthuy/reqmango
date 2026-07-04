@@ -100,14 +100,47 @@ func parseContextID(c *gin.Context, key string) uint64 {
 func hasPermissionDB(db *gorm.DB, userID, workspaceID, projectID uint64, requiredPerm string) bool {
 	// Get user's role level from workspace member
 	var member struct {
-		Role int
+		Role     int
+		CustomRoleID *uint64
 	}
-	if err := db.Raw("SELECT role FROM workspace_members WHERE user_id = ? AND workspace_id = ? LIMIT 1",
+	if err := db.Raw("SELECT role, custom_role_id FROM workspace_members WHERE user_id = ? AND workspace_id = ? LIMIT 1",
 		userID, workspaceID).Scan(&member).Error; err != nil || member.Role == 0 {
 		return false
 	}
 
-	// Find role with matching level
+	// Check custom role first (if assigned)
+	if member.CustomRoleID != nil {
+		var count int64
+		db.Raw(`
+			SELECT COUNT(*) FROM role_permissions rp
+			JOIN permissions p ON rp.permission_id = p.id
+			WHERE rp.role_id = ? AND p.code = ?
+		`, *member.CustomRoleID, requiredPerm).Count(&count)
+		if count > 0 {
+			return true
+		}
+	}
+
+	// Check project-level custom role
+	if projectID > 0 {
+		var prjMember struct {
+			CustomRoleID *uint64
+		}
+		if err := db.Raw("SELECT custom_role_id FROM project_members WHERE user_id = ? AND project_id = ? LIMIT 1",
+			userID, projectID).Scan(&prjMember).Error; err == nil && prjMember.CustomRoleID != nil {
+			var count int64
+			db.Raw(`
+				SELECT COUNT(*) FROM role_permissions rp
+				JOIN permissions p ON rp.permission_id = p.id
+				WHERE rp.role_id = ? AND p.code = ?
+			`, *prjMember.CustomRoleID, requiredPerm).Count(&count)
+			if count > 0 {
+				return true
+			}
+		}
+	}
+
+	// Fallback to system role level matching
 	var count int64
 	db.Raw(`
 		SELECT COUNT(*) FROM role_permissions rp

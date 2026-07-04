@@ -1,6 +1,6 @@
 # API Conventions（API 设计约定）
 
-**最后更新**: 2026-07-03
+**最后更新**: 2026-07-04
 
 ---
 
@@ -132,6 +132,26 @@ GET /api/v1/issues?page=1&page_size=20
 | `GET /projects/:pid/modules` | `include_archived` |
 
 搜索参数 `search` 通常对 `name` 和 `description` 进行模糊匹配。
+
+### 搜索端点
+
+所有实体支持独立的搜索端点，使用 `q` 查询参数进行模糊搜索：
+
+| 实体 | 搜索端点 | 搜索字段 |
+|------|---------|---------|
+| Initiative | `GET /workspaces/:wid/initiatives/search?q=` | name |
+| Release | `GET /projects/:pid/releases/search?q=` | name, version |
+| Cycle | `GET /projects/:pid/cycles/search?q=` | name |
+| Module | `GET /modules/search?project_id=&workspace_id=&q=` | name |
+| Label | `GET /projects/:pid/settings/labels/search?q=` | name |
+| Page | `GET /projects/:pid/pages/search?q=` | title, content |
+
+**响应格式**：
+```json
+{
+  "data": [ { "id": 1, "name": "..." }, ... ]
+}
+```
 
 ### RQL 筛选
 

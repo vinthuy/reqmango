@@ -100,7 +100,8 @@ async function loadAllData() {
     templateCount.value = results[5].status === 'fulfilled' ? (Array.isArray(results[5].value) ? results[5].value.length : 0) : 0;
     pluginCount.value = results[6].status === 'fulfilled' ? (Array.isArray(results[6].value) ? results[6].value.length : 0) : 0;
     const roles = results[7].status === 'fulfilled' ? results[7].value : null;
-    roleCount.value = roles?.data?.length || (Array.isArray(roles) ? roles.length : 0);
+    const roleData = roles?.data;
+    roleCount.value = Array.isArray(roleData) ? roleData.length : (Array.isArray(roles) ? roles.length : 0);
     const mcp = results[8].status === 'fulfilled' ? (Array.isArray(results[8].value) ? results[8].value : []) : [];
     const github = results[9].status === 'fulfilled' ? (Array.isArray(results[9].value) ? results[9].value : []) : [];
     const slack = results[10].status === 'fulfilled' ? (Array.isArray(results[10].value) ? results[10].value : []) : [];

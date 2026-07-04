@@ -146,10 +146,12 @@ import { ref, onMounted, watch } from 'vue'
 import relationApi from '@/api/relation'
 import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{ workspaceId: number }>()
 const { confirm } = useConfirm()
 const { t } = useI18n()
+const toast = useToast()
 
 const types = ref<any[]>([])
 const loading = ref(false)
@@ -185,7 +187,7 @@ function openEdit(rt: any) {
 
 async function save() {
   if (!form.value.name.trim() || !form.value.inward_name.trim() || !form.value.outward_name.trim()) {
-    alert(t('relationType.fillRequired'))
+    toast.warning(t('relationType.fillRequired'))
     return
   }
   try {
@@ -198,14 +200,14 @@ async function save() {
     load()
   } catch (e) {
     console.error('Failed to save:', e)
-    alert(t('relationType.saveFailed') + (e as any).message)
+    toast.error(t('relationType.saveFailed') + (e as any).message)
   }
 }
 
 async function confirmDelete(rt: any) { 
   if (!(await confirm({ 
     title: t('relationType.deleteTitle'), 
-    message: t('relationType.deleteConfirm').replace('{name}', rt.name), 
+    message: t('relationType.deleteConfirm', { name: rt.name }),
     danger: true, 
     confirmText: t('common.delete') 
   }))) return
@@ -214,7 +216,7 @@ async function confirmDelete(rt: any) {
     load()
   } catch (e) {
     console.error('Failed to delete:', e)
-    alert(t('relationType.deleteFailed') + (e as any).message)
+    toast.error(t('relationType.deleteFailed') + (e as any).message)
   }
 }
 

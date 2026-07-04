@@ -216,6 +216,7 @@ const { t } = useI18n()
 const props = defineProps<{
   projectId: number
   workspaceId: number
+  workflowId?: number
   states: Array<{ id: number; name: string }>
 }>()
 
@@ -250,7 +251,7 @@ onMounted(() => {
 async function loadTransitions() {
   loading.value = true
   try {
-    transitions.value = await workflowApi.listStateTransitions(props.projectId)
+    transitions.value = await workflowApi.listStateTransitions(props.projectId, props.workflowId || 0)
   } catch (error) {
     console.error('Failed to load transitions:', error)
   } finally {
@@ -282,7 +283,7 @@ async function deleteTransition(transition: StateTransition) {
   if (!(await confirm(t('stateTransition.confirmDelete')))) return
 
   try {
-    await workflowApi.deleteStateTransition(transition.id)
+    await workflowApi.deleteStateTransition(props.projectId, props.workflowId || 0, transition.id)
     transitions.value = transitions.value.filter(t => t.id !== transition.id)
     emit('deleted')
   } catch (error) {
@@ -295,7 +296,7 @@ async function submitTransition() {
   try {
     if (showEditModal.value && editingTransition.value) {
       // Update
-      await workflowApi.updateStateTransition(editingTransition.value.id, {
+      await workflowApi.updateStateTransition(props.projectId, props.workflowId || 0, editingTransition.value.id, {
         name: transitionForm.value.name,
         description: transitionForm.value.description || undefined,
         is_auto: transitionForm.value.is_auto
@@ -310,7 +311,7 @@ async function submitTransition() {
         target_state_id: transitionForm.value.target_state_id,
         is_auto: transitionForm.value.is_auto
       }
-      await workflowApi.createStateTransition(props.projectId, props.workspaceId, data)
+      await workflowApi.createStateTransition(props.projectId, props.workflowId || 0, data)
       emit('created')
     }
     closeModal()

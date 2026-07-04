@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func strPtr(s string) *string { return &s }
+func strPtr(s string) *string  { return &s }
 func uintPtr(u uint64) *uint64 { return &u }
 
 func SeedAll(db *gorm.DB) {
@@ -320,7 +320,7 @@ func SeedDemoData(db *gorm.DB) {
 	fmt.Println("Created states, cycles, modules, labels for all projects")
 
 	// ============================================================
-	// 5. ISSUES — 40-70 per project
+	// 5. ISSUES — ~100 per project (1000 total across 10 projects)
 	// ============================================================
 	priorities := []string{"urgent", "high", "medium", "low", "none"}
 
@@ -380,7 +380,7 @@ func SeedDemoData(db *gorm.DB) {
 		modules := allModules[proj.ID]
 		labels := allLabels[proj.ID]
 
-		numIssues := 40 + rng.Intn(31) // 40-70
+		numIssues := 85 + rng.Intn(31) // 85-115, totalling ~1000 across 10 projects
 		stateWeights := []int{15, 20, 25, 15, 20, 5}
 
 		for i := 0; i < numIssues; i++ {
@@ -633,6 +633,40 @@ func SeedDemoData(db *gorm.DB) {
 		}
 	}
 	fmt.Println("Created releases with linked issues")
+
+	// ============================================================
+	// 6.1 INITIATIVES — 2-4 per workspace
+	// ============================================================
+	for _, ws := range workspaces {
+		numInitiatives := 2 + rng.Intn(3)
+		initiativeNames := []string{"用户增长计划", "平台稳定性提升", "国际化扩展", "移动端适配", "AI智能助手集成"}
+		initiativeStatuses := []string{"active", "completed", "at_risk", "paused"}
+		initiativeColors := []string{"#22c55e", "#3b82f6", "#eab308", "#6b7280"}
+		for i := 0; i < numInitiatives; i++ {
+			startDate := time.Now().AddDate(0, -rng.Intn(6), 0)
+			targetDate := startDate.AddDate(0, 3+rng.Intn(6), 0)
+			ini := model.Initiative{
+				WorkspaceID: ws.ID,
+				Name:        initiativeNames[rng.Intn(len(initiativeNames))],
+				Description: fmt.Sprintf("战略规划：%s的年度重点目标", initiativeNames[rng.Intn(len(initiativeNames))]),
+				Color:       initiativeColors[rng.Intn(len(initiativeColors))],
+				Status:      initiativeStatuses[rng.Intn(len(initiativeStatuses))],
+				StartDate:   &startDate,
+				TargetDate:  &targetDate,
+				CreatedByID: users[0].ID,
+			}
+			if err := db.Create(&ini).Error; err != nil {
+				continue
+			}
+			// Link 1-2 random projects to this initiative
+			rng.Shuffle(len(projects), func(a, b int) { projects[a], projects[b] = projects[b], projects[a] })
+			linkCount := 1 + rng.Intn(2)
+			for j := 0; j < linkCount && j < len(projects); j++ {
+				db.Create(&model.InitiativeProject{InitiativeID: ini.ID, ProjectID: projects[j].ID})
+			}
+		}
+	}
+	fmt.Println("Created initiatives with linked projects")
 
 	// ============================================================
 	// 7. PAGES — 5-12 per project
@@ -979,27 +1013,27 @@ func SeedConfigData(db *gorm.DB) {
 		adminID := ws.OwnerID
 		db.Create(&model.Agent{
 			Name: "Triage Agent", Avatar: "🏥", AgentType: "builtin",
-			Capabilities:  []byte(`["analyze","search","comment","list"]`),
-			Status:        "active",
-			SystemPrompt:  strPtr("You are a triage specialist. Analyze incoming issues and suggest the correct type, priority, labels, and assignee. Be concise and data-driven."),
-			WorkspaceID:   ws.ID,
-			BaseModel:     model.BaseModel{CreatedByID: &adminID},
+			Capabilities: []byte(`["analyze","search","comment","list"]`),
+			Status:       "active",
+			SystemPrompt: strPtr("You are a triage specialist. Analyze incoming issues and suggest the correct type, priority, labels, and assignee. Be concise and data-driven."),
+			WorkspaceID:  ws.ID,
+			BaseModel:    model.BaseModel{CreatedByID: &adminID},
 		})
 		db.Create(&model.Agent{
 			Name: "Summary Agent", Avatar: "📋", AgentType: "builtin",
-			Capabilities:  []byte(`["summarize","analyze","list"]`),
-			Status:        "active",
-			SystemPrompt:  strPtr("You are a project analyst. Summarize sprint progress, project health, and team performance. Provide actionable insights."),
-			WorkspaceID:   ws.ID,
-			BaseModel:     model.BaseModel{CreatedByID: &adminID},
+			Capabilities: []byte(`["summarize","analyze","list"]`),
+			Status:       "active",
+			SystemPrompt: strPtr("You are a project analyst. Summarize sprint progress, project health, and team performance. Provide actionable insights."),
+			WorkspaceID:  ws.ID,
+			BaseModel:    model.BaseModel{CreatedByID: &adminID},
 		})
 		db.Create(&model.Agent{
 			Name: "Assistant Agent", Avatar: "🤖", AgentType: "builtin",
-			Capabilities:  []byte(`["all"]`),
-			Status:        "active",
-			SystemPrompt:  strPtr("You are a helpful project management assistant. Help users with any task."),
-			WorkspaceID:   ws.ID,
-			BaseModel:     model.BaseModel{CreatedByID: &adminID},
+			Capabilities: []byte(`["all"]`),
+			Status:       "active",
+			SystemPrompt: strPtr("You are a helpful project management assistant. Help users with any task."),
+			WorkspaceID:  ws.ID,
+			BaseModel:    model.BaseModel{CreatedByID: &adminID},
 		})
 		fmt.Println("  Created 3 built-in AI agents")
 	}
@@ -1146,7 +1180,9 @@ func SeedIssueTypesForAllWorkspaces(db *gorm.DB) {
 	for _, ws := range workspaces {
 		var count int64
 		db.Model(&model.IssueType{}).Where("workspace_id = ?", ws.ID).Count(&count)
-		if count > 0 { continue }
+		if count > 0 {
+			continue
+		}
 		epic := model.IssueType{Name: "Epic", Color: "#8B5CF6", Icon: "layers", Description: "顶层史诗级工作项", Level: 0, IsDefault: true, Sequence: 1, WorkspaceID: ws.ID}
 		db.Create(&epic)
 		feature := model.IssueType{Name: "Feature", Color: "#6366F1", Icon: "star", Description: "功能特性", Level: 1, ParentTypeID: &epic.ID, Sequence: 2, WorkspaceID: ws.ID}

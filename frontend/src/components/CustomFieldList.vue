@@ -157,7 +157,7 @@ async function loadFields() {
 
 // Delete field
 async function deleteField(field: CustomField) {
-  if (!(await confirm(t('customField.confirmDeleteField').replace('{name}', field.name)))) return
+  if (!(await confirm(t('customField.confirmDeleteField', { name: field.name })))) return
 
   try {
     await customFieldApi.deleteCustomField(field.id)

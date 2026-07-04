@@ -332,7 +332,7 @@ async function deleteItem(
   item: EstimatePoint | EstimateCategory | EstimateTime,
   mode: EstimateMode
 ) {
-  if (!(await confirm(t('estimatePoint.confirmDelete').replace('{name}', (item as EstimatePoint).name)))) return
+  if (!(await confirm(t('estimatePoint.confirmDelete', { name: (item as EstimatePoint).name })))) return
 
   try {
     if (mode === 'points') {

@@ -138,7 +138,7 @@ async function loadRules() {
 // Toggle rule enabled
 async function toggleRule(rule: AutomationRule) {
   try {
-    const updated = await workflowApi.toggleAutomationRule(rule.id, !rule.is_enabled)
+    const updated = await workflowApi.toggleAutomationRule(props.projectId, rule.id, !rule.is_enabled)
     const index = rules.value.findIndex(r => r.id === rule.id)
     if (index !== -1) {
       rules.value[index] = updated

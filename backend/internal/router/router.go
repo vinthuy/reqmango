@@ -35,6 +35,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	searchTemplateSvc := service.NewSearchTemplateService(db)
 	projectIssueTypeH := handler.NewProjectIssueTypeHandler(issueTypeSvc)
 	pageSvc := service.NewPageService(db)
+	pageVersionSvc := service.NewPageVersionService(db)
+	pageTemplateSvc := service.NewPageTemplateService(db)
 	witSvc := service.NewWorkItemTemplateService(db)
 	conditionalFieldSvc := service.NewConditionalFieldService(db)
 	releaseSvc := service.NewReleaseService(db)
@@ -54,9 +56,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
 	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
 	automationSvc.SetAgentService(agentSvc) // break circular dependency: automation -> agent -> issue -> automation
+	commentSvc.SetAgentService(agentSvc)    // enable @agent-name mention handling in comments
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
 	roleSvc := service.NewRoleService(db)
+	fieldPermSvc := service.NewFieldPermissionService(db)
+	pluginSvc := service.NewPluginService(db)
 
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
@@ -77,9 +82,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	savedViewH := handler.NewSavedViewHandler(savedViewSvc)
 	searchTemplateH := handler.NewSearchTemplateHandler(searchTemplateSvc)
 	pageH := handler.NewPageHandler(pageSvc)
+	pageVersionH := handler.NewPageVersionHandler(pageVersionSvc)
+	pageTemplateH := handler.NewPageTemplateHandler(pageTemplateSvc)
 	conditionalFieldH := handler.NewConditionalFieldHandler(conditionalFieldSvc)
 	witH := handler.NewWorkItemTemplateHandler(witSvc)
 	releaseH := handler.NewReleaseHandler(releaseSvc)
+	initiativeH := handler.NewInitiativeHandler(db)
 	estimateH := handler.NewEstimateHandler(estimateSvc)
 	attachmentH := handler.NewAttachmentHandler(attachmentSvc)
 	webhookH := handler.NewWebhookHandler(webhookSvc)
@@ -92,6 +100,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	githubH := handler.NewGitHubHandler(githubSvc)
 	slackH := handler.NewSlackHandler(slackSvc)
 	roleH := handler.NewRoleHandler(roleSvc)
+	fieldPermH := handler.NewFieldPermissionHandler(fieldPermSvc)
+	pluginH := handler.NewPluginHandler(pluginSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -141,13 +151,15 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PUT("/:wsParam/ai-config", aiH.UpdateAIConfig)
 
 			// Initiatives
-			initiativeH := handler.NewInitiativeHandler(db)
 			workspaces.POST("/:wsParam/initiatives", initiativeH.Create)
 			workspaces.GET("/:wsParam/initiatives", initiativeH.List)
+			workspaces.GET("/:wsParam/initiatives/search", initiativeH.Search)
 
 			// AI Agents
 			workspaces.GET("/:wsParam/agents", agentH.List)
 			workspaces.POST("/:wsParam/agents", agentH.Create)
+			workspaces.GET("/:wsParam/agents/activity", agentH.ListWorkspaceActivity)
+			workspaces.PATCH("/:wsParam/agents/activity/:id/feedback", agentH.UpdateActivityFeedback)
 			workspaces.GET("/:wsParam/agents/:id", agentH.GetByID)
 			workspaces.PUT("/:wsParam/agents/:id", agentH.Update)
 			workspaces.DELETE("/:wsParam/agents/:id", agentH.Delete)
@@ -188,6 +200,25 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/roles", roleH.CreateRole)
 			workspaces.PUT("/:wsParam/roles/:id", roleH.UpdateRole)
 			workspaces.DELETE("/:wsParam/roles/:id", roleH.DeleteRole)
+
+			// Field Permissions
+			workspaces.GET("/:wsParam/field-permissions", fieldPermH.List)
+			workspaces.POST("/:wsParam/field-permissions", fieldPermH.Create)
+			workspaces.PUT("/:wsParam/field-permissions/:id", fieldPermH.Update)
+			workspaces.DELETE("/:wsParam/field-permissions/:id", fieldPermH.Delete)
+			workspaces.GET("/:wsParam/field-permissions/check", fieldPermH.CheckAccess)
+
+			// Plugin management
+			workspaces.GET("/:wsParam/plugins/catalog", pluginH.ListCatalog)
+			workspaces.GET("/:wsParam/plugins", pluginH.ListInstalled)
+			workspaces.POST("/:wsParam/plugins", pluginH.Install)
+			workspaces.GET("/:wsParam/plugins/:id", pluginH.Get)
+			workspaces.PUT("/:wsParam/plugins/:id", pluginH.Update)
+			workspaces.DELETE("/:wsParam/plugins/:id", pluginH.Uninstall)
+			workspaces.POST("/:wsParam/plugins/:id/enable", pluginH.Enable)
+			workspaces.POST("/:wsParam/plugins/:id/disable", pluginH.Disable)
+			workspaces.GET("/:wsParam/plugins/:id/logs", pluginH.GetEventLogs)
+			workspaces.POST("/:wsParam/plugins/:id/test", pluginH.TestExecute)
 		}
 
 		// Permissions (global, read-only)
@@ -196,7 +227,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		// Initiatives (top-level routes)
 		initiatives := v1.Group("/initiatives", authMiddleware)
 		{
-			initiativeH := handler.NewInitiativeHandler(db)
 			initiatives.GET("/:initiativeId", initiativeH.Get)
 			initiatives.PUT("/:initiativeId", initiativeH.Update)
 			initiatives.DELETE("/:initiativeId", initiativeH.Delete)
@@ -240,12 +270,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.GET("/:projectId/updates", projectUpdateH.List)
 			projects.POST("/:projectId/updates", projectUpdateH.Create)
 			projects.GET("/:projectId/cycles", cycleH.List)
+			projects.GET("/:projectId/cycles/search", cycleH.Search)
 			projects.POST("/:projectId/cycles", cycleH.Create) // ?workspace_id=
 
 			// ---- Pages ----
 			pages := projects.Group("/:projectId/pages", authMiddleware)
 			{
 				pages.GET("", pageH.List)
+				pages.GET("/search", pageH.Search) // ?q=
 				pages.POST("", pageH.Create)
 				pages.GET("/tree", pageH.GetTree)
 				pages.GET("/:pageId", pageH.Get)
@@ -255,7 +287,27 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				pages.POST("/:pageId/restore", pageH.Restore)
 				pages.POST("/:pageId/move", pageH.Move)
 				pages.GET("/:pageId/children", pageH.ListChildren)
+				pages.POST("/:pageId/lock", pageH.Lock)
+				pages.POST("/:pageId/unlock", pageH.Unlock)
+				pages.GET("/:pageId/export", pageH.Export)
+				pages.POST("/:pageId/convert-to-issue", pageH.ConvertToIssue)
+				pages.GET("/:pageId/versions", pageVersionH.List)
+				pages.GET("/:pageId/versions/:versionId", pageVersionH.Get)
+				pages.POST("/:pageId/versions/:versionId/restore", pageVersionH.Restore)
 			}
+
+			// ---- Page Templates ----
+			pageTemplates := projects.Group("/:projectId/page-templates", authMiddleware)
+			{
+				pageTemplates.GET("", pageTemplateH.List)
+				pageTemplates.POST("", pageTemplateH.Create)
+				pageTemplates.GET("/:templateId", pageTemplateH.Get)
+				pageTemplates.PUT("/:templateId", pageTemplateH.Update)
+				pageTemplates.DELETE("/:templateId", pageTemplateH.Delete)
+			}
+
+			// ---- Project Time Tracking Summary ----
+			projects.GET("/:projectId/time-tracks/summary", timeTrackH.ProjectSummary)
 
 			// ---- Project Issue Types ----
 			projTypes := projects.Group("/:projectId/issue-types", authMiddleware)
@@ -321,6 +373,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			releases := projects.Group("/:projectId/releases", authMiddleware)
 			{
 				releases.GET("", releaseH.List)
+				releases.GET("/search", releaseH.Search)
 				releases.POST("", releaseH.Create)
 				releases.GET("/:releaseId", releaseH.Get)
 				releases.PUT("/:releaseId", releaseH.Update)
@@ -373,6 +426,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				// Labels
 				settings.POST("/labels", settingsH.CreateLabel) // ?workspace_id=
 				settings.GET("/labels", settingsH.ListLabels)
+				settings.GET("/labels/search", settingsH.SearchLabels) // ?q=
 				settings.GET("/labels/:labelId", settingsH.GetLabel)
 				settings.PUT("/labels/:labelId", settingsH.UpdateLabel)
 				settings.DELETE("/labels/:labelId", settingsH.DeleteLabel)
@@ -400,7 +454,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.GET("/statistics", issueH.GetStatistics)    // ?project_id=
 			issues.GET("/flow-metrics", issueH.GetFlowMetrics) // ?project_id=
 			issues.GET("/search", issueH.Search)               // ?workspace_id=&query=
-			issues.GET("/suggest", issueH.Suggest)            // ?project_id=&query=&limit=
+			issues.GET("/suggest", issueH.Suggest)             // ?project_id=&query=&limit=
 			issues.POST("/bulk/update", issueH.BulkUpdate)     // ?project_id=
 			issues.POST("/bulk/delete", issueH.BulkDelete)
 			issues.POST("/bulk/copy", issueH.BulkCopy)
@@ -410,6 +464,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// Import
 			issues.POST("/import/json", issueH.ImportJSON) // ?project_id=&workspace_id=
 			issues.POST("/import/csv", issueH.ImportCSV)   // ?project_id=&workspace_id=
+			issues.GET("/import/template", issueH.ExportCSVTemplate)
 
 			// Export
 			issues.GET("/export", issueH.Export) // ?project_id=&format=csv|json
@@ -467,8 +522,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		modules := v1.Group("/modules", authMiddleware)
 		{
 			// CRUD
-			modules.POST("", moduleH.Create) // ?workspace_id=
-			modules.GET("", moduleH.List)    // ?project_id=&workspace_id=&include_archived=
+			modules.POST("", moduleH.Create)       // ?workspace_id=
+			modules.GET("", moduleH.List)          // ?project_id=&workspace_id=&include_archived=
+			modules.GET("/search", moduleH.Search) // ?project_id=&workspace_id=&q=
 			modules.GET("/:moduleId", moduleH.Get)
 			modules.PUT("/:moduleId", moduleH.Update)
 			modules.DELETE("/:moduleId", moduleH.Delete)
@@ -511,6 +567,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issueTypes.PUT("/:typeId", issueTypeH.Update)
 			issueTypes.DELETE("/:typeId", issueTypeH.Delete)
 			issueTypes.PATCH("/:typeId/disable", issueTypeH.Disable)
+			issueTypes.PATCH("/reorder-workspace", issueTypeH.ReorderWorkspace) // ?workspace_id=
 			issueTypes.GET("/:typeId/fields", issueTypeH.ListFields)
 			issueTypes.POST("/:typeId/fields", issueTypeH.AddField)
 			issueTypes.PUT("/:typeId/fields/:fieldId", issueTypeH.UpdateField)
@@ -582,17 +639,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		issues.POST("/:issueId/relations", relationH.CreateRelation)
 		issues.GET("/:issueId/relations", relationH.ListRelations)
 		v1.DELETE("/relations/:relationId", authMiddleware, relationH.DeleteRelation)
-		// ---- Workflows (protected) ----
+		// ---- Workflows (protected with RBAC) ----
 		workflows := v1.Group("/projects/:projectId/workflows", authMiddleware)
 		{
-			workflows.POST("", workflowH.CreateWorkflow)
 			workflows.GET("", workflowH.ListWorkflows)
 			workflows.GET("/:workflowId", workflowH.GetWorkflow)
-			workflows.PUT("/:workflowId", workflowH.UpdateWorkflow)
-			workflows.DELETE("/:workflowId", workflowH.DeleteWorkflow)
-			workflows.POST("/:workflowId/transitions", workflowH.AddTransition)
-			workflows.PUT("/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
-			workflows.DELETE("/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
+			workflows.POST("", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.CreateWorkflow)
+			workflows.PUT("/:workflowId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateWorkflow)
+			workflows.DELETE("/:workflowId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.DeleteWorkflow)
+			workflows.POST("/:workflowId/transitions", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.AddTransition)
+			workflows.PUT("/:workflowId/transitions/:transitionId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateTransition)
+			workflows.DELETE("/:workflowId/transitions/:transitionId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.DeleteTransition)
 		}
 		// ---- Comments (protected) ----
 		comments := v1.Group("/comments", authMiddleware)

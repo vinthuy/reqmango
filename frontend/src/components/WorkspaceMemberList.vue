@@ -180,6 +180,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import { workspaceApi } from '@/api/workspace'
 import { authApi } from '@/api/auth'
 import type { WorkspaceMember } from '@/types'
@@ -199,6 +200,7 @@ const emit = defineEmits<{
 
 // State
 const { t } = useI18n()
+const toast = useToast()
 const { confirm } = useConfirm()
 const members = ref<WorkspaceMember[]>([])
 const allUsers = ref<UserLite[]>([])
@@ -297,7 +299,7 @@ function getInitials(name: string): string {
 // Invite member
 async function inviteMember() {
   if (!selectedUserId.value) {
-    alert(t('workspaceMember.pleaseSelectUser'))
+    toast.warning(t('workspaceMember.pleaseSelectUser'))
     return
   }
 
@@ -313,11 +315,11 @@ async function inviteMember() {
     userSearchQuery.value = ''
     await loadMembers()
     emit('refresh')
-    alert(t('workspaceMember.addSuccess'))
+    toast.success(t('workspaceMember.addSuccess'))
   } catch (error: any) {
     console.error('Failed to invite member:', error)
     const errorMsg = error.response?.data?.message || error.message || t('workspaceMember.addFailedSimple')
-    alert(t('workspaceMember.addFailed') + errorMsg)
+    toast.error(t('workspaceMember.addFailed') + errorMsg)
   } finally {
     submitting.value = false
   }
@@ -331,7 +333,7 @@ async function updateMemberRole(userId: number, role: number) {
   } catch (error: any) {
     console.error('Failed to update member role:', error)
     const errorMsg = error.response?.data?.message || error.message || t('workspaceMember.updateFailedSimple')
-    alert(t('workspaceMember.updateFailed') + errorMsg)
+    toast.error(t('workspaceMember.updateFailed') + errorMsg)
   }
 }
 

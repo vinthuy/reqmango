@@ -207,10 +207,10 @@ export async function deletePageTemplate(projectId: number, templateId: number):
 }
 
 export async function searchPages(projectId: number, query: string): Promise<Page[]> {
-  const response = await api.get(`/projects/${projectId}/pages`, {
-    params: { search: query }
+  const response = await api.get(`/projects/${projectId}/pages/search`, {
+    params: { q: query }
   })
-  return response.data
+  return response.data.data || response.data
 }
 
 export default {

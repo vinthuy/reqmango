@@ -3,7 +3,7 @@ package model
 import "time"
 
 type Initiative struct {
-	ID          uint64     `gorm:"primaryKey" json:"id"`
+	BaseModel
 	WorkspaceID uint64     `gorm:"index" json:"workspace_id"`
 	Name        string     `gorm:"size:255;not null" json:"name"`
 	Description string     `gorm:"type:text" json:"description,omitempty"`
@@ -13,8 +13,6 @@ type Initiative struct {
 	StartDate   *time.Time `json:"start_date,omitempty"`
 	SortOrder   int        `gorm:"default:0" json:"sort_order"`
 	CreatedByID uint64     `json:"created_by_id"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
 
 	Projects []Project `gorm:"many2many:initiative_projects;" json:"projects,omitempty"`
 }

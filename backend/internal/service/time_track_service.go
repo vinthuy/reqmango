@@ -97,3 +97,38 @@ func toResponse(t *model.TimeTrack) *response.TimeTrackResponse {
 		EndedAt: t.EndedAt, Duration: t.Duration, CreatedAt: t.CreatedAt,
 	}
 }
+
+// ProjectSummary returns aggregated time tracking stats for a project.
+func (s *TimeTrackService) ProjectSummary(projectID uint64) (map[string]interface{}, error) {
+	var total struct {
+		Seconds int64
+		Count   int
+	}
+	s.db.Model(&model.TimeTrack{}).
+		Select("COALESCE(SUM(t.duration),0) as seconds, COUNT(*) as count").
+		Joins("JOIN issues i ON i.id = t.issue_id").
+		Where("i.project_id = ? AND t.ended_at IS NOT NULL", projectID).Scan(&total)
+
+	// Per-user breakdown
+	type userStats struct {
+		UserID   uint64 `json:"user_id"`
+		Username string `json:"username"`
+		Seconds  int64  `json:"seconds"`
+		Count    int    `json:"count"`
+	}
+	var userBreakdown []userStats
+	s.db.Model(&model.TimeTrack{}).
+		Select("t.user_id, u.username, COALESCE(SUM(t.duration),0) as seconds, COUNT(*) as count").
+		Joins("JOIN issues i ON i.id = t.issue_id").
+		Joins("JOIN users u ON u.id = t.user_id").
+		Where("i.project_id = ? AND t.ended_at IS NOT NULL", projectID).
+		Group("t.user_id, u.username").Order("seconds DESC").Scan(&userBreakdown)
+
+	return map[string]interface{}{
+		"project_id":    projectID,
+		"total_hours":   float64(total.Seconds) / 3600,
+		"total_seconds": total.Seconds,
+		"entry_count":   total.Count,
+		"by_user":       userBreakdown,
+	}, nil
+}

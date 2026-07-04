@@ -50,9 +50,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{ projectId: number; workspaceId: number }>()
 const { t } = useI18n()
+const toast = useToast()
 const webhooks = ref<any[]>([])
 const showForm = ref(false); const editing = ref<any>(null); const saving = ref(false)
 const form = reactive({ name:'', url:'', secret:'', eventsList:['issue_created','issue_updated','state_changed'] })
@@ -69,7 +71,7 @@ async function save(){
     if(editing.value) await api.put(`/projects/${props.projectId}/webhooks/${editing.value.id}`,payload)
     else await api.post(`/projects/${props.projectId}/webhooks?workspace_id=${props.workspaceId}`,payload)
     showForm.value=false; load()
-  }catch(e:any){alert(e.response?.data?.message||'Failed')}
+  }catch(e:any){toast.error(e.response?.data?.message||'Failed')}
   finally{saving.value=false}
 }
 

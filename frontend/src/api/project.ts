@@ -160,7 +160,8 @@ export async function updateDefaultAssignee(
   userId: number | null
 ): Promise<ProjectResponse> {
   const response = await api.patch(
-    `/projects/${projectId}?default_assignee_id=${userId ?? ''}`
+    `/projects/${projectId}`,
+    { default_assignee_id: userId }
   )
   return response.data
 }
@@ -173,7 +174,9 @@ export async function updateProjectLead(
   userId: number | null
 ): Promise<ProjectResponse> {
   const response = await api.patch(
-    `/projects/${projectId}?project_lead_id=${userId ?? ''}`
+    `/projects/${projectId}/lead`,
+    {},
+    { params: { user_id: userId ?? '' } }
   )
   return response.data
 }

@@ -1,7 +1,7 @@
 /**
  * useAI — AI Chat composable
  */
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { chatWithAI } from '@/api/ai'
 import type { StreamEvent, AIChatMessage } from '@/types/ai'
 
@@ -18,20 +18,35 @@ export function useAI() {
   let controller: AbortController | null = null
   let currentToolName = ''
 
+  function abort() {
+    if (controller) {
+      controller.abort()
+      controller = null
+    }
+    isStreaming.value = false
+  }
+
   function sendMessage(
     text: string,
     projectId: number,
     workspaceId: number,
     mode: 'ask' | 'build' | 'chart' = 'ask',
   ) {
+    // Abort any existing stream before starting a new one
+    abort()
+
     messages.value.push({ role: 'user', content: text })
     isStreaming.value = true
     error.value = ''
 
-    // Placeholder for AI response
     const aiMsg: AIChatMessage = { role: 'assistant', content: '', toolCalls: [], toolResults: [] }
     const aiIndex = messages.value.length
     messages.value.push(aiMsg)
+
+    const handleDone = () => {
+      isStreaming.value = false
+      controller = null
+    }
 
     controller = chatWithAI(
       projectId,
@@ -57,19 +72,17 @@ export function useAI() {
             break
           case 'error':
             error.value = evt.error || 'AI error'
-            isStreaming.value = false
+            handleDone()
             break
           case 'done':
-            isStreaming.value = false
+            handleDone()
             break
         }
       },
-      () => {
-        isStreaming.value = false
-      },
+      handleDone,
       (err: string) => {
         error.value = err
-        isStreaming.value = false
+        handleDone()
       },
     )
   }
@@ -118,14 +131,18 @@ export function useAI() {
   }
 
   function cancel() {
-    controller?.abort()
-    isStreaming.value = false
+    abort()
   }
 
   function clear() {
+    abort()
     messages.value = []
     error.value = ''
   }
+
+  onUnmounted(() => {
+    abort()
+  })
 
   return { messages, isStreaming, error, sendMessage, cancel, clear }
 }

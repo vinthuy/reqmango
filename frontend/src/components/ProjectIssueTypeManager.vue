@@ -95,8 +95,10 @@ import api from '@/api'
 import customFieldApi from '@/api/custom-field'
 import issueTypeApi from '@/api/issue-type'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 
 const { t: $t } = useI18n()
+const toast = useToast()
 
 const props = defineProps<{
   projectId: number
@@ -150,7 +152,7 @@ async function copyFromWorkspace() {
     await loadTypes()
   } catch (e: any) {
     const msg = e.response?.data?.message || 'Failed to copy'
-    alert(msg)
+    toast.error(msg)
   }
   finally { copying.value = false }
 }
@@ -211,7 +213,7 @@ async function handleAddField(field: any) {
     showFieldBindModal.value = false
     await loadTypeFields(selectedType.value)
   } catch (e: any) {
-    alert(e.response?.data?.message || $t('issueTypeManager.addFieldFailed'))
+    toast.error(e.response?.data?.message || $t('issueTypeManager.addFieldFailed'))
   }
 }
 

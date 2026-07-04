@@ -262,7 +262,7 @@ func TestPageService_LockedPagePreventUpdate(t *testing.T) {
 	svc := NewPageService(db)
 
 	// Create second user
-	otherUser := &model.User{DisplayName: "Other User", Email: "other@reqmango.com"}
+	otherUser := &model.User{DisplayName: "Other User", Username: "otheruser", Email: "other@reqmango.com"}
 	require.NoError(t, db.Create(otherUser).Error)
 
 	page, _ := svc.Create(&request.PageCreateRequest{Title: "Locked Page"}, projID, wsID, userID)

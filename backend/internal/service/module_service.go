@@ -94,6 +94,18 @@ func (s *ModuleService) List(projectID, workspaceID uint64, includeArchived bool
 	return result, total, nil
 }
 
+func (s *ModuleService) Search(projectID, workspaceID uint64, query string) ([]response.ModuleResponse, error) {
+	var modules []model.Module
+	if err := s.db.Where("project_id = ? AND workspace_id = ? AND name ILIKE ?", projectID, workspaceID, "%"+query+"%").Order("\"order\", created_at").Find(&modules).Error; err != nil {
+		return nil, common.Internal("Failed to search modules")
+	}
+	result := make([]response.ModuleResponse, len(modules))
+	for i, m := range modules {
+		result[i] = *s.buildResponse(m)
+	}
+	return result, nil
+}
+
 func (s *ModuleService) Get(moduleID uint64) (*response.ModuleResponse, error) {
 	var module model.Module
 	if err := s.db.First(&module, moduleID).Error; err != nil {

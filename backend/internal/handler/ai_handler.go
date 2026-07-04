@@ -62,7 +62,10 @@ func (h *AIHandler) buildContext(c *gin.Context) *service.AIContext {
 	pageIDStr := c.Query("page_id")
 	if pageIDStr != "" {
 		if pid, err := strconv.ParseUint(pageIDStr, 10, 64); err == nil && pid > 0 {
-			actx.PageTitle = fmt.Sprintf("Page #%d", pid)
+			var page model.Page
+			if h.db.First(&page, pid).Error == nil {
+				actx.PageTitle = page.Title
+			}
 		}
 	}
 
@@ -77,11 +80,13 @@ func (h *AIHandler) buildContext(c *gin.Context) *service.AIContext {
 }
 
 func (h *AIHandler) getProjectInfo(projectID uint64) map[string]interface{} {
-	// Use a simple approach: we know the database is available through the handler's service chain.
-	// For now, return basic info; in production this would use projectSvc.
+	var project model.Project
+	if err := h.db.First(&project, projectID).Error; err != nil {
+		return nil
+	}
 	return map[string]interface{}{
-		"name":       fmt.Sprintf("Project #%d", projectID),
-		"identifier": fmt.Sprintf("PRJ-%d", projectID),
+		"name":       project.Name,
+		"identifier": project.Identifier,
 	}
 }
 

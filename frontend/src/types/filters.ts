@@ -58,8 +58,21 @@ export interface RQLResult {
   sortBy?: SortOption[]  // multi-sort, parsed from orderby clauses
 }
 
-export function buildRQL(filters: FilterCondition[], quickSearchValue?: string): string {
+export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, currentUserId?: number | null): string {
   const clauses: string[] = []
+
+  // Helper to resolve template variables in a single value
+  const resolveValue = (val: any): any => {
+    if (val === '$CURRENT_USER' && currentUserId != null) {
+      return currentUserId
+    }
+    return val
+  }
+
+  // Helper to resolve template variables in array values
+  const resolveArrayValue = (arr: any[]): any[] => {
+    return arr.map(v => resolveValue(v))
+  }
 
   if (quickSearchValue) {
     const qs = quickSearchValue.trim()
@@ -79,10 +92,13 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string):
 
   for (const filter of filters) {
     let clause = ''
-    const { field, operator, value } = filter
+    const { field, operator, value: rawValue } = filter
 
     // Skip filters with empty array values (all items deselected)
-    if (Array.isArray(value) && value.length === 0) continue
+    if (Array.isArray(rawValue) && rawValue.length === 0) continue
+
+    // Resolve template variables in values
+    const value = Array.isArray(rawValue) ? resolveArrayValue(rawValue) : resolveValue(rawValue)
 
     const fieldDef = FILTER_FIELDS.find(f => f.key === field)
     const dbKey = fieldDef?.dbKey || field

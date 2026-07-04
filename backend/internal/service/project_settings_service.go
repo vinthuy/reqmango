@@ -200,6 +200,19 @@ func (s *ProjectSettingsService) ListLabels(projectID uint64) ([]response.LabelR
 	return result, nil
 }
 
+// SearchLabels returns labels matching the query.
+func (s *ProjectSettingsService) SearchLabels(projectID uint64, query string) ([]response.LabelResponse, error) {
+	var labels []model.Label
+	if err := s.db.Where("project_id = ? AND name ILIKE ?", projectID, "%"+query+"%").Order("created_at ASC").Find(&labels).Error; err != nil {
+		return nil, common.Internal("Database error")
+	}
+	result := make([]response.LabelResponse, len(labels))
+	for i, l := range labels {
+		result[i] = *labelToResponse(&l)
+	}
+	return result, nil
+}
+
 // GetLabel returns a single label by ID.
 func (s *ProjectSettingsService) GetLabel(projectID, labelID uint64) (*response.LabelResponse, error) {
 	var label model.Label

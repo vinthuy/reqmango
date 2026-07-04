@@ -1,6 +1,6 @@
 # Frontend Architecture（前端架构）
 
-**最后更新**: 2026-07-03
+**最后更新**: 2026-07-04
 
 ---
 
@@ -26,9 +26,15 @@ frontend/src/
 ├── App.vue
 ├── style.css
 │
-├── api/ (23 模块)
+├── api/ (41 模块)
 │   ├── index.ts          — Axios 实例 + JWT 拦截器
 │   ├── ai.ts             — AI Chat SSE / Search / Create
+│   ├── agent.ts, initiative.ts, plugin.ts
+│   ├── search-template.ts, report.ts, dashboard.ts
+│   ├── role.ts, webhook.ts, type-template.ts
+│   ├── slack.ts, project-update.ts, mcp.ts
+│   ├── github.ts, intake.ts, conditional-field.ts
+│   ├── automation.ts, recurrence.ts, time-track.ts
 │   ├── auth.ts, workspace.ts, project.ts
 │   ├── issue.ts, cycle.ts, module.ts
 │   ├── project-settings.ts, custom-field.ts
@@ -38,9 +44,13 @@ frontend/src/
 │   ├── release.ts, work-item-template.ts, relation.ts
 │   └── rql.ts
 │
-├── types/ (21 模块)
+├── types/ (29 模块)
 │   ├── index.ts
 │   ├── ai.ts, attachment.ts, comment.ts
+│   ├── agent.ts, initiative.ts, plugin.ts
+│   ├── search-template.ts, dashboard.ts
+│   ├── project-page-tab.ts, role.ts
+│   ├── recurrence.ts, time-track.ts
 │   ├── custom-field.ts, cycle.ts, estimate-point.ts
 │   ├── filters.ts          — 筛选条件类型 + FILTER_FIELDS + buildRQL/parseRQL
 │   ├── issue.ts, issue-type.ts, module.ts
@@ -53,22 +63,31 @@ frontend/src/
 │   ├── cycle.ts  — 周期 CRUD + 进度
 │   └── module.ts — 模块 CRUD + 树形
 │
-├── router/index.ts — 16 条路由
-│
-├── views/ (16 视图)
+├── router/index.ts — 26 条路由
+
+├── views/ (23 视图)
 │   ├── Login.vue, Register.vue, Home.vue
-│   ├── Workspace.vue, WorkspaceSettings.vue
+│   ├── Workspace.vue, WorkspaceSettings.vue, WorkspaceOverview.vue
+│   ├── WorkspaceAnalytics.vue, Analytics.vue
 │   ├── Project.vue, ProjectPages.vue, ProjectSettings.vue
 │   ├── IssueCreate.vue, IssueDetail.vue
 │   ├── CycleCreate.vue, CycleDetail.vue
 │   ├── CustomFields.vue, IssueTypeList.vue
 │   ├── IntakeForm.vue, WorkflowDetail.vue
+│   ├── Roadmap.vue, Initiatives.vue
+│   ├── Dashboard.vue, PluginManager.vue
 │
-├── components/ (58 组件)
-│   ├── AI: AIChatSidebar.vue, AICreateDialog.vue, AISettingsPanel.vue
+
+├── components/ (92 组件)
+│   ├── Agent: AgentAuditLog.vue, AgentSelector.vue, AgentList.vue, AgentActivityLog.vue
+│   ├── AI: AIChatSidebar.vue, AICreateDialog.vue, AISettingsPanel.vue,
+│   │        AICopilot.vue, AIChartRenderer.vue, AIResultActions.vue
+│   ├── Dashboard: DashboardGrid.vue, DashboardSidebar.vue,
+│   │              WidgetCard.vue, WidgetConfigPanel.vue
 │   ├── Palette: CommandPalette.vue
 │   ├── Issue: IssueCard.vue, IssueList.vue, IssueKanban.vue,
-│   │          IssueDetailPanel.vue, SubIssuePanel.vue
+│   │          IssueDetailPanel.vue, SubIssuePanel.vue,
+│   │          IssueTreeView.vue, IssueGantt.vue, IssueCalendar.vue
 │   ├── Cycle: CycleCard.vue, CycleList.vue, CycleDetailPanel.vue,
 │   │          CycleBurndownChart.vue, CycleProgressCard.vue
 │   ├── Module: ModuleCard.vue, ModuleList.vue, ModuleTree.vue,
@@ -77,32 +96,48 @@ frontend/src/
 │   │           CustomFieldManager.vue, CustomFieldValueInput.vue
 │   ├── Workflow: WorkflowManager.vue, WorkflowRuleCard.vue,
 │   │             WorkflowRuleForm.vue, WorkflowRuleList.vue,
-│   │             StateTransition.vue
+│   │             StateTransition.vue, WorkflowVisualization.vue
 │   ├── Automation: AutomationForm.vue, AutomationList.vue,
 │   │                AutomationManager.vue, AutomationTemplateList.vue
 │   ├── Template: ProjectTemplateManager.vue,
 │   │              WorkItemTemplateManager.vue,
 │   │              WorkspaceIssueTypeManager.vue
-│   ├── Release: ReleaseList.vue
+│   ├── Release: ReleaseList.vue, ReleaseRoadmap.vue
 │   ├── Estimate: EstimatePointManager.vue
-│   ├── Page: PageTree.vue
+│   ├── Page: PageTree.vue, PageVersionDiff.vue, PageVersionPanel.vue,
+│   │          PageTemplateSelector.vue, PageTabConfig.vue
 │   ├── Filter: FilterBar.vue — 统一筛选栏（替代旧筛选组件）
 │   ├── View: SavedViewSelector.vue, QuickFilterChips.vue
 │   ├── Import: ImportIssuesModal.vue, QuickCreateInput.vue
-│   ├── Common: CommentList.vue, AttachmentManager.vue,
-│   │           NotificationCenter.vue, RichTextEditor.vue,
-│   │           UserSelect.vue, LabelSelector.vue,
+│   ├── Integration: WorkspaceIntegrations.vue, WebhookManager.vue,
+│   │                 ReportBuilder.vue
+│   ├── Triage: TriagePanel.vue
+│   ├── Search: SearchTemplateSelector.vue
+│   ├── Common: CommentList.vue, AttachmentManager.vue, AttachmentPreview.vue,
+│   │           NotificationCenter.vue, RichTextEditor.vue, TipTapEditor.vue,
+│   │           UserSelect.vue, LabelSelector.vue, MultiSelectDropdown.vue,
 │   │           ConfirmDialog.vue, ProjectDetail.vue,
 │   │           ProjectMemberList.vue, ProjectIssueTypeManager.vue,
-│   │           RelationTypeManager.vue, WorkspaceMemberList.vue
+│   │           RelationTypeManager.vue, WorkspaceMemberList.vue,
+│   │           ToastContainer.vue, ShortcutsPanel.vue,
+│   │           LanguageSwitcher.vue, TopBar.vue, AppSidebar.vue,
+│   │           RoleManagement.vue, TimeTrackPanel.vue,
+│   │           RecurrenceConfig.vue, TreeNodeItem.vue
 │   └── RQL: RQLHistory.vue, RQLInput.vue
 │
-└── composables/ (5 组合式函数)
-    ├── useConfirm.ts  — 确认对话框
-    ├── useRQL.ts      — RQL 查询历史
-    ├── useAI.ts       — AI SSE 消费
-    ├── useFilters.ts  — 筛选状态管理（Provide/Inject 架构，RQL 双向同步）
-    └── usePermission.ts — RBAC 权限检查
+└── composables/ (12 组合式函数)
+    ├── useConfirm.ts     — 确认对话框
+    ├── useRQL.ts         — RQL 查询历史
+    ├── useAI.ts          — AI SSE 消费
+    ├── useFilters.ts     — 筛选状态管理（Provide/Inject 架构，RQL 双向同步）
+    ├── usePermission.ts  — RBAC 权限检查
+    ├── useToast.ts       — Toast 通知
+    ├── useDashboard.ts   — 仪表盘状态
+    ├── useReportChart.ts — 报表图表
+    ├── useIssueFilters.ts — 工作项筛选
+    ├── useI18n.ts        — 国际化
+    ├── useMarkdown.ts    — Markdown 处理
+    └── useDarkMode.ts    — 深色模式
 ```
 
 ## 路由表
@@ -114,16 +149,27 @@ frontend/src/
 | `/register` | Register | 注册 |
 | `/workspace/:slug` | Workspace | 工作空间详情 + 项目列表 |
 | `/workspace/:slug/settings` | WorkspaceSettings | 工作空间配置 |
-| `/workspace/:slug/project/:id` | Project | 项目主页 (Issues/Cycles/Modules/Pages) |
+| `/workspace/:slug/overview` | WorkspaceOverview | 工作空间概览 |
+| `/workspace/:slug/roadmap` | Roadmap | 路线图 |
+| `/workspace/:slug/initiatives` | Initiatives | 战略目标 |
+| `/workspace/:slug/analytics` | WorkspaceAnalytics | 工作空间分析 |
+| `/workspace/:slug/project/:id` | Project | 项目主页 |
 | `/workspace/:slug/project/:id/pages` | ProjectPages | 页面文档 |
 | `/workspace/:slug/project/:id/settings` | ProjectSettings | 项目配置 |
 | `.../settings/workflows/:workflowId` | WorkflowDetail | 工作流详情 |
+| `/workspace/:slug/project/:id/analytics` | Analytics | 项目分析 |
+| `/workspace/:slug/project/:id/dashboards` | Dashboard | 仪表盘 |
 | `/workspaces/:wid/projects/:pid/issues/:iid` | IssueDetail | 工作项详情 |
 | `/workspaces/:wid/projects/:pid/issues/new` | IssueCreate | 创建工作项 |
 | `/workspaces/:wid/projects/:pid/custom-fields` | CustomFields | 自定义字段 |
 | `/workspaces/:wid/projects/:pid/issue-types` | IssueTypeList | 工作项类型 |
 | `/workspaces/:wid/projects/:pid/cycles/new` | CycleCreate | 创建周期 |
 | `/workspaces/:wid/projects/:pid/cycles/:cid` | CycleDetail | 周期详情 |
+| `/intake/:projectId` | IntakeForm | 公开提交 |
+| `/workspace/:slug/project/:id/issues/:iid` | IssueDetail | 工作项详情（slug风格） |
+| `/workspace/:slug/project/:id/issues/new` | IssueCreate | 创建工作项（slug风格） |
+| `/workspace/:slug/project/:id/cycles/new` | CycleCreate | 创建周期（slug风格） |
+| `/workspace/:slug/project/:id/cycles/:cid` | CycleDetail | 周期详情（slug风格） |
 
 ## 架构模式
 

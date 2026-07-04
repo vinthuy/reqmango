@@ -163,10 +163,39 @@
                 <div v-if="issue.description_html" class="prose prose-sm max-w-none text-gray-700 bg-gray-50 rounded-md p-3" v-html="issue.description_html"></div>
                 <div v-else class="text-sm text-gray-400 italic">{{ t('issueDetail.noDescription') }}</div>
               </div>
+              <!-- 关联关系 -->
+              <div>
+                <label class="block text-xs text-gray-500 mb-2">{{ t('issue.relations') || 'Relations' }}</label>
+                <div v-if="relations.length > 0" class="space-y-1.5 mb-2">
+                  <div v-for="rel in relations" :key="rel.id" class="flex items-center justify-between text-sm p-1.5 bg-gray-50 rounded">
+                    <div class="flex items-center space-x-1.5 min-w-0">
+                      <span class="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded shrink-0">{{ rel.relation_type?.outward_name || rel.relation_type?.name || '-' }}</span>
+                      <span class="text-gray-500 text-xs font-mono shrink-0">#{{ rel.related_issue?.sequence_id || rel.related_issue_id }}</span>
+                      <span class="text-gray-700 truncate">{{ rel.related_issue?.name || '' }}</span>
+                    </div>
+                    <button @click="deleteRelation(rel.id)" class="text-gray-400 hover:text-red-500 shrink-0 ml-2">&times;</button>
+                  </div>
+                </div>
+                <div v-if="!showAddRelation" class="text-xs text-gray-400">{{ relations.length === 0 ? (t('issue.noRelations') || 'No relations') : '' }}</div>
+                <button v-if="!showAddRelation" @click="showAddRelation = true" class="text-xs text-blue-500 hover:text-blue-700 mt-1">{{ t('issue.addRelation') || '+ Add relation' }}</button>
+                <div v-if="showAddRelation" class="mt-2 space-y-2">
+                  <select v-model="newRelation.type_id" class="w-full px-2 py-1 border rounded text-xs">
+                    <option value="">{{ t('issue.selectRelationType') || 'Select type' }}</option>
+                    <option v-for="rt in relationTypes" :key="rt.id" :value="rt.id">{{ rt.outward_name }} ({{ rt.name }})</option>
+                  </select>
+                  <input v-model="newRelation.search" @input="searchRelatedIssues" type="text" :placeholder="t('issue.searchIssuesPlaceholder') || 'Search issues...'" class="w-full px-2 py-1 border rounded text-xs" />
+                  <div v-if="relationSearchResults.length > 0" class="max-h-24 overflow-y-auto border rounded">
+                    <div v-for="r in relationSearchResults" :key="r.id" @click="addRelation(r)" class="px-2 py-1 hover:bg-gray-50 cursor-pointer text-xs">
+                      #{{ r.sequence_id }} {{ r.name?.substring(0, 30) }}
+                    </div>
+                  </div>
+                  <button @click="showAddRelation = false" class="text-xs text-gray-500">{{ t('common.cancel') }}</button>
+                </div>
+              </div>
               <div class="border-t border-gray-100 pt-3">
                 <div class="text-xs text-gray-400 space-y-1">
-                  <div>{{ t('issueDetail.createdAt').replace('{0}', formatDate(issue.created_at)) }}</div>
-                  <div>{{ t('issueDetail.updatedAt').replace('{0}', formatDate(issue.updated_at)) }}</div>
+                  <div>{{ t('issueDetail.createdAt', { 0: formatDate(issue.created_at) }) }}</div>
+                  <div>{{ t('issueDetail.updatedAt', { 0: formatDate(issue.updated_at) }) }}</div>
                 </div>
               </div>
             </template>
@@ -174,7 +203,7 @@
 
           <!-- 底部操作栏 -->
           <div class="border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
-            <div class="text-xs text-gray-400">{{ t('issueDetail.createdAt').replace('{0}', formatDate(issue.created_at)) }}</div>
+            <div class="text-xs text-gray-400">{{ t('issueDetail.createdAt', { 0: formatDate(issue.created_at) }) }}</div>
             <div class="flex items-center space-x-2">
               <template v-if="editing">
                 <button @click="cancelEdit" class="px-4 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">{{ t('common.cancel') }}</button>
@@ -204,6 +233,8 @@ import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
+import * as relationApi from '@/api/relation'
+import { searchIssues } from '@/api/issue'
 
 const router = useRouter()
 const route = useRoute()
@@ -243,6 +274,12 @@ const issueTypeOptions = ref<any[]>([])
 const projectMembers = ref<any[]>([])
 const panelCustomFieldRef = ref<InstanceType<typeof CustomFieldManager> | null>(null)
 
+const relations = ref<any[]>([])
+const relationTypes = ref<any[]>([])
+const showAddRelation = ref(false)
+const newRelation = ref({ type_id: '', search: '' })
+const relationSearchResults = ref<any[]>([])
+
 const editForm = ref({
   name: '',
   state_id: 0,
@@ -281,6 +318,8 @@ watch(() => props.issueId, async (id) => {
           issueTypeOptions.value = typesRes
         } catch { /* */ }
       }
+      // Load relations
+      loadRelations()
     } catch (e) {
       console.error('Failed to load issue:', e)
       issue.value = null
@@ -363,7 +402,7 @@ function close() {
 }
 
 async function deleteIssue() {
-  if (issue.value && await confirm(t('issueDetail.confirmDelete').replace('{0}', issue.value.name))) {
+  if (issue.value && await confirm(t('issueDetail.confirmDelete', { 0: issue.value.name }))) {
     emit('delete', issue.value)
   }
 }
@@ -371,6 +410,52 @@ async function deleteIssue() {
 function formatDate(d: string) {
   if (!d) return '-'
   return new Date(d).toLocaleString(locale.value, { hour12: false })
+}
+
+// ===== Relations =====
+async function loadRelations() {
+  if (!issue.value) return
+  try {
+    const [rels, types] = await Promise.all([
+      relationApi.listIssueRelations(issue.value.id),
+      relationApi.listRelationTypes(props.workspaceId)
+    ])
+    relations.value = rels || []
+    relationTypes.value = types || []
+  } catch (e) { console.error('Failed to load relations:', e) }
+}
+
+let relationSearchTimer: any = null
+async function searchRelatedIssues() {
+  if (relationSearchTimer) clearTimeout(relationSearchTimer)
+  if (!newRelation.value.search.trim()) { relationSearchResults.value = []; return }
+  relationSearchTimer = setTimeout(async () => {
+    try {
+      const result = await searchIssues(props.workspaceId, newRelation.value.search, props.projectId, 8)
+      relationSearchResults.value = Array.isArray(result) ? result : []
+    } catch (e) { console.error('Search failed:', e) }
+  }, 300)
+}
+
+async function addRelation(related: any) {
+  if (!newRelation.value.type_id || !issue.value) return
+  try {
+    await relationApi.createIssueRelation(issue.value.id, {
+      related_issue_id: related.id,
+      relation_type_id: parseInt(newRelation.value.type_id)
+    })
+    showAddRelation.value = false
+    newRelation.value = { type_id: '', search: '' }
+    relationSearchResults.value = []
+    await loadRelations()
+  } catch (e) { console.error('Failed to add relation:', e) }
+}
+
+async function deleteRelation(relationId: number) {
+  try {
+    await relationApi.deleteIssueRelation(relationId)
+    await loadRelations()
+  } catch (e) { console.error('Failed to delete relation:', e) }
 }
 
 function priorityClass(p: string) {

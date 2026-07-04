@@ -169,6 +169,52 @@ func (s *AgentService) GetActivity(agentID uint64) ([]model.AgentActivity, error
 	return activities, nil
 }
 
+// ListWorkspaceActivity returns activities for all agents in a workspace.
+func (s *AgentService) ListWorkspaceActivity(workspaceID uint64, agentID *uint64, action string, limit int) ([]model.AgentActivity, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	var agentIDs []uint64
+	if agentID != nil {
+		agentIDs = []uint64{*agentID}
+	} else {
+		var agents []model.Agent
+		if err := s.db.Model(&model.Agent{}).Where("workspace_id = ?", workspaceID).Pluck("id", &agents).Error; err != nil {
+			return nil, common.Internal("Failed to list agents")
+		}
+		for _, a := range agents {
+			agentIDs = append(agentIDs, a.ID)
+		}
+	}
+	if len(agentIDs) == 0 {
+		return []model.AgentActivity{}, nil
+	}
+	q := s.db.Where("agent_id IN ?", agentIDs)
+	if action != "" {
+		q = q.Where("action = ?", action)
+	}
+	var activities []model.AgentActivity
+	if err := q.Order("executed_at DESC").Limit(limit).Find(&activities).Error; err != nil {
+		return nil, common.Internal("Failed to list agent activities")
+	}
+	return activities, nil
+}
+
+	// UpdateActivityFeedback records user feedback (rating) for an agent activity.
+	func (s *AgentService) UpdateActivityFeedback(activityID uint64, rating int) error {
+		if rating != 1 && rating != -1 {
+			return common.Validation("Rating must be 1 (positive) or -1 (negative)")
+		}
+		result := s.db.Model(&model.AgentActivity{}).Where("id = ?", activityID).Update("rating", rating)
+		if result.Error != nil {
+			return common.Internal("Failed to update feedback")
+		}
+		if result.RowsAffected == 0 {
+			return common.NotFound("Activity not found")
+		}
+		return nil
+	}
+
 // recordActivity writes an agent activity entry to the database.
 func (s *AgentService) recordActivity(agent *model.Agent, issueID *uint64, action, summary, taskCtx string, userID uint64) {
 	activity := model.AgentActivity{
@@ -210,12 +256,29 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	// Convert agent capabilities to LLM tools
 	tools := s.filterToolsByCapabilities(agent)
 
-	// Call the LLM
-	messages := []Message{
-		{Role: "user", Content: task},
+	// Build context for tool execution
+	actx := &AIContext{
+		WorkspaceID: ctx.WorkspaceID,
+		ProjectID:   0,
+		Mode:        "agent",
+	}
+	if ctx.ProjectID != nil {
+		actx.ProjectID = *ctx.ProjectID
 	}
 
-	resp, llmErr := s.llm.ChatSync(context.Background(), systemPrompt, messages, tools)
+	// Call the LLM with multi-turn tool execution
+	executedTools := make([]string, 0)
+	resp, llmErr := s.llm.ChatSyncWithTools(context.Background(), systemPrompt, []Message{
+		{Role: "user", Content: task},
+	}, tools, func(name string, input json.RawMessage) (string, error) {
+		result, execErr := s.aiSvc.ExecuteTool(name, input, actx)
+		if execErr != nil {
+			return "", execErr
+		}
+		executedTools = append(executedTools, fmt.Sprintf("%s(%v)", name, input))
+		b, _ := json.Marshal(result)
+		return string(b), nil
+	})
 	if llmErr != nil {
 		// Record failed attempt
 		s.recordActivity(agent, ctx.IssueID, "dispatch",
@@ -223,14 +286,14 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		return nil, common.Internal(fmt.Sprintf("Agent LLM call failed: %v", llmErr))
 	}
 
-	// Execute tool calls if any
+	// Build result summary
 	var resultBuilder strings.Builder
 	resultBuilder.WriteString(fmt.Sprintf("Agent %s processed task: %s\n", agent.Name, task))
 
-	if len(resp.ToolCalls) > 0 {
-		resultBuilder.WriteString(fmt.Sprintf("Executed %d tool(s):\n", len(resp.ToolCalls)))
-		for _, tc := range resp.ToolCalls {
-			resultBuilder.WriteString(fmt.Sprintf("- %s(%v)\n", tc.Name, tc.Input))
+	if len(executedTools) > 0 {
+		resultBuilder.WriteString(fmt.Sprintf("Executed %d tool(s):\n", len(executedTools)))
+		for _, t := range executedTools {
+			resultBuilder.WriteString(fmt.Sprintf("- %s\n", t))
 		}
 	}
 

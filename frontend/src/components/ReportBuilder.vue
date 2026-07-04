@@ -209,6 +209,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import { reportApi, savedReportApi } from '@/api/report'
 import type { ReportResponse, SavedReport } from '@/api/report'
 import { useReportChart, exportReportCSV, exportChartPNG } from '@/composables/useReportChart'
@@ -216,6 +217,7 @@ import api from '@/api'
 
 const props = defineProps<{ projectId: number }>()
 const { t } = useI18n()
+const toast = useToast()
 
 // Report config
 const reportType = ref('distribution')
@@ -476,14 +478,14 @@ async function saveReport() {
     await loadSavedReports()
   } catch (e) {
     console.error('Failed to save report:', e)
-    alert(t('report.saveFailed'))
+    toast.error(t('report.saveFailed'))
   } finally {
     saving.value = false
   }
 }
 
 async function deleteSavedReport(r: SavedReport) {
-  if (!r.id || !confirm(t('report.deleteConfirm').replace('{name}', r.name))) return
+  if (!r.id || !confirm(t('report.deleteConfirm', { name: r.name }))) return
   try {
     await savedReportApi.delete(props.projectId, r.id)
     if (selectedId.value === r.id) {

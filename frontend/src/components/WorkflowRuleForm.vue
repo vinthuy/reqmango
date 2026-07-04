@@ -188,14 +188,15 @@
                 class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">{{ t('automationForm.selectAction') }}</option>
-                <option value="issue.update">{{ t('workflowRule.updateIssue') }}</option>
-                <option value="issue.assign">{{ t('workflowRule.assignIssue') }}</option>
-                <option value="issue.add_label">{{ t('workflowRule.addLabel') }}</option>
-                <option value="issue.remove_label">{{ t('workflowRule.removeLabel') }}</option>
-                <option value="issue.change_state">{{ t('workflowRule.changeState') }}</option>
-                <option value="issue.set_priority">{{ t('workflowRule.setPriority') }}</option>
-                <option value="notification.create">{{ t('workflowRule.createNotification') }}</option>
-                <option value="email.send">{{ t('workflowRule.sendEmail') }}</option>
+                <option value="change_state">{{ t('workflowRule.changeState') }}</option>
+                <option value="set_priority">{{ t('workflowRule.setPriority') }}</option>
+                <option value="assign_to">{{ t('workflowRule.assignIssue') }}</option>
+                <option value="unassign">{{ t('workflowRule.unassign') }}</option>
+                <option value="add_label">{{ t('workflowRule.addLabel') }}</option>
+                <option value="remove_label">{{ t('workflowRule.removeLabel') }}</option>
+                <option value="add_comment">{{ t('workflowRule.createNotification') }}</option>
+                <option value="set_field">{{ t('workflowRule.updateIssue') }}</option>
+                <option value="dispatch_agent">{{ t('agent.dispatchAgent') }}</option>
               </select>
 
               <button
@@ -210,7 +211,7 @@
             </div>
 
             <!-- 动作参数 -->
-            <div v-if="action.type === 'issue.update'" class="mt-2 grid grid-cols-2 gap-2">
+            <div v-if="action.type === 'set_field'" class="mt-2 grid grid-cols-2 gap-2">
               <input
                 v-model="action.field"
                 type="text"
@@ -225,9 +226,9 @@
               />
             </div>
 
-            <div v-if="action.type === 'issue.change_state'" class="mt-2">
+            <div v-if="action.type === 'change_state'" class="mt-2">
               <select
-                v-model="action.state_id"
+                v-model="action.value"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
               >
                 <option value="">{{ t('workflowRule.selectState') }}</option>
@@ -237,12 +238,12 @@
               </select>
             </div>
 
-            <div v-if="action.type === 'notification.create' || action.type === 'email.send'" class="mt-2">
+            <div v-if="action.type === 'add_comment'" class="mt-2">
               <input
-                v-model="action.message"
+                v-model="action.value"
                 type="text"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                :placeholder="t('workflowRule.notificationContent')"
+                :placeholder="t('automationForm.commentPlaceholder')"
               />
             </div>
           </div>
@@ -274,7 +275,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import type { AutomationRule, AutomationRuleCreate, Trigger, Condition, Action } from '@/types/workflow'
-import { TriggerTypeEnum, ConditionOperatorEnum, ActionTypeEnum } from '@/types/workflow'
+import { TriggerTypeEnum, ConditionOperatorEnum } from '@/types/workflow'
 
 const { t } = useI18n()
 
@@ -323,12 +324,22 @@ const isValid = computed(() => {
 
 // Initialize form with existing data
 if (props.rule) {
+  let parsedTrigger: Trigger = { type: TriggerTypeEnum.ISSUE_CREATED }
+  try { parsedTrigger = JSON.parse(props.rule.trigger_type || '{}') } catch { parsedTrigger = { type: (props.rule.trigger_type as TriggerTypeEnum) || TriggerTypeEnum.ISSUE_CREATED } }
+  if (typeof parsedTrigger === 'string') parsedTrigger = { type: parsedTrigger as TriggerTypeEnum }
+
+  let parsedConditions: Condition[] = []
+  try { parsedConditions = JSON.parse(props.rule.conditions || '[]') } catch { /* use empty */ }
+
+  let parsedActions: Action[] = []
+  try { parsedActions = JSON.parse(props.rule.actions || '[]') } catch { /* use empty */ }
+
   form.value = {
     name: props.rule.name,
     description: props.rule.description || '',
-    trigger: { ...props.rule.trigger },
-    conditions: [...(props.rule.conditions || [])],
-    actions: [...(props.rule.actions || [])]
+    trigger: parsedTrigger,
+    conditions: parsedConditions,
+    actions: parsedActions
   }
 }
 
@@ -349,11 +360,9 @@ function removeCondition(index: number) {
 // Add action
 function addAction() {
   form.value.actions.push({
-    type: ActionTypeEnum.ISSUE_UPDATE,
-    field: undefined,
-    value: undefined,
-    state_id: undefined,
-    message: undefined
+    type: '',
+    field: '',
+    value: ''
   })
 }
 
@@ -371,10 +380,9 @@ async function handleSubmit() {
     const data: AutomationRuleCreate = {
       name: form.value.name,
       description: form.value.description || undefined,
-      trigger: form.value.trigger,
-      conditions: form.value.conditions.length > 0 ? form.value.conditions : undefined,
-      actions: form.value.actions,
-      project_id: props.projectId
+      trigger_type: JSON.stringify(form.value.trigger),
+      conditions: form.value.conditions.length > 0 ? JSON.stringify(form.value.conditions) : undefined,
+      actions: JSON.stringify(form.value.actions),
     }
 
     emit('submit', data)

@@ -1,0 +1,78 @@
+Logging in...
+Workspace: ReqMango 产品研发 (id=1)
+Project: 开放平台 & API (id=4, identifier=OPENAPI)
+User ID: 1
+
+============================================================
+RUNNING TESTS
+============================================================
+    Found 50 issues matching 'API' (total=497)
+    Found 0 issues matching Chinese (total=0)
+    Issues in state_id=1: 0
+    Assigned to current user: 11
+    $CURRENT_USER assignee: 11
+    $CURRENT_USER IN: 11
+    Urgent issues: 22
+    Issues with label 前端: 22
+    No cycles, skipping
+    Issues in module: 11
+    Sorted 10 issues by created_at DESC
+    High priority in state_id=1: 0
+    Issues in 2025-2027: 499
+    Unassigned: 387, Assigned: 112
+    Backlog issues: 68
+    Title LIKE 'API': 497
+    Issues in states 1,2,3: 0
+    Correctly returned empty results
+    Page 2 (5 per page): got 5 issues
+    Created: TEST-ISSUE-1783207558 (id=5009)
+    Updated priority: medium -> urgent (restored)
+    Stats loaded: ['total', 'by_state', 'by_priority', 'completed_count', 'draft_count']
+    Tree root nodes: 10
+    Workspace-level issues: 2002
+    Not enough issues in state 1
+    Multi-sort: 10 issues
+    Activities for issue 330: 15
+    Export JSON: 499 issues
+    Non-low priority: 341
+    Assignee IN (1,2): 21
+    CRUD cycle complete for 5010
+
+============================================================
+RESULTS: 32 PASSED, 3 FAILED (35 total)
+============================================================
+  PASS: 1. List all issues (no filter)
+  PASS: 2. Quick search by keyword (API)
+  PASS: 3. Quick search by Chinese keyword
+  PASS: 4. RQL search by sequence_id
+  PASS: 5. Filter by state_id
+  PASS: 6. Filter by assignee_id (RQL)
+  PASS: 7. $CURRENT_USER template variable
+  PASS: 8. Filter by priority
+  PASS: 9. Filter by label (RQL)
+  PASS: 10. Filter by cycle (RQL)
+  PASS: 11. Filter by module (RQL)
+  PASS: 12. Sort by created_at DESC
+  PASS: 13. Combined filters (priority + state)
+  PASS: 14. Date range filter
+  PASS: 15. IS NULL / IS NOT NULL (assignee)
+  PASS: 16. State group filter
+  PASS: 17. LIKE filter on title
+  PASS: 18. IS ANY OF filter (multi-state)
+  PASS: 19. Empty result for specific filter
+  PASS: 20. Pagination
+  PASS: 21. Create issue via API
+  FAIL: 22. Get issue detail with relations - Should include state: 'state' not found in {'id': 330, 'name': '甘特图时间刻度显示错位 (#4-15)', 'description_html': '<h2>描述</h2><p>项目 开放平台 & API 中的 Bug 类
+  PASS: 23. Update issue priority
+  PASS: 24. Issue statistics
+  FAIL: 25. Search templates exist - Expected 2xx: got 404: 404 page not found
+  PASS: 26. Tree view root nodes
+  PASS: 27. Issues list workspace-level
+  FAIL: 28. Saved views exist - Expected 2xx: got 404: 404 page not found
+  PASS: 29. Bulk update
+  PASS: 30. Sort config multi-field
+  PASS: 31. Activity log
+  PASS: 32. Export issues JSON
+  PASS: 33. NOT filter (priority != low)
+  PASS: 34. Multiple assignee filter
+  PASS: 35. Issue CRUD complete cycle

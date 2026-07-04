@@ -159,6 +159,12 @@ func (s *ProjectService) Update(projectID uint64, req *request.ProjectUpdateRequ
 	if req.IsPublic != nil {
 		updates["is_public"] = *req.IsPublic
 	}
+	if req.DefaultAssigneeID != nil {
+		updates["default_assignee_id"] = *req.DefaultAssigneeID
+	}
+	if req.ArchivedAt != nil {
+		updates["archived_at"] = *req.ArchivedAt
+	}
 
 	if len(updates) > 0 {
 		if err := s.db.Model(&project).Updates(updates).Error; err != nil {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/reqmango/backend/internal/common"
@@ -47,6 +48,14 @@ func (s *ReleaseService) List(projectID uint64) ([]model.Release, error) {
 	var releases []model.Release
 	if err := s.db.Where("project_id = ?", projectID).Order("created_at DESC").Find(&releases).Error; err != nil {
 		return nil, common.Internal("Failed to fetch releases")
+	}
+	return releases, nil
+}
+
+func (s *ReleaseService) Search(projectID uint64, query string) ([]model.Release, error) {
+	var releases []model.Release
+	if err := s.db.Where("project_id = ? AND (name ILIKE ? OR version ILIKE ?)", projectID, "%"+query+"%", "%"+query+"%").Order("created_at DESC").Find(&releases).Error; err != nil {
+		return nil, common.Internal("Failed to search releases")
 	}
 	return releases, nil
 }
@@ -124,7 +133,7 @@ func (s *ReleaseService) AddIssues(projectID, releaseID uint64, issueIDs []uint6
 	for _, issueID := range issueIDs {
 		var issue model.Issue
 		if err := s.db.Where("project_id = ? AND id = ?", projectID, issueID).First(&issue).Error; err != nil {
-			return common.NotFound("Issue not found: " + string(rune(issueID+'0')))
+			return common.NotFound(fmt.Sprintf("Issue not found: %d", issueID))
 		}
 
 		var exists model.ReleaseIssue
@@ -177,7 +186,7 @@ func (s *ReleaseService) GetProgress(projectID, releaseID uint64) (map[string]in
 	s.db.Table("release_issues").
 		Joins("JOIN issues ON release_issues.issue_id = issues.id").
 		Joins("JOIN states ON issues.state_id = states.id").
-		Where("release_issues.release_id = ? AND states.state_group = ?", releaseID, "done").
+		Where("release_issues.release_id = ? AND states.group IN ('completed','cancelled')", releaseID).
 		Count(&doneIssues)
 
 	progress := 0

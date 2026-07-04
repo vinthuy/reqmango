@@ -1,6 +1,6 @@
 # Data Model（数据模型总览）
 
-**最后更新**: 2026-07-03
+**最后更新**: 2026-07-04
 
 ---
 
@@ -52,11 +52,33 @@ Issue    N──M Release    (release_issues)
 Issue    1──N Attachment
 Issue    1──N Comment    (支持嵌套 reply)
 
-State    1──N StateTransition (from_state, to_state)
+State    1──N StateTransition (source_state_id, target_state_id)
 Module   1──1 Module     (parent_id, 树形)
 Page     1──1 Page       (parent_id, 树形, depth≤5)
 
 Workspace 1──1 AIConfig
+Workspace 1──N Agent
+Agent    1──N AgentActivity
+Issue    1──N AgentActivity
+Workspace 1──N Initiative
+Initiative N──M Project   (initiative_projects)
+Workspace 1──N Plugin
+Plugin    1──N PluginEventLog
+Workspace 1──N PageTemplate
+Page      1──N PageVersion
+Workspace 1──N MCPConfig
+Workspace 1──N FieldPermission
+Role      N──M FieldPermission
+Project  1──N ProjectUpdate
+Project  1──N ProjectPageTab
+Project  1──N Webhook
+Project  1──N SlackConnection
+Project  1──N GitHubConnection
+Project  1──N SavedDashboard
+SavedDashboard 1──N DashboardWidget
+Project  1──N SavedReport
+Project  1──N SearchTemplate
+AutomationRule 1──N AutomationExecution
 User     1──N AIThread
 AIThread 1──N AIMessage
 User     1──N Notification
@@ -66,7 +88,7 @@ User     1──N Notification
 
 ## 表清单
 
-### 用户与组织 (5 表)
+### 用户与组织 (6 表)
 
 | 表 | 关键字段 | 说明 |
 |----|----------|------|
@@ -82,10 +104,10 @@ User     1──N Notification
 | 表 | 关键字段 | 说明 |
 |----|----------|------|
 | `states` | name, color, group, sequence, is_default, project_id | 工作项状态 (5 固定分组) |
-| `state_transitions` | from_state_id, to_state_id, workflow_id, rule_type, approver_ids | 状态流转规则 |
+| `state_transitions` | source_state_id, target_state_id, workflow_id, rule_type, approver_ids, name, description, issue_type_id, is_auto, role_allowed, project_id, workspace_id | 状态流转规则 |
 | `labels` | name, color, project_id | 标签 |
 | `workflows` | name, description, project_id, issue_type_id | 工作流 |
-| `automation_rules` | name, trigger_type, conditions (JSONB), actions (JSONB), project_id | 自动化规则 |
+| `automation_rules` | name, trigger_type, conditions (text), actions (text), description, is_enabled, sequence, execution_count, project_id | 自动化规则 |
 
 ### 工作项 (7 表)
 
@@ -190,7 +212,7 @@ User     1──N Notification
 
 | 表 | 关键字段 | 说明 |
 |----|----------|------|
-| `conditional_fields` | field_id, condition_type, operator, condition_values (JSON), workspace_id | 字段显隐规则 |
+| `conditional_fields` | field_id, condition_type, operator, condition_values (text), workspace_id | 字段显隐规则 |
 
 ### AI (3 表)
 
@@ -207,6 +229,61 @@ User     1──N Notification
 | `roles` | name, description, scope, workspace_id, project_id, level(5/15/20), is_system, sort_order | 角色（系统默认 + 自定义） |
 | `permissions` | code (unique, 如 issue:create), name, description, resource, action, scope | 权限枚举（55 个） |
 | `role_permissions` | role_id + permission_id (复合主键) | 角色-权限多对多关联 |
+
+### Agent 系统 (2 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `agents` | name, description, agent_type, config (JSONB), is_active, workspace_id | AI Agent 配置 |
+| `agent_activities` | agent_id, issue_id, action, status, result, started_at, completed_at | Agent 执行记录 |
+
+### Initiative 战略目标 (2 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `initiatives` | name, description, color, status, start_date, target_date, workspace_id | 跨项目战略目标 |
+| `initiative_projects` | initiative_id, project_id | 目标-项目关联 |
+
+### 插件系统 (2 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `plugins` | name, plugin_type, config (JSONB), is_enabled, workspace_id | 插件管理 |
+| `plugin_event_logs` | plugin_id, event_type, status, payload, created_at | 插件执行日志 |
+
+### Dashboard & Report (3 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `saved_dashboards` | name, config (JSONB), is_default, project_id | 保存的仪表盘 |
+| `dashboard_widgets` | dashboard_id, widget_type, config (JSONB), position | 仪表盘组件 |
+| `saved_reports` | name, report_type, filters (JSONB), schedule, project_id | 保存的报表 |
+
+### 页面扩展 (2 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `page_templates` | name, content, content_json, workspace_id | 页面模板 |
+| `page_versions` | page_id, content, content_json, version, created_by_id | 页面版本历史 |
+
+### 集成 (4 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `webhooks` | url, events, secret, is_active, project_id | Webhook 配置 |
+| `slack_connections` | channel, config, project_id | Slack 集成 |
+| `github_connections` | repo, config, project_id | GitHub 集成 |
+| `mcp_configs` | name, server_url, config (JSONB), workspace_id | MCP Server 配置 |
+
+### 其他 (5 表)
+
+| 表 | 关键字段 | 说明 |
+|----|----------|------|
+| `project_updates` | project_id, author_id, content, status | 项目状态更新 |
+| `project_page_tabs` | project_id, page_id, tab_type, sequence | 项目页面 Tab |
+| `field_permissions` | field_id, role_id, read, write, workspace_id | 字段权限配置 |
+| `search_templates` | name, filters (JSONB), project_id | 搜索模板 |
+| `automation_executions` | automation_rule_id, trigger_id, status, result | 自动化执行记录 |
 
 ---
 

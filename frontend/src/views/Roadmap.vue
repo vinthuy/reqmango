@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import { useRoute } from 'vue-router'
 import api from '@/api'
+import { releaseApi } from '@/api/release'
 import type { Initiative } from '@/api/initiative'
 
-const route = useRoute()
+const props = defineProps<{
+  workspaceId: number
+  slug: string
+}>()
+
+const emit = defineEmits<{
+  'create-initiative': []
+}>()
+
 const { t } = useI18n()
-const slug = route.params.slug as string
-const workspaceId = ref<number>(0)
 const initiatives = ref<Initiative[]>([])
 const cycles = ref<any[]>([])
 const modules = ref<any[]>([])
+const releases = ref<any[]>([])
 const loading = ref(true)
 const selectedProjectId = ref<number | null>(null)
 const projects = ref<any[]>([])
@@ -22,15 +29,22 @@ const timelineEnd = ref('')
 const timelineMonths = ref<string[]>([])
 
 onMounted(async () => {
-  try {
-    const wsResp = await api.get(`/workspaces/${slug}`)
-    const ws = wsResp.data?.data
-    if (ws) { workspaceId.value = ws.id; await loadAll(ws.id) }
-  } catch (e) {
-    console.error('Roadmap: failed to load workspace', e)
-  } finally {
-    loading.value = false
+  if (props.workspaceId) {
+    await loadAll(props.workspaceId)
+  } else {
+    try {
+      const wsResp = await api.get(`/workspaces/${props.slug}`)
+      const ws = wsResp.data?.data
+      if (ws) await loadAll(ws.id)
+    } catch (e) {
+      console.error('Roadmap: failed to load workspace', e)
+    }
   }
+  loading.value = false
+})
+
+watch(() => props.workspaceId, async (id) => {
+  if (id) await loadAll(id)
 })
 
 async function loadAll(wsId: number) {
@@ -53,6 +67,7 @@ async function loadProjectData(projectId: number) {
   selectedProjectId.value = projectId
   try { const r = await api.get(`/projects/${projectId}/cycles`); cycles.value = r.data.data || [] } catch(e) { cycles.value = [] }
   try { const r = await api.get(`/modules?project_id=${projectId}`); modules.value = r.data.data || [] } catch(e) { modules.value = [] }
+  try { releases.value = await releaseApi.list(projectId) || [] } catch(e) { releases.value = [] }
   computeTimeline()
 }
 
@@ -67,6 +82,9 @@ function computeTimeline() {
   cycles.value.forEach(c => {
     if (c.start_date) allDates.push(new Date(c.start_date))
     if (c.end_date) allDates.push(new Date(c.end_date))
+  })
+  releases.value.forEach(r => {
+    if (r.release_date) allDates.push(new Date(r.release_date))
   })
   
   const start = allDates.length > 0 ? new Date(Math.min(...allDates.map(d => d.getTime()))) : new Date(now.getFullYear(), now.getMonth() - 3, 1)
@@ -108,6 +126,11 @@ function getCycleStatusColor(cycle: any): string {
   return '#6b7280'
 }
 
+function getReleaseStatusColor(status: string): string {
+  const m: Record<string, string> = { planned: '#6b7280', in_progress: '#eab308', released: '#22c55e', cancelled: '#ef4444' }
+  return m[status] || '#6b7280'
+}
+
 const monthLabels = computed(() => timelineMonths.value.map(m => {
   const [, mo] = m.split('-')
   return t('roadmap.monthFormat', { month: parseInt(mo) })
@@ -129,7 +152,7 @@ const monthLabels = computed(() => timelineMonths.value.map(m => {
 
     <div v-else>
       <!-- When data exists, show timeline -->
-      <template v-if="initiatives.length > 0 || cycles.length > 0 || modules.length > 0">
+      <template v-if="initiatives.length > 0 || cycles.length > 0 || modules.length > 0 || releases.length > 0">
         <div class="overflow-x-auto">
           <!-- Timeline header -->
           <div class="flex border-b border-gray-200 dark:border-gray-700 mb-2">
@@ -174,6 +197,21 @@ const monthLabels = computed(() => timelineMonths.value.map(m => {
             </div>
           </div>
 
+          <!-- Releases Section -->
+          <div v-if="releases.length > 0" class="mb-8">
+            <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+              <span>🚀</span> Releases
+            </div>
+            <div v-for="release in releases" :key="release.id" class="flex items-center mb-2 group">
+              <div class="w-48 flex-shrink-0 pr-3">
+                <span class="text-sm truncate">{{ release.name }} ({{ release.version }})</span>
+              </div>
+              <div class="flex-1 relative h-7">
+                <div v-if="release.release_date" class="absolute top-1 h-5 rounded-full opacity-80 group-hover:opacity-100 transition" :style="{ left: getTimelinePosition(release.release_date, release.release_date)!.left, width: '4px', backgroundColor: getReleaseStatusColor(release.status) }"></div>
+              </div>
+            </div>
+          </div>
+
           <!-- Modules Section -->
           <div v-if="modules.length > 0">
             <div class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
@@ -197,13 +235,13 @@ const monthLabels = computed(() => timelineMonths.value.map(m => {
         <p class="text-lg font-medium text-gray-500 dark:text-gray-400">{{ t('roadmap.empty') }}</p>
         <p class="text-sm mt-1 mb-6">{{ t('roadmap.emptyHint') }}</p>
         <div class="flex items-center justify-center gap-3 flex-wrap">
-          <router-link :to="`/workspace/${slug}/initiatives`" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">
+          <button @click="emit('create-initiative')" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">
             {{ t('roadmap.createInitiative') }}
-          </router-link>
-          <router-link v-if="selectedProjectId" :to="`/workspace/${slug}/project/${selectedProjectId}/cycles/new`" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+          </button>
+          <router-link v-if="selectedProjectId" :to="`/workspace/${props.slug}/project/${selectedProjectId}/cycles/new`" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
             {{ t('roadmap.createCycle') }}
           </router-link>
-          <router-link v-if="selectedProjectId" :to="`/workspace/${slug}/project/${selectedProjectId}?tab=modules`" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+          <router-link v-if="selectedProjectId" :to="`/workspace/${props.slug}/project/${selectedProjectId}?tab=modules`" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
             {{ t('roadmap.createModule') }}
           </router-link>
         </div>

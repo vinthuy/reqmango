@@ -243,6 +243,30 @@ func (h *ProjectSettingsHandler) ListLabels(c *gin.Context) {
 	c.JSON(http.StatusOK, labels)
 }
 
+// SearchLabels handles GET /projects/:id/settings/labels/search?q=xxx
+func (h *ProjectSettingsHandler) SearchLabels(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "query parameter 'q' is required"})
+		return
+	}
+	labels, svcErr := h.svc.SearchLabels(projectID, query)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": labels})
+}
+
 // GetLabel handles GET /projects/:id/settings/labels/:labelId
 func (h *ProjectSettingsHandler) GetLabel(c *gin.Context) {
 	projectID, err := h.getProjectID(c)

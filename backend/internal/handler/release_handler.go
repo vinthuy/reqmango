@@ -34,7 +34,7 @@ func (h *ReleaseHandler) Create(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, release)
+	ctx.JSON(http.StatusCreated, gin.H{"data": release})
 }
 
 func (h *ReleaseHandler) List(ctx *gin.Context) {
@@ -46,6 +46,21 @@ func (h *ReleaseHandler) List(ctx *gin.Context) {
 		return
 	}
 
+	ctx.JSON(http.StatusOK, gin.H{"data": releases})
+}
+
+func (h *ReleaseHandler) Search(ctx *gin.Context) {
+	projectID, _ := strconv.ParseUint(ctx.Param("projectId"), 10, 64)
+	query := ctx.Query("q")
+	if query == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "query parameter 'q' is required"})
+		return
+	}
+	releases, err := h.service.Search(projectID, query)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	ctx.JSON(http.StatusOK, gin.H{"data": releases})
 }
 
@@ -63,7 +78,7 @@ func (h *ReleaseHandler) Get(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, release)
+	ctx.JSON(http.StatusOK, gin.H{"data": release})
 }
 
 func (h *ReleaseHandler) Update(ctx *gin.Context) {
@@ -86,7 +101,7 @@ func (h *ReleaseHandler) Update(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, release)
+	ctx.JSON(http.StatusOK, gin.H{"data": release})
 }
 
 func (h *ReleaseHandler) Delete(ctx *gin.Context) {

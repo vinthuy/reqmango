@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import WorkflowVisualization from '@/components/WorkflowVisualization.vue';
 import api from '@/api';
 import * as workflowApi from '@/api/workflow';
 import { useI18n } from '@/composables/useI18n';
@@ -182,7 +183,7 @@ onMounted(loadData);
       <header class="bg-white border-b border-gray-200 px-6 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-4">
-            <button @click="goBack" class="text-gray-500 hover:text-gray-700">← Back</button>
+            <button @click="goBack" class="text-gray-500 hover:text-gray-700">{{ t('common.back') }}</button>
             <div>
               <h1 class="text-xl font-semibold text-gray-800">{{ workflowName }}</h1>
               <p class="text-sm text-gray-500">{{ workflowDescription }}</p>
@@ -190,7 +191,7 @@ onMounted(loadData);
           </div>
           <div class="flex items-center space-x-3">
             <button @click="toggleActive" :disabled="updatingStatus" :class="['px-3 py-1 rounded-full text-sm font-medium transition-colors', isActive ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer', updatingStatus ? 'opacity-50 cursor-not-allowed' : '']">
-              {{ isActive ? 'Active' : 'Inactive' }}
+              {{ isActive ? t('workflow.enable') : t('workflow.disable') }}
             </button>
           </div>
         </div>
@@ -202,13 +203,13 @@ onMounted(loadData);
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 class="font-semibold text-gray-800">{{ t('workflow.define') }}</h2>
-                <p class="text-xs text-gray-500 mt-1">{{ t('settings.states') }} 在项目设置中管理</p>
+                <p class="text-xs text-gray-500 mt-1">{{ t('workflow.statesManagedInSettings') }}</p>
               </div>
             </div>
 
             <div class="p-6">
               <div v-if="states.length === 0" class="text-center py-8 text-gray-400">
-                <p>No states defined. Add states in project settings first.</p>
+                <p>{{ t('workflow.noStatesDefined') }}</p>
               </div>
               <div class="space-y-4">
                 <div v-for="state in states" :key="state.id" class="border border-gray-200 rounded-lg overflow-hidden">
@@ -218,7 +219,7 @@ onMounted(loadData);
                       <div>
                         <div class="flex items-center space-x-2">
                           <span class="font-medium text-gray-800">{{ state.name }}</span>
-                          <span v-if="state.is_default" class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-xs font-medium">Default</span>
+                          <span v-if="state.is_default" class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-xs font-medium">{{ t('settings.default') }}</span>
                         </div>
                         <span class="text-xs text-gray-500 uppercase">{{ state.group }}</span>
                       </div>
@@ -227,8 +228,8 @@ onMounted(loadData);
 
                   <div class="p-4 border-t border-gray-200">
                     <div class="flex items-center justify-between mb-3">
-                      <span class="text-sm text-gray-500">Transitions</span>
-                      <button @click="handleAddTransition(state.id)" class="text-blue-600 hover:text-blue-700 text-sm">+ Add transition</button>
+                      <span class="text-sm text-gray-500">{{ t('settings.transitions') }}</span>
+                      <button @click="handleAddTransition(state.id)" class="text-blue-600 hover:text-blue-700 text-sm">+ {{ t('workflow.addTransition') }}</button>
                     </div>
                     <div class="space-y-2">
                       <div v-for="t in getTransitionsFromState(state.id)" :key="t.id" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -241,7 +242,7 @@ onMounted(loadData);
                         </div>
                         <button @click="handleDeleteTransition(t.id)" class="text-gray-400 hover:text-red-500">✕</button>
                       </div>
-                      <div v-if="getTransitionsFromState(state.id).length === 0" class="text-center py-4 text-gray-400 text-sm">No transitions defined.</div>
+                      <div v-if="getTransitionsFromState(state.id).length === 0" class="text-center py-4 text-gray-400 text-sm">{{ t('workflow.noTransitionsDefined') }}</div>
                     </div>
                   </div>
                 </div>
@@ -252,14 +253,10 @@ onMounted(loadData);
           <div class="mt-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200"><h2 class="font-semibold text-gray-800">{{ t('workflow.visualize') }}</h2></div>
             <div class="p-6">
-              <div class="flex items-center justify-center space-x-4 py-8 flex-wrap gap-4">
-                <div v-for="state in states" :key="state.id" class="flex flex-col items-center">
-                  <div class="w-20 h-20 rounded-xl flex flex-col items-center justify-center shadow-md border-2" :style="{ backgroundColor: state.color + '20', borderColor: state.color }">
-                    <div class="w-4 h-4 rounded-full mb-1" :style="{ backgroundColor: state.color }"></div>
-                    <span class="text-xs font-medium text-gray-700 text-center">{{ state.name }}</span>
-                  </div>
-                </div>
-              </div>
+              <WorkflowVisualization
+                :states="states"
+                :transitions="transitions || []"
+              />
             </div>
           </div>
         </div>
@@ -271,37 +268,37 @@ onMounted(loadData);
         <div class="flex items-center justify-between mb-6"><h3 class="text-lg font-semibold text-gray-800">{{ t('workflow.addTransition') }}</h3><button @click="showAddTransitionModal = false" class="text-gray-400 hover:text-gray-600">✕</button></div>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">From</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('workflow.fromState') }}</label>
             <div class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
               <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: getStateById(selectedFromState!)?.color }"></div>
               <span class="font-medium text-gray-800">{{ getStateName(selectedFromState!) }}</span>
             </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('workflow.ruleType') }}</label>
             <div class="flex space-x-2">
-              <button @click="newTransitionType = 'allow'" :class="['flex-1 px-4 py-2 rounded-lg text-sm font-medium', newTransitionType === 'allow' ? 'bg-blue-600 text-white' : 'border border-gray-300 hover:bg-gray-50']">Transition</button>
-              <button @click="newTransitionType = 'approval'" :class="['flex-1 px-4 py-2 rounded-lg text-sm font-medium', newTransitionType === 'approval' ? 'bg-amber-600 text-white' : 'border border-gray-300 hover:bg-gray-50']">Approval</button>
+              <button @click="newTransitionType = 'allow'" :class="['flex-1 px-4 py-2 rounded-lg text-sm font-medium', newTransitionType === 'allow' ? 'bg-blue-600 text-white' : 'border border-gray-300 hover:bg-gray-50']">{{ t('workflow.allow') }}</button>
+              <button @click="newTransitionType = 'approval'" :class="['flex-1 px-4 py-2 rounded-lg text-sm font-medium', newTransitionType === 'approval' ? 'bg-amber-600 text-white' : 'border border-gray-300 hover:bg-gray-50']">{{ t('workflow.approval') }}</button>
             </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('workflow.toState') }}</label>
             <select v-model="newTransitionTo" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-              <option :value="null">Select destination state</option>
+              <option :value="null">{{ t('workflow.selectDestState') }}</option>
               <option v-for="s in availableToStates" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name (optional)</label>
-            <input v-model="newTransitionName" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Auto-generated if empty" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('workflow.nameOptional') }}</label>
+            <input v-model="newTransitionName" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg" :placeholder="t('workflow.autoGeneratedIfEmpty')" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <input v-model="newTransitionDesc" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Optional description" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.descriptionOptional') }}</label>
+            <input v-model="newTransitionDesc" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg" :placeholder="t('settings.descriptionOptional')" />
           </div>
           <div v-if="newTransitionType === 'approval'" class="p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <label class="block text-sm font-medium text-amber-800 mb-2">Approvers</label>
-            <p class="text-xs text-amber-600 mb-3">Select users who can approve this transition</p>
+            <label class="block text-sm font-medium text-amber-800 mb-2">{{ t('workflow.approvers') }}</label>
+            <p class="text-xs text-amber-600 mb-3">{{ t('workflow.selectApprovers') }}</p>
             <div class="space-y-2 max-h-48 overflow-y-auto">
               <label v-for="m in members" :key="m.user_id || m.id" class="flex items-center space-x-3 p-2 rounded hover:bg-amber-100 cursor-pointer">
                 <input type="checkbox" :checked="newTransitionApproverIds.includes(m.user_id || m.id)" @change="toggleApprover(m.user_id || m.id)" class="rounded border-amber-300 text-amber-600 focus:ring-amber-500" />
@@ -312,13 +309,13 @@ onMounted(loadData);
                   <span class="text-sm text-gray-700">{{ m.user?.display_name || m.display_name || 'Unknown' }}</span>
                 </div>
               </label>
-              <div v-if="members.length === 0" class="text-center py-4 text-gray-400 text-sm">No members found.</div>
+              <div v-if="members.length === 0" class="text-center py-4 text-gray-400 text-sm">{{ t('workflow.noMembersFound') }}</div>
             </div>
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showAddTransitionModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button @click="handleSaveTransition" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Add Transition</button>
+          <button @click="showAddTransitionModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('common.cancel') }}</button>
+          <button @click="handleSaveTransition" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">{{ t('workflow.addTransition') }}</button>
         </div>
       </div>
     </div>

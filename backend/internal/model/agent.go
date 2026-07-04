@@ -33,6 +33,7 @@ type AgentActivity struct {
 	IssueID       *uint64   `gorm:"index" json:"issue_id"`            // optional — may be nil for workspace-level actions
 	Action        string    `gorm:"size:50;not null" json:"action"`   // "dispatch" | "auto_triage" | "auto_assign" | "mention" | "summarize" | "custom"
 	ResultSummary string    `gorm:"type:text" json:"result_summary"` // human-readable summary of what happened
+	Rating        *int      `gorm:"default:null" json:"rating,omitempty"` // 1=positive, -1=negative, null=no feedback
 	ExecutedAt    time.Time `gorm:"autoCreateTime" json:"executed_at"`
 	AgentName     string    `gorm:"size:128" json:"agent_name"`      // denormalized for audit readability
 	TaskContext   *string   `gorm:"type:text" json:"task_context,omitempty"` // the prompt/task sent to the LLM

@@ -65,9 +65,11 @@ import { ref, reactive, onMounted } from 'vue'
 import * as recApi from '@/api/recurrence'
 import type { RecurrenceRule } from '@/types/recurrence'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{ issueId: number }>()
 const { t } = useI18n()
+const toast = useToast()
 const rule = ref<RecurrenceRule | null>(null)
 const showForm = ref(false)
 const saving = ref(false)
@@ -102,7 +104,7 @@ async function save() {
       await recApi.createRecurrence(props.issueId, payload)
     }
     showForm.value = false; load()
-  } catch (e: any) { alert(e.response?.data?.message || 'Failed') }
+  } catch (e: any) { toast.error(e.response?.data?.message || 'Failed') }
   finally { saving.value = false }
 }
 
@@ -111,7 +113,7 @@ async function toggle() {
   try {
     await recApi.updateRecurrence(props.issueId, { is_active: !rule.value.is_active })
     await load()
-  } catch (e: any) { alert(e.response?.data?.message || 'Failed to toggle recurrence') }
+  } catch (e: any) { toast.error(e.response?.data?.message || 'Failed to toggle recurrence') }
 }
 
 async function remove() {
@@ -119,7 +121,7 @@ async function remove() {
   try {
     await recApi.deleteRecurrence(props.issueId)
     rule.value = null
-  } catch (e: any) { alert(e.response?.data?.message || 'Failed to remove recurrence') }
+  } catch (e: any) { toast.error(e.response?.data?.message || 'Failed to remove recurrence') }
 }
 
 function formatDate(d: string) { return new Date(d).toLocaleDateString() }

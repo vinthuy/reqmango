@@ -62,6 +62,30 @@ func (h *PageHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, pages)
 }
 
+// Search handles GET /projects/:projectId/pages/search?q=xxx
+func (h *PageHandler) Search(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "query parameter 'q' is required"})
+		return
+	}
+	pages, svcErr := h.svc.Search(projectID, query)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": pages})
+}
+
 // GetTree handles GET /projects/:projectId/pages/tree
 func (h *PageHandler) GetTree(c *gin.Context) {
 	projectID, err := h.getProjectID(c)

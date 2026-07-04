@@ -1,0 +1,44 @@
+--- FAIL: TestSavedReportService_Create (0.01s)
+    saved_report_service_test.go:97: 
+        	Error Trace:	d:/code/reqmango/backend/internal/service/saved_report_service_test.go:97
+        	Error:      	Received unexpected error:
+        	            	Failed to create saved report
+        	Test:       	TestSavedReportService_Create
+--- FAIL: TestSavedReportService_Update (0.00s)
+    saved_report_service_test.go:151: 
+        	Error Trace:	d:/code/reqmango/backend/internal/service/saved_report_service_test.go:151
+        	Error:      	Received unexpected error:
+        	            	Saved report not found
+        	Test:       	TestSavedReportService_Update
+--- FAIL: TestSavedReportService_Update_MultipleFields (0.00s)
+    saved_report_service_test.go:182: 
+        	Error Trace:	d:/code/reqmango/backend/internal/service/saved_report_service_test.go:182
+        	Error:      	Received unexpected error:
+        	            	Saved report not found
+        	Test:       	TestSavedReportService_Update_MultipleFields
+--- FAIL: TestSavedReportService_Update_NotFound (0.00s)
+    saved_report_service_test.go:200: 
+        	Error Trace:	d:/code/reqmango/backend/internal/service/saved_report_service_test.go:200
+        	Error:      	Received unexpected error:
+        	            	there is a remaining expectation which was not matched: ExpectedQuery => expecting Query, QueryContext or QueryRow which:
+        	            	  - matches sql: 'SELECT \* FROM "saved_reports"'
+        	            	  - is with arguments:
+        	            	    0 - 999
+        	            	    1 - 10
+        	            	  - should return error: record not found
+        	Test:       	TestSavedReportService_Update_NotFound
+--- FAIL: TestSavedReportService_Delete (0.00s)
+    saved_report_service_test.go:217: 
+        	Error Trace:	d:/code/reqmango/backend/internal/service/saved_report_service_test.go:217
+        	Error:      	Received unexpected error:
+        	            	Saved report not found
+        	Test:       	TestSavedReportService_Delete
+--- FAIL: TestSavedReportService_Delete_NotFound (0.00s)
+    saved_report_service_test.go:235: 
+        	Error Trace:	d:/code/reqmango/backend/internal/service/saved_report_service_test.go:235
+        	Error:      	Received unexpected error:
+        	            	there is a remaining expectation which was not matched: ExpectedBegin => expecting database transaction Begin
+        	Test:       	TestSavedReportService_Delete_NotFound
+FAIL
+FAIL	github.com/reqmango/backend/internal/service	18.303s
+FAIL

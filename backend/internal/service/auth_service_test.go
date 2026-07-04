@@ -25,7 +25,7 @@ func TestAuthService_Register_DuplicateEmail(t *testing.T) {
 	}
 
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "users" WHERE`).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
 	_, err := svc.Register(req)
@@ -49,12 +49,12 @@ func TestAuthService_Register_DuplicateUsername(t *testing.T) {
 
 	// Email OK — no match
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "users" WHERE`).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 
 	// Username taken
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "users" WHERE`).
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
 	_, err := svc.Register(req)

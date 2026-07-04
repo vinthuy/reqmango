@@ -264,7 +264,7 @@
                         v-model="option.value"
                         type="text"
                         class="form-input flex-1"
-                        :placeholder="t('customField.optionLabel2').replace('{index}', String(index + 1))"
+                        :placeholder="t('customField.optionLabel2', { index: String(index + 1) })"
                       />
                       <button
                         @click="removeOption(index)"
@@ -542,7 +542,7 @@ async function toggleActive(field: CustomField) {
   const confirmMsgKey = field.is_active ? 'customField.confirmDisableField' : 'customField.confirmEnableField'
   if (await confirm({
     title: t(actionKey),
-    message: t(confirmMsgKey).replace('{name}', field.name),
+    message: t(confirmMsgKey, { name: field.name }),
     confirmText: t(confirmTextKey),
     danger: field.is_active,
   })) {
@@ -560,7 +560,7 @@ async function toggleActive(field: CustomField) {
 async function confirmDelete(field: CustomField) {
   if (await confirm({
     title: t('customField.deleteField'),
-    message: t('customField.confirmDeleteFieldIrreversible').replace('{name}', field.name),
+    message: t('customField.confirmDeleteFieldIrreversible', { name: field.name }),
     danger: true,
     confirmText: t('common.delete')
   })) {

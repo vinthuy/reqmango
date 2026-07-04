@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import {
   Chart, CategoryScale, LinearScale, BarElement, PointElement, LineElement,
   ArcElement, RadialLinearScale, Filler, Title, Tooltip, Legend, BarController,
-  LineController, PieController, DoughnutController, PolarAreaController
+  LineController, PieController, DoughnutController, PolarAreaController, RadarController
 } from 'chart.js'
 import type { AIChartData } from '@/api/ai'
 
@@ -11,7 +11,7 @@ import type { AIChartData } from '@/api/ai'
 Chart.register(
   CategoryScale, LinearScale, BarElement, PointElement, LineElement,
   ArcElement, RadialLinearScale, Filler, Title, Tooltip, Legend,
-  BarController, LineController, PieController, DoughnutController, PolarAreaController
+  BarController, LineController, PieController, DoughnutController, PolarAreaController, RadarController
 )
 
 const props = defineProps<{
@@ -81,7 +81,7 @@ function createChart() {
           bodyFont: { size: 12 },
         },
       },
-      scales: cfg.chart_type !== 'pie' && cfg.chart_type !== 'doughnut' && cfg.chart_type !== 'polarArea' ? {
+      scales: cfg.chart_type !== 'pie' && cfg.chart_type !== 'doughnut' && cfg.chart_type !== 'polarArea' && cfg.chart_type !== 'radar' ? {
         x: {
           grid: { color: document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0' },
           ticks: { font: { size: 11 }, color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b' },

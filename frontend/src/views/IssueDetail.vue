@@ -168,6 +168,24 @@
             </select>
           </div>
 
+          <!-- AI Agent Dispatch -->
+          <div class="px-4 py-3 border-t border-gray-100">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('agent.dispatchAgent') || 'Dispatch AI Agent' }}</label>
+            <AgentSelector
+              v-model="selectedAgentId"
+              :workspace-id="workspaceId"
+              :placeholder="t('agent.selectAgent') || 'Select an agent...'"
+            />
+            <button
+              v-if="selectedAgentId"
+              @click="dispatchAgent"
+              :disabled="agentDispatching"
+              class="mt-2 w-full px-3 py-1.5 text-xs font-medium rounded-md bg-violet-500 hover:bg-violet-600 text-white disabled:opacity-50 transition-colors"
+            >
+              {{ agentDispatching ? (t('agent.dispatching') || 'Dispatching...') : (t('agent.dispatch') || 'Dispatch') }}
+            </button>
+          </div>
+
           <!-- 周期 -->
           <div class="px-4 py-3">
             <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.cycle') }}</label>
@@ -297,6 +315,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import { useRoute, useRouter } from 'vue-router'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
 import LabelSelector from '@/components/LabelSelector.vue'
@@ -315,11 +334,14 @@ import projectApi from '@/api/project'
 import * as relationApi from '@/api/relation'
 import * as pageApi from '@/api/page'
 import * as issueApiSearch from '@/api/issue'
+import AgentSelector from '@/components/AgentSelector.vue'
+import { agentApi } from '@/api/agent'
 
 // Route params
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
+const toast = useToast()
 const issueId = parseInt(route.params.issueId as string, 10) || 0
 
 const workspaceId = ref(0)
@@ -361,6 +383,30 @@ const issueForm = ref({
   start_date: '',
   target_date: ''
 })
+
+// Agent dispatch state
+const selectedAgentId = ref('')
+const agentDispatching = ref(false)
+
+async function dispatchAgent() {
+  if (!selectedAgentId.value || !selectedAgentId.value.startsWith('agent:')) return
+  const agentId = parseInt(selectedAgentId.value.replace('agent:', ''))
+  if (!agentId) return
+  agentDispatching.value = true
+  try {
+    await agentApi.dispatch(workspaceId.value, agentId, {
+      task: `Analyze issue #${issue.value?.sequence_id || issueId}: ${issue.value?.name || 'Untitled'}`,
+      issue_id: issueId,
+      project_id: projectId.value,
+    })
+    toast.success('Agent dispatched successfully!')
+    selectedAgentId.value = ''
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || 'Failed to dispatch agent')
+  } finally {
+    agentDispatching.value = false
+  }
+}
 
 // Load issue data
 onMounted(async () => {
@@ -494,10 +540,10 @@ async function saveIssue() {
       await customFieldManagerRef.value.saveValues()
     }
 
-    alert(t('issue.saveSuccess'))
+    toast.success(t('issue.saveSuccess'))
   } catch (error) {
     console.error('Failed to save issue:', error)
-    alert(t('issue.saveFailed'))
+    toast.error(t('issue.saveFailed'))
   } finally {
     saving.value = false
   }

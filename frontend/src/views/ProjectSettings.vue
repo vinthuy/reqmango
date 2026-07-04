@@ -6,6 +6,7 @@ import { projectApi } from '@/api/project'
 import * as workflowApi from '@/api/workflow'
 import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import type { Workspace } from '@/types'
 import type { ProjectResponse, ProjectUpdate, ProjectSubscriber } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
@@ -22,6 +23,7 @@ import WebhookManager from '@/components/WebhookManager.vue'
 
 const { confirm } = useConfirm()
 const { t } = useI18n()
+const toast = useToast()
 
 const route = useRoute()
 const router = useRouter()
@@ -86,6 +88,18 @@ function getMemberDisplay(member: any): string {
 function getMemberById(userId: number | null | undefined): any | undefined {
   if (!userId) return undefined
   return members.value.find((m: any) => m.user_id === userId)
+}
+
+function getAutomationTriggerLabel(triggerType: string): string {
+  try {
+    const parsed = JSON.parse(triggerType)
+    if (parsed && typeof parsed.type === 'string') {
+      const key = parsed.type.replace(/\./g, '_')
+      return (t as any)(`settings.triggerTypes.${key}`) || parsed.type
+    }
+  } catch {}
+  const key = triggerType.replace(/\./g, '_')
+  return (t as any)(`settings.triggerTypes.${key}`) || triggerType
 }
 
 // ===== Menu items =====
@@ -157,8 +171,10 @@ async function loadData() {
     workflows.value = results[2].status === 'fulfilled' ? (Array.isArray(results[2].value) ? results[2].value : []) : []
     automations.value = results[3].status === 'fulfilled' ? (Array.isArray(results[3].value) ? results[3].value : []) : []
     members.value = results[4].status === 'fulfilled' ? (Array.isArray(results[4].value) ? results[4].value : (results[4].value?.data || [])) : []
-  } catch (e) { console.error('Failed to load data:', e) }
-  finally { loading.value = false }
+  } catch (e: any) {
+    console.error('Failed to load data:', e)
+    toast.error(e?.response?.data?.message || 'Failed to load settings data')
+  } finally { loading.value = false }
 }
 
 // ===== State handlers =====
@@ -190,20 +206,20 @@ async function handleSaveState() {
     }
     showStateModal.value = false
     await loadData()
-  } catch (e) { console.error('Failed to save state:', e) }
+  } catch (e: any) { console.error('Failed to save state:', e); toast.error(e?.response?.data?.message || 'Failed to save state') }
 }
 async function handleDeleteState(_groupId: string, state: any) {
   if (!projectId.value) return
-  if (!(await confirm({ title: t('settings.deleteState'), message: t('settings.confirmDeleteState').replace('{0}', state.name), danger: true, confirmText: t('common.delete') }))) return
+  if (!(await confirm({ title: t('settings.deleteState'), message: t('settings.confirmDeleteState', { 0: state.name }), danger: true, confirmText: t('common.delete') }))) return
   try { await api.delete(`/projects/${projectId.value}/settings/states/${state.id}`); await loadData() }
-  catch (e) { console.error('Failed to delete state:', e) }
+  catch (e: any) { console.error('Failed to delete state:', e); toast.error(e?.response?.data?.message || 'Failed to delete state') }
 }
 async function handleCreateDefaultStates() {
   if (!projectId.value) return
   try {
     await api.post(`/projects/${projectId.value}/settings/states/default?workspace_id=${workspaceId.value}`)
     await loadData()
-  } catch (e) { console.error('Failed to create default states:', e) }
+  } catch (e: any) { console.error('Failed to create default states:', e); toast.error(e?.response?.data?.message || 'Failed to create default states') }
 }
 
 // ===== Label handlers =====
@@ -235,13 +251,13 @@ async function handleSaveLabel() {
     }
     showLabelModal.value = false
     await loadData()
-  } catch (e) { console.error('Failed to save label:', e) }
+  } catch (e: any) { console.error('Failed to save label:', e); toast.error(e?.response?.data?.message || 'Failed to save label') }
 }
 async function handleDeleteLabel(label: any) {
   if (!projectId.value) return
-  if (!(await confirm({ title: t('settings.deleteLabel'), message: t('settings.confirmDeleteLabel').replace('{0}', label.name), danger: true, confirmText: t('common.delete') }))) return
+  if (!(await confirm({ title: t('settings.deleteLabel'), message: t('settings.confirmDeleteLabel', { 0: label.name }), danger: true, confirmText: t('common.delete') }))) return
   try { await api.delete(`/projects/${projectId.value}/settings/labels/${label.id}`); await loadData() }
-  catch (e) { console.error('Failed to delete label:', e) }
+  catch (e: any) { console.error('Failed to delete label:', e); toast.error(e?.response?.data?.message || 'Failed to delete label') }
 }
 
 // ===== Workflow handlers =====
@@ -264,13 +280,13 @@ async function handleSaveWorkflow() {
     })
     showWorkflowModal.value = false
     await loadData()
-  } catch (e) { console.error('Failed to create workflow:', e) }
+  } catch (e: any) { console.error('Failed to create workflow:', e); toast.error(e?.response?.data?.message || 'Failed to create workflow') }
 }
 async function handleDeleteWorkflow(workflow: any) {
   if (!projectId.value) return
-  if (!(await confirm({ title: t('settings.deleteWorkflow'), message: t('settings.confirmDeleteWorkflow').replace('{0}', workflow.name), danger: true, confirmText: t('common.delete') }))) return
+  if (!(await confirm({ title: t('settings.deleteWorkflow'), message: t('settings.confirmDeleteWorkflow', { 0: workflow.name }), danger: true, confirmText: t('common.delete') }))) return
   try { await workflowApi.deleteWorkflow(projectId.value, workflow.id); await loadData() }
-  catch (e) { console.error('Failed to delete workflow:', e) }
+  catch (e: any) { console.error('Failed to delete workflow:', e); toast.error(e?.response?.data?.message || 'Failed to delete workflow') }
 }
 
 // ===== Automation handlers =====
@@ -287,22 +303,28 @@ async function handleSaveAutomation() {
     let conds = '[]', acts = '[]'
     try { conds = JSON.stringify(JSON.parse(newAutomationForm.value.conditions || '[]')); } catch { conds = '[]' }
     try { acts = JSON.stringify(JSON.parse(newAutomationForm.value.actions || '[]')); } catch { acts = '[]' }
+    const triggerMap: Record<string, string> = {
+      issue_created: 'issue.created', issue_updated: 'issue.updated',
+      state_changed: 'issue.state_changed', assignee_changed: 'issue.assigned',
+      comment_added: 'comment.added',
+    }
+    const triggerType = JSON.stringify({ type: triggerMap[newAutomationForm.value.trigger] || newAutomationForm.value.trigger })
     await workflowApi.createAutomation(projectId.value, {
       name: newAutomationForm.value.name,
       description: newAutomationForm.value.description,
-      trigger_type: newAutomationForm.value.trigger,
+      trigger_type: triggerType,
       conditions: conds,
       actions: acts
     })
     showAutomationModal.value = false
     await loadData()
-  } catch (e) { console.error('Failed to create automation:', e) }
+  } catch (e: any) { console.error('Failed to create automation:', e); toast.error(e?.response?.data?.message || 'Failed to create automation') }
 }
 async function handleDeleteAutomation(automation: any) {
   if (!projectId.value) return
-  if (!(await confirm({ title: t('settings.deleteAutomation'), message: t('settings.confirmDeleteAutomation').replace('{0}', automation.name), danger: true, confirmText: t('common.delete') }))) return
+  if (!(await confirm({ title: t('settings.deleteAutomation'), message: t('settings.confirmDeleteAutomation', { 0: automation.name }), danger: true, confirmText: t('common.delete') }))) return
   try { await workflowApi.deleteAutomation(projectId.value, automation.id); await loadData() }
-  catch (e) { console.error('Failed to delete automation:', e) }
+  catch (e: any) { console.error('Failed to delete automation:', e); toast.error(e?.response?.data?.message || 'Failed to delete automation') }
 }
 
 // ===== Overview / Edit handlers =====
@@ -327,7 +349,7 @@ async function handleSaveProject() {
 async function handleDeleteProject() {
   deleteLoading.value = true
   try { await projectApi.deleteProject(projectId.value); router.push(`/workspace/${slug.value}`) }
-  catch (e: any) { alert(e.response?.data?.message || 'Delete failed'); showDeleteConfirm.value = false }
+  catch (e: any) { toast.error(e.response?.data?.message || 'Delete failed'); showDeleteConfirm.value = false }
   finally { deleteLoading.value = false }
 }
 
@@ -338,7 +360,7 @@ async function handleUpdateDefaultAssignee() {
   try {
     const updated = await projectApi.updateDefaultAssignee(projectId.value, defaultAssigneeId.value)
     project.value = { ...project.value, ...updated } as ProjectResponse
-  } catch (e) { console.error('Failed to update default assignee:', e) }
+  } catch (e: any) { console.error('Failed to update default assignee:', e); toast.error(e?.response?.data?.message || 'Failed to update default assignee') }
   finally { updatingAssignee.value = false }
 }
 
@@ -349,7 +371,7 @@ async function handleUpdateProjectLead() {
   try {
     const updated = await projectApi.updateProjectLead(projectId.value, projectLeadId.value)
     project.value = { ...project.value, ...updated } as ProjectResponse
-  } catch (e) { console.error('Failed to update project lead:', e) }
+  } catch (e: any) { console.error('Failed to update project lead:', e); toast.error(e?.response?.data?.message || 'Failed to update project lead') }
   finally { updatingLead.value = false }
 }
 
@@ -360,6 +382,7 @@ async function loadSubscribers() {
     const data = await projectApi.listProjectSubscribers(projectId.value)
     subscribers.value = Array.isArray(data) ? data : []
   } catch (e) { console.error('Failed to load subscribers:', e) }
+  // Non-critical; silently ignore
 }
 
 function openSubscriberPicker() {
@@ -373,7 +396,7 @@ async function handleAddSubscriber() {
     await projectApi.addProjectSubscriber(projectId.value, subscriberPickerUserId.value)
     showSubscriberPicker.value = false
     await loadSubscribers()
-  } catch (e) { console.error('Failed to add subscriber:', e) }
+  } catch (e: any) { console.error('Failed to add subscriber:', e); toast.error(e?.response?.data?.message || 'Failed to add subscriber') }
 }
 
 async function handleRemoveSubscriber(userId: number) {
@@ -382,7 +405,7 @@ async function handleRemoveSubscriber(userId: number) {
   try {
     await projectApi.removeProjectSubscriber(projectId.value, userId)
     await loadSubscribers()
-  } catch (e) { console.error('Failed to remove subscriber:', e) }
+  } catch (e: any) { console.error('Failed to remove subscriber:', e); toast.error(e?.response?.data?.message || 'Failed to remove subscriber') }
 }
 
 function goBack() {
@@ -700,7 +723,7 @@ onMounted(async () => {
               </div>
               <div class="mt-4 pt-4 border-t border-gray-100">
                 <div class="flex items-center space-x-2 text-sm">
-                  <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-medium">{{ t('settings.trigger') }}: {{ t(`settings.triggerTypes.${automation.trigger_type}`) || automation.trigger_type }}</span>
+                  <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-medium">{{ t('settings.trigger') }}: {{ getAutomationTriggerLabel(automation.trigger_type) }}</span>
                 </div>
               </div>
             </div>
@@ -775,7 +798,7 @@ onMounted(async () => {
             <p class="text-sm text-gray-500">{{ t('settings.cannotUndo') }}</p>
           </div>
         </div>
-        <p class="text-gray-600 mb-6" v-html="t('settings.deleteProjectConfirm').replace('{name}', `<strong>${project?.name}</strong>`)"></p>
+        <p class="text-gray-600 mb-6" v-html="t('settings.deleteProjectConfirm', { name: `<strong>${project?.name}</strong>` })"></p>
         <div class="flex gap-3">
           <button @click="showDeleteConfirm = false" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">{{ t('settings.cancel') }}</button>
           <button @click="handleDeleteProject" :disabled="deleteLoading" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition">

@@ -9,12 +9,18 @@ import (
 )
 
 type CommentService struct {
-	db             *gorm.DB
+	db              *gorm.DB
 	notificationSvc *NotificationService
+	agentSvc        *AgentService
 }
 
 func NewCommentService(db *gorm.DB, notificationSvc *NotificationService) *CommentService {
 	return &CommentService{db: db, notificationSvc: notificationSvc}
+}
+
+// SetAgentService sets the agent service for @agent-name mention handling.
+func (s *CommentService) SetAgentService(agentSvc *AgentService) {
+	s.agentSvc = agentSvc
 }
 
 func (s *CommentService) Create(issueID, authorID uint64, body string, parentID *uint64) (*model.Comment, error) {
@@ -64,8 +70,20 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 				projectIDPtr := issue.ProjectID
 				s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_mentioned", title, msg, mentionIDs, &authorID, &projectIDPtr, &issueIDPtr)
 			}
+
+			// @agent-name mentions: auto-dispatch mentioned agents with comment context
+			if s.agentSvc != nil {
+				var agents []model.Agent
+				s.db.Where("workspace_id = ? AND name IN ? AND status = 'active'", issue.Project.WorkspaceID, mentioned).Find(&agents)
+				for _, agent := range agents {
+					go func(a model.Agent) {
+						s.agentSvc.HandleMention(a.ID, issue.Project.WorkspaceID, authorID, body, issue.Name, &issueID)
+					}(agent)
+				}
+			}
+			}
 		}
-	}
+
 
 	return &c, nil
 }

@@ -303,10 +303,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import customFieldApi from '@/api/custom-field'
 import type { CustomFieldCreate, CustomFieldUpdate, CustomField } from '@/types/custom-field'
 
 const { t } = useI18n()
+const toast = useToast()
 
 // Props
 const props = defineProps<{
@@ -435,7 +437,7 @@ async function handleSubmit() {
 
     emit('submit', data)
   } catch (e: any) {
-    alert(e.response?.data?.message || t('customField.operationFailed'))
+    toast.error(e.response?.data?.message || t('customField.operationFailed'))
   } finally {
     submitting.value = false
   }

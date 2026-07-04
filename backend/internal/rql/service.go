@@ -1,6 +1,10 @@
 package rql
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
@@ -17,11 +21,32 @@ func NewRQLService() *RQLService {
 	}
 }
 
+// ResolveTemplateVars 替换 RQL 中的模板变量
+// 支持的变量：$CURRENT_USER -> 当前用户ID
+func ResolveTemplateVars(rqlQuery string, currentUserID uint64) string {
+	result := rqlQuery
+	result = strings.ReplaceAll(result, "$CURRENT_USER", strconv.FormatUint(currentUserID, 10))
+	return result
+}
+
 // SearchIssues 搜索工作项
 func (s *RQLService) SearchIssues(db *gorm.DB, projectID uint64, rqlQuery string, page, pageSize int) ([]model.Issue, int64, error) {
+	return s.SearchIssuesWithUser(db, projectID, rqlQuery, page, pageSize, 0)
+}
+
+// SearchIssuesWithUser 搜索工作项（带用户上下文，用于解析 $CURRENT_USER 等模板变量）
+func (s *RQLService) SearchIssuesWithUser(db *gorm.DB, projectID uint64, rqlQuery string, page, pageSize int, currentUserID uint64) ([]model.Issue, int64, error) {
+	// 解析模板变量
+	if currentUserID > 0 {
+		rqlQuery = ResolveTemplateVars(rqlQuery, currentUserID)
+	}
+
 	// 词法分析
 	lexer := NewLexer(rqlQuery)
 	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return nil, 0, fmt.Errorf("lexer error: %w", err)
+	}
 	if err != nil {
 		return nil, 0, err
 	}

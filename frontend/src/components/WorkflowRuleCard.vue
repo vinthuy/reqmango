@@ -37,17 +37,17 @@
               <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              {{ getTriggerName(rule.trigger.type) }}
+              {{ getTriggerName(rule.trigger_type) }}
             </span>
 
             <!-- 条件数量 -->
-            <span v-if="rule.conditions && rule.conditions.length > 0" class="text-xs text-gray-500">
-              {{ t('workflowRule.conditionsCount', { count: rule.conditions.length }) }}
+            <span v-if="parsedConditions.length > 0" class="text-xs text-gray-500">
+              {{ t('workflowRule.conditionsCount', { count: parsedConditions.length }) }}
             </span>
 
             <!-- 动作数量 -->
             <span class="text-xs text-gray-500">
-              {{ t('workflowRule.actionsCount', { count: rule.actions?.length || 0 }) }}
+              {{ t('workflowRule.actionsCount', { count: parsedActions.length }) }}
             </span>
           </div>
         </div>
@@ -101,11 +101,11 @@
     <!-- 条件和动作预览 -->
     <div v-if="showDetails" class="mt-4 pt-4 border-t border-gray-100">
       <!-- 条件 -->
-      <div v-if="rule.conditions && rule.conditions.length > 0" class="mb-3">
+      <div v-if="parsedConditions.length > 0" class="mb-3">
         <h5 class="text-xs font-medium text-gray-500 mb-1">{{ t('workflowRule.conditions') }}</h5>
         <div class="space-y-1">
           <div
-            v-for="(condition, index) in rule.conditions"
+            v-for="(condition, index) in parsedConditions"
             :key="index"
             class="text-xs text-gray-600 flex items-center space-x-1"
           >
@@ -118,11 +118,11 @@
       </div>
 
       <!-- 动作 -->
-      <div v-if="rule.actions && rule.actions.length > 0">
+      <div v-if="parsedActions.length > 0">
         <h5 class="text-xs font-medium text-gray-500 mb-1">{{ t('workflowRule.actions') }}</h5>
         <div class="space-y-1">
           <div
-            v-for="(action, index) in rule.actions"
+            v-for="(action, index) in parsedActions"
             :key="index"
             class="text-xs text-gray-600"
           >
@@ -154,17 +154,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import type { AutomationRule, TriggerTypeEnum, ConditionOperatorEnum, ActionTypeEnum } from '@/types/workflow'
+import type { AutomationRule, TriggerTypeEnum, ConditionOperatorEnum, ActionTypeEnum, Condition, Action } from '@/types/workflow'
 import { getTriggerDisplayName, getActionDisplayName, getOperatorDisplayName } from '@/types/workflow'
 
 const { t } = useI18n()
 
 // Props
-defineProps<{
+const props = defineProps<{
   rule: AutomationRule
 }>()
+
+// Computed: parse JSON strings from AutomationRule
+const parsedConditions = computed<Condition[]>(() => {
+  try { return JSON.parse(props.rule.conditions || '[]') } catch { return [] }
+})
+
+const parsedActions = computed<Action[]>(() => {
+  try { return JSON.parse(props.rule.actions || '[]') } catch { return [] }
+})
 
 // Emits
 defineEmits<{
@@ -179,6 +188,12 @@ const showDetails = ref(false)
 
 // Get trigger name
 function getTriggerName(type: string): string {
+  try {
+    const parsed = JSON.parse(type)
+    if (parsed && typeof parsed.type === 'string') {
+      return getTriggerDisplayName(parsed.type as TriggerTypeEnum) || parsed.type
+    }
+  } catch {}
   return getTriggerDisplayName(type as TriggerTypeEnum) || type
 }
 

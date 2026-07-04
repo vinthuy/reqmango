@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch } from 'vue'
 import type { PageTemplate } from '@/types/page'
 import * as pageApi from '@/api/page'
 import { useI18n } from '@/composables/useI18n'

@@ -2,12 +2,15 @@
  * Notification Types - 通知类型定义
  */
 
+export type NotificationType = 'info' | 'warning' | 'error' | 'success' | 'assignment' | 'status' | 'comment' | 'reminder'
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent'
+
 export interface Notification {
   id: number
   title: string
   message: string
-  type: 'info' | 'warning' | 'error' | 'success'
-  priority: 'low' | 'medium' | 'high' | 'urgent'
+  type: NotificationType
+  priority: NotificationPriority
   is_read: boolean
   read_at?: string
   action_url?: string
@@ -22,8 +25,8 @@ export interface Notification {
 export interface NotificationCreate {
   title: string
   message: string
-  type?: 'info' | 'warning' | 'error' | 'success'
-  priority?: 'low' | 'medium' | 'high' | 'urgent'
+  type?: NotificationType
+  priority?: NotificationPriority
   action_url?: string
   recipient_id: number
   sender_id?: number

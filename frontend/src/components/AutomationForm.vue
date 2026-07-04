@@ -135,37 +135,41 @@
           
           <!-- 动作参数 -->
           <div class="pl-4 border-l-2 border-blue-200">
-            <template v-if="action.type === 'issue.change_state'">
-              <select v-model="action.state_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <template v-if="action.type === 'change_state'">
+              <select v-model="action.value" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                 <option value="">{{ t('automationForm.selectState') }}</option>
                 <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
               </select>
             </template>
-            <template v-else-if="action.type === 'issue.set_priority'">
-              <select v-model="action.priority" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <template v-else-if="action.type === 'set_priority'">
+              <select v-model="action.value" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                 <option value="">{{ t('automationForm.selectPriority') }}</option>
                 <option v-for="p in priorityOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
               </select>
             </template>
-            <template v-else-if="action.type === 'issue.assign'">
-              <select v-model="action.assignee_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <template v-else-if="action.type === 'assign_to'">
+              <select v-model="action.value" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                 <option value="">{{ t('automationForm.selectPerson') }}</option>
                 <option v-for="m in members" :key="m.user_id || m.id" :value="m.user_id || m.id">
                   {{ m.user?.display_name || m.display_name || 'Unknown' }}
                 </option>
               </select>
             </template>
-            <template v-else-if="action.type === 'issue.add_label' || action.type === 'issue.remove_label'">
-              <select v-model="action.label_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <template v-else-if="action.type === 'add_label' || action.type === 'remove_label'">
+              <select v-model="action.value" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                 <option value="">{{ t('automationForm.selectLabel') }}</option>
                 <option v-for="l in labels" :key="l.id" :value="l.id">{{ l.name }}</option>
               </select>
             </template>
-            <template v-else-if="action.type === 'issue.add_comment'">
-              <textarea v-model="action.comment" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.commentPlaceholder')"></textarea>
+            <template v-else-if="action.type === 'add_comment'">
+              <textarea v-model="action.value" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.commentPlaceholder')"></textarea>
             </template>
-            <template v-else-if="action.type === 'notification.create'">
-              <input v-model="action.message" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.notificationPlaceholder')" />
+            <template v-else-if="action.type === 'set_field'">
+              <input v-model="action.field" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2" :placeholder="t('automationForm.fieldName')" />
+              <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.value')" />
+            </template>
+            <template v-else-if="action.type === 'dispatch_agent'">
+              <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.agentNamePlaceholder')" />
             </template>
             <template v-else>
               <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.value')" />
@@ -190,10 +194,12 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted } from 'vue';
 import { useI18n } from '@/composables/useI18n';
+import { useToast } from '@/composables/useToast';
 import api from '@/api';
 import { TriggerTypeOptions, StateGroupOptions, PriorityOptions, ConditionOperatorOptions, ActionTypeOptions } from '@/types/workflow';
 
 const { t } = useI18n();
+const toast = useToast();
 
 const props = defineProps<{
   projectId: number;
@@ -244,7 +250,13 @@ function loadAutomationData() {
     isEditing.value = true;
     form.name = props.automation.name || '';
     form.description = props.automation.description || '';
-    form.trigger = props.automation.trigger_type || 'issue.created';
+    // Parse trigger_type - it may be JSON like {"type":"issue.created"} or plain string
+    try {
+      const parsed = JSON.parse(props.automation.trigger_type || '{}')
+      form.trigger = parsed?.type || props.automation.trigger_type || 'issue.created'
+    } catch {
+      form.trigger = props.automation.trigger_type || 'issue.created'
+    }
     
     // 解析条件
     try {
@@ -259,9 +271,9 @@ function loadAutomationData() {
       const acts = props.automation.actions
         ? (typeof props.automation.actions === 'string' ? JSON.parse(props.automation.actions) : props.automation.actions)
         : [];
-      actions.value = Array.isArray(acts) && acts.length > 0 ? acts : [{ type: '', state_id: '', priority: '', assignee_id: '', label_id: '', comment: '', message: '', value: '' }];
-    } catch { 
-      actions.value = [{ type: '', state_id: '', priority: '', assignee_id: '', label_id: '', comment: '', message: '', value: '' }]; 
+      actions.value = Array.isArray(acts) && acts.length > 0 ? acts : [{ type: '', field: '', value: '' }];
+    } catch {
+      actions.value = [{ type: '', field: '', value: '' }];
     }
   } else {
     isEditing.value = false;
@@ -269,7 +281,7 @@ function loadAutomationData() {
     form.description = '';
     form.trigger = 'issue.created';
     conditions.value = [];
-    actions.value = [{ type: '', state_id: '', priority: '', assignee_id: '', label_id: '', comment: '', message: '', value: '' }];
+    actions.value = [{ type: '', field: '', value: '' }];
   }
 }
 
@@ -282,7 +294,7 @@ function removeCondition(index: number) {
 }
 
 function addAction() {
-  actions.value.push({ type: '', state_id: '', priority: '', assignee_id: '', label_id: '', comment: '', message: '', value: '' });
+  actions.value.push({ type: '', field: '', value: '' });
 }
 
 function removeAction(index: number) {
@@ -291,31 +303,26 @@ function removeAction(index: number) {
 
 function handleSubmit() {
   if (!form.name.trim()) {
-    alert(t('automationForm.nameRequired'));
+    toast.warning(t('automationForm.nameRequired'));
     return;
   }
   if (actions.value.length === 0 || !actions.value.some(a => a.type)) {
-    alert(t('automationForm.actionRequired'));
+    toast.warning(t('automationForm.actionRequired'));
     return;
   }
 
   const validConditions = conditions.value.filter(c => c.field && (c.operator === 'is_empty' || c.operator === 'is_not_empty' || c.value));
   const validActions = actions.value.filter(a => a.type).map(a => {
     const action: any = { type: a.type };
-    if (a.state_id) action.state_id = a.state_id;
-    if (a.priority) action.priority = a.priority;
-    if (a.assignee_id) action.assignee_id = a.assignee_id;
-    if (a.label_id) action.label_id = a.label_id;
-    if (a.comment) action.comment = a.comment;
-    if (a.message) action.message = a.message;
-    if (a.value) action.value = a.value;
+    if (a.field) action.field = a.field;
+    if (a.value !== '' && a.value != null) action.value = a.value;
     return action;
   });
 
   emit('submit', {
     name: form.name,
     description: form.description,
-    trigger_type: form.trigger,
+    trigger_type: JSON.stringify({ type: form.trigger }),
     conditions: JSON.stringify(validConditions),
     actions: JSON.stringify(validActions),
   });

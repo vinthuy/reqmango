@@ -172,6 +172,9 @@ func (c *LLMClient) hasValidAPIKey() bool {
 		!strings.Contains(c.apiKey, "change-me")
 }
 
+// ToolExecutor executes a tool by name and returns the JSON result.
+type ToolExecutor func(name string, input json.RawMessage) (string, error)
+
 // ChatSync sends a synchronous (non-streaming) chat request.
 func (c *LLMClient) ChatSync(ctx context.Context, systemPrompt string, messages []Message, tools []Tool) (*ChatResponse, error) {
 	if !c.hasValidAPIKey() {
@@ -284,6 +287,83 @@ func (c *LLMClient) Complete(ctx context.Context, systemPrompt, userMessage stri
 	return resp.Content, nil
 }
 
+// ChatSyncWithTools sends a chat request with multi-turn tool execution.
+// It loops, executing tool calls and feeding results back to the LLM,
+// until the LLM returns a text response without tool calls (max 5 rounds).
+func (c *LLMClient) ChatSyncWithTools(ctx context.Context, systemPrompt string, messages []Message, tools []Tool, executor ToolExecutor) (*ChatResponse, error) {
+	if !c.hasValidAPIKey() {
+		return nil, fmt.Errorf("AI 服务未配置：请在 工作空间设置 → AI 中配置有效的 API Key（当前 key 无效或为测试 key）")
+	}
+	if len(tools) == 0 {
+		return c.ChatSync(ctx, systemPrompt, messages, nil)
+	}
+
+	conversation := make([]Message, len(messages))
+	copy(conversation, messages)
+
+	var lastContent string
+	for round := 0; round < 3; round++ {
+		req, err := c.buildRequest(systemPrompt, conversation, tools, false)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.doRequest(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("read response: %w", err)
+		}
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
+		}
+
+		var chatResp *ChatResponse
+		if c.isOpenAIProtocol() {
+			chatResp, err = c.parseOpenAIResponse(body)
+		} else {
+			chatResp, err = c.parseAnthropicResponse(body)
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		// Store content for fallback
+		if chatResp.Content != "" {
+			lastContent = chatResp.Content
+		}
+
+		// If the LLM returned content without tool calls, we're done
+		if len(chatResp.ToolCalls) == 0 {
+			return chatResp, nil
+		}
+
+		// Add the assistant's tool-call message to conversation FIRST
+		toolCallContents := make([]ToolCall, 0, len(chatResp.ToolCalls))
+		for _, tc := range chatResp.ToolCalls {
+			toolCallContents = append(toolCallContents, ToolCall{ID: tc.ID, Name: tc.Name, Input: tc.Input})
+		}
+		conversation = append(conversation, Message{Role: "assistant", Content: chatResp.Content, ToolCalls: toolCallContents})
+
+		// Then add tool result messages AFTER the assistant message
+		for _, tc := range chatResp.ToolCalls {
+			result, execErr := executor(tc.Name, tc.Input)
+			content := result
+			if execErr != nil {
+				content = fmt.Sprintf(`{"error":"%s"}`, execErr.Error())
+			}
+			conversation = append(conversation, Message{Role: "tool", Content: content, ToolCallID: tc.ID})
+		}
+	}
+
+	if lastContent != "" {
+		return &ChatResponse{Content: lastContent}, nil
+	}
+	return &ChatResponse{Content: "已达到最大工具调用轮数，请简化问题重试。"}, nil
+}
+
 // ==================== Internal ====================
 
 func (c *LLMClient) buildRequest(systemPrompt string, messages []Message, tools []Tool, stream bool) (*http.Request, error) {
@@ -299,7 +379,27 @@ func (c *LLMClient) buildOpenAIRequest(systemPrompt string, messages []Message, 
 		openaiMsgs = append(openaiMsgs, map[string]interface{}{"role": "system", "content": systemPrompt})
 	}
 	for _, m := range messages {
-		msg := map[string]interface{}{"role": m.Role, "content": m.Content}
+		msg := map[string]interface{}{"role": m.Role}
+		if m.Content != "" || m.Role != "assistant" {
+			msg["content"] = m.Content
+		}
+		if len(m.ToolCalls) > 0 {
+			toolCalls := make([]map[string]interface{}, len(m.ToolCalls))
+			for i, tc := range m.ToolCalls {
+				toolCalls[i] = map[string]interface{}{
+					"id":   tc.ID,
+					"type": "function",
+					"function": map[string]interface{}{
+						"name":      tc.Name,
+						"arguments": string(tc.Input),
+					},
+				}
+			}
+			msg["tool_calls"] = toolCalls
+		}
+		if m.ToolCallID != "" {
+			msg["tool_call_id"] = m.ToolCallID
+		}
 		openaiMsgs = append(openaiMsgs, msg)
 	}
 

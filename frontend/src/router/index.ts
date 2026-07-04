@@ -33,13 +33,10 @@ const router = createRouter({
       component: () => import('@/views/Workspace.vue'),
       meta: { requiresAuth: true }
     },
-    // Static workspace sub-routes MUST come before /project/:id
-    // or /roadmap will be captured as project id="roadmap"
+    // /roadmap is now merged into /initiatives — redirect
     {
       path: '/workspace/:slug/roadmap',
-      name: 'Roadmap',
-      component: () => import('@/views/Roadmap.vue'),
-      meta: { requiresAuth: true }
+      redirect: (to: any) => `/workspace/${to.params.slug}/initiatives`,
     },
     {
       path: '/workspace/:slug/initiatives',

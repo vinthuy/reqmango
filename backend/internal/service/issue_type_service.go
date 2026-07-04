@@ -229,12 +229,12 @@ func (s *IssueTypeService) AddField(typeID, fieldID uint64, isRequired bool, seq
 	}
 
 	return &response.IssueTypeFieldResponse{
-		FieldID:    fieldID,
-		TypeID:     typeID,
-		IsRequired: isRequired,
-		Sequence:   sequence,
-		Name:       f.Name,
-		FieldType:  f.FieldType,
+		FieldID:     fieldID,
+		TypeID:      typeID,
+		IsRequired:  isRequired,
+		Sequence:    sequence,
+		Name:        f.Name,
+		FieldType:   f.FieldType,
 		Description: f.Description,
 	}, nil
 }
@@ -269,12 +269,12 @@ func (s *IssueTypeService) UpdateField(typeID, fieldID uint64, req request.Issue
 	s.db.First(&f, fieldID)
 
 	return &response.IssueTypeFieldResponse{
-		FieldID:    fieldID,
-		TypeID:     typeID,
-		IsRequired: link.IsRequired,
-		Sequence:   link.Sequence,
-		Name:       f.Name,
-		FieldType:  f.FieldType,
+		FieldID:     fieldID,
+		TypeID:      typeID,
+		IsRequired:  link.IsRequired,
+		Sequence:    link.Sequence,
+		Name:        f.Name,
+		FieldType:   f.FieldType,
 		Description: f.Description,
 	}, nil
 }
@@ -332,14 +332,25 @@ func (s *IssueTypeService) CopyFromWorkspace(workspaceID, projectID, userID uint
 		}
 	}
 
-	// Also copy field associations
+	// Also copy field associations from workspace types to project types
+	// Build a map from workspace type ID -> new project type ID
 	for i, tmpl := range templates {
-		var tmplFields []model.IssueTypeTemplateField
-		s.db.Where("template_type_id = ?", tmpl.ID).Find(&tmplFields)
-		// Note: This copies from IssueTypeTemplateField; if the workspace types have direct
-		// IssueTypeField entries, we'd copy those too. For simplicity, we just set up the types.
-		_ = tmplFields
-		_ = i
+		// Copy IssueTypeField associations from workspace type
+		var workspaceFields []model.IssueTypeField
+		if err := s.db.Where("type_id = ?", tmpl.ID).Find(&workspaceFields).Error; err != nil {
+			continue
+		}
+
+		// Create corresponding fields for the new project type
+		for _, wf := range workspaceFields {
+			newField := model.IssueTypeField{
+				TypeID:     types[i].ID,
+				FieldID:    wf.FieldID,
+				IsRequired: wf.IsRequired,
+				Sequence:   wf.Sequence,
+			}
+			s.db.Create(&newField)
+		}
 	}
 
 	result := make([]response.IssueTypeResponse, len(types))
@@ -353,6 +364,17 @@ func (s *IssueTypeService) CopyFromWorkspace(workspaceID, projectID, userID uint
 func (s *IssueTypeService) Reorder(projectID uint64, typeIDs []uint64) error {
 	for i, typeID := range typeIDs {
 		if err := s.db.Model(&model.IssueType{}).Where("id = ? AND project_id = ?", typeID, projectID).
+			Update("sequence", i+1).Error; err != nil {
+			return common.Internal("Failed to reorder issue types")
+		}
+	}
+	return nil
+}
+
+// ReorderWorkspace updates the sequence for issue types within a workspace.
+func (s *IssueTypeService) ReorderWorkspace(workspaceID uint64, typeIDs []uint64) error {
+	for i, typeID := range typeIDs {
+		if err := s.db.Model(&model.IssueType{}).Where("id = ? AND workspace_id = ?", typeID, workspaceID).
 			Update("sequence", i+1).Error; err != nil {
 			return common.Internal("Failed to reorder issue types")
 		}

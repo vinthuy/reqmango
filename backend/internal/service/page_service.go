@@ -44,6 +44,19 @@ func (s *PageService) List(projectID uint64, includeArchived bool) ([]response.P
 	return resps, nil
 }
 
+// Search returns pages matching the query.
+func (s *PageService) Search(projectID uint64, query string) ([]response.PageResponse, error) {
+	var pages []model.Page
+	if err := s.db.Where("project_id = ? AND archived_at IS NULL AND (title ILIKE ? OR content ILIKE ?)", projectID, "%"+query+"%", "%"+query+"%").Order("depth, sequence, created_at").Find(&pages).Error; err != nil {
+		return nil, common.Internal("Failed to search pages")
+	}
+	resps := make([]response.PageResponse, len(pages))
+	for i, p := range pages {
+		resps[i] = pageToResponse(&p)
+	}
+	return resps, nil
+}
+
 // GetTree returns the page hierarchy as a tree.
 func (s *PageService) GetTree(projectID uint64) ([]response.PageResponse, error) {
 	var pages []model.Page
@@ -54,7 +67,6 @@ func (s *PageService) GetTree(projectID uint64) ([]response.PageResponse, error)
 
 	// Build tree from flat list
 	pageMap := make(map[uint64]*response.PageResponse)
-	roots := make([]response.PageResponse, 0)
 
 	for i := range pages {
 		resp := pageToResponse(&pages[i])
@@ -63,15 +75,19 @@ func (s *PageService) GetTree(projectID uint64) ([]response.PageResponse, error)
 	}
 
 	for _, p := range pages {
+		if p.ParentID == nil {
+			continue
+		}
 		resp := pageMap[p.ID]
-		if p.ParentID != nil {
-			if parent, ok := pageMap[*p.ParentID]; ok {
-				parent.Children = append(parent.Children, *resp)
-			} else {
-				roots = append(roots, *resp)
-			}
-		} else {
-			roots = append(roots, *resp)
+		if parent, ok := pageMap[*p.ParentID]; ok {
+			parent.Children = append(parent.Children, *resp)
+		}
+	}
+
+	roots := make([]response.PageResponse, 0, len(pageMap))
+	for _, p := range pages {
+		if p.ParentID == nil {
+			roots = append(roots, *pageMap[p.ID])
 		}
 	}
 
@@ -172,15 +188,16 @@ func (s *PageService) Update(pageID, projectID, userID uint64, req *request.Page
 	updates["updated_by_id"] = userID
 
 	if len(updates) > 0 {
+		// Auto-save version if content changed (save BEFORE update to preserve previous state)
+		if contentChanged {
+			s.versionSvc.SaveVersion(p.ID, p.Title, p.Content, p.ContentJSON, userID)
+		}
+
 		if err := s.db.Model(&p).Updates(updates).Error; err != nil {
 			return nil, common.Internal("Failed to update page")
 		}
 		s.db.First(&p, p.ID)
 
-		// Auto-save version if content changed
-		if contentChanged {
-			s.versionSvc.SaveVersion(p.ID, p.Title, p.Content, p.ContentJSON, userID)
-		}
 	}
 	resp := pageToResponse(&p)
 	return &resp, nil
@@ -320,22 +337,29 @@ func (s *PageService) Delete(pageID, projectID uint64) error {
 
 // Archive archives a page.
 func (s *PageService) Archive(pageID, projectID uint64) error {
+	now := time.Now()
 	result := s.db.Model(&model.Page{}).Where("id = ? AND project_id = ?", pageID, projectID).
-		Update("archived_at", gorm.Expr("NOW()"))
+		Update("archived_at", now)
+	if result.Error != nil {
+		return result.Error
+	}
 	if result.RowsAffected == 0 {
 		return common.NotFound("Page not found")
 	}
-	return result.Error
+	return nil
 }
 
 // Restore restores an archived page.
 func (s *PageService) Restore(pageID, projectID uint64) error {
 	result := s.db.Model(&model.Page{}).Where("id = ? AND project_id = ?", pageID, projectID).
 		Update("archived_at", nil)
+	if result.Error != nil {
+		return result.Error
+	}
 	if result.RowsAffected == 0 {
 		return common.NotFound("Page not found")
 	}
-	return result.Error
+	return nil
 }
 
 // ListChildren returns direct children of a page.

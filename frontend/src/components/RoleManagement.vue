@@ -191,7 +191,7 @@
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{{ t('role.confirmDeleteTitle') }}</h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          {{ t('role.confirmDeleteMessage').replace('{name}', deletingRole.name) }}{{ t('role.irreversible') }}
+          {{ t('role.confirmDeleteMessage', { name: deletingRole.name }) }}{{ t('role.irreversible') }}
         </p>
         <div class="flex justify-end gap-2">
           <button

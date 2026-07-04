@@ -23,7 +23,7 @@ func (s *PageTemplateService) List(workspaceID uint64, projectID *uint64) ([]res
 	var templates []model.PageTemplate
 	q := s.db.Where("workspace_id = ?", workspaceID)
 	if projectID != nil {
-		q = q.Where("project_id = ?", *projectID)
+		q = q.Where("project_id = ? OR project_id IS NULL", *projectID)
 	}
 	if err := q.Order("is_default DESC, created_at DESC").Find(&templates).Error; err != nil {
 		return nil, common.Internal("Failed to fetch page templates")

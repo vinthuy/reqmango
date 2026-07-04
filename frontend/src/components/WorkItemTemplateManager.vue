@@ -339,7 +339,7 @@ async function saveTemplate() {
 async function confirmDelete(tmpl: WorkItemTemplate) {
   if (await confirm({
     title: t('template.deleteTitle'),
-    message: t('template.deleteConfirm').replace('{name}', tmpl.name),
+    message: t('template.deleteConfirm', { name: tmpl.name }),
     confirmText: t('common.delete'),
     danger: true,
   })) {
