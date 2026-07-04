@@ -73,9 +73,8 @@ func (h *WorkspaceHandler) Create(c *gin.Context) {
 // Get handles GET /workspaces/:id
 func (h *WorkspaceHandler) Get(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+	id, ok := h.resolveWsParam(c)
+	if !ok {
 		return
 	}
 

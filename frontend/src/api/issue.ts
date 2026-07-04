@@ -23,7 +23,7 @@ export async function createIssue(
   data: IssueCreate
 ): Promise<IssueResponse> {
   const response = await api.post(
-    `/issues/?project_id=${projectId}&workspace_id=${workspaceId}`,
+    `/issues?project_id=${projectId}&workspace_id=${workspaceId}`,
     data
   )
   return response.data
@@ -287,6 +287,23 @@ export async function importIssuesCSV(
   return response.data
 }
 
+/**
+ * 下载CSV导入模板
+ */
+export async function downloadImportTemplate(): Promise<void> {
+  const response = await api.get('/issues/import/template', {
+    responseType: 'blob'
+  })
+  const url = window.URL.createObjectURL(new Blob([response.data]))
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', 'issue_import_template.csv')
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+
 // ==================== Assignee Management ====================
 
 /**
@@ -543,7 +560,10 @@ export const issueApi = {
   // Search
   searchIssues,
   
-  // Export
+  // Import
+	downloadImportTemplate,
+
+	// Export
   exportIssues,
   
   // Tree

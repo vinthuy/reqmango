@@ -258,7 +258,9 @@
     "createBtn": "Create",
     "formTitleCreate": "New Initiative",
     "formTitleEdit": "Edit Initiative",
-    "confirmDelete": "Are you sure you want to delete initiative \"{name}\"?"
+    "confirmDelete": "Are you sure you want to delete initiative \"{name}\"?",
+    "listView": "List",
+    "roadmapView": "Roadmap"
   },
   "roadmap": {
     "title": "Roadmap",
@@ -528,6 +530,7 @@
     "noAgents": "No agents available",
     "change": "Change",
     "createIssue": "Create Issues",
+    "createIssues": "Create Issues",
     "saveToDashboard": "Dashboard",
     "saveAsPage": "Save as Page",
     "aiReport": "AI Report",
@@ -535,7 +538,25 @@
     "agentTaskPlaceholder": "Ask {name} to do something...",
     "selectAgentFirst": "Select an agent first...",
     "buildPlaceholder": "Describe what to build...",
-    "agentHint": "Select an agent and give it a task"
+    "agentHint": "Select an agent and give it a task",
+    "settingsTitle": "AI Settings",
+    "settingsDesc": "Configure the AI provider for workspace-wide features",
+    "configured": "Configured",
+    "notConfigured": "Not Configured",
+    "providerDeepseek": "DeepSeek",
+    "providerAnthropic": "Anthropic (Claude)",
+    "providerOpenai": "OpenAI / Compatible",
+    "apiKeyPlaceholder": "sk-...",
+    "apiKeyKeep": "(leave blank to keep current)",
+    "apiKeyDesc": "Your API key is encrypted at rest and never exposed in responses.",
+    "improve": "Improve",
+    "generate": "Generate More",
+    "failed": "AI failed: ",
+    "requestFailed": "AI request failed: ",
+    "selectDashboard": "Select Dashboard",
+    "noDashboards": "No dashboards available",
+    "batchCreateSubtasks": "Batch Create Subtasks",
+    "chartSavedToDashboard": "Chart added to dashboard!"
   },
   "auth": {
     "login": "Login",
@@ -769,7 +790,8 @@
     "items": "items",
     "import": "Import",
     "deleteFailed": "Delete failed",
-    "retry": "Retry"
+    "retry": "Retry",
+    "export": "Export"
   },
   "confirm": {
     "title": "Confirm Action",
@@ -824,6 +846,8 @@
     "toastAssigned": "Assignee assigned",
     "toastDeleted": "Deleted selected issues",
     "loadFailed": "Failed to load issues. Please try again.",
+    "exportSuccess": "Issues exported successfully",
+    "exportFailed": "Failed to export issues",
     "confirmDelete": "Are you sure you want to delete {0} selected issues? This action cannot be undone.",
     "columnCreatedAt": "Created At",
     "columnSequenceId": "ID",
@@ -1302,6 +1326,8 @@
     "noTitle": "(No title)",
     "cancel": "Cancel",
     "importing": "Importing...",
+    "downloadTemplate": "Download CSV Template",
+    "pleaseWait": "Please wait while we process your import...",
     "startImport": "Start Import",
     "importFailed": "Import failed"
   },
@@ -1729,29 +1755,10 @@
     "auditAllActions": "All Actions",
     "auditTimeRange": "Time Range",
     "auditNoRecords": "No audit records found",
-    "auditIssueId": "Related Issue"
-  },
-  "ai": {
-    "title": "AI",
-    "settingsTitle": "AI Settings",
-    "settingsDesc": "Configure the AI provider for workspace-wide features",
-    "configured": "Configured",
-    "notConfigured": "Not Configured",
-    "providerDeepseek": "DeepSeek",
-    "providerAnthropic": "Anthropic (Claude)",
-    "providerOpenai": "OpenAI / Compatible",
-    "apiKeyPlaceholder": "sk-...",
-    "apiKeyKeep": "(leave blank to keep current)",
-    "apiKeyDesc": "Your API key is encrypted at rest and never exposed in responses.",
-    "testConnection": "Test Connection",
-    "testing": "Processing...",
-    "connectionSuccess": "Connection successful! AI is responding.",
-    "saveSuccess": "Settings saved successfully!",
-    "summarize": "Summarize",
-    "improve": "Improve",
-    "generate": "Generate More",
-    "failed": "AI failed: ",
-    "requestFailed": "AI request failed: "
+    "auditIssueId": "Related Issue",
+    "dispatchAgent": "Dispatch AI Agent",
+    "selectAgent": "Select an agent...",
+    "dispatching": "Dispatching..."
   },
   "cmdpalette": {
     "placeholder": "Type a command or search...",
@@ -1971,7 +1978,24 @@
     "create": "Create Page",
     "titlePlaceholder": "Page title",
     "delete": "Delete Page",
-    "deleteConfirm": "Delete \"{title}\"? This cannot be undone."
+    "deleteConfirm": "Delete \"{title}\"? This cannot be undone.",
+    "history": "History",
+    "versionDiff": "Version Diff",
+    "oldVersion": "Old Version",
+    "newVersion": "New Version",
+    "changes": "Changes",
+    "noDiff": "No differences found"
+  },
+  "timeTrack": {
+    "title": "Time Tracking",
+    "start": "Start",
+    "stop": "Stop",
+    "running": "Running...",
+    "noEntries": "No time entries yet.",
+    "totalHours": "Total Hours",
+    "entries": "entries",
+    "projectSummary": "Project Time Summary",
+    "byUser": "By User"
   },
   "integrations": {
     "title": "Integrations",

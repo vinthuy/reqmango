@@ -279,6 +279,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi, listPageTabs } from '@/api/project'
 import { issueApi } from '@/api/issue'
@@ -312,6 +313,7 @@ import { extractSearchTerm } from '@/utils/highlight'
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
+const toast = useToast()
 
 const workspace = ref<Workspace | null>(null)
 const project = ref<ProjectResponse | null>(null)
@@ -407,7 +409,7 @@ async function loadUpdates() {
 
 async function submitUpdate() {
   if (!updateForm.value.content?.trim()) {
-      alert(t('project.updates.contentRequired'))
+      toast.warning(t('project.updates.contentRequired'))
       return
     }
   try {
@@ -493,7 +495,7 @@ async function handleModuleDelete(module: ModuleResponse | any) {
       await moduleStore.deleteModuleAction(module.id)
     } catch (err) {
       console.error('Failed to delete module:', err)
-      alert(t('project.deleteFailed'))
+      toast.error(t('project.deleteFailed'))
     }
   }
 }
@@ -541,7 +543,7 @@ async function handleDeleteIssue(issue: any) {
       triggerRefresh()
     } catch (err) {
       console.error('Failed to delete issue:', err)
-      alert(t('project.deleteFailed'))
+      toast.error(t('project.deleteFailed'))
     }
   }
 }

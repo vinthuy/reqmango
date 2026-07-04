@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi } from '@/api/project'
 import type { Workspace, ProjectCreate } from '@/types'
 import type { ProjectResponse } from '@/types/project'
+import AICopilot from '@/components/AICopilot.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -66,7 +67,22 @@ const createProject = async () => {
   }
 }
 
-onMounted(fetchWorkspace)
+const showAIChat = ref(false)
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+    e.preventDefault()
+    showAIChat.value = !showAIChat.value
+  }
+}
+
+onMounted(() => {
+  fetchWorkspace()
+  document.addEventListener('keydown', handleKeydown)
+})
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
@@ -167,5 +183,21 @@ onMounted(fetchWorkspace)
         </div>
       </div>
     </div>
+
+    <!-- AI Copilot -->
+    <AICopilot
+      :visible="showAIChat"
+      :project-id="0"
+      :workspace-id="workspace?.id || 0"
+      :project-name="workspace?.name || ''"
+      @close="showAIChat = false"
+    />
+
+    <!-- FAB: AI Copilot -->
+    <button
+      @click="showAIChat = !showAIChat"
+      class="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition-colors flex items-center justify-center text-xl z-30"
+      :title="'AI (Ctrl+J)'"
+    >🤖</button>
   </div>
 </template>

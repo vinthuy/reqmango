@@ -258,7 +258,9 @@
     "createBtn": "创建",
     "formTitleCreate": "新建 Initiative",
     "formTitleEdit": "编辑 Initiative",
-    "confirmDelete": "确定删除 Initiative \"{name}\"？"
+    "confirmDelete": "确定删除 Initiative \"{name}\"？",
+    "listView": "列表",
+    "roadmapView": "路线图"
   },
   "roadmap": {
     "title": "路线图",
@@ -528,6 +530,7 @@
     "noAgents": "没有可用的智能体",
     "change": "更换",
     "createIssue": "创建工作项",
+    "createIssues": "创建工作项",
     "saveToDashboard": "添加到仪表盘",
     "saveAsPage": "保存为页面",
     "aiReport": "AI 报告",
@@ -535,7 +538,25 @@
     "agentTaskPlaceholder": "让 {name} 执行任务...",
     "selectAgentFirst": "请先选择智能体",
     "buildPlaceholder": "描述想要构建的内容...",
-    "agentHint": "选择一个智能体并分配任务"
+    "agentHint": "选择一个智能体并分配任务",
+    "settingsTitle": "AI 设置",
+    "settingsDesc": "配置工作空间级别的 AI 提供商",
+    "configured": "已配置",
+    "notConfigured": "未配置",
+    "providerDeepseek": "DeepSeek",
+    "providerAnthropic": "Anthropic (Claude)",
+    "providerOpenai": "OpenAI / 兼容",
+    "apiKeyPlaceholder": "sk-...",
+    "apiKeyKeep": "（留空保持当前）",
+    "apiKeyDesc": "您的 API Key 在存储时已加密，永远不会在响应中暴露。",
+    "improve": "优化",
+    "generate": "生成更多",
+    "failed": "AI 失败：",
+    "requestFailed": "AI 请求失败：",
+    "selectDashboard": "选择仪表盘",
+    "noDashboards": "暂无可用仪表盘",
+    "batchCreateSubtasks": "批量创建子任务",
+    "chartSavedToDashboard": "图表已添加到仪表盘！"
   },
   "auth": {
     "login": "登录",
@@ -769,7 +790,8 @@
     "items": "项",
     "import": "导入",
     "deleteFailed": "删除失败",
-    "retry": "重试"
+    "retry": "重试",
+    "export": "导出"
   },
   "confirm": {
     "title": "确认操作",
@@ -979,6 +1001,8 @@
     "toastAssigned": "负责人已分配",
     "toastDeleted": "已删除选中工作项",
     "loadFailed": "加载工作项失败，请重试",
+    "exportSuccess": "工作项导出成功",
+    "exportFailed": "工作项导出失败",
     "confirmDelete": "确定要删除选中的 {0} 个工作项吗？此操作不可撤销。",
     "columnCreatedAt": "创建时间",
     "columnSequenceId": "编号",
@@ -1302,6 +1326,8 @@
     "noTitle": "（无标题）",
     "cancel": "取消",
     "importing": "导入中...",
+    "downloadTemplate": "下载CSV模板",
+    "pleaseWait": "请稍候，正在处理导入...",
     "startImport": "开始导入",
     "importFailed": "导入失败"
   },
@@ -1633,7 +1659,16 @@
     "level2": "L2 - 第2层子级",
     "level3": "L3 - 第3层子级",
     "level4": "L4 - 第4层子级",
-    "level5": "L5 - 第5层子级"
+    "level5": "L5 - 第5层子级",
+    "customFields": "自定义字段",
+    "required": "必填",
+    "removeField": "移除字段",
+    "removeFieldTitle": "移除字段",
+    "removeFieldConfirm": "确定要移除字段 \"{name}\" 吗？",
+    "removeBtn": "移除",
+    "noFieldsBound": "暂无绑定字段",
+    "selectFieldToAdd": "选择要添加的字段",
+    "addField": "添加"
   },
   "customFieldsPage": {
     "title": "自定义字段管理"
@@ -1729,29 +1764,10 @@
     "auditAllActions": "全部操作",
     "auditTimeRange": "时间范围",
     "auditNoRecords": "暂无审计记录",
-    "auditIssueId": "相关工作项"
-  },
-  "ai": {
-    "title": "AI",
-    "settingsTitle": "AI 设置",
-    "settingsDesc": "配置工作空间级别的 AI 提供商",
-    "configured": "已配置",
-    "notConfigured": "未配置",
-    "providerDeepseek": "DeepSeek",
-    "providerAnthropic": "Anthropic (Claude)",
-    "providerOpenai": "OpenAI / 兼容",
-    "apiKeyPlaceholder": "sk-...",
-    "apiKeyKeep": "（留空保持当前）",
-    "apiKeyDesc": "您的 API Key 在存储时已加密，永远不会在响应中暴露。",
-    "testConnection": "测试连接",
-    "testing": "处理中...",
-    "connectionSuccess": "连接成功！AI 正在响应。",
-    "saveSuccess": "设置保存成功！",
-    "summarize": "总结",
-    "improve": "优化",
-    "generate": "生成更多",
-    "failed": "AI 失败：",
-    "requestFailed": "AI 请求失败："
+    "auditIssueId": "相关工作项",
+    "dispatchAgent": "派发 AI 智能体",
+    "selectAgent": "选择智能体...",
+    "dispatching": "派发中..."
   },
   "cmdpalette": {
     "placeholder": "输入命令或搜索...",
@@ -1970,7 +1986,24 @@
     "create": "创建页面",
     "titlePlaceholder": "页面标题",
     "delete": "删除页面",
-    "deleteConfirm": "删除 \"{title}\"？此操作不可撤销。"
+    "deleteConfirm": "删除 \"{title}\"？此操作不可撤销。",
+    "history": "历史版本",
+    "versionDiff": "版本对比",
+    "oldVersion": "旧版本",
+    "newVersion": "新版本",
+    "changes": "变更",
+    "noDiff": "没有差异"
+  },
+  "timeTrack": {
+    "title": "时间跟踪",
+    "start": "开始",
+    "stop": "停止",
+    "running": "计时中...",
+    "noEntries": "暂无时间记录",
+    "totalHours": "总工时",
+    "entries": "条记录",
+    "projectSummary": "项目工时统计",
+    "byUser": "按用户"
   },
   "integrations": {
     "title": "集成",

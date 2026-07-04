@@ -142,7 +142,7 @@
 
             <div class="space-y-2">
               <div>
-                <label class="text-xs text-gray-500">{{ t('issue.name') }}</label>
+                <label class="text-xs text-gray-500">{{ t('issue.title') }}</label>
                 <input v-model="createPreview.name" class="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
               </div>
               <div class="flex gap-2">
@@ -237,6 +237,18 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Action buttons on tool results -->
+              <AIResultActions
+                v-if="msg.role === 'assistant' && !msg.content"
+                message-type="tool_result"
+                :project-id="projectId"
+                :workspace-id="workspaceId"
+                :content="summarizeThinking(msg.toolResults)"
+                :tool-result="msg.toolResults?.[0]"
+                @create-issue="handleAICreateIssue"
+                @save-as-page="(content: string | undefined) => emit('saveAsPage', { title: t('ai.aiReport') || 'AI Report', content: content || '' })"
+              />
             </div>
 
             <!-- Text content -->
@@ -246,25 +258,27 @@
             <!-- Chart -->
             <div v-if="msg.chartConfig" class="mt-2 bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700" style="min-width:250px">
               <AIChartRenderer :config="msg.chartConfig" />
-              <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                <button @click="openQuickCreate(msg)" class="flex items-center gap-1 px-2 py-1 text-[11px] bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" :title="t('ai.createIssue')">
-                  <span>📋</span> {{ t('ai.createIssue') }}
-                </button>
-                <button @click="saveChartToDashboard(msg)" class="flex items-center gap-1 px-2 py-1 text-[11px] bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 rounded-md hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors" :title="t('ai.saveToDashboard')">
-                  <span>📊</span> {{ t('ai.saveToDashboard') }}
-                </button>
-              </div>
+              <AIResultActions
+                message-type="chart"
+                :project-id="projectId"
+                :workspace-id="workspaceId"
+                :chart-config="msg.chartConfig"
+                :content="msg.content"
+                @create-issue="handleAICreateIssue"
+                @save-as-page="(content: string | undefined) => emit('saveAsPage', { title: t('ai.aiReport') || 'AI Report', content: content || '' })"
+              />
             </div>
 
             <!-- Action buttons for AI responses -->
-            <div v-if="msg.role === 'assistant' && msg.content && !msg.toolResults?.length" class="flex items-center gap-2 mt-2">
-              <button @click="openQuickCreate(msg)" class="flex items-center gap-1 px-2 py-1 text-[11px] bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors" :title="t('ai.createIssue')">
-                <span>📋</span> {{ t('ai.createIssue') }}
-              </button>
-              <button @click="saveContentAsPage(msg)" class="flex items-center gap-1 px-2 py-1 text-[11px] bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors" :title="t('ai.saveAsPage')">
-                <span>📝</span> {{ t('ai.saveAsPage') }}
-              </button>
-            </div>
+            <AIResultActions
+              v-if="msg.role === 'assistant' && msg.content && !msg.toolResults?.length"
+              message-type="text"
+              :project-id="projectId"
+              :workspace-id="workspaceId"
+              :content="msg.content"
+              @create-issue="handleAICreateIssue"
+              @save-as-page="(content: string | undefined) => emit('saveAsPage', { title: t('ai.aiReport') || 'AI Report', content: content || '' })"
+            />
           </div>
         </div>
 
@@ -325,6 +339,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+
 import { useAI } from '@/composables/useAI'
 import { renderMarkdown } from '@/composables/useMarkdown'
 import { generateChart, createPreviewWithAI } from '@/api/ai'
@@ -334,6 +349,7 @@ import * as issueTypeApi from '@/api/issue-type'
 import type { AIChartData } from '@/api/ai'
 import type { Agent } from '@/types/agent'
 import AIChartRenderer from '@/components/AIChartRenderer.vue'
+import AIResultActions from '@/components/AIResultActions.vue'
 
 const props = defineProps<{
   visible: boolean
@@ -361,13 +377,17 @@ const loadingChart = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const msgContainer = ref<HTMLDivElement | null>(null)
 
-const tabs = [
+const allTabs = [
   { id: 'ask' as const, icon: '💬', label: t('ai.tabAsk'), color: 'bg-indigo-500' },
   { id: 'build' as const, icon: '🔧', label: t('ai.tabBuild'), color: 'bg-amber-500' },
-  { id: 'create' as const, icon: '✨', label: t('ai.tabCreate'), color: 'bg-green-500' },
+  { id: 'create' as const, icon: '✨', label: t('ai.tabCreate'), color: 'bg-green-500', requireProject: true },
   { id: 'chart' as const, icon: '📊', label: t('ai.tabChart'), color: 'bg-emerald-500' },
   { id: 'agent' as const, icon: '👥', label: t('ai.tabAgent'), color: 'bg-violet-500' },
 ]
+
+const tabs = computed(() =>
+  allTabs.filter(t => !t.requireProject || props.projectId > 0)
+)
 
 const emptyTitle = computed(() => {
   if (mode.value === 'agent') return t('ai.agentMode')
@@ -443,8 +463,15 @@ function handleSend() {
 }
 
 async function fetchAgents() {
+  console.log('[AICopilot] fetchAgents called, workspaceId:', props.workspaceId, 'visible:', props.visible)
+  if (!props.workspaceId) {
+    console.warn('[AICopilot] fetchAgents skipped: workspaceId is falsy')
+    return
+  }
   try {
-    agents.value = await agentApi.list(props.workspaceId)
+    const result = await agentApi.list(props.workspaceId)
+    console.log('[AICopilot] fetchAgents result:', result)
+    agents.value = result
   } catch (e) {
     console.error('Failed to fetch agents', e)
   }
@@ -462,24 +489,48 @@ async function loadIssueTypes() {
   if (issueTypes.value.length > 0) return
   try {
     const types = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId)
-    issueTypes.value = Array.isArray(types) ? types : (types?.data || [])
+    issueTypes.value = types
   } catch (e) { /* ignore */ }
 }
 
 async function generatePreview() {
   if (!createInput.value.trim()) return
+  if (!props.projectId || !props.workspaceId) {
+    createError.value = '项目数据加载中，请稍后再试'
+    return
+  }
   isCreating.value = true
   createError.value = ''
   createPreview.value = null
   try {
-    const result: any = await createPreviewWithAI(props.projectId, {
+    const result: any = await createPreviewWithAI(props.projectId, props.workspaceId, {
       description: createInput.value,
-      workspace_id: props.workspaceId,
     })
-    createPreview.value = { name: '', priority: 'medium', type_id: '', description: '', ...(result.preview || {}) }
-    createExplanation.value = result.explanation || ''
+    // Normalize: preview could be a JSON string or object
+    let preview = result?.preview || {}
+    if (typeof preview === 'string') {
+      try { preview = JSON.parse(preview) } catch { /* keep string */ }
+    }
+    createPreview.value = {
+      name: '',
+      priority: 'medium',
+      type_id: '',
+      description: '',
+      assignee_ids: [],
+      label_ids: [],
+      state_id: null,
+      target_date: '',
+      ...preview,
+    }
+    // Normalize type_id: backend may return number, but select needs string
+    if (typeof createPreview.value.type_id === 'number') {
+      createPreview.value.type_id = String(createPreview.value.type_id)
+    } else if (!createPreview.value.type_id) {
+      createPreview.value.type_id = ''
+    }
+    createExplanation.value = result?.explanation || '已根据你的描述生成工作项预览'
   } catch (e: any) {
-    createError.value = e?.message || 'Failed to generate preview'
+    createError.value = e?.response?.data?.message || e?.message || 'Failed to generate preview'
   } finally {
     isCreating.value = false
   }
@@ -487,13 +538,21 @@ async function generatePreview() {
 
 async function confirmCreate() {
   if (!createPreview.value?.name?.trim()) return
+  if (!props.projectId || !props.workspaceId) {
+    createError.value = '项目数据加载中，请稍后再试'
+    return
+  }
   isCreating.value = true
   try {
     await issueApi.createIssue(props.projectId, props.workspaceId, {
       name: createPreview.value.name,
       priority: createPreview.value.priority || 'medium',
       description_html: createPreview.value.description || '',
-      state_id: createPreview.value.state_id,
+      type_id: createPreview.value.type_id ? Number(createPreview.value.type_id) : undefined,
+      state_id: createPreview.value.state_id || undefined,
+      assignee_ids: createPreview.value.assignee_ids?.length ? createPreview.value.assignee_ids : undefined,
+      label_ids: createPreview.value.label_ids?.length ? createPreview.value.label_ids : undefined,
+      target_date: createPreview.value.target_date || undefined,
     })
     createInput.value = ''
     createPreview.value = null
@@ -583,7 +642,7 @@ async function sendChartQuery(query: string) {
   messages.value.push({ role: 'user', content: `📊 ${q}` })
 
   try {
-    const chartData = await generateChart(props.projectId, q)
+    const chartData = await generateChart(props.projectId, props.workspaceId, q)
     messages.value.push({
       role: 'assistant',
       content: `**${chartData.title}**\n\n${chartData.chart_type} 图表，${chartData.labels.length} 个数据维度`,
@@ -641,38 +700,27 @@ function priorityBadge(p: string): string {
 }
 
 // ─── AI Result Actions ───
-function openQuickCreate(msg: any) {
-  const preview: Record<string, any> = { name: '', description: msg.content?.slice(0, 200) || '' }
-  if (msg.content) {
-    const lines = msg.content.split('\n').filter((l: string) => l.trim())
-    if (lines.length > 0) {
-      const title = lines[0].replace(/^[#*\-\d.]+\s*/, '').trim()
-      if (title.length > 3) preview.name = title.slice(0, 120)
-    }
+function handleAICreateIssue(suggestion: Record<string, any>) {
+  if (suggestion.batch) {
+    // Batch create subtasks
+    mode.value = 'create'
+    nextTick(() => {
+      createInput.value = suggestion.batch.map((item: any) => `- ${item.name}`).join('\n')
+    })
+    return
   }
-  // Switch to create mode and pre-fill
+  // Single issue — switch to create mode with pre-fill
   mode.value = 'create'
   nextTick(() => {
-    createInput.value = preview.description || ''
+    createInput.value = suggestion.description || suggestion.name || ''
   })
 }
 
-function saveChartToDashboard(msg: any) {
-  if (msg.chartConfig) {
-    try {
-      const key = 'ai_chart_save_' + Date.now()
-      localStorage.setItem(key, JSON.stringify(msg.chartConfig))
-      alert(t('ai.chartSaved') || 'Chart saved! You can add it to your dashboard.')
-    } catch (e) { /* ignore */ }
+watch(() => props.workspaceId, (newId) => {
+  if (newId && props.visible) {
+    fetchAgents()
   }
-}
-
-function saveContentAsPage(msg: any) {
-  if (msg.content) {
-    emit('saveAsPage', { title: t('ai.aiReport') || 'AI Report', content: msg.content })
-  }
-}
-
+})
 watch(() => messages.value.length, scrollToBottom)
 watch(() => props.visible, (v) => {
   if (v) {
@@ -690,8 +738,12 @@ watch(() => props.visible, (v) => {
   }
 })
 watch(mode, (newMode) => {
-  if (newMode === 'create') {
+  if (newMode === 'create' && !props.projectId) {
+    mode.value = 'ask'
+  } else if (newMode === 'create') {
     loadIssueTypes()
+  } else if (newMode === 'agent') {
+    fetchAgents()
   } else {
     nextTick(() => inputRef.value?.focus())
   }
