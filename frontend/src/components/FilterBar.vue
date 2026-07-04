@@ -63,9 +63,12 @@ const allFilterFields = computed<FilterField[]>(() => {
       type: cf.field_type === 'dropdown' ? (isMulti ? 'multi' : 'select')
         : cf.field_type === 'date' ? 'date'
         : cf.field_type === 'boolean' ? 'select'
+        : cf.field_type === 'number' ? 'number'
         : cf.field_type === 'member' ? 'multi'
         : 'text',
-      valueType: cf.field_type === 'number' ? 'number' : 'string',
+      valueType: cf.field_type === 'number' ? 'number'
+        : cf.field_type === 'boolean' ? 'boolean'
+        : 'string',
       operators: buildCustomFieldOperators(cf),
     } as FilterField
   })

@@ -10,7 +10,7 @@ export interface FilterField {
   dbKey: string
   labelKey: string
   type: 'select' | 'multi' | 'date' | 'text' | 'number' | 'date_range'
-  valueType: 'string' | 'number' | 'date'
+  valueType: 'string' | 'number' | 'date' | 'boolean'
   operators: string[]
 }
 
@@ -41,8 +41,8 @@ export const FILTER_FIELDS: FilterField[] = [
   { key: 'created_at', dbKey: 'created_at', labelKey: 'filter.fieldCreatedAt', type: 'date', valueType: 'date', operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty', 'is not empty'] },
 ]
 
-function formatValue(value: any, valueType: 'string' | 'number' | 'date'): string {
-  if (valueType === 'number') {
+function formatValue(value: any, valueType: 'string' | 'number' | 'date' | 'boolean'): string {
+  if (valueType === 'number' || valueType === 'boolean') {
     return String(value)
   }
   return `"${value}"`

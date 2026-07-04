@@ -91,7 +91,7 @@
                   :issue-id="issue.id"
                   :issue-type-id="issue.issue_type?.id"
                   mode="display"
-                  :members="[]"
+                  :members="projectMembers"
                 />
               </div>
             </template>
@@ -214,6 +214,7 @@ const saving = ref(false)
 const stateOptions = ref<any[]>([])
 const cycleOptions = ref<any[]>([])
 const issueTypeOptions = ref<any[]>([])
+const projectMembers = ref<any[]>([])
 const panelCustomFieldRef = ref<InstanceType<typeof CustomFieldManager> | null>(null)
 
 const editForm = ref({
@@ -234,6 +235,13 @@ watch(() => props.issueId, async (id) => {
     try {
       const result = await issueApi.getIssue(id)
       issue.value = result
+      // Load project members for custom field member type
+      if (props.projectId) {
+        try {
+          const resp = await api.get(`/projects/${props.projectId}/members`)
+          projectMembers.value = (resp.data || []).map((m: any) => m.user || m)
+        } catch { /* */ }
+      }
     } catch (e) {
       console.error('Failed to load issue:', e)
       issue.value = null

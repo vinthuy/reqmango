@@ -588,7 +588,7 @@ async function loadCFValues(issueIds: number[]) {
     issueIds.forEach((id, idx) => {
       cache[id] = {}
       for (const v of (results[idx] || [])) {
-        cache[id][v.field_id] = v.value || ''
+        cache[id][v.field_id] = (v.value ?? '').toString()
       }
     })
     cfValueCache.value = cache
@@ -597,7 +597,8 @@ async function loadCFValues(issueIds: number[]) {
 
 function getCFValue(issueId: number, colKey: string): string {
   const fieldId = parseInt(colKey.replace('cf_', ''))
-  return cfValueCache.value[issueId]?.[fieldId] || '-'
+  const v = cfValueCache.value[issueId]?.[fieldId]
+  return v === undefined || v === null || v === '' ? '-' : v
 }
 
 async function loadProjectInfo() {

@@ -301,8 +301,9 @@ function isFieldRequired(field: any): boolean {
 function hasFieldValue(fieldId: number): boolean {
   const value = customFieldValues.value[fieldId]
   if (!value) return false
-  return !!(value.text_value || value.number_value !== undefined || value.boolean_value ||
-    value.date_value || value.url_value || (value.json_value && value.json_value.length > 0))
+  return !!(value.text_value || value.number_value !== undefined ||
+    value.boolean_value !== undefined || value.date_value || value.url_value ||
+    (value.json_value && value.json_value.length > 0))
 }
 
 async function loadTemplates() {
@@ -549,14 +550,22 @@ async function submitForm() {
       data.parent_id = selectedParent.value.id
     }
 
-    // Add custom field values for validation
-    const cfValues: Record<number, any> = {}
+    // Add custom field values
+    const cfValues: Record<number, string> = {}
     for (const [fieldId, v] of Object.entries(customFieldValues.value)) {
       const val = v as any
-      const value = val.text_value ?? val.date_value ?? val.url_value ??
-                    (val.number_value !== undefined ? String(val.number_value) : '') ??
-                    (val.boolean_value !== undefined ? String(val.boolean_value) : '') ??
-                    (val.json_value?.length ? JSON.stringify(val.json_value) : '') ?? ''
+      const field = linkedFields.value.find((f: any) => f.field_id === parseInt(fieldId))
+      let value = ''
+      switch (field?.field_type) {
+        case 'text':  value = val.text_value || ''; break
+        case 'number': value = val.number_value !== undefined ? String(val.number_value) : ''; break
+        case 'boolean': value = val.boolean_value !== undefined ? String(val.boolean_value) : ''; break
+        case 'date':  value = val.date_value || ''; break
+        case 'url':   value = val.url_value || ''; break
+        case 'dropdown':
+        case 'member': value = val.json_value?.length ? JSON.stringify(val.json_value) : ''; break
+        default: value = val.text_value || ''
+      }
       if (value !== '') {
         cfValues[parseInt(fieldId)] = value
       }
@@ -568,27 +577,6 @@ async function submitForm() {
     console.log('Creating issue with data:', data)
     const issue = await issueApi.createIssue(projectId.value, workspaceId.value, data)
     console.log('Created issue:', issue)
-
-    // 保存自定义字段值
-    if (Object.keys(customFieldValues.value).length > 0) {
-      try {
-        const values = Object.entries(customFieldValues.value)
-          .filter(([_, v]) => v)
-          .map(([fieldId, v]) => ({
-            field_id: parseInt(fieldId),
-            value: (v as any).text_value ?? (v as any).date_value ?? (v as any).url_value ??
-                   ((v as any).number_value !== undefined ? String((v as any).number_value) : '') ??
-                   ((v as any).boolean_value !== undefined ? String((v as any).boolean_value) : '') ??
-                   ((v as any).json_value?.length ? JSON.stringify((v as any).json_value) : '') ?? ''
-          }))
-          .filter((v: any) => v.value !== '')
-        if (values.length > 0) {
-          await customFieldApi.bulkUpdateIssueCustomFieldValues(issue.id, values as any)
-        }
-      } catch (e) {
-        console.error('Failed to save custom field values:', e)
-      }
-    }
 
     // 刷新工作项列表
     emit('created', issue)

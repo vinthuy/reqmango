@@ -413,7 +413,7 @@ async function loadData() {
     return
   }
   try {
-    const result = await customFieldApi.listCustomFields(props.workspaceId)
+    const result = await customFieldApi.listCustomFields(props.workspaceId, props.projectId, props.issueTypeId)
     customFields.value = result
     // After loading fields, load existing values for this issue
     if (props.issueId) {
@@ -614,7 +614,8 @@ async function saveValues() {
   for (const field of customFields.value) {
     if (!field.is_active || field.is_readonly) continue
     const val = fieldValues.value[field.id]
-    if (val === undefined || val === null || val === '') continue
+    if (val === undefined || val === null || val === '' ||
+        (Array.isArray(val) && val.length === 0)) continue
 
     let stringVal: string
     if (field.field_type === 'boolean') {

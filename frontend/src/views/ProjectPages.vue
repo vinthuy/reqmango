@@ -33,12 +33,15 @@
           <div class="flex-1">
             <input
               v-model="editForm.title"
-              @blur="savePage"
+              @input="debouncedSave"
               class="text-2xl font-bold text-gray-900 w-full border-none focus:outline-none focus:ring-0 p-0"
               placeholder="Page title"
             />
           </div>
           <div class="flex items-center gap-2">
+            <span v-if="saving" class="text-xs text-indigo-500 animate-pulse">Saving...</span>
+            <span v-if="saved" class="text-xs text-green-600">Saved</span>
+            <span v-if="saveError" class="text-xs text-red-500">{{ saveError }}</span>
             <button @click="archiveCurrent" class="text-sm text-gray-500 hover:text-gray-700">
               {{ selectedPage.archived_at ? 'Restore' : 'Archive' }}
             </button>
@@ -136,6 +139,9 @@ const deletingPage = ref<Page | null>(null)
 
 const editForm = reactive({ title: '', content: '' })
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
+const saving = ref(false)
+const saved = ref(false)
+const saveError = ref('')
 
 onMounted(() => loadPages())
 
@@ -186,17 +192,37 @@ async function selectPage(page: Page) {
   } catch (e) { console.error('Failed to load page:', e) }
 }
 
-function savePage() {
+function debouncedSave() {
   if (!selectedPage.value) return
   if (saveTimeout) clearTimeout(saveTimeout)
-  saveTimeout = setTimeout(async () => {
-    try {
-      await pageApi.updatePage(projectId.value, selectedPage.value!.id, {
-        title: editForm.title,
-        content: editForm.content,
-      })
-    } catch (e) { console.error('Failed to save page:', e) }
-  }, 500)
+  saveError.value = ''
+  saveTimeout = setTimeout(() => performSave(), 800)
+}
+
+async function performSave() {
+  if (!selectedPage.value) return
+  saving.value = true
+  saved.value = false
+  try {
+    const updated = await pageApi.updatePage(projectId.value, selectedPage.value!.id, {
+      title: editForm.title,
+      content: editForm.content,
+    })
+    // Sync back to selectedPage so UI reflects saved state
+    selectedPage.value = { ...selectedPage.value, ...updated }
+    saved.value = true
+    setTimeout(() => { saved.value = false }, 2000)
+  } catch (e: any) {
+    saveError.value = e?.message || 'Save failed'
+    setTimeout(() => { saveError.value = '' }, 4000)
+  } finally {
+    saving.value = false
+  }
+}
+
+// Keep savePage for backward compatibility (textarea @blur)
+function savePage() {
+  debouncedSave()
 }
 
 async function archiveCurrent() {
