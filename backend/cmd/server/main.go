@@ -96,6 +96,19 @@ func main() {
 	}
 	fmt.Println("Database migration completed")
 
+	// Drop old foreign key constraint on automation_executions (if exists)
+	db.Exec(`DO $$ BEGIN
+		IF EXISTS (SELECT 1 FROM information_schema.table_constraints
+			WHERE table_name = 'automation_executions' AND constraint_name = 'fk_automation_executions_rule') THEN
+			ALTER TABLE automation_executions DROP CONSTRAINT fk_automation_executions_rule;
+		END IF;
+		IF EXISTS (SELECT 1 FROM information_schema.table_constraints
+			WHERE table_name = 'automation_executions' AND constraint_name = 'fk_automation_executions_issue') THEN
+			ALTER TABLE automation_executions DROP CONSTRAINT fk_automation_executions_issue;
+		END IF;
+	END $$`)
+	fmt.Println("Foreign key cleanup completed")
+
 	// Create full-text search index for issues
 	db.Exec(`
 		CREATE INDEX IF NOT EXISTS idx_issues_search ON issues 

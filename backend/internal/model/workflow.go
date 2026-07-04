@@ -52,9 +52,6 @@ type AutomationExecution struct {
 	Duration     int64     `json:"duration"`
 	ExecutedAt   time.Time `gorm:"index" json:"executed_at"`
 
-	// Relationships
-	Rule  AutomationRule `gorm:"foreignKey:RuleID" json:"-"`
-	Issue Issue           `gorm:"foreignKey:IssueID" json:"-"`
 }
 
 func (AutomationExecution) TableName() string { return "automation_executions" }

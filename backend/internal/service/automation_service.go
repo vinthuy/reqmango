@@ -552,7 +552,13 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 	
 	// 记录本次执行
 	s.executionHistory.Store(key, now)
-	
+
+	// Ensure issue_id is always in context for action handlers
+	if event.Context == nil {
+		event.Context = make(map[string]interface{})
+	}
+	event.Context["issue_id"] = event.IssueID
+
 	// 查询匹配的自动化规则
 	var rules []model.AutomationRule
 	if err := s.db.Where("project_id = ? AND trigger_type = ? AND is_enabled = ?", 
@@ -828,6 +834,12 @@ func (s *AutomationService) Delete(id uint64) error {
 
 // ExecuteTrigger 手动触发规则执行（用于测试）
 func (s *AutomationService) ExecuteTrigger(projectID uint64, triggerType string, issueID uint64, eventCtx map[string]interface{}) []string {
+	if eventCtx == nil {
+		eventCtx = make(map[string]interface{})
+	}
+	// Ensure issue_id is always in context for action handlers
+	eventCtx["issue_id"] = issueID
+
 	event := Event{
 		Type:      triggerType,
 		ProjectID: projectID,
@@ -835,11 +847,11 @@ func (s *AutomationService) ExecuteTrigger(projectID uint64, triggerType string,
 		Context:   eventCtx,
 		Timestamp: time.Now(),
 	}
-	
+
 	// 同步执行用于测试
 	ctx := context.Background()
 	_ = s.handleAutomationEvent(ctx, event)
-	
+
 	return []string{"Executed"}
 }
 
