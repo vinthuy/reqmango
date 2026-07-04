@@ -49,6 +49,7 @@
       <!-- 标签页内容 -->
       <div v-if="activeTab === 'issues'">
         <FilterBar
+          :key="'filter-' + projectId"
           :project-id="projectId"
           :workspace-id="workspaceId"
           :current-view="issueView"
@@ -435,6 +436,13 @@ watch(() => route.params.id, () => {
   issueView.value = (route.query.view as any) || 'list'
 })
 
+// Watch query.tab changes (e.g. TopBar nav with ?tab=reports)
+watch(() => route.query.tab, (tab) => {
+  if (tab && typeof tab === 'string') {
+    activeTab.value = tab
+  }
+})
+
 watch(activeTab, (tab) => {
   if (tab === 'settings') {
     router.push(`/workspace/${route.params.slug}/project/${projectId.value}/settings`)
@@ -536,7 +544,7 @@ function goBack() {
 }
 
 async function handleDeleteIssue(issue: any) {
-  if (await confirm(t('project.deleteIssueConfirm', { name: issue.name }))) {
+  if (await confirm(t('project.deleteIssueConfirm', { name: issue?.name || 'selected issues' }))) {
     try {
       await issueApi.deleteIssue(issue.id)
       detailPanelVisible.value = false

@@ -44,6 +44,7 @@ const showSubGroupDropdown = ref(false)
 
 const searchSuggestions = ref<IssueSearchResult[]>([])
 const showSuggestions = ref(false)
+const showHistory = ref(false)
 let suggestDebounce: ReturnType<typeof setTimeout> | null = null
 
 const states = ref<any[]>([])
@@ -166,7 +167,7 @@ async function loadMembers() {
 
 async function loadIssueTypes() {
   try {
-    const r = await api.get(`/projects/${props.projectId}/issue-types`)
+    const r = await api.get(`/projects/${props.projectId}/issue-types?workspace_id=${props.workspaceId}`)
     issueTypes.value = r.data
   } catch (e) { /* */ }
 }
@@ -180,7 +181,7 @@ async function loadLabels() {
 
 async function loadModules() {
   try {
-    const r = await api.get(`/modules?project_id=${props.projectId}`)
+    const r = await api.get(`/modules?project_id=${props.projectId}&workspace_id=${props.workspaceId}`)
     modules.value = r.data
   } catch (e) { /* */ }
 }
@@ -224,6 +225,7 @@ function selectSuggestion(suggestion: IssueSearchResult) {
 }
 
 function onSearchFocus() {
+  showHistory.value = true
   if (state.quickSearch.length >= 2) {
     fetchSuggestions(state.quickSearch)
   } else {
@@ -236,11 +238,13 @@ function handleSearchSubmit() {
     addToHistory(state.quickSearch.trim())
   }
   showSuggestions.value = false
+  showHistory.value = false
 }
 
 function onSearchBlur() {
   window.setTimeout(() => {
     showSuggestions.value = false
+    showHistory.value = false
   }, 200)
 }
 
@@ -248,6 +252,7 @@ function applyHistory(query: string) {
   setQuickSearch(query)
   addToHistory(query)
   showSuggestions.value = false
+  showHistory.value = false
 }
 
 function toggleFieldDropdown(e: Event) {
@@ -407,11 +412,9 @@ function checkDateRangeComplete(index: number) {
 }
 
 function handleMultiSelectChange(index: number, values: any[], displayValues: string[]) {
-  if (values.length > 0) {
-    state.filters[index].value = values
-    state.filters[index].displayValue = displayValues.join(', ')
-    editingIndex.value = null
-  }
+  state.filters[index].value = values
+  state.filters[index].displayValue = displayValues.join(', ')
+  editingIndex.value = null
 }
 
 function removeCondition(index: number) {
@@ -695,7 +698,7 @@ onUnmounted(() => {
           </svg>
         </button>
         
-        <div v-if="showSuggestions || (state.searchHistory.length > 0 && state.quickSearch.length < 2)" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div v-if="showSuggestions || (showHistory && state.searchHistory.length > 0 && state.quickSearch.length < 2)" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
           <template v-if="searchSuggestions.length > 0">
             <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
               {{ t('filter.suggestions') }}
@@ -766,7 +769,7 @@ onUnmounted(() => {
           <div v-if="editingIndex === index" class="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-full px-2 py-1">
             <select
               :value="filter.field"
-              @change="(e) => handleFieldChange(index, (e.target as HTMLSelectElement).value)"
+              @change="(e: Event) => handleFieldChange(index, (e.target as HTMLSelectElement).value)"
               class="text-sm bg-transparent border-none outline-none text-indigo-700"
             >
               <option v-for="field in allFilterFields" :key="field.key" :value="field.key">
@@ -775,7 +778,7 @@ onUnmounted(() => {
             </select>
             <select
               :value="filter.operator"
-              @change="(e) => handleOperatorChange(index, (e.target as HTMLSelectElement).value)"
+              @change="(e: Event) => handleOperatorChange(index, (e.target as HTMLSelectElement).value)"
               class="text-sm bg-transparent border-none outline-none text-indigo-700"
             >
               <option v-for="op in getOperatorsForField(filter.field)" :key="op" :value="op">
@@ -805,7 +808,7 @@ onUnmounted(() => {
             <template v-else-if="getFieldType(filter.field) === 'select'">
               <select
                 :value="filter.value"
-                @change="(e) => handleValueChange(index, (e.target as HTMLSelectElement).value, (e.target as HTMLSelectElement).options[(e.target as HTMLSelectElement).selectedIndex].text)"
+                @change="(e: Event) => handleValueChange(index, (e.target as HTMLSelectElement).value, (e.target as HTMLSelectElement).options[(e.target as HTMLSelectElement).selectedIndex].text)"
                 class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none w-32"
               >
                 <option value="">{{ t('filter.selectValue') }}</option>
@@ -827,14 +830,14 @@ onUnmounted(() => {
                 <input
                   type="date"
                   :value="dateRangeValues[index]?.from || ''"
-                  @change="(e) => handleDateRangeFromChange(index, (e.target as HTMLInputElement).value)"
+                  @change="(e: Event) => handleDateRangeFromChange(index, (e.target as HTMLInputElement).value)"
                   class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none"
                 />
                 <span class="text-indigo-400">-</span>
                 <input
                   type="date"
                   :value="dateRangeValues[index]?.to || ''"
-                  @change="(e) => handleDateRangeToChange(index, (e.target as HTMLInputElement).value)"
+                  @change="(e: Event) => handleDateRangeToChange(index, (e.target as HTMLInputElement).value)"
                   class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none"
                 />
                 <div class="relative">

@@ -1,10 +1,14 @@
 import { reactive, computed, provide, inject, type ComputedRef } from 'vue'
 import type { FilterCondition, SortOption, GroupOption, SubGroupOption } from '../types/filters'
-import { buildRQL, parseRQL } from '../types/filters'
+import { buildRQL, parseRQL, FILTER_FIELDS } from '../types/filters'
 
 const FILTERS_KEY = Symbol('filters')
 const SEARCH_HISTORY_KEY = 'reqmango_search_history'
 const MAX_HISTORY_COUNT = 10
+
+// DB key → UI key reverse mapping (for restoring from RQL)
+const DB_TO_UI_KEY: Record<string, string> = {}
+FILTER_FIELDS.forEach(f => { DB_TO_UI_KEY[f.dbKey] = f.key })
 
 export interface FiltersState {
   filters: FilterCondition[]
@@ -137,7 +141,11 @@ export function useFilters() {
     }
     if (cleaned) {
       const parsed = parseRQL(cleaned)
-      state.filters = parsed.filters
+      // Map DB keys back to UI keys for FilterBar display
+      state.filters = parsed.filters.map(f => ({
+        ...f,
+        field: DB_TO_UI_KEY[f.field] || f.field
+      }))
       state.sortBy = parsed.sortBy || []
     } else {
       state.filters = []

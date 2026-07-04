@@ -81,6 +81,9 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string):
     let clause = ''
     const { field, operator, value } = filter
 
+    // Skip filters with empty array values (all items deselected)
+    if (Array.isArray(value) && value.length === 0) continue
+
     const fieldDef = FILTER_FIELDS.find(f => f.key === field)
     const dbKey = fieldDef?.dbKey || field
     const valueType = fieldDef?.valueType || 'string'
