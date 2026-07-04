@@ -61,8 +61,8 @@
     <div v-if="selectedIds.size > 0" class="sticky top-0 z-20 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 flex items-center gap-3 mb-3 flex-wrap">
       <span class="text-sm text-gray-700 font-medium">{{ t('issueList.selected') }} {{ selectedIds.size }} {{ t('common.items') }}</span>
 
-      <div class="relative">
-        <button @click="showBatchState = !showBatchState" class="px-2.5 py-1 text-xs border border-gray-300 rounded-md bg-white hover:bg-gray-50 transition-colors">
+      <div class="relative batch-dropdown">
+        <button @click.stop="showBatchState = !showBatchState" class="px-2.5 py-1 text-xs border border-gray-300 rounded-md bg-white hover:bg-gray-50 transition-colors">
           {{ t('issueList.changeState') }}
         </button>
         <div v-if="showBatchState" class="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1 w-32">
@@ -70,8 +70,8 @@
         </div>
       </div>
 
-      <div class="relative">
-        <button @click="showBatchPriority = !showBatchPriority" class="px-2.5 py-1 text-xs border border-gray-300 rounded-md bg-white hover:bg-gray-50 transition-colors">
+      <div class="relative batch-dropdown">
+        <button @click.stop="showBatchPriority = !showBatchPriority" class="px-2.5 py-1 text-xs border border-gray-300 rounded-md bg-white hover:bg-gray-50 transition-colors">
           {{ t('issueList.changePriority') }}
         </button>
         <div v-if="showBatchPriority" class="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1 w-32">
@@ -79,8 +79,8 @@
         </div>
       </div>
 
-      <div class="relative">
-        <button @click="showBatchAssign = !showBatchAssign" class="px-2.5 py-1 text-xs border border-gray-300 rounded-md bg-white hover:bg-gray-50 transition-colors">
+      <div class="relative batch-dropdown">
+        <button @click.stop="showBatchAssign = !showBatchAssign" class="px-2.5 py-1 text-xs border border-gray-300 rounded-md bg-white hover:bg-gray-50 transition-colors">
           {{ t('issueList.batchAssign') }}
         </button>
         <div v-if="showBatchAssign" class="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 p-2 w-48">
@@ -105,6 +105,13 @@
       <div v-if="loading" class="text-center py-16">
         <svg class="animate-spin h-8 w-8 text-gray-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
         <p class="mt-2 text-gray-500 text-sm">{{ t('common.loading') }}</p>
+      </div>
+      <div v-else-if="loadError" class="text-center py-16">
+        <svg class="h-12 w-12 text-red-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <p class="mt-2 text-red-500">{{ t('issueList.loadFailed') }}</p>
+        <button @click="loadIssues" class="mt-3 px-4 py-2 text-sm bg-red-50 text-red-600 rounded-md hover:bg-red-100">
+          {{ t('common.retry') }}
+        </button>
       </div>
       <div v-else-if="issues.length === 0" class="text-center py-16">
         <svg class="h-12 w-12 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
@@ -335,6 +342,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import issueApi from '@/api/issue'
 import customFieldApi from '@/api/custom-field'
 import projectApi from '@/api/project'
@@ -349,6 +357,7 @@ import { highlightSearchTerm } from '@/utils/highlight'
 const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string; searchTerm?: string; columns?: string[] }>()
 const router = useRouter()
 const { t, locale } = useI18n()
+const toast = useToast()
 
 const emit = defineEmits<{
   (e: 'select', issue: any): void
@@ -475,6 +484,7 @@ const states = ref<any[]>([])
 const cycles = ref<any[]>([])
 const members = ref<any[]>([])
 const loading = ref(false)
+const loadError = ref<string | null>(null)
 const page = ref(1)
 const limit = ref(20)
 const totalCount = ref(0)
@@ -698,7 +708,12 @@ async function loadIssues() {
 
     const result = await issueApi.listIssues(props.projectId, props.workspaceId, params)
     issues.value = result.items; totalCount.value = result.total; totalPages.value = Math.max(1, Math.ceil(result.total / limit.value))
-  } catch (e) { console.error('Failed to load issues:', e) }
+    loadError.value = null
+  } catch (e: any) {
+    console.error('Failed to load issues:', e)
+    loadError.value = e.message || 'Failed to load issues'
+    toast.error(t('issueList.loadFailed'))
+  }
   finally { loading.value = false }
 }
 
@@ -756,7 +771,17 @@ async function loadProjectInfo() {
 }
 
 // ── Lifecycle ──
+function closeBatchDropdowns(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (!target.closest('.batch-dropdown')) {
+    showBatchState.value = false
+    showBatchPriority.value = false
+    showBatchAssign.value = false
+  }
+}
+
 onMounted(async () => {
+  document.addEventListener('click', closeBatchDropdowns)
   if (props.workspaceId > 0) {
     await Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes(), loadProjectInfo()])
     // Report initial columns up to parent so FilterBar can save them in a view
@@ -765,6 +790,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('click', closeBatchDropdowns)
 })
 
 watch(page, () => loadIssues())

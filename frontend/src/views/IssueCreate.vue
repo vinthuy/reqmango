@@ -195,8 +195,12 @@
     <!-- 底部操作 -->
     <div class="page-footer">
       <button @click="goBack" class="btn btn-secondary">{{ t('issue.cancel') }}</button>
-      <button @click="submitForm" class="btn btn-primary" :disabled="!canSubmit">
-        {{ t('issue.create') }}
+      <button @click="submitForm" class="btn btn-primary" :disabled="!canSubmit || saving">
+        <svg v-if="saving" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        {{ saving ? t('issue.creating') : t('issue.create') }}
       </button>
     </div>
   </div>
@@ -205,6 +209,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import { useRoute, useRouter } from 'vue-router'
 import CustomFieldValueInput from '@/components/CustomFieldValueInput.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
@@ -222,13 +227,14 @@ import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
 import projectApi from '@/api/project'
-import customFieldApi from '@/api/custom-field'
+
 import workItemTemplateApi from '@/api/work-item-template'
 import type { WorkItemTemplate } from '@/types/work-item-template'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 
 const projectId = computed(() => parseInt(route.params.projectId as string, 10))
 const workspaceId = computed(() => parseInt(route.params.workspaceId as string, 10))
@@ -480,13 +486,13 @@ function updateCustomFieldValue(fieldId: number, value: IssueCustomFieldValueUpd
 async function submitForm() {
   // 检查标题
   if (!formData.value.name.trim()) {
-    alert(t('issue.titleRequiredMsg'))
+    toast.warning(t('issue.titleRequiredMsg'))
     return
   }
   
   // 检查类型
   if (!selectedTypeId.value) {
-    alert(t('issue.typeRequiredMsg'))
+    toast.warning(t('issue.typeRequiredMsg'))
     return
   }
 
@@ -495,7 +501,7 @@ async function submitForm() {
     .filter(field => isFieldRequired(field) && !hasFieldValue(field.field_id))
     .map(field => field.name)
   if (missingFields.length > 0) {
-    alert(t('issue.requiredFieldsMsg', { fields: missingFields.join(', ') }))
+    toast.warning(t('issue.requiredFieldsMsg', { fields: missingFields.join(', ') }))
     return
   }
 
@@ -578,6 +584,9 @@ async function submitForm() {
     const issue = await issueApi.createIssue(projectId.value, workspaceId.value, data)
     console.log('Created issue:', issue)
 
+    // 显示成功提示
+    toast.success(t('issue.createSuccess'))
+
     // 刷新工作项列表
     emit('created', issue)
 
@@ -586,7 +595,7 @@ async function submitForm() {
   } catch (error: any) {
     console.error('Failed to create issue:', error)
     const errorMsg = error.response?.data?.message || error.message || t('issue.unknownError')
-    alert(t('issue.createFailed', { msg: errorMsg }))
+    toast.error(t('issue.createFailed', { msg: errorMsg }))
   } finally {
     saving.value = false
   }

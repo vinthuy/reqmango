@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ShortcutsPanel from '@/components/ShortcutsPanel.vue'
 import TopBar from '@/components/TopBar.vue'
+import ToastContainer from '@/components/ToastContainer.vue'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { useI18n } from '@/composables/useI18n'
 
@@ -43,6 +44,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
   <ConfirmDialog />
   <ShortcutsPanel :visible="showShortcuts" @close="showShortcuts = false" />
+  <ToastContainer />
 
   <button
     v-if="showTopBar"

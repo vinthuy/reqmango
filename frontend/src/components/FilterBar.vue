@@ -5,6 +5,7 @@ import type { FilterCondition, FilterField, SortOption, GroupOption, SubGroupOpt
 import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, SUB_GROUP_OPTIONS } from '../types/filters'
 import { useFilters } from '../composables/useFilters'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
+import MultiSelectDropdown from '@/components/MultiSelectDropdown.vue'
 import type { SavedView } from '@/types/saved-view'
 import SearchTemplateSelector from '@/components/SearchTemplateSelector.vue'
 import type { SearchTemplate } from '@/types/search-template'
@@ -52,6 +53,7 @@ const modules = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const labels = ref<any[]>([])
 const customFields = ref<CustomField[]>([])
+const loadingData = ref(false)
 
 // Merge system fields with custom fields
 const allFilterFields = computed<FilterField[]>(() => {
@@ -648,10 +650,15 @@ function handleSearchTemplateApply(template: SearchTemplate) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
   if (props.projectId > 0) {
-    Promise.all([loadStates(), loadCycles(), loadMembers(), loadModules(), loadIssueTypes(), loadLabels(), loadCustomFields()])
+    loadingData.value = true
+    try {
+      await Promise.all([loadStates(), loadCycles(), loadMembers(), loadModules(), loadIssueTypes(), loadLabels(), loadCustomFields()])
+    } finally {
+      loadingData.value = false
+    }
   }
 })
 
@@ -808,24 +815,12 @@ onUnmounted(() => {
               </select>
             </template>
             <template v-else-if="getFieldType(filter.field) === 'multi'">
-              <div class="relative">
-                <select
-                  :value="filter.value || ''"
-                  multiple
-                  @change="(e) => {
-                    const target = e.target as HTMLSelectElement
-                    const values = Array.from(target.selectedOptions).map(o => o.value)
-                    const displayValues = Array.from(target.selectedOptions).map(o => o.text)
-                    handleMultiSelectChange(index, values, displayValues)
-                  }"
-                  class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none w-40"
-                  size="4"
-                >
-                  <option v-for="opt in getOptionsForField(filter.field)" :key="opt.value" :value="opt.value">
-                    {{ opt.label }}
-                  </option>
-                </select>
-              </div>
+              <MultiSelectDropdown
+                :modelValue="Array.isArray(filter.value) ? filter.value : filter.value ? [filter.value] : []"
+                @update:modelValue="(vals) => handleMultiSelectChange(index, vals, vals.map(v => getOptionsForField(filter.field).find(o => o.value === v)?.label || String(v)))"
+                :options="getOptionsForField(filter.field)"
+                :placeholder="t('filter.selectValue')"
+              />
             </template>
             <template v-else-if="getFieldType(filter.field) === 'date'">
               <template v-if="filter.operator === 'between' || filter.operator === 'not between'">

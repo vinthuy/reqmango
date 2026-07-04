@@ -5,7 +5,11 @@
       <div class="absolute inset-0 bg-black/20" @click="close"></div>
       <!-- 侧滑面板 -->
       <div class="relative ml-auto w-full max-w-xl bg-white shadow-xl flex flex-col h-full overflow-hidden" :class="visible && 'animate-slide-in'">
-        <div v-if="loading" class="flex items-center justify-center h-full">
+        <div v-if="loading" class="flex flex-col items-center justify-center h-full">
+          <svg class="animate-spin h-8 w-8 text-indigo-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
           <div class="text-gray-400 text-sm">{{ t('common.loading') }}</div>
         </div>
         <template v-else-if="issue">
@@ -197,6 +201,7 @@ import * as issueTypeApi from '@/api/issue-type'
 import api from '@/api'
 import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import CustomFieldManager from '@/components/CustomFieldManager.vue'
 
@@ -204,6 +209,7 @@ const router = useRouter()
 const route = useRoute()
 const { confirm } = useConfirm()
 const { t, locale } = useI18n()
+const toast = useToast()
 
 const workspaceSlug = computed(() => (route.params as any).slug as string || '')
 function navigateTo(issueId: number) {
@@ -260,6 +266,19 @@ watch(() => props.issueId, async (id) => {
         try {
           const resp = await api.get(`/projects/${props.projectId}/members`)
           projectMembers.value = (resp.data || []).map((m: any) => m.user || m)
+        } catch { /* */ }
+      }
+      // Preload options for editing
+      if (props.projectId && props.workspaceId) {
+        try {
+          const [statesRes, cyclesRes, typesRes] = await Promise.all([
+            api.get(`/projects/${props.projectId}/settings/states`),
+            api.get(`/projects/${props.projectId}/cycles`),
+            issueTypeApi.getIssueTypes(props.workspaceId, props.projectId)
+          ])
+          stateOptions.value = Array.isArray(statesRes.data) ? statesRes.data : (statesRes.data?.states || [])
+          cycleOptions.value = Array.isArray(cyclesRes.data) ? cyclesRes.data : (cyclesRes.data?.items || cyclesRes.data?.cycles || [])
+          issueTypeOptions.value = typesRes
         } catch { /* */ }
       }
     } catch (e) {
@@ -333,7 +352,7 @@ async function saveEdit() {
     emit('close')
   } catch (e) {
     console.error('Failed to save issue:', e)
-    alert(t('issueDetail.saveFailed'))
+    toast.error(t('issueDetail.saveFailed'))
   } finally {
     saving.value = false
   }

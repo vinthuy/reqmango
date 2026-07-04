@@ -335,6 +335,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useToast } from '@/composables/useToast'
 import type { CustomField, CustomFieldCreate, CustomFieldUpdate, CustomFieldOptionCreate } from '@/types/custom-field'
 import { CustomFieldTypeEnum, getFieldTypeName } from '@/types/custom-field'
 import { useConfirm } from '@/composables/useConfirm'
@@ -342,6 +343,7 @@ import * as customFieldApi from '@/api/custom-field'
 import api from '@/api'
 
 const { t } = useI18n()
+const toast = useToast()
 
 const props = defineProps<{
   workspaceId: number
@@ -527,8 +529,10 @@ async function submitForm() {
     }
     closeDrawer()
     await loadData()
+    toast.success(t('customField.saveSuccess'))
   } catch (error) {
     console.error('Failed to submit form:', error)
+    toast.error(t('customField.saveFailed'))
   }
 }
 
@@ -545,8 +549,10 @@ async function toggleActive(field: CustomField) {
     try {
       await customFieldApi.updateCustomField(field.id, { is_active: !field.is_active })
       await loadData()
+      toast.success(t('customField.toggleSuccess'))
     } catch (error) {
       console.error('Failed to toggle active:', error)
+      toast.error(t('customField.toggleFailed'))
     }
   }
 }
@@ -561,8 +567,10 @@ async function confirmDelete(field: CustomField) {
     try {
       await customFieldApi.deleteCustomField(field.id)
       await loadData()
+      toast.success(t('customField.deleteSuccess'))
     } catch (error) {
       console.error('Failed to delete field:', error)
+      toast.error(t('customField.deleteFailed'))
     }
   }
 }
