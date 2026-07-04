@@ -58,6 +58,7 @@ func TimeEntryNotFound() *AppError  { return NewError(ErrTimeEntryNotFound, "Tim
 func RecurrenceNotFound() *AppError { return NewError(ErrRecurrenceNotFound, "Recurrence rule not found") }
 func NotificationNotFound() *AppError { return NewError(ErrNotificationNotFound, "Notification not found") }
 func AgentNotFound() *AppError          { return NewError(ErrAgentNotFound, "Agent not found") }
+func DashboardNotFound() *AppError     { return NewError(ErrDashboardNotFound, "Dashboard not found") }
 
 // ==================== Standard Response Helpers ====================
 

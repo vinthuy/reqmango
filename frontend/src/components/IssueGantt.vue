@@ -76,7 +76,7 @@ import api from '@/api'
 
 const { t } = useI18n()
 
-const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string }>()
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
 
 const issues = ref<any[]>([])
@@ -174,13 +174,15 @@ function priorityColor(p: string) {
 }
 
 onMounted(() => load())
-watch(() => [props.projectId, props.rql], () => load())
+watch(() => [props.projectId, props.rql, props.filterSortBy, props.filterSortDir, props.filterSortConfig], () => load())
 
 async function load() {
   try {
     let url = `/issues?project_id=${props.projectId}&limit=500`
     if (props.rql) url += `&rql=${encodeURIComponent(props.rql)}`
-    if (props.filterSortBy) {
+    if (props.filterSortConfig) {
+      url += `&sort_config=${encodeURIComponent(props.filterSortConfig)}`
+    } else if (props.filterSortBy) {
       url += `&sort_by=${props.filterSortBy}&sort_dir=${props.filterSortDir || 'desc'}`
     }
     const r = await api.get(url)

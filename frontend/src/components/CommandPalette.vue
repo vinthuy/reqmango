@@ -62,6 +62,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'navigate', path: string): void
+  (e: 'openCopilot'): void
 }>()
 
 const router = useRouter()
@@ -85,8 +86,7 @@ const commands = computed<CommandItem[]>(() => {
   return [
     { id: 'new-issue', label: t('cmdpalette.newIssue'), description: t('cmdpalette.newIssueDesc'), icon: '➕', shortcut: 'N', action: () => router.push(`/workspaces/${wid}/projects/${pid}/issues/new`) },
     { id: 'new-bug', label: t('cmdpalette.newBug'), description: t('cmdpalette.newBugDesc'), icon: '🐛', action: () => router.push(`/workspaces/${wid}/projects/${pid}/issues/new?type=bug`) },
-    { id: 'ai-chat', label: t('cmdpalette.aiChat'), description: t('cmdpalette.aiChatDesc'), icon: '🤖', shortcut: '⌘J', action: () => emit('navigate', '/ai-chat') },
-    { id: 'ai-create', label: t('cmdpalette.aiCreate'), description: t('cmdpalette.aiCreateDesc'), icon: '✨', action: () => emit('navigate', '/ai-create') },
+    { id: 'ai-copilot', label: t('cmdpalette.aiCopilot'), description: t('cmdpalette.aiCopilotDesc'), icon: '🤖', shortcut: '⌘J', action: () => emit('openCopilot') },
     { id: 'go-issues', label: t('cmdpalette.goIssues'), description: t('cmdpalette.goIssuesDesc'), icon: '📋', action: () => router.push(`/workspace/${s}/project/${pid}`) },
     { id: 'go-pages', label: t('cmdpalette.goPages'), description: t('cmdpalette.goPagesDesc'), icon: '📄', action: () => router.push(`/workspace/${s}/project/${pid}/pages`) },
     { id: 'go-settings', label: t('cmdpalette.goSettings'), description: t('cmdpalette.goSettingsDesc'), icon: '⚙️', action: () => router.push(`/workspace/${s}/project/${pid}/settings`) },

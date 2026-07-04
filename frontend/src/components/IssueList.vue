@@ -149,12 +149,14 @@
                 </div>
               </td>
             </tr>
-            <tr v-for="issue in group.issues" :key="issue.id"
-              class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
-              :class="{ 'bg-blue-50/50': selectedIds.has(issue.id) }">
-              <td class="px-3 py-2.5" @click.stop>
-                <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300" />
-              </td>
+            <!-- Flat list (no sub-grouping) -->
+            <template v-if="!group.subGroups || group.subGroups.length === 0">
+              <tr v-for="issue in group.issues" :key="issue.id"
+                class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                :class="{ 'bg-blue-50/50': selectedIds.has(issue.id) }">
+                <td class="px-3 py-2.5" @click.stop>
+                  <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300" />
+                </td>
               <td v-for="col in visibleColumns" :key="col.key" class="px-3 py-2.5" @click="$emit('select', issue)">
                 <!-- 编号 -->
                 <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-400 font-mono">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
@@ -192,6 +194,55 @@
                 <button @click="$emit('select', issue)" class="text-xs text-blue-500 hover:text-blue-700 font-medium">{{ t('issueList.view') }}</button>
               </td>
             </tr>
+          </template>
+          <!-- Sub-grouped list -->
+          <template v-else>
+            <template v-for="sub in group.subGroups" :key="sub.key">
+              <tr class="bg-gray-50/50">
+                <td colspan="100%" class="px-3 py-1.5 pl-8">
+                  <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                    <span class="text-xs font-medium text-gray-600">{{ sub.label }}</span>
+                    <span class="text-xs text-gray-400">({{ sub.issues.length }})</span>
+                  </div>
+                </td>
+              </tr>
+              <tr v-for="issue in sub.issues" :key="issue.id"
+                class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                :class="{ 'bg-blue-50/50': selectedIds.has(issue.id) }">
+                <td class="px-3 py-2.5" @click.stop>
+                  <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300" />
+                </td>
+                <td v-for="col in visibleColumns" :key="col.key" class="px-3 py-2.5" @click="$emit('select', issue)">
+                  <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-400 font-mono">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
+                  <span v-else-if="col.key === 'name'" class="text-sm text-gray-800 font-medium line-clamp-2 hover:text-gray-900 transition-colors" v-html="highlightSearchTerm(issue.name, props.searchTerm || '')"></span>
+                  <span v-else-if="col.key === 'priority'" :class="priorityClass(issue.priority)" class="text-xs px-1.5 py-0.5 rounded whitespace-nowrap">{{ priorityLabel(issue.priority) }}</span>
+                  <span v-else-if="col.key === 'issue_type'" class="text-xs whitespace-nowrap">
+                    <span v-if="issue.issue_type" class="inline-flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: issue.issue_type.color }"></span>
+                      <span class="text-gray-600">{{ issue.issue_type.name }}</span>
+                    </span>
+                    <span v-else class="text-gray-400">-</span>
+                  </span>
+                  <span v-else-if="col.key === 'state'" class="text-xs text-gray-600 whitespace-nowrap">{{ getStateName(issue.state_id) }}</span>
+                  <div v-else-if="col.key === 'assignees'" class="flex -space-x-1">
+                    <div v-for="(a, idx) in (issue.assignees || []).slice(0, 3)" :key="a.id"
+                      class="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[10px] font-medium text-white ring-2 ring-white"
+                      :style="{ backgroundColor: assigneeColor(Number(idx)) }" :title="a.display_name || a.username">{{ getInitials(a.display_name || a.username) }}</div>
+                    <span v-if="!issue.assignees?.length" class="text-xs text-gray-400">-</span>
+                  </div>
+                  <span v-else-if="col.key === 'cycle'" class="text-xs text-gray-500 whitespace-nowrap">{{ getCycleName(issue) }}</span>
+                  <span v-else-if="col.key === 'start_date'" class="text-xs text-gray-500">{{ formatDate(issue.start_date) }}</span>
+                  <span v-else-if="col.key === 'target_date'" class="text-xs text-gray-500">{{ formatDate(issue.target_date) }}</span>
+                  <span v-else-if="col.key === 'created_at'" class="text-xs text-gray-400">{{ formatDate(issue.created_at) }}</span>
+                  <span v-else-if="col.key.startsWith('cf_')" class="text-xs text-gray-600 whitespace-nowrap">{{ getCFValue(issue.id, col.key) }}</span>
+                </td>
+                <td class="px-3 py-2.5" @click.stop>
+                  <button @click="$emit('select', issue)" class="text-xs text-blue-500 hover:text-blue-700 font-medium">{{ t('issueList.view') }}</button>
+                </td>
+              </tr>
+            </template>
+          </template>
           </template>
         </tbody>
       </table>
@@ -295,13 +346,14 @@ import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
 import { highlightSearchTerm } from '@/utils/highlight'
 
-const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterGroupBy?: string; searchTerm?: string; columns?: string[] }>()
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string; searchTerm?: string; columns?: string[] }>()
 const router = useRouter()
 const { t, locale } = useI18n()
 
 const emit = defineEmits<{
   (e: 'select', issue: any): void
   (e: 'delete', issue: any): void
+  (e: 'columns-changed', columns: string[]): void
 }>()
 
 // ── Project Identifier ──
@@ -364,6 +416,7 @@ function applyColumnChanges() {
   visibleColumnKeys.value = new Set(tempColumnKeys.value)
   saveColumnPrefs()
   showColumnModal.value = false
+  emit('columns-changed', [...visibleColumnKeys.value])
 }
 
 function cancelColumnChanges() {
@@ -464,14 +517,47 @@ const memberOptions = computed(() => members.value.map((m: any) => ({
   email: m.user?.email
 })))
 
-interface GroupedIssue {
+interface SubGroupedIssue {
   key: string
   label: string
   issues: any[]
 }
 
+interface GroupedIssue {
+  key: string
+  label: string
+  issues: any[]
+  subGroups?: SubGroupedIssue[]
+}
+
+function getIssueGroupKey(issue: any, groupBy: string): { key: string; label: string } {
+  switch (groupBy) {
+    case 'state_id':
+      return { key: String(issue.state_id), label: getStateName(issue.state_id) }
+    case 'priority':
+      return { key: issue.priority || 'none', label: priorityLabel(issue.priority || 'none') }
+    case 'assignee_id': {
+      const assignee = (issue.assignees && issue.assignees.length > 0) ? issue.assignees[0] : null
+      return { key: assignee ? String(assignee.id) : 'unassigned', label: assignee ? (assignee.display_name || assignee.username) : t('issueList.unassigned') }
+    }
+    case 'type_id':
+      return { key: String(issue.issue_type?.id || 0), label: issue.issue_type?.name || '-' }
+    case 'cycle_id':
+      return { key: String(issue.cycle_link?.id || 0), label: getCycleName(issue) }
+    case 'module_id':
+      return { key: String(issue.module_id || 0), label: issue.module?.name || '-' }
+    case 'label': {
+      const labels = issue.labels || []
+      return { key: labels.length > 0 ? String(labels[0].id) : 'no_label', label: labels.length > 0 ? labels[0].name : t('issueList.noLabel') }
+    }
+    default:
+      return { key: 'all', label: '' }
+  }
+}
+
 const groupedIssues = computed((): GroupedIssue[] => {
   const groupBy = props.filterGroupBy
+  const subGroupBy = props.filterSubGroupBy
   if (!groupBy || groupBy === 'none') {
     return [{ key: 'all', label: '', issues: issues.value }]
   }
@@ -479,49 +565,27 @@ const groupedIssues = computed((): GroupedIssue[] => {
   const groups: Record<string, GroupedIssue> = {}
 
   for (const issue of issues.value) {
-    let key: string
-    let label: string
-
-    switch (groupBy) {
-      case 'state_id':
-        key = String(issue.state_id)
-        label = getStateName(issue.state_id)
-        break
-      case 'priority':
-        key = issue.priority || 'none'
-        label = priorityLabel(issue.priority || 'none')
-        break
-      case 'assignee_id':
-        const assignee = (issue.assignees && issue.assignees.length > 0) ? issue.assignees[0] : null
-        key = assignee ? String(assignee.id) : 'unassigned'
-        label = assignee ? (assignee.display_name || assignee.username) : t('issueList.unassigned')
-        break
-      case 'type_id':
-        key = String(issue.issue_type?.id || 0)
-        label = issue.issue_type?.name || '-'
-        break
-      case 'cycle_id':
-        key = String(issue.cycle_link?.id || 0)
-        label = getCycleName(issue)
-        break
-      case 'module_id':
-        key = String(issue.module_id || 0)
-        label = issue.module?.name || '-'
-        break
-      case 'label':
-        const labels = issue.labels || []
-        key = labels.length > 0 ? String(labels[0].id) : 'no_label'
-        label = labels.length > 0 ? labels[0].name : t('issueList.noLabel')
-        break
-      default:
-        key = 'all'
-        label = ''
-    }
+    const { key, label } = getIssueGroupKey(issue, groupBy)
 
     if (!groups[key]) {
-      groups[key] = { key, label, issues: [] }
+      groups[key] = { key, label, issues: [], subGroups: undefined }
     }
     groups[key].issues.push(issue)
+  }
+
+  // Apply sub-grouping if requested
+  if (subGroupBy && subGroupBy !== 'none') {
+    for (const group of Object.values(groups)) {
+      const subGroups: Record<string, SubGroupedIssue> = {}
+      for (const issue of group.issues) {
+        const { key: subKey, label: subLabel } = getIssueGroupKey(issue, subGroupBy)
+        if (!subGroups[subKey]) {
+          subGroups[subKey] = { key: subKey, label: subLabel, issues: [] }
+        }
+        subGroups[subKey].issues.push(issue)
+      }
+      group.subGroups = Object.values(subGroups).sort((a, b) => a.label.localeCompare(b.label))
+    }
   }
 
   return Object.values(groups).sort((a, b) => a.label.localeCompare(b.label))
@@ -622,7 +686,9 @@ async function loadIssues() {
     // RQL filter from FilterBar
     if (props.rql) params.rql = props.rql
     // Sort: use FilterBar sort if provided, otherwise fall back to column sort
-    if (props.filterSortBy) {
+    if (props.filterSortConfig) {
+      params.sort_config = props.filterSortConfig
+    } else if (props.filterSortBy) {
       params.sort_by = props.filterSortBy
       params.sort_dir = props.filterSortDir || 'desc'
     } else if (sortBy.value) {
@@ -690,8 +756,12 @@ async function loadProjectInfo() {
 }
 
 // ── Lifecycle ──
-onMounted(() => {
-  if (props.workspaceId > 0) Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes(), loadProjectInfo()])
+onMounted(async () => {
+  if (props.workspaceId > 0) {
+    await Promise.all([loadIssues(), loadStates(), loadCycles(), loadMembers(), loadCustomFields(), loadIssueTypes(), loadProjectInfo()])
+    // Report initial columns up to parent so FilterBar can save them in a view
+    emit('columns-changed', [...visibleColumnKeys.value])
+  }
 })
 
 onUnmounted(() => {
@@ -706,7 +776,7 @@ watch(() => props.rql, () => {
   loadIssues()
 })
 
-watch([() => props.filterSortBy, () => props.filterSortDir], () => {
+watch([() => props.filterSortBy, () => props.filterSortDir, () => props.filterSortConfig], () => {
   page.value = 1
   loadIssues()
 })

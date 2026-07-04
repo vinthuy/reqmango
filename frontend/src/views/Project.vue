@@ -26,7 +26,6 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <button @click="showAICreate = true" class="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-medium rounded-md hover:from-indigo-600 hover:to-purple-700 transition shadow-sm">🤖 {{ t('project.aiCreate') }}</button>
             <button @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition shadow-sm">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               {{ t('project.create') }}
@@ -54,6 +53,7 @@
           :workspace-id="workspaceId"
           :current-view="issueView"
           :project-identifier="project?.identifier || ''"
+          :current-columns="currentColumns"
           @view-change="handleViewChange"
           @filters-changed="handleFiltersChanged"
           @columns-changed="handleColumnsChanged"
@@ -69,10 +69,12 @@
           :filter-sort-by="currentSortBy[0]?.key"
           :filter-sort-dir="currentSortBy[0]?.direction"
           :filter-group-by="currentGroupBy?.key"
+          :filter-sub-group-by="currentSubGroupBy?.key"
           :search-term="searchTerm"
           :columns="currentColumns"
           @select="openDetailPanel"
           @delete="handleDeleteIssue"
+          @columns-changed="handleColumnsChanged"
         />
         <IssueKanban
           v-else-if="issueView === 'kanban'"
@@ -83,6 +85,8 @@
           :filter-sort-config="sortConfigJson"
           :filter-sort-by="currentSortBy[0]?.key"
           :filter-sort-dir="currentSortBy[0]?.direction"
+          :filter-group-by="currentGroupBy?.key"
+          :filter-sub-group-by="currentSubGroupBy?.key"
           @select="openDetailPanel"
         />
         <IssueTreeView
@@ -95,6 +99,7 @@
           :filter-sort-by="currentSortBy[0]?.key"
           :filter-sort-dir="currentSortBy[0]?.direction"
           :filter-group-by="currentGroupBy?.key"
+          :filter-sub-group-by="currentSubGroupBy?.key"
           @select="openDetailPanel"
         />
         <IssueCalendar
@@ -217,8 +222,8 @@
     </div>
   </div>
 
-  <!-- AI Chat Sidebar -->
-  <AIChatSidebar
+  <!-- AI Copilot Panel -->
+  <AICopilot
     :visible="showAIChat"
     :project-id="projectId"
     :workspace-id="workspaceId"
@@ -226,13 +231,7 @@
     @close="showAIChat = false"
     @quick-create="handleAIQuickCreate"
     @save-as-page="handleAISaveAsPage"
-  />
-  <AICreateDialog
-    :visible="showAICreate"
-    :project-id="projectId"
-    :workspace-id="workspaceId"
-    @close="showAICreate = false"
-    @created="triggerRefresh()"
+    @issue-created="triggerRefresh()"
   />
   <CommandPalette
     :visible="showCommandPalette"
@@ -240,6 +239,7 @@
     :project-id="projectId"
     :workspace-id="workspaceId"
     @close="showCommandPalette = false"
+    @open-copilot="showAIChat = true; showCommandPalette = false"
   />
   <PageTabConfig v-if="showPageConfig" :project-id="projectId" @close="showPageConfig = false" @saved="tabs => { pageTabs = tabs }" />
 
@@ -300,8 +300,7 @@ import ModuleList from '@/components/ModuleList.vue'
 import ModuleDetailPanel from '@/components/ModuleDetailPanel.vue'
 import ModuleFormModal from '@/components/ModuleFormModal.vue'
 import FilterBar from '@/components/FilterBar.vue'
-import AIChatSidebar from '@/components/AIChatSidebar.vue'
-import AICreateDialog from '@/components/AICreateDialog.vue'
+import AICopilot from '@/components/AICopilot.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
 import PageTabConfig from '@/components/PageTabConfig.vue'
 import ReportBuilder from '@/components/ReportBuilder.vue'
@@ -325,6 +324,7 @@ function triggerRefresh() { issueRefreshKey.value++ }
 const currentRQL = ref('')
 const currentSortBy = ref<any[]>([])  // multi-sort array
 const currentGroupBy = ref<any>(null)
+const currentSubGroupBy = ref<any>(null)
 const currentColumns = ref<string[]>([])
 
 const searchTerm = computed(() => extractSearchTerm(currentRQL.value))
@@ -339,10 +339,11 @@ const sortConfigJson = computed(() => {
   return JSON.stringify(config)
 })
 
-function handleFiltersChanged(rql: string, sortBy: any[] = [], groupBy: any = null) {
+function handleFiltersChanged(rql: string, sortBy: any[] = [], groupBy: any = null, subGroupBy: any = null) {
   currentRQL.value = rql
   currentSortBy.value = sortBy
   currentGroupBy.value = groupBy
+  currentSubGroupBy.value = subGroupBy
   triggerRefresh()
 }
 
@@ -370,23 +371,12 @@ const editingModule = ref<ModuleResponse | null>(null)
 
 // AI state
 const showAIChat = ref(false)
-const showAICreate = ref(false)
-const showQuickCreate = ref(false)
-const quickCreatePreview = ref<Record<string, any>>({})
 const showCommandPalette = ref(false)
 
 // AI result action handlers
-function handleAIQuickCreate(preview: Record<string, any>) {
-  quickCreatePreview.value = preview
-  showAICreate.value = true  // Reuse existing AICreateDialog with prefilled data
-  // Pre-fill the AI create dialog textarea
-  nextTick(() => {
-    const textarea = document.querySelector('.ai-create-dialog textarea') as HTMLTextAreaElement
-    if (textarea && preview.description) {
-      textarea.value = preview.description
-      textarea.dispatchEvent(new Event('input', { bubbles: true }))
-    }
-  })
+function handleAIQuickCreate(_preview: Record<string, any>) {
+  // AICopilot handles quick create internally by switching to Create tab
+  showAIChat.value = true
 }
 
 function handleAISaveAsPage(data: { title: string; content: string }) {
@@ -450,6 +440,10 @@ watch(activeTab, (tab) => {
   }
   if (tab === 'pages') {
     router.push(`/workspace/${route.params.slug}/project/${projectId.value}/pages`)
+    return
+  }
+  if (tab === 'dashboards') {
+    router.push(`/workspace/${route.params.slug}/project/${projectId.value}/dashboards`)
     return
   }
   detailPanelVisible.value = false
@@ -517,6 +511,7 @@ const defaultTabs = computed(() => [
   { id: 'updates', name: t('project.tab.updates') },
   { id: 'pages', name: t('project.tab.pages') },
   { id: 'reports', name: t('project.tab.reports') },
+  { id: 'dashboards', name: t('project.tab.dashboards') },
   { id: 'settings', name: t('project.tab.settings') },
 ])
 

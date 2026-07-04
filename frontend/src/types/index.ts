@@ -194,3 +194,6 @@ export * from './project'
 
 // Re-export workflow types
 export * from './workflow'
+
+// Re-export dashboard types
+export * from './dashboard'

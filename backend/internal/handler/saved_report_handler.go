@@ -5,7 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
-	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -22,37 +23,87 @@ func (h *SavedReportHandler) List(c *gin.Context) {
 		common.RespondError(c, err)
 		return
 	}
-	common.RespondOK(c, reports)
+
+	// Convert model to response DTO
+	var result []response.SavedReportResponse
+	for _, r := range reports {
+		result = append(result, response.SavedReportResponse{
+			ID:         r.ID,
+			Name:       r.Name,
+			ReportType: r.ReportType,
+			GroupBy:    r.GroupBy,
+			ChartType:  r.ChartType,
+			RQL:        r.RQL,
+			Interval:   r.Interval,
+			DateFrom:   r.DateFrom,
+			DateTo:     r.DateTo,
+			ProjectID:  r.ProjectID,
+			CreatedAt:  r.CreatedAt,
+			UpdatedAt:  r.UpdatedAt,
+		})
+	}
+	common.RespondOK(c, result)
 }
 
 func (h *SavedReportHandler) Create(c *gin.Context) {
 	pid, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
-	var report model.SavedReport
-	if err := c.ShouldBindJSON(&report); err != nil {
+	var req request.SavedReportCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		common.RespondError(c, common.BadRequest(err.Error()))
 		return
 	}
-	report.ProjectID = pid
-	if err := h.svc.Create(&report); err != nil {
+
+	report, err := h.svc.Create(pid, &req)
+	if err != nil {
 		common.RespondError(c, err)
 		return
 	}
-	common.RespondOK(c, report)
+
+	common.RespondOK(c, response.SavedReportResponse{
+		ID:         report.ID,
+		Name:       report.Name,
+		ReportType: report.ReportType,
+		GroupBy:    report.GroupBy,
+		ChartType:  report.ChartType,
+		RQL:        report.RQL,
+		Interval:   report.Interval,
+		DateFrom:   report.DateFrom,
+		DateTo:     report.DateTo,
+		ProjectID:  report.ProjectID,
+		CreatedAt:  report.CreatedAt,
+		UpdatedAt:  report.UpdatedAt,
+	})
 }
 
 func (h *SavedReportHandler) Update(c *gin.Context) {
 	pid, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	var updates map[string]interface{}
-	if err := c.ShouldBindJSON(&updates); err != nil {
+	var req request.SavedReportUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		common.RespondError(c, common.BadRequest(err.Error()))
 		return
 	}
-	if err := h.svc.Update(id, pid, updates); err != nil {
+
+	report, err := h.svc.Update(id, pid, &req)
+	if err != nil {
 		common.RespondError(c, err)
 		return
 	}
-	common.RespondOK(c, gin.H{"message": "Updated"})
+
+	common.RespondOK(c, response.SavedReportResponse{
+		ID:         report.ID,
+		Name:       report.Name,
+		ReportType: report.ReportType,
+		GroupBy:    report.GroupBy,
+		ChartType:  report.ChartType,
+		RQL:        report.RQL,
+		Interval:   report.Interval,
+		DateFrom:   report.DateFrom,
+		DateTo:     report.DateTo,
+		ProjectID:  report.ProjectID,
+		CreatedAt:  report.CreatedAt,
+		UpdatedAt:  report.UpdatedAt,
+	})
 }
 
 func (h *SavedReportHandler) Delete(c *gin.Context) {

@@ -6,7 +6,7 @@ export interface ProjectPageTab {
   owner_id: number
   name: string
   icon: string
-  tab_type: 'issues' | 'cycles' | 'modules' | 'updates' | 'pages' | 'settings' | 'analytics' | 'roadmap' | 'releases' | 'custom'
+  tab_type: 'issues' | 'cycles' | 'modules' | 'updates' | 'pages' | 'settings' | 'analytics' | 'dashboards' | 'roadmap' | 'releases' | 'custom'
   route_key: string
   target_type: 'saved_view' | 'url' | ''
   target_id?: number

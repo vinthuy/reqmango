@@ -185,7 +185,7 @@ import QuickCreateInput from '@/components/QuickCreateInput.vue'
 import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
 
-const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterGroupBy?: string }>()
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
 const { t } = useI18n()
 
@@ -205,6 +205,19 @@ watch(() => props.filterGroupBy, (newGroupBy) => {
       'label': 'labels',
     }
     groupBy.value = groupMap[newGroupBy] || 'state'
+  }
+})
+
+watch(() => props.filterSubGroupBy, (newSubGroupBy) => {
+  if (newSubGroupBy && newSubGroupBy !== 'none') {
+    const swimlaneMap: Record<string, 'assignee' | 'priority' | 'type'> = {
+      'assignee_id': 'assignee',
+      'priority': 'priority',
+      'type_id': 'type',
+    }
+    swimlaneBy.value = swimlaneMap[newSubGroupBy] || ''
+  } else {
+    swimlaneBy.value = ''
   }
 })
 
@@ -507,7 +520,9 @@ async function loadIssues() {
   try {
     const params: any = { limit: 200 }
     if (props.rql) params.rql = props.rql
-    if (props.filterSortBy) {
+    if (props.filterSortConfig) {
+      params.sort_config = props.filterSortConfig
+    } else if (props.filterSortBy) {
       params.sort_by = props.filterSortBy
       params.sort_dir = props.filterSortDir || 'desc'
     }
@@ -518,7 +533,7 @@ async function loadIssues() {
 }
 
 onMounted(() => Promise.all([loadIssues(), loadStates(), loadMembers(), loadIssueTypes()]))
-watch(() => props.rql, () => loadIssues())
+watch(() => [props.rql, props.filterSortBy, props.filterSortDir, props.filterSortConfig], () => loadIssues())
 
 async function loadStates() {
   try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ }

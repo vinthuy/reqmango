@@ -20,6 +20,11 @@ export interface SortOption {
   direction: 'asc' | 'desc'
 }
 
+export interface SortConfigEntry {
+  field: string
+  dir: 'asc' | 'desc'
+}
+
 export interface GroupOption {
   key: string
   labelKey: string
@@ -50,7 +55,7 @@ function formatValue(value: any, valueType: 'string' | 'number' | 'date' | 'bool
 
 export interface RQLResult {
   filters: FilterCondition[]
-  sortBy?: SortOption
+  sortBy?: SortOption[]  // multi-sort, parsed from orderby clauses
 }
 
 export function buildRQL(filters: FilterCondition[], quickSearchValue?: string): string {
@@ -65,7 +70,7 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string):
         const sequenceId = parts[1]
         clauses.push(`sequence_id = ${sequenceId}`)
       } else {
-        clauses.push(`(name LIKE "${qs}" OR description LIKE "${qs}")`)
+        clauses.push(`(name LIKE "%${qs}%" OR description LIKE "%${qs}%")`)
       }
     }
   }
@@ -139,7 +144,7 @@ export function parseRQL(rqlStr: string): RQLResult {
   if (!rqlStr.trim()) return { filters: [] }
 
   const conditions: FilterCondition[] = []
-  let sortBy: SortOption | undefined
+  const sortBy: SortOption[] = []
 
   // Split by AND but preserve BETWEEN ranges (field >= "v1" AND field <= "v2")
   const clauses = splitRQLClauses(rqlStr)
@@ -150,11 +155,11 @@ export function parseRQL(rqlStr: string): RQLResult {
 
     const orderbyMatch = trimmed.match(/^orderby (\w+) (asc|desc)$/i)
     if (orderbyMatch) {
-      sortBy = {
+      sortBy.push({
         key: orderbyMatch[1],
         labelKey: SORT_OPTIONS.find(s => s.key === orderbyMatch[1])?.labelKey || '',
         direction: orderbyMatch[2].toLowerCase() as 'asc' | 'desc'
-      }
+      })
       continue
     }
 
@@ -278,7 +283,7 @@ export function parseRQL(rqlStr: string): RQLResult {
     }
   }
 
-  return { filters: conditions, sortBy }
+  return { filters: conditions, sortBy: sortBy.length > 0 ? sortBy : undefined }
 }
 
 /**
@@ -345,4 +350,17 @@ export const GROUP_OPTIONS: GroupOption[] = [
   { key: 'cycle_id', labelKey: 'filter.groupByCycle' },
   { key: 'module_id', labelKey: 'filter.groupByModule' },
   { key: 'type_id', labelKey: 'filter.groupByType' },
+]
+
+export type SubGroupOption = GroupOption
+
+export const SUB_GROUP_OPTIONS: SubGroupOption[] = [
+  { key: 'none', labelKey: 'filter.subGroupByNone' },
+  { key: 'state_id', labelKey: 'filter.subGroupByState' },
+  { key: 'priority', labelKey: 'filter.subGroupByPriority' },
+  { key: 'assignee_id', labelKey: 'filter.subGroupByAssignee' },
+  { key: 'label', labelKey: 'filter.subGroupByLabel' },
+  { key: 'cycle_id', labelKey: 'filter.subGroupByCycle' },
+  { key: 'module_id', labelKey: 'filter.subGroupByModule' },
+  { key: 'type_id', labelKey: 'filter.subGroupByType' },
 ]

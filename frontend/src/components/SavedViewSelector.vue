@@ -30,6 +30,7 @@
             <span v-if="view.is_default" class="text-xs bg-indigo-100 text-indigo-600 px-1.5 rounded">{{ t('filter.defaultViewBadge') }}</span>
           </span>
           <span class="hidden group-hover:flex items-center gap-1">
+            <button @click.stop="editView(view)" :title="t('filter.editView')" class="text-gray-400 hover:text-indigo-600">✏️</button>
             <button @click.stop="setDefault(view)" :title="t('filter.setAsDefault')" class="text-gray-400 hover:text-indigo-600">⭐</button>
             <button @click.stop="duplicateView(view)" :title="t('filter.duplicateView')" class="text-gray-400 hover:text-indigo-600">📋</button>
             <button @click.stop="promptDelete(view)" :title="t('filter.delete')" class="text-gray-400 hover:text-red-500">🗑️</button>
@@ -44,10 +45,10 @@
     </div>
   </div>
 
-  <!-- Save View Modal -->
+  <!-- Save / Edit View Modal -->
   <div v-if="showSaveModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showSaveModal = false">
     <div class="bg-white rounded-xl p-6 w-full max-w-md">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('filter.saveView') }}</h3>
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingView ? t('filter.editView') : t('filter.saveView') }}</h3>
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('filter.viewNameLabel') }}</label>
@@ -69,8 +70,8 @@
         </div>
       </div>
       <div class="flex justify-end space-x-3 mt-6">
-        <button @click="showSaveModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('filter.cancel') }}</button>
-        <button @click="doSave" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ t('filter.save') }}</button>
+        <button @click="closeSaveModal" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('filter.cancel') }}</button>
+        <button @click="doSave" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingView ? t('filter.update') : t('filter.save') }}</button>
       </div>
     </div>
   </div>
@@ -92,7 +93,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import * as savedViewApi from '@/api/saved-view'
-import type { SavedView, SavedViewCreate } from '@/types/saved-view'
+import type { SavedView, SavedViewCreate, SavedViewUpdate } from '@/types/saved-view'
 
 const { t } = useI18n()
 
@@ -102,6 +103,7 @@ const props = defineProps<{
   currentRQL?: string
   currentColumns?: string[]
   currentGroupBy?: string
+  currentSubGroupBy?: string
   currentSortConfig?: { field: string; dir: 'asc' | 'desc' }[]
   viewType?: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
 }>()
@@ -118,6 +120,7 @@ const open = ref(false)
 const showSaveModal = ref(false)
 const showDeleteConfirm = ref(false)
 const deletingView = ref<SavedView | null>(null)
+const editingView = ref<SavedView | null>(null)
 
 const saveForm = ref({
   name: '',
@@ -158,6 +161,7 @@ function selectView(view: SavedView) {
 }
 
 function saveCurrent() {
+  editingView.value = null
   saveForm.value = {
     name: '',
     view_type: props.viewType || 'list',
@@ -167,23 +171,58 @@ function saveCurrent() {
   showSaveModal.value = true
 }
 
+function editView(view: SavedView) {
+  editingView.value = view
+  saveForm.value = {
+    name: view.name,
+    view_type: view.view_type as any,
+    is_shared: view.is_shared,
+  }
+  open.value = false
+  showSaveModal.value = true
+}
+
+function closeSaveModal() {
+  showSaveModal.value = false
+  editingView.value = null
+}
+
 async function doSave() {
   if (!saveForm.value.name.trim()) return
   try {
-    const data: SavedViewCreate = {
-      name: saveForm.value.name.trim(),
-      view_type: saveForm.value.view_type,
-      filters: props.currentFilters || {},
-      rql: props.currentRQL || '',
-      columns: props.currentColumns || [],
-      sort_config: props.currentSortConfig || [],
-      group_by: props.currentGroupBy,
-      is_shared: saveForm.value.is_shared,
+    if (editingView.value) {
+      // Update existing view
+      const data: SavedViewUpdate = {
+        name: saveForm.value.name.trim(),
+        view_type: saveForm.value.view_type,
+        is_shared: saveForm.value.is_shared,
+      }
+      const updated = await savedViewApi.updateSavedView(props.projectId, editingView.value.id, data)
+      const idx = views.value.findIndex(v => v.id === editingView.value!.id)
+      if (idx !== -1) {
+        views.value[idx] = { ...views.value[idx], ...updated }
+      }
+      editingView.value = null
+    } else {
+      // Create new view
+      const data: SavedViewCreate = {
+        name: saveForm.value.name.trim(),
+        view_type: saveForm.value.view_type,
+        filters: props.currentFilters || {},
+        rql: props.currentRQL || '',
+        columns: props.currentColumns || [],
+        sort_config: props.currentSortConfig || [],
+        group_by: props.currentGroupBy,
+        sub_group_by: props.currentSubGroupBy,
+        is_shared: saveForm.value.is_shared,
+      }
+      const created = await savedViewApi.createSavedView(props.projectId, data)
+      views.value.push(created)
+      selectedViewId.value = created.id
+      emit('select', created)
     }
-    const created = await savedViewApi.createSavedView(props.projectId, data)
-    views.value.push(created)
-    selectedViewId.value = created.id
     showSaveModal.value = false
+    emit('save-request', props.currentFilters || {}, props.currentRQL || '')
   } catch (e) { console.error('Failed to save view:', e) }
 }
 

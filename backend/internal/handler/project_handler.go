@@ -9,6 +9,7 @@ import (
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -28,6 +29,13 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
+		return
+	}
+
+	// Security Check: Verify user is a member of the workspace
+	var member model.WorkspaceMember
+	if err := h.svc.DB().Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, user.ID, true).First(&member).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you are not a member of this workspace"})
 		return
 	}
 
@@ -67,9 +75,17 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 
 // List handles GET /projects/?workspace_id=int
 func (h *ProjectHandler) List(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
+		return
+	}
+
+	// Security Check: Verify user is a member of the workspace
+	var member model.WorkspaceMember
+	if err := h.svc.DB().Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, user.ID, true).First(&member).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you are not a member of this workspace"})
 		return
 	}
 

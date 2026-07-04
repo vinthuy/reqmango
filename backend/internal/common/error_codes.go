@@ -36,6 +36,7 @@ const (
 	ErrRecurrenceNotFound ErrorCode = "RECURRENCE_NOT_FOUND"
 	ErrNotificationNotFound ErrorCode = "NOTIFICATION_NOT_FOUND"
 	ErrAgentNotFound       ErrorCode = "AGENT_NOT_FOUND"
+	ErrDashboardNotFound   ErrorCode = "DASHBOARD_NOT_FOUND"
 
 	// Validation errors
 	ErrRequiredField  ErrorCode = "REQUIRED_FIELD"

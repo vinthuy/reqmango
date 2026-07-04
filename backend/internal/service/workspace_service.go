@@ -18,6 +18,11 @@ func NewWorkspaceService(db *gorm.DB) *WorkspaceService {
 	return &WorkspaceService{db: db}
 }
 
+// DB returns the database instance for use in handlers (for security checks).
+func (s *WorkspaceService) DB() *gorm.DB {
+	return s.db
+}
+
 // Create creates a new workspace and adds the creator as admin member.
 func (s *WorkspaceService) Create(req *request.WorkspaceCreateRequest, ownerID uint64) (*response.WorkspaceResponse, error) {
 	// Check slug uniqueness
@@ -109,6 +114,38 @@ func (s *WorkspaceService) GetBySlug(slug string) (*response.WorkspaceResponse, 
 // GetByID returns a workspace by its ID.
 func (s *WorkspaceService) GetByID(workspaceID uint64) (*response.WorkspaceResponse, error) {
 	return s.buildResponse(workspaceID)
+}
+
+// Get retrieves a workspace by ID.
+func (s *WorkspaceService) Get(id uint64) (*response.WorkspaceResponse, error) {
+	var ws model.Workspace
+	if err := s.db.First(&ws, id).Error; err != nil {
+		return nil, common.NotFound("Workspace not found")
+	}
+
+	return &response.WorkspaceResponse{
+		ID:          ws.ID,
+		Name:        ws.Name,
+		Slug:        ws.Slug,
+		CreatedAt:   ws.CreatedAt,
+		UpdatedAt:   ws.UpdatedAt,
+	}, nil
+}
+
+// List returns all workspaces (for admin use or future filtering).
+func (s *WorkspaceService) List() ([]response.WorkspaceLite, error) {
+	var workspaces []model.Workspace
+	s.db.Find(&workspaces)
+
+	result := make([]response.WorkspaceLite, len(workspaces))
+	for i, ws := range workspaces {
+		result[i] = response.WorkspaceLite{
+			ID:   ws.ID,
+			Name: ws.Name,
+			Slug: ws.Slug,
+		}
+	}
+	return result, nil
 }
 
 // Update updates a workspace's properties.

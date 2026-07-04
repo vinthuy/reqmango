@@ -29,6 +29,11 @@ func NewIssueService(db *gorm.DB, notificationSvc *NotificationService, webhookS
 	return &IssueService{db: db, notificationSvc: notificationSvc, webhookSvc: webhookSvc, automationSvc: automationSvc, slackSvc: slackSvc}
 }
 
+// DB returns the database instance for use in handlers (for security checks).
+func (s *IssueService) DB() *gorm.DB {
+	return s.db
+}
+
 // Create creates a new issue.
 func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, workspaceID, userID uint64) (*response.IssueResponse, error) {
 	// Validate project exists
@@ -200,19 +205,9 @@ func (s *IssueService) GetByID(issueID uint64) (*response.IssueResponse, error) 
 	return s.buildResponse(issueID)
 }
 
-// buildSortClause maps sort_by field name to DB column and returns ORDER BY clause.
+// buildSortClause builds ORDER BY clause from sort_by/sort_dir (single, backward compat)
+// or sort_config (multi-field sort, preferred).
 func (s *IssueService) buildSortClause(filters map[string]interface{}) string {
-	sortBy, _ := filters["sort_by"].(string)
-	sortDir, _ := filters["sort_dir"].(string)
-	if sortBy == "" {
-		return ""
-	}
-	if sortDir == "" {
-		sortDir = "desc"
-	}
-	if sortDir != "asc" && sortDir != "desc" {
-		sortDir = "desc"
-	}
 	colMap := map[string]string{
 		"sequence_id": "issues.sequence_id",
 		"name":        "issues.name",
@@ -224,11 +219,42 @@ func (s *IssueService) buildSortClause(filters map[string]interface{}) string {
 		"start_date":  "issues.start_date",
 		"target_date": "issues.target_date",
 	}
-	col, ok := colMap[sortBy]
-	if !ok {
+
+	// Prefer sort_config (multi-field)
+	if sortConfig, ok := filters["sort_config"].([]map[string]string); ok && len(sortConfig) > 0 {
+		var parts []string
+		for _, entry := range sortConfig {
+			field := entry["field"]
+			dir := entry["dir"]
+			if dir != "asc" && dir != "desc" {
+				dir = "desc"
+			}
+			if col, ok := colMap[field]; ok {
+				parts = append(parts, fmt.Sprintf("%s %s", col, dir))
+			}
+		}
+		if len(parts) > 0 {
+			return fmt.Sprintf("%s, issues.sort_order ASC, issues.sequence_id DESC", strings.Join(parts, ", "))
+		}
 		return ""
 	}
-	return fmt.Sprintf("%s %s, issues.sort_order ASC, issues.sequence_id DESC", col, sortDir)
+
+	// Fallback to sort_by / sort_dir (single, backward compat)
+	sortBy, _ := filters["sort_by"].(string)
+	sortDir, _ := filters["sort_dir"].(string)
+	if sortBy == "" {
+		return ""
+	}
+	if sortDir == "" {
+		sortDir = "desc"
+	}
+	if sortDir != "asc" && sortDir != "desc" {
+		sortDir = "desc"
+	}
+	if col, ok := colMap[sortBy]; ok {
+		return fmt.Sprintf("%s %s, issues.sort_order ASC, issues.sequence_id DESC", col, sortDir)
+	}
+	return ""
 }
 
 // List returns issues for a project with optional filters and total count.
@@ -756,6 +782,12 @@ func (s *IssueService) AddAssignee(issueID, userID, actorID uint64) error {
 		projectIDPtr := issue.ProjectID
 		s.notificationSvc.TriggerNotification(s.db, "issue_assigned", title, message, userID, &actorID, &projectIDPtr, &issueIDPtr)
 	}
+
+	// Automation trigger: assignee_changed
+	s.runAutomations(issueID, "assignee_changed", map[string]interface{}{
+		"issue_id": issueID, "project_id": issue.ProjectID,
+		"new_assignee": userID, "actor_id": actorID,
+	})
 
 	return nil
 }

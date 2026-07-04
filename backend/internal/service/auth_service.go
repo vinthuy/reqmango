@@ -135,6 +135,11 @@ func (s *AuthService) FindUserByID(userID uint64) (*model.User, error) {
 	return &user, nil
 }
 
+// GenerateTokenForTest is a helper for tests to generate tokens without login.
+func (s *AuthService) GenerateTokenForTest(userID uint64) (string, time.Time, error) {
+	return s.generateToken(userID)
+}
+
 func (s *AuthService) generateToken(userID uint64) (string, time.Time, error) {
 	expiresAt := time.Now().Add(time.Duration(s.cfg.AccessTokenExpireMin) * time.Minute)
 

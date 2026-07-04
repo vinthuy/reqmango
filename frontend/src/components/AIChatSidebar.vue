@@ -32,6 +32,13 @@
           >
             👥
           </button>
+          <button
+            @click="mode = mode === 'create' ? 'ask' : 'create'"
+            :class="['px-2 py-1 text-xs rounded transition', mode === 'create' ? 'bg-green-500 text-white' : 'bg-white/20 text-white']"
+            :title="t('ai.createMode') || 'Create'"
+          >
+            ✨
+          </button>
           <button @click="close" class="p-1 hover:bg-white/20 rounded text-white">✕</button>
         </div>
       </div>
@@ -101,6 +108,78 @@
             <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send(t('ai.suggestedQuestion1'))">💡 "{{ t('ai.suggestedQuestion1') }}"</div>
             <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send(t('ai.suggestedQuestion2'))">💡 "{{ t('ai.suggestedQuestion2') }}"</div>
             <div class="bg-gray-50 rounded-lg p-2 hover:bg-gray-100 cursor-pointer" @click="send(t('ai.suggestedQuestion3'))">💡 "{{ t('ai.suggestedQuestion3') }}"</div>
+          </div>
+        </div>
+
+        <!-- Create Mode：AI 智能创建 -->
+        <div v-if="mode === 'create'" class="px-4 py-4 space-y-4 overflow-y-auto">
+          <div class="text-center">
+            <div class="text-3xl mb-2">✨</div>
+            <p class="text-sm font-medium text-gray-700">{{ t('ai.createMode') || 'AI Create' }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ t('ai.createHint') || 'Describe what you need, AI generates a preview' }}</p>
+          </div>
+
+          <textarea
+            v-model="createInput"
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+            :placeholder="t('ai.createPlaceholder') || 'e.g. Create a high priority bug: login page crashes when clicking submit'"
+          ></textarea>
+
+          <button
+            @click="generatePreview"
+            :disabled="!createInput.trim() || isCreating"
+            class="w-full py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 transition"
+          >
+            {{ isCreating ? t('common.loading') : (t('ai.generatePreview') || 'Generate Preview') }}
+          </button>
+
+          <!-- Preview -->
+          <div v-if="createPreview" class="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-semibold text-gray-700">{{ t('ai.preview') || 'Preview' }}</h4>
+              <span class="text-xs text-gray-400">{{ createExplanation }}</span>
+            </div>
+
+            <div v-if="createError" class="text-xs text-red-500 bg-red-50 rounded p-2">{{ createError }}</div>
+
+            <div class="space-y-2">
+              <div>
+                <label class="text-xs text-gray-500">{{ t('issue.name') || 'Title' }}</label>
+                <input v-model="createPreview.name" class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm" />
+              </div>
+              <div class="flex gap-2">
+                <div class="flex-1">
+                  <label class="text-xs text-gray-500">{{ t('issue.priority') || 'Priority' }}</label>
+                  <select v-model="createPreview.priority" class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm">
+                    <option value="urgent">{{ t('issue.priorityUrgent') }}</option>
+                    <option value="high">{{ t('issue.priorityHigh') }}</option>
+                    <option value="medium">{{ t('issue.priorityMedium') }}</option>
+                    <option value="low">{{ t('issue.priorityLow') }}</option>
+                    <option value="none">{{ t('issue.priorityNone') }}</option>
+                  </select>
+                </div>
+                <div class="flex-1">
+                  <label class="text-xs text-gray-500">{{ t('issue.type') || 'Type' }}</label>
+                  <select v-model="createPreview.type_id" class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm">
+                    <option value="">{{ t('issue.notSet') }}</option>
+                    <option v-for="t in issueTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500">{{ t('issue.description') || 'Description' }}</label>
+                <textarea v-model="createPreview.description" rows="2" class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm resize-none"></textarea>
+              </div>
+            </div>
+
+            <button
+              @click="confirmCreate"
+              :disabled="!createPreview.name?.trim() || isCreating"
+              class="w-full py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
+            >
+              ✓ {{ t('ai.confirmCreate') || 'Create Issue' }}
+            </button>
           </div>
         </div>
 
@@ -252,8 +331,10 @@ import { ref, watch, nextTick, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useAI } from '@/composables/useAI'
 import { renderMarkdown } from '@/composables/useMarkdown'
-import { generateChart } from '@/api/ai'
+import { generateChart, createPreviewWithAI } from '@/api/ai'
 import { agentApi } from '@/api/agent'
+import issueApi from '@/api/issue'
+import * as issueTypeApi from '@/api/issue-type'
 import type { AIChartData } from '@/api/ai'
 import type { Agent } from '@/types/agent'
 import AIChartRenderer from '@/components/AIChartRenderer.vue'
@@ -274,7 +355,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { messages, isStreaming, error, sendMessage, cancel, clear } = useAI()
 const input = ref('')
-const mode = ref<'ask' | 'build' | 'chart' | 'agent'>('ask')
+const mode = ref<'ask' | 'build' | 'chart' | 'agent' | 'create'>('ask')
 const loadingChart = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const msgContainer = ref<HTMLDivElement | null>(null)
@@ -346,6 +427,63 @@ async function fetchAgents() {
     agents.value = await agentApi.list(props.workspaceId)
   } catch (e) {
     console.error('Failed to fetch agents', e)
+  }
+}
+
+// ─── Create Mode (AI Smart Create) ───
+const createInput = ref('')
+const createPreview = ref<any>(null)
+const createExplanation = ref('')
+const isCreating = ref(false)
+const createError = ref('')
+const issueTypes = ref<any[]>([])
+
+async function loadIssueTypes() {
+  if (issueTypes.value.length > 0) return
+  try {
+    const types = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId)
+    issueTypes.value = Array.isArray(types) ? types : (types?.data || [])
+  } catch (e) { /* */ }
+}
+
+async function generatePreview() {
+  if (!createInput.value.trim()) return
+  isCreating.value = true
+  createError.value = ''
+  createPreview.value = null
+  try {
+    const result: any = await createPreviewWithAI(props.projectId, {
+      description: createInput.value,
+      workspace_id: props.workspaceId,
+    })
+    createPreview.value = { name: '', priority: 'medium', type_id: '', description: '', ...(result.preview || {}) }
+    createExplanation.value = result.explanation || ''
+  } catch (e: any) {
+    createError.value = e?.message || 'Failed to generate preview'
+  } finally {
+    isCreating.value = false
+  }
+}
+
+async function confirmCreate() {
+  if (!createPreview.value?.name?.trim()) return
+  isCreating.value = true
+  try {
+    await issueApi.createIssue(props.projectId, props.workspaceId, {
+      name: createPreview.value.name,
+      priority: createPreview.value.priority || 'medium',
+      description_html: createPreview.value.description || '',
+      state_id: createPreview.value.state_id,
+    })
+    // Reset and show success
+    createInput.value = ''
+    createPreview.value = null
+    createExplanation.value = ''
+    emit('quickCreate', { name: createPreview.value.name })
+  } catch (e: any) {
+    createError.value = e?.message || 'Failed to create issue'
+  } finally {
+    isCreating.value = false
   }
 }
 

@@ -1,5 +1,5 @@
 import { reactive, computed, provide, inject, type ComputedRef } from 'vue'
-import type { FilterCondition, SortOption, GroupOption } from '../types/filters'
+import type { FilterCondition, SortOption, GroupOption, SubGroupOption } from '../types/filters'
 import { buildRQL, parseRQL } from '../types/filters'
 
 const FILTERS_KEY = Symbol('filters')
@@ -8,8 +8,9 @@ const MAX_HISTORY_COUNT = 10
 
 export interface FiltersState {
   filters: FilterCondition[]
-  sortBy: SortOption | null
+  sortBy: SortOption[]  // multi-sort, empty array = default order
   groupBy: GroupOption | null
+  subGroupBy: SubGroupOption | null
   quickSearch: string
   searchHistory: string[]
 }
@@ -23,10 +24,13 @@ export interface FiltersContext {
   removeFilter: (index: number) => void
   updateFilter: (index: number, updates: Partial<FilterCondition>) => void
   clearAll: () => void
-  restoreFromRQL: (rql: string) => void
-  setSortBy: (sort: SortOption | null) => void
+  restoreFromRQL: (rql: string, extractQuickSearch?: boolean) => void
+  setSortBy: (sorts: SortOption[]) => void
+  addSortBy: (sort: SortOption) => void
+  removeSortBy: (index: number) => void
   setGroupBy: (group: GroupOption | null) => void
   setQuickSearch: (query: string) => void
+  setSubGroupBy: (group: SubGroupOption | null) => void
   addToHistory: (query: string) => void
   removeFromHistory: (index: number) => void
   clearHistory: () => void
@@ -51,8 +55,9 @@ function saveSearchHistory(history: string[]): void {
 export function useFilters() {
   const state = reactive<FiltersState>({
     filters: [],
-    sortBy: null,
+    sortBy: [],
     groupBy: null,
+    subGroupBy: null,
     quickSearch: '',
     searchHistory: loadSearchHistory()
   })
@@ -79,8 +84,9 @@ export function useFilters() {
 
   function clearAll(): void {
     state.filters = []
-    state.sortBy = null
+    state.sortBy = []
     state.groupBy = null
+    state.subGroupBy = null
     state.quickSearch = ''
   }
 
@@ -115,23 +121,54 @@ export function useFilters() {
     saveSearchHistory(state.searchHistory)
   }
 
-  function restoreFromRQL(rqlStr: string): void {
+  function restoreFromRQL(rqlStr: string, extractQuickSearch?: boolean): void {
     if (!rqlStr.trim()) {
       state.filters = []
-      state.sortBy = null
+      state.sortBy = []
+      if (extractQuickSearch) state.quickSearch = ''
       return
     }
-    const parsed = parseRQL(rqlStr)
-    state.filters = parsed.filters
-    state.sortBy = parsed.sortBy || null
+    let cleaned = rqlStr
+    if (extractQuickSearch) {
+      const likeMatch = rqlStr.match(/\(name\s+LIKE\s+"%(.+?)%"\s+OR\s+description\s+LIKE\s+"%(.+?)%"\)/i)
+      state.quickSearch = likeMatch ? likeMatch[1] : ''
+      cleaned = rqlStr.replace(/\(name\s+LIKE\s+"%.+?%"\s+OR\s+description\s+LIKE\s+"%.+?%"\)/i, '')
+      cleaned = cleaned.replace(/\s*AND\s*AND\s*/gi, ' AND ').replace(/^\s*AND\s*/i, '').replace(/\s*AND\s*$/i, '').trim()
+    }
+    if (cleaned) {
+      const parsed = parseRQL(cleaned)
+      state.filters = parsed.filters
+      state.sortBy = parsed.sortBy || []
+    } else {
+      state.filters = []
+      state.sortBy = []
+    }
   }
 
-  function setSortBy(sort: SortOption | null): void {
-    state.sortBy = sort
+  function setSortBy(sorts: SortOption[]): void {
+    state.sortBy = sorts
+  }
+
+  function addSortBy(sort: SortOption): void {
+    // Don't add duplicate sort fields
+    const idx = state.sortBy.findIndex(s => s.key === sort.key)
+    if (idx >= 0) {
+      state.sortBy[idx] = sort
+    } else {
+      state.sortBy.push(sort)
+    }
+  }
+
+  function removeSortBy(index: number): void {
+    state.sortBy.splice(index, 1)
   }
 
   function setGroupBy(group: GroupOption | null): void {
     state.groupBy = group
+  }
+
+  function setSubGroupBy(group: SubGroupOption | null): void {
+    state.subGroupBy = group
   }
 
   const context: FiltersContext = {
@@ -145,8 +182,11 @@ export function useFilters() {
     clearAll,
     restoreFromRQL,
     setSortBy,
+    addSortBy,
+    removeSortBy,
     setGroupBy,
     setQuickSearch,
+    setSubGroupBy,
     addToHistory,
     removeFromHistory,
     clearHistory

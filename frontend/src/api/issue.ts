@@ -56,6 +56,7 @@ export async function listIssues(
     rql?: string
     sort_by?: string
     sort_dir?: string
+    sort_config?: string  // JSON array of {field, dir}, for multi-sort
     limit?: number
     offset?: number
   }
@@ -71,6 +72,7 @@ export async function listIssues(
     if (filters.rql) params.append('rql', filters.rql)
     if (filters.sort_by) params.append('sort_by', filters.sort_by)
     if (filters.sort_dir) params.append('sort_dir', filters.sort_dir)
+    if (filters.sort_config) params.append('sort_config', filters.sort_config)
     if (filters.parent_id) params.append('parent_id', filters.parent_id.toString())
     if (filters.cycle_id) params.append('cycle_id', filters.cycle_id.toString())
     if (filters.module_id) params.append('module_id', filters.module_id.toString())

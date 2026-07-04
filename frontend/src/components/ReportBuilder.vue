@@ -130,112 +130,30 @@
       </div>
 
       <!-- Status Bar -->
-      <div v-if="data" class="flex items-center gap-3 px-5 py-2 border-b border-gray-100 text-xs text-gray-500 bg-gray-50/50">
-        <span>{{ t('report.matched') }}: <strong class="text-gray-800">{{ data.total }}</strong> {{ t('report.issues') }}</span>
-        <span v-if="data.summary?.avg_days">{{ t('report.avg') }}: <strong class="text-gray-800">{{ data.summary.avg_days.toFixed(1) }}</strong> {{ t('report.days') }}</span>
+      <div v-if="data" class="flex items-center justify-between px-5 py-2 border-b border-gray-100 text-xs text-gray-500 bg-gray-50/50">
+        <div class="flex items-center gap-3">
+          <span>{{ t('report.matched') }}: <strong class="text-gray-800">{{ data.total }}</strong> {{ t('report.issues') }}</span>
+          <span v-if="data.summary?.avg_days">{{ t('report.avg') }}: <strong class="text-gray-800">{{ data.summary.avg_days.toFixed(1) }}</strong> {{ t('report.days') }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="exportCSV" class="px-2.5 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded text-xs transition-colors" :title="t('report.exportCSV')">CSV</button>
+          <button v-if="chartType !== 'Table'" @click="exportPNG" class="px-2.5 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded text-xs transition-colors" :title="t('report.exportPNG')">PNG</button>
+        </div>
       </div>
 
       <!-- Chart Area -->
       <div v-if="loading" class="flex items-center justify-center py-20 text-gray-400 text-sm">{{ t('report.loading') }}</div>
 
       <template v-else-if="data">
-        <!-- Bar / Column Chart -->
-        <div v-if="chartType === 'Bar'" class="p-5 space-y-2 max-w-2xl">
-          <div v-for="(label, i) in data.labels" :key="label" class="flex items-center gap-2">
-            <span class="text-xs text-gray-500 w-32 truncate text-right shrink-0">{{ label }}</span>
-            <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-              <div class="h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2"
-                :style="{width: pct(data.values[i])+'%', backgroundColor: getColor(label, i)}">
-                <span v-if="pct(data.values[i]) > 12" class="text-[10px] text-white font-medium">{{ data.values[i] }}</span>
-              </div>
-            </div>
-            <span v-if="pct(data.values[i]) <= 12" class="text-xs text-gray-500 w-6">{{ data.values[i] }}</span>
+        <!-- Chart.js Canvas -->
+        <div v-if="chartType !== 'Table'" class="p-5">
+          <div :class="['mx-auto', chartType === 'Pie' || chartType === 'Doughnut' ? 'max-w-md' : 'max-w-3xl']" style="height: 360px">
+            <canvas ref="chartCanvas"></canvas>
           </div>
-          <!-- Created vs Resolved dual bars -->
-          <div v-if="data.values2 && data.values2.length > 0" class="mt-4 pt-4 border-t border-gray-100">
-            <div class="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">{{ t('report.comparison') }}</div>
-            <div v-for="(label, i) in data.labels" :key="'cmp-'+label" class="flex items-center gap-2 mb-1.5">
-              <span class="text-xs text-gray-500 w-32 truncate text-right shrink-0">{{ label }}</span>
-              <div class="flex-1 grid grid-cols-2 gap-0.5 h-4">
-                <div class="rounded-l" :style="{backgroundColor: data.colors?.Created || '#3B82F6', width: pct2(data.values[i], data.values2[i])+'%' }" :title="t('report.created')+': '+data.values[i]"></div>
-                <div class="rounded-r" :style="{backgroundColor: data.colors?.Resolved || '#10B981', width: pct2(data.values2[i], data.values[i])+'%' }" :title="t('report.resolved')+': '+data.values2[i]"></div>
-              </div>
-              <span class="text-xs text-gray-500 w-20">C:{{ data.values[i] }} R:{{ data.values2[i] }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pie Chart -->
-        <div v-else-if="chartType === 'Pie'" class="p-5 max-w-md mx-auto">
-          <svg viewBox="0 0 200 200" class="w-56 h-56 mx-auto">
-            <circle v-for="(seg, i) in pieSegments" :key="i" :cx="100" :cy="100" :r="70"
-              fill="none" stroke-width="40"
-              :stroke="getColor(data.labels[i], i)"
-              :stroke-dasharray="seg.dash"
-              :stroke-dashoffset="seg.offset"
-              :transform="'rotate(-90 100 100)'"
-              class="transition-all duration-500" />
-          </svg>
-          <div class="flex flex-wrap justify-center gap-3 mt-4">
-            <div v-for="(label, i) in data.labels" :key="label" class="flex items-center gap-1.5 text-xs">
-              <span class="w-3 h-3 rounded-full shrink-0" :style="{backgroundColor: getColor(label, i)}"></span>
-              <span class="text-gray-600">{{ label }}</span>
-              <span class="font-medium text-gray-800">{{ data.values[i] }}</span>
-              <span class="text-gray-400">({{ pct(data.values[i]) }}%)</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Doughnut Chart -->
-        <div v-else-if="chartType === 'Doughnut'" class="p-5 max-w-md mx-auto">
-          <svg viewBox="0 0 200 200" class="w-56 h-56 mx-auto">
-            <circle v-for="(seg, i) in pieSegments" :key="i" :cx="100" :cy="100" :r="70"
-              fill="none" stroke-width="30"
-              :stroke="getColor(data.labels[i], i)"
-              :stroke-dasharray="seg.dash"
-              :stroke-dashoffset="seg.offset"
-              :transform="'rotate(-90 100 100)'"
-              class="transition-all duration-500" />
-            <text x="100" y="105" text-anchor="middle" class="text-2xl font-bold fill-gray-800">{{ data.total }}</text>
-          </svg>
-          <div class="flex flex-wrap justify-center gap-3 mt-4">
-            <div v-for="(label, i) in data.labels" :key="label" class="flex items-center gap-1.5 text-xs">
-              <span class="w-3 h-3 rounded-full shrink-0" :style="{backgroundColor: getColor(label, i)}"></span>
-              <span class="text-gray-600">{{ label }}</span>
-              <span class="font-medium text-gray-800">{{ data.values[i] }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Line Chart (for trend data) -->
-        <div v-else-if="chartType === 'Line' && data.type === 'created_vs_resolved'" class="p-5 max-w-2xl mx-auto">
-          <svg viewBox="0 0 600 200" class="w-full h-48">
-            <polyline :points="linePoints(data.values)" fill="none" stroke="#3B82F6" stroke-width="2" />
-            <polyline v-if="data.values2" :points="linePoints(data.values2)" fill="none" stroke="#10B981" stroke-width="2" />
-            <template v-for="(_label, i) in data.labels" :key="i">
-              <circle :cx="lineX(i, data.labels.length)" :cy="lineY(data.values[i])" r="3" fill="#3B82F6" />
-              <circle v-if="data.values2" :cx="lineX(i, data.labels.length)" :cy="lineY(data.values2[i])" r="3" fill="#10B981" />
-            </template>
-          </svg>
-          <div class="flex justify-center gap-4 mt-2 text-xs text-gray-500">
-            <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-blue-500 inline-block"></span> {{ t('report.created') }}</span>
-            <span v-if="data.values2" class="flex items-center gap-1"><span class="w-3 h-0.5 bg-green-500 inline-block"></span> {{ t('report.resolved') }}</span>
-          </div>
-        </div>
-
-        <!-- Simple Line (for created_trend) -->
-        <div v-else-if="chartType === 'Line' && data.type === 'created_trend'" class="p-5 max-w-2xl mx-auto">
-          <svg viewBox="0 0 600 200" class="w-full h-48">
-            <polyline :points="linePoints(data.values)" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linejoin="round" />
-            <template v-for="(_label, i) in data.labels" :key="i">
-              <circle :cx="lineX(i, data.labels.length)" :cy="lineY(data.values[i])" r="3" fill="#3B82F6" />
-              <text v-if="data.labels.length <= 20" :x="lineX(i, data.labels.length)" :y="lineY(data.values[i]) - 8" text-anchor="middle" class="text-[8px] fill-gray-500">{{ data.values[i] }}</text>
-            </template>
-          </svg>
         </div>
 
         <!-- Table -->
-        <div class="p-5">
+        <div v-if="chartType === 'Table'" class="p-5">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-gray-100">
@@ -247,7 +165,7 @@
             <tbody>
               <tr v-for="(label, i) in data.labels" :key="label" class="border-b border-gray-50 hover:bg-gray-50/50">
                 <td class="py-2 text-gray-700 flex items-center gap-2">
-                  <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{backgroundColor: getColor(label, i)}"></span>
+                  <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{backgroundColor: chartColors[i % chartColors.length]}"></span>
                   {{ label }}
                 </td>
                 <td class="text-right py-2 font-medium text-gray-800">{{ data.values[i] }}</td>
@@ -289,10 +207,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { reportApi, savedReportApi } from '@/api/report'
 import type { ReportResponse, SavedReport } from '@/api/report'
+import { useReportChart, exportReportCSV, exportChartPNG } from '@/composables/useReportChart'
 import api from '@/api'
 
 const props = defineProps<{ projectId: number }>()
@@ -325,6 +244,10 @@ const selectedId = ref<number | null>(null)
 const showSaveDialog = ref(false)
 const saveName = ref('')
 const saving = ref(false)
+
+// Chart.js
+const chartCanvas = ref<HTMLCanvasElement | null>(null)
+const { render: renderChart, destroy: destroyChart } = useReportChart(chartCanvas)
 
 // Dropdown data for basic filters
 const states = ref<{value:string;label:string}[]>([])
@@ -376,39 +299,7 @@ const availableCharts = computed(() => {
 
 const chartColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1']
 
-function getColor(label: string, index: number): string {
-  if (data.value?.colors?.[label]) return data.value.colors[label]
-  return chartColors[index % chartColors.length]
-}
-
-const pieSegments = computed(() => {
-  if (!data.value) return []
-  const total = data.value.values.reduce((a: number, b: number) => a + b, 0) || 1
-  const circumference = 2 * Math.PI * 70
-  let offset = 0
-  return data.value.values.map((v: number) => {
-    const len = (v / total) * circumference
-    const seg = { dash: `${len} ${circumference - len}`, offset: -offset }
-    offset += len
-    return seg
-  })
-})
-
 function pct(v: number) { return data.value ? Math.round((v / data.value.total) * 100) : 0 }
-function pct2(v1: number, v2: number) { return Math.round((v1 / (v1 + v2 || 1)) * 100) }
-
-// Line chart helpers
-function linePoints(values: number[]): string {
-  return values.map((v, i) => `${lineX(i, values.length)},${lineY(v)}`).join(' ')
-}
-function lineX(i: number, total: number): number {
-  if (total <= 1) return 300
-  return 20 + (560 / (total - 1)) * i
-}
-function lineY(v: number): number {
-  const max = Math.max(...(data.value?.values || [1]).concat(data.value?.values2 || []), 1)
-  return 185 - ((v / max) * 160)
-}
 
 // Build RQL string from basic filters
 function buildRQLFromFilters(): string {
@@ -491,6 +382,10 @@ async function generate() {
       interval: interval.value,
     })
     data.value = res
+    await nextTick()
+    if (chartType.value !== 'Table') {
+      renderChart(res, chartType.value)
+    }
   } catch (e) {
     console.error('Failed to generate report:', e)
     data.value = null
@@ -503,6 +398,24 @@ function onTypeChange() {
   if (reportType.value === 'created_trend') interval.value = 'day'
   else if (reportType.value === 'created_vs_resolved') interval.value = 'week'
   if (reportType.value === 'created_vs_resolved' || reportType.value === 'created_trend') chartType.value = 'Bar'
+}
+
+// Re-render chart when chart type changes
+watch(chartType, async () => {
+  if (data.value && chartType.value !== 'Table') {
+    await nextTick()
+    renderChart(data.value, chartType.value)
+  }
+})
+
+// Export
+function exportCSV() {
+  if (!data.value) return
+  exportReportCSV(data.value, `report-${reportType.value}-${new Date().toISOString().slice(0, 10)}.csv`)
+}
+
+function exportPNG() {
+  exportChartPNG(chartCanvas.value, `chart-${reportType.value}-${new Date().toISOString().slice(0, 10)}.png`)
 }
 
 // Saved Reports
@@ -573,7 +486,10 @@ async function deleteSavedReport(r: SavedReport) {
   if (!r.id || !confirm(t('report.deleteConfirm').replace('{name}', r.name))) return
   try {
     await savedReportApi.delete(props.projectId, r.id)
-    if (selectedId.value === r.id) selectedId.value = null
+    if (selectedId.value === r.id) {
+      selectedId.value = null
+      destroyChart()
+    }
     await loadSavedReports()
   } catch (e) {
     console.error('Failed to delete report:', e)
@@ -581,6 +497,7 @@ async function deleteSavedReport(r: SavedReport) {
 }
 
 watch(() => props.projectId, () => {
+  destroyChart()
   loadSavedReports()
   loadFilterOptions()
   selectedId.value = null

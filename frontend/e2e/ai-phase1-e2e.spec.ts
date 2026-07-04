@@ -18,7 +18,7 @@ async function login(page: any, request: any) {
   return token
 }
 
-test.describe('AI Phase 1 — Agent Automation + Result Actions', () => {
+test.describe('AI Phase 1 — Agent Automation + Unified Copilot + Result Actions', () => {
 
   // ═══ P1.1: Agent 自动化触发器 ═══
 
@@ -113,26 +113,26 @@ test.describe('AI Phase 1 — Agent Automation + Result Actions', () => {
 
   // ═══ P1.3: AI 结果操作化 ═══
 
-  test('AI05: AI Chat sidebar opens with Ctrl+J', async ({ page, request }) => {
+  test('AI05: AI Copilot opens with Ctrl+J', async ({ page, request }) => {
     await login(page, request)
     await page.goto(BASE + '/workspace/reqmango-dev/project/15')
     await page.waitForTimeout(3000)
 
-    // Press Ctrl+J to open AI chat
+    // Press Ctrl+J to open AI Copilot
     await page.keyboard.press('Control+KeyJ')
     await page.waitForTimeout(1000)
 
     const body = await page.textContent('body')
-    const hasAI = body?.includes('AI') || body?.includes('Ask') || body?.includes('Build')
-    console.log(`AI sidebar visible: ${hasAI}`)
+    const hasAI = body?.includes('AI') || body?.includes('Copilot') || body?.includes('Ask') || body?.includes('Build')
+    console.log(`AI Copilot visible: ${hasAI}`)
   })
 
-  test('AI06: AI Chat has operation buttons after response', async ({ page, request }) => {
+  test('AI06: AI Copilot has operation buttons after response', async ({ page, request }) => {
     await login(page, request)
     await page.goto(BASE + '/workspace/reqmango-dev/project/15')
     await page.waitForTimeout(3000)
 
-    // Open AI sidebar
+    // Open AI Copilot
     await page.keyboard.press('Control+KeyJ')
     await page.waitForTimeout(1000)
 
@@ -145,31 +145,39 @@ test.describe('AI Phase 1 — Agent Automation + Result Actions', () => {
 
       const body = await page.textContent('body')
       // Check for action buttons in AI response
-      const hasCreateIssue = body?.includes('Create Issues') || body?.includes('生成工作项')
+      const hasCreateIssue = body?.includes('Create Issues') || body?.includes('创建工作项')
       console.log(`'Create Issues' button: ${hasCreateIssue}`)
     } else {
       console.log('Chat input not found')
     }
   })
 
-  test('AI07: AICreateDialog opens from project page', async ({ page, request }) => {
+  test('AI07: AI Copilot Create mode accessible via tab', async ({ page, request }) => {
     await login(page, request)
     await page.goto(BASE + '/workspace/reqmango-dev/project/15')
     await page.waitForTimeout(3000)
 
-    // Click AI Create button
-    const aiCreateBtn = page.locator('button:has-text("AI Create"), button:has-text("AI 创建")').first()
-    if (await aiCreateBtn.isVisible().catch(() => false)) {
-      await aiCreateBtn.click()
+    // Open AI Copilot via FAB button
+    const fab = page.locator('button[title*="AI"]').first()
+    if (await fab.isVisible().catch(() => false)) {
+      await fab.click()
       await page.waitForTimeout(1000)
+
+      // Switch to Create tab
+      const createTab = page.locator('button:has-text("Create"), button:has-text("创建")').first()
+      if (await createTab.isVisible().catch(() => false)) {
+        await createTab.click()
+        await page.waitForTimeout(500)
+      }
+
       const body = await page.textContent('body')
-      console.log(`AI Create dialog visible: ${body?.includes('Generate') || body?.includes('Preview') || body?.includes('生成')}`)
+      console.log(`Create mode visible: ${body?.includes('Generate Preview') || body?.includes('生成预览') || body?.includes('Preview') || body?.includes('预览')}`)
     } else {
-      console.log('AI Create button not found')
+      console.log('AI FAB button not found')
     }
   })
 
-  test('AI08: AI Chat quick action buttons visible', async ({ page, request }) => {
+  test('AI08: AI Copilot quick action buttons visible', async ({ page, request }) => {
     await login(page, request)
     await page.goto(BASE + '/workspace/reqmango-dev/project/15')
     await page.waitForTimeout(3000)
@@ -179,7 +187,7 @@ test.describe('AI Phase 1 — Agent Automation + Result Actions', () => {
 
     // Check for suggested questions / quick actions
     const body = await page.textContent('body')
-    const hasSuggestions = body?.includes('💡') || false
+    const hasSuggestions = (body?.includes('💡') || false) || (body?.includes('Summarize') || body?.includes('总结') || false)
     console.log(`Suggestions visible: ${hasSuggestions}`)
   })
 

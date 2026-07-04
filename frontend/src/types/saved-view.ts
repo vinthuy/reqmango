@@ -12,6 +12,7 @@ export interface SavedView {
   sort_config: SortConfigEntry[]
   columns: string[]
   group_by?: string
+  sub_group_by?: string
   is_default: boolean
   is_shared: boolean
   owner_id: number
@@ -34,6 +35,7 @@ export interface SavedViewCreate {
   sort_config?: SortConfigEntry[]
   columns?: string[]
   group_by?: string
+  sub_group_by?: string
   is_shared?: boolean
 }
 
@@ -46,5 +48,6 @@ export interface SavedViewUpdate {
   sort_config?: SortConfigEntry[]
   columns?: string[]
   group_by?: string
+  sub_group_by?: string
   is_shared?: boolean
 }

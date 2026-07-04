@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import type { FilterCondition, FilterField, SortOption, GroupOption } from '../types/filters'
-import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, parseRQL } from '../types/filters'
+import type { FilterCondition, FilterField, SortOption, GroupOption, SubGroupOption } from '../types/filters'
+import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, SUB_GROUP_OPTIONS } from '../types/filters'
 import { useFilters } from '../composables/useFilters'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
 import type { SavedView } from '@/types/saved-view'
@@ -21,15 +21,16 @@ const props = defineProps<{
   workspaceId: number
   currentView: 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt'
   projectIdentifier: string
+  currentColumns?: string[]
 }>()
 
 const emit = defineEmits<{
-  (e: 'viewChange', view: 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt'): void
-  (e: 'filtersChanged', rql: string, sortBy: SortOption | null, groupBy: GroupOption | null): void
-  (e: 'columnsChanged', columns: string[]): void
+  (e: 'view-change', view: 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt'): void
+  (e: 'filters-changed', rql: string, sortBy: SortOption[], groupBy: GroupOption | null, subGroupBy: SubGroupOption | null): void
+  (e: 'columns-changed', columns: string[]): void
 }>()
 
-const { state, rql, isEmpty, removeFilter, clearAll, setSortBy, setGroupBy, setQuickSearch, addToHistory } = useFilters()
+const { state, rql, isEmpty, removeFilter, clearAll, restoreFromRQL, addSortBy, removeSortBy, setGroupBy, setSubGroupBy, setQuickSearch, addToHistory } = useFilters()
 
 const showFieldDropdown = ref(false)
 const editingIndex = ref<number | null>(null)
@@ -38,6 +39,7 @@ const rqlText = ref('')
 const isEditingRQL = ref(false)
 const showSortDropdown = ref(false)
 const showGroupDropdown = ref(false)
+const showSubGroupDropdown = ref(false)
 
 const searchSuggestions = ref<IssueSearchResult[]>([])
 const showSuggestions = ref(false)
@@ -115,7 +117,7 @@ const priorityOptions = [
 const activeFilterChips = computed(() => state.filters)
 
 watch(() => rql.value, (newRQL: string) => {
-  emit('filtersChanged', newRQL, state.sortBy, state.groupBy)
+  emit('filters-changed', newRQL, state.sortBy, state.groupBy, state.subGroupBy)
   if (!isEditingRQL.value) {
     rqlText.value = newRQL
   }
@@ -128,11 +130,15 @@ watch(showRQL, (show) => {
 })
 
 watch(() => state.sortBy, () => {
-  emit('filtersChanged', rql.value, state.sortBy, state.groupBy)
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
 })
 
 watch(() => state.groupBy, () => {
-  emit('filtersChanged', rql.value, state.sortBy, state.groupBy)
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
+})
+
+watch(() => state.subGroupBy, () => {
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
 })
 
 async function loadStates() {
@@ -429,39 +435,14 @@ function copyRQL() {
 function applyRQL() {
   if (!rqlText.value.trim()) {
     state.filters = []
-    state.sortBy = null
-    state.groupBy = null
+    state.sortBy = []
     state.quickSearch = ''
-    emit('filtersChanged', rql.value, state.sortBy, state.groupBy)
+    emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
     return
   }
 
-  let rqlStr = rqlText.value
-  let extractedQuickSearch = ''
-
-  // 提取 (name LIKE "%keyword%" OR description LIKE "%keyword%")（关键词快速搜索）
-  // 注意：sequence_id = N 不再提取到快速搜索，而是作为筛选条件保留（与筛选区的"编号"字段一致）
-  const likeMatch = rqlStr.match(/\(name\s+LIKE\s+"%(.+?)%"\s+OR\s+description\s+LIKE\s+"%(.+?)%"\)/i)
-  if (likeMatch) {
-    extractedQuickSearch = likeMatch[1]
-    rqlStr = rqlStr.replace(/\(name\s+LIKE\s+"%.+?%"\s+OR\s+description\s+LIKE\s+"%.+?%"\)/i, '')
-    // 清理残留的 AND
-    rqlStr = rqlStr.replace(/\s*AND\s*AND\s*/gi, ' AND ').replace(/^\s*AND\s*/i, '').replace(/\s*AND\s*$/i, '').trim()
-  }
-
-  state.quickSearch = extractedQuickSearch
-
-  if (rqlStr) {
-    const parsed = parseRQL(rqlStr)
-    state.filters = parsed.filters
-    state.sortBy = parsed.sortBy || null
-  } else {
-    state.filters = []
-    state.sortBy = null
-  }
-  state.groupBy = null
-
-  emit('filtersChanged', rql.value, state.sortBy, state.groupBy)
+  restoreFromRQL(rqlText.value, true)
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
 }
 
 function handleClickOutside(e: MouseEvent) {
@@ -470,6 +451,7 @@ function handleClickOutside(e: MouseEvent) {
     showFieldDropdown.value = false
     showSortDropdown.value = false
     showGroupDropdown.value = false
+    showSubGroupDropdown.value = false
   }
 }
 
@@ -541,11 +523,21 @@ function getOptionsForField(fieldKey: string): { value: any; label: string }[] {
 
 function selectSortOption(option: SortOption) {
   showSortDropdown.value = false
-  if (state.sortBy?.key === option.key) {
-    state.sortBy.direction = state.sortBy.direction === 'asc' ? 'desc' : 'asc'
+  const existing = state.sortBy.find(s => s.key === option.key)
+  if (existing) {
+    // Already exists — toggle direction, or remove on desc→asc cycle
+    existing.direction = existing.direction === 'asc' ? 'desc' : 'asc'
   } else {
-    setSortBy({ ...option })
+    addSortBy({ ...option })
   }
+}
+
+function removeSortOption(index: number) {
+  removeSortBy(index)
+}
+
+function getSortEntry(key: string): SortOption | undefined {
+  return state.sortBy.find(s => s.key === key)
 }
 
 function selectGroupOption(option: GroupOption) {
@@ -557,66 +549,102 @@ function selectGroupOption(option: GroupOption) {
   }
 }
 
+function toggleSubGroupDropdown(e: Event) {
+  e.stopPropagation()
+  showSubGroupDropdown.value = !showSubGroupDropdown.value
+  showFieldDropdown.value = false
+  showSortDropdown.value = false
+  showGroupDropdown.value = false
+}
+
+function selectSubGroupOption(option: SubGroupOption) {
+  showSubGroupDropdown.value = false
+  if (option.key === 'none') {
+    setSubGroupBy(null)
+  } else {
+    setSubGroupBy(option)
+  }
+}
+
 function handleSavedViewSelect(view: SavedView) {
   // Apply view type
   if (view.view_type && ['list', 'kanban', 'tree', 'gantt', 'calendar'].includes(view.view_type)) {
-    emit('viewChange', view.view_type)
+    emit('view-change', view.view_type)
   }
-  // Apply RQL from saved view (new field takes precedence)
+  // Apply RQL from saved view
+  let rqlStr = ''
   if (view.rql) {
-    const parsed = parseRQL(view.rql)
-    state.filters = parsed.filters
-    state.sortBy = parsed.sortBy || null
-  } else if (view.filters) {
-    const f = view.filters as any
-    if (f.rql) {
-      const parsed = parseRQL(f.rql)
-      state.filters = parsed.filters
-      state.sortBy = parsed.sortBy || null
-    } else if (Array.isArray(f)) {
-      state.filters = f
-    }
+    rqlStr = view.rql
+  } else if (view.filters && (view.filters as any).rql) {
+    rqlStr = (view.filters as any).rql
   }
-  // Apply sort config
+
+  if (rqlStr) {
+    restoreFromRQL(rqlStr, true)
+  } else if (view.filters && Array.isArray(view.filters)) {
+    state.filters = view.filters as any
+    state.quickSearch = ''
+  }
+  // Apply sort config (multi-field, overrides RQL sort)
   if (view.sort_config && Array.isArray(view.sort_config) && view.sort_config.length > 0) {
-    const sc = view.sort_config[0]
-    setSortBy({ key: sc.field, direction: sc.dir, labelKey: '' })
-  } else {
-    state.sortBy = null
+    state.sortBy = view.sort_config.map(sc => ({
+      key: sc.field,
+      direction: sc.dir as 'asc' | 'desc',
+      labelKey: ''
+    }))
   }
   // Apply group by
   if (view.group_by) {
     const groupOpt = GROUP_OPTIONS.find(o => o.key === view.group_by)
-    if (groupOpt) {
-      setGroupBy(groupOpt)
-    }
+    if (groupOpt) setGroupBy(groupOpt)
   } else {
     setGroupBy(null)
   }
+  // Apply sub-group by
+  if (view.sub_group_by) {
+    const subGroupOpt = SUB_GROUP_OPTIONS.find(o => o.key === view.sub_group_by)
+    if (subGroupOpt) setSubGroupBy(subGroupOpt)
+  } else {
+    setSubGroupBy(null)
+  }
   // Apply columns
   if (view.columns && Array.isArray(view.columns) && view.columns.length > 0) {
-    emit('columnsChanged', view.columns as string[])
+    emit('columns-changed', view.columns as string[])
   }
+}
+
+function handleViewSaved() {
+  // View was saved by SavedViewSelector — filters are already current, refresh parent
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
 }
 
 function handleSearchTemplateApply(template: SearchTemplate) {
   if (template.view_type && ['list', 'kanban', 'tree', 'gantt', 'calendar'].includes(template.view_type)) {
-    emit('viewChange', template.view_type)
+    emit('view-change', template.view_type)
   }
   if (template.rql_template) {
-    const parsed = parseRQL(template.rql_template)
-    state.filters = parsed.filters
-    state.sortBy = parsed.sortBy || null
+    restoreFromRQL(template.rql_template, true)
   }
   if (template.sort_config && Array.isArray(template.sort_config) && template.sort_config.length > 0) {
-    const sc = template.sort_config[0]
-    setSortBy({ key: sc.field, direction: sc.dir, labelKey: '' })
+    state.sortBy = template.sort_config.map(sc => ({
+      key: sc.field,
+      direction: sc.dir as 'asc' | 'desc',
+      labelKey: ''
+    }))
   }
   if (template.group_by) {
     const groupOpt = GROUP_OPTIONS.find(o => o.key === template.group_by)
     if (groupOpt) {
       setGroupBy(groupOpt)
     }
+  }
+  if (template.sub_group_by) {
+    const subGroupOpt = SUB_GROUP_OPTIONS.find(o => o.key === template.sub_group_by)
+    if (subGroupOpt) {
+      setSubGroupBy(subGroupOpt)
+    }
+  } else {
+    setSubGroupBy(null)
   }
 }
 
@@ -882,26 +910,35 @@ onUnmounted(() => {
 
         <div class="ml-auto flex items-center gap-2">
           <div v-if="['list', 'tree'].includes(props.currentView)" class="relative">
-            <button
-              v-if="!state.sortBy"
-              @click="toggleSortDropdown"
-              class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <span>{{ t('filter.orderBy') }}</span>
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            <button
-              v-else
-              @click="toggleSortDropdown"
-              class="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors"
-            >
-              <span>{{ t(state.sortBy.labelKey) }}</span>
-              <svg class="w-3 h-3" :class="{ 'rotate-180': state.sortBy.direction === 'asc' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+            <!-- Sort chips + add button -->
+            <div class="flex items-center gap-1">
+              <template v-for="(sort, idx) in state.sortBy" :key="sort.key">
+                <button
+                  @click="toggleSortDropdown"
+                  class="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors"
+                  :title="t(sort.labelKey) + (sort.direction === 'asc' ? ' ↑' : ' ↓')"
+                >
+                  <span>{{ t(sort.labelKey) }}</span>
+                  <span class="text-xs">{{ sort.direction === 'asc' ? '↑' : '↓' }}</span>
+                  <button @click.stop="removeSortOption(idx)" class="ml-1 text-gray-400 hover:text-red-500">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </button>
+              </template>
+              <button
+                @click="toggleSortDropdown"
+                class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                :class="{ 'text-indigo-600': state.sortBy.length > 0 }"
+              >
+                <span v-if="state.sortBy.length === 0">{{ t('filter.orderBy') }}</span>
+                <span v-else>+</span>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
             <div v-if="showSortDropdown" class="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
               <button
                 v-for="option in SORT_OPTIONS"
@@ -910,8 +947,8 @@ onUnmounted(() => {
                 class="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
               >
                 <span>{{ t(option.labelKey) }}</span>
-                <span v-if="state.sortBy?.key === option.key" class="text-indigo-600">
-                  {{ state.sortBy.direction === 'asc' ? '▲' : '▼' }}
+                <span v-if="getSortEntry(option.key)" class="text-indigo-600">
+                  {{ getSortEntry(option.key)?.direction === 'asc' ? '▲' : '▼' }}
                 </span>
               </button>
             </div>
@@ -947,6 +984,42 @@ onUnmounted(() => {
               >
                 <span>{{ t(option.labelKey) }}</span>
                 <svg v-if="state.groupBy?.key === option.key" class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="state.groupBy && ['list', 'tree'].includes(props.currentView)" class="relative">
+            <button
+              v-if="!state.subGroupBy"
+              @click="toggleSubGroupDropdown"
+              class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <span>{{ t('filter.subGroupBy') }}</span>
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <button
+              v-else
+              @click="toggleSubGroupDropdown"
+              class="flex items-center gap-1 text-sm text-purple-600 bg-purple-50 px-2 py-1 rounded-md hover:bg-purple-100 transition-colors"
+            >
+              <span>{{ t(state.subGroupBy.labelKey) }}</span>
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div v-if="showSubGroupDropdown" class="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+              <button
+                v-for="option in SUB_GROUP_OPTIONS"
+                :key="option.key"
+                @click="selectSubGroupOption(option)"
+                class="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+              >
+                <span>{{ t(option.labelKey) }}</span>
+                <svg v-if="state.subGroupBy?.key === option.key" class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
               </button>
@@ -992,10 +1065,13 @@ onUnmounted(() => {
           :project-id="projectId"
           :current-filters="{ rql: rql, filters: state.filters }"
           :current-rql="rql"
-          :current-sort-config="state.sortBy ? [{ field: state.sortBy.key, dir: state.sortBy.direction }] : []"
+          :current-sort-config="state.sortBy.map(s => ({ field: s.key, dir: s.direction }))"
           :current-group-by="state.groupBy?.key"
+          :current-sub-group-by="state.subGroupBy?.key"
+          :current-columns="currentColumns"
           :view-type="currentView"
           @select="handleSavedViewSelect"
+          @save-request="handleViewSaved"
         />
         <SearchTemplateSelector
           :project-id="projectId"
@@ -1006,7 +1082,7 @@ onUnmounted(() => {
       </div>
       <div class="flex items-center gap-1">
         <button
-          @click="emit('viewChange', 'list')"
+          @click="emit('view-change', 'list')"
           class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors"
           :class="currentView === 'list' ? 'bg-gray-100 text-gray-800' : 'text-gray-500 hover:bg-gray-50'"
         >
@@ -1016,7 +1092,7 @@ onUnmounted(() => {
           <span>{{ t('project.view.list') }}</span>
         </button>
         <button
-          @click="emit('viewChange', 'kanban')"
+          @click="emit('view-change', 'kanban')"
           class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors"
           :class="currentView === 'kanban' ? 'bg-gray-100 text-gray-800' : 'text-gray-500 hover:bg-gray-50'"
         >
@@ -1026,7 +1102,7 @@ onUnmounted(() => {
           <span>{{ t('project.view.kanban') }}</span>
         </button>
         <button
-          @click="emit('viewChange', 'tree')"
+          @click="emit('view-change', 'tree')"
           class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors"
           :class="currentView === 'tree' ? 'bg-gray-100 text-gray-800' : 'text-gray-500 hover:bg-gray-50'"
         >
@@ -1036,7 +1112,7 @@ onUnmounted(() => {
           <span>{{ t('project.view.tree') }}</span>
         </button>
         <button
-          @click="emit('viewChange', 'calendar')"
+          @click="emit('view-change', 'calendar')"
           class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors"
           :class="currentView === 'calendar' ? 'bg-gray-100 text-gray-800' : 'text-gray-500 hover:bg-gray-50'"
         >
@@ -1046,7 +1122,7 @@ onUnmounted(() => {
           <span>{{ t('project.view.calendar') }}</span>
         </button>
         <button
-          @click="emit('viewChange', 'gantt')"
+          @click="emit('view-change', 'gantt')"
           class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors"
           :class="currentView === 'gantt' ? 'bg-gray-100 text-gray-800' : 'text-gray-500 hover:bg-gray-50'"
         >

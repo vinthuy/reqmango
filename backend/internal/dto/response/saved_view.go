@@ -16,6 +16,7 @@ type SavedViewResponse struct {
 	SortConfig  json.RawMessage `json:"sort_config"`
 	Columns     json.RawMessage `json:"columns"`
 	GroupBy     *string         `json:"group_by"`
+	SubGroupBy  *string         `json:"sub_group_by"`
 	IsDefault   bool            `json:"is_default"`
 	IsShared    bool            `json:"is_shared"`
 	OwnerID     uint64          `json:"owner_id"`

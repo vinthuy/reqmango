@@ -13,6 +13,7 @@ import (
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -67,6 +68,7 @@ func (h *IssueHandler) Create(c *gin.Context) {
 
 // List handles GET /issues/?project_id=int&workspace_id=int&filters...
 func (h *IssueHandler) List(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	projectID, _ := strconv.ParseUint(c.Query("project_id"), 10, 64)
 
 	// Support workspace-level list
@@ -74,6 +76,26 @@ func (h *IssueHandler) List(c *gin.Context) {
 	if projectID == 0 && workspaceID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "project_id or workspace_id is required"})
 		return
+	}
+
+	// Security Check: Verify user belongs to the workspace
+	if workspaceID > 0 {
+		var member model.WorkspaceMember
+		if err := h.svc.DB().Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, user.ID, true).First(&member).Error; err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you are not a member of this workspace"})
+			return
+		}
+	} else if projectID > 0 {
+		// If only project_id is provided, verify project membership and derive workspace_id
+		var project model.Project
+		if err := h.svc.DB().First(&project, projectID).Error; err == nil {
+			var member model.ProjectMember
+			if err := h.svc.DB().Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, user.ID, true).First(&member).Error; err != nil {
+				c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you are not a member of this project"})
+				return
+			}
+			workspaceID = project.WorkspaceID
+		}
 	}
 
 	p := common.ParsePagination(c.Query("limit"), c.Query("offset"), 50, 100)
@@ -142,6 +164,12 @@ func (h *IssueHandler) List(c *gin.Context) {
 	if v := c.Query("sort_dir"); v != "" {
 		filters["sort_dir"] = v
 	}
+	if v := c.Query("sort_config"); v != "" {
+		var sortConfig []map[string]string
+		if err := json.Unmarshal([]byte(v), &sortConfig); err == nil && len(sortConfig) > 0 {
+			filters["sort_config"] = sortConfig
+		}
+	}
 
 	// Determine whether to query by project or workspace
 	var issues []response.IssueResponse
@@ -184,9 +212,23 @@ func (h *IssueHandler) List(c *gin.Context) {
 
 // Get handles GET /issues/:id
 func (h *IssueHandler) Get(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	issueID, err := h.parseIssueID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	// Security Check: Verify user has access to this issue's workspace
+	var issue model.Issue
+	if err := h.svc.DB().Select("workspace_id").First(&issue, issueID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Issue not found"})
+		return
+	}
+
+	var member model.WorkspaceMember
+	if err := h.svc.DB().Where("workspace_id = ? AND user_id = ? AND is_active = ?", issue.WorkspaceID, user.ID, true).First(&member).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you do not have permission to view this issue"})
 		return
 	}
 

@@ -222,9 +222,20 @@ describe('parseRQL', () => {
     expect(result.filters).toHaveLength(2)
   })
 
-  it('should parse orderby clause', () => {
+  it('should parse orderby clause (multi-sort array)', () => {
     const result = parseRQL('orderby created_at desc')
-    expect(result.sortBy).toMatchObject({ key: 'created_at', direction: 'desc' })
+    expect(result.sortBy).toBeDefined()
+    expect(result.sortBy).toHaveLength(1)
+    expect(result.sortBy![0]).toMatchObject({ key: 'created_at', direction: 'desc' })
+  })
+
+  it('should parse multiple orderby clauses', () => {
+    const result = parseRQL('priority = "high" AND orderby priority desc AND orderby created_at asc')
+    expect(result.sortBy).toBeDefined()
+    expect(result.sortBy).toHaveLength(2)
+    expect(result.sortBy![0]).toMatchObject({ key: 'priority', direction: 'desc' })
+    expect(result.sortBy![1]).toMatchObject({ key: 'created_at', direction: 'asc' })
+    expect(result.filters).toHaveLength(1)
   })
 
   it('should parse custom field keys (cf_ prefix)', () => {
@@ -306,7 +317,7 @@ describe('FILTER_FIELDS', () => {
   it('should have valid operators for each field', () => {
     for (const field of FILTER_FIELDS) {
       expect(field.operators.length).toBeGreaterThan(0)
-      expect(field.type).toMatch(/^(select|multi|date|text)$/)
+      expect(field.type).toMatch(/^(select|multi|date|text|number|date_range)$/)
       expect(field.valueType).toMatch(/^(string|number|date)$/)
     }
   })

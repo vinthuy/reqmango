@@ -137,7 +137,7 @@ import UserSelect from '@/components/UserSelect.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
 
-const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterGroupBy?: string }>()
+const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string }>()
 
 const emit = defineEmits<{
   (e: 'select', issue: any): void
@@ -211,6 +211,9 @@ async function loadRootNodes() {
   try {
     const params: any = { limit: limit.value, offset: (page.value - 1) * limit.value }
     if (props.rql) params.rql = props.rql
+    if (props.filterSortConfig) params.sort_config = props.filterSortConfig
+    if (props.filterSortBy) params.sort_by = props.filterSortBy
+    if (props.filterSortDir) params.sort_dir = props.filterSortDir
     const result = await issueApi.listTreeIssues(props.projectId, params)
     rootNodes.value = result.items
     totalCount.value = result.total
@@ -331,7 +334,7 @@ onMounted(() => {
 watch(page, () => {
   loadRootNodes()
 })
-watch(() => props.rql, () => {
+watch(() => [props.rql, props.filterSortBy, props.filterSortDir, props.filterSortConfig], () => {
   page.value = 1
   loadRootNodes()
 })

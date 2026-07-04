@@ -159,6 +159,12 @@ const router = createRouter({
       name: 'Analytics',
       component: () => import('@/views/Analytics.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/project/:id/dashboards',
+      name: 'Dashboards',
+      component: () => import('@/views/Dashboard.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

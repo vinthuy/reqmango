@@ -27,6 +27,9 @@ type SavedView struct {
 	// Group-by field for kanban view: e.g., "state_id" or "priority" or "assignee_id"
 	GroupBy *string `gorm:"size:50" json:"group_by"`
 
+	// Sub-group-by field for nested grouping within the primary group
+	SubGroupBy *string `gorm:"size:50" json:"sub_group_by"`
+
 	IsDefault bool   `gorm:"default:false" json:"is_default"`
 	IsShared  bool   `gorm:"default:false" json:"is_shared"`
 	OwnerID   uint64 `gorm:"not null;index" json:"owner_id"`

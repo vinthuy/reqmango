@@ -60,6 +60,7 @@ func (s *SavedViewService) Create(req *request.SavedViewCreateRequest, projectID
 		SortConfig:  normalizeJSON(req.SortConfig),
 		Columns:     normalizeJSON(req.Columns),
 		GroupBy:     req.GroupBy,
+		SubGroupBy:  req.SubGroupBy,
 		IsShared:    req.IsShared,
 		OwnerID:     userID,
 		ProjectID:   projectID,
@@ -109,6 +110,9 @@ func (s *SavedViewService) Update(id, projectID, userID uint64, req *request.Sav
 	}
 	if req.GroupBy != nil {
 		updates["group_by"] = req.GroupBy
+	}
+	if req.SubGroupBy != nil {
+		updates["sub_group_by"] = req.SubGroupBy
 	}
 	if req.IsShared != nil {
 		updates["is_shared"] = *req.IsShared
@@ -179,6 +183,7 @@ func (s *SavedViewService) Duplicate(id, projectID, userID uint64) (*response.Sa
 		SortConfig:  src.SortConfig,
 		Columns:     src.Columns,
 		GroupBy:     src.GroupBy,
+		SubGroupBy:  src.SubGroupBy,
 		IsDefault:   false,
 		IsShared:    false,
 		OwnerID:     userID,
@@ -211,6 +216,7 @@ func viewToResponse(v *model.SavedView) response.SavedViewResponse {
 		SortConfig:  v.SortConfig,
 		Columns:     v.Columns,
 		GroupBy:     v.GroupBy,
+		SubGroupBy:  v.SubGroupBy,
 		IsDefault:   v.IsDefault,
 		IsShared:    v.IsShared,
 		OwnerID:     v.OwnerID,

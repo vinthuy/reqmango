@@ -91,6 +91,8 @@ func main() {
 		&model.RolePermission{},
 		&model.SavedReport{},
 		&model.SearchTemplate{},
+		&model.SavedDashboard{},
+		&model.DashboardWidget{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

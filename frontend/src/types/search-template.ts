@@ -7,6 +7,7 @@ export interface SearchTemplate {
   view_type: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
   sort_config: SortConfigEntry[]
   group_by?: string
+  sub_group_by?: string
   columns: string[]
   is_built_in: boolean
   is_public: boolean
@@ -29,5 +30,6 @@ export interface SearchTemplateCreate {
   view_type?: 'list' | 'kanban' | 'tree' | 'gantt' | 'calendar'
   sort_config?: SortConfigEntry[]
   group_by?: string
+  sub_group_by?: string
   columns?: string[]
 }

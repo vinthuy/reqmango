@@ -19,6 +19,11 @@ func NewProjectService(db *gorm.DB) *ProjectService {
 	return &ProjectService{db: db}
 }
 
+// DB returns the database instance for use in handlers (for security checks).
+func (s *ProjectService) DB() *gorm.DB {
+	return s.db
+}
+
 // Create creates a new project and adds the creator as admin member.
 func (s *ProjectService) Create(req *request.ProjectCreateRequest, workspaceID, userID uint64) (*response.ProjectResponse, error) {
 	// Verify workspace exists
