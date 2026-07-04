@@ -17,26 +17,17 @@
             <span>{{ t('issueKanban.quickCreate') }}</span>
           </button>
 
-          <!-- 列配置 -->
-          <div class="relative">
-            <button
-              @click="showColumns = !showColumns"
-              class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-              :class="{ 'bg-gray-100 border-gray-300': showColumns }"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-              <span>{{ t('issueList.columnConfig') }}</span>
-            </button>
-            <div v-if="showColumns" class="absolute left-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-              <div class="px-3 py-1.5 text-[11px] text-gray-400 font-medium uppercase tracking-wider border-b border-gray-100">{{ t('issueList.displayColumns') }}</div>
-              <label v-for="col in effectiveColumns" :key="col.key" class="flex items-center px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
-                <input type="checkbox" :checked="visibleColumnKeys.has(col.key)" @change="toggleColumn(col.key)" class="rounded border-gray-300 mr-2" />
-                {{ t(col.labelKey || "") || col.label }}
-              </label>
-            </div>
-          </div>
+          <!-- 列配置（齿轮图标） -->
+          <button
+            @click="openColumnModal"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            :title="t('issueList.columnConfig')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
 
           <!-- 导入 -->
           <button @click="showImportModal = true" class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
@@ -220,6 +211,65 @@
       </div>
     </div>
 
+    <!-- 列设置弹窗 -->
+    <div v-if="showColumnModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="cancelColumnChanges">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">{{ t('issueList.columnConfig') }}</h3>
+            <p class="text-xs text-gray-500 mt-0.5">{{ t('issueList.columnConfigDesc') || 'Select columns to show in the list' }}</p>
+          </div>
+          <button @click="cancelColumnChanges" class="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="flex items-center gap-2 px-5 py-2.5 border-b border-gray-100 bg-gray-50">
+          <button @click="selectAllColumns" class="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100 transition-colors">{{ t('issueList.selectAll') || 'Select All' }}</button>
+          <button @click="deselectAllColumns" class="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100 transition-colors">{{ t('issueList.deselectAll') || 'Deselect All' }}</button>
+          <button @click="resetColumnDefaults" class="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100 transition-colors ml-auto">{{ t('issueList.resetDefaults') || 'Reset' }}</button>
+        </div>
+
+        <!-- Column list -->
+        <div class="flex-1 overflow-y-auto px-5 py-3 space-y-4">
+          <!-- System fields -->
+          <div>
+            <div class="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-2">{{ t('issueList.systemFields') || 'System Fields' }}</div>
+            <div class="space-y-0.5">
+              <label v-for="col in systemColumns" :key="col.key" class="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer text-sm">
+                <input type="checkbox" :checked="tempColumnKeys.has(col.key)" @change="toggleTempColumn(col.key)" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                <span class="text-gray-700">{{ t(col.labelKey || '') || col.label }}</span>
+                <span class="text-[10px] text-gray-400 ml-auto">{{ col.key.startsWith('cf_') ? 'CF' : '' }}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Custom fields -->
+          <div v-if="customFieldColumns.length > 0">
+            <div class="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-2">{{ t('issueList.customFields') || 'Custom Fields' }}</div>
+            <div class="space-y-0.5">
+              <label v-for="col in customFieldColumns" :key="col.key" class="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer text-sm">
+                <input type="checkbox" :checked="tempColumnKeys.has(col.key)" @change="toggleTempColumn(col.key)" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                <span class="text-gray-700">{{ col.label }}</span>
+                <span class="text-[10px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full ml-auto">CF</span>
+              </label>
+            </div>
+          </div>
+          <div v-else class="text-center text-xs text-gray-400 py-3">
+            {{ t('issueList.noCustomFields') || 'No custom fields configured' }}
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50">
+          <button @click="cancelColumnChanges" class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">{{ t('common.cancel') }}</button>
+          <button @click="applyColumnChanges" class="px-4 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">{{ t('common.apply') || 'Apply' }}</button>
+        </div>
+      </div>
+    </div>
+
     <ImportIssuesModal
       :visible="showImportModal"
       :project-id="projectId"
@@ -293,19 +343,50 @@ function loadColumnPrefs(): Set<string> {
 }
 
 const visibleColumnKeys = ref(loadColumnPrefs())
-const showColumns = ref(false)
+const showColumnModal = ref(false)
+const tempColumnKeys = ref(new Set(visibleColumnKeys.value))
 
 const visibleColumns = computed(() => effectiveColumns.value.filter(c => visibleColumnKeys.value.has(c.key)))
 
-function toggleColumn(key: string) {
-  const s = new Set(visibleColumnKeys.value)
-  s.has(key) ? s.delete(key) : s.add(key)
-  visibleColumnKeys.value = s
-  saveColumnPrefs()
-}
-
 function saveColumnPrefs() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...visibleColumnKeys.value]))
+}
+
+const systemColumns = computed(() => effectiveColumns.value.filter(c => !c.key.startsWith('cf_')))
+const customFieldColumns = computed(() => effectiveColumns.value.filter(c => c.key.startsWith('cf_')))
+
+function openColumnModal() {
+  tempColumnKeys.value = new Set(visibleColumnKeys.value)
+  showColumnModal.value = true
+}
+
+function applyColumnChanges() {
+  visibleColumnKeys.value = new Set(tempColumnKeys.value)
+  saveColumnPrefs()
+  showColumnModal.value = false
+}
+
+function cancelColumnChanges() {
+  showColumnModal.value = false
+}
+
+function resetColumnDefaults() {
+  const defaults = new Set(effectiveColumns.value.filter(c => c.defaultVisible).map(c => c.key))
+  tempColumnKeys.value = defaults
+}
+
+function selectAllColumns() {
+  tempColumnKeys.value = new Set(effectiveColumns.value.map(c => c.key))
+}
+
+function deselectAllColumns() {
+  tempColumnKeys.value = new Set(effectiveColumns.value.filter(c => c.key === 'sequence_id' || c.key === 'name').map(c => c.key))
+}
+
+function toggleTempColumn(key: string) {
+  const s = new Set(tempColumnKeys.value)
+  s.has(key) ? s.delete(key) : s.add(key)
+  tempColumnKeys.value = s
 }
 
 // Watch columns prop to restore from SavedView

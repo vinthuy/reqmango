@@ -333,7 +333,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import type { CustomField, CustomFieldCreate, CustomFieldUpdate, CustomFieldOptionCreate } from '@/types/custom-field'
 import { CustomFieldTypeEnum, getFieldTypeName } from '@/types/custom-field'
@@ -640,6 +640,11 @@ async function saveValues() {
 }
 
 defineExpose({ loadData, saveValues, loadIssueValues })
+
+// Re-load when workspace/project/issue changes (e.g. after route resolves)
+watch(() => [props.workspaceId, props.projectId, props.issueId], () => {
+  loadData()
+})
 
 onMounted(() => {
   loadData()

@@ -309,8 +309,8 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const issueId = parseInt(route.params.issueId as string, 10) || 0
 
-let workspaceId = 0
-let projectId = 0
+const workspaceId = ref(0)
+const projectId = ref(0)
 
 // State
 const issue = ref<any>(null)
@@ -371,8 +371,8 @@ async function loadIssue() {
     issue.value = issueData
     
     // Set workspaceId and projectId from issue data
-    if (issueData.workspace_id) workspaceId = issueData.workspace_id
-    if (issueData.project_id) projectId = issueData.project_id
+    if (issueData.workspace_id) workspaceId.value = issueData.workspace_id
+    if (issueData.project_id) projectId.value = issueData.project_id
 
     // Populate form
     issueForm.value = {
@@ -401,7 +401,7 @@ async function loadIssue() {
 // Load states
 async function loadStates() {
   try {
-    const data = await stateApi.listStates(projectId)
+    const data = await stateApi.listStates(projectId.value)
     states.value = data
   } catch (error) {
     console.error('Failed to load states:', error)
@@ -411,7 +411,7 @@ async function loadStates() {
 // Load cycles
 async function loadCycles() {
   try {
-    const data = await cycleApi.listCycles(projectId)
+    const data = await cycleApi.listCycles(projectId.value)
     cycles.value = data.items || data
   } catch (error) {
     console.error('Failed to load cycles:', error)
@@ -421,7 +421,7 @@ async function loadCycles() {
 // Load modules
 async function loadModules() {
   try {
-    const data = await moduleApi.listModules(projectId, workspaceId)
+    const data = await moduleApi.listModules(projectId.value, workspaceId.value)
     modules.value = data
   } catch (error) {
     console.error('Failed to load modules:', error)
@@ -431,7 +431,7 @@ async function loadModules() {
 // Load issue types
 async function loadIssueTypes() {
   try {
-    const types = await issueTypeApi.getIssueTypes(workspaceId, projectId)
+    const types = await issueTypeApi.getIssueTypes(workspaceId.value, projectId.value)
     issueTypes.value = types
   } catch (error) {
     console.error('Failed to load issue types:', error)
@@ -441,7 +441,7 @@ async function loadIssueTypes() {
 // Load project members
 async function loadProjectMembers() {
   try {
-    const data = await projectApi.listProjectMembers(projectId)
+    const data = await projectApi.listProjectMembers(projectId.value)
     projectMembers.value = data.map((m: any) => m.user || m)
   } catch (error) {
     console.error('Failed to load project members:', error)
@@ -518,7 +518,7 @@ async function loadRelations() {
   try {
     const [rels, types] = await Promise.all([
       relationApi.listIssueRelations(issueId),
-      relationApi.listRelationTypes(workspaceId)
+      relationApi.listRelationTypes(workspaceId.value)
     ])
     relations.value = rels || []
     relationTypes.value = types || []
@@ -531,7 +531,7 @@ async function searchRelatedIssues() {
   if (!newRelation.value.search.trim()) { relationSearchResults.value = []; return }
   relationSearchTimer = setTimeout(async () => {
     try {
-      const result: any = await issueApiSearch.searchIssues(workspaceId, newRelation.value.search)
+      const result: any = await issueApiSearch.searchIssues(workspaceId.value, newRelation.value.search)
       relationSearchResults.value = (Array.isArray(result) ? result : (result.items || [])).slice(0, 8)
     } catch (e) { console.error('Search failed:', e) }
   }, 300)
@@ -588,14 +588,14 @@ function formatActivity(act: any): string {
 function createSubIssue() {
   // Navigate to create issue page with parent_id
   router.push({
-    path: `/workspaces/${workspaceId}/projects/${projectId}/issues/new`,
+    path: `/workspaces/${workspaceId.value}/projects/${projectId.value}/issues/new`,
     query: { parent_id: issueId }
   })
 }
 
 // Edit sub issue
 function editSubIssue(issue: any) {
-  router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/${issue.id}`)
+  router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}/issues/${issue.id}`)
 }
 
 // Pages
@@ -611,7 +611,7 @@ async function searchPages() {
   if (!newPage.value.search.trim()) { pageSearchResults.value = []; return }
   pageSearchTimer = setTimeout(async () => {
     try {
-      const pages: any[] = await pageApi.searchPages(projectId, newPage.value.search)
+      const pages: any[] = await pageApi.searchPages(projectId.value, newPage.value.search)
       pageSearchResults.value = pages.slice(0, 8)
     } catch (e) { console.error('Search pages failed:', e) }
   }, 300)
