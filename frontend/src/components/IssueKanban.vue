@@ -78,8 +78,6 @@
         v-for="column in kanbanColumns"
         :key="column.id"
         class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 min-h-[200px]"
-        @dragover.prevent="onDragOver"
-        @drop.prevent="onDrop($event, column.key)"
       >
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center space-x-2">
@@ -94,26 +92,50 @@
         <div v-if="groupBy === 'state' && quickCreateStateId === column.key" class="mb-3">
           <QuickCreateInput :project-id="projectId" :workspace-id="workspaceId" :issue-types="issueTypes" :default-state-id="(column.key as number)" :show-priority="false" inline show-cancel @created="onQuickCreated" @cancel="closeQuickCreate" />
         </div>
-        <div class="space-y-2">
-          <div v-for="issue in groupedIssues[column.key] || []" :key="issue.id" @click="$emit('select', issue)" class="bg-white dark:bg-gray-700 rounded-md border border-gray-200 dark:border-gray-600 p-2.5 cursor-pointer hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-600 transition-shadow relative group" draggable="true" @dragstart="onDragStart($event, issue)">
+        <VueDraggable
+          v-model="groupedIssues[column.key]"
+          :group="{ name: dragGroupName, pull: true, put: true }"
+          :animation="300"
+          ghost-class="kanban-ghost"
+          drag-class="kanban-drag"
+          :sort="true"
+          :disabled="dragLocked"
+          item-key="id"
+          class="space-y-2 min-h-[4px]"
+          @update="(evt: any) => onDragUpdate(column.key, evt.newIndex, evt.oldIndex, evt.item)"
+          @add="(evt: any) => onDragAdd(column.key, evt.newIndex, evt.item)"
+        >
+          <div
+            v-for="issue in groupedIssues[column.key] || []"
+            :key="issue.id"
+            @click="$emit('select', issue)"
+            class="bg-white dark:bg-gray-700 rounded-md border border-gray-200 dark:border-gray-600 p-2.5 cursor-pointer hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-600 transition-shadow relative group"
+          >
             <div class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
               <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300 dark:border-gray-500 w-3.5 h-3.5" />
             </div>
-            <div class="flex items-start justify-between">
-              <span class="text-xs text-gray-400 font-mono">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
-              <span :class="priorityDotClass(issue.priority)" class="w-1.5 h-1.5 rounded-full inline-block"></span>
-            </div>
-            <p class="text-sm text-gray-800 dark:text-gray-100 mt-1 leading-snug line-clamp-2">{{ issue.name }}</p>
-            <div class="mt-2 flex items-center justify-between">
-              <div class="flex -space-x-1">
-                <div v-for="(a, idx) in (issue.assignees || []).slice(0, 2)" :key="a.id" class="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[10px] font-medium text-white" :style="{ backgroundColor: assigneeColor(idx) }" :title="a.display_name || a.username">{{ getInitials(a.display_name || a.username) }}</div>
+            <div class="flex items-center gap-2">
+              <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-gray-400" title="Drag to reorder">
+                <svg class="w-3 h-3" viewBox="0 0 12 12" fill="currentColor"><circle cx="3" cy="2" r="1.2"/><circle cx="9" cy="2" r="1.2"/><circle cx="3" cy="6" r="1.2"/><circle cx="9" cy="6" r="1.2"/><circle cx="3" cy="10" r="1.2"/><circle cx="9" cy="10" r="1.2"/></svg>
               </div>
-              <span v-if="issue.cycle" class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{{ issue.cycle.name }}</span>
-              <button @click.stop="$emit('select', issue)" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-medium">{{ t('issueKanban.details') }}</button>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-start justify-between">
+                  <span class="text-xs text-gray-400 font-mono">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
+                  <span :class="priorityDotClass(issue.priority)" class="w-1.5 h-1.5 rounded-full inline-block"></span>
+                </div>
+                <p class="text-sm text-gray-800 dark:text-gray-100 mt-1 leading-snug line-clamp-2">{{ issue.name }}</p>
+                <div class="mt-2 flex items-center justify-between">
+                  <div class="flex -space-x-1">
+                    <div v-for="(a, idx) in (issue.assignees || []).slice(0, 2)" :key="a.id" class="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[10px] font-medium text-white" :style="{ backgroundColor: assigneeColor(idx) }" :title="a.display_name || a.username">{{ getInitials(a.display_name || a.username) }}</div>
+                  </div>
+                  <span v-if="issue.cycle" class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{{ issue.cycle.name }}</span>
+                  <button @click.stop="$emit('select', issue)" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-medium">{{ t('issueKanban.details') }}</button>
+                </div>
+              </div>
             </div>
           </div>
-          <div v-if="!(groupedIssues[column.key] || []).length" class="text-center text-xs text-gray-400 py-6">{{ t('issueKanban.dragHere') }}</div>
-        </div>
+        </VueDraggable>
+        <div v-if="!(groupedIssues[column.key] || []).length" class="text-center text-xs text-gray-400 py-6">{{ t('issueKanban.dragHere') }}</div>
       </div>
     </div>
 
@@ -124,7 +146,6 @@
         :key="swimlane.key"
         class="swimlane-row"
       >
-        <!-- 泳道标签 -->
         <div class="flex items-center space-x-2 mb-2 px-1">
           <span class="w-3 h-3 rounded-full flex-shrink-0" :style="{ backgroundColor: swimlane.color }"></span>
           <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">{{ swimlane.label }}</span>
@@ -142,26 +163,44 @@
                 <h4 class="text-xs font-medium text-gray-500">{{ column.label }}</h4>
               </div>
               <span class="text-[10px] bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full">
-                {{ (swimlaneGroupedIssues?.[swimlane.key]?.[column.key] || []).length }}
+                {{ (swimlaneGrouped[swimlane.key]?.[column.key] || []).length }}
               </span>
             </div>
-            <div class="space-y-1.5">
+            <VueDraggable
+              v-if="swimlaneGrouped[swimlane.key]"
+              v-model="swimlaneGrouped[swimlane.key][column.key]"
+              :group="{ name: dragGroupName, pull: true, put: true }"
+              :animation="300"
+              ghost-class="kanban-ghost"
+              drag-class="kanban-drag"
+              :sort="true"
+              :disabled="dragLocked"
+              item-key="id"
+              class="space-y-1.5 min-h-[4px]"
+              @update="(evt: any) => onDragUpdate(column.key, evt.newIndex, evt.oldIndex, evt.item)"
+              @add="(evt: any) => onDragAdd(column.key, evt.newIndex, evt.item)"
+            >
               <div
-                v-for="issue in swimlaneGroupedIssues?.[swimlane.key]?.[column.key] || []"
+                v-for="issue in swimlaneGrouped[swimlane.key]?.[column.key] || []"
                 :key="issue.id"
                 @click="$emit('select', issue)"
                 class="bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 p-2 cursor-pointer hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-600 transition-shadow relative group"
-                draggable="true"
-                @dragstart="onDragStart($event, issue)"
               >
-                <div class="flex items-start justify-between">
-                  <span class="text-[10px] text-gray-400 font-mono">{{ issue.sequence_id }}</span>
-                  <span :class="priorityDotClass(issue.priority)" class="w-1.5 h-1.5 rounded-full inline-block"></span>
+                <div class="flex items-center gap-1.5">
+                  <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab text-gray-400" title="Drag to reorder">
+                    <svg class="w-2.5 h-2.5" viewBox="0 0 12 12" fill="currentColor"><circle cx="3" cy="2" r="1.2"/><circle cx="9" cy="2" r="1.2"/><circle cx="3" cy="6" r="1.2"/><circle cx="9" cy="6" r="1.2"/><circle cx="3" cy="10" r="1.2"/><circle cx="9" cy="10" r="1.2"/></svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between">
+                      <span class="text-[10px] text-gray-400 font-mono">{{ issue.sequence_id }}</span>
+                      <span :class="priorityDotClass(issue.priority)" class="w-1.5 h-1.5 rounded-full inline-block"></span>
+                    </div>
+                    <p class="text-xs text-gray-800 dark:text-gray-100 mt-0.5 leading-snug line-clamp-2">{{ issue.name }}</p>
+                  </div>
                 </div>
-                <p class="text-xs text-gray-800 dark:text-gray-100 mt-0.5 leading-snug line-clamp-2">{{ issue.name }}</p>
               </div>
-              <div v-if="!(swimlaneGroupedIssues?.[swimlane.key]?.[column.key] || []).length" class="text-center text-[10px] text-gray-300 py-4">-</div>
-            </div>
+            </VueDraggable>
+            <div v-if="!(swimlaneGrouped[swimlane.key]?.[column.key] || []).length" class="text-center text-[10px] text-gray-300 py-4">-</div>
           </div>
         </div>
       </div>
@@ -186,6 +225,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import QuickCreateInput from '@/components/QuickCreateInput.vue'
 import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
+import { VueDraggable } from 'vue-draggable-plus'
 
 const props = defineProps<{ projectId: number; workspaceId: number; projectIdentifier?: string; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string }>()
 defineEmits<{ (e: 'select', issue: any): void }>()
@@ -223,6 +263,24 @@ watch(() => props.filterSubGroupBy, (newSubGroupBy) => {
   }
 })
 
+watch(groupBy, () => { rebuildGroupedIssues(); rebuildSwimlaneGrouped() })
+watch(swimlaneBy, () => rebuildSwimlaneGrouped())
+
+const dragLocked = ref(false)
+const pendingRequests = new Map<number, AbortController>()
+
+function computeSortOrder(targetList: any[], newIndex: number): number {
+  const prev = newIndex > 0 ? (targetList[newIndex - 1]?.sort_order ?? null) : null
+  const next = newIndex < targetList.length - 1 ? (targetList[newIndex + 1]?.sort_order ?? null) : null
+
+  if (!prev && !next) return 65535
+  if (!prev && next) return (next as number) / 2
+  if (prev && !next) return (prev as number) + 1000
+  return ((prev as number) + (next as number)) / 2
+}
+
+const dragGroupName = computed(() => String(props.projectId))
+
 // ── Batch selection ──
 const selectedIds = ref(new Set<number>())
 const showBatchState = ref(false)
@@ -256,8 +314,10 @@ const memberOptions = computed(() => members.value.map(m => ({
 })))
 
 // ═══ Grouping logic ═══
-const groupedIssues = computed(() => {
-  const map: Record<string, any[]> = {}
+const groupedIssues = ref<Record<string | number, any[]>>({})
+
+function rebuildGroupedIssues() {
+  const map: Record<string | number, any[]> = {}
 
   if (groupBy.value === 'state') {
     states.value.forEach(s => { map[s.id] = [] })
@@ -265,11 +325,10 @@ const groupedIssues = computed(() => {
       if (map[i.state_id]) map[i.state_id].push(i)
     })
   } else if (groupBy.value === 'assignee') {
-    const seen = new Set<number>()
     issues.value.forEach(i => {
       if (i.assignees && i.assignees.length > 0) {
         i.assignees.forEach((a: any) => {
-          if (!seen.has(a.id)) { seen.add(a.id); map[a.id] = [] }
+          if (!map[a.id]) map[a.id] = []
         })
       }
     })
@@ -277,25 +336,23 @@ const groupedIssues = computed(() => {
     issues.value.forEach(i => {
       if (i.assignees && i.assignees.length > 0) {
         i.assignees.forEach((a: any) => {
-          if (map[a.id]) map[a.id].push(i)
+          map[a.id].push(i)
         })
       } else {
         map['__unassigned__'].push(i)
       }
     })
   } else if (groupBy.value === 'priority') {
-    const keys = ['urgent', 'high', 'medium', 'low', 'none']
-    keys.forEach(k => { map[k] = [] })
+    ['urgent', 'high', 'medium', 'low', 'none'].forEach(k => { map[k] = [] })
     issues.value.forEach(i => {
       const key = i.priority || 'none'
       if (map[key]) map[key].push(i)
     })
   } else if (groupBy.value === 'labels') {
-    const seen = new Set<number>()
     issues.value.forEach(i => {
       if (i.labels && i.labels.length > 0) {
         i.labels.forEach((l: any) => {
-          if (!seen.has(l.id)) { seen.add(l.id); map[l.id] = [] }
+          if (!map[l.id]) map[l.id] = []
         })
       }
     })
@@ -303,7 +360,7 @@ const groupedIssues = computed(() => {
     issues.value.forEach(i => {
       if (i.labels && i.labels.length > 0) {
         i.labels.forEach((l: any) => {
-          if (map[l.id]) map[l.id].push(i)
+          map[l.id].push(i)
         })
       } else {
         map['__nolabel__'].push(i)
@@ -311,8 +368,8 @@ const groupedIssues = computed(() => {
     })
   }
 
-  return map
-})
+  groupedIssues.value = map
+}
 
 const kanbanColumns = computed(() => {
   if (groupBy.value === 'state') {
@@ -441,13 +498,21 @@ function getSwimlaneKeyForIssue(issue: any): string {
   return '__none__'
 }
 
-const swimlaneGroupedIssues = computed(() => {
-  if (!swimlaneBy.value) return null
+const swimlaneGrouped = ref<Record<string, Record<string | number, any[]>>>({})
+
+function rebuildSwimlaneGrouped() {
+  if (!swimlaneBy.value) {
+    swimlaneGrouped.value = {}
+    return
+  }
 
   const result: Record<string, Record<string | number, any[]>> = {}
   swimlaneKeys.value.forEach(s => { result[s.key] = {} })
+  // Pre-initialize all state columns for state-based grouping
   if (groupBy.value === 'state') {
-    states.value.forEach(s => { swimlaneKeys.value.forEach(sk => { result[sk.key][s.id] = [] }) })
+    states.value.forEach(s => {
+      swimlaneKeys.value.forEach(sk => { result[sk.key][s.id] = [] })
+    })
   }
 
   issues.value.forEach(i => {
@@ -483,12 +548,13 @@ const swimlaneGroupedIssues = computed(() => {
       }
     }
   })
-  return result
-})
+
+  swimlaneGrouped.value = result
+}
 
 function countSwimlaneIssues(swimlaneKey: string): number {
-  if (!swimlaneGroupedIssues.value) return 0
-  const cols = swimlaneGroupedIssues.value[swimlaneKey]
+  if (!swimlaneGrouped.value) return 0
+  const cols = swimlaneGrouped.value[swimlaneKey]
   if (!cols) return 0
   let count = 0
   for (const k of Object.keys(cols)) {
@@ -504,30 +570,70 @@ function priorityDotClass(p: string) {
 function getInitials(n: string) { return (n || '?')[0]?.toUpperCase() || '?' }
 function assigneeColor(i: number) { return ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] }
 
-function onDragStart(e: DragEvent, issue: any) {
-  e.dataTransfer?.setData('text/plain', String(issue.id))
-  e.dataTransfer?.setData('application/kanban', JSON.stringify({ issueId: issue.id, sourceGroup: issue.state_id }))
-}
+async function onDragUpdate(columnKey: string | number, newIndex: number, oldIndex: number, itemEl: any) {
+  if (dragLocked.value || newIndex === oldIndex) return
 
-function onDragOver(e: DragEvent) {
-  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-}
-
-async function onDrop(e: DragEvent, targetGroup: any) {
-  const issueId = e.dataTransfer?.getData('text/plain')
+  const issueId = (itemEl as any)?.__vueDraggableData?.id || (itemEl as any)?.id
   if (!issueId) return
-  
-  const draggedIssue = issues.value.find(i => i.id === Number(issueId))
-  if (!draggedIssue) return
-  
-  // If grouping by state, update the issue's state
-  if (groupBy.value === 'state' && draggedIssue.state_id !== targetGroup) {
-    try {
-      await issueApi.updateIssue(Number(issueId), { state_id: targetGroup })
-      loadIssues()
-    } catch (err) {
-      console.error('Failed to update issue state:', err)
+
+  const prevCtrl = pendingRequests.get(issueId)
+  if (prevCtrl) prevCtrl.abort()
+  pendingRequests.set(issueId, new AbortController())
+
+  const columnIssues = groupedIssues.value[columnKey]
+  if (!columnIssues) return
+  const sortOrder = computeSortOrder(columnIssues, newIndex)
+
+  try {
+    await issueApi.updateIssue(issueId, { sort_order: sortOrder })
+  } catch (err: any) {
+    if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
+    await loadIssues()
+    showToast('更新失败，已恢复原位')
+  } finally {
+    pendingRequests.delete(issueId)
+  }
+}
+
+async function onDragAdd(columnKey: string | number, newIndex: number, itemEl: any) {
+  if (dragLocked.value) return
+
+  const issueId = (itemEl as any)?.__vueDraggableData?.id || (itemEl as any)?.id
+  if (!issueId) return
+
+  const prevCtrl = pendingRequests.get(issueId)
+  if (prevCtrl) prevCtrl.abort()
+  pendingRequests.set(issueId, new AbortController())
+
+  try {
+    // Step 1: Update field based on groupBy
+    if (groupBy.value === 'state') {
+      await issueApi.updateIssue(issueId, { state_id: columnKey as number })
+    } else if (groupBy.value === 'assignee') {
+      const assigneeIds = columnKey === '__unassigned__' ? [] : [columnKey as number]
+      await issueApi.updateIssue(issueId, { assignee_ids: assigneeIds })
+    } else if (groupBy.value === 'priority') {
+      await issueApi.updateIssue(issueId, { priority: columnKey as string as any })
+    } else if (groupBy.value === 'labels') {
+      if (columnKey !== '__nolabel__') {
+        try { await issueApi.addIssueLabel(issueId, columnKey as number) } catch { /* already exists */ }
+      }
     }
+
+    // Step 2: Update sortOrder in target column
+    const columnIssues = groupedIssues.value[columnKey]
+    if (columnIssues) {
+      const sortOrder = computeSortOrder(columnIssues, newIndex)
+      await issueApi.updateIssue(issueId, { sort_order: sortOrder })
+    }
+  } catch (err: any) {
+    if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
+    await loadIssues()
+    showToast('更新失败，已恢复原位')
+    dragLocked.value = true
+    setTimeout(() => { dragLocked.value = false }, 500)
+  } finally {
+    pendingRequests.delete(issueId)
   }
 }
 
@@ -553,6 +659,8 @@ async function loadIssues() {
     }
     const result = await issueApi.listIssues(props.projectId, props.workspaceId, params)
     issues.value = result.items
+    rebuildGroupedIssues()
+    rebuildSwimlaneGrouped()
   } catch (e) { console.error('Failed to load issues:', e) }
   finally { loading.value = false }
 }
@@ -625,3 +733,18 @@ async function execBatchDelete() {
   } catch (e) { console.error('Batch delete failed:', e) }
 }
 </script>
+
+<style scoped>
+.kanban-ghost {
+  opacity: 0.4;
+  background-color: #dbeafe;
+  border: 2px dashed #60a5fa;
+  border-radius: 0.5rem;
+}
+
+.kanban-drag {
+  opacity: 0.6;
+  transform: rotate(2deg);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+</style>
