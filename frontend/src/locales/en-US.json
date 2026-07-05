@@ -147,6 +147,8 @@
     "noModule": "No module",
     "unknown": "Unknown",
     "status": "Status",
+    "properties": "Properties",
+    "setParent": "Set Parent",
     "allTypes": "All Types",
     "tabDetails": "Details",
     "tabRelations": "Relations",
@@ -957,7 +959,9 @@
     "dragHere": "Drag issues here",
     "unassigned": "Unassigned",
     "noLabel": "No Label",
-    "noType": "No Type"
+    "noType": "No Type",
+    "change": "Change",
+    "noRelations": "No relations"
   },
   "issueGantt": {
     "groupByAssignee": "By Assignee",

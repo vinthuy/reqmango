@@ -147,6 +147,8 @@
     "noModule": "无模块",
     "unknown": "未知",
     "status": "状态",
+    "properties": "属性",
+    "setParent": "设置父级",
     "allTypes": "所有类型",
     "tabDetails": "详情",
     "tabRelations": "关联",
@@ -1112,7 +1114,9 @@
     "dragHere": "拖放工作项到此处",
     "unassigned": "未分配",
     "noLabel": "无标签",
-    "noType": "无类型"
+    "noType": "无类型",
+    "change": "变更",
+    "noRelations": "无关联关系"
   },
   "issueGantt": {
     "groupByAssignee": "按负责人",
