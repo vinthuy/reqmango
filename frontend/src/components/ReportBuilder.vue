@@ -103,7 +103,7 @@
         <!-- Right: Filter + Results -->
         <div class="flex-1 space-y-4">
 
-          <!-- ── Filter Builder (Jira-style, merged with report config) ── -->
+          <!-- ── Filter Builder (Jira-style, all-in-one) ── -->
           <div class="bg-white border border-gray-100 rounded-xl px-5 py-4">
             <div class="flex items-center justify-between mb-3">
               <h4 class="text-sm font-medium text-gray-700">{{ t('report.filterConditions') }}</h4>
@@ -160,7 +160,7 @@
               <button @click="rqlError = null" class="text-red-400 hover:text-red-600">&times;</button>
             </div>
 
-            <!-- Chart + Date + Actions (merged from old Report Config) -->
+            <!-- Chart + Date + Actions -->
             <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-end gap-3">
               <div>
                 <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.chart') }}</label>
