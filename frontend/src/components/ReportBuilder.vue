@@ -31,7 +31,8 @@
       <!-- Quick chart cards -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div v-for="q in quickCharts" :key="q.type + q.groupBy"
-          class="bg-white rounded-xl border border-gray-100 overflow-hidden"
+          @click="runQuickChart(q)"
+          class="bg-white rounded-xl border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
           :class="{ 'ring-2 ring-indigo-200 border-indigo-200': quickActive?.type === q.type && quickActive?.groupBy === q.groupBy }"
         >
           <!-- Card Header -->
@@ -46,7 +47,7 @@
               </div>
             </div>
             <!-- Chart type selector -->
-            <div class="flex items-center bg-gray-100 rounded-lg p-0.5">
+            <div @click.stop class="flex items-center bg-gray-100 rounded-lg p-0.5">
               <button v-for="ct in q.chartTypes" :key="ct" @click="switchQuickChartType(q, ct)"
                 :class="['px-2 py-0.5 text-[11px] rounded-md transition-colors', getQuickChartType(q) === ct ? 'bg-white shadow-sm font-medium text-gray-700' : 'text-gray-400 hover:text-gray-600']"
                 :title="(chartLabels as Record<string, string>)[ct] || ct"
@@ -55,7 +56,7 @@
           </div>
 
           <!-- Inline Filters -->
-          <div v-if="q.filters && q.filters.length > 0" class="flex items-center gap-2 px-4 py-2 bg-gray-50/50 border-b border-gray-50">
+          <div @click.stop v-if="q.filters && q.filters.length > 0" class="flex items-center gap-2 px-4 py-2 bg-gray-50/50 border-b border-gray-50">
             <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
             <template v-for="(f, fi) in q.filters" :key="fi">
               <select :value="getQuickFilterVal(q, fi)" @change="onQuickFilterChange(q, fi, ($event.target as HTMLSelectElement).value)"
