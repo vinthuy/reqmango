@@ -108,6 +108,7 @@
           <div
             v-for="issue in groupedIssues[column.key] || []"
             :key="issue.id"
+            :data-issue-id="issue.id"
             @click="$emit('select', issue)"
             class="bg-white dark:bg-gray-700 rounded-md border border-gray-200 dark:border-gray-600 p-2.5 cursor-pointer hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-600 transition-shadow relative group"
           >
@@ -183,6 +184,7 @@
               <div
                 v-for="issue in swimlaneGrouped[swimlane.key]?.[column.key] || []"
                 :key="issue.id"
+                :data-issue-id="issue.id"
                 @click="$emit('select', issue)"
                 class="bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 p-2 cursor-pointer hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-600 transition-shadow relative group"
               >
@@ -575,10 +577,15 @@ function getColumnArray(columnKey: string | number, swimlaneKey?: string): any[]
   return groupedIssues.value[columnKey]
 }
 
+function getIssueId(evt: any): number | null {
+  const id = evt?.item?.dataset?.issueId
+  return id ? Number(id) : null
+}
+
 async function onDragUpdate(columnKey: string | number, newIndex: number, oldIndex: number, evt: any, swimlaneKey?: string) {
   if (dragLocked.value || newIndex === oldIndex) return
 
-  const issueId = evt?.data?.id
+  const issueId = getIssueId(evt)
   if (!issueId) return
 
   const prevCtrl = pendingRequests.get(issueId)
@@ -606,7 +613,7 @@ async function onDragUpdate(columnKey: string | number, newIndex: number, oldInd
 async function onDragAdd(columnKey: string | number, newIndex: number, evt: any, swimlaneKey?: string) {
   if (dragLocked.value) return
 
-  const issueId = evt?.data?.id
+  const issueId = getIssueId(evt)
   if (!issueId) return
 
   const prevCtrl = pendingRequests.get(issueId)
