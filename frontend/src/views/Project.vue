@@ -182,7 +182,7 @@
       </div>
 
       <div v-if="activeTab === 'reports'">
-        <ReportBuilder :project-id="projectId" />
+        <MetricsView :project-id="projectId" />
       </div>
 
       <div v-if="activeTab === 'updates'">
@@ -306,7 +306,7 @@ import FilterBar from '@/components/FilterBar.vue'
 import AICopilot from '@/components/AICopilot.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
 import PageTabConfig from '@/components/PageTabConfig.vue'
-import ReportBuilder from '@/components/ReportBuilder.vue'
+import MetricsView from '@/views/MetricsView.vue'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
 import { useModuleStore } from '@/stores/module'

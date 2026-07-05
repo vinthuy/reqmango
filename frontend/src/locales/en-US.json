@@ -60,6 +60,7 @@
       "analytics": "Analytics",
       "dashboards": "Dashboards",
       "reports": "Reports",
+      "metrics": "Metrics",
       "settings": "Settings"
     },
     "view": {
@@ -805,6 +806,7 @@
     "update": "Update",
     "search": "Search",
     "loading": "Loading...",
+    "noResults": "No results found",
     "back": "Back",
     "status": "Status",
     "unknown": "Unknown",
@@ -1389,6 +1391,39 @@
     "success": {
       "saved": "Report saved",
       "deleted": "Report deleted"
+    }
+  },
+  "metrics": {
+    "title": "Metrics",
+    "empty": "No metrics yet",
+    "emptyHint": "Create your first metric chart to start tracking",
+    "createChart": "Create Chart",
+    "editChart": "Edit Chart",
+    "deleteChart": "Delete Chart",
+    "deleteConfirm": "Are you sure you want to delete chart \"{name}\"?",
+    "chartTypes": {
+      "bar": "Bar Chart",
+      "line": "Line Chart",
+      "pie": "Pie Chart",
+      "doughnut": "Doughnut Chart",
+      "area": "Area Chart",
+      "radar": "Radar Chart"
+    },
+    "dimensions": {
+      "state": "State",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "type": "Type",
+      "label": "Label",
+      "cycle": "Cycle",
+      "module": "Module",
+      "created_at": "Created Date",
+      "completed_at": "Completed Date"
+    },
+    "metrics2": {
+      "count": "Issue Count",
+      "avg_age": "Average Age",
+      "completion_rate": "Completion Rate"
     }
   },
   "issueTreeView": {

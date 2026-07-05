@@ -60,6 +60,7 @@
       "analytics": "分析",
       "dashboards": "仪表盘",
       "reports": "报表",
+      "metrics": "度量",
       "settings": "设置"
     },
     "view": {
@@ -805,6 +806,7 @@
     "update": "更新",
     "search": "搜索",
     "loading": "加载中...",
+    "noResults": "无匹配结果",
     "back": "返回",
     "status": "状态",
     "unknown": "未知",
@@ -1389,6 +1391,39 @@
     "success": {
       "saved": "报表保存成功",
       "deleted": "报表已删除"
+    }
+  },
+  "metrics": {
+    "title": "度量",
+    "empty": "暂无度量图表",
+    "emptyHint": "创建第一个度量图表以开始追踪",
+    "createChart": "创建图表",
+    "editChart": "编辑图表",
+    "deleteChart": "删除图表",
+    "deleteConfirm": "确定要删除图表 \"{name}\" 吗？",
+    "chartTypes": {
+      "bar": "柱状图",
+      "line": "折线图",
+      "pie": "饼图",
+      "doughnut": "环形图",
+      "area": "面积图",
+      "radar": "雷达图"
+    },
+    "dimensions": {
+      "state": "状态",
+      "priority": "优先级",
+      "assignee": "负责人",
+      "type": "类型",
+      "label": "标签",
+      "cycle": "周期",
+      "module": "模块",
+      "created_at": "创建日期",
+      "completed_at": "完成日期"
+    },
+    "metrics2": {
+      "count": "工作项数量",
+      "avg_age": "平均处理时长",
+      "completion_rate": "完成率"
     }
   },
   "issueTreeView": {
