@@ -27,6 +27,7 @@ type IssueUpdateRequest struct {
 	DescriptionJSON *string  `json:"description_json"`
 	Priority        *string  `json:"priority"`
 	StateID         *uint64  `json:"state_id"`
+	SortOrder       *float64 `json:"sort_order"`
 	AssigneeIDs     []uint64 `json:"assignee_ids"`
 	LabelIDs        []uint64 `json:"label_ids"`
 	StartDate       *string  `json:"start_date"`
@@ -44,6 +45,7 @@ type BulkUpdateRequest struct {
 	IssueIDs    []uint64 `json:"issue_ids" binding:"required"`
 	Priority    *string  `json:"priority"`
 	StateID     *uint64  `json:"state_id"`
+	SortOrder   *float64 `json:"sort_order"`
 	AssigneeIDs []uint64 `json:"assignee_ids"`
 	LabelIDs    []uint64 `json:"label_ids"`
 	StartDate   *string  `json:"start_date"`
