@@ -25,9 +25,9 @@
       <span v-if="chart.x_axis">X: {{ axisLabel(chart.x_axis) }}</span>
       <span v-if="chart.x_axis && chart.y_axis" class="axis-sep">|</span>
       <span v-if="chart.y_axis">Y: {{ axisLabel(chart.y_axis) }}</span>
-      <template v-if="chart.filters">
+      <template v-if="formatFilters(chart.filters)">
         <span class="axis-sep">|</span>
-        <span>筛选: {{ chart.filters }}</span>
+        <span>筛选: {{ formatFilters(chart.filters) }}</span>
       </template>
     </div>
 
@@ -113,6 +113,40 @@ function axisLabel(field: string): string {
     return '自定义字段(' + field.split(':')[1] + ')'
   }
   return xAxisLabelMap[field] || yAxisLabelMap[field] || field
+}
+
+function formatFilters(filters: string | Record<string, any> | null | undefined): string {
+  if (!filters) return ''
+  try {
+    const obj = typeof filters === 'string' ? JSON.parse(filters) : filters
+    const parts: string[] = []
+    // Handle RQL string
+    if (obj.rql && typeof obj.rql === 'string' && obj.rql.trim()) {
+      parts.push(obj.rql)
+    }
+    // Handle conditions array
+    if (obj.conditions && Array.isArray(obj.conditions)) {
+      for (const c of obj.conditions) {
+        if (!c || !c.field) continue
+        const field = axisLabel(c.field)
+        const op = c.operator || '='
+        let val = ''
+        if (c.values && c.values.length > 0) {
+          val = c.values.join(', ')
+        } else if (c.value) {
+          val = String(c.value)
+        } else if (op === 'empty') {
+          val = '为空'
+        } else if (op === 'not_empty') {
+          val = '不为空'
+        }
+        if (val) parts.push(`${field} ${op} ${val}`)
+      }
+    }
+    return parts.join(' AND ') || ''
+  } catch {
+    return ''
+  }
 }
 
 // Preview mode: chart.id === 0 means preview with inline data
