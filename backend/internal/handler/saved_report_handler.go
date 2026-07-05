@@ -25,7 +25,7 @@ func (h *SavedReportHandler) List(c *gin.Context) {
 	}
 
 	// Convert model to response DTO
-	var result []response.SavedReportResponse
+	result := make([]response.SavedReportResponse, 0, len(reports))
 	for _, r := range reports {
 		result = append(result, response.SavedReportResponse{
 			ID:         r.ID,

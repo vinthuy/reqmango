@@ -275,7 +275,7 @@
         <template v-else-if="data">
           <div v-show="chartType !== 'Table'" class="p-5">
             <div :class="['mx-auto', chartType === 'Pie' || chartType === 'Doughnut' ? 'max-w-md' : 'max-w-3xl']" style="height: 360px">
-              <canvas ref="chartCanvas"></canvas>
+              <canvas :ref="setChartCanvas"></canvas>
             </div>
           </div>
           <div v-show="chartType === 'Table'" class="p-5">
@@ -516,6 +516,9 @@ const showSaveDialog = ref(false)
 const saveName = ref('')
 const saving = ref(false)
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
+function setChartCanvas(el: any) {
+  chartCanvas.value = el || null
+}
 const { render: renderChart, destroy: destroyChart } = useReportChart(chartCanvas)
 
 const states = ref<{value:string;label:string}[]>([])
