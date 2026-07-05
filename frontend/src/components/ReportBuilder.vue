@@ -31,6 +31,17 @@
         </div>
       </div>
 
+      <!-- Date Range Bar -->
+      <div class="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-2.5">
+        <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide">{{ t('report.dateFrom') }}</label>
+        <input v-model="quickDateFrom" type="date" class="px-2 py-1 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+        <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide">{{ t('report.dateTo') }}</label>
+        <input v-model="quickDateTo" type="date" class="px-2 py-1 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+        <button @click="refreshAllQuickCharts" class="px-3 py-1 bg-neutral-900 text-white text-xs rounded-md hover:bg-neutral-800 transition-colors">
+          {{ t('report.generate') }}
+        </button>
+      </div>
+
       <!-- Chart Widgets -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div v-for="q in quickCharts" :key="q.title"
@@ -301,6 +312,8 @@ const quickChartType = ref('Bar')
 const quickCanvasMap = new Map<string, HTMLCanvasElement | null>()
 const quickChartInstances = new Map<string, any>()
 const quickStats = ref({ total: 0, avgAge: 0, stateGroups: 0, completionRate: 0 })
+const quickDateFrom = ref('')
+const quickDateTo = ref('')
 const quickCharts = ref([
   { title: t('report.quick.byState'), reportType: 'distribution', groupBy: 'state', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
   { title: t('report.quick.byPriority'), reportType: 'distribution', groupBy: 'priority', style: 'Pie', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
@@ -312,6 +325,7 @@ function setQuickCanvas(key: string, el: any) { if (el) quickCanvasMap.set(key, 
 function chartLabel(c: string) { return (chartLabels.value as Record<string,string>)[c] || c }
 function setQuickChartStyle(q: any, c: string) { q.style = c }
 function setQuickFilter(q: any, v: string) { q.filters.value = v; runQuickChart(q) }
+function refreshAllQuickCharts() { quickCharts.value.forEach((q: any) => runQuickChart(q)) }
 
 async function runQuickChart(q: any) {
   q.loading = true
@@ -324,6 +338,7 @@ async function runQuickChart(q: any) {
     const res = await reportApi.generate(props.projectId, {
       report_type: q.reportType, group_by: q.groupBy, chart: q.style.toLowerCase(),
       rql: rql || undefined, interval: q.reportType === 'created_trend' ? 'day' : undefined,
+      date_from: quickDateFrom.value || undefined, date_to: quickDateTo.value || undefined,
     })
     q.data = res
     quickData.value = res
