@@ -73,7 +73,7 @@
           :filter-sub-group-by="currentSubGroupBy?.key"
           :search-term="searchTerm"
           :columns="currentColumns"
-          @select="openDetailPanel"
+          @select="navigateToIssue"
           @delete="handleDeleteIssue"
           @columns-changed="handleColumnsChanged"
         />
@@ -89,7 +89,7 @@
           :filter-sort-dir="currentSortBy[0]?.direction"
           :filter-group-by="currentGroupBy?.key"
           :filter-sub-group-by="currentSubGroupBy?.key"
-          @select="openDetailPanel"
+          @select="navigateToIssue"
         />
         <IssueTreeView
           v-else-if="issueView === 'tree'"
@@ -102,7 +102,7 @@
           :filter-sort-dir="currentSortBy[0]?.direction"
           :filter-group-by="currentGroupBy?.key"
           :filter-sub-group-by="currentSubGroupBy?.key"
-          @select="openDetailPanel"
+          @select="navigateToIssue"
         />
         <IssueCalendar
           v-else-if="issueView === 'calendar'"
@@ -112,7 +112,7 @@
           :filter-sort-config="sortConfigJson"
           :filter-sort-by="currentSortBy[0]?.key"
           :filter-sort-dir="currentSortBy[0]?.direction"
-          @select="openDetailPanel"
+          @select="navigateToIssue"
         />
         <IssueGantt
           v-else-if="issueView === 'gantt'"
@@ -122,21 +122,10 @@
           :filter-sort-config="sortConfigJson"
           :filter-sort-by="currentSortBy[0]?.key"
           :filter-sort-dir="currentSortBy[0]?.direction"
-          @select="openDetailPanel"
+          @select="navigateToIssue"
           @create="router.push(`/workspace/${route.params.slug}/project/${projectId}/issues/new?view=tree`)"
         />
       </div>
-
-      <!-- 侧滑详情面板 -->
-      <IssueDetailPanel
-        :issue-id="detailIssueId"
-        :visible="detailPanelVisible"
-        :workspace-id="workspaceId"
-        :project-id="projectId"
-        @close="detailPanelVisible = false"
-        @delete="handleDetailDelete"
-        @refresh="handleDetailRefresh"
-      />
 
       <CycleDetailPanel
         :cycle="selectedCycle"
@@ -296,7 +285,7 @@ import IssueKanban from '@/components/IssueKanban.vue'
 import IssueTreeView from '@/components/IssueTreeView.vue'
 import IssueCalendar from '@/components/IssueCalendar.vue'
 import IssueGantt from '@/components/IssueGantt.vue'
-import IssueDetailPanel from '@/components/IssueDetailPanel.vue'
+
 import CycleList from '@/components/CycleList.vue'
 import CycleDetailPanel from '@/components/CycleDetailPanel.vue'
 import ModuleList from '@/components/ModuleList.vue'
@@ -360,10 +349,6 @@ function handleViewChange(view: 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt
 }
 
 // Note: FilterBar handles its own data loading (states, cycles, members, modules, issueTypes, labels, customFields)
-
-
-const detailIssueId = ref<number | null>(null)
-const detailPanelVisible = ref(false)
 
 const selectedCycle = ref<CycleResponse | null>(null)
 const cyclePanelVisible = ref(false)
@@ -457,22 +442,12 @@ watch(activeTab, (tab) => {
     router.push(`/workspace/${route.params.slug}/project/${projectId.value}/dashboards`)
     return
   }
-  detailPanelVisible.value = false
   cyclePanelVisible.value = false
   modulePanelVisible.value = false
 })
 
-function openDetailPanel(issue: any) {
-  detailIssueId.value = issue.id
-  detailPanelVisible.value = true
-}
-
-function handleDetailDelete(issue: any) {
-  handleDeleteIssue(issue)
-}
-
-function handleDetailRefresh() {
-  triggerRefresh()
+function navigateToIssue(issue: any) {
+  router.push(`/workspace/${route.params.slug}/project/${projectId}/issues/${issue.id}`)
 }
 
 function openCyclePanel(cycle: CycleResponse) {
@@ -521,7 +496,7 @@ const defaultTabs = computed(() => [
   { id: 'modules', name: t('project.tab.modules') },
   { id: 'updates', name: t('project.tab.updates') },
   { id: 'pages', name: t('project.tab.pages') },
-  { id: 'reports', name: t('project.tab.reports') },
+  { id: 'reports', name: t('project.tab.metrics') },
   { id: 'dashboards', name: t('project.tab.dashboards') },
   { id: 'settings', name: t('project.tab.settings') },
 ])
@@ -548,7 +523,6 @@ async function handleDeleteIssue(issue: any) {
   if (await confirm(t('project.deleteIssueConfirm', { name: issue?.name || 'selected issues' }))) {
     try {
       await issueApi.deleteIssue(issue.id)
-      detailPanelVisible.value = false
       triggerRefresh()
     } catch (err) {
       console.error('Failed to delete issue:', err)
