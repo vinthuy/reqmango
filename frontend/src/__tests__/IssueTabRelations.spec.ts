@@ -5,16 +5,14 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-const { mockListRelations, mockListRelationTypes, mockDeleteRelation, mockUpdateIssue } = vi.hoisted(() => ({
+const { mockListRelations, mockDeleteRelation, mockUpdateIssue } = vi.hoisted(() => ({
   mockListRelations: vi.fn().mockResolvedValue([]),
-  mockListRelationTypes: vi.fn().mockResolvedValue([]),
   mockDeleteRelation: vi.fn().mockResolvedValue(undefined),
   mockUpdateIssue: vi.fn().mockResolvedValue({}),
 }))
 
 vi.mock('@/api/relation', () => ({
   listIssueRelations: (...args: any[]) => mockListRelations(...args),
-  listRelationTypes: (...args: any[]) => mockListRelationTypes(...args),
   deleteIssueRelation: (...args: any[]) => mockDeleteRelation(...args),
 }))
 
@@ -66,12 +64,6 @@ const mockRelations = [
   },
 ]
 
-const mockRelationTypes = [
-  { id: 1, name: 'blocks', outward_name: 'blocks' },
-  { id: 2, name: 'relates_to', outward_name: 'relates to' },
-  { id: 3, name: 'duplicates', outward_name: 'duplicates' },
-]
-
 const defaultProps = {
   issueId: 123,
   projectId: 1,
@@ -91,7 +83,6 @@ describe('IssueTabRelations', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockListRelations.mockResolvedValue(mockRelations)
-    mockListRelationTypes.mockResolvedValue(mockRelationTypes)
   })
 
   it('renders Parent card', () => {
@@ -109,7 +100,6 @@ describe('IssueTabRelations', () => {
     await flushPromises()
 
     expect(mockListRelations).toHaveBeenCalledWith(123)
-    expect(mockListRelationTypes).toHaveBeenCalledWith(1)
 
     const cards = wrapper.findAllComponents(RelationTypeCard)
     expect(cards.length).toBe(2)

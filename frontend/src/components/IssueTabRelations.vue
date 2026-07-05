@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { listIssueRelations, listRelationTypes, deleteIssueRelation } from '@/api/relation'
+import { listIssueRelations, deleteIssueRelation } from '@/api/relation'
 import { issueApi } from '@/api/issue'
 import RelationParentCard from './RelationParentCard.vue'
 import RelationSubIssuesCard from './RelationSubIssuesCard.vue'
@@ -118,8 +118,6 @@ defineEmits<{
 }>()
 
 const relations = ref<RelationItem[]>([])
-const relationTypes = ref<any[]>([])
-const loading = ref(false)
 
 const relationGroups = computed<RelationGroup[]>(() => {
   const groups: Map<number, RelationGroup> = new Map()
@@ -142,18 +140,11 @@ const relationGroups = computed<RelationGroup[]>(() => {
 })
 
 onMounted(async () => {
-  loading.value = true
   try {
-    const [rels, types] = await Promise.all([
-      listIssueRelations(props.issueId),
-      listRelationTypes(props.workspaceId),
-    ])
+    const rels = await listIssueRelations(props.issueId)
     relations.value = rels || []
-    relationTypes.value = types || []
   } catch (err) {
     console.error('Failed to load relations:', err)
-  } finally {
-    loading.value = false
   }
 })
 
