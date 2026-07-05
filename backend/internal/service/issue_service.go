@@ -606,6 +606,10 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 			}
 		}
 	}
+	if req.SortOrder != nil && *req.SortOrder != issue.SortOrder {
+		issue.SortOrder = *req.SortOrder
+		hasChanges = true
+	}
 
 	// Save basic fields
 	if hasChanges {
@@ -1022,7 +1026,7 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 
 	tx := s.db.Begin()
 
-	hasSimpleUpdates := req.Priority != nil || req.StartDate != nil || req.TargetDate != nil
+	hasSimpleUpdates := req.Priority != nil || req.StartDate != nil || req.TargetDate != nil || req.SortOrder != nil
 
 	if hasSimpleUpdates {
 		updateMap := make(map[string]interface{})
@@ -1038,6 +1042,9 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 			if t, err := time.Parse(time.RFC3339, *req.TargetDate); err == nil {
 				updateMap["target_date"] = t
 			}
+		}
+		if req.SortOrder != nil {
+			updateMap["sort_order"] = *req.SortOrder
 		}
 		if len(updateMap) > 0 {
 			if err := tx.Model(&model.Issue{}).Where("id IN ?", req.IssueIDs).Updates(updateMap).Error; err != nil {
