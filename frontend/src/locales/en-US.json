@@ -1245,6 +1245,7 @@
     "title": "Reports",
     "tabQuickCharts": "Quick Charts",
     "tabCustomReports": "Custom Reports",
+    "all": "All",
     "quick": {
       "stateDistribution": "State Distribution",
       "stateDistributionDesc": "View issue distribution by state",
@@ -1259,7 +1260,12 @@
       "totalIssues": "Total Issues",
       "completionRate": "Completion Rate",
       "avgAge": "Avg Age",
-      "stateGroups": "State Groups"
+      "stateGroups": "State Groups",
+      "byState": "State Distribution",
+      "byPriority": "Priority Distribution",
+      "byAssignee": "Assignee Workload",
+      "byType": "Type Distribution",
+      "byTrend": "Creation Trend"
     },
     "clickToGenerate": "Click a chart card above to generate report",
     "subtitle": "Build custom reports with flexible filters, grouping, and charts",
