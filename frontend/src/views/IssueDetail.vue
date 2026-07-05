@@ -265,7 +265,7 @@ function goBack() {
 
 function navigateToIssue(id: number) {
   router.push({
-    path: `/workspaces/${workspaceId.value}/projects/${projectId.value}/issues/${id}`,
+    path: `/workspace/${route.params.slug}/project/${projectId.value}/issues/${id}`,
   })
 }
 
