@@ -251,7 +251,7 @@
                       </select>
                       <!-- Value: Multi-select for in/not_in -->
                       <div v-if="f.operator === 'in' || f.operator === 'not_in'" class="flex-1 relative">
-                        <div @click="$event.stopPropagation()"
+                        <div v-if="getFilterFieldValues(f.field).length > 0" @click="$event.stopPropagation()"
                           class="flex items-center gap-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] bg-white cursor-pointer hover:border-indigo-300 min-h-[30px] flex-wrap">
                           <span v-for="(v, vi) in f.values" :key="vi"
                             class="inline-flex items-center gap-0.5 bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[10px]">
@@ -260,7 +260,7 @@
                           </span>
                           <span v-if="f.values.length === 0" class="text-gray-400">选择多个值</span>
                         </div>
-                        <div class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                        <div v-if="getFilterFieldValues(f.field).length > 0" class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                           <label v-for="v in getFilterFieldValues(f.field)" :key="v"
                             class="flex items-center gap-2 px-3 py-1.5 text-[11px] hover:bg-gray-50 cursor-pointer">
                             <input type="checkbox" :value="v" v-model="f.values"
@@ -268,6 +268,8 @@
                             <span class="text-gray-700">{{ v }}</span>
                           </label>
                         </div>
+                        <input v-else v-model="f.value" placeholder="输入值（逗号分隔）"
+                          class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400" />
                       </div>
                       <!-- Value: Single select/input for other operators -->
                       <template v-else-if="f.operator !== 'empty' && f.operator !== 'not_empty'">
@@ -391,14 +393,18 @@ async function loadCustomFields() {
 const filterValues = ref<Record<string, string[]> & { custom_fields?: Record<string, string[]> }>({})
 async function loadFilterValues() {
   try {
-    filterValues.value = await metricsApi.getFilterValues(props.projectId)
-  } catch { /* ignore */ }
+    const data = await metricsApi.getFilterValues(props.projectId)
+    filterValues.value = data
+  } catch (e) {
+    console.warn('Failed to load filter values:', e)
+  }
 }
 
 function getFilterFieldValues(field: string): string[] {
   if (field.startsWith('custom_field:')) {
     const fieldId = field.split(':')[1]
-    return filterValues.value.custom_fields?.[fieldId] || []
+    // Try both string and number key formats
+    return filterValues.value.custom_fields?.[fieldId] || filterValues.value.custom_fields?.[String(fieldId)] || []
   }
   return filterValues.value[field] || []
 }
