@@ -43,6 +43,7 @@ const showSubGroupDropdown = ref(false)
 
 const searchSuggestions = ref<IssueSearchResult[]>([])
 const showSuggestions = ref(false)
+const searchFocused = ref(false)
 let suggestDebounce: ReturnType<typeof setTimeout> | null = null
 
 const states = ref<any[]>([])
@@ -222,6 +223,7 @@ function selectSuggestion(suggestion: IssueSearchResult) {
 }
 
 function onSearchFocus() {
+  searchFocused.value = true
   if (state.quickSearch.length >= 2) {
     fetchSuggestions(state.quickSearch)
   } else {
@@ -237,6 +239,7 @@ function handleSearchSubmit() {
 }
 
 function onSearchBlur() {
+  searchFocused.value = false
   window.setTimeout(() => {
     showSuggestions.value = false
   }, 200)
@@ -688,7 +691,7 @@ onUnmounted(() => {
           </svg>
         </button>
         
-        <div v-if="showSuggestions || (state.searchHistory.length > 0 && state.quickSearch.length < 2)" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div v-if="showSuggestions || (searchFocused && state.searchHistory.length > 0 && state.quickSearch.length < 2)" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
           <template v-if="searchSuggestions.length > 0">
             <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
               {{ t('filter.suggestions') }}
