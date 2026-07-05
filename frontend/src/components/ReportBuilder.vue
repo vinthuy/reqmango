@@ -119,7 +119,7 @@
               <div v-for="(filter, idx) in filters" :key="idx" class="flex items-center gap-2">
                 <span v-if="idx > 0" class="text-[11px] font-medium text-gray-400 w-8 shrink-0">{{ t('report.and') }}</span>
                 <span v-else class="w-8 shrink-0"></span>
-                <select v-model="filter.field" @change="onFilterFieldChange(idx)" class="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                <select v-model="filter.field" @change="onFilterFieldChange(idx)" class="w-40 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
                   <option value="">{{ t('report.selectField') }}</option>
                   <option v-for="f in filterFields" :key="f.value" :value="f.value">{{ f.label }}</option>
                 </select>
@@ -127,11 +127,11 @@
                   <option v-for="op in filterOperators" :key="op.value" :value="op.value">{{ op.label }}</option>
                 </select>
                 <template v-if="filter.field && filter.operator !== 'empty' && filter.operator !== 'not_empty'">
-                  <select v-if="getFilterOptions(filter.field).length > 0" v-model="filter.value" class="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <select v-if="getFilterOptions(filter.field).length > 0" v-model="filter.value" class="w-44 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
                     <option value="">{{ t('report.selectValue') }}</option>
                     <option v-for="o in getFilterOptions(filter.field)" :key="o.value" :value="o.value">{{ o.label }}</option>
                   </select>
-                  <input v-else v-model="filter.value" :type="['start_date','target_date','created_at','updated_at'].includes(filter.field) ? 'date' : 'text'" :placeholder="t('report.selectValue')" class="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                  <input v-else v-model="filter.value" :type="['start_date','target_date','created_at','updated_at'].includes(filter.field) ? 'date' : 'text'" :placeholder="t('report.selectValue')" class="w-44 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
                 </template>
                 <span v-else class="flex-1"></span>
                 <button @click="removeFilter(idx)" class="text-gray-300 hover:text-red-500 text-lg leading-none px-1 transition-colors">&times;</button>
