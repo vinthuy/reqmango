@@ -271,14 +271,21 @@ watch(swimlaneBy, () => rebuildSwimlaneGrouped())
 const dragLocked = ref(false)
 const pendingRequests = new Map<number, AbortController>()
 
-function computeSortOrder(targetList: any[], newIndex: number): number {
+function computeSortOrder(targetList: any[], newIndex: number, movingDown: boolean): number {
   const prev = newIndex > 0 ? (targetList[newIndex - 1]?.sort_order ?? null) : null
   const next = newIndex < targetList.length - 1 ? (targetList[newIndex + 1]?.sort_order ?? null) : null
 
   if (!prev && !next) return 65535
   if (!prev && next) return (next as number) / 2
   if (prev && !next) return (prev as number) + 1000
-  return ((prev as number) + (next as number)) / 2
+
+  const mid = ((prev as number) + (next as number)) / 2
+  // When prev === next (all same default), midpoint equals both — no change.
+  // Offset by ±0.5 based on direction to produce a distinct sort_order.
+  if (mid <= (prev as number) || mid >= (next as number)) {
+    return (prev as number) + (movingDown ? 0.5 : -0.5)
+  }
+  return mid
 }
 
 const dragGroupName = computed(() => String(props.projectId))
@@ -595,7 +602,7 @@ async function onDragUpdate(columnKey: string | number, newIndex: number, oldInd
 
   const columnIssues = getColumnArray(columnKey, swimlaneKey)
   if (!columnIssues) return
-  const sortOrder = computeSortOrder(columnIssues, newIndex)
+  const sortOrder = computeSortOrder(columnIssues, newIndex, newIndex > oldIndex)
 
   try {
     await issueApi.updateIssue(issueId, { sort_order: sortOrder })
@@ -637,7 +644,7 @@ async function onDragAdd(columnKey: string | number, newIndex: number, evt: any,
 
     const columnIssues = getColumnArray(columnKey, swimlaneKey)
     if (columnIssues) {
-      const sortOrder = computeSortOrder(columnIssues, newIndex)
+      const sortOrder = computeSortOrder(columnIssues, newIndex, true)
       await issueApi.updateIssue(issueId, { sort_order: sortOrder })
     }
   } catch (err: any) {
