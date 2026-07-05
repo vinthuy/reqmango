@@ -25,7 +25,7 @@
       </div>
       <button
         v-if="items.length > 0"
-        data-test="add-link"
+        data-test="add-link-header"
         class="text-[10px] font-medium hover:underline"
         :style="{ color }"
         @click.stop="$emit('add')"
@@ -38,7 +38,7 @@
       <div v-if="items.length === 0" class="px-4 py-6 text-center text-xs text-gray-400">
         {{ t('issueKanban.noRelations') }}
         <button
-          data-test="add-link"
+          data-test="add-link-empty"
           class="block mx-auto mt-2 text-blue-500 hover:text-blue-700"
           @click="$emit('add')"
         >+ {{ t('issue.addRelation') }}</button>
@@ -97,12 +97,34 @@ import { useI18n } from '@/composables/useI18n'
 
 const { t } = useI18n()
 
+interface IssueType {
+  id: number
+  name: string
+  color: string
+}
+
+interface RelationItem {
+  id: number
+  related_issue: {
+    id: number
+    sequence_id: number
+    name: string
+    state_name: string
+    state_group: string
+    priority: string
+    assignees?: Array<{ id: number; display_name?: string; username?: string }>
+    start_date?: string | null
+    target_date?: string | null
+    issue_type?: IssueType
+  }
+  related_issue_id: number
+}
+
 const props = defineProps<{
   typeName: string
-  typeId: number
-  items: any[]
+  items: RelationItem[]
   color: string
-  issueTypes: any[]
+  issueTypes: IssueType[]
 }>()
 
 defineEmits<{
@@ -113,9 +135,9 @@ defineEmits<{
 
 const isExpanded = ref(true)
 
-function getIssueType(issue: any) {
+function getIssueType(issue: RelationItem['related_issue']) {
   if (!props.issueTypes) return null
-  return props.issueTypes.find((t: any) => t.id === issue?.issue_type?.id) || issue?.issue_type || null
+  return props.issueTypes.find((t) => t.id === issue?.issue_type?.id) || issue?.issue_type || null
 }
 
 function stateColor(group: string) {

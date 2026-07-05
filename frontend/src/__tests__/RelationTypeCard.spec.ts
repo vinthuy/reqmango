@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { describe, it, expect, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
 
 const mockT = vi.fn((key: string) => key)
-vi.mock('@/composables/useI18n', () => ({ useI18n: () => ({ t: mockT, locale: { value: 'zh-CN' }, isZh: { value: true }, setLocale: vi.fn() }) }))
+vi.mock('@/composables/useI18n', () => ({ useI18n: () => ({ t: mockT }) }))
 
 import RelationTypeCard from '@/components/RelationTypeCard.vue'
 
@@ -61,8 +61,8 @@ describe('RelationTypeCard', () => {
 
   it('shows "—" for unassigned issues', () => {
     const wrapper = mountCard()
-    const rows = wrapper.findAll('.relation-row')
-    expect(rows.length).toBe(1)
+    const row = wrapper.find('.relation-row')
+    expect(row.text()).toContain('—')
   })
 
   it('emits "navigate" when the title area is clicked', async () => {
@@ -81,7 +81,7 @@ describe('RelationTypeCard', () => {
 
   it('emits "add" when + Link button is clicked', async () => {
     const wrapper = mountCard()
-    await wrapper.find('[data-test="add-link"]').trigger('click')
+    await wrapper.find('[data-test="add-link-header"]').trigger('click')
     expect(wrapper.emitted('add')).toBeTruthy()
   })
 
