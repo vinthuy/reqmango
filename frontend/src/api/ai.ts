@@ -122,7 +122,7 @@ export async function sprintPlan(projectId: number): Promise<any> {
  * AI Chart — 自然语言生成结构化图表配置。
  */
 export interface AIChartData {
-  chart_type: 'bar' | 'pie' | 'doughnut' | 'line' | 'polarArea' | 'radar'
+  chart_type: 'bar' | 'pie' | 'doughnut' | 'line' | 'polarArea' | 'radar' | 'bubble' | 'scatter'
   title: string
   labels: string[]
   datasets: {

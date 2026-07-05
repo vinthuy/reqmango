@@ -79,7 +79,7 @@
       </div>
     </template>
 
-    <!-- ═══ CUSTOM REPORTS TAB (Jira-style) ═══ -->
+    <!-- ═══ CUSTOM REPORTS TAB ═══ -->
     <template v-if="activeTab === 'custom'">
       <div class="flex gap-4 min-h-[600px]">
         <!-- Left: Saved Filters -->
@@ -100,13 +100,16 @@
           </div>
         </div>
 
-        <!-- Right: Filter + Results -->
+        <!-- Right: Step-by-step Report Builder -->
         <div class="flex-1 space-y-4">
 
-          <!-- ── Filter Builder (Jira-style, all-in-one) ── -->
+          <!-- ── Step 1: Filter Data ── -->
           <div class="bg-white border border-gray-100 rounded-xl px-5 py-4">
             <div class="flex items-center justify-between mb-3">
-              <h4 class="text-sm font-medium text-gray-700">{{ t('report.filterConditions') }}</h4>
+              <div class="flex items-center gap-2">
+                <span class="flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-bold">1</span>
+                <h4 class="text-sm font-medium text-gray-700">{{ t('report.v2.step1') }}</h4>
+              </div>
               <div class="flex items-center gap-2">
                 <button @click="filterMode = 'basic'" :class="['text-xs px-2 py-0.5 rounded', filterMode === 'basic' ? 'bg-gray-100 text-gray-800 font-medium' : 'text-gray-400 hover:text-gray-600']">{{ t('report.visualFilter') }}</button>
                 <span class="text-gray-300">|</span>
@@ -160,74 +163,128 @@
               <button @click="rqlError = null" class="text-red-400 hover:text-red-600">&times;</button>
             </div>
 
-            <!-- Actions -->
-            <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-end gap-3">
-              <div>
-                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.chart') }}</label>
-                <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
-                  <button v-for="c in availableCharts" :key="c" @click="chartType = c"
-                    :class="['px-2.5 py-1 text-xs rounded-md transition-colors', chartType === c ? 'bg-white shadow-sm font-medium text-gray-800' : 'text-gray-500 hover:text-gray-700']"
-                  >{{ (chartLabels as Record<string, string>)[c] || c }}</button>
-                </div>
-              </div>
-              <button @click="generate" :disabled="loading" class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors self-end mb-0.5">
-                {{ loading ? '...' : t('report.generate') }}
+            <!-- Apply -->
+            <div class="mt-3 flex items-center gap-3">
+              <button @click="applyFilter" :disabled="filterLoading" class="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                {{ filterLoading ? '...' : t('report.v2.applyFilter') }}
               </button>
-              <button @click="showSaveFilterDialog = true" class="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-md hover:bg-gray-50 transition-colors self-end mb-0.5">
-                {{ t('report.saveFilter') }}
-              </button>
+              <span v-if="filterApplied" class="text-sm text-green-600 font-medium">
+                {{ t('report.v2.filterApplied', { count: matchCount }) }}
+              </span>
             </div>
           </div>
 
-          <!-- ── Results ── -->
-          <div v-if="data" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div class="p-4 bg-white rounded-xl border border-gray-100">
-              <div class="text-xs text-gray-400 mb-1">{{ t('report.quick.totalIssues') }}</div>
-              <div class="text-2xl font-bold text-gray-800">{{ data.total }}</div>
+          <!-- ── Step 2: Configure Chart ── -->
+          <div :class="['bg-white border rounded-xl px-5 py-4 transition-colors', filterApplied ? 'border-gray-100' : 'border-gray-100 opacity-60']">
+            <div class="flex items-center gap-2 mb-4">
+              <span :class="['flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold', filterApplied ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500']">2</span>
+              <h4 class="text-sm font-medium text-gray-700">{{ t('report.v2.step2') }}</h4>
             </div>
-            <div v-if="data.summary?.avg_days" class="p-4 bg-white rounded-xl border border-gray-100">
-              <div class="text-xs text-gray-400 mb-1">{{ t('report.avg') }}</div>
-              <div class="text-2xl font-bold text-gray-800">{{ data.summary.avg_days.toFixed(1) }} <span class="text-sm font-normal text-gray-400">{{ t('report.days') }}</span></div>
-            </div>
-          </div>
-          <div v-if="data" class="flex items-center justify-between px-5 py-2 border border-gray-100 rounded-xl bg-white text-xs text-gray-500">
-            <span>{{ t('report.matched') }}: <strong class="text-gray-800">{{ data.total }}</strong> {{ t('report.issues') }}</span>
-            <div class="flex items-center gap-2">
-              <button @click="exportCSV" class="px-2.5 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">CSV</button>
-              <button v-if="chartType !== 'Table'" @click="exportPNG" class="px-2.5 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">PNG</button>
-            </div>
-          </div>
-          <div v-if="loading" class="flex items-center justify-center py-20 bg-white border border-gray-100 rounded-xl text-gray-400 text-sm">
-            {{ t('report.loading') }}
-          </div>
-          <template v-else-if="data">
-            <div v-show="chartType !== 'Table'" class="bg-white border border-gray-100 rounded-xl p-5">
-              <div :class="['mx-auto', chartType === 'Pie' || chartType === 'Doughnut' ? 'max-w-md' : 'max-w-3xl']" style="height: 360px">
-                <canvas :ref="setChartCanvas"></canvas>
+
+            <template v-if="filterApplied">
+              <!-- X/Y Axis Selectors -->
+              <div class="flex flex-wrap items-end gap-4 mb-4">
+                <!-- X-Axis -->
+                <div class="flex-1 min-w-[200px]">
+                  <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.v2.xAxis') }}</label>
+                  <select v-model="xAxis" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    <optgroup :label="t('report.v2.category')">
+                      <option v-for="d in xAxisCategoryOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
+                    </optgroup>
+                    <optgroup :label="t('report.v2.timeCreated')">
+                      <option v-for="d in xAxisTimeCreatedOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
+                    </optgroup>
+                    <optgroup :label="t('report.v2.timeCompleted')">
+                      <option v-for="d in xAxisTimeCompletedOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
+                    </optgroup>
+                    <optgroup :label="t('report.v2.timeUpdated')">
+                      <option v-for="d in xAxisTimeUpdatedOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                <!-- Y-Axis -->
+                <div class="flex-1 min-w-[200px]">
+                  <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.v2.yAxis') }}</label>
+                  <select v-model="yAxis" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    <option v-for="m in yAxisOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+                  </select>
+                </div>
               </div>
+
+              <!-- Chart Type + Actions -->
+              <div class="flex flex-wrap items-end gap-3 mb-4">
+                <div>
+                  <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.chart') }}</label>
+                  <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
+                    <button v-for="c in availableCharts" :key="c" @click="chartType = c"
+                      :class="['px-2.5 py-1 text-xs rounded-md transition-colors', chartType === c ? 'bg-white shadow-sm font-medium text-gray-800' : 'text-gray-500 hover:text-gray-700']"
+                    >{{ (chartLabels as Record<string, string>)[c] || c }}</button>
+                  </div>
+                </div>
+                <button @click="generateV2" :disabled="chartLoading" class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors self-end mb-0.5">
+                  {{ chartLoading ? '...' : t('report.generate') }}
+                </button>
+                <button @click="showSaveFilterDialog = true" class="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-md hover:bg-gray-50 transition-colors self-end mb-0.5">
+                  {{ t('report.saveFilter') }}
+                </button>
+              </div>
+
+              <!-- Results -->
+              <div v-if="data" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <div class="text-xs text-gray-400 mb-1">{{ t('report.quick.totalIssues') }}</div>
+                  <div class="text-2xl font-bold text-gray-800">{{ data.total }}</div>
+                </div>
+                <div v-if="data.summary?.avg_days" class="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <div class="text-xs text-gray-400 mb-1">{{ t('report.avg') }}</div>
+                  <div class="text-2xl font-bold text-gray-800">{{ data.summary.avg_days.toFixed(1) }} <span class="text-sm font-normal text-gray-400">{{ t('report.days') }}</span></div>
+                </div>
+              </div>
+              <div v-if="data" class="flex items-center justify-between px-4 py-2 bg-gray-50 rounded-lg text-xs text-gray-500 mb-4">
+                <span>{{ t('report.matched') }}: <strong class="text-gray-800">{{ data.total }}</strong> {{ t('report.issues') }}</span>
+                <div class="flex items-center gap-2">
+                  <button @click="exportCSV" class="px-2.5 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">CSV</button>
+                  <button v-if="chartType !== 'Table'" @click="exportPNG" class="px-2.5 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">PNG</button>
+                </div>
+              </div>
+
+              <!-- Chart Area -->
+              <div v-if="chartLoading" class="flex items-center justify-center py-16 text-sm text-gray-400">
+                {{ t('report.loading') }}
+              </div>
+              <template v-else-if="data">
+                <div v-show="chartType !== 'Table'" class="bg-gray-50 border border-gray-100 rounded-xl p-5">
+                  <div :class="['mx-auto', (chartType === 'Pie' || chartType === 'Doughnut') ? 'max-w-md' : (chartType === 'Radar' || chartType === 'PolarArea') ? 'max-w-lg' : 'max-w-4xl']" style="height: 360px">
+                    <canvas :ref="setChartCanvas"></canvas>
+                  </div>
+                </div>
+                <div v-show="chartType === 'Table'" class="bg-gray-50 border border-gray-100 rounded-xl p-5">
+                  <table class="w-full text-sm">
+                    <thead><tr class="border-b border-gray-200">
+                      <th class="text-left py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">{{ t('report.groupBy') }}</th>
+                      <th class="text-right py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">{{ t('report.count') }}</th>
+                      <th class="text-right py-2 text-xs font-medium text-gray-400 uppercase tracking-wide w-20">{{ t('report.percent') }}</th>
+                    </tr></thead>
+                    <tbody>
+                      <tr v-for="(label, i) in data.labels" :key="i" class="border-b border-gray-50 hover:bg-gray-100/50">
+                        <td class="py-2 flex items-center gap-2">
+                          <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: chartColors[i % chartColors.length] }"></span>{{ label }}
+                        </td>
+                        <td class="text-right py-2 font-medium">{{ data.values[i] }}</td>
+                        <td class="text-right py-2 text-gray-500">{{ pct(data.values[i]) }}%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
+            </template>
+
+            <!-- Empty State -->
+            <div v-else class="flex flex-col items-center justify-center py-12 text-gray-400">
+              <svg class="w-10 h-10 mb-2 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span class="text-sm">{{ t('report.v2.noData') }}</span>
             </div>
-            <div v-show="chartType === 'Table'" class="bg-white border border-gray-100 rounded-xl p-5">
-              <table class="w-full text-sm">
-                <thead><tr class="border-b border-gray-100">
-                  <th class="text-left py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">{{ t('report.groupBy') }}</th>
-                  <th class="text-right py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">{{ t('report.count') }}</th>
-                  <th class="text-right py-2 text-xs font-medium text-gray-400 uppercase tracking-wide w-20">{{ t('report.percent') }}</th>
-                </tr></thead>
-                <tbody>
-                  <tr v-for="(label, i) in data.labels" :key="i" class="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td class="py-2 flex items-center gap-2">
-                      <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: chartColors[i % chartColors.length] }"></span>{{ label }}
-                    </td>
-                    <td class="text-right py-2 font-medium">{{ data.values[i] }}</td>
-                    <td class="text-right py-2 text-gray-500">{{ pct(data.values[i]) }}%</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </template>
-          <div v-if="!loading && !data" class="flex flex-col items-center justify-center py-20 bg-white border border-gray-100 rounded-xl text-gray-400">
-            <svg class="w-12 h-12 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            <span class="text-sm">{{ t('report.emptyState') }}</span>
           </div>
         </div>
       </div>
@@ -277,6 +334,14 @@ const interval = ref('week')
 const chartType = ref('Bar')
 const dateFrom = ref('')
 const dateTo = ref('')
+
+// ═══ V2 STATE ═══
+const xAxis = ref('state')
+const yAxis = ref('count')
+const filterApplied = ref(false)
+const matchCount = ref(0)
+const filterLoading = ref(false)
+const chartLoading = ref(false)
 
 // ═══ QUICK CHART STATE ═══
 const quickData = ref<ReportResponse | null>(null)
@@ -420,33 +485,68 @@ const filterFields = computed(() => [
   { value: 'updated_at', label: '更新时间' },
 ])
 const availableCharts = computed(() => {
-  if (reportType.value === 'created_vs_resolved' || reportType.value === 'created_trend') return ['Bar', 'Line', 'Table']
-  return ['Bar', 'Pie', 'Doughnut', 'Table']
+  return ['Bar', 'Pie', 'Doughnut', 'Line', 'Area', 'Radar', 'PolarArea', 'HorizontalBar', 'StackedBar', 'Bubble', 'Scatter', 'Mixed', 'Table']
 })
 const chartLabels = computed(() => ({
   Bar: t('report.charts.bar'), Pie: t('report.charts.pie'), Doughnut: t('report.charts.doughnut'),
   Line: t('report.charts.line'), Area: t('report.charts.area'), Table: t('report.charts.table'),
+  Radar: t('report.charts.radar'), PolarArea: t('report.charts.polarArea'),
+  HorizontalBar: t('report.charts.horizontalBar'), StackedBar: t('report.charts.stackedBar'),
+  Bubble: t('report.charts.bubble'), Scatter: t('report.charts.scatter'), Mixed: t('report.charts.mixed'),
 }))
+
+// ═══ V2 X/Y AXIS OPTIONS ═══
+const xAxisCategoryOptions = computed(() => [
+  { value: 'state', label: t('report.state') },
+  { value: 'priority', label: t('report.priority') },
+  { value: 'assignee', label: t('report.assignee') },
+  { value: 'type', label: t('report.type') },
+  { value: 'label', label: t('report.label') },
+  { value: 'cycle', label: t('report.cycle') },
+  { value: 'module', label: t('report.module') },
+])
+const xAxisTimeCreatedOptions = computed(() => [
+  { value: 'created_day', label: `${t('report.v2.timeCreated')} - ${t('report.v2.timeGranularity')}: Day` },
+  { value: 'created_week', label: `${t('report.v2.timeCreated')} - ${t('report.v2.timeGranularity')}: Week` },
+  { value: 'created_month', label: `${t('report.v2.timeCreated')} - ${t('report.v2.timeGranularity')}: Month` },
+])
+const xAxisTimeCompletedOptions = computed(() => [
+  { value: 'completed_day', label: `${t('report.v2.timeCompleted')} - ${t('report.v2.timeGranularity')}: Day` },
+  { value: 'completed_week', label: `${t('report.v2.timeCompleted')} - ${t('report.v2.timeGranularity')}: Week` },
+  { value: 'completed_month', label: `${t('report.v2.timeCompleted')} - ${t('report.v2.timeGranularity')}: Month` },
+])
+const xAxisTimeUpdatedOptions = computed(() => [
+  { value: 'updated_day', label: `${t('report.v2.timeUpdated')} - ${t('report.v2.timeGranularity')}: Day` },
+  { value: 'updated_week', label: `${t('report.v2.timeUpdated')} - ${t('report.v2.timeGranularity')}: Week` },
+  { value: 'updated_month', label: `${t('report.v2.timeUpdated')} - ${t('report.v2.timeGranularity')}: Month` },
+])
+const yAxisOptions = computed(() => [
+  { value: 'count', label: t('report.v2.count') },
+  { value: 'avg_processing_time', label: t('report.v2.avgProcessingTime') },
+  { value: 'current_retention', label: t('report.v2.currentRetention') },
+  { value: 'created_vs_resolved', label: t('report.v2.createdVsResolved') },
+])
 
 function pct(v: number) { return data.value ? Math.round((v / data.value.total) * 100) : 0 }
 const builtRqlPreview = computed(() => buildRQLFromFilters())
 
 function buildRQLFromFilters(): string {
-  const active = filters.value.filter(f => f.field && f.operator)
+  const noValueOps = ['empty', 'not_empty']
+  const active = filters.value.filter(f => f.field && f.operator && (noValueOps.includes(f.operator) || f.value.trim() !== ''))
   if (active.length === 0) return ''
   return active.map(f => {
     const v = f.value.replace(/"/g, '\\"')
     switch (f.operator) {
       case '=': return `${f.field} = "${v}"`
       case '!=': return `${f.field} != "${v}"`
-      case 'in': return `${f.field} IN ["${v}"]`
-      case 'not_in': return `${f.field} NOT IN ["${v}"]`
-      case '~': return `${f.field} ~ "${v}"`
-      case '!~': return `${f.field} !~ "${v}"`
+      case 'in': return `${f.field} IN ("${v}")`
+      case 'not_in': return `${f.field} NOT IN ("${v}")`
+      case '~': return `${f.field} LIKE "${v}"`
+      case '!~': return `${f.field} NOT LIKE "${v}"`
       case '>=': return `${f.field} >= "${v}"`
       case '<=': return `${f.field} <= "${v}"`
-      case 'empty': return `${f.field} IS EMPTY`
-      case 'not_empty': return `${f.field} IS NOT EMPTY`
+      case 'empty': return `${f.field} IS NULL`
+      case 'not_empty': return `${f.field} IS NOT NULL`
       default: return `${f.field} = "${v}"`
     }
   }).join(' AND ')
@@ -491,7 +591,57 @@ function removeFilter(idx: number) {
   else filters.value[0] = { field: '', operator: '=', value: '' }
 }
 
-// ═══ GENERATE ═══
+// ═══ V2: APPLY FILTER (Step 1) ═══
+async function applyFilter() {
+  filterLoading.value = true
+  rqlError.value = null
+  try {
+    const rql = filterMode.value === 'basic' ? buildRQLFromFilters() : rqlQuery.value
+    // Use count query to validate filter and get match count
+    const res = await reportApi.generateV2(props.projectId, {
+      x_axis: 'state', y_axis: 'count',
+      rql: rql || undefined, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined,
+    })
+    matchCount.value = res.total
+    filterApplied.value = true
+    data.value = null
+    destroyChart()
+  } catch (e: any) {
+    const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Unknown error'
+    rqlError.value = String(msg)
+    filterApplied.value = false
+  } finally {
+    filterLoading.value = false
+  }
+}
+
+// ═══ V2: GENERATE CHART (Step 2) ═══
+async function generateV2() {
+  chartLoading.value = true
+  rqlError.value = null
+  try {
+    const rql = filterMode.value === 'basic' ? buildRQLFromFilters() : rqlQuery.value
+    const res = await reportApi.generateV2(props.projectId, {
+      x_axis: xAxis.value, y_axis: yAxis.value,
+      rql: rql || undefined, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined,
+    })
+    data.value = res
+    matchCount.value = res.total
+    chartLoading.value = false
+    await nextTick()
+    if (chartType.value !== 'Table') {
+      await new Promise(r => setTimeout(r, 50))
+      renderChart(res, chartType.value)
+    }
+  } catch (e: any) {
+    const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Unknown error'
+    rqlError.value = String(msg)
+    data.value = null
+    chartLoading.value = false
+  }
+}
+
+// ═══ GENERATE (legacy, for quick charts) ═══
 async function generate() {
   loading.value = true
   rqlError.value = null
@@ -520,7 +670,10 @@ async function generate() {
 
 watch(chartType, async (newVal) => {
   if (newVal === 'Table') destroyChart()
-  else if (data.value) { await nextTick(); await new Promise(r => setTimeout(r, 30)); renderChart(data.value, newVal) }
+  else {
+    const chartData = activeTab.value === 'quick' ? quickData.value : data.value
+    if (chartData) { await nextTick(); await new Promise(r => setTimeout(r, 30)); renderChart(chartData, newVal) }
+  }
 })
 watch([filterMode, rqlQuery], () => { rqlError.value = null })
 watch(filters, () => { rqlError.value = null }, { deep: true })
@@ -545,9 +698,12 @@ function loadSavedFilter(f: SavedReport) {
   dateFrom.value = f.date_from || ''
   dateTo.value = f.date_to || ''
   filterName.value = f.name
+  // V2: restore xAxis/yAxis from saved report
+  if ((f as any).x_axis) xAxis.value = (f as any).x_axis
+  if ((f as any).y_axis) yAxis.value = (f as any).y_axis
   if (f.rql) { filterMode.value = 'rql'; rqlQuery.value = f.rql }
   else { filterMode.value = 'basic'; rqlQuery.value = '' }
-  generate()
+  applyFilter()
 }
 
 async function saveFilter() {
@@ -558,6 +714,7 @@ async function saveFilter() {
     const payload = {
       name: filterName.value, report_type: reportType.value, group_by: groupBy.value,
       chart_type: chartType.value, rql, date_from: dateFrom.value, date_to: dateTo.value, interval: interval.value,
+      x_axis: xAxis.value, y_axis: yAxis.value,
     }
     if (selectedFilterId.value) await savedReportApi.update(props.projectId, selectedFilterId.value, payload)
     else { const created = await savedReportApi.create(props.projectId, payload); selectedFilterId.value = created.id! }

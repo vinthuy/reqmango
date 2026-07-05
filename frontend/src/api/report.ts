@@ -13,6 +13,15 @@ export interface ReportRequest {
   interval?: string     // day | week | month
 }
 
+export interface ReportV2Request {
+  x_axis: string       // state | priority | assignee | type | label | cycle | module | created_day/week/month | completed_day/week/month | updated_day/week/month | custom_field_{id}
+  y_axis: string       // count | avg_processing_time | current_retention | created_vs_resolved
+  interval?: string    // day | week | month (for time axes)
+  rql?: string
+  date_from?: string
+  date_to?: string
+}
+
 export interface ReportResponse {
   type: string
   labels: string[]
@@ -42,6 +51,10 @@ export interface SavedReport {
 export const reportApi = {
   generate: async (projectId: number, data: ReportRequest): Promise<ReportResponse> => {
     const res = await api.post(`/projects/${projectId}/reports`, data)
+    return res.data
+  },
+  generateV2: async (projectId: number, data: ReportV2Request): Promise<ReportResponse> => {
+    const res = await api.post(`/projects/${projectId}/reports/v2`, data)
     return res.data
   },
 }

@@ -37,13 +37,11 @@
             <select v-model="form.config.group_by" class="form-input">
               <option value="state">{{ t('common.state') }}</option>
               <option value="priority">{{ t('common.priority') }}</option>
-              <option value="assignees">{{ t('common.assignees') }}</option>
-              <option value="labels">{{ t('common.labels') }}</option>
-              <option value="state_group">{{ t('dashboard.stateGroup') }}</option>
+              <option value="assignee">{{ t('common.assignee') }}</option>
+              <option value="label">{{ t('common.label') }}</option>
               <option value="cycle">{{ t('common.cycle') }}</option>
               <option value="module">{{ t('common.module') }}</option>
-              <option value="issue_type">{{ t('common.issueType') }}</option>
-              <option value="created_by">{{ t('common.createdBy') }}</option>
+              <option value="type">{{ t('common.issueType') }}</option>
             </select>
           </div>
           <div class="form-group">
@@ -153,7 +151,7 @@ const emit = defineEmits<{
 }>()
 
 const isChartWidget = computed(() =>
-  ['bar_chart', 'pie_chart', 'doughnut_chart', 'line_chart', 'table'].includes(props.widget.widget_type)
+  ['bar_chart', 'pie_chart', 'doughnut_chart', 'line_chart', 'bubble_chart', 'scatter_chart', 'mixed_chart', 'table'].includes(props.widget.widget_type)
 )
 
 const cycles = reactive<{ id: number; name: string }[]>([])

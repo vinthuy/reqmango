@@ -3,7 +3,8 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import {
   Chart, CategoryScale, LinearScale, BarElement, PointElement, LineElement,
   ArcElement, RadialLinearScale, Filler, Title, Tooltip, Legend, BarController,
-  LineController, PieController, DoughnutController, PolarAreaController, RadarController
+  LineController, PieController, DoughnutController, PolarAreaController, RadarController,
+  BubbleController, ScatterController,
 } from 'chart.js'
 import type { AIChartData } from '@/api/ai'
 
@@ -11,7 +12,8 @@ import type { AIChartData } from '@/api/ai'
 Chart.register(
   CategoryScale, LinearScale, BarElement, PointElement, LineElement,
   ArcElement, RadialLinearScale, Filler, Title, Tooltip, Legend,
-  BarController, LineController, PieController, DoughnutController, PolarAreaController, RadarController
+  BarController, LineController, PieController, DoughnutController, PolarAreaController, RadarController,
+  BubbleController, ScatterController,
 )
 
 const props = defineProps<{
@@ -82,7 +84,10 @@ function createChart() {
         },
       },
       scales: cfg.chart_type !== 'pie' && cfg.chart_type !== 'doughnut' && cfg.chart_type !== 'polarArea' && cfg.chart_type !== 'radar' ? {
-        x: {
+        x: cfg.chart_type === 'bubble' || cfg.chart_type === 'scatter' ? {
+          grid: { color: document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0' },
+          ticks: { font: { size: 11 }, color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b' },
+        } : {
           grid: { color: document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0' },
           ticks: { font: { size: 11 }, color: document.documentElement.classList.contains('dark') ? '#94a3b8' : '#64748b' },
         },

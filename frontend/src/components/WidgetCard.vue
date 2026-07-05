@@ -91,17 +91,19 @@
       <table class="w-full text-[11px]">
         <thead>
           <tr class="border-b border-gray-200 dark:border-gray-700">
-            <th v-for="(label, i) in (data.labels ?? [])" :key="i"
-              class="text-left py-1.5 px-2 text-gray-400 font-medium text-[10px] uppercase sticky top-0 bg-white dark:bg-gray-800">
-              {{ label }}
-            </th>
+            <th class="text-left py-1.5 px-2 text-gray-400 font-medium text-[10px] uppercase sticky top-0 bg-white dark:bg-gray-800">{{ t('report.groupBy') }}</th>
+            <th class="text-right py-1.5 px-2 text-gray-400 font-medium text-[10px] uppercase sticky top-0 bg-white dark:bg-gray-800">{{ t('report.count') }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, ri) in (data.values ?? [])" :key="ri" class="border-b border-gray-50 dark:border-gray-700/50">
-            <td v-for="(val, vi) in (Array.isArray(row) ? row : [row])" :key="vi" class="py-1.5 px-2 text-gray-700 dark:text-gray-300">
-              {{ val }}
+          <tr v-for="(label, i) in (data.labels ?? [])" :key="i" class="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+            <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: barColor(i) }" />
+                {{ label }}
+              </span>
             </td>
+            <td class="py-1.5 px-2 text-right text-gray-700 dark:text-gray-300 font-medium">{{ (data.values ?? [])[i] ?? 0 }}</td>
           </tr>
         </tbody>
       </table>
@@ -152,6 +154,8 @@ import {
   PieController,
   DoughnutController,
   LineController,
+  BubbleController,
+  ScatterController,
   CategoryScale,
   LinearScale,
   ArcElement,
@@ -168,6 +172,7 @@ import type { DashboardWidget } from '@/types/dashboard'
 // Register Chart.js components
 Chart.register(
   BarController, PieController, DoughnutController, LineController,
+  BubbleController, ScatterController,
   CategoryScale, LinearScale, ArcElement, PointElement, LineElement, BarElement,
   Title, Tooltip, Legend, Filler,
 )
@@ -185,7 +190,7 @@ const props = defineProps<{
 }>()
 
 const isChart = computed(() =>
-  ['bar_chart', 'line_chart'].includes(props.widget.widget_type)
+  ['bar_chart', 'line_chart', 'bubble_chart', 'scatter_chart', 'mixed_chart'].includes(props.widget.widget_type)
 )
 const isPieOrDoughnut = computed(() =>
   ['pie_chart', 'doughnut_chart'].includes(props.widget.widget_type)
@@ -201,7 +206,7 @@ const chartInstance = ref<Chart | null>(null)
 const isSavedReportChart = computed(() => {
   if (props.widget.widget_type !== 'saved_report') return false
   const ct = props.data?.chart_type ?? 'bar'
-  return ['bar', 'pie', 'doughnut', 'line'].includes(ct)
+  return ['bar', 'pie', 'doughnut', 'line', 'bubble', 'scatter'].includes(ct)
 })
 
 function getColors(data: Record<string, any>): string[] {
@@ -278,6 +283,37 @@ function renderSavedReportChart(data: Record<string, any>) {
         ...baseOptions,
         scales: {
           x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 9 } } },
+          y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { size: 9 } } },
+        },
+      },
+    })
+  } else if (chartType === 'bubble') {
+    const maxVal = Math.max(...values, 1)
+    chartInstance.value = new Chart(ctx, {
+      type: 'bubble',
+      data: {
+        datasets: [{ label: data.type ?? 'Count', data: values.map((v: number, i: number) => ({ x: i, y: v, r: Math.max((v / maxVal) * 12, 2) })), backgroundColor: colors.map((c: string) => c + '99'), borderColor: colors, borderWidth: 1 }],
+      },
+      options: {
+        ...baseOptions,
+        plugins: { ...baseOptions.plugins, legend: { display: false, position: 'bottom' as const, labels: { font: { size: 10 }, padding: 10 } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 9 }, callback: (val: any) => labels[val] || '' } },
+          y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { size: 9 } } },
+        },
+      },
+    })
+  } else if (chartType === 'scatter') {
+    chartInstance.value = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [{ label: data.type ?? 'Count', data: values.map((v: number, i: number) => ({ x: i, y: v })), backgroundColor: colors.map((c: string) => c + 'CC'), borderColor: colors, borderWidth: 1.5, pointRadius: 4 }],
+      },
+      options: {
+        ...baseOptions,
+        plugins: { ...baseOptions.plugins, legend: { display: false, position: 'bottom' as const, labels: { font: { size: 10 }, padding: 10 } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 9 }, callback: (val: any) => labels[val] || '' } },
           y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { size: 9 } } },
         },
       },

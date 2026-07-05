@@ -249,6 +249,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.DELETE("/:projectId/members/:userId", projectH.RemoveMember)
 			projects.GET("/:projectId/statistics", projectH.GetStatistics)
 			projects.POST("/:projectId/reports", reportH.Generate)
+			projects.POST("/:projectId/reports/v2", reportH.GenerateV2)
 			projects.GET("/:projectId/saved-reports", savedReportH.List)
 			projects.POST("/:projectId/saved-reports", savedReportH.Create)
 			projects.PATCH("/:projectId/saved-reports/:id", savedReportH.Update)
