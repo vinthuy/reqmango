@@ -16,22 +16,32 @@
 
         <template v-else-if="issue">
           <!-- Header bar -->
-          <div class="flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 shrink-0 bg-gray-50/50">
-            <button @click="close" class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          <div class="flex items-center gap-2 px-4 py-2 border-b border-gray-200 shrink-0 bg-gray-50/50">
+            <button @click="close" class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            <span class="text-sm text-gray-400 font-mono shrink-0">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
-            <span class="text-sm font-semibold text-gray-800 truncate flex-1">{{ issue.name }}</span>
+            <span class="text-[11px] text-gray-400 font-mono shrink-0">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
+            <input
+              :value="issue.name"
+              class="flex-1 text-sm font-semibold text-gray-800 bg-transparent border-0 outline-none focus:bg-white focus:border focus:border-indigo-300 focus:rounded focus:px-1.5 focus:py-0.5 min-w-0"
+              @blur="(e: FocusEvent) => handleTitleChange((e.target as HTMLInputElement).value)"
+              @keydown.enter="(e: KeyboardEvent) => { (e.target as HTMLInputElement).blur() }"
+            />
+            <span v-if="saving" class="text-[10px] text-indigo-500 animate-pulse shrink-0">{{ t('issue.saving') }}</span>
             <span
               v-if="issue.issue_type"
               class="px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0"
               :style="{ backgroundColor: (issue.issue_type.color || '#e5e7eb') + '20', color: issue.issue_type.color || '#6b7280' }"
             >{{ issue.issue_type.name }}</span>
-            <button
-              v-if="issue.parent_id"
-              class="text-[10px] text-indigo-500 hover:underline shrink-0"
-              @click="navigateTo(issue.parent_id)"
-            >{{ t('issue.parentIssue') }}</button>
+            <!-- Open in full page -->
+            <a
+              :href="`/workspace/${workspaceSlug}/project/${projectId}/issues/${issue.id}`"
+              class="p-1 text-gray-400 hover:text-indigo-500 rounded transition-colors shrink-0"
+              :title="t('issue.openFullPage') || 'Open full page'"
+              @click.prevent="navigateTo(issue.id)"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </a>
           </div>
 
           <!-- Body: tabs + sidebar -->
@@ -62,6 +72,7 @@
                   :project-id="projectId"
                   :issue-type-id="issue.issue_type?.id"
                   :members="projectMembers"
+                  :show-title="false"
                   @update:title="(v: string) => quickUpdate('name', v)"
                   @update:description="(v: string) => quickUpdate('description_html', v)"
                 />
@@ -179,6 +190,18 @@ const projectIdentifier = ref('')
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
+const saving = ref(false)
+
+async function handleTitleChange(newTitle: string) {
+  if (!issue.value || newTitle === issue.value.name) return
+  saving.value = true
+  try {
+    const updated = await issueApi.updateIssue(issue.value.id, { name: newTitle })
+    if (issue.value) Object.assign(issue.value, updated)
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || t('issue.saveFailed'))
+  } finally { saving.value = false }
+}
 
 const relationSidebarSummary = computed(() => {
   return relationsTabRef.value?.relationSummary ?? null
