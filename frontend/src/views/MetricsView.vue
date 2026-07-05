@@ -348,10 +348,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import type { TemplateCategory, MetricTemplate, MetricChart, CreateChartPayload, MetricChartConfig } from '@/types/metrics'
 import { metricsApi } from '@/api/metrics'
 import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 import MetricsChartCard from '@/components/metrics/MetricsChartCard.vue'
 
 const props = defineProps<{ projectId: number }>()
 const { confirm } = useConfirm()
+const toast = useToast()
 
 // ── Data ──
 const categories = ref<TemplateCategory[]>([])
@@ -660,13 +662,16 @@ async function handleSave() {
 
     if (panel.mode === 'edit' && panel.editingChart) {
       await metricsApi.updateChart(props.projectId, panel.editingChart.id, payload)
+      toast.success('图表已更新')
     } else {
       await metricsApi.createChart(props.projectId, payload)
+      toast.success('图表已创建')
     }
     closePanel()
     await loadData()
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to save chart:', e)
+    toast.error(e?.response?.data?.message || '保存失败，请重试')
   } finally {
     saving.value = false
   }
