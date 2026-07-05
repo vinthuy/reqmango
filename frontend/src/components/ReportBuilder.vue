@@ -82,7 +82,7 @@
               </div>
               <!-- Canvas -->
               <div :class="['mx-auto', quickChartType === 'Pie' || quickChartType === 'Doughnut' ? 'max-w-xs' : 'w-full']" style="height: 240px">
-                <canvas ref="quickCanvas"></canvas>
+                <canvas :ref="setQuickCanvas"></canvas>
               </div>
               <!-- Data Table -->
               <table class="w-full text-xs">
@@ -358,6 +358,10 @@ const chartColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC
 // QUICK CHARTS
 // ═══════════════════════════════════════════
 const quickCanvas = ref<HTMLCanvasElement | null>(null)
+function setQuickCanvas(el: any) {
+  const el_ = Array.isArray(el) ? el[0] : el
+  quickCanvas.value = el_ || null
+}
 const { render: quickRender, destroy: quickDestroy } = useReportChart(quickCanvas)
 const quickData = ref<ReportResponse | null>(null)
 const quickLoading = ref(false)
