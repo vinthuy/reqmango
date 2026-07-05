@@ -99,6 +99,8 @@ export interface IssueResponse extends IssueBase {
   label_details?: { id: number; name: string; color: string }[]
   cycle_id?: number
   sub_issues_count?: number
+  sub_issues?: IssueResponse[]
+  parent?: IssueResponse | null
   link_count?: number
   attachment_count?: number
   
