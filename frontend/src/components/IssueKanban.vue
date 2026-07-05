@@ -102,8 +102,8 @@
           :disabled="dragLocked"
           item-key="id"
           class="space-y-2 min-h-[4px]"
-          @update="(evt: any) => onDragUpdate(column.key, evt.newIndex, evt.oldIndex, evt.item)"
-          @add="(evt: any) => onDragAdd(column.key, evt.newIndex, evt.item)"
+          @update="(evt: any) => onDragUpdate(column.key, evt.newIndex, evt.oldIndex, evt)"
+          @add="(evt: any) => onDragAdd(column.key, evt.newIndex, evt)"
         >
           <div
             v-for="issue in groupedIssues[column.key] || []"
@@ -177,8 +177,8 @@
               :disabled="dragLocked"
               item-key="id"
               class="space-y-1.5 min-h-[4px]"
-              @update="(evt: any) => onDragUpdate(column.key, evt.newIndex, evt.oldIndex, evt.item)"
-              @add="(evt: any) => onDragAdd(column.key, evt.newIndex, evt.item)"
+              @update="(evt: any) => onDragUpdate(column.key, evt.newIndex, evt.oldIndex, evt, swimlane.key)"
+              @add="(evt: any) => onDragAdd(column.key, evt.newIndex, evt, swimlane.key)"
             >
               <div
                 v-for="issue in swimlaneGrouped[swimlane.key]?.[column.key] || []"
@@ -216,7 +216,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import issueApi from '@/api/issue'
 import api from '@/api'
@@ -508,12 +508,10 @@ function rebuildSwimlaneGrouped() {
 
   const result: Record<string, Record<string | number, any[]>> = {}
   swimlaneKeys.value.forEach(s => { result[s.key] = {} })
-  // Pre-initialize all state columns for state-based grouping
-  if (groupBy.value === 'state') {
-    states.value.forEach(s => {
-      swimlaneKeys.value.forEach(sk => { result[sk.key][s.id] = [] })
-    })
-  }
+  // Pre-initialize all column arrays so v-model never receives undefined
+  swimlaneKeys.value.forEach(sk => {
+    kanbanColumns.value.forEach(c => { result[sk.key][c.key] = [] })
+  })
 
   issues.value.forEach(i => {
     const sk = getSwimlaneKeyForIssue(i)
@@ -570,17 +568,25 @@ function priorityDotClass(p: string) {
 function getInitials(n: string) { return (n || '?')[0]?.toUpperCase() || '?' }
 function assigneeColor(i: number) { return ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5] }
 
-async function onDragUpdate(columnKey: string | number, newIndex: number, oldIndex: number, itemEl: any) {
+function getColumnArray(columnKey: string | number, swimlaneKey?: string): any[] | undefined {
+  if (swimlaneKey) {
+    return swimlaneGrouped.value[swimlaneKey]?.[columnKey]
+  }
+  return groupedIssues.value[columnKey]
+}
+
+async function onDragUpdate(columnKey: string | number, newIndex: number, oldIndex: number, evt: any, swimlaneKey?: string) {
   if (dragLocked.value || newIndex === oldIndex) return
 
-  const issueId = (itemEl as any)?.__vueDraggableData?.id || (itemEl as any)?.id
+  const issueId = evt?.data?.id
   if (!issueId) return
 
   const prevCtrl = pendingRequests.get(issueId)
   if (prevCtrl) prevCtrl.abort()
-  pendingRequests.set(issueId, new AbortController())
+  const ctrl = new AbortController()
+  pendingRequests.set(issueId, ctrl)
 
-  const columnIssues = groupedIssues.value[columnKey]
+  const columnIssues = getColumnArray(columnKey, swimlaneKey)
   if (!columnIssues) return
   const sortOrder = computeSortOrder(columnIssues, newIndex)
 
@@ -590,23 +596,25 @@ async function onDragUpdate(columnKey: string | number, newIndex: number, oldInd
     if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
     await loadIssues()
     showToast('更新失败，已恢复原位')
+    dragLocked.value = true
+    setTimeout(() => { dragLocked.value = false }, 500)
   } finally {
-    pendingRequests.delete(issueId)
+    if (pendingRequests.get(issueId) === ctrl) pendingRequests.delete(issueId)
   }
 }
 
-async function onDragAdd(columnKey: string | number, newIndex: number, itemEl: any) {
+async function onDragAdd(columnKey: string | number, newIndex: number, evt: any, swimlaneKey?: string) {
   if (dragLocked.value) return
 
-  const issueId = (itemEl as any)?.__vueDraggableData?.id || (itemEl as any)?.id
+  const issueId = evt?.data?.id
   if (!issueId) return
 
   const prevCtrl = pendingRequests.get(issueId)
   if (prevCtrl) prevCtrl.abort()
-  pendingRequests.set(issueId, new AbortController())
+  const ctrl = new AbortController()
+  pendingRequests.set(issueId, ctrl)
 
   try {
-    // Step 1: Update field based on groupBy
     if (groupBy.value === 'state') {
       await issueApi.updateIssue(issueId, { state_id: columnKey as number })
     } else if (groupBy.value === 'assignee') {
@@ -620,8 +628,7 @@ async function onDragAdd(columnKey: string | number, newIndex: number, itemEl: a
       }
     }
 
-    // Step 2: Update sortOrder in target column
-    const columnIssues = groupedIssues.value[columnKey]
+    const columnIssues = getColumnArray(columnKey, swimlaneKey)
     if (columnIssues) {
       const sortOrder = computeSortOrder(columnIssues, newIndex)
       await issueApi.updateIssue(issueId, { sort_order: sortOrder })
@@ -633,7 +640,7 @@ async function onDragAdd(columnKey: string | number, newIndex: number, itemEl: a
     dragLocked.value = true
     setTimeout(() => { dragLocked.value = false }, 500)
   } finally {
-    pendingRequests.delete(issueId)
+    if (pendingRequests.get(issueId) === ctrl) pendingRequests.delete(issueId)
   }
 }
 
@@ -732,6 +739,12 @@ async function execBatchDelete() {
     loadIssues()
   } catch (e) { console.error('Batch delete failed:', e) }
 }
+
+onUnmounted(() => {
+  for (const ctrl of pendingRequests.values()) ctrl.abort()
+  pendingRequests.clear()
+  if (toastTimer) clearTimeout(toastTimer)
+})
 </script>
 
 <style scoped>
