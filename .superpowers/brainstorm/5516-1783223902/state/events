@@ -1,0 +1,6 @@
+{"type":"click","text":"⚡\n    \n      即时保存（Instant Save）\n      侧边栏属性变更后立即 API 提交 — State, Priority, Assignee, Labels, Cycle, Module, Dates","choice":"instant","id":null,"timestamp":1783225689071}
+{"type":"click","text":"⚡\n    \n      即时保存（Instant Save）\n      侧边栏属性变更后立即 API 提交 — State, Priority, Assignee, Labels, Cycle, Module, Dates","choice":"instant","id":null,"timestamp":1783225689293}
+{"type":"click","text":"📦\n    \n      批量保存（Batched Save）\n      标题、描述、自定义字段 — 编辑后标记 dirty，点击 Save 按钮或 Ctrl+S 统一提交","choice":"batched","id":null,"timestamp":1783225690401}
+{"type":"click","text":"📝\n    \n      直接操作（Direct Action）\n      评论/关联/附件/工时 — 各自的增删改独立 API 调用，不经过 Save 按钮","choice":"direct","id":null,"timestamp":1783225691352}
+{"type":"click","text":"📦\n    \n      批量保存（Batched Save）\n      标题、描述、自定义字段 — 编辑后标记 dirty，点击 Save 按钮或 Ctrl+S 统一提交","choice":"batched","id":null,"timestamp":1783225692788}
+{"type":"click","text":"📦\n    \n      批量保存（Batched Save）\n      标题、描述、自定义字段 — 编辑后标记 dirty，点击 Save 按钮或 Ctrl+S 统一提交","choice":"batched","id":null,"timestamp":1783225693976}

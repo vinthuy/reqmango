@@ -72,6 +72,7 @@ export interface IssueUpdate {
   cycle_id?: number
   module_ids?: number[]
   type_id?: number
+  parent_id?: number | null
 }
 
 // ==================== Issue Response ====================

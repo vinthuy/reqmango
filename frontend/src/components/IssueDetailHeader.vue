@@ -26,15 +26,20 @@
       </span>
     </div>
 
-    <!-- Save button -->
-    <button
-      data-test="save-btn"
-      class="px-4 py-1.5 text-sm font-medium bg-neutral-900 text-white rounded-md hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      :disabled="saving"
-      @click="$emit('save')"
-    >
-      {{ saving ? t('issue.saving') : t('issue.save') }}
-    </button>
+    <div class="flex items-center gap-3">
+      <!-- AI Agent slot -->
+      <slot name="actions" />
+
+      <!-- Save button -->
+      <button
+        data-test="save-btn"
+        class="px-4 py-1.5 text-sm font-medium bg-neutral-900 text-white rounded-md hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        :disabled="saving"
+        @click="$emit('save')"
+      >
+        {{ saving ? t('issue.saving') : t('issue.save') }}
+      </button>
+    </div>
   </div>
 </template>
 

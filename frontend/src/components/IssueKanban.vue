@@ -590,9 +590,11 @@ function getIssueId(evt: any): number | null {
 }
 
 async function onDragUpdate(columnKey: string | number, newIndex: number, oldIndex: number, evt: any, swimlaneKey?: string) {
+  console.log('[kanban] onDragUpdate called', { columnKey, newIndex, oldIndex, swimlaneKey, hasItem: !!evt?.item, dataset: evt?.item?.dataset })
   if (dragLocked.value || newIndex === oldIndex) return
 
   const issueId = getIssueId(evt)
+  console.log('[kanban] issueId from DOM dataset:', issueId)
   if (!issueId) return
 
   const prevCtrl = pendingRequests.get(issueId)
@@ -601,12 +603,15 @@ async function onDragUpdate(columnKey: string | number, newIndex: number, oldInd
   pendingRequests.set(issueId, ctrl)
 
   const columnIssues = getColumnArray(columnKey, swimlaneKey)
-  if (!columnIssues) return
+  if (!columnIssues) { console.log('[kanban] columnIssues is empty'); return }
   const sortOrder = computeSortOrder(columnIssues, newIndex, newIndex > oldIndex)
+  console.log('[kanban] computed sortOrder:', sortOrder, 'columnIssues count:', columnIssues.length)
 
   try {
-    await issueApi.updateIssue(issueId, { sort_order: sortOrder })
+    const r = await issueApi.updateIssue(issueId, { sort_order: sortOrder })
+    console.log('[kanban] updateIssue success, returned sort_order:', r.sort_order)
   } catch (err: any) {
+    console.error('[kanban] updateIssue failed:', err?.message || err)
     if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
     await loadIssues()
     showToast('更新失败，已恢复原位')

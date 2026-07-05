@@ -39,8 +39,7 @@ const mountOptions = {
     members: mockMembers,
     cycles: mockCycles,
     modules: mockModules,
-    selectedAgentId: null,
-    agentDispatching: false,
+    customFields: [],
   },
 }
 
@@ -98,8 +97,4 @@ describe('IssuePropertySidebar', () => {
     expect(wrapper.emitted('update:startDate')![0]).toEqual(['2026-08-01'])
   })
 
-  it('renders AI agent section', () => {
-    const wrapper = mount(IssuePropertySidebar, mountOptions)
-    expect(wrapper.text()).toContain('agent.dispatchAgent')
-  })
 })

@@ -1,0 +1,127 @@
+<h2>工作项详情页 — 操作交互设计</h2>
+<p class="subtitle">每个 Tab 和侧边栏的所有用户操作</p>
+
+<h3>1. 全局操作</h3>
+<table style="width:100%;border-collapse:collapse;font-size:11px;">
+  <tr style="border-bottom:1px solid #e5e5e5;">
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:20%;">操作</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">触发方式</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:30%;">行为</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">反馈</th>
+  </tr>
+  <tr><td style="padding:6px;font-weight:500;">返回列表</td><td style="padding:6px;">Header ← 按钮</td><td style="padding:6px;">router.back() 或跳转到项目看板</td><td style="padding:6px;">页面跳转</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">保存</td><td style="padding:6px;">Header Save 按钮</td><td style="padding:6px;">收集所有 Tab + 侧边栏变更，批量 API 提交</td><td style="padding:6px;">按钮 loading 态 → Toast 成功/失败</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">键盘快捷键</td><td style="padding:6px;">Ctrl+S / Cmd+S</td><td style="padding:6px;">触发保存</td><td style="padding:6px;">同保存按钮</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">切换 Tab</td><td style="padding:6px;">点击 Tab 标签</td><td style="padding:6px;">切换内容区，保留当前编辑状态</td><td style="padding:6px;">Tab 高亮切换，内容区过渡</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">未保存提示</td><td style="padding:6px;">切换 Tab / 离开页面时有脏数据</td><td style="padding:6px;">弹出确认对话框 "有未保存的修改"</td><td style="padding:6px;">确认离开 / 取消停留</td></tr>
+</table>
+
+<h3 style="margin-top:20px;">2. Details Tab 操作</h3>
+<table style="width:100%;border-collapse:collapse;font-size:11px;">
+  <tr style="border-bottom:1px solid #e5e5e5;">
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:20%;">操作</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">触发方式</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:30%;">行为</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">反馈</th>
+  </tr>
+  <tr><td style="padding:6px;font-weight:500;">编辑标题</td><td style="padding:6px;">点击标题文字 → 进入编辑态</td><td style="padding:6px;">输入框获得焦点，修改标题</td><td style="padding:6px;">失焦或 Enter 提交，标记 dirty</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">编辑描述</td><td style="padding:6px;">光标进入富文本区域</td><td style="padding:6px;">RichTextEditor 编辑</td><td style="padding:6px;">标记 dirty，Save 时提交</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">编辑自定义字段</td><td style="padding:6px;">点击字段值 → 进入编辑态</td><td style="padding:6px;">根据类型：文本输入/日期选择/下拉选择/开关切换</td><td style="padding:6px;">字段值变更标记 dirty</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">添加评论</td><td style="padding:6px;">在评论卡片底部输入框输入 → 按 Enter 或点击发送</td><td style="padding:6px;">POST 创建评论，追加到列表</td><td style="padding:6px;">评论立即出现，失败 Toast</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">编辑评论</td><td style="padding:6px;">hover 评论 → 点击编辑图标</td><td style="padding:6px;">评论变为编辑态，可修改保存</td><td style="padding:6px;">PUT 更新，失败回滚</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">删除评论</td><td style="padding:6px;">hover 评论 → 点击删除图标</td><td style="padding:6px;">确认对话框 → DELETE</td><td style="padding:6px;">评论消失，失败 Toast + 恢复</td></tr>
+  <tr><td style="padding:6px;font-weight:500;">@提及</td><td style="padding:6px;">评论中输入 @ + 用户名</td><td style="padding:6px;">下拉建议列表，选择成员</td><td style="padding:6px;">成员被标记并收到通知</td></tr>
+</table>
+
+<h3 style="margin-top:20px;">3. Relations Tab 操作</h3>
+<table style="width:100%;border-collapse:collapse;font-size:11px;">
+  <tr style="border-bottom:1px solid #e5e5e5;">
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:20%;">操作</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">触发方式</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:30%;">行为</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">反馈</th>
+  </tr>
+  <tr style="background:#eff6ff;"><td colspan="4" style="padding:4px 8px;font-weight:600;font-size:10px;">Parent Card</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">设置父级</td><td style="padding:5px;">空状态 "+ Set Parent" 或 "Change" 按钮</td><td style="padding:5px;">弹出搜索对话框 → 搜索并选择工作项 → 确认</td><td style="padding:5px;">卡片更新，Toast 成功/失败</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">移除父级</td><td style="padding:5px;">父级行右侧 ✕ 按钮</td><td style="padding:5px;">确认 → PUT 清空 parent_id</td><td style="padding:5px;">变为空状态 "+ Set Parent"</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">跳转父级</td><td style="padding:5px;">点击父级行（标题区域）</td><td style="padding:5px;">导航到父工作项详情页</td><td style="padding:5px;">页面跳转</td></tr>
+  <tr style="background:#f0fdf4;"><td colspan="4" style="padding:4px 8px;font-weight:600;font-size:10px;">Sub-issues Card</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">创建子工作项</td><td style="padding:5px;">"+ Add" 按钮</td><td style="padding:5px;">跳转到创建页面，自动带 parent_id</td><td style="padding:5px;">新页面创建，返回后列表刷新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">勾选完成</td><td style="padding:5px;">点击 checkbox</td><td style="padding:5px;">PUT 更新子工作项 state → done</td><td style="padding:5px;">checkbox 打勾，计数更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">取消完成</td><td style="padding:5px;">点击已勾选的 checkbox</td><td style="padding:5px;">恢复子工作项 state → 上一个非完成状态</td><td style="padding:5px;">checkbox 取消，计数更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">跳转子工作项</td><td style="padding:5px;">点击子工作项行（标题区域）</td><td style="padding:5px;">导航到子工作项详情页</td><td style="padding:5px;">页面跳转</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">展开子工作项详情</td><td style="padding:5px;">点击行左侧展开箭头 ▶</td><td style="padding:5px;">展开行内详情（描述摘要、子子工作项）</td><td style="padding:5px;">箭头旋转 90°，详情区展开</td></tr>
+  <tr style="background:#fefce8;"><td colspan="4" style="padding:4px 8px;font-weight:600;font-size:10px;">Linked Issues Cards（每个关联类型一张卡片）</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">添加关联</td><td style="padding:5px;">"+ Link" 按钮</td><td style="padding:5px;">卡片内展开搜索框 → 输入关键词搜索 → 选择工作项</td><td style="padding:5px;">关联行立即出现，失败 Toast</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">移除关联</td><td style="padding:5px;">关联行右侧 ✕ 按钮</td><td style="padding:5px;">DELETE 关联关系</td><td style="padding:5px;">行消失，卡片计数更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">跳转关联项</td><td style="padding:5px;">点击关联行（标题区域）</td><td style="padding:5px;">导航到关联工作项详情页</td><td style="padding:5px;">页面跳转</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">折叠卡片</td><td style="padding:5px;">点击卡片标题栏</td><td style="padding:5px;">折叠/展开该卡片内容区</td><td style="padding:5px;">折叠图标切换，内容隐藏/显示</td></tr>
+</table>
+
+<h3 style="margin-top:20px;">4. 其他 Tab 操作</h3>
+<table style="width:100%;border-collapse:collapse;font-size:11px;">
+  <tr style="border-bottom:1px solid #e5e5e5;">
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:20%;">Tab / 操作</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">触发方式</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:30%;">行为</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">反馈</th>
+  </tr>
+  <tr style="background:#f5f5f5;"><td colspan="4" style="padding:4px 8px;font-weight:600;font-size:10px;">Attachments Tab</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">上传附件</td><td style="padding:5px;">拖拽文件到区域 / 点击上传按钮</td><td style="padding:5px;">POST 上传，显示进度条</td><td style="padding:5px;">文件出现在列表，进度条 → 完成</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">预览附件</td><td style="padding:5px;">点击文件名或缩略图</td><td style="padding:5px;">图片→灯箱预览；其他→新标签页打开</td><td style="padding:5px;">预览窗口</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">下载附件</td><td style="padding:5px;">点击下载图标</td><td style="padding:5px;">浏览器下载</td><td style="padding:5px;">下载开始</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">删除附件</td><td style="padding:5px;">hover → 删除图标 → 确认</td><td style="padding:5px;">DELETE 附件</td><td style="padding:5px;">文件消失，失败 Toast + 恢复</td></tr>
+  <tr style="background:#f5f5f5;"><td colspan="4" style="padding:4px 8px;font-weight:600;font-size:10px;">Time Tracking Tab</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">记录工时</td><td style="padding:5px;">"Log Time" 按钮 → 填写时长/日期/备注</td><td style="padding:5px;">POST 创建工时条目</td><td style="padding:5px;">条目出现，汇总更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">编辑工时</td><td style="padding:5px;">hover → 编辑图标</td><td style="padding:5px;">PUT 更新工时条目</td><td style="padding:5px;">条目更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">删除工时</td><td style="padding:5px;">hover → 删除图标 → 确认</td><td style="padding:5px;">DELETE 工时条目</td><td style="padding:5px;">条目消失，汇总更新</td></tr>
+  <tr style="background:#f5f5f5;"><td colspan="4" style="padding:4px 8px;font-weight:600;font-size:10px;">Activity Tab</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">查看活动</td><td style="padding:5px;">打开 Activity Tab</td><td style="padding:5px;">GET 活动列表，按时间倒序展示</td><td style="padding:5px;">时间线渲染</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">筛选活动</td><td style="padding:5px;">点击筛选下拉：全部/评论/状态变更/字段修改</td><td style="padding:5px;">过滤活动列表</td><td style="padding:5px;">列表更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">加载更多</td><td style="padding:5px;">滚动到底部 / "Load More" 按钮</td><td style="padding:5px;">GET 下一页活动</td><td style="padding:5px;">追加到列表</td></tr>
+</table>
+
+<h3 style="margin-top:20px;">5. 侧边栏操作</h3>
+<table style="width:100%;border-collapse:collapse;font-size:11px;">
+  <tr style="border-bottom:1px solid #e5e5e5;">
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:20%;">属性</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">操作</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:30%;">行为</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;width:25%;">反馈</th>
+  </tr>
+  <tr><td style="padding:5px;font-weight:500;">State</td><td style="padding:5px;">下拉选择新状态</td><td style="padding:5px;">即时保存（不等待 Save 按钮）</td><td style="padding:5px;">状态更新，活动日志添加</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">Priority</td><td style="padding:5px;">下拉选择新优先级</td><td style="padding:5px;">即时保存</td><td style="padding:5px;">优先级色点更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">Assignee</td><td style="padding:5px;">下拉选择 / 搜索成员</td><td style="padding:5px;">即时保存</td><td style="padding:5px;">负责人更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">Labels</td><td style="padding:5px;">LabelSelector 多选 / 新增标签</td><td style="padding:5px;">即时保存</td><td style="padding:5px;">标签列表更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">Cycle</td><td style="padding:5px;">下拉选择周期</td><td style="padding:5px;">即时保存</td><td style="padding:5px;">周期更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">Module</td><td style="padding:5px;">下拉选择模块</td><td style="padding:5px;">即时保存</td><td style="padding:5px;">模块更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">Start Date</td><td style="padding:5px;">日期选择器</td><td style="padding:5px;">即时保存</td><td style="padding:5px;">日期更新</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">Target Date</td><td style="padding:5px;">日期选择器</td><td style="padding:5px;">即时保存</td><td style="padding:5px;">日期更新，过期标红</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">AI Agent</td><td style="padding:5px;">选择 Agent → 点击 Dispatch</td><td style="padding:5px;">POST 触发 AI Agent 执行</td><td style="padding:5px;">按钮 loading → Toast 成功/失败</td></tr>
+  <tr><td style="padding:5px;font-weight:500;">Recurrence</td><td style="padding:5px;">点击展开 → 配置重复规则 → Save</td><td style="padding:5px;">PUT 更新重复配置</td><td style="padding:5px;">配置保存</td></tr>
+</table>
+
+<h3 style="margin-top:20px;">保存策略总结</h3>
+<div class="options">
+  <div class="option" data-choice="instant" onclick="toggleSelect(this)">
+    <div class="letter">⚡</div>
+    <div class="content">
+      <h3>即时保存（Instant Save）</h3>
+      <p>侧边栏属性变更后立即 API 提交 — State, Priority, Assignee, Labels, Cycle, Module, Dates</p>
+    </div>
+  </div>
+  <div class="option" data-choice="batched" onclick="toggleSelect(this)">
+    <div class="letter">📦</div>
+    <div class="content">
+      <h3>批量保存（Batched Save）</h3>
+      <p>标题、描述、自定义字段 — 编辑后标记 dirty，点击 Save 按钮或 Ctrl+S 统一提交</p>
+    </div>
+  </div>
+  <div class="option" data-choice="direct" onclick="toggleSelect(this)">
+    <div class="letter">📝</div>
+    <div class="content">
+      <h3>直接操作（Direct Action）</h3>
+      <p>评论/关联/附件/工时 — 各自的增删改独立 API 调用，不经过 Save 按钮</p>
+    </div>
+  </div>
+</div>

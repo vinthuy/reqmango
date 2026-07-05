@@ -6,14 +6,12 @@
         <h4 class="text-sm font-medium text-gray-700 truncate">{{ chart.name }}</h4>
         <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{{ typeLabel }}</span>
       </div>
-      <div class="flex items-center gap-1 shrink-0">
-        <!-- Edit -->
+      <div v-if="chart.id > 0" class="flex items-center gap-1 shrink-0">
         <button @click="emit('edit', chart)" class="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
         </button>
-        <!-- Delete -->
         <button @click="emit('delete', chart.id)" class="p-1 text-gray-400 hover:text-red-500 rounded transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -30,7 +28,7 @@
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
       </div>
-      <div v-else-if="renderData" :class="['mx-auto', isPieType ? 'max-w-md' : 'max-w-full']" style="height: 280px">
+      <div v-else-if="hasData" :class="['mx-auto', isPieType ? 'max-w-md' : 'max-w-full']" style="height: 280px">
         <canvas ref="chartCanvas"></canvas>
       </div>
       <div v-else class="flex flex-col items-center justify-center h-48 text-xs text-gray-400">
@@ -59,14 +57,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'edit', chart: MetricChart): void
   (e: 'delete', chartId: number): void
-  (e: 'type-change', chartId: number, newType: string): void
 }>()
 
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
 const { render: renderChart, destroy: destroyChart } = useReportChart(chartCanvas)
 
 const loading = ref(false)
-const renderData = ref<ReportResponse | null>(null)
+const fetchedData = ref<ReportResponse | null>(null)
 const currentType = ref(props.chart.chart_type)
 
 const typeLabel = computed(() => {
@@ -76,9 +73,26 @@ const typeLabel = computed(() => {
 
 const chartTypeMap: Record<string, string> = {
   bar: 'Bar', line: 'Line', pie: 'Pie', doughnut: 'Doughnut',
+  area: 'Area', radar: 'Radar', scatter: 'Scatter', bubble: 'Bubble',
+  mixed: 'Mixed', table: 'Table',
 }
 
 const isPieType = computed(() => ['pie', 'doughnut'].includes(currentType.value))
+
+// Preview mode: chart.id === 0 means preview with inline data
+const isPreview = computed(() => props.chart.id === 0)
+
+// Build report response from either fetched data or preview inline data
+const renderData = computed(() => {
+  const data: ReportResponse | null = isPreview.value
+    ? (props.chart.data_labels && props.chart.data_labels.length > 0
+      ? { type: currentType.value, labels: props.chart.data_labels, values: props.chart.data_values || [], total: (props.chart.data_values || []).reduce((a, b) => a + b, 0) }
+      : null)
+    : fetchedData.value
+  return data
+})
+
+const hasData = computed(() => renderData.value && renderData.value.labels.length > 0)
 
 function toReportResponse(data: RenderResult): ReportResponse {
   return {
@@ -91,24 +105,31 @@ function toReportResponse(data: RenderResult): ReportResponse {
 }
 
 async function fetchAndRender() {
+  if (isPreview.value) return // Preview mode: data comes from props
   loading.value = true
   try {
     const res: RenderResult = await metricsApi.renderChart(props.projectId, props.chart.id)
-    renderData.value = toReportResponse(res)
-    await nextTick()
-    await new Promise(r => setTimeout(r, 50))
-    renderChart(renderData.value, chartTypeMap[currentType.value] || 'Bar')
+    fetchedData.value = toReportResponse(res)
   } catch (e) {
     console.error('Failed to render chart:', e)
-    renderData.value = null
+    fetchedData.value = null
   } finally {
     loading.value = false
   }
 }
 
+// Render chart when data changes
+watch(renderData, async (data) => {
+  if (data && data.labels.length > 0) {
+    await nextTick()
+    await new Promise(r => setTimeout(r, isPreview.value ? 100 : 50))
+    renderChart(data, chartTypeMap[currentType.value] || 'Bar')
+  }
+}, { immediate: true })
+
 watch(() => props.chart.id, () => {
   destroyChart()
-  renderData.value = null
+  fetchedData.value = null
   currentType.value = props.chart.chart_type
   fetchAndRender()
 })

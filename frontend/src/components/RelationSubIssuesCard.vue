@@ -9,31 +9,69 @@
           class="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700"
         >{{ completedCount }}/{{ subIssues.length }}</span>
       </div>
-      <button
-        data-test="add-subissue"
-        class="text-[10px] font-medium text-green-600 hover:text-green-800 hover:underline"
-        @click="$emit('add')"
-      >+ {{ t('subIssue.add') }}</button>
+      <!-- Add dropdown -->
+      <div class="relative">
+        <button
+          data-test="add-subissue"
+          class="text-[10px] font-medium text-green-600 hover:text-green-800 hover:underline"
+          @click="showMenu = !showMenu"
+        >+ {{ t('subIssue.add') }}</button>
+        <div
+          v-if="showMenu"
+          class="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1"
+        >
+          <button
+            data-test="add-existing-subissue"
+            class="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            @click="selectExisting"
+          >
+            <span class="text-blue-500">&#9744;</span>
+            {{ t('subIssue.selectExisting') }}
+          </button>
+          <button
+            data-test="quick-create-subissue"
+            class="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            @click="startQuickCreate"
+          >
+            <span class="text-green-500">+</span>
+            {{ t('subIssue.quickCreate') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick-create inline input -->
+    <div v-if="quickCreating" class="px-3 py-2 border-b border-green-100 bg-white">
+      <input
+        ref="quickInput"
+        v-model="quickName"
+        type="text"
+        class="w-full px-2 py-1.5 border border-green-300 rounded text-xs focus:outline-none focus:border-green-500"
+        :placeholder="t('subIssue.quickCreatePlaceholder')"
+        @keydown.enter="submitQuickCreate"
+        @keydown.escape="cancelQuickCreate"
+        @blur="cancelQuickCreate"
+      />
     </div>
 
     <!-- Empty state -->
-    <div v-if="subIssues.length === 0" class="px-4 py-6 text-center text-xs text-gray-400">
+    <div v-if="subIssues.length === 0 && !quickCreating" class="px-4 py-6 text-center text-xs text-gray-400">
       {{ t('subIssue.noSubIssues') }}
     </div>
 
     <!-- Table of sub-issues -->
-    <div v-else class="overflow-x-auto">
+    <div v-if="subIssues.length > 0" class="overflow-x-auto">
       <table class="w-full text-[10px]">
         <thead>
           <tr class="border-b border-green-100 text-gray-500">
             <th class="px-3 py-1.5 text-left w-8"></th>
             <th class="px-2 py-1.5 text-left">{{ t('issue.type') }}</th>
             <th class="px-2 py-1.5 text-left">ID</th>
-            <th class="px-2 py-1.5 text-left">{{ t('subIssue.title') }}</th>
+            <th class="px-2 py-1.5 text-left">{{ t('issue.title') }}</th>
             <th class="px-2 py-1.5 text-left">{{ t('issue.status') }}</th>
             <th class="px-2 py-1.5 text-left">{{ t('issue.priority') }}</th>
             <th class="px-2 py-1.5 text-left">{{ t('issue.assignee') }}</th>
-            <th class="px-2 py-1.5 text-right">{{ t('subIssue.targetDate') }}</th>
+            <th class="px-2 py-1.5 text-right">{{ t('issue.targetDate') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -102,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { stateColor, priorityColor, formatDate } from '@/composables/useRelationHelpers'
 
@@ -136,11 +174,44 @@ const props = defineProps<{
   subIssues: SubIssue[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   add: []
   toggle: [issueId: number]
   navigate: [issueId: number]
+  'add-existing': []
+  'quick-create': [name: string]
 }>()
 
 const completedCount = computed(() => props.subIssues.filter((s) => s.state_group === 'done').length)
+
+const showMenu = ref(false)
+const quickCreating = ref(false)
+const quickName = ref('')
+const quickInput = ref<HTMLInputElement | null>(null)
+
+function selectExisting() {
+  showMenu.value = false
+  emit('add-existing')
+}
+
+async function startQuickCreate() {
+  showMenu.value = false
+  quickCreating.value = true
+  quickName.value = ''
+  await nextTick()
+  quickInput.value?.focus()
+}
+
+function submitQuickCreate() {
+  const name = quickName.value.trim()
+  if (!name) return
+  quickCreating.value = false
+  quickName.value = ''
+  emit('quick-create', name)
+}
+
+function cancelQuickCreate() {
+  quickCreating.value = false
+  quickName.value = ''
+}
 </script>

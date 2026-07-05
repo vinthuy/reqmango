@@ -1,0 +1,166 @@
+<h2>Relations Tab — 按关联类型独立卡片</h2>
+<p class="subtitle">Parent + Sub-issues + 每种关联类型一个卡片，动态扩展</p>
+
+<div class="mockup" style="margin-bottom: 24px;">
+  <div class="mockup-header">Relations Tab — 动态卡片布局</div>
+  <div class="mockup-body" style="font-size: 11px; line-height: 1.5;">
+    <div style="background:#f8f9fa; padding:6px 10px; border-bottom:1px solid #e5e5e5; display:flex; align-items:center; gap:12px;">
+      <span style="color:#999;">&larr;</span>
+      <span style="background:#e0e7ff; color:#4338ca; padding:2px 6px; border-radius:3px;font-size:10px;">Task</span>
+      <span style="font-weight:600;font-size:11px;">DEV-42 · User login form validation</span>
+    </div>
+    <div style="display:flex;">
+      <div style="flex:1; min-width:0;">
+        <div style="display:flex; gap:0; border-bottom:2px solid #e5e5e5; margin:8px 14px 0;">
+          <div style="padding:6px 14px; color:#666; font-size:11px;">Details</div>
+          <div style="padding:6px 14px; border-bottom:2px solid #4f46e5; color:#4f46e5; font-weight:500; font-size:11px;margin-bottom:-2px;">Relations</div>
+          <div style="padding:6px 14px; color:#666; font-size:11px;">Attachments</div>
+          <div style="padding:6px 14px; color:#666; font-size:11px;">Time Tracking</div>
+          <div style="padding:6px 14px; color:#666; font-size:11px;">Activity</div>
+        </div>
+        <div style="padding:14px; display:flex; flex-direction:column; gap:12px;">
+          <!-- Card: Parent -->
+          <div style="border:1px solid #e5e5e5; border-radius:8px; overflow:hidden;">
+            <div style="background:#eff6ff; padding:8px 12px; border-bottom:1px solid #dbeafe; display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-weight:600; font-size:10px; color:#1d4ed8;">↗ PARENT</span>
+              </div>
+              <span style="font-size:9px; color:#6b7280; cursor:pointer;">Change</span>
+            </div>
+            <div style="padding:10px 12px; display:flex; align-items:center; gap:10px;">
+              <span style="background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:3px;font-size:10px;">Epic</span>
+              <div style="flex:1;"><span style="color:#999;font-size:10px;">DEV-8</span> <span style="font-weight:500;font-size:11px;">Authentication System Redesign</span></div>
+              <span style="display:flex;align-items:center;gap:3px;font-size:9px;color:#999;"><span style="width:6px;height:6px;border-radius:50%;background:#22c55e;"></span>In Progress</span>
+              <span style="color:#ef4444;font-size:10px;cursor:pointer;">&times;</span>
+            </div>
+          </div>
+          <!-- Card: Sub-issues -->
+          <div style="border:1px solid #e5e5e5; border-radius:8px; overflow:hidden;">
+            <div style="background:#f0fdf4; padding:8px 12px; border-bottom:1px solid #dcfce7; display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-weight:600; font-size:10px; color:#166534;">↘ SUB-ISSUES</span>
+                <span style="background:#dcfce7;color:#166534;padding:1px 6px;border-radius:99px;font-size:9px;">2/5</span>
+              </div>
+              <span style="font-size:9px; color:#16a34a; cursor:pointer; font-weight:500;">+ Add</span>
+            </div>
+            <div style="padding:0;">
+              <div style="display:flex;align-items:center;padding:6px 12px;border-bottom:1px solid #f5f5f5;gap:8px;">
+                <input type="checkbox" checked style="accent-color:#22c55e;width:12px;height:12px;">
+                <span style="background:#e0e7ff;color:#4338ca;padding:1px 4px;border-radius:2px;font-size:9px;">Task</span>
+                <span style="font-size:9px;color:#999;">DEV-43</span>
+                <span style="font-size:10px;">Email validation</span>
+                <span style="margin-left:auto;font-size:9px;color:#999;">Done</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:6px 12px;border-bottom:1px solid #f5f5f5;gap:8px;">
+                <input type="checkbox" style="width:12px;height:12px;">
+                <span style="background:#e0e7ff;color:#4338ca;padding:1px 4px;border-radius:2px;font-size:9px;">Task</span>
+                <span style="font-size:9px;color:#999;">DEV-44</span>
+                <span style="font-size:10px;">Password checker</span>
+                <span style="margin-left:auto;font-size:9px;color:#999;">Todo</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:6px 12px;gap:8px;">
+                <input type="checkbox" style="width:12px;height:12px;">
+                <span style="background:#fce7f3;color:#be185d;padding:1px 4px;border-radius:2px;font-size:9px;">Bug</span>
+                <span style="font-size:9px;color:#999;">DEV-45</span>
+                <span style="font-size:10px;">XSS in username</span>
+                <span style="margin-left:auto;font-size:9px;color:#999;">In Progress</span>
+              </div>
+            </div>
+          </div>
+          <!-- Dynamic: Blocks -->
+          <div style="border:1px solid #e5e5e5; border-radius:8px; overflow:hidden;">
+            <div style="background:#fef2f2; padding:8px 12px; border-bottom:1px solid #fecaca; display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-weight:600; font-size:10px; color:#dc2626;">🚫 BLOCKS</span>
+                <span style="background:#fecaca;color:#dc2626;padding:1px 6px;border-radius:99px;font-size:9px;">1</span>
+              </div>
+              <span style="font-size:9px; color:#dc2626; cursor:pointer; font-weight:500;">+ Link</span>
+            </div>
+            <div style="padding:8px 12px; display:flex; align-items:center; gap:10px;">
+              <span style="background:#e0e7ff;color:#4338ca;padding:1px 4px;border-radius:2px;font-size:9px;">Feature</span>
+              <div style="flex:1;"><span style="color:#999;font-size:10px;">DEV-55</span> <span style="font-size:10px;">OAuth2 provider setup</span></div>
+              <span style="display:flex;align-items:center;gap:3px;font-size:9px;color:#999;"><span style="width:6px;height:6px;border-radius:50%;background:#9ca3af;"></span>Todo</span>
+              <span style="color:#d4d4d4;cursor:pointer;font-size:12px;">&times;</span>
+            </div>
+          </div>
+          <!-- Dynamic: Relates to -->
+          <div style="border:1px solid #e5e5e5; border-radius:8px; overflow:hidden;">
+            <div style="background:#fefce8; padding:8px 12px; border-bottom:1px solid #fef08a; display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-weight:600; font-size:10px; color:#a16207;">🔗 RELATES TO</span>
+                <span style="background:#fef08a;color:#a16207;padding:1px 6px;border-radius:99px;font-size:9px;">2</span>
+              </div>
+              <span style="font-size:9px; color:#a16207; cursor:pointer; font-weight:500;">+ Link</span>
+            </div>
+            <div style="padding:0;">
+              <div style="display:flex;align-items:center;padding:6px 12px;border-bottom:1px solid #f5f5f5;gap:8px;">
+                <span style="background:#e0e7ff;color:#4338ca;padding:1px 4px;border-radius:2px;font-size:9px;">Task</span>
+                <span style="font-size:9px;color:#999;">DEV-60</span>
+                <span style="font-size:10px;">Session timeout config</span>
+                <span style="margin-left:auto;font-size:9px;color:#999;">Done</span>
+                <span style="color:#d4d4d4;cursor:pointer;font-size:12px;">&times;</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:6px 12px;gap:8px;">
+                <span style="background:#e0e7ff;color:#4338ca;padding:1px 4px;border-radius:2px;font-size:9px;">Task</span>
+                <span style="font-size:9px;color:#999;">DEV-62</span>
+                <span style="font-size:10px;">Rate limit bypass</span>
+                <span style="margin-left:auto;font-size:9px;color:#999;">In Progress</span>
+                <span style="color:#d4d4d4;cursor:pointer;font-size:12px;">&times;</span>
+              </div>
+            </div>
+          </div>
+          <!-- Dynamic: Duplicates -->
+          <div style="border:1px solid #e5e5e5; border-radius:8px; overflow:hidden;">
+            <div style="background:#f3e8ff; padding:8px 12px; border-bottom:1px solid #e9d5ff; display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-weight:600; font-size:10px; color:#7c3aed;">📋 DUPLICATES</span>
+                <span style="background:#e9d5ff;color:#7c3aed;padding:1px 6px;border-radius:99px;font-size:9px;">1</span>
+              </div>
+              <span style="font-size:9px; color:#7c3aed; cursor:pointer; font-weight:500;">+ Link</span>
+            </div>
+            <div style="padding:8px 12px; display:flex; align-items:center; gap:10px;">
+              <span style="background:#fce7f3;color:#be185d;padding:1px 4px;border-radius:2px;font-size:9px;">Bug</span>
+              <div style="flex:1;"><span style="color:#999;font-size:10px;">DEV-70</span> <span style="font-size:10px;">Login form throws 500</span></div>
+              <span style="display:flex;align-items:center;gap:3px;font-size:9px;color:#999;"><span style="width:6px;height:6px;border-radius:50%;background:#9ca3af;"></span>Backlog</span>
+              <span style="color:#d4d4d4;cursor:pointer;font-size:12px;">&times;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Sidebar -->
+      <div style="width:220px; padding:10px; background:#fafafa; border-left:1px solid #eee; font-size:10px; flex-shrink:0;">
+        <div style="color:#999;font-weight:500;margin-bottom:8px;">PROPERTIES</div>
+        <div style="margin-bottom:6px;"><div style="color:#999;">State</div><select style="width:100%;padding:3px;font-size:10px;border:1px solid #e5e5e5;border-radius:4px;"><option>In Progress</option></select></div>
+        <div style="margin-bottom:6px;"><div style="color:#999;">Priority</div><select style="width:100%;padding:3px;font-size:10px;border:1px solid #e5e5e5;border-radius:4px;"><option>High</option></select></div>
+        <div style="margin-bottom:6px;"><div style="color:#999;">Assignee</div><select style="width:100%;padding:3px;font-size:10px;border:1px solid #e5e5e5;border-radius:4px;"><option>Alice Chen</option></select></div>
+        <div style="margin-bottom:6px;"><div style="color:#999;">Labels</div><div style="display:flex;gap:3px;"><span style="background:#e0e7ff;color:#4338ca;padding:1px 4px;border-radius:3px;">frontend</span><span style="background:#fce7f3;color:#be185d;padding:1px 4px;border-radius:3px;">bug</span></div></div>
+        <div style="margin-bottom:6px;"><div style="color:#999;">Cycle</div><select style="width:100%;padding:3px;font-size:10px;border:1px solid #e5e5e5;border-radius:4px;"><option>Sprint 12</option></select></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;"><div><div style="color:#999;">Start</div><input type="date" style="width:100%;padding:2px;font-size:9px;border:1px solid #e5e5e5;border-radius:4px;" value="2026-07-01"></div><div><div style="color:#999;">Target</div><input type="date" style="width:100%;padding:2px;font-size:9px;border:1px solid #e5e5e5;border-radius:4px;" value="2026-07-10"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>卡片结构规则</h3>
+<table style="width:100%; border-collapse:collapse; font-size:12px;">
+  <tr style="border-bottom:1px solid #e5e5e5;">
+    <th style="text-align:left;padding:8px;background:#f8f9fa;">卡片类型</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;">规则</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;">展开/折叠</th>
+  </tr>
+  <tr style="border-bottom:1px solid #f0f0f0;">
+    <td style="padding:8px;font-weight:500;">Parent</td>
+    <td style="padding:8px;">始终显示一个；无父级时显示空状态 "+ Set Parent"</td>
+    <td style="padding:8px;">可选折叠</td>
+  </tr>
+  <tr style="border-bottom:1px solid #f0f0f0;">
+    <td style="padding:8px;font-weight:500;">Sub-issues</td>
+    <td style="padding:8px;">始终显示一个；列表可滚动；太多时折叠</td>
+    <td style="padding:8px;">超过 10 个时折叠，显示前 10</td>
+  </tr>
+  <tr>
+    <td style="padding:8px;font-weight:500;">每种关联类型</td>
+    <td style="padding:8px;">按 relation_type 动态生成；该类型无数据则不显示；有数据时显示</td>
+    <td style="padding:8px;">超过 5 条折叠，显示前 5</td>
+  </tr>
+</table>

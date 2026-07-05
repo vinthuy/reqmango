@@ -202,13 +202,13 @@ func (e *GORMExecutor) buildComparisonRaw(expr *Comparison, ctx *QueryContext) (
 	case "!=":
 		return e.buildNotEqualRaw(expr.Value, mapping)
 	case ">":
-		return &rawCondition{SQL: fmt.Sprintf("%s > ?", mapping.ColumnName), Args: []interface{}{expr.Value}}, nil
+		return e.buildComparisonOpRaw(expr.Value, mapping, ">")
 	case "<":
-		return &rawCondition{SQL: fmt.Sprintf("%s < ?", mapping.ColumnName), Args: []interface{}{expr.Value}}, nil
+		return e.buildComparisonOpRaw(expr.Value, mapping, "<")
 	case ">=":
-		return &rawCondition{SQL: fmt.Sprintf("%s >= ?", mapping.ColumnName), Args: []interface{}{expr.Value}}, nil
+		return e.buildComparisonOpRaw(expr.Value, mapping, ">=")
 	case "<=":
-		return &rawCondition{SQL: fmt.Sprintf("%s <= ?", mapping.ColumnName), Args: []interface{}{expr.Value}}, nil
+		return e.buildComparisonOpRaw(expr.Value, mapping, "<=")
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", expr.Operator)
 	}
@@ -289,7 +289,17 @@ func (e *GORMExecutor) buildCustomFieldComparison(fieldName, operator, value int
 
 func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*rawCondition, error) {
 	switch mapping.FieldType {
-	case "string", "number", "date":
+	case "string", "date":
+		return &rawCondition{SQL: fmt.Sprintf("%s = ?", mapping.ColumnName), Args: []interface{}{value}}, nil
+
+	case "number":
+		// If JoinTable is "states" with JoinKey "name", lookup state by name via subquery
+		if mapping.JoinTable == "states" && mapping.JoinKey == "name" {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("%s IN (SELECT id FROM %s WHERE name = ?)", mapping.ColumnName, mapping.JoinTable),
+				Args: []interface{}{value},
+			}, nil
+		}
 		return &rawCondition{SQL: fmt.Sprintf("%s = ?", mapping.ColumnName), Args: []interface{}{value}}, nil
 
 	case "state_group":
@@ -335,6 +345,15 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping) (*rawCondition, error) {
 	// Handle special field types that require JOINs (consistent with buildEqualRaw)
 	switch mapping.FieldType {
+	case "number":
+		// If JoinTable is "states" with JoinKey "name", match by state name via subquery
+		if mapping.JoinTable == "states" && mapping.JoinKey == "name" {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("%s NOT IN (SELECT id FROM %s WHERE name = ?)", mapping.ColumnName, mapping.JoinTable),
+				Args: []interface{}{value},
+			}, nil
+		}
+		return &rawCondition{SQL: fmt.Sprintf("%s != ?", mapping.ColumnName), Args: []interface{}{value}}, nil
 	case "state_group":
 		return &rawCondition{
 			SQL:   "states.group != ?",
@@ -369,6 +388,12 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 	return &rawCondition{SQL: fmt.Sprintf("%s != ?", mapping.ColumnName), Args: []interface{}{value}}, nil
 }
 
+func (e *GORMExecutor) buildComparisonOpRaw(value interface{}, mapping FieldMapping, op string) (*rawCondition, error) {
+	// For state field with join table, use subquery for comparison ops
+	// Note: comparison ops on state names are lexicographic and rarely useful
+	return &rawCondition{SQL: fmt.Sprintf("%s %s ?", mapping.ColumnName, op), Args: []interface{}{value}}, nil
+}
+
 func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCondition, error) {
 	mapping, ok := ctx.FieldMap[expr.Field]
 	if !ok {
@@ -399,39 +424,26 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 }
 
 func (e *GORMExecutor) buildFullTextSearch(field, operator, value string) (*rawCondition, error) {
-	// Strip LIKE wildcards (% and _) before passing to tsquery
-	// plainto_tsquery does not understand SQL LIKE wildcards
-	cleanValue := strings.Trim(value, "%")
-	cleanValue = strings.ReplaceAll(cleanValue, "_", "\\_")
-	// Also strip leading/trailing % if embedded
-	cleanValue = strings.Trim(cleanValue, "%")
-
-	if cleanValue == "" {
-		// Fallback to simple ILIKE if value contains only wildcards
-		if operator == "NOT LIKE" {
-			return &rawCondition{
-				SQL:  "COALESCE(name, '') || ' ' || COALESCE(description_stripped, '') NOT ILIKE ?",
-				Args: []interface{}{"%" + value + "%"},
-			}, nil
-		}
-		return &rawCondition{
-			SQL:  "COALESCE(name, '') || ' ' || COALESCE(description_stripped, '') ILIKE ?",
-			Args: []interface{}{"%" + value + "%"},
-		}, nil
+	// Use ILIKE for name/description search.
+	// PostgreSQL full-text search (to_tsvector/plainto_tsquery) does not support
+	// substring matching for Chinese/CJK text because those languages lack whitespace
+	// tokenization, causing the entire string to be treated as a single token.
+	// Search both name and description_stripped columns regardless of which field
+	// was specified (same behavior as the original full-text search approach).
+	op := "ILIKE"
+	if operator == "NOT LIKE" {
+		op = "NOT ILIKE"
 	}
 
-	// Use 'simple' config for Chinese/CJK compatibility
-	// 'english' only stems English words and ignores Chinese characters
-	if operator == "NOT LIKE" {
-		return &rawCondition{
-			SQL:  "to_tsvector('simple', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) !@@ plainto_tsquery('simple', ?)",
-			Args: []interface{}{cleanValue},
-		}, nil
+	// Ensure value has wildcards for substring matching
+	pattern := value
+	if !strings.ContainsAny(pattern, "%_") {
+		pattern = "%" + pattern + "%"
 	}
 
 	return &rawCondition{
-		SQL:  "to_tsvector('simple', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')) @@ plainto_tsquery('simple', ?)",
-		Args: []interface{}{cleanValue},
+		SQL:  fmt.Sprintf("(COALESCE(name, '') %s ? OR COALESCE(description_stripped, '') %s ? OR issues.sequence_id::text %s ?)", op, op, op),
+		Args: []interface{}{pattern, pattern, pattern},
 	}, nil
 }
 
@@ -513,6 +525,14 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 
 	// Handle special field types that require JOINs (consistent with buildEqualRaw)
 	switch mapping.FieldType {
+	case "number":
+		// If JoinTable is "states" with JoinKey "name", use subquery to resolve names to IDs
+		if mapping.JoinTable == "states" && mapping.JoinKey == "name" {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("%s %s (SELECT id FROM %s WHERE name IN (%s))", mapping.ColumnName, op, mapping.JoinTable, placeholderList),
+				Args: args,
+			}, nil
+		}
 	case "state_group":
 		return &rawCondition{
 			SQL:   fmt.Sprintf("states.group %s (%s)", op, placeholderList),

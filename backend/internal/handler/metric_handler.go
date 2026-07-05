@@ -117,3 +117,30 @@ func (h *MetricHandler) ReorderCharts(c *gin.Context) {
 	}
 	common.RespondOK(c, gin.H{"message": "Charts reordered"})
 }
+
+// GetFilterValues returns distinct values for filter fields in a project.
+func (h *MetricHandler) GetFilterValues(c *gin.Context) {
+	pid, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	values, err := h.svc.GetFilterValues(pid)
+	if err != nil {
+		common.RespondError(c, err)
+		return
+	}
+	common.RespondOK(c, values)
+}
+
+// PreviewChart renders chart data without saving (for live preview).
+func (h *MetricHandler) PreviewChart(c *gin.Context) {
+	pid, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	var req service.CreateChartRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.RespondError(c, common.BadRequest(err.Error()))
+		return
+	}
+	data, err := h.svc.RenderChartData(pid, &req)
+	if err != nil {
+		common.RespondError(c, err)
+		return
+	}
+	common.RespondOK(c, data)
+}

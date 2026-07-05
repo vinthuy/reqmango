@@ -48,6 +48,10 @@ export interface MetricChart {
   is_visible: boolean
   created_at: string
   updated_at: string
+  // Preview-only fields (not persisted)
+  data_labels?: string[]
+  data_values?: number[]
+  data_colors?: string[]
 }
 
 export interface RenderResult {

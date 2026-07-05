@@ -200,6 +200,7 @@ export interface IssueCustomFieldValueCreate {
 }
 
 export interface IssueCustomFieldValueUpdate {
+  value?: string
   text_value?: string
   number_value?: number
   boolean_value?: boolean

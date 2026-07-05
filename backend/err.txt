@@ -1,0 +1,2 @@
+[GIN-debug] [ERROR] listen tcp :8000: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+2026/07/05 13:30:30 Failed to start server: listen tcp :8000: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.

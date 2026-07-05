@@ -38,7 +38,7 @@ var builtInTemplates = []struct {
 		Name:        "本周到期",
 		Description: "本周即将到期的任务",
 		Icon:        "⏰",
-		RQLTemplate: "target_date >= $TODAY AND target_date <= $END_OF_WEEK AND state_group != 'completed'",
+		RQLTemplate: "target_date <= $END_OF_WEEK AND state_group != 'completed'",
 		ViewType:    "list",
 		SortConfig:  `[{"field":"target_date","dir":"asc"}]`,
 	},
@@ -76,9 +76,9 @@ var builtInTemplates = []struct {
 	},
 	{
 		Name:        "待审核",
-		Description: "等待审核的任务",
+		Description: "所有进行中和评审中的任务",
 		Icon:        "🔍",
-		RQLTemplate: "state_group = 'review'",
+		RQLTemplate: "state_group = 'started'",
 		ViewType:    "list",
 		SortConfig:  `[{"field":"updated_at","dir":"desc"}]`,
 	},
@@ -164,8 +164,22 @@ func (s *SearchTemplateService) ApplyTemplate(id, projectID, userID uint64) (*re
 
 func (s *SearchTemplateService) InitializeBuiltInTemplates(projectID uint64) error {
 	for _, bt := range builtInTemplates {
-		var exists model.SearchTemplate
-		if err := s.db.Where("project_id = ? AND name = ? AND is_built_in = ?", projectID, bt.Name, true).First(&exists).Error; err == nil {
+		var existing model.SearchTemplate
+		err := s.db.Where("project_id = ? AND name = ? AND is_built_in = ?", projectID, bt.Name, true).First(&existing).Error
+		if err == nil {
+			// Template exists — update RQL, description, and sort config in case they changed
+			desc := bt.Description
+			updates := map[string]interface{}{
+				"rql_template": bt.RQLTemplate,
+				"description":  &desc,
+				"sort_config":  json.RawMessage(bt.SortConfig),
+				"view_type":    bt.ViewType,
+				"icon":         bt.Icon,
+				"group_by":     bt.GroupBy,
+			}
+			if err := s.db.Model(&existing).Updates(updates).Error; err != nil {
+				return err
+			}
 			continue
 		}
 

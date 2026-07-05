@@ -1,0 +1,69 @@
+<h2>方案 B: 组件化重写 + TDD</h2>
+<p class="subtitle">IssueDetail.vue 拆分为 7 个子组件，每个独立可测试</p>
+
+<h3>组件树</h3>
+<div class="mockup" style="margin-bottom:16px;">
+  <div class="mockup-body" style="font-size:11px; line-height:1.8; padding:16px;">
+<pre style="background:#1e1e2e; color:#cdd6f4; padding:16px; border-radius:8px; font-family:monospace; font-size:10px; overflow-x:auto;">
+IssueDetail.vue                    ← 路由入口，编排子组件
+├── IssueDetailHeader.vue          ← 顶部导航：返回 + 类型标签 + ID + 保存按钮
+├── IssuePropertySidebar.vue       ← 右侧属性栏：状态/优先级/负责人/标签/日期等
+├── IssueTabDetails.vue            ← Tab 1: 描述 + 自定义字段 + 评论
+├── IssueTabRelations.vue          ← Tab 2: 父关系 + 子关系 + 关联关系
+│   ├── RelationParentCard.vue     ←   父级卡片
+│   ├── RelationSubIssuesCard.vue  ←   子工作项卡片
+│   └── RelationTypeCard.vue       ←   动态关联类型卡片（可复用）
+├── IssueTabAttachments.vue        ← Tab 3: 附件管理
+├── IssueTabTimeTracking.vue       ← Tab 4: 工时记录
+└── IssueTabActivity.vue           ← Tab 5: 活动日志
+</pre>
+  </div>
+</div>
+
+<h3>每个组件的职责 & Props/Events</h3>
+<table style="width:100%;border-collapse:collapse;font-size:11px;">
+  <tr style="border-bottom:1px solid #e5e5e5;">
+    <th style="text-align:left;padding:8px;background:#f8f9fa;">Component</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;">Props</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;">Events</th>
+    <th style="text-align:left;padding:8px;background:#f8f9fa;">测试重点</th>
+  </tr>
+  <tr><td style="padding:6px;">IssueDetail.vue</td><td style="padding:6px;color:#666;">issueId (from route)</td><td style="padding:6px;color:#666;">—</td><td style="padding:6px;color:#666;">路由参数解析、数据加载、子组件集成</td></tr>
+  <tr><td style="padding:6px;">IssueDetailHeader</td><td style="padding:6px;color:#666;">issue, saving</td><td style="padding:6px;color:#666;">save, back</td><td style="padding:6px;color:#666;">类型标签渲染、按钮 disabled 状态</td></tr>
+  <tr><td style="padding:6px;">IssuePropertySidebar</td><td style="padding:6px;color:#666;">issue, states, members, cycles, modules</td><td style="padding:6px;color:#666;">update:state, update:priority, etc.</td><td style="padding:6px;color:#666;">各属性变更 emit、select 绑定值</td></tr>
+  <tr><td style="padding:6px;">IssueTabDetails</td><td style="padding:6px;color:#666;">issue, workspaceId, projectId</td><td style="padding:6px;color:#666;">update:description, update:customFields</td><td style="padding:6px;color:#666;">富文本渲染、自定义字段网格、评论渲染</td></tr>
+  <tr><td style="padding:6px;">IssueTabRelations</td><td style="padding:6px;color:#666;">issueId, projectId, workspaceId</td><td style="padding:6px;color:#666;">navigate(issueId)</td><td style="padding:6px;color:#666;">3卡片渲染、空状态、动态类型卡片</td></tr>
+  <tr><td style="padding:6px;">RelationParentCard</td><td style="padding:6px;color:#666;">parent, issueTypes</td><td style="padding:6px;color:#666;">change, remove, navigate</td><td style="padding:6px;color:#666;">有/无父级两种状态、字段行渲染</td></tr>
+  <tr><td style="padding:6px;">RelationSubIssuesCard</td><td style="padding:6px;color:#666;">subIssues[]</td><td style="padding:6px;color:#666;">add, toggle, navigate</td><td style="padding:6px;color:#666;">checkbox交互、进度计数、折叠展开</td></tr>
+  <tr><td style="padding:6px;">RelationTypeCard</td><td style="padding:6px;color:#666;">typeName, issues[], color</td><td style="padding:6px;color:#666;">add, remove(id), navigate</td><td style="padding:6px;color:#666;">动态数据渲染、空数组不渲染、字段行</td></tr>
+  <tr><td style="padding:6px;">IssueTabAttachments</td><td style="padding:6px;color:#666;">issueId, projectId</td><td style="padding:6px;color:#666;">—</td><td style="padding:6px;color:#666;">复用 AttachmentManager 提供的数据</td></tr>
+  <tr><td style="padding:6px;">IssueTabTimeTracking</td><td style="padding:6px;color:#666;">issueId</td><td style="padding:6px;color:#666;">—</td><td style="padding:6px;color:#666;">复用 TimeTrackPanel</td></tr>
+  <tr><td style="padding:6px;">IssueTabActivity</td><td style="padding:6px;color:#666;">issueId</td><td style="padding:6px;color:#666;">—</td><td style="padding:6px;color:#666;">活动列表渲染、时间格式化</td></tr>
+</table>
+
+<h3 style="margin-top:16px;">TDD 流程</h3>
+<div style="display:flex; gap:8px; flex-wrap:wrap;">
+  <div style="flex:1; min-width:180px; border:1px solid #e5e5e5; border-radius:8px; padding:10px; text-align:center;">
+    <div style="font-size:24px; margin-bottom:4px;">1</div>
+    <div style="font-weight:600; font-size:11px;">写测试</div>
+    <div style="font-size:10px; color:#666;">Vitest + Vue Test Utils 单元测试每个组件</div>
+  </div>
+  <div style="flex:1; min-width:180px; border:1px solid #e5e5e5; border-radius:8px; padding:10px; text-align:center;">
+    <div style="font-size:24px; margin-bottom:4px;">2</div>
+    <div style="font-weight:600; font-size:11px;">实现组件</div>
+    <div style="font-size:10px; color:#666;">逐个实现组件，测试通过后 commit</div>
+  </div>
+  <div style="flex:1; min-width:180px; border:1px solid #e5e5e5; border-radius:8px; padding:10px; text-align:center;">
+    <div style="font-size:24px; margin-bottom:4px;">3</div>
+    <div style="font-weight:600; font-size:11px;">集成</div>
+    <div style="font-size:10px; color:#666;">IssueDetail.vue 组装，E2E 回归通过</div>
+  </div>
+  <div style="flex:1; min-width:180px; border:1px solid #e5e5e5; border-radius:8px; padding:10px; text-align:center;">
+    <div style="font-size:24px; margin-bottom:4px;">4</div>
+    <div style="font-weight:600; font-size:11px;">清理旧代码</div>
+    <div style="font-size:10px; color:#666;">删除 SubIssuePanel 旧组件，更新路由</div>
+  </div>
+</div>
+
+<h3 style="margin-top:16px;">路由不变</h3>
+<p class="subtitle">IssueDetail.vue 保持为路由入口，内部全部重写</p>

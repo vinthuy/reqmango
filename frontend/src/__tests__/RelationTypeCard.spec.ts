@@ -1,29 +1,33 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
-const mockT = vi.fn((key: string) => key)
-vi.mock('@/composables/useI18n', () => ({ useI18n: () => ({ t: mockT }) }))
+vi.mock('@/composables/useI18n', () => ({
+  useI18n: () => ({ t: (k: string) => k }),
+}))
 
 import RelationTypeCard from '@/components/RelationTypeCard.vue'
+
+const mockItem = {
+  id: 101,
+  related_issue: {
+    id: 55,
+    sequence_id: 55,
+    name: 'OAuth2 provider setup',
+    state_name: 'Todo',
+    state_group: 'todo',
+    priority: 'high',
+    assignees: [{ id: 2, display_name: 'Bob' }],
+    start_date: null,
+    target_date: '2026-07-15T00:00:00Z',
+    issue_type: { id: 2, name: 'Feature', color: '#10b981' },
+  },
+  related_issue_id: 55,
+}
 
 function mountCard(overrides: Record<string, any> = {}) {
   const defaults = {
     typeName: 'blocks',
-    typeId: 1,
-    items: [
-      {
-        id: 101,
-        related_issue: {
-          id: 55, sequence_id: 55, name: 'OAuth2 provider setup',
-          state_name: 'Todo', state_group: 'todo',
-          priority: 'high',
-          assignees: [],
-          start_date: null, target_date: null,
-          issue_type: { id: 2, name: 'Feature', color: '#6366f1' },
-        },
-        related_issue_id: 55,
-      },
-    ],
+    items: [mockItem],
     color: '#dc2626',
     issueTypes: [
       { id: 1, name: 'Task', color: '#6366f1' },
@@ -41,11 +45,24 @@ describe('RelationTypeCard', () => {
     expect(wrapper.text()).toContain('BLOCKS')
   })
 
+  it('renders column headers in the table', () => {
+    const wrapper = mountCard()
+    const text = wrapper.text()
+    expect(text).toContain('issue.type')
+    expect(text).toContain('issue.title')
+    expect(text).toContain('issue.status')
+    expect(text).toContain('issue.priority')
+    expect(text).toContain('issue.assignee')
+    expect(text).toContain('issue.targetDate')
+  })
+
   it('renders the item count badge', () => {
-    const wrapper = mountCard({ items: [
-      { id: 1, related_issue: { id: 10, sequence_id: 10, name: 'A', state_name: 'Todo', priority: 'medium', assignees: [], issue_type: { id: 1, name: 'Task', color: '#6366f1' } }, related_issue_id: 10 },
-      { id: 2, related_issue: { id: 20, sequence_id: 20, name: 'B', state_name: 'Done', priority: 'low', assignees: [], issue_type: { id: 1, name: 'Task', color: '#6366f1' } }, related_issue_id: 20 },
-    ] })
+    const wrapper = mountCard({
+      items: [
+        { ...mockItem, id: 1 },
+        { ...mockItem, id: 2, related_issue: { ...mockItem.related_issue, id: 20, sequence_id: 20 } },
+      ],
+    })
     expect(wrapper.text()).toContain('2')
   })
 
@@ -60,14 +77,50 @@ describe('RelationTypeCard', () => {
   })
 
   it('shows "—" for unassigned issues', () => {
-    const wrapper = mountCard()
-    const row = wrapper.find('.relation-row')
-    expect(row.text()).toContain('—')
+    const wrapper = mountCard({
+      items: [{
+        ...mockItem,
+        related_issue: { ...mockItem.related_issue, assignees: [] },
+      }],
+    })
+    expect(wrapper.text()).toContain('—')
   })
 
-  it('emits "navigate" when the title area is clicked', async () => {
+  it('shows dropdown menu when + Add button is clicked', async () => {
     const wrapper = mountCard()
-    await wrapper.find('.relation-row-clickable').trigger('click')
+    await wrapper.find('[data-test="add-relation"]').trigger('click')
+    expect(wrapper.find('[data-test="add-existing-relation"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="quick-create-relation"]').exists()).toBe(true)
+  })
+
+  it('emits "add-existing" when select existing is clicked', async () => {
+    const wrapper = mountCard()
+    await wrapper.find('[data-test="add-relation"]').trigger('click')
+    await wrapper.find('[data-test="add-existing-relation"]').trigger('click')
+    expect(wrapper.emitted('add-existing')).toBeTruthy()
+  })
+
+  it('shows inline input when quick create is clicked', async () => {
+    const wrapper = mountCard()
+    await wrapper.find('[data-test="add-relation"]').trigger('click')
+    await wrapper.find('[data-test="quick-create-relation"]').trigger('click')
+    expect(wrapper.find('input[type="text"]').exists()).toBe(true)
+  })
+
+  it('emits "quick-create" with name when Enter is pressed in quick input', async () => {
+    const wrapper = mountCard()
+    await wrapper.find('[data-test="add-relation"]').trigger('click')
+    await wrapper.find('[data-test="quick-create-relation"]').trigger('click')
+    const input = wrapper.find('input[type="text"]')
+    await input.setValue('New related issue')
+    await input.trigger('keydown.enter')
+    expect(wrapper.emitted('quick-create')).toBeTruthy()
+    expect(wrapper.emitted('quick-create')![0]).toEqual(['New related issue'])
+  })
+
+  it('emits "navigate" when the title is clicked', async () => {
+    const wrapper = mountCard()
+    await wrapper.find('.relation-type-clickable').trigger('click')
     expect(wrapper.emitted('navigate')).toBeTruthy()
     expect(wrapper.emitted('navigate')![0]).toEqual([55])
   })
@@ -79,49 +132,23 @@ describe('RelationTypeCard', () => {
     expect(wrapper.emitted('remove')![0]).toEqual([101])
   })
 
-  it('emits "add" when + Link button is clicked', async () => {
-    const wrapper = mountCard()
-    await wrapper.find('[data-test="add-link-header"]').trigger('click')
-    expect(wrapper.emitted('add')).toBeTruthy()
-  })
-
-  it('shows empty state hint when items array is empty', () => {
+  it('shows empty state when no items', () => {
     const wrapper = mountCard({ items: [] })
     expect(wrapper.text()).toContain('issueKanban.noRelations')
   })
 
-  it('renders "—" for invalid/unparseable target_date', () => {
+  it('renders "—" for missing target_date', () => {
     const wrapper = mountCard({
-      items: [
-        {
-          id: 101,
-          related_issue: {
-            id: 55, sequence_id: 55, name: 'OAuth2 provider setup',
-            state_name: 'Todo', state_group: 'todo',
-            priority: 'high',
-            assignees: [],
-            start_date: null, target_date: 'invalid-date',
-            issue_type: { id: 2, name: 'Feature', color: '#6366f1' },
-          },
-          related_issue_id: 55,
-        },
-      ],
+      items: [{
+        ...mockItem,
+        related_issue: { ...mockItem.related_issue, target_date: null },
+      }],
     })
     expect(wrapper.text()).toContain('—')
   })
 
-  it('collapses and expands when header is clicked', async () => {
-    const wrapper = mountCard({
-      items: [
-        { id: 1, related_issue: { id: 10, sequence_id: 10, name: 'A', state_name: 'Todo', priority: 'medium', assignees: [], issue_type: { id: 1, name: 'Task', color: '#6366f1' } }, related_issue_id: 10 },
-      ]
-    })
-    const header = wrapper.find('[data-test="card-header"]')
-    const itemsBefore = wrapper.find('.relation-row')
-    expect(itemsBefore.exists()).toBe(true)
-
-    await header.trigger('click')
-    const itemsAfter = wrapper.findAll('.relation-row')
-    expect(itemsAfter.length).toBe(0)
+  it('shows assignee display_name when present', () => {
+    const wrapper = mountCard()
+    expect(wrapper.text()).toContain('Bob')
   })
 })

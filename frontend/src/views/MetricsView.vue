@@ -103,7 +103,7 @@
                   </button>
                 </div>
                 <div class="mt-3 pt-3 border-t border-gray-100">
-                  <button @click="panel.useCustom = true"
+                  <button @click="panel.useCustom = true; panel.selectedTemplate = null; resetForm()"
                     class="w-full flex items-center justify-center gap-2 py-2 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
@@ -132,8 +132,18 @@
 
                 <!-- Chart Type -->
                 <div>
-                  <label class="block text-[11px] font-medium text-gray-500 mb-1">图表类型</label>
-                  <div class="grid grid-cols-5 gap-1">
+                  <label class="block text-[11px] font-medium text-gray-500 mb-1">
+                    图表类型
+                    <span v-if="isTemplateMode" class="text-indigo-400 ml-1">(模板锁定)</span>
+                    <button v-if="isTemplateMode" @click="panel.selectedTemplate = null"
+                      class="ml-2 text-[10px] text-gray-400 hover:text-indigo-500 underline">切换为自定义</button>
+                  </label>
+                  <div v-if="isTemplateMode" class="flex items-center gap-2 px-3 py-2 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <span class="text-sm">{{ chartTypeOptions.find(c => c.value === form.chart_type)?.icon }}</span>
+                    <span class="text-[11px] text-indigo-700 font-medium">{{ chartTypeOptions.find(c => c.value === form.chart_type)?.label }}</span>
+                    <svg class="w-3 h-3 text-indigo-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  </div>
+                  <div v-else class="grid grid-cols-5 gap-1">
                     <button v-for="ct in chartTypeOptions" :key="ct.value" @click="updateChartType(ct.value)"
                       :class="['flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-md border text-[10px] transition-all',
                         form.chart_type === ct.value
@@ -148,8 +158,15 @@
 
                 <!-- X Axis -->
                 <div>
-                  <label class="block text-[11px] font-medium text-gray-500 mb-1">X 轴（维度）</label>
-                  <select v-model="form.x_axis"
+                  <label class="block text-[11px] font-medium text-gray-500 mb-1">
+                    X 轴（维度）
+                    <span v-if="isTemplateMode" class="text-indigo-400 ml-1">(模板锁定)</span>
+                  </label>
+                  <div v-if="isTemplateMode" class="flex items-center gap-2 px-3 py-2 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <span class="text-[11px] text-indigo-700 font-medium">{{ form.x_axis }}</span>
+                    <svg class="w-3 h-3 text-indigo-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  </div>
+                  <select v-else v-model="form.x_axis"
                     class="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                     <optgroup label="分类维度">
                       <option v-for="d in xAxisCategoryOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
@@ -169,51 +186,95 @@
                 <!-- Y Axis -->
                 <div>
                   <label class="block text-[11px] font-medium text-gray-500 mb-1">Y 轴（指标）</label>
-                  <select v-model="form.y_axis"
+                  <div v-if="isTemplateMode" class="flex items-center gap-2 px-3 py-2 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <span class="text-[11px] text-indigo-700 font-medium">{{ yAxisOptions.find(m => m.value === form.y_axis)?.label || form.y_axis }}</span>
+                    <svg class="w-3 h-3 text-indigo-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  </div>
+                  <select v-else v-model="form.y_axis"
                     class="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                     <option v-for="m in yAxisOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
                   </select>
                 </div>
 
-                <!-- Visual Filters -->
+                <!-- Jira-style Filters -->
                 <div>
-                  <div class="flex items-center justify-between mb-1">
+                  <div class="flex items-center justify-between mb-2">
                     <label class="text-[11px] font-medium text-gray-500">筛选条件</label>
-                    <button @click="addFilter" class="text-[11px] text-indigo-500 hover:text-indigo-700">+ 添加</button>
-                  </div>
-                  <div v-if="filters.length === 0" class="text-[11px] text-gray-400 py-1">无筛选条件（显示全部数据）</div>
-                  <div v-for="(f, i) in filters" :key="i" class="flex items-center gap-1 mb-1">
-                    <select v-model="f.field"
-                      class="flex-1 px-2 py-1 border border-gray-200 rounded text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                      <option value="">选择字段</option>
-                      <option value="state">状态</option>
-                      <option value="priority">优先级</option>
-                      <option value="assignee">负责人</option>
-                      <option value="type">类型</option>
-                      <option value="label">标签</option>
-                      <option value="module">模块</option>
-                    </select>
-                    <select v-model="f.operator"
-                      class="w-20 px-2 py-1 border border-gray-200 rounded text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                      <option value="=">=</option>
-                      <option value="!=">!=</option>
-                      <option value="empty">为空</option>
-                      <option value="not_empty">不为空</option>
-                    </select>
-                    <select v-if="f.operator !== 'empty' && f.operator !== 'not_empty' && getFilterFieldValues(f.field).length > 0"
-                      v-model="f.value"
-                      class="flex-1 px-2 py-1 border border-gray-200 rounded text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                      <option value="">选择值</option>
-                      <option v-for="v in getFilterFieldValues(f.field)" :key="v" :value="v">{{ v }}</option>
-                    </select>
-                    <input v-else-if="f.operator !== 'empty' && f.operator !== 'not_empty'"
-                      v-model="f.value" placeholder="输入值"
-                      class="flex-1 px-2 py-1 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400" />
-                    <button @click="removeFilter(i)" class="p-0.5 text-gray-400 hover:text-red-500 shrink-0">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                      </svg>
+                    <button @click="addFilter" class="inline-flex items-center gap-0.5 text-[11px] text-indigo-500 hover:text-indigo-700">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                      添加条件
                     </button>
+                  </div>
+                  <div v-if="filters.length === 0" class="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                    <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                    <span class="text-[11px] text-gray-400">无筛选条件 — 显示全部数据</span>
+                  </div>
+                  <div v-for="(f, i) in filters" :key="i" class="relative mb-2">
+                    <div class="flex items-center gap-1.5">
+                      <!-- AND badge -->
+                      <span v-if="i > 0" class="text-[9px] font-bold text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded shrink-0">并且</span>
+                      <!-- Field selector -->
+                      <select v-model="f.field" @change="f.values = []; f.value = ''"
+                        class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                        <option value="">选择字段</option>
+                        <option value="state">状态</option>
+                        <option value="priority">优先级</option>
+                        <option value="assignee">负责人</option>
+                        <option value="type">类型</option>
+                        <option value="label">标签</option>
+                        <option value="module">模块</option>
+                        <option value="created_by">创建人</option>
+                        <option value="title">标题</option>
+                      </select>
+                      <!-- Operator selector -->
+                      <select v-model="f.operator" @change="f.values = []; f.value = ''"
+                        class="w-24 px-2 py-1.5 border border-gray-200 rounded text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                        <option value="=">等于</option>
+                        <option value="!=">不等于</option>
+                        <option value="in">包含任一</option>
+                        <option value="not_in">不包含任一</option>
+                        <option value="contains">包含文本</option>
+                        <option value="empty">为空</option>
+                        <option value="not_empty">不为空</option>
+                      </select>
+                      <!-- Value: Multi-select for in/not_in -->
+                      <div v-if="f.operator === 'in' || f.operator === 'not_in'" class="flex-1 relative">
+                        <div @click="$event.stopPropagation()"
+                          class="flex items-center gap-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] bg-white cursor-pointer hover:border-indigo-300 min-h-[30px] flex-wrap">
+                          <span v-for="(v, vi) in f.values" :key="vi"
+                            class="inline-flex items-center gap-0.5 bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[10px]">
+                            {{ v }}
+                            <button @click="f.values.splice(vi, 1)" class="text-indigo-400 hover:text-indigo-600">&times;</button>
+                          </span>
+                          <span v-if="f.values.length === 0" class="text-gray-400">选择多个值</span>
+                        </div>
+                        <div class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                          <label v-for="v in getFilterFieldValues(f.field)" :key="v"
+                            class="flex items-center gap-2 px-3 py-1.5 text-[11px] hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" :value="v" v-model="f.values"
+                              class="w-3 h-3 rounded border-gray-300 text-indigo-500 focus:ring-indigo-400">
+                            <span class="text-gray-700">{{ v }}</span>
+                          </label>
+                        </div>
+                      </div>
+                      <!-- Value: Single select/input for other operators -->
+                      <template v-else-if="f.operator !== 'empty' && f.operator !== 'not_empty'">
+                        <select v-if="getFilterFieldValues(f.field).length > 0"
+                          v-model="f.value"
+                          class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                          <option value="">选择值</option>
+                          <option v-for="v in getFilterFieldValues(f.field)" :key="v" :value="v">{{ v }}</option>
+                        </select>
+                        <input v-else v-model="f.value" placeholder="输入值"
+                          class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                      </template>
+                      <!-- Remove button -->
+                      <button @click="removeFilter(i)" class="p-1 text-gray-300 hover:text-red-500 shrink-0 rounded hover:bg-red-50 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -298,9 +359,10 @@ const panel = reactive({
 
 // ── Form ──
 const form = reactive({ name: '', chart_type: 'bar', x_axis: 'state', y_axis: 'count' })
-const filters = reactive<Array<{ field: string; operator: string; value: string }>>([])
+const filters = reactive<Array<{ field: string; operator: string; value: string; values: string[] }>>([])
 const advancedConfig = reactive<MetricChartConfig>({ stack_mode: 'none', show_labels: false, reference_lines: [] })
 const canSave = computed(() => form.name.trim().length > 0)
+const isTemplateMode = computed(() => !!panel.selectedTemplate && panel.useCustom)
 
 // ── Filter Values (for dropdown) ──
 const filterValues = ref<Record<string, string[]>>({})
@@ -421,11 +483,11 @@ function openPanel(mode: 'new' | 'edit', chart?: MetricChart) {
     try {
       const f = JSON.parse(chart.filters || '{}')
       if (f.conditions) {
-        f.conditions.forEach((c: any) => filters.push({ field: c.field || '', operator: c.operator || '=', value: c.value || '' }))
+        f.conditions.forEach((c: any) => filters.push({ field: c.field || '', operator: c.operator || '=', value: c.value || '', values: [] }))
       } else if (f.rql) {
         // Convert legacy RQL to visual filters (best effort)
         const match = f.rql.match(/^(\w+)\s*(!?=)\s*"?([^"]+)"?$/)
-        if (match) filters.push({ field: match[1], operator: match[2], value: match[3] })
+        if (match) filters.push({ field: match[1], operator: match[2], value: match[3], values: [] })
       }
     } catch { /* ignore */ }
     try {
@@ -485,7 +547,7 @@ function updateChartType(type: string) {
 }
 
 function addFilter() {
-  filters.push({ field: '', operator: '=', value: '' })
+  filters.push({ field: '', operator: '=', value: '', values: [] })
 }
 
 function removeFilter(index: number) {
@@ -506,11 +568,19 @@ async function fetchPreview() {
       y_axis: form.y_axis,
     }
     // Build filters
-    const validFilters = filters.filter(f => f.field && (f.operator === 'empty' || f.operator === 'not_empty' || f.value))
+    const validFilters = filters.filter(f => {
+      if (!f.field) return false
+      if (f.operator === 'empty' || f.operator === 'not_empty') return true
+      if (f.operator === 'in' || f.operator === 'not_in') return f.values.length > 0
+      return f.value !== ''
+    })
     if (validFilters.length > 0) {
       const rqlParts = validFilters.map(f => {
         if (f.operator === 'empty') return `${f.field} = ""`
         if (f.operator === 'not_empty') return `${f.field} != ""`
+        if (f.operator === 'in') return `(${f.values.map(v => `${f.field} = "${v}"`).join(' OR ')})`
+        if (f.operator === 'not_in') return `(${f.values.map(v => `${f.field} != "${v}"`).join(' AND ')})`
+        if (f.operator === 'contains') return `${f.field} ~ "${f.value}"`
         return `${f.field} ${f.operator} "${f.value}"`
       })
       payload.filters = { rql: rqlParts.join(' AND ') }

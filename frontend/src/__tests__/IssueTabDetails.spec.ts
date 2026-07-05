@@ -13,13 +13,6 @@ vi.mock('@/components/RichTextEditor.vue', () => ({
   },
 }))
 
-vi.mock('@/components/CustomFieldManager.vue', () => ({
-  default: {
-    template: '<div class="mock-cfm">CustomFields</div>',
-    props: ['workspaceId', 'projectId', 'issueId', 'issueTypeId', 'mode', 'members'],
-  },
-}))
-
 vi.mock('@/components/CommentList.vue', () => ({
   default: {
     template: '<div class="mock-comments">Comments</div>',
@@ -46,11 +39,6 @@ describe('IssueTabDetails', () => {
   it('renders "issue.description" text', () => {
     const wrapper = mountComponent()
     expect(wrapper.text()).toContain('issue.description')
-  })
-
-  it('renders "issue.customFields" text', () => {
-    const wrapper = mountComponent()
-    expect(wrapper.text()).toContain('issue.customFields')
   })
 
   it('renders "issue.comments" text', () => {

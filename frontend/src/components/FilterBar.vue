@@ -2,10 +2,9 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import type { FilterCondition, FilterField, SortOption, GroupOption, SubGroupOption } from '../types/filters'
-import { FILTER_FIELDS, SORT_OPTIONS, SORT_OPTION_MAP, GROUP_OPTIONS, SUB_GROUP_OPTIONS } from '../types/filters'
+import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, SUB_GROUP_OPTIONS } from '../types/filters'
 import { useFilters } from '../composables/useFilters'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
-import MultiSelectDropdown from '@/components/MultiSelectDropdown.vue'
 import type { SavedView } from '@/types/saved-view'
 import SearchTemplateSelector from '@/components/SearchTemplateSelector.vue'
 import type { SearchTemplate } from '@/types/search-template'
@@ -44,7 +43,6 @@ const showSubGroupDropdown = ref(false)
 
 const searchSuggestions = ref<IssueSearchResult[]>([])
 const showSuggestions = ref(false)
-const showHistory = ref(false)
 let suggestDebounce: ReturnType<typeof setTimeout> | null = null
 
 const states = ref<any[]>([])
@@ -54,7 +52,6 @@ const modules = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const labels = ref<any[]>([])
 const customFields = ref<CustomField[]>([])
-const loadingData = ref(false)
 
 // Merge system fields with custom fields
 const allFilterFields = computed<FilterField[]>(() => {
@@ -167,7 +164,7 @@ async function loadMembers() {
 
 async function loadIssueTypes() {
   try {
-    const r = await api.get(`/projects/${props.projectId}/issue-types?workspace_id=${props.workspaceId}`)
+    const r = await api.get(`/projects/${props.projectId}/issue-types`)
     issueTypes.value = r.data
   } catch (e) { /* */ }
 }
@@ -181,7 +178,7 @@ async function loadLabels() {
 
 async function loadModules() {
   try {
-    const r = await api.get(`/modules?project_id=${props.projectId}&workspace_id=${props.workspaceId}`)
+    const r = await api.get(`/modules?project_id=${props.projectId}`)
     modules.value = r.data
   } catch (e) { /* */ }
 }
@@ -225,7 +222,6 @@ function selectSuggestion(suggestion: IssueSearchResult) {
 }
 
 function onSearchFocus() {
-  showHistory.value = true
   if (state.quickSearch.length >= 2) {
     fetchSuggestions(state.quickSearch)
   } else {
@@ -238,13 +234,11 @@ function handleSearchSubmit() {
     addToHistory(state.quickSearch.trim())
   }
   showSuggestions.value = false
-  showHistory.value = false
 }
 
 function onSearchBlur() {
   window.setTimeout(() => {
     showSuggestions.value = false
-    showHistory.value = false
   }, 200)
 }
 
@@ -252,7 +246,6 @@ function applyHistory(query: string) {
   setQuickSearch(query)
   addToHistory(query)
   showSuggestions.value = false
-  showHistory.value = false
 }
 
 function toggleFieldDropdown(e: Event) {
@@ -412,9 +405,11 @@ function checkDateRangeComplete(index: number) {
 }
 
 function handleMultiSelectChange(index: number, values: any[], displayValues: string[]) {
-  state.filters[index].value = values
-  state.filters[index].displayValue = displayValues.join(', ')
-  editingIndex.value = null
+  if (values.length > 0) {
+    state.filters[index].value = values
+    state.filters[index].displayValue = displayValues.join(', ')
+    editingIndex.value = null
+  }
 }
 
 function removeCondition(index: number) {
@@ -442,10 +437,12 @@ function applyRQL() {
     state.filters = []
     state.sortBy = []
     state.quickSearch = ''
+    emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
     return
   }
 
   restoreFromRQL(rqlText.value, true)
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
 }
 
 function handleClickOutside(e: MouseEvent) {
@@ -593,7 +590,7 @@ function handleSavedViewSelect(view: SavedView) {
     state.sortBy = view.sort_config.map(sc => ({
       key: sc.field,
       direction: sc.dir as 'asc' | 'desc',
-      labelKey: SORT_OPTION_MAP[sc.field]?.labelKey || ''
+      labelKey: ''
     }))
   }
   // Apply group by
@@ -632,7 +629,7 @@ function handleSearchTemplateApply(template: SearchTemplate) {
     state.sortBy = template.sort_config.map(sc => ({
       key: sc.field,
       direction: sc.dir as 'asc' | 'desc',
-      labelKey: SORT_OPTION_MAP[sc.field]?.labelKey || ''
+      labelKey: ''
     }))
   }
   if (template.group_by) {
@@ -651,15 +648,10 @@ function handleSearchTemplateApply(template: SearchTemplate) {
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   if (props.projectId > 0) {
-    loadingData.value = true
-    try {
-      await Promise.all([loadStates(), loadCycles(), loadMembers(), loadModules(), loadIssueTypes(), loadLabels(), loadCustomFields()])
-    } finally {
-      loadingData.value = false
-    }
+    Promise.all([loadStates(), loadCycles(), loadMembers(), loadModules(), loadIssueTypes(), loadLabels(), loadCustomFields()])
   }
 })
 
@@ -696,7 +688,7 @@ onUnmounted(() => {
           </svg>
         </button>
         
-        <div v-if="showSuggestions || (showHistory && state.searchHistory.length > 0 && state.quickSearch.length < 2)" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div v-if="showSuggestions || (state.searchHistory.length > 0 && state.quickSearch.length < 2)" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
           <template v-if="searchSuggestions.length > 0">
             <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
               {{ t('filter.suggestions') }}
@@ -767,7 +759,7 @@ onUnmounted(() => {
           <div v-if="editingIndex === index" class="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-full px-2 py-1">
             <select
               :value="filter.field"
-              @change="(e: Event) => handleFieldChange(index, (e.target as HTMLSelectElement).value)"
+              @change="(e) => handleFieldChange(index, (e.target as HTMLSelectElement).value)"
               class="text-sm bg-transparent border-none outline-none text-indigo-700"
             >
               <option v-for="field in allFilterFields" :key="field.key" :value="field.key">
@@ -776,7 +768,7 @@ onUnmounted(() => {
             </select>
             <select
               :value="filter.operator"
-              @change="(e: Event) => handleOperatorChange(index, (e.target as HTMLSelectElement).value)"
+              @change="(e) => handleOperatorChange(index, (e.target as HTMLSelectElement).value)"
               class="text-sm bg-transparent border-none outline-none text-indigo-700"
             >
               <option v-for="op in getOperatorsForField(filter.field)" :key="op" :value="op">
@@ -806,7 +798,7 @@ onUnmounted(() => {
             <template v-else-if="getFieldType(filter.field) === 'select'">
               <select
                 :value="filter.value"
-                @change="(e: Event) => handleValueChange(index, (e.target as HTMLSelectElement).value, (e.target as HTMLSelectElement).options[(e.target as HTMLSelectElement).selectedIndex].text)"
+                @change="(e) => handleValueChange(index, (e.target as HTMLSelectElement).value, (e.target as HTMLSelectElement).options[(e.target as HTMLSelectElement).selectedIndex].text)"
                 class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none w-32"
               >
                 <option value="">{{ t('filter.selectValue') }}</option>
@@ -816,26 +808,38 @@ onUnmounted(() => {
               </select>
             </template>
             <template v-else-if="getFieldType(filter.field) === 'multi'">
-              <MultiSelectDropdown
-                :modelValue="Array.isArray(filter.value) ? filter.value : filter.value ? [filter.value] : []"
-                @update:modelValue="(vals) => handleMultiSelectChange(index, vals, vals.map(v => getOptionsForField(filter.field).find(o => o.value === v)?.label || String(v)))"
-                :options="getOptionsForField(filter.field)"
-                :placeholder="t('filter.selectValue')"
-              />
+              <div class="relative">
+                <select
+                  :value="filter.value || ''"
+                  multiple
+                  @change="(e) => {
+                    const target = e.target as HTMLSelectElement
+                    const values = Array.from(target.selectedOptions).map(o => o.value)
+                    const displayValues = Array.from(target.selectedOptions).map(o => o.text)
+                    handleMultiSelectChange(index, values, displayValues)
+                  }"
+                  class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none w-40"
+                  size="4"
+                >
+                  <option v-for="opt in getOptionsForField(filter.field)" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
+              </div>
             </template>
             <template v-else-if="getFieldType(filter.field) === 'date'">
               <template v-if="filter.operator === 'between' || filter.operator === 'not between'">
                 <input
                   type="date"
                   :value="dateRangeValues[index]?.from || ''"
-                  @change="(e: Event) => handleDateRangeFromChange(index, (e.target as HTMLInputElement).value)"
+                  @change="(e) => handleDateRangeFromChange(index, (e.target as HTMLInputElement).value)"
                   class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none"
                 />
                 <span class="text-indigo-400">-</span>
                 <input
                   type="date"
                   :value="dateRangeValues[index]?.to || ''"
-                  @change="(e: Event) => handleDateRangeToChange(index, (e.target as HTMLInputElement).value)"
+                  @change="(e) => handleDateRangeToChange(index, (e.target as HTMLInputElement).value)"
                   class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none"
                 />
                 <div class="relative">
@@ -1026,7 +1030,7 @@ onUnmounted(() => {
             @click="toggleRQL"
             class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
-            <span>{{ t('filter.rqlToggle') }}</span>
+            <span>RQL</span>
             <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': showRQL }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
@@ -1064,7 +1068,6 @@ onUnmounted(() => {
           :current-sort-config="state.sortBy.map(s => ({ field: s.key, dir: s.direction }))"
           :current-group-by="state.groupBy?.key"
           :current-sub-group-by="state.subGroupBy?.key"
-          :current-columns="currentColumns"
           :view-type="currentView"
           @select="handleSavedViewSelect"
           @save-request="handleViewSaved"

@@ -254,6 +254,136 @@ func (s *MetricService) RenderChart(projectID, chartID uint64) (*RenderResponse,
 	}, nil
 }
 
+// RenderChartData renders chart data directly from request params (for live preview).
+func (s *MetricService) RenderChartData(projectID uint64, req *CreateChartRequest) (*RenderResponse, error) {
+	reportReq := &ReportV2Request{
+		XAxis: req.XAxis,
+		YAxis: req.YAxis,
+	}
+	if req.Filters != nil {
+		if rql, ok := req.Filters["rql"].(string); ok && rql != "" {
+			reportReq.RQL = rql
+		}
+	}
+
+	reportSvc := NewReportService(s.db)
+	reportResp, err := reportSvc.GenerateV2(projectID, reportReq)
+	if err != nil {
+		return nil, err
+	}
+
+	var config ChartConfig
+	if req.Config != nil {
+		configJSON, _ := json.Marshal(req.Config)
+		json.Unmarshal(configJSON, &config)
+	}
+
+	chartType := req.ChartType
+	if chartType == "" {
+		chartType = "bar"
+	}
+
+	return &RenderResponse{
+		Labels: reportResp.Labels, Values: reportResp.Values, Total: reportResp.Total,
+		Colors: reportResp.Colors, ReferenceLines: nil, ChartType: chartType, Config: config,
+	}, nil
+}
+
+// FilterValues holds distinct values for each filter field in a project.
+type FilterValues struct {
+	State     []string `json:"state"`
+	Priority  []string `json:"priority"`
+	Assignee  []string `json:"assignee"`
+	Type      []string `json:"type"`
+	Label     []string `json:"label"`
+	Module    []string `json:"module"`
+	CreatedBy []string `json:"created_by"`
+}
+
+// GetFilterValues returns distinct non-empty values for filter fields in a project.
+func (s *MetricService) GetFilterValues(projectID uint64) (*FilterValues, error) {
+	fv := &FilterValues{}
+
+	// State names via join with states table
+	var states []string
+	err := s.db.Raw(
+		`SELECT DISTINCT s.name FROM issues i JOIN states s ON i.state_id = s.id WHERE i.project_id = ? AND i.deleted_at IS NULL`,
+		projectID,
+	).Scan(&states).Error
+	if err != nil {
+		return nil, common.Internal("Failed to query state values: " + err.Error())
+	}
+	fv.State = states
+
+	// Priority values
+	var priorities []string
+	err = s.db.Raw(
+		`SELECT DISTINCT priority FROM issues WHERE project_id = ? AND deleted_at IS NULL AND priority != '' AND priority IS NOT NULL`,
+		projectID,
+	).Scan(&priorities).Error
+	if err != nil {
+		return nil, common.Internal("Failed to query priority values: " + err.Error())
+	}
+	fv.Priority = priorities
+
+	// Assignee display names via join with issue_assignees and users
+	var assignees []string
+	err = s.db.Raw(
+		`SELECT DISTINCT COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) FROM issues i JOIN issue_assignees ia ON ia.issue_id = i.id JOIN users u ON ia.user_id = u.id WHERE i.project_id = ? AND i.deleted_at IS NULL`,
+		projectID,
+	).Scan(&assignees).Error
+	if err != nil {
+		return nil, common.Internal("Failed to query assignee values: " + err.Error())
+	}
+	fv.Assignee = assignees
+
+	// Issue type names via join with issue_types
+	var types []string
+	err = s.db.Raw(
+		`SELECT DISTINCT t.name FROM issues i JOIN issue_types t ON i.issue_type_id = t.id WHERE i.project_id = ? AND i.deleted_at IS NULL AND i.issue_type_id IS NOT NULL`,
+		projectID,
+	).Scan(&types).Error
+	if err != nil {
+		return nil, common.Internal("Failed to query type values: " + err.Error())
+	}
+	fv.Type = types
+
+	// Label names via join with issue_labels and labels
+	var labels []string
+	err = s.db.Raw(
+		`SELECT DISTINCT l.name FROM issues i JOIN issue_labels il ON il.issue_id = i.id JOIN labels l ON il.label_id = l.id WHERE i.project_id = ? AND i.deleted_at IS NULL`,
+		projectID,
+	).Scan(&labels).Error
+	if err != nil {
+		return nil, common.Internal("Failed to query label values: " + err.Error())
+	}
+	fv.Label = labels
+
+	// Module names via join with module_issues and modules
+	var modules []string
+	err = s.db.Raw(
+		`SELECT DISTINCT m.name FROM issues i JOIN module_issues mi ON mi.issue_id = i.id JOIN modules m ON mi.module_id = m.id WHERE i.project_id = ? AND i.deleted_at IS NULL`,
+		projectID,
+	).Scan(&modules).Error
+	if err != nil {
+		return nil, common.Internal("Failed to query module values: " + err.Error())
+	}
+	fv.Module = modules
+
+	// Created by (issue creator names)
+	var creators []string
+	err = s.db.Raw(
+		`SELECT DISTINCT COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) FROM issues i JOIN users u ON i.created_by = u.id WHERE i.project_id = ? AND i.deleted_at IS NULL`,
+		projectID,
+	).Scan(&creators).Error
+	if err != nil {
+		return nil, common.Internal("Failed to query creator values: " + err.Error())
+	}
+	fv.CreatedBy = creators
+
+	return fv, nil
+}
+
 type CreateChartRequest struct {
 	Name       string                 `json:"name" binding:"required"`
 	TemplateID string                 `json:"template_id"`

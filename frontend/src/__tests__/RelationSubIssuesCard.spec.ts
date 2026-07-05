@@ -60,10 +60,36 @@ describe('RelationSubIssuesCard', () => {
     expect(text).toContain('Password checker')
   })
 
-  it('emits "add" when + Add button is clicked', async () => {
+  it('shows dropdown menu when + Add button is clicked', async () => {
     const wrapper = mountCard()
     await wrapper.find('[data-test="add-subissue"]').trigger('click')
-    expect(wrapper.emitted('add')).toBeTruthy()
+    expect(wrapper.find('[data-test="add-existing-subissue"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="quick-create-subissue"]').exists()).toBe(true)
+  })
+
+  it('emits "add-existing" when select existing is clicked', async () => {
+    const wrapper = mountCard()
+    await wrapper.find('[data-test="add-subissue"]').trigger('click')
+    await wrapper.find('[data-test="add-existing-subissue"]').trigger('click')
+    expect(wrapper.emitted('add-existing')).toBeTruthy()
+  })
+
+  it('shows inline input when quick create is clicked', async () => {
+    const wrapper = mountCard()
+    await wrapper.find('[data-test="add-subissue"]').trigger('click')
+    await wrapper.find('[data-test="quick-create-subissue"]').trigger('click')
+    expect(wrapper.find('input[type="text"]').exists()).toBe(true)
+  })
+
+  it('emits "quick-create" with name when Enter is pressed in quick input', async () => {
+    const wrapper = mountCard()
+    await wrapper.find('[data-test="add-subissue"]').trigger('click')
+    await wrapper.find('[data-test="quick-create-subissue"]').trigger('click')
+    const input = wrapper.find('input[type="text"]')
+    await input.setValue('New sub-issue')
+    await input.trigger('keydown.enter')
+    expect(wrapper.emitted('quick-create')).toBeTruthy()
+    expect(wrapper.emitted('quick-create')![0]).toEqual(['New sub-issue'])
   })
 
   it('emits "navigate" with issue ID when title is clicked', async () => {

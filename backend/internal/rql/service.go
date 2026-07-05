@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
@@ -22,10 +23,26 @@ func NewRQLService() *RQLService {
 }
 
 // ResolveTemplateVars 替换 RQL 中的模板变量
-// 支持的变量：$CURRENT_USER -> 当前用户ID
+// 支持的变量：$CURRENT_USER, $TODAY, $END_OF_WEEK, $ONE_WEEK_AGO
 func ResolveTemplateVars(rqlQuery string, currentUserID uint64) string {
+	now := time.Now()
+	today := now.Format("2006-01-02")
+
+	// End of current week (Sunday)
+	daysUntilSunday := (7 - int(now.Weekday())) % 7
+	endOfWeek := now.AddDate(0, 0, daysUntilSunday).Format("2006-01-02")
+
+	oneWeekAgo := now.AddDate(0, 0, -7).Format("2006-01-02")
+
 	result := rqlQuery
 	result = strings.ReplaceAll(result, "$CURRENT_USER", strconv.FormatUint(currentUserID, 10))
+	// Date values: use raw YYYY-MM-DD format.
+	// $TODAY (unquoted) → 2026-07-05 (parsed as TOKEN_DATE by the RQL lexer)
+	// "$TODAY" (quoted) → "2026-07-05" (parsed as TOKEN_STRING by the RQL lexer)
+	// Both forms work because the RQL parser handles both TOKEN_DATE and TOKEN_STRING.
+	result = strings.ReplaceAll(result, "$TODAY", today)
+	result = strings.ReplaceAll(result, "$END_OF_WEEK", endOfWeek)
+	result = strings.ReplaceAll(result, "$ONE_WEEK_AGO", oneWeekAgo)
 	return result
 }
 
@@ -41,14 +58,25 @@ func (s *RQLService) SearchIssuesWithUser(db *gorm.DB, projectID uint64, rqlQuer
 		rqlQuery = ResolveTemplateVars(rqlQuery, currentUserID)
 	}
 
+	// Strip orderby clauses before parsing — sort is handled via sort_config/sort_by params.
+	// Split by AND, filter out orderby clauses, then rejoin.
+	if strings.Contains(strings.ToLower(rqlQuery), "orderby") {
+		parts := strings.Split(rqlQuery, " AND ")
+		var filtered []string
+		for _, part := range parts {
+			trimmed := strings.TrimSpace(part)
+			if !strings.HasPrefix(strings.ToLower(trimmed), "orderby") {
+				filtered = append(filtered, trimmed)
+			}
+		}
+		rqlQuery = strings.Join(filtered, " AND ")
+	}
+
 	// 词法分析
 	lexer := NewLexer(rqlQuery)
 	tokens, err := lexer.Tokenize()
 	if err != nil {
 		return nil, 0, fmt.Errorf("lexer error: %w", err)
-	}
-	if err != nil {
-		return nil, 0, err
 	}
 
 	// 语法分析

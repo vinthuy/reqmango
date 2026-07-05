@@ -242,6 +242,18 @@ func (s *ReportService) resolveYAxis(yAxis string) (selectExpr, extraWhere strin
 		return "AVG(EXTRACT(EPOCH FROM (issues.completed_at - issues.created_at)) / 86400)", "issues.completed_at IS NOT NULL"
 	case "current_retention":
 		return "AVG(EXTRACT(EPOCH FROM (NOW() - issues.created_at)) / 86400)", "issues.completed_at IS NULL"
+	case "avg_cycle_time":
+		return "AVG(EXTRACT(EPOCH FROM (issues.completed_at - issues.created_at)) / 86400)", "issues.completed_at IS NOT NULL"
+	case "completion_rate":
+		return "ROUND(100.0 * COUNT(CASE WHEN issues.completed_at IS NOT NULL THEN 1 END) / NULLIF(COUNT(*), 0), 1)", ""
+	case "throughput":
+		return "COUNT(CASE WHEN issues.completed_at IS NOT NULL THEN 1 END)", ""
+	case "wip_count":
+		return "COUNT(*)", "issues.completed_at IS NULL AND issues.created_at IS NOT NULL"
+	case "backlog_count":
+		return "COUNT(*)", ""
+	case "overdue_count":
+		return "COUNT(CASE WHEN issues.completed_at IS NULL AND issues.due_date IS NOT NULL AND issues.due_date < NOW() THEN 1 END)", ""
 	default: // count
 		return "COUNT(*)", ""
 	}

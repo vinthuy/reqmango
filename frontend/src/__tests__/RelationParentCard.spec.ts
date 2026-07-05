@@ -45,14 +45,15 @@ describe('RelationParentCard', () => {
 
   it('renders empty state when parent is null', () => {
     const wrapper = mountCard({ parent: null })
-    expect(wrapper.text()).toContain('issue.setParent')
-    expect(wrapper.find('[data-test="set-parent"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('issue.parentIssue')
+    // Header change-parent button also serves as set-parent
+    expect(wrapper.find('[data-test="change-parent"]').exists()).toBe(true)
   })
 
   it('emits "change" when Change / Set Parent button is clicked', async () => {
-    // Empty state — Set Parent button
+    // Empty state — Set Parent button (same test attr in header)
     const emptyWrapper = mountCard({ parent: null })
-    await emptyWrapper.find('[data-test="set-parent"]').trigger('click')
+    await emptyWrapper.find('[data-test="change-parent"]').trigger('click')
     expect(emptyWrapper.emitted('change')).toBeTruthy()
 
     // With parent — Change button

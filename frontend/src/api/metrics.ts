@@ -33,4 +33,12 @@ export const metricsApi = {
     const res = await api.post(`/projects/${projectId}/metrics/charts/reorder`, { chart_ids: chartIds })
     return res.data
   },
+  previewChart: async (projectId: number, data: any) => {
+    const res = await api.post(`/projects/${projectId}/metrics/preview`, data)
+    return res.data
+  },
+  getFilterValues: async (projectId: number) => {
+    const res = await api.get(`/projects/${projectId}/metrics/filter-values`)
+    return res.data
+  },
 }
