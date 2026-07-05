@@ -1,7 +1,7 @@
 <template>
-  <div class="space-y-0">
+  <div class="space-y-4">
     <!-- Tab Header -->
-    <div class="flex items-center gap-1 border-b border-gray-200 mb-4">
+    <div class="flex items-center gap-1 border-b border-gray-200">
       <button
         v-for="tab in tabs"
         :key="tab.key"
@@ -15,18 +15,17 @@
       >{{ tab.label }}</button>
     </div>
 
-    <!-- ═══ Main Layout: Sidebar + Content ═══ -->
+    <!-- ═══ Main Layout ═══ -->
     <div class="flex gap-4 min-h-[600px]">
 
-      <!-- ─── Left: Saved Reports Sidebar ─── -->
+      <!-- ─── Left: Saved Reports ─── -->
       <div class="w-52 shrink-0 border border-gray-100 rounded-xl bg-white h-fit">
         <div class="px-4 py-3 border-b border-gray-100">
           <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide">{{ t('report.savedReports') }}</h3>
         </div>
         <div class="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
           <button
-            v-for="r in savedReports"
-            :key="r.id"
+            v-for="r in savedReports" :key="r.id"
             @click="selectSavedReport(r)"
             class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center justify-between group"
             :class="{ 'bg-blue-50 text-blue-700': selectedId === r.id }"
@@ -40,131 +39,160 @@
         </div>
       </div>
 
-      <!-- ─── Right: Content ─── -->
+      <!-- ─── Right Content ─── -->
       <div class="flex-1 space-y-4">
 
-        <!-- ═══════════════════════════════════════════ -->
-        <!-- Config Bar (shared by both tabs) -->
-        <!-- ═══════════════════════════════════════════ -->
-        <div class="bg-white border border-gray-100 rounded-xl px-5 py-3">
-          <div class="flex flex-wrap items-end gap-3">
-            <!-- Report Type -->
-            <div>
-              <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.reportType') }}</label>
-              <select v-model="reportType" @change="onTypeChange" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                <option v-for="(label, key) in reportTypeLabels" :key="key" :value="key">{{ label }}</option>
-              </select>
+        <!-- ═══════════════════════════════════ -->
+        <!-- QUICK CHARTS TAB -->
+        <!-- ═══════════════════════════════════ -->
+        <template v-if="activeTab === 'quick'">
+          <!-- Quick Config -->
+          <div class="bg-white border border-gray-100 rounded-xl px-5 py-3">
+            <div class="flex flex-wrap items-end gap-3">
+              <div>
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.reportType') }}</label>
+                <select v-model="reportType" @change="onTypeChange" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <option v-for="(label, key) in reportTypeLabels" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </div>
+              <div v-if="reportType === 'created_vs_resolved' || reportType === 'created_trend'">
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.interval') }}</label>
+                <select v-model="interval" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <option v-for="(label, key) in intervalLabels" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.chart') }}</label>
+                <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
+                  <button v-for="c in availableCharts" :key="c" @click="chartType = c"
+                    :class="['px-2.5 py-1 text-xs rounded-md transition-colors', chartType === c ? 'bg-white shadow-sm font-medium text-gray-800' : 'text-gray-500 hover:text-gray-700']"
+                  >{{ (chartLabels as Record<string, string>)[c] || c }}</button>
+                </div>
+              </div>
+              <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateFrom') }}</label><input v-model="dateFrom" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
+              <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateTo') }}</label><input v-model="dateTo" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
+              <button @click="generate" :disabled="loading" class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors self-end mb-0.5">
+                {{ loading ? '...' : t('report.generate') }}
+              </button>
+              <button @click="showSaveDialog = true" class="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-md hover:bg-gray-50 transition-colors self-end mb-0.5">
+                {{ t('report.save') }}
+              </button>
             </div>
-            <!-- Group By (custom only) -->
-            <div v-if="activeTab === 'custom' && reportType !== 'created_vs_resolved' && reportType !== 'created_trend'">
-              <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.groupBy') }}</label>
-              <select v-model="groupBy" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                <option v-for="d in dims" :key="d.value" :value="d.value">{{ d.label }}</option>
-              </select>
+          </div>
+        </template>
+
+        <!-- ═══════════════════════════════════ -->
+        <!-- CUSTOM REPORTS TAB (Jira-style) -->
+        <!-- ═══════════════════════════════════ -->
+        <template v-if="activeTab === 'custom'">
+          <!-- Config Bar -->
+          <div class="bg-white border border-gray-100 rounded-xl px-5 py-3">
+            <div class="flex flex-wrap items-end gap-3">
+              <div>
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.reportType') }}</label>
+                <select v-model="reportType" @change="onTypeChange" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <option v-for="(label, key) in reportTypeLabels" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </div>
+              <div v-if="reportType !== 'created_vs_resolved' && reportType !== 'created_trend'">
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.groupBy') }}</label>
+                <select v-model="groupBy" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <option v-for="d in dims" :key="d.value" :value="d.value">{{ d.label }}</option>
+                </select>
+              </div>
+              <div v-if="reportType === 'created_vs_resolved' || reportType === 'created_trend'">
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.interval') }}</label>
+                <select v-model="interval" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <option v-for="(label, key) in intervalLabels" :key="key" :value="key">{{ label }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.chart') }}</label>
+                <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
+                  <button v-for="c in availableCharts" :key="c" @click="chartType = c"
+                    :class="['px-2.5 py-1 text-xs rounded-md transition-colors', chartType === c ? 'bg-white shadow-sm font-medium text-gray-800' : 'text-gray-500 hover:text-gray-700']"
+                  >{{ (chartLabels as Record<string, string>)[c] || c }}</button>
+                </div>
+              </div>
+              <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateFrom') }}</label><input v-model="dateFrom" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
+              <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateTo') }}</label><input v-model="dateTo" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
+              <button @click="generate" :disabled="loading" class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors self-end mb-0.5">
+                {{ loading ? '...' : t('report.generate') }}
+              </button>
+              <button @click="showSaveDialog = true" class="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-md hover:bg-gray-50 transition-colors self-end mb-0.5">
+                {{ t('report.save') }}
+              </button>
             </div>
-            <!-- Interval -->
-            <div v-if="reportType === 'created_vs_resolved' || reportType === 'created_trend'">
-              <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.interval') }}</label>
-              <select v-model="interval" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                <option v-for="(label, key) in intervalLabels" :key="key" :value="key">{{ label }}</option>
-              </select>
-            </div>
-            <!-- Chart Type -->
-            <div>
-              <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.chart') }}</label>
-              <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
-                <button v-for="c in availableCharts" :key="c" @click="chartType = c"
-                  :class="['px-2.5 py-1 text-xs rounded-md transition-colors', chartType === c ? 'bg-white shadow-sm font-medium text-gray-800' : 'text-gray-500 hover:text-gray-700']"
-                >{{ (chartLabels as Record<string, string>)[c] || c }}</button>
+          </div>
+
+          <!-- Jira-style Filter Builder -->
+          <div class="bg-white border border-gray-100 rounded-xl px-5 py-4">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-sm font-medium text-gray-700">{{ t('report.filterConditions') }}</h4>
+              <div class="flex items-center gap-2">
+                <button @click="filterMode = 'basic'" :class="['text-xs px-2 py-0.5 rounded', filterMode === 'basic' ? 'bg-gray-100 text-gray-800 font-medium' : 'text-gray-400 hover:text-gray-600']">{{ t('report.visualFilter') }}</button>
+                <span class="text-gray-300">|</span>
+                <button @click="filterMode = 'rql'" :class="['text-xs px-2 py-0.5 rounded', filterMode === 'rql' ? 'bg-gray-100 text-gray-800 font-medium' : 'text-gray-400 hover:text-gray-600']">{{ t('report.rqlAdvanced') }}</button>
               </div>
             </div>
-            <!-- Date Range -->
-            <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateFrom') }}</label><input v-model="dateFrom" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
-            <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateTo') }}</label><input v-model="dateTo" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
-            <!-- Actions -->
-            <button @click="generate" :disabled="loading" class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors self-end mb-0.5">
-              {{ loading ? '...' : t('report.generate') }}
-            </button>
-            <button @click="showSaveDialog = true" class="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-md hover:bg-gray-50 transition-colors self-end mb-0.5">
-              {{ t('report.save') }}
-            </button>
-          </div>
-        </div>
 
-        <!-- ═══════════════════════════════════════════ -->
-        <!-- Filter Panel (custom tab only) -->
-        <!-- ═══════════════════════════════════════════ -->
-        <div v-if="activeTab === 'custom'" class="bg-white border border-gray-100 rounded-xl px-5 py-3">
-          <!-- Filter Mode Toggle -->
-          <div class="flex items-center gap-3 mb-3">
-            <label class="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{{ t('report.filterMode') }}</label>
-            <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
-              <button @click="filterMode = 'basic'"
-                :class="['px-2.5 py-1 text-xs rounded-md transition-colors', filterMode === 'basic' ? 'bg-white shadow-sm font-medium text-gray-800' : 'text-gray-500 hover:text-gray-700']"
-              >{{ t('report.basicFilters') }}</button>
-              <button @click="filterMode = 'rql'"
-                :class="['px-2.5 py-1 text-xs rounded-md transition-colors', filterMode === 'rql' ? 'bg-white shadow-sm font-medium text-gray-800' : 'text-gray-500 hover:text-gray-700']"
-              >{{ t('report.rqlAdvanced') }}</button>
-            </div>
-          </div>
-
-          <!-- Basic Filters -->
-          <div v-if="filterMode === 'basic'" class="space-y-2">
-            <div class="flex flex-wrap items-center gap-2">
-              <template v-for="(filter, idx) in filters" :key="idx">
+            <!-- Visual Filter -->
+            <div v-if="filterMode === 'basic'" class="space-y-2">
+              <div v-for="(filter, idx) in filters" :key="idx" class="flex items-center gap-2">
+                <!-- AND connector -->
+                <span v-if="idx > 0" class="text-[11px] font-medium text-gray-400 w-8 shrink-0">{{ t('report.and') }}</span>
+                <span v-else class="w-8 shrink-0"></span>
                 <!-- Field -->
-                <select v-model="filter.field" @change="onFilterFieldChange(idx)" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                <select v-model="filter.field" @change="onFilterFieldChange(idx)" class="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
                   <option value="">{{ t('report.selectField') }}</option>
                   <option v-for="f in filterFields" :key="f.value" :value="f.value">{{ f.label }}</option>
                 </select>
                 <!-- Operator -->
-                <select v-if="filter.field" v-model="filter.operator" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                <select v-if="filter.field" v-model="filter.operator" class="w-28 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
                   <option v-for="op in filterOperators" :key="op.value" :value="op.value">{{ op.label }}</option>
                 </select>
                 <!-- Value -->
-                <select v-if="filter.field && filter.operator !== 'empty' && filter.operator !== 'not_empty'" v-model="filter.value" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[140px]">
+                <select v-if="filter.field && filter.operator !== 'empty' && filter.operator !== 'not_empty'" v-model="filter.value" class="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
                   <option value="">{{ t('report.selectValue') }}</option>
                   <option v-for="o in getFilterOptions(filter.field)" :key="o.value" :value="o.value">{{ o.label }}</option>
                 </select>
-                <button @click="removeFilter(idx)" class="text-gray-400 hover:text-red-500 text-lg leading-none">&times;</button>
-              </template>
-              <button @click="addFilter" class="px-2 py-1.5 text-xs text-gray-500 border border-dashed border-gray-300 rounded-md hover:border-gray-400 hover:text-gray-700 transition-colors">
-                + {{ t('report.addFilter') }}
+                <span v-else class="flex-1"></span>
+                <!-- Remove -->
+                <button @click="removeFilter(idx)" class="text-gray-300 hover:text-red-500 text-lg leading-none px-1 transition-colors">&times;</button>
+              </div>
+              <button @click="addFilter" class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-2 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                {{ t('report.addCondition') }}
               </button>
             </div>
-            <div v-if="activeFiltersCount > 0" class="text-[11px] text-gray-400 font-mono truncate" :title="builtRqlPreview">
-              RQL: {{ builtRqlPreview }}
-            </div>
-          </div>
 
-          <!-- RQL Mode -->
-          <div v-else>
-            <div class="relative">
-              <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-              <input
-                v-model="rqlQuery"
-                type="text"
+            <!-- RQL Editor -->
+            <div v-else>
+              <textarea v-model="rqlQuery" rows="3"
                 :placeholder="t('report.rqlPlaceholder')"
-                class="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-md text-sm font-mono bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 transition-colors"
-                @keydown.enter="generate"
-              />
+                class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm font-mono bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 transition-colors resize-none"
+              ></textarea>
             </div>
-            <p class="text-[11px] text-gray-400 mt-1 ml-1">{{ t('report.rqlHint') }}</p>
-          </div>
 
-          <!-- RQL Error -->
-          <div v-if="rqlError" class="flex items-center gap-2 px-3 py-2 mt-2 bg-red-50 border border-red-100 rounded-md text-xs text-red-600">
-            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <span class="flex-1">{{ rqlError }}</span>
-            <button @click="rqlError = null" class="text-red-400 hover:text-red-600">&times;</button>
-          </div>
-        </div>
+            <!-- RQL Preview -->
+            <div v-if="filterMode === 'basic' && builtRqlPreview" class="mt-3 px-3 py-2 bg-gray-50 rounded-md text-xs font-mono text-gray-500">
+              <span class="text-gray-400">RQL:</span> {{ builtRqlPreview }}
+            </div>
 
-        <!-- ═══════════════════════════════════════════ -->
+            <!-- Error -->
+            <div v-if="rqlError" class="mt-3 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-100 rounded-md text-xs text-red-600">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="flex-1">{{ rqlError }}</span>
+              <button @click="rqlError = null" class="text-red-400 hover:text-red-600">&times;</button>
+            </div>
+          </div>
+        </template>
+
+        <!-- ═══════════════════════════════════ -->
         <!-- SHARED: Results Area -->
-        <!-- ═══════════════════════════════════════════ -->
+        <!-- ═══════════════════════════════════ -->
 
-        <!-- Number Widgets (when data loaded) -->
+        <!-- Number Widgets -->
         <div v-if="data" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div class="p-4 bg-white rounded-xl border border-gray-100">
             <div class="text-xs text-gray-400 mb-1">{{ t('report.quick.totalIssues') }}</div>
@@ -221,8 +249,9 @@
         </template>
 
         <!-- Empty State -->
-        <div v-if="!loading && !data" class="flex items-center justify-center py-20 bg-white border border-gray-100 rounded-xl text-gray-400 text-sm">
-          {{ activeTab === 'quick' ? t('report.selectTypeToGenerate') : t('report.selectTypeToGenerate') }}
+        <div v-if="!loading && !data" class="flex flex-col items-center justify-center py-20 bg-white border border-gray-100 rounded-xl text-gray-400">
+          <svg class="w-12 h-12 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span class="text-sm">{{ t('report.emptyState') }}</span>
         </div>
 
       </div>
@@ -263,12 +292,9 @@ const tabs = computed(() => [
   { key: 'custom', label: t('report.tabCustomReports') },
 ])
 
-// ── Shared colors ──
 const chartColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1']
 
-// ═══════════════════════════════════════════
-// SHARED REPORT STATE
-// ═══════════════════════════════════════════
+// ═══ REPORT STATE ═══
 const reportType = ref('distribution')
 const groupBy = ref('state')
 const interval = ref('week')
@@ -299,12 +325,10 @@ const showSaveDialog = ref(false)
 const saveName = ref('')
 const saving = ref(false)
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
-function setChartCanvas(el: any) {
-  chartCanvas.value = el || null
-}
+function setChartCanvas(el: any) { chartCanvas.value = el || null }
 const { render: renderChart, destroy: destroyChart } = useReportChart(chartCanvas)
 
-// ── Filter options ──
+// ── Filter Options ──
 const states = ref<{value:string;label:string}[]>([])
 const priorities = ref<{value:string;label:string}[]>([])
 const members = ref<{value:string;label:string}[]>([])
@@ -313,7 +337,6 @@ const labels = ref<{value:string;label:string}[]>([])
 const cycles = ref<{value:string;label:string}[]>([])
 const modules = ref<{value:string;label:string}[]>([])
 
-// ── Computed labels ──
 const reportTypeLabels = computed(() => ({
   distribution: t('report.types.distribution'),
   created_vs_resolved: t('report.types.created_vs_resolved'),
@@ -322,9 +345,7 @@ const reportTypeLabels = computed(() => ({
   created_trend: t('report.types.created_trend'),
 }))
 const intervalLabels = computed(() => ({
-  day: t('report.intervals.day'),
-  week: t('report.intervals.week'),
-  month: t('report.intervals.month'),
+  day: t('report.intervals.day'), week: t('report.intervals.week'), month: t('report.intervals.month'),
 }))
 const dims = computed(() => [
   { value: 'state', label: t('report.state') },
@@ -346,24 +367,23 @@ const chartLabels = computed(() => ({
 }))
 
 function pct(v: number) { return data.value ? Math.round((v / data.value.total) * 100) : 0 }
-const activeFiltersCount = computed(() => filters.value.filter(f => f.field && f.operator).length)
 const builtRqlPreview = computed(() => buildRQLFromFilters())
 
 function buildRQLFromFilters(): string {
   const active = filters.value.filter(f => f.field && f.operator)
   if (active.length === 0) return ''
   return active.map(f => {
-    const escaped = f.value.replace(/"/g, '\\"')
+    const v = f.value.replace(/"/g, '\\"')
     switch (f.operator) {
-      case '=': return `${f.field} = "${escaped}"`
-      case '!=': return `${f.field} != "${escaped}"`
-      case 'in': return `${f.field} IN ["${escaped}"]`
-      case 'not_in': return `${f.field} NOT IN ["${escaped}"]`
-      case '~': return `${f.field} ~ "${escaped}"`
-      case '!~': return `${f.field} !~ "${escaped}"`
+      case '=': return `${f.field} = "${v}"`
+      case '!=': return `${f.field} != "${v}"`
+      case 'in': return `${f.field} IN ["${v}"]`
+      case 'not_in': return `${f.field} NOT IN ["${v}"]`
+      case '~': return `${f.field} ~ "${v}"`
+      case '!~': return `${f.field} !~ "${v}"`
       case 'empty': return `${f.field} IS EMPTY`
       case 'not_empty': return `${f.field} IS NOT EMPTY`
-      default: return `${f.field} = "${escaped}"`
+      default: return `${f.field} = "${v}"`
     }
   }).join(' AND ')
 }
@@ -407,9 +427,7 @@ function removeFilter(idx: number) {
   else filters.value[0] = { field: '', operator: '=', value: '' }
 }
 
-// ═══════════════════════════════════════════
-// GENERATE
-// ═══════════════════════════════════════════
+// ═══ GENERATE ═══
 async function generate() {
   loading.value = true
   rqlError.value = null
@@ -443,11 +461,7 @@ function onTypeChange() {
 
 watch(chartType, async (newVal) => {
   if (newVal === 'Table') destroyChart()
-  else if (data.value) {
-    await nextTick()
-    await new Promise(r => setTimeout(r, 30))
-    renderChart(data.value, newVal)
-  }
+  else if (data.value) { await nextTick(); await new Promise(r => setTimeout(r, 30)); renderChart(data.value, newVal) }
 })
 
 watch([filterMode, rqlQuery], () => { rqlError.value = null })
@@ -456,9 +470,7 @@ watch(filters, () => { rqlError.value = null }, { deep: true })
 function exportCSV() { if (data.value) exportReportCSV(data.value, `report-${reportType.value}.csv`) }
 function exportPNG() { exportChartPNG(chartCanvas.value, `chart-${reportType.value}.png`) }
 
-// ═══════════════════════════════════════════
-// SAVED REPORTS
-// ═══════════════════════════════════════════
+// ═══ SAVED REPORTS ═══
 async function loadSavedReports() {
   loadingSaved.value = true
   try { savedReports.value = (await savedReportApi.list(props.projectId)) || [] }
@@ -493,10 +505,8 @@ async function saveReport() {
     else { const created = await savedReportApi.create(props.projectId, payload); selectedId.value = created.id! }
     showSaveDialog.value = false
     await loadSavedReports()
-  } catch (e) {
-    console.error(e)
-    toast.error(t('report.saveFailed'))
-  } finally { saving.value = false }
+  } catch (e) { console.error(e); toast.error(t('report.saveFailed')) }
+  finally { saving.value = false }
 }
 
 async function deleteSavedReport(r: SavedReport) {
@@ -508,17 +518,10 @@ async function deleteSavedReport(r: SavedReport) {
   } catch (e) { console.error(e) }
 }
 
-// ═══════════════════════════════════════════
-// LIFECYCLE
-// ═══════════════════════════════════════════
+// ═══ LIFECYCLE ═══
 watch(() => props.projectId, () => {
-  destroyChart()
-  loadSavedReports(); loadFilterOptions()
+  destroyChart(); loadSavedReports(); loadFilterOptions()
   selectedId.value = null; data.value = null
 })
-
-onMounted(() => {
-  loadSavedReports()
-  loadFilterOptions()
-})
+onMounted(() => { loadSavedReports(); loadFilterOptions() })
 </script>

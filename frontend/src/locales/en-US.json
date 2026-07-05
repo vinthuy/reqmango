@@ -1307,6 +1307,11 @@
     "selectTypeToGenerate": "Select report type and click Generate",
     "saveReport": "Save Report",
     "saveNamePlaceholder": "Enter report name",
+    "filterConditions": "Filter Conditions",
+    "visualFilter": "Visual Filter",
+    "and": "AND",
+    "addCondition": "Add condition",
+    "emptyState": "Set filter conditions and click Generate",
     "exportCSV": "Export CSV",
     "exportPNG": "Export PNG",
     "saveDialog": {

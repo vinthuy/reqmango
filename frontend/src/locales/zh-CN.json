@@ -1307,6 +1307,11 @@
     "selectTypeToGenerate": "选择报表类型并点击生成",
     "saveReport": "保存报表",
     "saveNamePlaceholder": "请输入报表名称",
+    "filterConditions": "筛选条件",
+    "visualFilter": "可视化筛选",
+    "and": "且",
+    "addCondition": "添加条件",
+    "emptyState": "设置筛选条件并点击生成报表",
     "exportCSV": "导出 CSV",
     "exportPNG": "导出图片",
     "saveDialog": {
