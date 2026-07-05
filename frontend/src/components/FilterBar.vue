@@ -220,6 +220,7 @@ function selectSuggestion(suggestion: IssueSearchResult) {
   setQuickSearch(query)
   addToHistory(query)
   showSuggestions.value = false
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
 }
 
 function onSearchFocus() {
@@ -249,6 +250,7 @@ function applyHistory(query: string) {
   setQuickSearch(query)
   addToHistory(query)
   showSuggestions.value = false
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
 }
 
 function toggleFieldDropdown(e: Event) {
@@ -466,6 +468,10 @@ function getOperatorsForField(fieldKey: string): string[] {
 function getFieldType(fieldKey: string): FilterField['type'] {
   const field = allFilterFields.value.find(f => f.key === fieldKey)
   return field?.type || 'text'
+}
+
+function needsValue(operator: string): boolean {
+  return !['is empty', 'is not empty'].includes(operator)
 }
 
 function getOperatorTranslation(operator: string): string {
@@ -778,7 +784,7 @@ onUnmounted(() => {
                 {{ getOperatorTranslation(op) }}
               </option>
             </select>
-            <template v-if="getFieldType(filter.field) === 'text'">
+            <template v-if="needsValue(filter.operator) && getFieldType(filter.field) === 'text'">
               <input
                 v-model="filter.value"
                 @input="handleValueChange(index, filter.value, filter.value)"
@@ -787,7 +793,7 @@ onUnmounted(() => {
                 class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none w-32"
               />
             </template>
-            <template v-else-if="getFieldType(filter.field) === 'number'">
+            <template v-else-if="needsValue(filter.operator) && getFieldType(filter.field) === 'number'">
               <input
                 v-model="filter.value"
                 @input="handleValueChange(index, filter.value, filter.value)"
@@ -798,7 +804,7 @@ onUnmounted(() => {
                 class="text-sm bg-white border border-indigo-300 rounded px-2 py-0.5 outline-none w-24"
               />
             </template>
-            <template v-else-if="getFieldType(filter.field) === 'select'">
+            <template v-else-if="needsValue(filter.operator) && getFieldType(filter.field) === 'select'">
               <select
                 :value="filter.value"
                 @change="(e) => handleValueChange(index, (e.target as HTMLSelectElement).value, (e.target as HTMLSelectElement).options[(e.target as HTMLSelectElement).selectedIndex].text)"
@@ -810,7 +816,7 @@ onUnmounted(() => {
                 </option>
               </select>
             </template>
-            <template v-else-if="getFieldType(filter.field) === 'multi'">
+            <template v-else-if="needsValue(filter.operator) && getFieldType(filter.field) === 'multi'">
               <div class="relative">
                 <select
                   :value="filter.value || ''"
@@ -830,7 +836,7 @@ onUnmounted(() => {
                 </select>
               </div>
             </template>
-            <template v-else-if="getFieldType(filter.field) === 'date'">
+            <template v-else-if="needsValue(filter.operator) && getFieldType(filter.field) === 'date'">
               <template v-if="filter.operator === 'between' || filter.operator === 'not between'">
                 <input
                   type="date"
