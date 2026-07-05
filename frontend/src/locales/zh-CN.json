@@ -832,7 +832,10 @@
     "issueType": "工作项类型",
     "createdBy": "创建人",
     "retry": "重试",
-    "export": "导出"
+    "export": "导出",
+    "apply": "应用",
+    "yes": "是",
+    "no": "否"
   },
   "confirm": {
     "title": "确认操作",
@@ -1069,7 +1072,16 @@
     "filterByAssignee": "按负责人筛选",
     "filterByCycle": "按周期筛选",
     "filterByName": "按标题筛选",
-    "searchByName": "输入标题关键词..."
+    "searchByName": "输入标题关键词...",
+    "columnConfigDesc": "选择要在列表中显示的列",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "resetDefaults": "恢复默认",
+    "systemFields": "系统字段",
+    "customFields": "自定义字段",
+    "noCustomFields": "暂无自定义字段配置",
+    "unassigned": "未分配",
+    "noLabel": "无标签"
   },
   "issueKanban": {
     "searchPlaceholder": "搜索工作项...（名称 / 编号）",
@@ -1189,6 +1201,10 @@
     "orderStartDate": "开始日期",
     "orderDueDate": "截止日期",
     "orderManual": "手动排序",
+    "orderSequenceId": "编号",
+    "orderName": "标题",
+    "orderState": "状态",
+    "orderType": "类型",
     "groupBy": "分组",
     "groupByNone": "无",
     "groupByState": "状态",
@@ -1226,7 +1242,20 @@
     "templateIconLabel": "图标"
   },
   "report": {
-    "title": "自定义报表",
+    "title": "报表",
+    "tabQuickCharts": "快速图表",
+    "tabCustomReports": "自定义报表",
+    "quick": {
+      "stateDistribution": "状态分布",
+      "stateDistributionDesc": "按状态查看工作项分布",
+      "priorityDistribution": "优先级分布",
+      "priorityDistributionDesc": "按优先级查看工作项占比",
+      "assigneeWorkload": "负责人工作量",
+      "assigneeWorkloadDesc": "查看各负责人的工作项分配",
+      "creationTrend": "创建趋势",
+      "creationTrendDesc": "按时间查看工作项创建趋势"
+    },
+    "clickToGenerate": "点击上方图表卡片生成报表",
     "subtitle": "通过灵活的筛选、分组和图表构建自定义报表",
     "savedReports": "已保存报表",
     "noSavedReports": "暂无已保存的报表",
@@ -1287,6 +1316,13 @@
       "day": "天",
       "week": "周",
       "month": "月"
+    },
+    "charts": {
+      "bar": "柱状图",
+      "pie": "饼图",
+      "doughnut": "环形图",
+      "line": "折线图",
+      "table": "表格"
     },
     "success": {
       "saved": "报表保存成功",

@@ -58,7 +58,7 @@ export interface RQLResult {
   sortBy?: SortOption[]  // multi-sort, parsed from orderby clauses
 }
 
-export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, currentUserId?: number | null): string {
+export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[]): string {
   const clauses: string[] = []
 
   // Helper to resolve template variables in a single value
@@ -88,7 +88,7 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
     }
   }
 
-  if (filters.length === 0 && !quickSearchValue) return ''
+  if (filters.length === 0 && !quickSearchValue && (!sortBy || sortBy.length === 0)) return ''
 
   for (const filter of filters) {
     let clause = ''
@@ -96,6 +96,8 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
 
     // Skip filters with empty array values (all items deselected)
     if (Array.isArray(rawValue) && rawValue.length === 0) continue
+    // Skip filters with empty/null/undefined single values
+    if (rawValue === '' || rawValue === null || rawValue === undefined) continue
 
     // Resolve template variables in values
     const value = Array.isArray(rawValue) ? resolveArrayValue(rawValue) : resolveValue(rawValue)
@@ -146,14 +148,28 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
         clause = `${dbKey} >= "${value}"`
         break
       case 'between':
-        clause = `${dbKey} >= "${value[0]}" AND ${dbKey} <= "${value[1]}"`
+        if (Array.isArray(value) && value.length >= 2 && value[0] !== '' && value[1] !== '') {
+          clause = `${dbKey} >= ${formatValue(value[0], valueType)} AND ${dbKey} <= ${formatValue(value[1], valueType)}`
+        }
         break
       case 'not between':
-        clause = `${dbKey} < "${value[0]}" OR ${dbKey} > "${value[1]}"`
+        if (Array.isArray(value) && value.length >= 2 && value[0] !== '' && value[1] !== '') {
+          clause = `${dbKey} < ${formatValue(value[0], valueType)} OR ${dbKey} > ${formatValue(value[1], valueType)}`
+        }
         break
       }
 
     if (clause) clauses.push(clause)
+  }
+
+  // Append orderby clauses for sort options (multi-sort support)
+  if (sortBy && sortBy.length > 0) {
+    for (const sort of sortBy) {
+      // Map UI key to dbKey for sort fields
+      const fieldDef = FILTER_FIELDS.find(f => f.key === sort.key)
+      const dbKey = fieldDef?.dbKey || sort.key
+      clauses.push(`orderby ${dbKey} ${sort.direction}`)
+    }
   }
 
   return clauses.join(' AND ')
@@ -176,7 +192,7 @@ export function parseRQL(rqlStr: string): RQLResult {
     if (orderbyMatch) {
       sortBy.push({
         key: orderbyMatch[1],
-        labelKey: SORT_OPTIONS.find(s => s.key === orderbyMatch[1])?.labelKey || '',
+        labelKey: SORT_OPTION_MAP[orderbyMatch[1]]?.labelKey || '',
         direction: orderbyMatch[2].toLowerCase() as 'asc' | 'desc'
       })
       continue
@@ -236,7 +252,7 @@ export function parseRQL(rqlStr: string): RQLResult {
       const valuesStr = inMatch[3]
       const values = valuesStr.split(',').map(v => {
         const trimmedV = v.trim()
-        const quotedMatch = trimmedV.match(/^"([^"]+)"$/)
+        const quotedMatch = trimmedV.match(/^"([^"]+)"$/) || trimmedV.match(/^'([^']+)'$/)
         return quotedMatch ? quotedMatch[1] : trimmedV
       })
       value = values
@@ -255,8 +271,8 @@ export function parseRQL(rqlStr: string): RQLResult {
       continue
     }
 
-    // Try quoted value (strings, dates)
-    const quotedMatch = trimmed.match(/^(\w+) ([=<>!]+) "([^"]+)"$/)
+    // Try quoted value (strings, dates) - supports both double and single quotes
+    const quotedMatch = trimmed.match(/^(\w+) ([=<>!]+) "([^"]+)"$/) || trimmed.match(/^(\w+) ([=<>!]+) '([^']+)'$/)
     if (quotedMatch) {
       field = quotedMatch[1]
       const op = quotedMatch[2]
@@ -358,7 +374,15 @@ export const SORT_OPTIONS: SortOption[] = [
   { key: 'priority', labelKey: 'filter.orderPriority', direction: 'desc' },
   { key: 'start_date', labelKey: 'filter.orderStartDate', direction: 'asc' },
   { key: 'target_date', labelKey: 'filter.orderDueDate', direction: 'asc' },
+  { key: 'sequence_id', labelKey: 'filter.orderSequenceId', direction: 'desc' },
+  { key: 'name', labelKey: 'filter.orderName', direction: 'asc' },
+  { key: 'state', labelKey: 'filter.orderState', direction: 'asc' },
+  { key: 'issue_type', labelKey: 'filter.orderType', direction: 'asc' },
 ]
+
+// Map of sort field key → SortOption for quick lookup (used when restoring from RQL/saved views)
+export const SORT_OPTION_MAP: Record<string, SortOption> = {}
+SORT_OPTIONS.forEach(s => { SORT_OPTION_MAP[s.key] = s })
 
 export const GROUP_OPTIONS: GroupOption[] = [
   { key: 'none', labelKey: 'filter.groupByNone' },

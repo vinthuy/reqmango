@@ -832,7 +832,10 @@
     "issueType": "Issue Type",
     "createdBy": "Created By",
     "retry": "Retry",
-    "export": "Export"
+    "export": "Export",
+    "apply": "Apply",
+    "yes": "Yes",
+    "no": "No"
   },
   "confirm": {
     "title": "Confirm Action",
@@ -914,7 +917,16 @@
     "filterByAssignee": "Filter by Assignee",
     "filterByCycle": "Filter by Cycle",
     "filterByName": "Filter by Title",
-    "searchByName": "Search by title..."
+    "searchByName": "Search by title...",
+    "columnConfigDesc": "Select columns to show in the list",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "resetDefaults": "Reset",
+    "systemFields": "System Fields",
+    "customFields": "Custom Fields",
+    "noCustomFields": "No custom fields configured",
+    "unassigned": "Unassigned",
+    "noLabel": "No Label"
   },
   "issueKanban": {
     "searchPlaceholder": "Search issues... (name / ID)",
@@ -1187,6 +1199,10 @@
     "orderStartDate": "Start date",
     "orderDueDate": "Due date",
     "orderManual": "Manual",
+    "orderSequenceId": "ID",
+    "orderName": "Name",
+    "orderState": "State",
+    "orderType": "Type",
     "groupBy": "Group by",
     "groupByNone": "None",
     "groupByState": "State",
@@ -1226,7 +1242,20 @@
     "templateIconLabel": "Icon"
   },
   "report": {
-    "title": "Custom Reports",
+    "title": "Reports",
+    "tabQuickCharts": "Quick Charts",
+    "tabCustomReports": "Custom Reports",
+    "quick": {
+      "stateDistribution": "State Distribution",
+      "stateDistributionDesc": "View issue distribution by state",
+      "priorityDistribution": "Priority Distribution",
+      "priorityDistributionDesc": "View issue breakdown by priority",
+      "assigneeWorkload": "Assignee Workload",
+      "assigneeWorkloadDesc": "View issue assignment across team",
+      "creationTrend": "Creation Trend",
+      "creationTrendDesc": "View issue creation over time"
+    },
+    "clickToGenerate": "Click a chart card above to generate report",
     "subtitle": "Build custom reports with flexible filters, grouping, and charts",
     "savedReports": "Saved Reports",
     "noSavedReports": "No saved reports",
@@ -1287,6 +1316,13 @@
       "day": "Day",
       "week": "Week",
       "month": "Month"
+    },
+    "charts": {
+      "bar": "Bar",
+      "pie": "Pie",
+      "doughnut": "Doughnut",
+      "line": "Line",
+      "table": "Table"
     },
     "success": {
       "saved": "Report saved",

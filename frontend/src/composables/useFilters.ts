@@ -70,7 +70,7 @@ export function useFilters() {
   })
 
   const rql = computed<string>(() => {
-    return buildRQL(state.filters, state.quickSearch, auth.user?.id)
+    return buildRQL(state.filters, state.quickSearch, auth.user?.id, state.sortBy)
   })
   
   const activeFilterCount = computed<number>(() => state.filters.length + (state.quickSearch ? 1 : 0))
@@ -128,6 +128,35 @@ export function useFilters() {
     saveSearchHistory(state.searchHistory)
   }
 
+  function resolveTemplateVars(rql: string, currentUserId?: number | null): string {
+    let result = rql
+    // Resolve $CURRENT_USER
+    if (currentUserId != null) {
+      result = result.replace(/\$CURRENT_USER/g, String(currentUserId))
+    }
+    // Resolve date variables using local time (not UTC)
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const dayOfWeek = now.getDay()
+    const daysUntilSunday = (7 - dayOfWeek) % 7
+    const endOfWeek = new Date(now)
+    endOfWeek.setDate(now.getDate() + daysUntilSunday)
+    const endOfWeekStr = `${endOfWeek.getFullYear()}-${pad(endOfWeek.getMonth() + 1)}-${pad(endOfWeek.getDate())}`
+    const oneWeekAgo = new Date(now)
+    oneWeekAgo.setDate(now.getDate() - 7)
+    const oneWeekAgoStr = `${oneWeekAgo.getFullYear()}-${pad(oneWeekAgo.getMonth() + 1)}-${pad(oneWeekAgo.getDate())}`
+
+    // Wrap dates in double quotes so parseRQL's between detection works.
+    // Between patterns (field >= "v1" AND field <= "v2") require quoted values
+    // to be recognized and merged into a single 'between' filter condition.
+    result = result.replace(/\$TODAY/g, `"${today}"`)
+    result = result.replace(/\$END_OF_WEEK/g, `"${endOfWeekStr}"`)
+    result = result.replace(/\$ONE_WEEK_AGO/g, `"${oneWeekAgoStr}"`)
+
+    return result
+  }
+
   function restoreFromRQL(rqlStr: string, extractQuickSearch?: boolean): void {
     if (!rqlStr.trim()) {
       state.filters = []
@@ -136,10 +165,12 @@ export function useFilters() {
       return
     }
     let cleaned = rqlStr
+    // Resolve template variables before parsing
+    cleaned = resolveTemplateVars(cleaned, auth.user?.id)
     if (extractQuickSearch) {
-      const likeMatch = rqlStr.match(/\(name\s+LIKE\s+"%(.+?)%"\s+OR\s+description\s+LIKE\s+"%(.+?)%"\)/i)
+      const likeMatch = cleaned.match(/\(name\s+LIKE\s+"%(.+?)%"\s+OR\s+description\s+LIKE\s+"%(.+?)%"\)/i)
       state.quickSearch = likeMatch ? likeMatch[1] : ''
-      cleaned = rqlStr.replace(/\(name\s+LIKE\s+"%.+?%"\s+OR\s+description\s+LIKE\s+"%.+?%"\)/i, '')
+      cleaned = cleaned.replace(/\(name\s+LIKE\s+"%.+?%"\s+OR\s+description\s+LIKE\s+"%.+?%"\)/i, '')
       cleaned = cleaned.replace(/\s*AND\s*AND\s*/gi, ' AND ').replace(/^\s*AND\s*/i, '').replace(/\s*AND\s*$/i, '').trim()
     }
     if (cleaned) {

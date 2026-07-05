@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import type { FilterCondition, FilterField, SortOption, GroupOption, SubGroupOption } from '../types/filters'
-import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, SUB_GROUP_OPTIONS } from '../types/filters'
+import { FILTER_FIELDS, SORT_OPTIONS, SORT_OPTION_MAP, GROUP_OPTIONS, SUB_GROUP_OPTIONS } from '../types/filters'
 import { useFilters } from '../composables/useFilters'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
 import MultiSelectDropdown from '@/components/MultiSelectDropdown.vue'
@@ -442,12 +442,10 @@ function applyRQL() {
     state.filters = []
     state.sortBy = []
     state.quickSearch = ''
-    emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
     return
   }
 
   restoreFromRQL(rqlText.value, true)
-  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
 }
 
 function handleClickOutside(e: MouseEvent) {
@@ -595,7 +593,7 @@ function handleSavedViewSelect(view: SavedView) {
     state.sortBy = view.sort_config.map(sc => ({
       key: sc.field,
       direction: sc.dir as 'asc' | 'desc',
-      labelKey: ''
+      labelKey: SORT_OPTION_MAP[sc.field]?.labelKey || ''
     }))
   }
   // Apply group by
@@ -634,7 +632,7 @@ function handleSearchTemplateApply(template: SearchTemplate) {
     state.sortBy = template.sort_config.map(sc => ({
       key: sc.field,
       direction: sc.dir as 'asc' | 'desc',
-      labelKey: ''
+      labelKey: SORT_OPTION_MAP[sc.field]?.labelKey || ''
     }))
   }
   if (template.group_by) {
@@ -1028,7 +1026,7 @@ onUnmounted(() => {
             @click="toggleRQL"
             class="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
-            <span>RQL</span>
+            <span>{{ t('filter.rqlToggle') }}</span>
             <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': showRQL }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>

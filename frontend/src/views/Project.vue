@@ -82,6 +82,7 @@
           :key="'kanban-' + issueRefreshKey"
           :project-id="projectId"
           :workspace-id="workspaceId"
+          :project-identifier="project?.identifier || ''"
           :rql="currentRQL"
           :filter-sort-config="sortConfigJson"
           :filter-sort-by="currentSortBy[0]?.key"

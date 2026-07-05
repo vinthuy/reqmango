@@ -202,15 +202,15 @@ func (s *ReportService) createdVsResolved(projectID uint64, req *ReportRequest) 
 		createdSQL += " GROUP BY 1 ORDER BY 1"
 
 		resolvedSQL := fmt.Sprintf(
-			"SELECT TO_CHAR(resolved_at, '%s') as period, COUNT(*) as resolved FROM issues WHERE project_id = ? AND archived_at IS NULL AND resolved_at IS NOT NULL",
+			"SELECT TO_CHAR(completed_at, '%s') as period, COUNT(*) as resolved FROM issues WHERE project_id = ? AND archived_at IS NULL AND completed_at IS NOT NULL",
 			dateFormat)
 		resolvedArgs := []interface{}{projectID}
 		if req.DateFrom != "" {
-			resolvedSQL += " AND resolved_at >= ?"
+			resolvedSQL += " AND completed_at >= ?"
 			resolvedArgs = append(resolvedArgs, req.DateFrom)
 		}
 		if req.DateTo != "" {
-			resolvedSQL += " AND resolved_at <= ?"
+			resolvedSQL += " AND completed_at <= ?"
 			resolvedArgs = append(resolvedArgs, req.DateTo+" 23:59:59")
 		}
 		resolvedSQL += " GROUP BY 1 ORDER BY 1"
@@ -272,7 +272,7 @@ func (s *ReportService) createdVsResolved(projectID uint64, req *ReportRequest) 
 	}
 
 	// 有 RQL 的情况：只能按 dateFormat 在 Go 里手动分组
-	// 查询 ids 子集中的所有 issues 的 created_at / resolved_at
+	// 查询 ids 子集中的所有 issues 的 created_at / completed_at
 	issueDates, err := s.getIssueDates(projectID, ids, req.DateFrom, req.DateTo)
 	if err != nil {
 		return nil, err
@@ -282,8 +282,8 @@ func (s *ReportService) createdVsResolved(projectID uint64, req *ReportRequest) 
 }
 
 type issueDates struct {
-	CreatedAt  *time.Time
-	ResolvedAt *time.Time
+	CreatedAt   *time.Time
+	CompletedAt *time.Time
 }
 
 func (s *ReportService) getIssueDates(projectID uint64, ids []uint64, dateFrom, dateTo string) ([]issueDates, error) {
@@ -291,12 +291,12 @@ func (s *ReportService) getIssueDates(projectID uint64, ids []uint64, dateFrom, 
 		return nil, nil
 	}
 	type row struct {
-		CreatedAt  *time.Time
-		ResolvedAt *time.Time
+		CreatedAt   *time.Time
+		CompletedAt *time.Time
 	}
 	var rows []row
 	query := s.db.Table("issues").
-		Select("created_at, resolved_at").
+		Select("created_at, completed_at").
 		Where("project_id = ? AND id IN ? AND archived_at IS NULL", projectID, ids)
 	if dateFrom != "" {
 		query = query.Where("created_at >= ?", dateFrom)
@@ -309,7 +309,7 @@ func (s *ReportService) getIssueDates(projectID uint64, ids []uint64, dateFrom, 
 	}
 	result := make([]issueDates, len(rows))
 	for i, r := range rows {
-		result[i] = issueDates{CreatedAt: r.CreatedAt, ResolvedAt: r.ResolvedAt}
+		result[i] = issueDates{CreatedAt: r.CreatedAt, CompletedAt: r.CompletedAt}
 	}
 	return result, nil
 }
@@ -327,8 +327,8 @@ func (s *ReportService) buildCreatedVsResolvedFromDates(dates []issueDates, inte
 			periodMap[period] = v
 		}
 		v[0]++
-		if d.ResolvedAt != nil {
-			rp := s.formatPeriod(*d.ResolvedAt, interval)
+		if d.CompletedAt != nil {
+			rp := s.formatPeriod(*d.CompletedAt, interval)
 			rv := periodMap[rp]
 			if rv == nil {
 				rv = &[2]int{}
@@ -391,13 +391,13 @@ func (s *ReportService) avgAge(projectID uint64, req *ReportRequest) (*ReportRes
 
 	selectExpr, joinClause := s.buildAggregation(req.GroupBy)
 	sql := `SELECT ` + selectExpr + `,
-		AVG(EXTRACT(EPOCH FROM (COALESCE(issues.resolved_at, NOW()) - issues.created_at)) / 86400)::numeric(10,1) as avg_days,
+		AVG(EXTRACT(EPOCH FROM (issues.completed_at - issues.created_at)) / 86400)::numeric(10,1) as avg_days,
 		COUNT(*) as cnt
 		FROM issues`
 	if joinClause != "" {
 		sql += " " + joinClause
 	}
-	sql += " WHERE issues.project_id = ? AND issues.archived_at IS NULL AND issues.resolved_at IS NOT NULL"
+	sql += " WHERE issues.project_id = ? AND issues.archived_at IS NULL AND issues.completed_at IS NOT NULL"
 	args := []interface{}{projectID}
 
 	if ids != nil {
@@ -469,7 +469,7 @@ func (s *ReportService) currentAge(projectID uint64, req *ReportRequest) (*Repor
 	if joinClause != "" {
 		sql += " " + joinClause
 	}
-	sql += " WHERE issues.project_id = ? AND issues.archived_at IS NULL AND issues.resolved_at IS NULL AND issues.cancelled_at IS NULL"
+	sql += " WHERE issues.project_id = ? AND issues.archived_at IS NULL AND issues.completed_at IS NULL"
 	args := []interface{}{projectID}
 
 	if ids != nil {
@@ -607,6 +607,8 @@ func (s *ReportService) buildAggregation(groupBy string) (selectExpr, join strin
 	switch groupBy {
 	case "state":
 		return "COALESCE(s.name, 'Unknown') as name", "LEFT JOIN states s ON issues.state_id = s.id"
+	case "state_group":
+		return "COALESCE(sg.\"group\", 'No Group') as name", "LEFT JOIN states sg ON issues.state_id = sg.id"
 	case "priority":
 		return "COALESCE(issues.priority, 'none') as name", ""
 	case "assignee":
@@ -619,6 +621,8 @@ func (s *ReportService) buildAggregation(groupBy string) (selectExpr, join strin
 		return "COALESCE(c.name, 'No Cycle') as name", "LEFT JOIN issue_cycles ic ON issues.id = ic.issue_id LEFT JOIN cycles c ON ic.cycle_id = c.id"
 	case "module":
 		return "COALESCE(m.name, 'No Module') as name", "LEFT JOIN module_issues mi ON issues.id = mi.issue_id LEFT JOIN modules m ON mi.module_id = m.id"
+	case "created_by":
+		return "COALESCE(cu.display_name, 'Unknown') as name", "LEFT JOIN users cu ON issues.created_by_id = cu.id"
 	default:
 		return "COALESCE(s.name, 'Unknown') as name", "LEFT JOIN states s ON issues.state_id = s.id"
 	}
