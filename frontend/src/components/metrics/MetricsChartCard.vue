@@ -93,12 +93,18 @@ const isPieType = computed(() => ['pie', 'doughnut'].includes(currentType.value)
 const xAxisLabelMap: Record<string, string> = {
   state: '状态', type: '类型', priority: '优先级', assignee: '负责人',
   reporter: '报告人', title: '标题', label: '标签', module: '模块',
-  created_at: '创建日期', updated_at: '更新日期',
+  created_at: '创建日期', updated_at: '更新日期', created_by: '创建人',
+  created_day: '创建日期(天)', created_week: '创建日期(周)', created_month: '创建日期(月)',
+  completed_day: '完成日期(天)', completed_week: '完成日期(周)', completed_month: '完成日期(月)',
+  updated_day: '更新日期(天)', updated_week: '更新日期(周)', updated_month: '更新日期(月)',
+  state_group: '状态分组', cycle: '迭代',
 }
 
 const yAxisLabelMap: Record<string, string> = {
-  count: '数量', avg_days: '平均天数', throughput: '吞吐量', wip: '在制品',
-  in_progress: '进行中', done: '已完成', avg_cycle_time: '平均周期时间',
+  count: '数量', avg_days: '平均天数', avg_processing_time: '平均处理时间(天)',
+  current_retention: '当前留存时间(天)', avg_cycle_time: '平均周期时间(天)',
+  completion_rate: '完成率(%)', throughput: '吞吐量(完成数)',
+  wip_count: '在制品数量', backlog_count: '待办数量', overdue_count: '逾期数量',
   avg_resolution_days: '平均解决天数',
 }
 
