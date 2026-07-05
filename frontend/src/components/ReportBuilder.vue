@@ -100,10 +100,10 @@
           </div>
         </div>
 
-        <!-- Right: Filter + Report Config + Results -->
+        <!-- Right: Filter + Results -->
         <div class="flex-1 space-y-4">
 
-          <!-- ── Filter Builder (Jira-style) ── -->
+          <!-- ── Filter Builder (Jira-style, merged with report config) ── -->
           <div class="bg-white border border-gray-100 rounded-xl px-5 py-4">
             <div class="flex items-center justify-between mb-3">
               <h4 class="text-sm font-medium text-gray-700">{{ t('report.filterConditions') }}</h4>
@@ -126,10 +126,13 @@
                 <select v-if="filter.field" v-model="filter.operator" class="w-28 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
                   <option v-for="op in filterOperators" :key="op.value" :value="op.value">{{ op.label }}</option>
                 </select>
-                <select v-if="filter.field && filter.operator !== 'empty' && filter.operator !== 'not_empty'" v-model="filter.value" class="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                  <option value="">{{ t('report.selectValue') }}</option>
-                  <option v-for="o in getFilterOptions(filter.field)" :key="o.value" :value="o.value">{{ o.label }}</option>
-                </select>
+                <template v-if="filter.field && filter.operator !== 'empty' && filter.operator !== 'not_empty'">
+                  <select v-if="getFilterOptions(filter.field).length > 0" v-model="filter.value" class="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    <option value="">{{ t('report.selectValue') }}</option>
+                    <option v-for="o in getFilterOptions(filter.field)" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  </select>
+                  <input v-else v-model="filter.value" :type="['start_date','target_date','created_at','updated_at'].includes(filter.field) ? 'date' : 'text'" :placeholder="t('report.selectValue')" class="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                </template>
                 <span v-else class="flex-1"></span>
                 <button @click="removeFilter(idx)" class="text-gray-300 hover:text-red-500 text-lg leading-none px-1 transition-colors">&times;</button>
               </div>
@@ -156,29 +159,9 @@
               <span class="flex-1">{{ rqlError }}</span>
               <button @click="rqlError = null" class="text-red-400 hover:text-red-600">&times;</button>
             </div>
-          </div>
 
-          <!-- ── Report Config ── -->
-          <div class="bg-white border border-gray-100 rounded-xl px-5 py-3">
-            <div class="flex flex-wrap items-end gap-3">
-              <div>
-                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.reportType') }}</label>
-                <select v-model="reportType" @change="onTypeChange" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                  <option v-for="(label, key) in reportTypeLabels" :key="key" :value="key">{{ label }}</option>
-                </select>
-              </div>
-              <div v-if="reportType !== 'created_vs_resolved' && reportType !== 'created_trend'">
-                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.groupBy') }}</label>
-                <select v-model="groupBy" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                  <option v-for="d in dims" :key="d.value" :value="d.value">{{ d.label }}</option>
-                </select>
-              </div>
-              <div v-if="reportType === 'created_vs_resolved' || reportType === 'created_trend'">
-                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.interval') }}</label>
-                <select v-model="interval" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                  <option v-for="(label, key) in intervalLabels" :key="key" :value="key">{{ label }}</option>
-                </select>
-              </div>
+            <!-- Chart + Date + Actions (merged from old Report Config) -->
+            <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-end gap-3">
               <div>
                 <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.chart') }}</label>
                 <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
@@ -417,16 +400,6 @@ const labels = ref<{value:string;label:string}[]>([])
 const cycles = ref<{value:string;label:string}[]>([])
 const modules = ref<{value:string;label:string}[]>([])
 
-const reportTypeLabels = computed(() => ({
-  distribution: t('report.types.distribution'),
-  created_vs_resolved: t('report.types.created_vs_resolved'),
-  avg_age: t('report.types.avg_age'),
-  current_age: t('report.types.current_age'),
-  created_trend: t('report.types.created_trend'),
-}))
-const intervalLabels = computed(() => ({
-  day: t('report.intervals.day'), week: t('report.intervals.week'), month: t('report.intervals.month'),
-}))
 const dims = computed(() => [
   { value: 'state', label: t('report.state') },
   { value: 'priority', label: t('report.priority') },
@@ -436,7 +409,16 @@ const dims = computed(() => [
   { value: 'cycle', label: t('report.cycle') },
   { value: 'module', label: t('report.module') },
 ])
-const filterFields = computed(() => dims.value)
+const filterFields = computed(() => [
+  ...dims.value,
+  { value: 'name', label: '标题' },
+  { value: 'description', label: '描述' },
+  { value: 'sequence_id', label: '编号' },
+  { value: 'start_date', label: '开始日期' },
+  { value: 'target_date', label: '目标日期' },
+  { value: 'created_at', label: '创建时间' },
+  { value: 'updated_at', label: '更新时间' },
+])
 const availableCharts = computed(() => {
   if (reportType.value === 'created_vs_resolved' || reportType.value === 'created_trend') return ['Bar', 'Line', 'Table']
   return ['Bar', 'Pie', 'Doughnut', 'Table']
@@ -533,11 +515,6 @@ async function generate() {
   }
 }
 
-function onTypeChange() {
-  if (reportType.value === 'created_trend') interval.value = 'day'
-  else if (reportType.value === 'created_vs_resolved') interval.value = 'week'
-  if (reportType.value === 'created_vs_resolved' || reportType.value === 'created_trend') chartType.value = 'Bar'
-}
 
 watch(chartType, async (newVal) => {
   if (newVal === 'Table') destroyChart()
