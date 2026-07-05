@@ -658,7 +658,7 @@ function exportPNG() { exportChartPNG(chartCanvas.value, `chart-${reportType.val
 
 async function loadSavedReports() {
   loadingSaved.value = true
-  try { savedReports.value = await savedReportApi.list(props.projectId) }
+  try { savedReports.value = (await savedReportApi.list(props.projectId)) || [] }
   catch (e) { console.error(e) }
   finally { loadingSaved.value = false }
 }
