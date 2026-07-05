@@ -23,6 +23,8 @@
             class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none transition-shadow"
             @keydown.ctrl.enter="submitComment"
             @keydown.meta.enter="submitComment"
+            @keydown="handleMentionKeydown"
+            @input="(e: Event) => detectMention((e.target as HTMLTextAreaElement).value, 'main', e.target as HTMLTextAreaElement)"
           ></textarea>
           <div class="flex items-center justify-between mt-2">
             <span class="text-[11px] text-gray-400">{{ t('comment.shortcutHint') }}</span>
@@ -37,6 +39,29 @@
         </div>
       </div>
     </div>
+
+    <!-- @Mention picker dropdown -->
+    <Teleport to="body">
+      <div
+        v-if="mentionActive && mentionResults.length > 0"
+        class="fixed z-[100] bg-white border border-gray-200 rounded-lg shadow-xl w-56 max-h-48 overflow-y-auto py-1"
+        :style="mentionStyle"
+      >
+        <button
+          v-for="(m, i) in mentionResults"
+          :key="m.id"
+          class="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-indigo-50 transition-colors text-left"
+          :class="{ 'bg-indigo-50': i === mentionIndex }"
+          @mousedown.prevent="insertMention(m)"
+        >
+          <span class="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+            :style="{ backgroundColor: avatarColor(m.id) }"
+          >{{ getInitial(m.display_name || m.username || '?') }}</span>
+          <span class="text-gray-800 font-medium truncate">{{ m.display_name || m.username }}</span>
+          <span v-if="m.username" class="text-xs text-gray-400 ml-auto">@{{ m.username }}</span>
+        </button>
+      </div>
+    </Teleport>
 
     <!-- Empty state -->
     <div v-if="!loading && comments.length === 0" class="text-center py-10">
@@ -91,6 +116,8 @@
                 @keydown.ctrl.enter="saveEdit(comment)"
                 @keydown.meta.enter="saveEdit(comment)"
                 @keydown.escape="cancelEdit"
+                @keydown="handleMentionKeydown"
+                @input="(e: Event) => detectMention((e.target as HTMLTextAreaElement).value, 'edit', e.target as HTMLTextAreaElement)"
               ></textarea>
               <div class="flex items-center justify-end gap-2 mt-2">
                 <button @click="cancelEdit" class="px-3 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
@@ -147,6 +174,8 @@
                 @keydown.ctrl.enter="submitReply"
                 @keydown.meta.enter="submitReply"
                 @keydown.escape="cancelReply"
+                @keydown="handleMentionKeydown"
+                @input="(e: Event) => detectMention((e.target as HTMLTextAreaElement).value, 'reply', e.target as HTMLTextAreaElement)"
               ></textarea>
               <div class="flex justify-end gap-2 mt-2">
                 <button @click="cancelReply" class="px-3 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-50">{{ t('comment.cancel') }}</button>
@@ -195,8 +224,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import commentApi from '@/api/comment'
+import api from '@/api'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from '@/composables/useI18n'
@@ -204,7 +234,7 @@ import type { Comment, CommentCreate } from '@/types/comment'
 
 const AVATAR_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
 
-const props = defineProps<{ issueId: number; isAdmin?: boolean }>()
+const props = defineProps<{ issueId: number; isAdmin?: boolean; projectId?: number }>()
 
 const { confirm } = useConfirm()
 const authStore = useAuthStore()
@@ -225,6 +255,92 @@ const hasMore = ref(false)
 const editingId = ref<number | null>(null)
 const editText = ref('')
 const editSaving = ref(false)
+
+// @Mention state
+interface Member { id: number; display_name: string; username?: string }
+const members = ref<Member[]>([])
+const mentionActive = ref(false)
+const mentionQuery = ref('')
+const mentionResults = ref<Member[]>([])
+const mentionIndex = ref(0)
+const mentionTarget = ref<'main' | 'reply' | 'edit'>('main')
+const mentionTextarea = ref<HTMLTextAreaElement | null>(null)
+
+// Load members for @mention
+async function loadMembers() {
+  if (!props.projectId) return
+  try {
+    const resp = await api.get(`/projects/${props.projectId}/members`)
+    members.value = (resp.data || []).map((m: any) => m.user || m).filter(Boolean)
+  } catch { /* */ }
+}
+
+// @Mention dropdown position
+const mentionStyle = computed(() => {
+  if (!mentionTextarea.value) return { top: '0px', left: '0px' }
+  const rect = mentionTextarea.value.getBoundingClientRect()
+  return { top: (rect.bottom + 4) + 'px', left: rect.left + 'px' }
+})
+
+// @Mention logic
+function detectMention(value: string, target: 'main' | 'reply' | 'edit', textarea: HTMLTextAreaElement) {
+  const cursorPos = textarea.selectionStart || 0
+  const textBefore = value.substring(0, cursorPos)
+  const atMatch = textBefore.match(/@([\w.\-]*)$/)
+
+  if (atMatch) {
+    mentionActive.value = true
+    mentionQuery.value = atMatch[1]
+    mentionTarget.value = target
+    mentionTextarea.value = textarea
+    mentionIndex.value = 0
+
+    const q = atMatch[1].toLowerCase()
+    mentionResults.value = members.value
+      .filter(m => {
+        const name = (m.display_name || '').toLowerCase()
+        return !q || name.includes(q) || (m.username || '').toLowerCase().includes(q)
+      })
+      .slice(0, 8)
+  } else {
+    mentionActive.value = false
+    mentionResults.value = []
+  }
+}
+
+function insertMention(member: Member) {
+  if (!mentionTextarea.value) return
+  const ta = mentionTextarea.value
+  const cursorPos = ta.selectionStart || 0
+  const textBefore = ta.value.substring(0, cursorPos)
+  const textAfter = ta.value.substring(cursorPos)
+  const atIdx = textBefore.lastIndexOf('@')
+  const newText = textBefore.substring(0, atIdx) + '@' + (member.username || member.display_name) + ' ' + textAfter
+  const newCursor = atIdx + (member.username || member.display_name).length + 2
+
+  if (mentionTarget.value === 'main') newComment.value = newText
+  else if (mentionTarget.value === 'reply') replyText.value = newText
+  else if (mentionTarget.value === 'edit') editText.value = newText
+
+  mentionActive.value = false
+  // Restore cursor position
+  setTimeout(() => {
+    ta.focus()
+    ta.setSelectionRange(newCursor, newCursor)
+  }, 0)
+}
+
+function handleMentionKeydown(e: KeyboardEvent) {
+  if (!mentionActive.value) return
+  if (e.key === 'ArrowDown') { e.preventDefault(); mentionIndex.value = Math.min(mentionIndex.value + 1, mentionResults.value.length - 1) }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); mentionIndex.value = Math.max(mentionIndex.value - 1, 0) }
+  else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault()
+    if (mentionResults.value[mentionIndex.value]) insertMention(mentionResults.value[mentionIndex.value])
+  }
+  else if (e.key === 'Escape') { mentionActive.value = false }
+}
+
 
 const currentUserInitial = computed(() => {
   const name = authStore.user?.display_name || '?'
@@ -407,6 +523,7 @@ function formatFullDate(timeStr: string): string {
 }
 
 onMounted(() => loadComments())
+watch(() => props.projectId, (id) => { if (id) loadMembers() }, { immediate: true })
 </script>
 
 <style scoped>

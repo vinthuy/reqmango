@@ -23,7 +23,7 @@
     <!-- Comments -->
     <div class="card">
       <div class="text-sm font-medium text-gray-500 mb-2">{{ t('issue.comments') }}</div>
-      <CommentList :issue-id="issueId" />
+      <CommentList :issue-id="issueId" :project-id="projectId" />
     </div>
   </div>
 </template>
