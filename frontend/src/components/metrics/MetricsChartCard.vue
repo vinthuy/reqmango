@@ -119,31 +119,25 @@ function formatFilters(filters: string | Record<string, any> | null | undefined)
   if (!filters) return ''
   try {
     const obj = typeof filters === 'string' ? JSON.parse(filters) : filters
-    const parts: string[] = []
-    // Handle RQL string
-    if (obj.rql && typeof obj.rql === 'string' && obj.rql.trim()) {
-      parts.push(obj.rql)
-    }
-    // Handle conditions array
-    if (obj.conditions && Array.isArray(obj.conditions)) {
+    // Prefer conditions array (human-readable)
+    if (obj.conditions && Array.isArray(obj.conditions) && obj.conditions.length > 0) {
+      const parts: string[] = []
       for (const c of obj.conditions) {
         if (!c || !c.field) continue
         const field = axisLabel(c.field)
         const op = c.operator || '='
+        if (op === 'empty') { parts.push(`${field} 为空`); continue }
+        if (op === 'not_empty') { parts.push(`${field} 不为空`); continue }
         let val = ''
-        if (c.values && c.values.length > 0) {
-          val = c.values.join(', ')
-        } else if (c.value) {
-          val = String(c.value)
-        } else if (op === 'empty') {
-          val = '为空'
-        } else if (op === 'not_empty') {
-          val = '不为空'
-        }
+        if (c.values && c.values.length > 0) val = c.values.join(', ')
+        else if (c.value) val = String(c.value)
         if (val) parts.push(`${field} ${op} ${val}`)
       }
+      return parts.join(' AND ')
     }
-    return parts.join(' AND ') || ''
+    // Fallback to RQL string
+    if (obj.rql && typeof obj.rql === 'string' && obj.rql.trim()) return obj.rql
+    return ''
   } catch {
     return ''
   }

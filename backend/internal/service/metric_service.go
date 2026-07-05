@@ -485,7 +485,7 @@ func conditionsToRQL(conditions []interface{}) string {
 		operator, _ := cond["operator"].(string)
 		valuesRaw, _ := cond["values"].([]interface{})
 
-		if field == "" || operator == "" || len(valuesRaw) == 0 {
+		if field == "" || operator == "" {
 			continue
 		}
 
@@ -493,6 +493,20 @@ func conditionsToRQL(conditions []interface{}) string {
 		escapedField := field
 		if strings.HasPrefix(field, "custom_field:") {
 			escapedField = "cf_" + strings.TrimPrefix(field, "custom_field:")
+		}
+
+		// Handle empty/not_empty operators (no values needed)
+		if operator == "empty" {
+			parts = append(parts, fmt.Sprintf("%s IS NULL", escapedField))
+			continue
+		}
+		if operator == "not_empty" {
+			parts = append(parts, fmt.Sprintf("%s IS NOT NULL", escapedField))
+			continue
+		}
+
+		if len(valuesRaw) == 0 {
+			continue
 		}
 
 		switch operator {
