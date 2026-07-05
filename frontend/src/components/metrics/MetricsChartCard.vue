@@ -134,6 +134,15 @@ watch(() => props.chart.id, () => {
   fetchAndRender()
 })
 
+// Re-fetch when chart config changes (edit without ID change)
+watch(() => [props.chart.chart_type, props.chart.x_axis, props.chart.y_axis, props.chart.filters, props.chart.config], () => {
+  if (props.chart.id > 0) {
+    destroyChart()
+    currentType.value = props.chart.chart_type
+    fetchAndRender()
+  }
+})
+
 onMounted(() => {
   fetchAndRender()
 })
