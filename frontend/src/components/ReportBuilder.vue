@@ -112,11 +112,17 @@
           <div v-if="filterMode === 'basic'" class="space-y-2">
             <div class="flex flex-wrap items-center gap-2">
               <template v-for="(filter, idx) in filters" :key="idx">
+                <!-- Field -->
                 <select v-model="filter.field" @change="onFilterFieldChange(idx)" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                  <option value="">{{ t('report.selectValue') }}</option>
+                  <option value="">{{ t('report.selectField') }}</option>
                   <option v-for="f in filterFields" :key="f.value" :value="f.value">{{ f.label }}</option>
                 </select>
-                <select v-if="filter.field" v-model="filter.value" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[140px]">
+                <!-- Operator -->
+                <select v-if="filter.field" v-model="filter.operator" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <option v-for="op in filterOperators" :key="op.value" :value="op.value">{{ op.label }}</option>
+                </select>
+                <!-- Value -->
+                <select v-if="filter.field && filter.operator !== 'empty' && filter.operator !== 'not_empty'" v-model="filter.value" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[140px]">
                   <option value="">{{ t('report.selectValue') }}</option>
                   <option v-for="o in getFilterOptions(filter.field)" :key="o.value" :value="o.value">{{ o.label }}</option>
                 </select>
@@ -271,8 +277,18 @@ const dateFrom = ref('')
 const dateTo = ref('')
 const filterMode = ref<'basic' | 'rql'>('basic')
 const rqlQuery = ref('')
-interface FilterCondition { field: string; value: string }
-const filters = ref<FilterCondition[]>([{ field: '', value: '' }])
+interface FilterCondition { field: string; operator: string; value: string }
+const filters = ref<FilterCondition[]>([{ field: '', operator: '=', value: '' }])
+const filterOperators = computed(() => [
+  { value: '=', label: '等于' },
+  { value: '!=', label: '不等于' },
+  { value: 'in', label: '属于' },
+  { value: 'not_in', label: '不属于' },
+  { value: '~', label: '包含' },
+  { value: '!~', label: '不包含' },
+  { value: 'empty', label: '为空' },
+  { value: 'not_empty', label: '不为空' },
+])
 const data = ref<ReportResponse | null>(null)
 const loading = ref(false)
 const rqlError = ref<string | null>(null)
@@ -330,13 +346,26 @@ const chartLabels = computed(() => ({
 }))
 
 function pct(v: number) { return data.value ? Math.round((v / data.value.total) * 100) : 0 }
-const activeFiltersCount = computed(() => filters.value.filter(f => f.field && f.value).length)
+const activeFiltersCount = computed(() => filters.value.filter(f => f.field && f.operator).length)
 const builtRqlPreview = computed(() => buildRQLFromFilters())
 
 function buildRQLFromFilters(): string {
-  const active = filters.value.filter(f => f.field && f.value)
+  const active = filters.value.filter(f => f.field && f.operator)
   if (active.length === 0) return ''
-  return active.map(f => `${f.field} = "${f.value.replace(/"/g, '\\"')}"`).join(' AND ')
+  return active.map(f => {
+    const escaped = f.value.replace(/"/g, '\\"')
+    switch (f.operator) {
+      case '=': return `${f.field} = "${escaped}"`
+      case '!=': return `${f.field} != "${escaped}"`
+      case 'in': return `${f.field} IN ["${escaped}"]`
+      case 'not_in': return `${f.field} NOT IN ["${escaped}"]`
+      case '~': return `${f.field} ~ "${escaped}"`
+      case '!~': return `${f.field} !~ "${escaped}"`
+      case 'empty': return `${f.field} IS EMPTY`
+      case 'not_empty': return `${f.field} IS NOT EMPTY`
+      default: return `${f.field} = "${escaped}"`
+    }
+  }).join(' AND ')
 }
 
 async function loadFilterOptions() {
@@ -371,11 +400,11 @@ function getFilterOptions(field: string) {
   return map[field] || []
 }
 
-function onFilterFieldChange(idx: number) { filters.value[idx].value = '' }
-function addFilter() { filters.value.push({ field: '', value: '' }) }
+function onFilterFieldChange(idx: number) { filters.value[idx].value = ''; filters.value[idx].operator = '=' }
+function addFilter() { filters.value.push({ field: '', operator: '=', value: '' }) }
 function removeFilter(idx: number) {
   if (filters.value.length > 1) filters.value.splice(idx, 1)
-  else filters.value[0] = { field: '', value: '' }
+  else filters.value[0] = { field: '', operator: '=', value: '' }
 }
 
 // ═══════════════════════════════════════════

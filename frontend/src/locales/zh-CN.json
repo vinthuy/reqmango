@@ -1293,6 +1293,7 @@
     "addFilter": "+ 添加条件",
     "noFilters": "无筛选条件",
     "selectValue": "请选择...",
+    "selectField": "请选择字段",
     "state": "状态",
     "priority": "优先级",
     "assignee": "负责人",

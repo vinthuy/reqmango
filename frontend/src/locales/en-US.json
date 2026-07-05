@@ -1293,6 +1293,7 @@
     "addFilter": "+ Add Filter",
     "noFilters": "No filters applied",
     "selectValue": "Select...",
+    "selectField": "Select field",
     "state": "State",
     "priority": "Priority",
     "assignee": "Assignee",
