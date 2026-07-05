@@ -1312,6 +1312,11 @@
     "and": "AND",
     "addCondition": "Add condition",
     "emptyState": "Set filter conditions and click Generate",
+    "savedFilters": "Saved Filters",
+    "noSavedFilters": "No saved filters yet",
+    "saveFilter": "Save Filter",
+    "filterNamePlaceholder": "Enter filter name",
+    "deleteFilterConfirm": "Delete filter \"{name}\"?",
     "exportCSV": "Export CSV",
     "exportPNG": "Export PNG",
     "saveDialog": {

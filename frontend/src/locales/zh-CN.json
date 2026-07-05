@@ -1312,6 +1312,11 @@
     "and": "且",
     "addCondition": "添加条件",
     "emptyState": "设置筛选条件并点击生成报表",
+    "savedFilters": "已保存筛选器",
+    "noSavedFilters": "暂无已保存筛选器",
+    "saveFilter": "保存筛选器",
+    "filterNamePlaceholder": "请输入筛选器名称",
+    "deleteFilterConfirm": "确认删除筛选器「{name}」?",
     "exportCSV": "导出 CSV",
     "exportPNG": "导出图片",
     "saveDialog": {
