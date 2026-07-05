@@ -374,12 +374,12 @@ async function runQuickChart(q: typeof quickCharts.value[0]) {
       interval: q.type === 'created_trend' ? 'week' : undefined,
     })
     quickData.value = res
+    quickLoading.value = false
     await nextTick()
     await new Promise(r => setTimeout(r, 50))
     quickRender(res, q.chartType)
   } catch (e) {
     quickData.value = null
-  } finally {
     quickLoading.value = false
   }
 }
@@ -512,14 +512,17 @@ async function generate() {
       interval: interval.value,
     })
     data.value = res
+    loading.value = false
     await nextTick()
-    if (chartType.value !== 'Table') renderChart(res, chartType.value)
+    if (chartType.value !== 'Table') {
+      await new Promise(r => setTimeout(r, 50))
+      renderChart(res, chartType.value)
+    }
     rqlError.value = null
   } catch (e: any) {
     const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Unknown error'
     rqlError.value = String(msg)
     data.value = null
-  } finally {
     loading.value = false
   }
 }
