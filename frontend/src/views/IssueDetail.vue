@@ -1,6 +1,6 @@
 <template>
   <div class="issue-detail-page min-h-screen bg-white">
-    <IssueDetailHeader :issue :saving @back="goBack" @save="saveIssue" />
+    <IssueDetailHeader :issue :saving :project-identifier="projectIdentifier" @back="goBack" @save="saveIssue" @delete="deleteIssue" />
 
     <div class="max-w-6xl mx-auto px-6 py-6">
       <div class="flex gap-8">
@@ -70,6 +70,7 @@
           :custom-fields="customFieldEntries"
           :workspace-id="workspaceId"
           :agent-dispatching="agentDispatching"
+          :labels="projectLabels"
           :relation-summary="relationSidebarSummary"
           @update:state="(id: any) => instantUpdate('state_id', id)"
           @update:priority="(p: any) => instantUpdate('priority', p)"
@@ -78,6 +79,7 @@
           @update:module="handleModuleUpdate"
           @update:start-date="(d: any) => instantUpdate('start_date', d + 'T00:00:00Z')"
           @update:target-date="(d: any) => instantUpdate('target_date', d + 'T00:00:00Z')"
+          @update:labels="handleLabelsUpdate"
           @update:custom-field="updateCustomField"
           @dispatch-agent="(id: string) => dispatchAgent(id)"
         />
@@ -98,7 +100,9 @@ import * as moduleApi from '@/api/module'
 import { setIssueCycle, removeIssueCycle } from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
 import projectApi from '@/api/project'
+import api from '@/api'
 import { agentApi } from '@/api/agent'
+import { useConfirm } from '@/composables/useConfirm'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
 import IssueDetailHeader from '@/components/IssueDetailHeader.vue'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
@@ -112,10 +116,13 @@ import IssueTabActivity from '@/components/IssueTabActivity.vue'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { confirm } = useConfirm()
 const toast = useToast()
 const issueId = parseInt(route.params.issueId as string, 10) || 0
 const projectId = ref(0)
 const workspaceId = ref(0)
+const projectIdentifier = ref('')
+const projectLabels = ref<Array<{ id: number; name: string; color: string }>>([])
 
 // Reactive state
 const issue = ref<any>(null)
@@ -165,6 +172,7 @@ onMounted(async () => {
     issue.value = issueData
     if (issueData.workspace_id) workspaceId.value = issueData.workspace_id
     if (issueData.project_id) projectId.value = issueData.project_id
+    projectIdentifier.value = issueData.project?.identifier || ''
     issueForm.value = {
       name: issueData.name || '',
       description: issueData.description_html || '',
@@ -179,6 +187,7 @@ onMounted(async () => {
       loadProjectMembers(),
       loadIssueTypes(),
       loadCustomFields(),
+      loadLabels(),
     ])
   } catch (error) {
     console.error('Failed to load issue:', error)
@@ -246,6 +255,27 @@ async function loadCustomFields() {
     }
   } catch (error) {
     console.error('Failed to load custom fields:', error)
+  }
+}
+
+async function loadLabels() {
+  try {
+    const resp = await api.get(`/projects/${projectId.value}/settings/labels`)
+    projectLabels.value = Array.isArray(resp.data) ? resp.data : (resp.data?.items || [])
+  } catch { /* */ }
+}
+
+async function handleLabelsUpdate(labelIds: number[]) {
+  await instantUpdate('label_ids', labelIds)
+}
+
+async function deleteIssue() {
+  if (!issue.value || !(await confirm(t('issueDetail.confirmDelete', { 0: issue.value.name })))) return
+  try {
+    await issueApi.deleteIssue(issueId)
+    router.back()
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || t('issue.saveFailed'))
   }
 }
 

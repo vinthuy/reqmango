@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 
 const { t } = useI18n()
@@ -55,8 +55,9 @@ interface LabelItem {
 }
 
 const props = defineProps<{
-  projectId: number
-  modelValue?: number[]   // selected label IDs
+  projectId?: number
+  labels?: LabelItem[]           // preloaded labels list
+  modelValue?: number[]          // selected label IDs
 }>()
 
 const emit = defineEmits<{
@@ -66,7 +67,7 @@ const emit = defineEmits<{
 
 const open = ref(false)
 const allLabels = ref<LabelItem[]>([])
-const selectedIds = ref<number[]>(props.modelValue || [])
+const selectedIds = ref<number[]>([...props.modelValue || []])
 
 const selectedLabels = computed(() => allLabels.value.filter(l => selectedIds.value.includes(l.id)))
 const availableLabels = computed(() => allLabels.value.filter(l => !selectedIds.value.includes(l.id)))
@@ -83,6 +84,11 @@ function toggleLabel(label: LabelItem) {
 }
 
 async function loadLabels() {
+  if (props.labels) {
+    allLabels.value = props.labels
+    return
+  }
+  if (!props.projectId) return
   try {
     const api = (await import('@/api/index')).default
     const resp = await api.get(`/projects/${props.projectId}/settings/labels`)
@@ -94,4 +100,6 @@ async function loadLabels() {
 }
 
 onMounted(loadLabels)
+watch(() => props.labels, (val) => { if (val && val.length > 0) allLabels.value = val })
+watch(() => props.modelValue, (val) => { selectedIds.value = [...(val || [])] })
 </script>

@@ -164,6 +164,9 @@
     "tabActivity": "Activity",
     "noActivity": "No activity recorded yet.",
     "openFullPage": "Open in full page",
+    "copyLink": "Copy link",
+    "copied": "Copied!",
+    "copyFailed": "Copy failed",
     "unknownUser": "Unknown user",
     "loadMoreActivity": "Load more"
   },

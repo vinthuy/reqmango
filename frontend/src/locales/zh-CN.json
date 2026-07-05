@@ -164,6 +164,9 @@
     "tabActivity": "动态",
     "noActivity": "暂无活动记录",
     "openFullPage": "在新页面打开",
+    "copyLink": "复制链接",
+    "copied": "已复制！",
+    "copyFailed": "复制失败",
     "unknownUser": "未知用户",
     "loadMoreActivity": "加载更多动态"
   },

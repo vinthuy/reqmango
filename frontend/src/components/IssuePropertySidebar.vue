@@ -111,6 +111,16 @@
       </div>
     </div>
 
+    <!-- Labels -->
+    <div class="pt-3 border-t border-gray-100">
+      <label class="block text-xs text-gray-500 mb-1">{{ t('issue.labels') }}</label>
+      <LabelSelector
+        :labels="labels"
+        :model-value="issue.label_ids || []"
+        @change="(ids: number[]) => $emit('update:labels', ids)"
+      />
+    </div>
+
     <!-- AI Agent -->
     <div class="pt-3 border-t border-gray-100">
       <label class="block text-xs text-gray-500 mb-1">{{ t('agent.title') }}</label>
@@ -185,6 +195,7 @@
 import { ref, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import AgentSelector from '@/components/AgentSelector.vue'
+import LabelSelector from '@/components/LabelSelector.vue'
 
 interface StateOption { id: number; name: string }
 interface MemberOption { id: number; display_name: string }
@@ -209,6 +220,7 @@ const props = defineProps<{
   customFields: CustomFieldEntry[]
   workspaceId: number
   agentDispatching?: boolean
+  labels?: Array<{ id: number; name: string; color: string }>
   relationSummary?: {
     total: number
     outbound: number
@@ -227,6 +239,7 @@ const emit = defineEmits<{
   (e: 'update:targetDate', date: string): void
   (e: 'update:customField', fieldId: number, value: string): void
   (e: 'dispatch-agent', agentId: string): void
+  (e: 'update:labels', labelIds: number[]): void
 }>()
 
 // Local agent model to bind AgentSelector v-model
