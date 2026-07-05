@@ -63,6 +63,7 @@ export interface IssueUpdate {
   description_html?: string
   priority?: IssuePriority
   state_id?: number
+  sort_order?: number
   assignee_ids?: number[]
   label_ids?: number[]
   start_date?: string
