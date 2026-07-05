@@ -11,39 +11,75 @@
 
     <!-- ═══ QUICK CHARTS TAB ═══ -->
     <template v-if="activeTab === 'quick'">
-      <!-- Config Bar -->
-      <div class="bg-white border border-gray-100 rounded-xl px-5 py-3">
-        <div class="flex flex-wrap items-end gap-3">
-          <div>
-            <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.reportType') }}</label>
-            <select v-model="reportType" @change="onTypeChange" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-              <option v-for="(label, key) in reportTypeLabels" :key="key" :value="key">{{ label }}</option>
-            </select>
-          </div>
-          <div v-if="reportType === 'created_vs_resolved' || reportType === 'created_trend'">
-            <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.interval') }}</label>
-            <select v-model="interval" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-              <option v-for="(label, key) in intervalLabels" :key="key" :value="key">{{ label }}</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.chart') }}</label>
-            <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
-              <button v-for="c in availableCharts" :key="c" @click="chartType = c"
-                :class="['px-2.5 py-1 text-xs rounded-md transition-colors', chartType === c ? 'bg-white shadow-sm font-medium text-gray-800' : 'text-gray-500 hover:text-gray-700']"
-              >{{ (chartLabels as Record<string, string>)[c] || c }}</button>
+      <!-- Quick Chart Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div v-for="q in quickCharts" :key="q.title"
+          @click="runQuickChart(q)"
+          class="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer"
+        >
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-medium text-gray-700">{{ q.title }}</h4>
+            <div class="flex items-center gap-1" @click.stop>
+              <button v-for="c in q.charts" :key="c" @click="setQuickChartStyle(q, c)"
+                :class="['px-1.5 py-0.5 text-[10px] rounded transition-colors', q.style === c ? 'bg-gray-100 text-gray-800 font-medium' : 'text-gray-400 hover:text-gray-600']"
+              >{{ chartLabel(c) }}</button>
             </div>
           </div>
-          <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateFrom') }}</label><input v-model="dateFrom" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
-          <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateTo') }}</label><input v-model="dateTo" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
-          <button @click="generate" :disabled="loading" class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors self-end mb-0.5">
-            {{ loading ? '...' : t('report.generate') }}
-          </button>
-          <button @click="showSaveFilterDialog = true" class="px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-md hover:bg-gray-50 transition-colors self-end mb-0.5">
-            {{ t('report.save') }}
-          </button>
+          <!-- Filters -->
+          <div v-if="q.filters" class="flex items-center gap-2 mb-3" @click.stop>
+            <select :value="q.filters.value" @change="setQuickFilter(q, ($event.target as HTMLSelectElement).value)" class="text-xs px-1.5 py-0.5 border border-gray-200 rounded bg-white">
+              <option value="">{{ t('report.all') }}</option>
+              <option v-for="o in q.filterOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+          </div>
+          <!-- Result -->
+          <div v-if="q.loading" class="flex items-center justify-center h-28 text-xs text-gray-400">
+            {{ t('report.loading') }}
+          </div>
+          <div v-else-if="q.data" class="h-28 relative">
+            <canvas :ref="(el: any) => setQuickCanvas(q.title, el)"></canvas>
+          </div>
+          <div v-else class="flex items-center justify-center h-28 text-xs text-gray-400">
+            {{ t('report.clickToGenerate') }}
+          </div>
         </div>
       </div>
+      <!-- Shared Result -->
+      <div v-if="quickData" class="flex items-center justify-between px-5 py-2 border border-gray-100 rounded-xl bg-white text-xs text-gray-500">
+        <span>{{ t('report.matched') }}: <strong class="text-gray-800">{{ quickData.total }}</strong> {{ t('report.issues') }}</span>
+        <div class="flex items-center gap-2">
+          <button @click="exportCSV" class="px-2.5 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">CSV</button>
+          <button @click="exportPNG" class="px-2.5 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">PNG</button>
+        </div>
+      </div>
+      <div v-if="quickLoading" class="flex items-center justify-center py-20 bg-white border border-gray-100 rounded-xl text-gray-400 text-sm">
+        {{ t('report.loading') }}
+      </div>
+      <template v-else-if="quickData">
+        <div v-show="quickChartType !== 'Table'" class="bg-white border border-gray-100 rounded-xl p-5">
+          <div :class="['mx-auto', quickChartType === 'Pie' || quickChartType === 'Doughnut' ? 'max-w-md' : 'max-w-3xl']" style="height: 360px">
+            <canvas :ref="setChartCanvas"></canvas>
+          </div>
+        </div>
+        <div v-show="quickChartType === 'Table'" class="bg-white border border-gray-100 rounded-xl p-5">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-gray-100">
+              <th class="text-left py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">{{ t('report.groupBy') }}</th>
+              <th class="text-right py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">{{ t('report.count') }}</th>
+              <th class="text-right py-2 text-xs font-medium text-gray-400 uppercase tracking-wide w-20">{{ t('report.percent') }}</th>
+            </tr></thead>
+            <tbody>
+              <tr v-for="(label, i) in quickData.labels" :key="i" class="border-b border-gray-50 hover:bg-gray-50/50">
+                <td class="py-2 flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: chartColors[i % chartColors.length] }"></span>{{ label }}
+                </td>
+                <td class="text-right py-2 font-medium">{{ quickData.values[i] }}</td>
+                <td class="text-right py-2 text-gray-500">{{ qPct(quickData.values[i]) }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
     </template>
 
     <!-- ═══ CUSTOM REPORTS TAB (Jira-style) ═══ -->
@@ -263,6 +299,73 @@ const interval = ref('week')
 const chartType = ref('Bar')
 const dateFrom = ref('')
 const dateTo = ref('')
+
+// ═══ QUICK CHART STATE ═══
+const quickData = ref<ReportResponse | null>(null)
+const quickLoading = ref(false)
+const quickChartType = ref('Bar')
+const quickCanvasMap = new Map<string, HTMLCanvasElement | null>()
+const quickChartInstances = new Map<string, any>()
+const quickCharts = ref([
+  { title: t('report.quick.byState'), reportType: 'distribution', groupBy: 'state', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
+  { title: t('report.quick.byPriority'), reportType: 'distribution', groupBy: 'priority', style: 'Pie', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
+  { title: t('report.quick.byAssignee'), reportType: 'distribution', groupBy: 'assignee', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
+  { title: t('report.quick.byType'), reportType: 'distribution', groupBy: 'type', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
+  { title: t('report.quick.byTrend'), reportType: 'created_trend', groupBy: 'state', style: 'Area', charts: ['Area', 'Line', 'Bar', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
+])
+function setQuickCanvas(key: string, el: any) { if (el) quickCanvasMap.set(key, el) }
+function chartLabel(c: string) { return (chartLabels.value as Record<string,string>)[c] || c }
+function setQuickChartStyle(q: any, c: string) { q.style = c }
+function setQuickFilter(q: any, v: string) { q.filters.value = v; runQuickChart(q) }
+function qPct(v: number) { return quickData.value ? Math.round((v / quickData.value.total) * 100) : 0 }
+
+async function runQuickChart(q: any) {
+  q.loading = true
+  quickLoading.value = true
+  try {
+    let rql = ''
+    if (q.filters?.value) {
+      rql = `${q.groupBy} IN ["${q.filters.value}"]`
+    }
+    const res = await reportApi.generate(props.projectId, {
+      report_type: q.reportType, group_by: q.groupBy, chart: q.style.toLowerCase(),
+      rql: rql || undefined, interval: q.reportType === 'created_trend' ? 'day' : undefined,
+    })
+    q.data = res
+    quickData.value = res
+    quickChartType.value = q.style
+    q.loading = false
+    quickLoading.value = false
+    await nextTick()
+    const canvas = quickCanvasMap.get(q.title)
+    if (canvas && q.style !== 'Table') {
+      await new Promise(r => setTimeout(r, 50))
+      const chartInstance = new (await import('chart.js')).Chart(canvas, {
+        type: q.style === 'Area' ? 'line' : (q.style?.toLowerCase() as any),
+        data: { labels: res.labels, datasets: [{ data: res.values, backgroundColor: ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316','#6366F1'] }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: ['Pie','Doughnut'].includes(q.style) } }, scales: q.style !== 'Pie' && q.style !== 'Doughnut' ? { y: { beginAtZero: true } } : undefined },
+      })
+      quickChartInstances.set(q.title, chartInstance)
+    }
+  } catch (e) { console.error(e); q.loading = false; quickLoading.value = false }
+}
+
+// Load filter options for quick chart cards
+async function loadQuickChartFilters() {
+  try {
+    const sRes = await api.get(`/projects/${props.projectId}/settings/states`).catch(() => ({ data: [] }))
+    const statesList = (sRes.data || []).map((x: any) => ({ value: x.name, label: x.name || x.color }))
+    const pRes = await api.get(`/projects/${props.projectId}/settings/priorities`).catch(() => ({ data: [] }))
+    const prioritiesList = (pRes.data || []).map((x: any) => ({ value: x.name, label: x.name || x }))
+    const tRes = await api.get(`/projects/issue-types`).catch(() => ({ data: [] }))
+    const typesList = (tRes.data || []).map((x: any) => ({ value: x.name, label: x.name }))
+    quickCharts.value.forEach((q: any) => {
+      if (q.groupBy === 'state') q.filterOptions = statesList
+      else if (q.groupBy === 'priority') q.filterOptions = prioritiesList
+      else if (q.groupBy === 'type') q.filterOptions = typesList
+    })
+  } catch (_) { /* ignore */ }
+}
 
 // ═══ FILTER STATE ═══
 const filterMode = ref<'basic' | 'rql'>('basic')
@@ -490,5 +593,5 @@ watch(() => props.projectId, () => {
   destroyChart(); loadSavedFilters(); loadFilterOptions()
   selectedFilterId.value = null; data.value = null
 })
-onMounted(() => { loadSavedFilters(); loadFilterOptions() })
+onMounted(() => { loadSavedFilters(); loadFilterOptions(); loadQuickChartFilters() })
 </script>
