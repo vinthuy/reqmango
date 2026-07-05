@@ -461,6 +461,20 @@ function filterDropdownValues(f: { field: string; _search?: string }): string[] 
   return all.filter(v => v.toLowerCase().includes(q))
 }
 
+// ── Build RQL from filters ──
+function buildFiltersPayload(validFilters: Array<{ field: string; operator: string; value: string; values: string[] }>) {
+  if (validFilters.length === 0) return undefined
+  const rqlParts = validFilters.map(f => {
+    if (f.operator === 'empty') return `${f.field} IS NULL`
+    if (f.operator === 'not_empty') return `${f.field} IS NOT NULL`
+    if (f.operator === 'in') return `(${f.values.map(v => `${f.field} = "${v}"`).join(' OR ')})`
+    if (f.operator === 'not_in') return `${f.field} NOT IN (${f.values.map(v => `"${v}"`).join(', ')})`
+    if (f.operator === 'contains') return `${f.field} ~ "${f.value}"`
+    return `${f.field} ${f.operator} "${f.value}"`
+  })
+  return { rql: rqlParts.join(' AND '), conditions: validFilters }
+}
+
 // ── Preview ──
 const previewData = ref<{ labels: string[]; values: number[]; colors?: string[] } | null>(null)
 const previewLoading = ref(false)
@@ -663,17 +677,7 @@ async function fetchPreview() {
       if (f.operator === 'in' || f.operator === 'not_in') return f.values.length > 0
       return f.value !== ''
     })
-    if (validFilters.length > 0) {
-      const rqlParts = validFilters.map(f => {
-        if (f.operator === 'empty') return `${f.field} = ""`
-        if (f.operator === 'not_empty') return `${f.field} != ""`
-        if (f.operator === 'in') return `(${f.values.map(v => `${f.field} = "${v}"`).join(' OR ')})`
-        if (f.operator === 'not_in') return `(${f.values.map(v => `${f.field} != "${v}"`).join(' AND ')})`
-        if (f.operator === 'contains') return `${f.field} ~ "${f.value}"`
-        return `${f.field} ${f.operator} "${f.value}"`
-      })
-      payload.filters = { rql: rqlParts.join(' AND ') }
-    }
+    payload.filters = buildFiltersPayload(validFilters)
     const res = await metricsApi.previewChart(props.projectId, payload)
     previewData.value = { labels: res.labels || [], values: res.values || [], colors: res.colors || [] }
   } catch (e: any) {
@@ -695,19 +699,7 @@ async function handleSave() {
       if (f.operator === 'in' || f.operator === 'not_in') return f.values.length > 0
       return f.value !== ''
     })
-    let filtersPayload: any = undefined
-    if (validFilters.length > 0) {
-      // Save as RQL for backend compatibility
-      const rqlParts = validFilters.map(f => {
-        if (f.operator === 'empty') return `${f.field} = ""`
-        if (f.operator === 'not_empty') return `${f.field} != ""`
-        if (f.operator === 'in') return `(${f.values.map(v => `${f.field} = "${v}"`).join(' OR ')})`
-        if (f.operator === 'not_in') return `(${f.values.map(v => `${f.field} != "${v}"`).join(' AND ')})`
-        if (f.operator === 'contains') return `${f.field} ~ "${f.value}"`
-        return `${f.field} ${f.operator} "${f.value}"`
-      })
-      filtersPayload = { rql: rqlParts.join(' AND '), conditions: validFilters }
-    }
+    const filtersPayload = buildFiltersPayload(validFilters)
     const payload: CreateChartPayload = {
       name: form.name.trim(),
       chart_type: form.chart_type,
