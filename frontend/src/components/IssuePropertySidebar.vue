@@ -116,7 +116,7 @@
       <label class="block text-xs text-gray-500 mb-1">{{ t('issue.labels') }}</label>
       <LabelSelector
         :labels="labels"
-        :model-value="issue.label_ids || []"
+        :model-value="issue.labels || issue.label_ids || []"
         @change="(ids: number[]) => $emit('update:labels', ids)"
       />
     </div>
