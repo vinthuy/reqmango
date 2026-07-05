@@ -147,7 +147,12 @@
     "noModule": "无模块",
     "unknown": "未知",
     "status": "状态",
-    "allTypes": "所有类型"
+    "allTypes": "所有类型",
+    "tabDetails": "详情",
+    "tabRelations": "关联",
+    "tabAttachments": "附件",
+    "tabTimetrack": "工时",
+    "tabActivity": "动态"
   },
   "activity": {
     "name": "标题",

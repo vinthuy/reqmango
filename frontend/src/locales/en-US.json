@@ -147,7 +147,12 @@
     "noModule": "No module",
     "unknown": "Unknown",
     "status": "Status",
-    "allTypes": "All Types"
+    "allTypes": "All Types",
+    "tabDetails": "Details",
+    "tabRelations": "Relations",
+    "tabAttachments": "Attachments",
+    "tabTimetrack": "Time Tracking",
+    "tabActivity": "Activity"
   },
   "activity": {
     "name": "Title",

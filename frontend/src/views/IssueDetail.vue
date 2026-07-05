@@ -1,393 +1,275 @@
 <template>
   <div class="issue-detail-page min-h-screen bg-white">
-    <!-- 头部导航 -->
-    <div class="bg-white border-b border-gray-100 px-6 py-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <button @click="goBack" class="text-gray-400 hover:text-gray-600">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 class="text-base font-semibold text-gray-800">
-            {{ issue?.issue_type?.name || t('issue.unknown') }} #{{ issue?.sequence_id }}
-          </h1>
-          <!-- 父级导航 -->
-          <div v-if="issue?.parent_id" class="flex items-center gap-1.5 ml-2">
-            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7l5 5-5 5" />
-            </svg>
-            <a
-              :href="`/workspace/${route.params.slug}/project/${route.params.id}/issues/${issue.parent_id}`"
-              class="text-sm text-indigo-600 hover:text-indigo-700 hover:underline transition-colors"
-              @click.prevent="router.push({ path: `/workspace/${route.params.slug}/project/${route.params.id}/issues/${issue.parent_id}` })"
-            >
-              {{ t('issue.parentIssue') || 'Parent' }}: {{ issue.parent?.name || '#' + issue.parent_id }}
-            </a>
-          </div>
-        </div>
-        <div class="flex items-center space-x-3">
-          <button
-            @click="saveIssue"
-            :disabled="saving"
-            class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors"
-          >
-            {{ saving ? t('issue.saving') : t('issue.save') }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <IssueDetailHeader :issue :saving @back="goBack" @save="saveIssue" />
 
-    <!-- 主内容区域 -->
     <div class="max-w-5xl mx-auto px-6 py-6">
       <div class="flex gap-8">
-        <!-- 左侧：主要内容 -->
-        <div class="flex-1 min-w-0 space-y-0 border border-gray-100 rounded-xl">
-          <!-- 标题 -->
-          <div class="px-6 py-4">
-            <input
-              v-model="issueForm.name"
-              type="text"
-              :placeholder="t('issue.titlePlaceholder')"
-              class="w-full text-lg font-semibold text-gray-800 border-0 focus:outline-none focus:ring-0 placeholder-gray-300"
-            />
+        <!-- Main content: tab buttons + tab panels -->
+        <div class="flex-1 min-w-0">
+          <!-- 5 tab buttons -->
+          <div class="flex border-b-2 border-gray-200 mb-4">
+            <button
+              v-for="tab in tabs"
+              :key="tab.key"
+              data-test="tab-btn"
+              @click="activeTab = tab.key"
+              :class="activeTab === tab.key
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500'"
+              class="px-4 py-2 text-sm font-medium border-b-2 -mb-0.5 transition-colors"
+            >
+              {{ tab.label }}
+            </button>
           </div>
 
-          <!-- 描述 -->
-          <div class="px-6 py-4 border-t border-gray-100">
-            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">{{ t('issue.description') }}</h3>
-            <RichTextEditor
-              v-model="issueForm.description"
-              :placeholder="t('issue.descriptionPlaceholder')"
-            />
-          </div>
-
-          <!-- 评论区 -->
-          <div class="px-6 py-4 border-t border-gray-100">
-            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">{{ t('issue.comments') }}</h3>
-            <CommentList :issue-id="issueId" />
-            <TimeTrackPanel :issue-id="issueId" />
-            <RecurrenceConfig :issue-id="issueId" />
-          </div>
-
-          <!-- 活动历史 -->
-          <div v-if="activities.length > 0" class="px-6 py-4 border-t border-gray-100">
-            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">{{ t('issue.activity') }}</h3>
-            <div class="space-y-2">
-              <div v-for="act in activities" :key="act.id" class="flex items-start space-x-3 text-sm">
-                <span class="text-xs text-gray-400 w-20 shrink-0">{{ formatActivityTime(act.created_at) }}</span>
-                <span class="text-gray-600">{{ formatActivity(act) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 自定义字段区域 -->
-          <div class="px-6 py-4 border-t border-gray-100">
-            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">{{ t('issue.customFields') }}</h3>
-            <CustomFieldManager
-              ref="customFieldManagerRef"
-              :workspace-id="workspaceId"
-              :project-id="projectId"
-              :issue-id="issueId"
-              :issue-type-id="issue?.issue_type?.id"
-              mode="display"
-              :members="projectMembers"
-              @update:values="handleValuesUpdate"
-            />
-          </div>
-
-          <!-- 子工作项面板 -->
-          <div class="px-6 py-4 border-t border-gray-100">
-            <SubIssuePanel
-              :sub-issues="subIssues"
-              @create="createSubIssue"
-              @edit="editSubIssue"
-            />
-          </div>
+          <!-- Tab panels -->
+          <IssueTabDetails
+            v-if="activeTab === 'details'"
+            v-bind="detailProps"
+            @update:title="issueForm.name = $event"
+            @update:description="issueForm.description = $event"
+          />
+          <IssueTabRelations
+            v-else-if="activeTab === 'relations'"
+            :issue-id="issueId"
+            :project-id="projectId"
+            :workspace-id="workspaceId"
+            :parent="issue?.parent"
+            :sub-issues="subIssues"
+            :issue-types="issueTypes"
+            @navigate="navigateToIssue"
+          />
+          <IssueTabAttachments
+            v-else-if="activeTab === 'attachments'"
+            :issue-id="issueId"
+            :project-id="projectId"
+          />
+          <IssueTabTimeTracking
+            v-else-if="activeTab === 'timetrack'"
+            :issue-id="issueId"
+          />
+          <IssueTabActivity
+            v-else-if="activeTab === 'activity'"
+            :issue-id="issueId"
+          />
         </div>
 
-        <!-- 右侧：属性面板 -->
-        <div class="w-64 shrink-0 border border-gray-100 rounded-xl h-fit">
-          <div class="px-4 py-3 border-b border-gray-100">
-            <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide">{{ t('issue.properties') }}</h3>
-          </div>
-          <div class="divide-y divide-gray-100">
-          <!-- 状态 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.state') }}</label>
-            <select
-              v-model="issueForm.state_id"
-              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-            >
-              <option v-for="state in states" :key="state.id" :value="state.id">
-                {{ state.name }}
-              </option>
-            </select>
-          </div>
-
-          <!-- 类型 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.type') }}</label>
-            <select
-              v-model="issueForm.type_id"
-              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-            >
-              <option value="">{{ t('issue.notSet') }}</option>
-              <option v-for="it in issueTypes" :key="it.id" :value="it.id">
-                {{ it.name }}
-              </option>
-            </select>
-          </div>
-
-          <!-- 优先级 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.priority') }}</label>
-            <select
-              v-model="issueForm.priority"
-              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-            >
-              <option value="urgent">{{ t('issue.priorityUrgent') }}</option>
-              <option value="high">{{ t('issue.priorityHigh') }}</option>
-              <option value="medium">{{ t('issue.priorityMedium') }}</option>
-              <option value="low">{{ t('issue.priorityLow') }}</option>
-              <option value="none">{{ t('issue.priorityNone') }}</option>
-            </select>
-          </div>
-
-          <!-- 负责人 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.assignee') }}</label>
-            <select
-              v-model="issueForm.assignee_id"
-              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-            >
-              <option value="">{{ t('issue.unassigned') }}</option>
-              <option v-for="member in projectMembers" :key="member.id" :value="member.id">
-                {{ member.display_name || member.email }}
-              </option>
-            </select>
-          </div>
-
-          <!-- AI Agent Dispatch -->
-          <div class="px-4 py-3 border-t border-gray-100">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('agent.dispatchAgent') || 'Dispatch AI Agent' }}</label>
-            <AgentSelector
-              v-model="selectedAgentId"
-              :workspace-id="workspaceId"
-              :placeholder="t('agent.selectAgent') || 'Select an agent...'"
-            />
+        <!-- Right sidebar -->
+        <IssuePropertySidebar
+          v-if="issue"
+          :issue
+          :states
+          :members="projectMembers"
+          :cycles
+          :modules
+          :selected-agent-id="selectedAgentId"
+          :agent-dispatching="agentDispatching"
+          @update:state="(id: any) => instantUpdate('state_id', id)"
+          @update:priority="(p: any) => instantUpdate('priority', p)"
+          @update:assignee="instantUpdateAssignee"
+          @update:cycle="(id: any) => instantUpdate('cycle_id', id)"
+          @update:module="(id: any) => instantUpdate('module_id', id)"
+          @update:start-date="(d: any) => instantUpdate('start_date', d + 'T00:00:00Z')"
+          @update:target-date="(d: any) => instantUpdate('target_date', d + 'T00:00:00Z')"
+        >
+          <template #agent>
+            <AgentSelector v-model="selectedAgentId" :workspace-id="workspaceId" />
             <button
               v-if="selectedAgentId"
               @click="dispatchAgent"
               :disabled="agentDispatching"
-              class="mt-2 w-full px-3 py-1.5 text-xs font-medium rounded-md bg-violet-500 hover:bg-violet-600 text-white disabled:opacity-50 transition-colors"
+              class="mt-2 w-full px-3 py-1.5 text-xs font-medium rounded-md bg-violet-500 hover:bg-violet-600 text-white disabled:opacity-50"
             >
-              {{ agentDispatching ? (t('agent.dispatching') || 'Dispatching...') : (t('agent.dispatch') || 'Dispatch') }}
+              {{ agentDispatching ? t('agent.dispatching') : t('agent.dispatch') }}
             </button>
-          </div>
-
-          <!-- 周期 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.cycle') }}</label>
-            <select
-              v-model="issueForm.cycle_id"
-              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-            >
-              <option value="">{{ t('issue.noCycle') }}</option>
-              <option v-for="cycle in cycles" :key="cycle.id" :value="cycle.id">
-                {{ cycle.name }}
-              </option>
-            </select>
-          </div>
-
-          <!-- 模块 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.module') }}</label>
-            <select
-              v-model="issueForm.module_id"
-              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-            >
-              <option value="">{{ t('issue.noModule') }}</option>
-              <option v-for="module in modules" :key="module.id" :value="module.id">
-                {{ module.name }}
-              </option>
-            </select>
-          </div>
-
-          <!-- 开始日期 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.startDate') }}</label>
-            <input
-              v-model="issueForm.start_date"
-              type="date"
-              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-            />
-          </div>
-
-          <!-- 目标日期 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">{{ t('issue.targetDate') }}</label>
-            <input
-              v-model="issueForm.target_date"
-              type="date"
-              class="w-full px-2 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-            />
-          </div>
-
-          <!-- 标签 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{{ t('issue.labels') }}</label>
-            <LabelSelector
-              :project-id="projectId"
-              v-model="selectedLabelIds"
-              @change="saveLabels"
-            />
-          </div>
-
-          <!-- 关联关系 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{{ t('issue.relations') }}</label>
-            <div v-if="relations.length > 0" class="space-y-2 mb-3">
-              <div v-for="rel in relations" :key="rel.id" class="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
-                <div class="flex items-center space-x-2">
-                  <span class="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">{{ rel.relation_type?.outward_name || rel.relation_type?.name || t('issue.relations') }}</span>
-                  <span>#{{ rel.related_issue?.sequence_id || rel.related_issue_id }}</span>
-                  <span class="text-gray-700 truncate max-w-[120px]">{{ rel.related_issue?.name || '' }}</span>
-                </div>
-                <button @click="deleteRelation(rel.id)" class="text-gray-400 hover:text-red-500">&times;</button>
-              </div>
-            </div>
-            <div v-if="!showAddRelation" class="text-xs text-gray-400">{{ t('issue.noRelations') }}</div>
-            <button v-if="!showAddRelation" @click="showAddRelation = true" class="text-xs text-blue-500 hover:text-blue-700 mt-1">{{ t('issue.addRelation') }}</button>
-            <div v-if="showAddRelation" class="mt-2 space-y-2">
-              <select v-model="newRelation.type_id" class="w-full px-2 py-1 border rounded text-xs">
-                <option value="">{{ t('issue.selectRelationType') }}</option>
-                <option v-for="rt in relationTypes" :key="rt.id" :value="rt.id">{{ rt.outward_name }} ({{ rt.name }})</option>
-              </select>
-              <input v-model="newRelation.search" @input="searchRelatedIssues" type="text" :placeholder="t('issue.searchIssuesPlaceholder')" class="w-full px-2 py-1 border rounded text-xs" />
-              <div v-if="relationSearchResults.length > 0" class="max-h-24 overflow-y-auto border rounded">
-                <div v-for="r in relationSearchResults" :key="r.id" @click="addRelation(r)" class="px-2 py-1 hover:bg-gray-50 cursor-pointer text-xs">
-                  #{{ r.sequence_id }} {{ r.name?.substring(0, 30) }}
-                </div>
-              </div>
-              <button @click="showAddRelation = false" class="text-xs text-gray-500">{{ t('issue.cancel') }}</button>
-            </div>
-          </div>
-
-          <!-- 关联文档页面 -->
-          <div class="px-4 py-3">
-            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{{ t('issue.relatedPages') }}</label>
-            <div v-if="pages.length > 0" class="space-y-2 mb-3">
-              <div v-for="page in pages" :key="page.id" class="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
-                <div class="flex items-center space-x-2">
-                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span class="text-gray-700 truncate max-w-[120px]">{{ page.title }}</span>
-                </div>
-                <button @click="removePage(page.id)" class="text-gray-400 hover:text-red-500">&times;</button>
-              </div>
-            </div>
-            <div v-if="!showAddPage" class="text-xs text-gray-400">{{ t('issue.noPages') }}</div>
-            <button v-if="!showAddPage" @click="showAddPage = true" class="text-xs text-blue-500 hover:text-blue-700 mt-1">{{ t('issue.addPage') }}</button>
-            <div v-if="showAddPage" class="mt-2 space-y-2">
-              <input v-model="newPage.search" @input="searchPages" type="text" :placeholder="t('issue.searchPagesPlaceholder')" class="w-full px-2 py-1 border rounded text-xs" />
-              <div v-if="pageSearchResults.length > 0" class="max-h-24 overflow-y-auto border rounded">
-                <div v-for="p in pageSearchResults" :key="p.id" @click="addPage(p)" class="px-2 py-1 hover:bg-gray-50 cursor-pointer text-xs">
-                  {{ p.title?.substring(0, 40) }}
-                </div>
-              </div>
-              <button @click="showAddPage = false" class="text-xs text-gray-500">{{ t('issue.cancel') }}</button>
-            </div>
-          </div>
-
-          <!-- 附件 -->
-          <div class="px-4 py-3">
-            <AttachmentManager :issue-id="issueId" :project-id="projectId" />
-          </div>
-        </div>
+          </template>
+        </IssuePropertySidebar>
       </div>
     </div>
-  </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import { useRoute, useRouter } from 'vue-router'
-import CustomFieldManager from '@/components/CustomFieldManager.vue'
-import LabelSelector from '@/components/LabelSelector.vue'
-import CommentList from '@/components/CommentList.vue'
-import RichTextEditor from '@/components/RichTextEditor.vue'
-import SubIssuePanel from '@/components/SubIssuePanel.vue'
-import TimeTrackPanel from '@/components/TimeTrackPanel.vue'
-import RecurrenceConfig from '@/components/RecurrenceConfig.vue'
-import AttachmentManager from '@/components/AttachmentManager.vue'
 import * as issueApi from '@/api/issue'
-import * as issueTypeApi from '@/api/issue-type'
 import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
+import * as issueTypeApi from '@/api/issue-type'
 import projectApi from '@/api/project'
-import * as relationApi from '@/api/relation'
-import * as pageApi from '@/api/page'
-import * as issueApiSearch from '@/api/issue'
-import AgentSelector from '@/components/AgentSelector.vue'
 import { agentApi } from '@/api/agent'
+import IssueDetailHeader from '@/components/IssueDetailHeader.vue'
+import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
+import IssueTabDetails from '@/components/IssueTabDetails.vue'
+import IssueTabRelations from '@/components/IssueTabRelations.vue'
+import IssueTabAttachments from '@/components/IssueTabAttachments.vue'
+import IssueTabTimeTracking from '@/components/IssueTabTimeTracking.vue'
+import IssueTabActivity from '@/components/IssueTabActivity.vue'
+import AgentSelector from '@/components/AgentSelector.vue'
 
 // Route params
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const toast = useToast()
 const issueId = parseInt(route.params.issueId as string, 10) || 0
-
-const workspaceId = ref(0)
 const projectId = ref(0)
+const workspaceId = ref(0)
 
-// State
+// Reactive state
 const issue = ref<any>(null)
+const saving = ref(false)
+const issueForm = ref({ name: '', description: '' })
 const states = ref<any[]>([])
 const cycles = ref<any[]>([])
 const modules = ref<any[]>([])
 const projectMembers = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const subIssues = ref<any[]>([])
-const saving = ref(false)
-const selectedLabelIds = ref<number[]>([])
-const relations = ref<any[]>([])
-const relationTypes = ref<any[]>([])
-const activities = ref<any[]>([])
-const showAddRelation = ref(false)
-const newRelation = ref({ type_id: '', search: '' })
-const relationSearchResults = ref<any[]>([])
-const customFieldManagerRef = ref<InstanceType<typeof CustomFieldManager> | null>(null)
-const customFieldValues = ref<Record<string, any>>({})
-const pages = ref<any[]>([])
-const showAddPage = ref(false)
-const newPage = ref({ search: '' })
-const pageSearchResults = ref<any[]>([])
-
-// Form
-const issueForm = ref({
-  name: '',
-  description: '',
-  state_id: '',
-  priority: 'none',
-  type_id: '' as number | string,
-  assignee_id: '',
-  cycle_id: '',
-  module_id: '',
-  start_date: '',
-  target_date: ''
-})
-
-// Agent dispatch state
+const activeTab = ref('details')
 const selectedAgentId = ref('')
 const agentDispatching = ref(false)
 
+// Tabs definition
+const tabs = computed(() => [
+  { key: 'details', label: t('issue.tabDetails') },
+  { key: 'relations', label: t('issue.tabRelations') },
+  { key: 'attachments', label: t('issue.tabAttachments') },
+  { key: 'timetrack', label: t('issue.tabTimetrack') },
+  { key: 'activity', label: t('issue.tabActivity') },
+])
+
+// Props for IssueTabDetails
+const detailProps = computed(() => ({
+  issueId,
+  issue: issue.value,
+  workspaceId: workspaceId.value,
+  projectId: projectId.value,
+  issueTypeId: issue.value?.issue_type?.id,
+  members: projectMembers.value,
+}))
+
+// Data loading
+onMounted(async () => {
+  if (!issueId) return
+  try {
+    const issueData = await issueApi.getIssue(issueId)
+    issue.value = issueData
+    if (issueData.workspace_id) workspaceId.value = issueData.workspace_id
+    if (issueData.project_id) projectId.value = issueData.project_id
+    issueForm.value = {
+      name: issueData.name || '',
+      description: issueData.description_html || '',
+    }
+    subIssues.value = issueData.sub_issues || []
+
+    // Load auxiliary data
+    await Promise.all([
+      loadStates(),
+      loadCycles(),
+      loadModules(),
+      loadProjectMembers(),
+      loadIssueTypes(),
+    ])
+  } catch (error) {
+    console.error('Failed to load issue:', error)
+  }
+})
+
+async function loadStates() {
+  try {
+    const data = await stateApi.listStates(projectId.value)
+    states.value = data
+  } catch (error) {
+    console.error('Failed to load states:', error)
+  }
+}
+
+async function loadCycles() {
+  try {
+    const data = await cycleApi.listCycles(projectId.value)
+    cycles.value = data.items || data
+  } catch (error) {
+    console.error('Failed to load cycles:', error)
+  }
+}
+
+async function loadModules() {
+  try {
+    const data = await moduleApi.listModules(projectId.value, workspaceId.value)
+    modules.value = data
+  } catch (error) {
+    console.error('Failed to load modules:', error)
+  }
+}
+
+async function loadIssueTypes() {
+  try {
+    const types = await issueTypeApi.getIssueTypes(workspaceId.value, projectId.value)
+    issueTypes.value = types
+  } catch (error) {
+    console.error('Failed to load issue types:', error)
+  }
+}
+
+async function loadProjectMembers() {
+  try {
+    const data = await projectApi.listProjectMembers(projectId.value)
+    projectMembers.value = data.map((m: any) => m.user || m)
+  } catch (error) {
+    console.error('Failed to load project members:', error)
+  }
+}
+
+// Save issue (batch save title + description)
+async function saveIssue() {
+  saving.value = true
+  try {
+    await issueApi.updateIssue(issueId, {
+      name: issueForm.value.name,
+      description_html: issueForm.value.description || undefined,
+    })
+    toast.success(t('issue.saveSuccess'))
+  } catch (error) {
+    console.error('Failed to save issue:', error)
+    toast.error(t('issue.saveFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
+// Instant update for sidebar field changes
+function instantUpdate(field: string, value: any) {
+  issueApi.updateIssue(issueId, { [field]: value }).catch((e: any) => {
+    console.error('Failed to update field:', field, e)
+    toast.error(t('issue.saveFailed'))
+  })
+}
+
+// Instant update for assignee
+function instantUpdateAssignee(userId: any) {
+  const assigneeIds = userId ? [Number(userId)] : []
+  issueApi.updateIssue(issueId, { assignee_ids: assigneeIds }).catch((e: any) => {
+    console.error('Failed to update assignee:', e)
+    toast.error(t('issue.saveFailed'))
+  })
+}
+
+// Navigation
+function goBack() {
+  router.back()
+}
+
+function navigateToIssue(id: number) {
+  router.push({
+    path: `/workspaces/${workspaceId.value}/projects/${projectId.value}/issues/${id}`,
+  })
+}
+
+// Agent dispatch
 async function dispatchAgent() {
   if (!selectedAgentId.value || !selectedAgentId.value.startsWith('agent:')) return
   const agentId = parseInt(selectedAgentId.value.replace('agent:', ''))
@@ -406,296 +288,6 @@ async function dispatchAgent() {
   } finally {
     agentDispatching.value = false
   }
-}
-
-// Load issue data
-onMounted(async () => {
-  await loadIssue()
-  await Promise.all([
-    loadStates(),
-    loadCycles(),
-    loadModules(),
-    loadProjectMembers(),
-    loadIssueTypes(),
-    loadRelations(),
-    loadActivities(),
-    loadPages()
-  ])
-})
-
-// Load issue
-async function loadIssue() {
-  try {
-    const issueData = await issueApi.getIssue(issueId)
-    issue.value = issueData
-    
-    // Set workspaceId and projectId from issue data
-    if (issueData.workspace_id) workspaceId.value = issueData.workspace_id
-    if (issueData.project_id) projectId.value = issueData.project_id
-
-    // Populate form
-    issueForm.value = {
-      name: issue.value.name,
-      description: issue.value.description_html || '',
-      state_id: issue.value.state_id,
-      priority: issue.value.priority,
-      type_id: issue.value.issue_type?.id || '',
-      assignee_id: issue.value.assignees?.[0]?.id || '',
-      cycle_id: issue.value.cycle_id || '',
-      module_id: issue.value.module_ids?.[0] || '',
-      start_date: issue.value.start_date?.split('T')[0] || '',
-      target_date: issue.value.target_date?.split('T')[0] || '',
-    }
-    selectedLabelIds.value = issue.value.labels || []
-    
-    // Load sub issues
-    if (issue.value.sub_issues) {
-      subIssues.value = issue.value.sub_issues
-    }
-  } catch (error) {
-    console.error('Failed to load issue:', error)
-  }
-}
-
-// Load states
-async function loadStates() {
-  try {
-    const data = await stateApi.listStates(projectId.value)
-    states.value = data
-  } catch (error) {
-    console.error('Failed to load states:', error)
-  }
-}
-
-// Load cycles
-async function loadCycles() {
-  try {
-    const data = await cycleApi.listCycles(projectId.value)
-    cycles.value = data.items || data
-  } catch (error) {
-    console.error('Failed to load cycles:', error)
-  }
-}
-
-// Load modules
-async function loadModules() {
-  try {
-    const data = await moduleApi.listModules(projectId.value, workspaceId.value)
-    modules.value = data
-  } catch (error) {
-    console.error('Failed to load modules:', error)
-  }
-}
-
-// Load issue types
-async function loadIssueTypes() {
-  try {
-    const types = await issueTypeApi.getIssueTypes(workspaceId.value, projectId.value)
-    issueTypes.value = types
-  } catch (error) {
-    console.error('Failed to load issue types:', error)
-  }
-}
-
-// Load project members
-async function loadProjectMembers() {
-  try {
-    const data = await projectApi.listProjectMembers(projectId.value)
-    projectMembers.value = data.map((m: any) => m.user || m)
-  } catch (error) {
-    console.error('Failed to load project members:', error)
-  }
-}
-
-// Handle custom field values update
-function handleValuesUpdate(values: Record<string, any>) {
-  customFieldValues.value = values
-}
-
-// Save issue
-async function saveIssue() {
-  saving.value = true
-  if (!issueForm.value.name?.trim()) {
-    if ((window as any).$toast) (window as any).$toast.error(t('issue.nameRequired'))
-    return
-  }
-  try {
-    // Build update payload
-    const data: any = {
-      name: issueForm.value.name,
-      priority: issueForm.value.priority,
-      description_html: issueForm.value.description || undefined,
-    }
-    if (issueForm.value.state_id) data.state_id = Number(issueForm.value.state_id)
-    if (issueForm.value.type_id) data.type_id = Number(issueForm.value.type_id)
-    if (issueForm.value.assignee_id) data.assignee_ids = [Number(issueForm.value.assignee_id)]
-    if (issueForm.value.cycle_id) data.cycle_id = Number(issueForm.value.cycle_id)
-    if (issueForm.value.start_date) data.start_date = issueForm.value.start_date + 'T00:00:00Z'
-    if (issueForm.value.target_date) data.target_date = issueForm.value.target_date + 'T00:00:00Z'
-
-    await issueApi.updateIssue(issueId, data)
-
-    // Save custom field values
-    if (customFieldManagerRef.value) {
-      await customFieldManagerRef.value.saveValues()
-    }
-
-    toast.success(t('issue.saveSuccess'))
-  } catch (error) {
-    console.error('Failed to save issue:', error)
-    toast.error(t('issue.saveFailed'))
-  } finally {
-    saving.value = false
-  }
-}
-
-// Save labels via API
-async function saveLabels(labelIds: number[]) {
-  try {
-    const currentIds: Set<number> = new Set(issue.value?.labels || [])
-    const newIds: Set<number> = new Set(labelIds)
-
-    // Add new labels
-    for (const id of labelIds) {
-      if (!currentIds.has(id)) {
-        await issueApi.addIssueLabel(issueId, id)
-      }
-    }
-    // Remove deselected labels
-    for (const id of currentIds) {
-      if (!newIds.has(id)) {
-        await issueApi.removeIssueLabel(issueId, id)
-      }
-    }
-  } catch (e) {
-    console.error('Failed to save labels:', e)
-  }
-}
-
-// ===== Relations =====
-async function loadRelations() {
-  try {
-    const [rels, types] = await Promise.all([
-      relationApi.listIssueRelations(issueId),
-      relationApi.listRelationTypes(workspaceId.value)
-    ])
-    relations.value = rels || []
-    relationTypes.value = types || []
-  } catch (e) { console.error('Failed to load relations:', e) }
-}
-
-let relationSearchTimer: any = null
-async function searchRelatedIssues() {
-  if (relationSearchTimer) clearTimeout(relationSearchTimer)
-  if (!newRelation.value.search.trim()) { relationSearchResults.value = []; return }
-  relationSearchTimer = setTimeout(async () => {
-    try {
-      const result: any = await issueApiSearch.searchIssues(workspaceId.value, newRelation.value.search)
-      relationSearchResults.value = (Array.isArray(result) ? result : (result.items || [])).slice(0, 8)
-    } catch (e) { console.error('Search failed:', e) }
-  }, 300)
-}
-
-async function addRelation(related: any) {
-  if (!newRelation.value.type_id) return
-  try {
-    await relationApi.createIssueRelation(issueId, {
-      related_issue_id: related.id,
-      relation_type_id: parseInt(newRelation.value.type_id)
-    })
-    showAddRelation.value = false
-    newRelation.value = { type_id: '', search: '' }
-    relationSearchResults.value = []
-    await loadRelations()
-  } catch (e) { console.error('Failed to add relation:', e) }
-}
-
-async function deleteRelation(relationId: number) {
-  try {
-    await relationApi.deleteIssueRelation(relationId)
-    await loadRelations()
-  } catch (e) { console.error('Failed to delete relation:', e) }
-}
-
-// ===== Activity History =====
-async function loadActivities() {
-  try {
-    const result: any = await issueApi.getIssueActivities(issueId)
-    activities.value = Array.isArray(result) ? result.slice(0, 20) : (result?.activities || []).slice(0, 20)
-  } catch (e) { console.error('Failed to load activities:', e) }
-}
-
-function formatActivityTime(timeStr: string): string {
-  const d = new Date(timeStr)
-  return d.toLocaleDateString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-function formatActivity(act: any): string {
-  const fieldMap: Record<string, string> = {
-    name: t('activity.name'), state_id: t('activity.state_id'), priority: t('activity.priority'),
-    assignees: t('activity.assignees'), labels: t('activity.labels'),
-    cycle: t('activity.cycle'), description: t('activity.description'), created: t('activity.created'),
-  }
-  const verb = act.verb === 'created' ? t('activity.createdIssue') : act.verb === 'updated' ? t('activity.updated') : act.verb
-  const field = fieldMap[act.field || ''] || act.field || ''
-  if (act.verb === 'created') return t('activity.createdIssue')
-  if (act.old_value && act.new_value) return `${verb}${field}: ${act.old_value} → ${act.new_value}`
-  return `${verb}${field}`
-}
-
-// Create sub issue
-function createSubIssue() {
-  // Navigate to create issue page with parent_id
-  router.push({
-    path: `/workspaces/${workspaceId.value}/projects/${projectId.value}/issues/new`,
-    query: { parent_id: issueId }
-  })
-}
-
-// Edit sub issue
-function editSubIssue(issue: any) {
-  router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}/issues/${issue.id}`)
-}
-
-// Pages
-async function loadPages() {
-  try {
-    pages.value = await issueApi.listIssuePages(issueId)
-  } catch (e) { console.error('Failed to load pages:', e) }
-}
-
-let pageSearchTimer: any = null
-async function searchPages() {
-  if (pageSearchTimer) clearTimeout(pageSearchTimer)
-  if (!newPage.value.search.trim()) { pageSearchResults.value = []; return }
-  pageSearchTimer = setTimeout(async () => {
-    try {
-      const pages: any[] = await pageApi.searchPages(projectId.value, newPage.value.search)
-      pageSearchResults.value = pages.slice(0, 8)
-    } catch (e) { console.error('Search pages failed:', e) }
-  }, 300)
-}
-
-async function addPage(page: any) {
-  try {
-    await issueApi.addIssuePage(issueId, page.id)
-    showAddPage.value = false
-    newPage.value = { search: '' }
-    pageSearchResults.value = []
-    await loadPages()
-  } catch (e) { console.error('Failed to add page:', e) }
-}
-
-async function removePage(pageId: number) {
-  try {
-    await issueApi.removeIssuePage(issueId, pageId)
-    await loadPages()
-  } catch (e) { console.error('Failed to remove page:', e) }
-}
-
-// Go back
-function goBack() {
-  router.back()
 }
 </script>
 
