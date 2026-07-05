@@ -40,7 +40,9 @@ type IssueResponse struct {
 	ExternalSource    *string       `json:"external_source"`
 	CoverImageURL     *string       `json:"cover_image_url"`
 
-	IssueType         *IssueTypeLite `json:"issue_type,omitempty"`
+	IssueType         *IssueTypeLite    `json:"issue_type,omitempty"`
+	Parent            *RelatedIssueLite `json:"parent,omitempty"`
+	SubIssues         []SubIssueLite    `json:"sub_issues"`
 
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
@@ -63,15 +65,17 @@ type IssueLite struct {
 
 // IssueActivityResponse represents an issue activity entry.
 type IssueActivityResponse struct {
-	ID        uint64     `json:"id"`
-	IssueID   *uint64    `json:"issue_id"`
-	Verb      string     `json:"verb"`
-	Field     *string    `json:"field"`
-	OldValue  *string    `json:"old_value"`
-	NewValue  *string    `json:"new_value"`
-	Comment   *string    `json:"comment"`
-	ActorID   *uint64    `json:"actor_id"`
-	CreatedAt time.Time  `json:"created_at"`
+	ID               uint64     `json:"id"`
+	IssueID          *uint64    `json:"issue_id"`
+	Verb             string     `json:"verb"`
+	Field            *string    `json:"field"`
+	OldValue         *string    `json:"old_value"`
+	NewValue         *string    `json:"new_value"`
+	Comment          *string    `json:"comment"`
+	ActorID          *uint64    `json:"actor_id"`
+	ActorDisplayName string     `json:"actor_display_name"`
+	ActorAvatar      string     `json:"actor_avatar"`
+	CreatedAt        time.Time  `json:"created_at"`
 }
 
 // IssueSearchResult represents a search result.
@@ -82,6 +86,34 @@ type IssueSearchResult struct {
 	ProjectIdentifier string `json:"project_identifier"`
 	ProjectID         uint64 `json:"project_id"`
 	WorkspaceSlug     string `json:"workspace_slug"`
+}
+
+// RelatedIssueLite is used for the parent issue reference in issue detail responses.
+type RelatedIssueLite struct {
+	ID         uint64         `json:"id"`
+	SequenceID int            `json:"sequence_id"`
+	Name       string         `json:"name"`
+	StateID    uint64         `json:"state_id"`
+	StateName  string         `json:"state_name"`
+	StateGroup string         `json:"state_group"`
+	Priority   string         `json:"priority"`
+	Assignees  []UserLite     `json:"assignees"`
+	TargetDate *time.Time     `json:"target_date"`
+	IssueType  *IssueTypeLite `json:"issue_type,omitempty"`
+}
+
+// SubIssueLite is used for sub-issues in issue detail responses.
+type SubIssueLite struct {
+	ID         uint64         `json:"id"`
+	SequenceID int            `json:"sequence_id"`
+	Name       string         `json:"name"`
+	StateID    uint64         `json:"state_id"`
+	StateName  string         `json:"state_name"`
+	StateGroup string         `json:"state_group"`
+	Priority   string         `json:"priority"`
+	Assignees  []UserLite     `json:"assignees"`
+	TargetDate *time.Time     `json:"target_date"`
+	IssueType  *IssueTypeLite `json:"issue_type,omitempty"`
 }
 
 // IssueStatistics represents issue statistics for a project.

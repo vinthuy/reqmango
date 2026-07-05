@@ -20,6 +20,7 @@ import ProjectIssueTypeManager from '@/components/ProjectIssueTypeManager.vue'
 import WorkItemTemplateManager from '@/components/WorkItemTemplateManager.vue'
 import ReleaseList from '@/components/ReleaseList.vue'
 import WebhookManager from '@/components/WebhookManager.vue'
+import relationApi from '@/api/relation'
 
 const { confirm } = useConfirm()
 const { t } = useI18n()
@@ -44,6 +45,15 @@ const showEditModal = ref(false)
 const showDeleteConfirm = ref(false)
 const editForm = reactive({ name: '', identifier: '', description: '', color: '#6366f1' })
 const stats = ref({ issuesCount: 0, membersCount: 0 })
+
+// ===== Relation types (read-only from workspace) =====
+const relationTypes = ref<any[]>([])
+async function loadRelationTypes() {
+  if (!workspaceId.value) return
+  try {
+    relationTypes.value = await relationApi.listRelationTypes(workspaceId.value)
+  } catch (e) { console.error('Failed to load relation types:', e) }
+}
 
 // ===== Data =====
 const states = ref<any[]>([])
@@ -114,6 +124,7 @@ const menuItems = computed(() => [
   { id: 'cycles', label: t('settings.cycles'), icon: '🔄' },
   { id: 'releases', label: t('settings.releases'), icon: '🚀' },
   { id: 'webhooks', label: t('settings.webhooks'), icon: '🔌' },
+  { id: 'relations', label: t('settings.relations'), icon: '🔗' },
   { id: 'custom-fields', label: t('settings.customFields'), icon: '🔧' },
   { id: 'estimate-points', label: t('settings.estimatePoints'), icon: '📏' },
   { id: 'workflows', label: t('settings.workflows'), icon: '⚙️' },
@@ -426,6 +437,7 @@ onMounted(async () => {
     } catch (_) { /* ignore */ }
     await loadData()
     await loadSubscribers()
+    await loadRelationTypes()
   } catch (e) { console.error('Failed to load:', e) }
 })
 </script>
@@ -659,6 +671,41 @@ onMounted(async () => {
         </div>
         <div v-if="!loading && activeSection === 'webhooks'" class="bg-white rounded-lg border border-gray-200">
           <WebhookManager :project-id="projectId" :workspace-id="workspaceId" />
+        </div>
+
+        <!-- Relations (read-only, from workspace) -->
+        <div v-if="!loading && activeSection === 'relations'" class="bg-white rounded-lg border border-gray-200">
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-lg font-semibold text-gray-800">{{ t('settings.relations') }}</h2>
+                <p class="text-sm text-gray-500 mt-1">{{ t('settings.relationsDesc') }}</p>
+              </div>
+            </div>
+            <div v-if="relationTypes.length === 0" class="text-center py-12 text-gray-400">
+              <p>{{ t('issueKanban.noRelationTypes') }}</p>
+            </div>
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div v-for="rt in relationTypes" :key="rt.id" class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h3 class="font-semibold text-gray-900 text-sm mb-2">{{ rt.name }}</h3>
+                <div class="space-y-1 text-xs text-gray-500">
+                  <div class="flex justify-between">
+                    <span>{{ t('relationType.inward') }}</span>
+                    <span class="font-mono text-gray-700">{{ rt.inward_name }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span>{{ t('relationType.outward') }}</span>
+                    <span class="font-mono text-gray-700">{{ rt.outward_name }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <p class="text-xs text-gray-400">
+                💡 {{ t('settings.relationsManagedInWorkspace') }}
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- Custom Fields -->

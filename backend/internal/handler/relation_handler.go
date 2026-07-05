@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
 )
@@ -61,7 +62,14 @@ func (h *RelationHandler) CreateRelation(c *gin.Context) {
 }
 func (h *RelationHandler) ListRelations(c *gin.Context) {
 	iid, _ := strconv.ParseUint(c.Param("issueId"), 10, 64)
-	resp, e := h.svc.ListRelations(iid)
+	direction := c.DefaultQuery("direction", "both")
+	var resp []response.IssueRelationResponse
+	var e error
+	if direction == "both" {
+		resp, e = h.svc.ListRelationsBidirectional(iid)
+	} else {
+		resp, e = h.svc.ListRelations(iid)
+	}
 	if h.respond(c, e) { return }
 	c.JSON(200, resp)
 }

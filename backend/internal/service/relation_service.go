@@ -70,32 +70,145 @@ func (s *RelationService) CreateRelation(issueID uint64, req request.IssueRelati
 
 	r := model.IssueRelation{IssueID: issueID, RelatedIssueID: req.RelatedIssueID, RelationTypeID: req.RelationTypeID, Comment: req.Comment}
 	if err := s.db.Create(&r).Error; err != nil { return nil, common.Internal("Failed to create relation") }
-	return &response.IssueRelationResponse{
+
+	// Record activity on both issues
+	relName := rt.OutwardName
+	s.db.Create(&model.IssueActivity{IssueID: &issueID, Verb: "relation_added", Field: strPtr("relation"), NewValue: &related.Name, Comment: &relName})
+	s.db.Create(&model.IssueActivity{IssueID: &req.RelatedIssueID, Verb: "relation_added", Field: strPtr("relation"), NewValue: &issue.Name, Comment: &relName})
+
+	resp := &response.IssueRelationResponse{
 		ID: r.ID, IssueID: r.IssueID, RelatedIssueID: r.RelatedIssueID, RelationTypeID: r.RelationTypeID, Comment: r.Comment,
+		Direction: "outbound",
 		RelationName: rt.Name, InwardName: rt.InwardName, OutwardName: rt.OutwardName,
 		RelatedName: related.Name, RelatedSeqID: related.SequenceID, RelatedProject: related.Project.Identifier,
-	}, nil
+		RelationType: &response.RelationTypeLite{
+			ID: rt.ID, Name: rt.Name, OutwardName: rt.OutwardName,
+		},
+	}
+	return resp, nil
 }
 
 func (s *RelationService) ListRelations(issueID uint64) ([]response.IssueRelationResponse, error) {
-	var relations []model.IssueRelation
-	if err := s.db.Preload("RelationType").Preload("RelatedIssue.Project").Where("issue_id = ?", issueID).Find(&relations).Error; err != nil {
-		return nil, common.Internal("Failed to list relations")
-	}
-	result := make([]response.IssueRelationResponse, len(relations))
-	for i, r := range relations {
-		result[i] = response.IssueRelationResponse{
-			ID: r.ID, IssueID: r.IssueID, RelatedIssueID: r.RelatedIssueID, RelationTypeID: r.RelationTypeID, Comment: r.Comment,
-			RelationName: r.RelationType.Name, InwardName: r.RelationType.InwardName, OutwardName: r.RelationType.OutwardName,
-			RelatedName: r.RelatedIssue.Name, RelatedSeqID: r.RelatedIssue.SequenceID, RelatedProject: r.RelatedIssue.Project.Identifier,
+	// Returns outbound relations only (backward compat)
+	return s.listRelationsByDirection(issueID, "outbound")
+}
+
+// ListRelationsBidirectional returns both outbound and inbound relations
+func (s *RelationService) ListRelationsBidirectional(issueID uint64) ([]response.IssueRelationResponse, error) {
+	return s.listRelationsByDirection(issueID, "both")
+}
+
+func (s *RelationService) listRelationsByDirection(issueID uint64, direction string) ([]response.IssueRelationResponse, error) {
+	var result []response.IssueRelationResponse
+
+	// Outbound: I relate to others (issue_id = ?)
+	if direction == "outbound" || direction == "both" {
+		var outbound []model.IssueRelation
+		if err := s.db.Preload("RelationType").
+			Preload("RelatedIssue.State").
+			Preload("RelatedIssue.IssueType").
+			Preload("RelatedIssue.AssigneeLinks.User").
+			Where("issue_id = ?", issueID).Find(&outbound).Error; err != nil {
+			return nil, common.Internal("Failed to list outbound relations")
+		}
+		for _, r := range outbound {
+			result = append(result, s.buildRelationResponse(r, "outbound"))
 		}
 	}
-	if result == nil { result = []response.IssueRelationResponse{} }
+
+	// Inbound: others relate to me (related_issue_id = ?)
+	if direction == "inbound" || direction == "both" {
+		var inbound []model.IssueRelation
+		if err := s.db.Preload("RelationType").
+			Preload("Issue.State").       // The source issue (who relates to me)
+			Preload("Issue.IssueType").
+			Preload("Issue.AssigneeLinks.User").
+			Where("related_issue_id = ?", issueID).Find(&inbound).Error; err != nil {
+			return nil, common.Internal("Failed to list inbound relations")
+		}
+		for _, r := range inbound {
+			// For inbound, the "RelatedIssue" is actually the source issue
+			result = append(result, s.buildInboundRelationResponse(r))
+		}
+	}
+
+	if result == nil {
+		result = []response.IssueRelationResponse{}
+	}
 	return result, nil
 }
 
+func (s *RelationService) buildRelationResponse(r model.IssueRelation, direction string) response.IssueRelationResponse {
+	ri := r.RelatedIssue
+	item := response.IssueRelationResponse{
+		ID: r.ID, IssueID: r.IssueID, RelatedIssueID: r.RelatedIssueID,
+		RelationTypeID: r.RelationTypeID, Comment: r.Comment,
+		Direction: direction,
+		RelationType: &response.RelationTypeLite{
+			ID: r.RelationType.ID, Name: r.RelationType.Name, OutwardName: r.RelationType.OutwardName,
+		},
+		RelationName: r.RelationType.Name, InwardName: r.RelationType.InwardName,
+		OutwardName: r.RelationType.OutwardName,
+		RelatedName: ri.Name, RelatedSeqID: ri.SequenceID,
+	}
+	related := &response.RelatedIssueLite{
+		ID: ri.ID, SequenceID: ri.SequenceID, Name: ri.Name,
+		StateName: ri.State.Name, StateGroup: ri.State.Group,
+		Priority: ri.Priority, TargetDate: ri.TargetDate,
+	}
+	if ri.IssueType.ID != 0 {
+		related.IssueType = &response.IssueTypeLite{ID: ri.IssueType.ID, Name: ri.IssueType.Name, Color: ri.IssueType.Color}
+	}
+	for _, al := range ri.AssigneeLinks {
+		u := al.User
+		related.Assignees = append(related.Assignees, response.UserLite{ID: u.ID, DisplayName: u.DisplayName})
+	}
+	item.RelatedIssue = related
+	return item
+}
+
+func (s *RelationService) buildInboundRelationResponse(r model.IssueRelation) response.IssueRelationResponse {
+	// For inbound, the source issue is the one that created the relation to us
+	src := r.Issue
+	item := response.IssueRelationResponse{
+		ID: r.ID, IssueID: r.IssueID, RelatedIssueID: r.RelatedIssueID,
+		RelationTypeID: r.RelationTypeID, Comment: r.Comment,
+		Direction: "inbound",
+		RelationType: &response.RelationTypeLite{
+			ID: r.RelationType.ID, Name: r.RelationType.Name, OutwardName: r.RelationType.OutwardName,
+		},
+		RelationName: r.RelationType.Name, InwardName: r.RelationType.InwardName,
+		OutwardName: r.RelationType.OutwardName,
+		RelatedName: src.Name, RelatedSeqID: src.SequenceID,
+	}
+	related := &response.RelatedIssueLite{
+		ID: src.ID, SequenceID: src.SequenceID, Name: src.Name,
+		StateName: src.State.Name, StateGroup: src.State.Group,
+		Priority: src.Priority, TargetDate: src.TargetDate,
+	}
+	if src.IssueType.ID != 0 {
+		related.IssueType = &response.IssueTypeLite{ID: src.IssueType.ID, Name: src.IssueType.Name, Color: src.IssueType.Color}
+	}
+	for _, al := range src.AssigneeLinks {
+		u := al.User
+		related.Assignees = append(related.Assignees, response.UserLite{ID: u.ID, DisplayName: u.DisplayName})
+	}
+	item.RelatedIssue = related
+	return item
+}
+
 func (s *RelationService) DeleteRelation(relationID uint64) error {
+	var rel model.IssueRelation
+	if err := s.db.Preload("RelationType").Preload("Issue").Preload("RelatedIssue").First(&rel, relationID).Error; err != nil {
+		return common.NotFound("Relation not found")
+	}
 	result := s.db.Delete(&model.IssueRelation{}, relationID)
 	if result.RowsAffected == 0 { return common.NotFound("Relation not found") }
+
+	// Record activity on both issues
+	relName := rel.RelationType.OutwardName
+	s.db.Create(&model.IssueActivity{IssueID: &rel.IssueID, Verb: "relation_removed", Field: strPtr("relation"), NewValue: &rel.RelatedIssue.Name, Comment: &relName})
+	s.db.Create(&model.IssueActivity{IssueID: &rel.RelatedIssueID, Verb: "relation_removed", Field: strPtr("relation"), NewValue: &rel.Issue.Name, Comment: &relName})
+
 	return nil
 }

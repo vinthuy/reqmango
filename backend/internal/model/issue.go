@@ -40,6 +40,7 @@ type Issue struct {
 	AssigneeLinks  []IssueAssignee `gorm:"foreignKey:IssueID" json:"-"`
 	LabelLinks     []IssueLabel    `gorm:"foreignKey:IssueID" json:"-"`
 	CycleLink      *IssueCycle     `gorm:"foreignKey:IssueID" json:"-"`
+	ModuleLinks    []ModuleIssue   `gorm:"foreignKey:IssueID" json:"-"`
 	Activities     []IssueActivity `gorm:"foreignKey:IssueID" json:"-"`
 	PageLinks      []IssuePage     `gorm:"foreignKey:IssueID" json:"-"`
 	Pages          []Page          `gorm:"many2many:issue_pages;" json:"pages"`
@@ -114,6 +115,7 @@ type IssueActivity struct {
 	ActorID  *uint64 `json:"actor_id"`
 
 	Issue *Issue `gorm:"foreignKey:IssueID" json:"-"`
+	Actor *User  `gorm:"foreignKey:ActorID" json:"-"`
 }
 
 func (IssueActivity) TableName() string {

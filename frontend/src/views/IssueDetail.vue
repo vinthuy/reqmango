@@ -2,7 +2,7 @@
   <div class="issue-detail-page min-h-screen bg-white">
     <IssueDetailHeader :issue :saving @back="goBack" @save="saveIssue" />
 
-    <div class="max-w-5xl mx-auto px-6 py-6">
+    <div class="max-w-6xl mx-auto px-6 py-6">
       <div class="flex gap-8">
         <!-- Main content: tab buttons + tab panels -->
         <div class="flex-1 min-w-0">
@@ -19,6 +19,7 @@
               class="px-4 py-2 text-sm font-medium border-b-2 -mb-0.5 transition-colors"
             >
               {{ tab.label }}
+              <span v-if="tab.count !== undefined && tab.count > 0" class="ml-1.5 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{{ tab.count }}</span>
             </button>
           </div>
 
@@ -31,13 +32,17 @@
           />
           <IssueTabRelations
             v-else-if="activeTab === 'relations'"
+            ref="relationsTabRef"
             :issue-id="issueId"
             :project-id="projectId"
             :workspace-id="workspaceId"
+            :slug="(route.params.slug as string)"
+            :states
             :parent="issue?.parent"
             :sub-issues="subIssues"
             :issue-types="issueTypes"
             @navigate="navigateToIssue"
+            @refresh="handleRelationsRefresh"
           />
           <IssueTabAttachments
             v-else-if="activeTab === 'attachments'"
@@ -62,28 +67,20 @@
           :members="projectMembers"
           :cycles
           :modules
-          :selected-agent-id="selectedAgentId"
+          :custom-fields="customFieldEntries"
+          :workspace-id="workspaceId"
           :agent-dispatching="agentDispatching"
+          :relation-summary="relationSidebarSummary"
           @update:state="(id: any) => instantUpdate('state_id', id)"
           @update:priority="(p: any) => instantUpdate('priority', p)"
           @update:assignee="instantUpdateAssignee"
-          @update:cycle="(id: any) => instantUpdate('cycle_id', id)"
-          @update:module="(id: any) => instantUpdate('module_id', id)"
+          @update:cycle="handleCycleUpdate"
+          @update:module="handleModuleUpdate"
           @update:start-date="(d: any) => instantUpdate('start_date', d + 'T00:00:00Z')"
           @update:target-date="(d: any) => instantUpdate('target_date', d + 'T00:00:00Z')"
-        >
-          <template #agent>
-            <AgentSelector v-model="selectedAgentId" :workspace-id="workspaceId" />
-            <button
-              v-if="selectedAgentId"
-              @click="dispatchAgent"
-              :disabled="agentDispatching"
-              class="mt-2 w-full px-3 py-1.5 text-xs font-medium rounded-md bg-violet-500 hover:bg-violet-600 text-white disabled:opacity-50"
-            >
-              {{ agentDispatching ? t('agent.dispatching') : t('agent.dispatch') }}
-            </button>
-          </template>
-        </IssuePropertySidebar>
+          @update:custom-field="updateCustomField"
+          @dispatch-agent="(id: string) => dispatchAgent(id)"
+        />
       </div>
     </div>
   </div>
@@ -98,9 +95,11 @@ import * as issueApi from '@/api/issue'
 import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
+import { setIssueCycle, removeIssueCycle } from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
 import projectApi from '@/api/project'
 import { agentApi } from '@/api/agent'
+import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
 import IssueDetailHeader from '@/components/IssueDetailHeader.vue'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
 import IssueTabDetails from '@/components/IssueTabDetails.vue'
@@ -108,7 +107,6 @@ import IssueTabRelations from '@/components/IssueTabRelations.vue'
 import IssueTabAttachments from '@/components/IssueTabAttachments.vue'
 import IssueTabTimeTracking from '@/components/IssueTabTimeTracking.vue'
 import IssueTabActivity from '@/components/IssueTabActivity.vue'
-import AgentSelector from '@/components/AgentSelector.vue'
 
 // Route params
 const route = useRoute()
@@ -130,16 +128,23 @@ const projectMembers = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const subIssues = ref<any[]>([])
 const activeTab = ref('details')
+const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
+const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const selectedAgentId = ref('')
 const agentDispatching = ref(false)
 
+// Relation summary for sidebar
+const relationSidebarSummary = computed(() => {
+  return relationsTabRef.value?.relationSummary ?? null
+})
+
 // Tabs definition
 const tabs = computed(() => [
-  { key: 'details', label: t('issue.tabDetails') },
-  { key: 'relations', label: t('issue.tabRelations') },
-  { key: 'attachments', label: t('issue.tabAttachments') },
-  { key: 'timetrack', label: t('issue.tabTimetrack') },
-  { key: 'activity', label: t('issue.tabActivity') },
+  { key: 'details', label: t('issue.tabDetails'), count: undefined },
+  { key: 'relations', label: t('issue.tabRelations'), count: relationSidebarSummary.value?.total ?? undefined },
+  { key: 'attachments', label: t('issue.tabAttachments'), count: undefined },
+  { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
+  { key: 'activity', label: t('issue.tabActivity'), count: undefined },
 ])
 
 // Props for IssueTabDetails
@@ -173,6 +178,7 @@ onMounted(async () => {
       loadModules(),
       loadProjectMembers(),
       loadIssueTypes(),
+      loadCustomFields(),
     ])
   } catch (error) {
     console.error('Failed to load issue:', error)
@@ -224,6 +230,36 @@ async function loadProjectMembers() {
   }
 }
 
+async function loadCustomFields() {
+  try {
+    const response = await getIssueCustomFieldsWithDefinitions(issueId)
+    if (response?.fields) {
+      customFieldEntries.value = response.fields.map((item: any) => ({
+        field: {
+          id: item.id,
+          name: item.name,
+          field_type: item.field_type,
+          options: item.options || [],
+        },
+        value: item.value ?? null,
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to load custom fields:', error)
+  }
+}
+
+async function updateCustomField(fieldId: number, value: string) {
+  try {
+    await updateIssueCustomFieldValue(issueId, fieldId, { value })
+    const entry = customFieldEntries.value.find((e) => e.field.id === fieldId)
+    if (entry) entry.value = value
+  } catch (error) {
+    console.error('Failed to update custom field:', error)
+    toast.error(t('issue.saveFailed'))
+  }
+}
+
 // Save issue (batch save title + description)
 async function saveIssue() {
   saving.value = true
@@ -242,20 +278,47 @@ async function saveIssue() {
 }
 
 // Instant update for sidebar field changes
-function instantUpdate(field: string, value: any) {
-  issueApi.updateIssue(issueId, { [field]: value }).catch((e: any) => {
+async function instantUpdate(field: string, value: any) {
+  try {
+    const updated = await issueApi.updateIssue(issueId, { [field]: value })
+    if (issue.value) Object.assign(issue.value, updated)
+  } catch (e: any) {
     console.error('Failed to update field:', field, e)
     toast.error(t('issue.saveFailed'))
-  })
+  }
 }
 
 // Instant update for assignee
-function instantUpdateAssignee(userId: any) {
-  const assigneeIds = userId ? [Number(userId)] : []
-  issueApi.updateIssue(issueId, { assignee_ids: assigneeIds }).catch((e: any) => {
+async function instantUpdateAssignee(userId: any) {
+  try {
+    const assigneeIds = userId ? [Number(userId)] : []
+    const updated = await issueApi.updateIssue(issueId, { assignee_ids: assigneeIds })
+    if (issue.value) Object.assign(issue.value, updated)
+  } catch (e: any) {
     console.error('Failed to update assignee:', e)
     toast.error(t('issue.saveFailed'))
-  })
+  }
+}
+
+// Cycle update uses dedicated API
+async function handleCycleUpdate(cycleId: number | null) {
+  try {
+    if (cycleId) {
+      await setIssueCycle(issueId, cycleId)
+    } else {
+      await removeIssueCycle(issueId)
+    }
+    const updated = await issueApi.getIssue(issueId)
+    if (issue.value) Object.assign(issue.value, updated)
+  } catch (e: any) {
+    console.error('Failed to update cycle:', e)
+    toast.error(t('issue.saveFailed'))
+  }
+}
+
+// Module update — backend Update handles module_ids atomically with delete+recreate
+async function handleModuleUpdate(moduleId: number | null) {
+  await instantUpdate('module_ids', moduleId ? [moduleId] : [])
 }
 
 // Navigation
@@ -269,10 +332,22 @@ function navigateToIssue(id: number) {
   })
 }
 
+async function handleRelationsRefresh() {
+  try {
+    const data = await issueApi.getIssue(issueId)
+    if (issue.value) {
+      Object.assign(issue.value, data)
+      subIssues.value = data.sub_issues || []
+    }
+  } catch (err) {
+    console.error('Failed to refresh issue after relations change:', err)
+  }
+}
+
 // Agent dispatch
-async function dispatchAgent() {
-  if (!selectedAgentId.value || !selectedAgentId.value.startsWith('agent:')) return
-  const agentId = parseInt(selectedAgentId.value.replace('agent:', ''))
+async function dispatchAgent(agentSelectorId: string) {
+  if (!agentSelectorId || !agentSelectorId.startsWith('agent:')) return
+  const agentId = parseInt(agentSelectorId.replace('agent:', ''))
   if (!agentId) return
   agentDispatching.value = true
   try {
@@ -281,8 +356,7 @@ async function dispatchAgent() {
       issue_id: issueId,
       project_id: projectId.value,
     })
-    toast.success('Agent dispatched successfully!')
-    selectedAgentId.value = ''
+    toast.success(t('agent.dispatch'))
   } catch (e: any) {
     toast.error(e?.response?.data?.message || e?.message || 'Failed to dispatch agent')
   } finally {

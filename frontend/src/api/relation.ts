@@ -15,8 +15,8 @@ export async function deleteRelationType(id: number): Promise<void> {
 }
 
 // ---- Issue Relations ----
-export async function listIssueRelations(issueId: number): Promise<any[]> {
-  const r = await api.get(`/issues/${issueId}/relations`); return r.data
+export async function listIssueRelations(issueId: number, direction: 'outbound' | 'inbound' | 'both' = 'both'): Promise<any[]> {
+  const r = await api.get(`/issues/${issueId}/relations`, { params: { direction } }); return r.data
 }
 export async function createIssueRelation(issueId: number, data: {related_issue_id:number,relation_type_id:number,comment?:string}): Promise<any> {
   const r = await api.post(`/issues/${issueId}/relations`, data); return r.data

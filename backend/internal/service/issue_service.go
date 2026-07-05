@@ -549,6 +549,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		hasChanges = true
 	}
 	if req.DescriptionHTML != nil && *req.DescriptionHTML != issue.DescriptionHTML {
+		s.createActivity(tx, issueID, "updated", strPtr("description"), nil, nil, nil, &userID)
 		issue.DescriptionHTML = *req.DescriptionHTML
 		hasChanges = true
 	}
@@ -645,6 +646,17 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	if req.CycleID != nil {
 		tx.Where("issue_id = ?", issueID).Delete(&model.IssueCycle{})
 		tx.Create(&model.IssueCycle{IssueID: issueID, CycleID: *req.CycleID})
+		s.createActivity(tx, issueID, "updated", strPtr("cycle"), nil, nil, nil, &userID)
+		hasChanges = true
+	}
+
+	// Handle modules
+	if req.ModuleIDs != nil {
+		tx.Where("issue_id = ?", issueID).Delete(&model.ModuleIssue{})
+		for _, mid := range req.ModuleIDs {
+			tx.Create(&model.ModuleIssue{IssueID: issueID, ModuleID: mid})
+		}
+		s.createActivity(tx, issueID, "updated", strPtr("module"), nil, nil, nil, &userID)
 		hasChanges = true
 	}
 
@@ -676,12 +688,14 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		}
 		issue.IssueTypeID = req.TypeID
 		tx.Save(&issue)
+		s.createActivity(tx, issueID, "updated", strPtr("issue_type"), nil, nil, nil, &userID)
 		hasChanges = true
 	}
 
 	// Parse dates
 	if req.StartDate != nil {
 		if t, err := time.Parse(time.RFC3339, *req.StartDate); err == nil {
+			s.createActivity(tx, issueID, "updated", strPtr("start_date"), nil, nil, nil, &userID)
 			issue.StartDate = &t
 			tx.Save(&issue)
 			hasChanges = true
@@ -689,6 +703,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	}
 	if req.TargetDate != nil {
 		if t, err := time.Parse(time.RFC3339, *req.TargetDate); err == nil {
+			s.createActivity(tx, issueID, "updated", strPtr("target_date"), nil, nil, nil, &userID)
 			issue.TargetDate = &t
 			tx.Save(&issue)
 			hasChanges = true
@@ -698,6 +713,23 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	if req.CoverImageURL != nil {
 		issue.CoverImageURL = req.CoverImageURL
 		tx.Save(&issue)
+		hasChanges = true
+	}
+
+	// Handle parent
+	if req.ParentID != nil {
+		if *req.ParentID == 0 {
+			issue.ParentID = nil
+		} else {
+			var parent model.Issue
+			if err := s.db.First(&parent, *req.ParentID).Error; err != nil {
+				tx.Rollback()
+				return nil, common.NotFound("Parent issue not found")
+			}
+			issue.ParentID = req.ParentID
+		}
+		tx.Save(&issue)
+		s.createActivity(tx, issueID, "updated", strPtr("parent"), nil, nil, nil, &userID)
 		hasChanges = true
 	}
 
@@ -893,7 +925,8 @@ func (s *IssueService) RemoveCycle(issueID, actorID uint64) error {
 // GetActivities returns issue activity history.
 func (s *IssueService) GetActivities(issueID uint64, limit, offset int) ([]response.IssueActivityResponse, error) {
 	var activities []model.IssueActivity
-	if err := s.db.Where("issue_id = ?", issueID).
+	if err := s.db.Preload("Actor").
+		Where("issue_id = ?", issueID).
 		Order("created_at DESC").
 		Limit(limit).Offset(offset).
 		Find(&activities).Error; err != nil {
@@ -902,16 +935,24 @@ func (s *IssueService) GetActivities(issueID uint64, limit, offset int) ([]respo
 
 	result := make([]response.IssueActivityResponse, len(activities))
 	for i, a := range activities {
+		actorName := ""
+		actorAvatar := ""
+		if a.Actor != nil {
+			actorName = a.Actor.DisplayName
+			if a.Actor.Avatar != nil { actorAvatar = *a.Actor.Avatar }
+		}
 		result[i] = response.IssueActivityResponse{
-			ID:        a.ID,
-			IssueID:   a.IssueID,
-			Verb:      a.Verb,
-			Field:     a.Field,
-			OldValue:  a.OldValue,
-			NewValue:  a.NewValue,
-			Comment:   a.Comment,
-			ActorID:   a.ActorID,
-			CreatedAt: a.CreatedAt,
+			ID:               a.ID,
+			IssueID:          a.IssueID,
+			Verb:             a.Verb,
+			Field:            a.Field,
+			OldValue:         a.OldValue,
+			NewValue:         a.NewValue,
+			Comment:          a.Comment,
+			ActorID:          a.ActorID,
+			ActorDisplayName: actorName,
+			ActorAvatar:      actorAvatar,
+			CreatedAt:        a.CreatedAt,
 		}
 	}
 	return result, nil
@@ -1175,7 +1216,13 @@ func (s *IssueService) buildResponse(issueID uint64) (*response.IssueResponse, e
 		Preload("AssigneeLinks.User").
 		Preload("LabelLinks.Label").
 		Preload("CycleLink").
-		Preload("SubIssues").
+		Preload("ModuleLinks").
+		Preload("Parent.State").
+		Preload("Parent.IssueType").
+		Preload("Parent.AssigneeLinks.User").
+		Preload("SubIssues.State").
+		Preload("SubIssues.IssueType").
+		Preload("SubIssues.AssigneeLinks.User").
 		First(&issue, issueID).Error; err != nil {
 		return nil, common.NotFound("Issue not found")
 	}
@@ -1237,6 +1284,92 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 		}
 	}
 
+	// Parent issue — use preloaded data, or load manually if preload failed
+	if issue.ParentID != nil {
+		parentIssue := issue.Parent
+		if parentIssue == nil || parentIssue.ID == 0 {
+			var p model.Issue
+			if err := s.db.Preload("State").Preload("IssueType").Preload("AssigneeLinks.User").First(&p, *issue.ParentID).Error; err == nil {
+				parentIssue = &p
+			}
+		}
+		if parentIssue != nil && parentIssue.ID != 0 {
+			parent := &response.RelatedIssueLite{
+				ID:         parentIssue.ID,
+				SequenceID: parentIssue.SequenceID,
+				Name:       parentIssue.Name,
+				StateID:    parentIssue.StateID,
+				Priority:   parentIssue.Priority,
+				TargetDate: parentIssue.TargetDate,
+				Assignees:  []response.UserLite{},
+			}
+			if parentIssue.State.ID != 0 {
+				parent.StateName = parentIssue.State.Name
+				parent.StateGroup = parentIssue.State.Group
+			}
+			if parentIssue.IssueType.ID != 0 {
+				parent.IssueType = &response.IssueTypeLite{
+					ID:    parentIssue.IssueType.ID,
+					Name:  parentIssue.IssueType.Name,
+					Color: parentIssue.IssueType.Color,
+					Icon:  parentIssue.IssueType.Icon,
+				}
+			}
+			for _, link := range parentIssue.AssigneeLinks {
+				if link.User.ID != 0 {
+					parent.Assignees = append(parent.Assignees, response.UserLite{
+						ID:          link.User.ID,
+						DisplayName: link.User.DisplayName,
+						Email:       link.User.Email,
+					})
+				}
+			}
+			resp.Parent = parent
+		}
+	}
+
+	// Sub-issues — use preloaded data, or load manually if preload failed
+	subIssues := issue.SubIssues
+	if len(subIssues) == 0 {
+		s.db.Where("parent_id = ?", issue.ID).
+			Preload("State").Preload("IssueType").Preload("AssigneeLinks.User").
+			Find(&subIssues)
+	}
+	resp.SubIssues = make([]response.SubIssueLite, 0)
+	for _, sub := range subIssues {
+		si := response.SubIssueLite{
+			ID:         sub.ID,
+			SequenceID: sub.SequenceID,
+			Name:       sub.Name,
+			StateID:    sub.StateID,
+			Priority:   sub.Priority,
+			TargetDate: sub.TargetDate,
+			Assignees:  []response.UserLite{},
+		}
+		if sub.State.ID != 0 {
+			si.StateName = sub.State.Name
+			si.StateGroup = sub.State.Group
+		}
+		if sub.IssueType.ID != 0 {
+			si.IssueType = &response.IssueTypeLite{
+				ID:    sub.IssueType.ID,
+				Name:  sub.IssueType.Name,
+				Color: sub.IssueType.Color,
+				Icon:  sub.IssueType.Icon,
+			}
+		}
+		for _, link := range sub.AssigneeLinks {
+			if link.User.ID != 0 {
+				si.Assignees = append(si.Assignees, response.UserLite{
+					ID:          link.User.ID,
+					DisplayName: link.User.DisplayName,
+					Email:       link.User.Email,
+				})
+			}
+		}
+		resp.SubIssues = append(resp.SubIssues, si)
+	}
+
 	// Assignees
 	resp.Assignees = make([]response.UserLite, 0)
 	resp.Assignees = []response.UserLite{} // ensure not null
@@ -1270,6 +1403,14 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 	// Cycle
 	if issue.CycleLink != nil {
 		resp.CycleID = &issue.CycleLink.CycleID
+	}
+
+	// Modules
+	resp.ModuleIDs = make([]uint64, 0)
+	for _, link := range issue.ModuleLinks {
+		if link.ModuleID != 0 {
+			resp.ModuleIDs = append(resp.ModuleIDs, link.ModuleID)
+		}
 	}
 
 	// Sub-issues count

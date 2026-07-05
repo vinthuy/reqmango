@@ -298,18 +298,36 @@ func (s *CustomFieldService) SetIssueValue(issueID uint64, req request.IssueCust
 		return nil, err
 	}
 
+	// Read old value before upsert
+	var old model.IssueCustomFieldValue
+	oldExists := s.db.Where("issue_id = ? AND field_id = ?", issueID, req.FieldID).First(&old).Error == nil
+
 	// Upsert: delete existing, then create
 	s.db.Where("issue_id = ? AND field_id = ?", issueID, req.FieldID).Delete(&model.IssueCustomFieldValue{})
 
+	newVal := strings.TrimSpace(req.Value)
 	v := model.IssueCustomFieldValue{
 		IssueID: issueID,
 		FieldID: req.FieldID,
-		Value:   strings.TrimSpace(req.Value),
+		Value:   newVal,
 	}
 
 	if err := s.db.Create(&v).Error; err != nil {
 		return nil, common.Internal("Failed to set custom field value")
 	}
+
+	// Record activity: "changed custom field X from A to B"
+	oldStr := ""
+	if oldExists { oldStr = old.Value }
+	fieldLabel := field.Name
+	s.db.Create(&model.IssueActivity{
+		IssueID:  &issueID,
+		Verb:     "updated",
+		Field:    strPtr("custom_field"),
+		OldValue: &oldStr,
+		NewValue: &newVal,
+		Comment:  &fieldLabel,
+	})
 
 	return &response.IssueCustomFieldValueResponse{
 		IssueID:   issueID,
