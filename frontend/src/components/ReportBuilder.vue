@@ -148,6 +148,18 @@
                 class="w-full px-3 py-2 border border-gray-200 rounded-md text-sm font-mono bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 transition-colors resize-none"></textarea>
             </div>
 
+            <!-- Date Range (inside filter builder) -->
+            <div class="mt-3 pt-3 border-t border-gray-100 flex items-end gap-3">
+              <div>
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateFrom') }}</label>
+                <input v-model="dateFrom" type="date" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateTo') }}</label>
+                <input v-model="dateTo" type="date" class="px-2.5 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              </div>
+            </div>
+
             <!-- RQL Preview -->
             <div v-if="filterMode === 'basic' && builtRqlPreview" class="mt-3 px-3 py-2 bg-gray-50 rounded-md text-xs font-mono text-gray-500">
               <span class="text-gray-400">RQL:</span> {{ builtRqlPreview }}
@@ -160,7 +172,7 @@
               <button @click="rqlError = null" class="text-red-400 hover:text-red-600">&times;</button>
             </div>
 
-            <!-- Chart + Date + Actions -->
+            <!-- Actions -->
             <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-end gap-3">
               <div>
                 <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.chart') }}</label>
@@ -170,8 +182,6 @@
                   >{{ (chartLabels as Record<string, string>)[c] || c }}</button>
                 </div>
               </div>
-              <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateFrom') }}</label><input v-model="dateFrom" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
-              <div><label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('report.dateTo') }}</label><input v-model="dateTo" type="date" class="px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" /></div>
               <button @click="generate" :disabled="loading" class="px-4 py-1.5 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors self-end mb-0.5">
                 {{ loading ? '...' : t('report.generate') }}
               </button>
