@@ -106,6 +106,7 @@
                 :modules="moduleOptions"
                 :custom-fields="customFieldEntries"
                 :workspace-id="workspaceId"
+                :agent-dispatching="agentDispatching"
                 :relation-summary="relationSidebarSummary"
                 @update:state="(id: any) => quickUpdate('state_id', id)"
                 @update:priority="(p: any) => quickUpdate('priority', p)"
