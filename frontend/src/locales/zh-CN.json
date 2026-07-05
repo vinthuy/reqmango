@@ -1303,6 +1303,9 @@
     "count": "数量",
     "percent": "%",
     "saveFailed": "保存失败，请重试",
+    "selectTypeToGenerate": "选择报表类型并点击生成",
+    "saveReport": "保存报表",
+    "saveNamePlaceholder": "请输入报表名称",
     "exportCSV": "导出 CSV",
     "exportPNG": "导出图片",
     "saveDialog": {

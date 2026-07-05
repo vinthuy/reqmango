@@ -1303,6 +1303,9 @@
     "count": "Count",
     "percent": "%",
     "saveFailed": "Save failed, please retry",
+    "selectTypeToGenerate": "Select report type and click Generate",
+    "saveReport": "Save Report",
+    "saveNamePlaceholder": "Enter report name",
     "exportCSV": "Export CSV",
     "exportPNG": "Export PNG",
     "saveDialog": {
