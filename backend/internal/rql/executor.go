@@ -55,15 +55,16 @@ func NewIssueQueryContext(db *gorm.DB, projectID uint64) *QueryContext {
 			"state_id":      {ColumnName: "issues.state_id", FieldType: "number"},
 			"state_group":   {ColumnName: "state_group", FieldType: "state_group"},
 			"priority":      {ColumnName: "issues.priority", FieldType: "string"},
-			"assignee":      {ColumnName: "assignee_id", FieldType: "user", JoinTable: "issue_assignees"},
-			"assignee_id":   {ColumnName: "assignee_id", FieldType: "user", JoinTable: "issue_assignees"},
-			"reporter":      {ColumnName: "issues.reporter_id", FieldType: "number"},
-			"label":         {ColumnName: "label_id", FieldType: "label", JoinTable: "issue_labels"},
-			"cycle":         {ColumnName: "cycle_id", FieldType: "cycle", JoinTable: "issue_cycles"},
-			"cycle_id":      {ColumnName: "cycle_id", FieldType: "cycle", JoinTable: "issue_cycles"},
-			"module":        {ColumnName: "module_id", FieldType: "module", JoinTable: "module_issues"},
-			"module_id":     {ColumnName: "module_id", FieldType: "module", JoinTable: "module_issues"},
-			"issue_type_id": {ColumnName: "issues.issue_type_id", FieldType: "number"},
+		"type":          {ColumnName: "issues.issue_type_id", FieldType: "number", JoinTable: "issue_types", JoinKey: "name"},
+		"assignee":      {ColumnName: "issues.id", FieldType: "user"},
+		"assignee_id":   {ColumnName: "assignee_id", FieldType: "user", JoinTable: "issue_assignees"},
+		"reporter":      {ColumnName: "issues.reporter_id", FieldType: "number"},
+		"label":         {ColumnName: "issues.id", FieldType: "label"},
+		"cycle":         {ColumnName: "issues.id", FieldType: "cycle"},
+		"cycle_id":      {ColumnName: "cycle_id", FieldType: "cycle", JoinTable: "issue_cycles"},
+		"module":        {ColumnName: "issues.id", FieldType: "module"},
+		"module_id":     {ColumnName: "module_id", FieldType: "module", JoinTable: "module_issues"},
+		"issue_type_id": {ColumnName: "issues.issue_type_id", FieldType: "number"},
 			"project_id":    {ColumnName: "issues.project_id", FieldType: "number"},
 			"workspace_id":  {ColumnName: "issues.workspace_id", FieldType: "number"},
 			"created_at":    {ColumnName: "issues.created_at", FieldType: "date"},
@@ -187,11 +188,21 @@ func (e *GORMExecutor) buildBinaryRaw(expr *BinaryExpr, ctx *QueryContext) (*raw
 	return &rawCondition{SQL: sql, Args: args, Joins: joins}, nil
 }
 
+// normalizeCustomFieldPrefix converts "custom_field:N" to "cf_N" for uniform handling.
+func normalizeCustomFieldPrefix(field string) string {
+	if strings.HasPrefix(field, "custom_field:") {
+		return "cf_" + strings.TrimPrefix(field, "custom_field:")
+	}
+	return field
+}
+
+// buildComparisonRaw 将 AST 节点转换为原始 SQL 条件
 func (e *GORMExecutor) buildComparisonRaw(expr *Comparison, ctx *QueryContext) (*rawCondition, error) {
-	mapping, ok := ctx.FieldMap[expr.Field]
+	field := normalizeCustomFieldPrefix(expr.Field)
+	mapping, ok := ctx.FieldMap[field]
 	if !ok {
-		if strings.HasPrefix(expr.Field, "cf_") {
-			return e.buildCustomFieldComparison(expr.Field, expr.Operator, expr.Value, ctx)
+		if strings.HasPrefix(field, "cf_") {
+			return e.buildCustomFieldComparison(field, expr.Operator, expr.Value, ctx)
 		}
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}
@@ -293,8 +304,8 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		return &rawCondition{SQL: fmt.Sprintf("%s = ?", mapping.ColumnName), Args: []interface{}{value}}, nil
 
 	case "number":
-		// If JoinTable is "states" with JoinKey "name", lookup state by name via subquery
-		if mapping.JoinTable == "states" && mapping.JoinKey == "name" {
+		// If JoinTable has JoinKey "name", lookup by name via subquery (e.g. state → states, type → issue_types)
+		if mapping.JoinTable != "" && mapping.JoinKey == "name" {
 			return &rawCondition{
 				SQL:  fmt.Sprintf("%s IN (SELECT id FROM %s WHERE name = ?)", mapping.ColumnName, mapping.JoinTable),
 				Args: []interface{}{value},
@@ -310,31 +321,31 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		}, nil
 
 	case "user":
+		// Look up assignee by display name through issue_assignees and users tables
 		return &rawCondition{
-			SQL:   "issue_assignees.user_id = ?",
-			Args:  []interface{}{value},
-			Joins: []string{"JOIN issue_assignees ON issue_assignees.issue_id = issues.id"},
+			SQL:  "issues.id IN (SELECT ia.issue_id FROM issue_assignees ia JOIN users u ON ia.user_id = u.id WHERE COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) = ?)",
+			Args: []interface{}{value},
 		}, nil
 
 	case "label":
+		// Look up label by name through issue_labels and labels tables
 		return &rawCondition{
-			SQL:   "issue_labels.label_id = ?",
-			Args:  []interface{}{value},
-			Joins: []string{"JOIN issue_labels ON issue_labels.issue_id = issues.id"},
+			SQL:  "issues.id IN (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name = ?)",
+			Args: []interface{}{value},
 		}, nil
 
 	case "cycle":
+		// Look up cycle by name through issue_cycles and cycles tables
 		return &rawCondition{
-			SQL:   "issue_cycles.cycle_id = ?",
-			Args:  []interface{}{value},
-			Joins: []string{"JOIN issue_cycles ON issue_cycles.issue_id = issues.id"},
+			SQL:  "issues.id IN (SELECT ic.issue_id FROM issue_cycles ic JOIN cycles c ON ic.cycle_id = c.id WHERE c.name = ?)",
+			Args: []interface{}{value},
 		}, nil
 
 	case "module":
+		// Look up module by name through module_issues and modules tables
 		return &rawCondition{
-			SQL:   "module_issues.module_id = ?",
-			Args:  []interface{}{value},
-			Joins: []string{"JOIN module_issues ON module_issues.issue_id = issues.id"},
+			SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id WHERE m.name = ?)",
+			Args: []interface{}{value},
 		}, nil
 
 	default:
@@ -346,8 +357,8 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 	// Handle special field types that require JOINs (consistent with buildEqualRaw)
 	switch mapping.FieldType {
 	case "number":
-		// If JoinTable is "states" with JoinKey "name", match by state name via subquery
-		if mapping.JoinTable == "states" && mapping.JoinKey == "name" {
+		// If JoinTable has JoinKey "name", match by name via subquery (e.g. state → states, type → issue_types)
+		if mapping.JoinTable != "" && mapping.JoinKey == "name" {
 			return &rawCondition{
 				SQL:  fmt.Sprintf("%s NOT IN (SELECT id FROM %s WHERE name = ?)", mapping.ColumnName, mapping.JoinTable),
 				Args: []interface{}{value},
@@ -362,27 +373,23 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 		}, nil
 	case "user":
 		return &rawCondition{
-			SQL:   "issue_assignees.user_id != ?",
-			Args:  []interface{}{value},
-			Joins: []string{"JOIN issue_assignees ON issue_assignees.issue_id = issues.id"},
+			SQL:  "issues.id NOT IN (SELECT ia.issue_id FROM issue_assignees ia JOIN users u ON ia.user_id = u.id WHERE COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) = ?)",
+			Args: []interface{}{value},
 		}, nil
 	case "label":
 		return &rawCondition{
-			SQL:   "issue_labels.label_id != ?",
-			Args:  []interface{}{value},
-			Joins: []string{"JOIN issue_labels ON issue_labels.issue_id = issues.id"},
+			SQL:  "issues.id NOT IN (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name = ?)",
+			Args: []interface{}{value},
 		}, nil
 	case "cycle":
 		return &rawCondition{
-			SQL:   "issue_cycles.cycle_id != ?",
-			Args:  []interface{}{value},
-			Joins: []string{"JOIN issue_cycles ON issue_cycles.issue_id = issues.id"},
+			SQL:  "issues.id NOT IN (SELECT ic.issue_id FROM issue_cycles ic JOIN cycles c ON ic.cycle_id = c.id WHERE c.name = ?)",
+			Args: []interface{}{value},
 		}, nil
 	case "module":
 		return &rawCondition{
-			SQL:   "module_issues.module_id != ?",
-			Args:  []interface{}{value},
-			Joins: []string{"JOIN module_issues ON module_issues.issue_id = issues.id"},
+			SQL:  "issues.id NOT IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id WHERE m.name = ?)",
+			Args: []interface{}{value},
 		}, nil
 	}
 	return &rawCondition{SQL: fmt.Sprintf("%s != ?", mapping.ColumnName), Args: []interface{}{value}}, nil
@@ -395,10 +402,11 @@ func (e *GORMExecutor) buildComparisonOpRaw(value interface{}, mapping FieldMapp
 }
 
 func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCondition, error) {
-	mapping, ok := ctx.FieldMap[expr.Field]
+	field := normalizeCustomFieldPrefix(expr.Field)
+	mapping, ok := ctx.FieldMap[field]
 	if !ok {
-		if strings.HasPrefix(expr.Field, "cf_") {
-			return e.buildCustomFieldLike(expr.Field, expr.Operator, expr.Value, ctx)
+		if strings.HasPrefix(field, "cf_") {
+			return e.buildCustomFieldLike(field, expr.Operator, expr.Value, ctx)
 		}
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}
@@ -413,8 +421,8 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 		value = fmt.Sprintf("%%%s%%", value)
 	}
 
-	if expr.Field == "name" || expr.Field == "description" {
-		return e.buildFullTextSearch(expr.Field, expr.Operator, expr.Value)
+	if field == "name" || field == "description" {
+		return e.buildFullTextSearch(field, expr.Operator, expr.Value)
 	}
 
 	return &rawCondition{
@@ -495,10 +503,11 @@ func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string, c
 }
 
 func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawCondition, error) {
-	mapping, ok := ctx.FieldMap[expr.Field]
+	field := normalizeCustomFieldPrefix(expr.Field)
+	mapping, ok := ctx.FieldMap[field]
 	if !ok {
-		if strings.HasPrefix(expr.Field, "cf_") {
-			return e.buildCustomFieldIn(expr.Field, expr.Operator, expr.Values, ctx)
+		if strings.HasPrefix(field, "cf_") {
+			return e.buildCustomFieldIn(field, expr.Operator, expr.Values, ctx)
 		}
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}
@@ -523,11 +532,11 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 	}
 	placeholderList := strings.Join(placeholders, ", ")
 
-	// Handle special field types that require JOINs (consistent with buildEqualRaw)
+	// Handle special field types that require name-based lookups (consistent with buildEqualRaw)
 	switch mapping.FieldType {
 	case "number":
-		// If JoinTable is "states" with JoinKey "name", use subquery to resolve names to IDs
-		if mapping.JoinTable == "states" && mapping.JoinKey == "name" {
+		// If JoinTable has JoinKey "name", use subquery to resolve names to IDs (e.g. state → states, type → issue_types)
+		if mapping.JoinTable != "" && mapping.JoinKey == "name" {
 			return &rawCondition{
 				SQL:  fmt.Sprintf("%s %s (SELECT id FROM %s WHERE name IN (%s))", mapping.ColumnName, op, mapping.JoinTable, placeholderList),
 				Args: args,
@@ -542,30 +551,26 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 
 	case "user":
 		return &rawCondition{
-			SQL:   fmt.Sprintf("issue_assignees.user_id %s (%s)", op, placeholderList),
-			Args:  args,
-			Joins: []string{"JOIN issue_assignees ON issue_assignees.issue_id = issues.id"},
+			SQL:  fmt.Sprintf("issues.id %s (SELECT ia.issue_id FROM issue_assignees ia JOIN users u ON ia.user_id = u.id WHERE COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) IN (%s))", op, placeholderList),
+			Args: args,
 		}, nil
 
 	case "label":
 		return &rawCondition{
-			SQL:   fmt.Sprintf("issue_labels.label_id %s (%s)", op, placeholderList),
-			Args:  args,
-			Joins: []string{"JOIN issue_labels ON issue_labels.issue_id = issues.id"},
+			SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name IN (%s))", op, placeholderList),
+			Args: args,
 		}, nil
 
 	case "cycle":
 		return &rawCondition{
-			SQL:   fmt.Sprintf("issue_cycles.cycle_id %s (%s)", op, placeholderList),
-			Args:  args,
-			Joins: []string{"JOIN issue_cycles ON issue_cycles.issue_id = issues.id"},
+			SQL:  fmt.Sprintf("issues.id %s (SELECT ic.issue_id FROM issue_cycles ic JOIN cycles c ON ic.cycle_id = c.id WHERE c.name IN (%s))", op, placeholderList),
+			Args: args,
 		}, nil
 
 	case "module":
 		return &rawCondition{
-			SQL:   fmt.Sprintf("module_issues.module_id %s (%s)", op, placeholderList),
-			Args:  args,
-			Joins: []string{"JOIN module_issues ON module_issues.issue_id = issues.id"},
+			SQL:  fmt.Sprintf("issues.id %s (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id WHERE m.name IN (%s))", op, placeholderList),
+			Args: args,
 		}, nil
 	}
 
@@ -644,7 +649,8 @@ func (e *GORMExecutor) buildNotRaw(expr *NotExpr, ctx *QueryContext) (*rawCondit
 }
 
 func (e *GORMExecutor) buildNullRaw(expr *NullCheck, ctx *QueryContext) (*rawCondition, error) {
-	mapping, ok := ctx.FieldMap[expr.Field]
+	field := normalizeCustomFieldPrefix(expr.Field)
+	mapping, ok := ctx.FieldMap[field]
 	if !ok {
 		return &rawCondition{SQL: "1 = 1"}, nil
 	}

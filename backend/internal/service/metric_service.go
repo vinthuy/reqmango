@@ -3,6 +3,9 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
@@ -209,6 +212,8 @@ func (s *MetricService) RenderChart(projectID, chartID uint64) (*RenderResponse,
 		json.Unmarshal([]byte(chart.Filters), &filtersMap)
 		if rql, ok := filtersMap["rql"].(string); ok && rql != "" {
 			reportReq.RQL = rql
+		} else if conds, ok := filtersMap["conditions"].([]interface{}); ok && len(conds) > 0 {
+			reportReq.RQL = conditionsToRQL(conds)
 		}
 	}
 
@@ -280,8 +285,12 @@ func (s *MetricService) RenderChartData(projectID uint64, req *CreateChartReques
 		YAxis: req.YAxis,
 	}
 	if req.Filters != nil {
+		// Prefer explicit rql string if provided
 		if rql, ok := req.Filters["rql"].(string); ok && rql != "" {
 			reportReq.RQL = rql
+		} else if conds, ok := req.Filters["conditions"].([]interface{}); ok && len(conds) > 0 {
+			// Convert structured conditions array to RQL string
+			reportReq.RQL = conditionsToRQL(conds)
 		}
 	}
 
@@ -460,4 +469,91 @@ type ReferenceLineData struct {
 	Label string  `json:"label"`
 	Color string  `json:"color"`
 	Style string  `json:"style"`
+}
+
+// conditionsToRQL converts a structured conditions array (from the frontend filter panel)
+// into an RQL query string. Each condition is {"field": "...", "operator": "...", "values": [...]}.
+// Conditions are joined with AND.
+func conditionsToRQL(conditions []interface{}) string {
+	var parts []string
+	for _, c := range conditions {
+		cond, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		field, _ := cond["field"].(string)
+		operator, _ := cond["operator"].(string)
+		valuesRaw, _ := cond["values"].([]interface{})
+
+		if field == "" || operator == "" || len(valuesRaw) == 0 {
+			continue
+		}
+
+		// Custom fields use "custom_field:N" format — map to "cf_N" for the executor
+		escapedField := field
+		if strings.HasPrefix(field, "custom_field:") {
+			escapedField = "cf_" + strings.TrimPrefix(field, "custom_field:")
+		}
+
+		switch operator {
+		case "=", "!=":
+			if len(valuesRaw) == 1 {
+				val := escapeRQLString(fmt.Sprintf("%v", valuesRaw[0]))
+				parts = append(parts, fmt.Sprintf("%s %s %s", escapedField, operator, val))
+			} else {
+				// Multiple values → IN / NOT IN
+				inOp := "IN"
+				if operator == "!=" {
+					inOp = "NOT IN"
+				}
+				quoted := make([]string, len(valuesRaw))
+				for i, v := range valuesRaw {
+					quoted[i] = escapeRQLString(fmt.Sprintf("%v", v))
+				}
+				parts = append(parts, fmt.Sprintf("%s %s (%s)", escapedField, inOp, strings.Join(quoted, ", ")))
+			}
+		case "IN":
+			quoted := make([]string, len(valuesRaw))
+			for i, v := range valuesRaw {
+				quoted[i] = escapeRQLString(fmt.Sprintf("%v", v))
+			}
+			parts = append(parts, fmt.Sprintf("%s IN (%s)", escapedField, strings.Join(quoted, ", ")))
+		case "NOT IN":
+			quoted := make([]string, len(valuesRaw))
+			for i, v := range valuesRaw {
+				quoted[i] = escapeRQLString(fmt.Sprintf("%v", v))
+			}
+			parts = append(parts, fmt.Sprintf("%s NOT IN (%s)", escapedField, strings.Join(quoted, ", ")))
+		case "LIKE", "NOT LIKE":
+			if len(valuesRaw) > 0 {
+				val := escapeRQLString(fmt.Sprintf("%v", valuesRaw[0]))
+				parts = append(parts, fmt.Sprintf("%s %s %s", escapedField, operator, val))
+			}
+		case "IS NULL", "IS NOT NULL":
+			parts = append(parts, fmt.Sprintf("%s %s", escapedField, operator))
+		default:
+			// Generic comparison: >, <, >=, <=
+			if len(valuesRaw) > 0 {
+				val := escapeRQLString(fmt.Sprintf("%v", valuesRaw[0]))
+				parts = append(parts, fmt.Sprintf("%s %s %s", escapedField, operator, val))
+			}
+		}
+	}
+	return strings.Join(parts, " AND ")
+}
+
+// escapeRQLString wraps a value in double quotes for RQL, escaping internal quotes.
+func escapeRQLString(val string) string {
+	// If the value is numeric, don't quote it
+	if _, err := strconv.ParseFloat(val, 64); err == nil {
+		return val
+	}
+	// If it looks like a date (YYYY-MM-DD), don't quote it
+	if matched, _ := regexp.MatchString(`^\d{4}-\d{2}-\d{2}`, val); matched {
+		return val
+	}
+	// Otherwise, wrap in double quotes with escaped internal quotes
+	escaped := strings.ReplaceAll(val, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+	return `"` + escaped + `"`
 }

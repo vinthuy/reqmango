@@ -20,6 +20,17 @@
       </div>
     </div>
 
+    <!-- Axis Info -->
+    <div v-if="chart.x_axis || chart.y_axis" class="card-axis-info px-4">
+      <span v-if="chart.x_axis">X: {{ axisLabel(chart.x_axis) }}</span>
+      <span v-if="chart.x_axis && chart.y_axis" class="axis-sep">|</span>
+      <span v-if="chart.y_axis">Y: {{ axisLabel(chart.y_axis) }}</span>
+      <template v-if="chart.filters">
+        <span class="axis-sep">|</span>
+        <span>筛选: {{ chart.filters }}</span>
+      </template>
+    </div>
+
     <!-- Chart Area -->
     <div class="px-4 py-4">
       <div v-if="loading" class="flex items-center justify-center h-48">
@@ -78,6 +89,31 @@ const chartTypeMap: Record<string, string> = {
 }
 
 const isPieType = computed(() => ['pie', 'doughnut'].includes(currentType.value))
+
+const xAxisLabelMap: Record<string, string> = {
+  state: '状态', type: '类型', priority: '优先级', assignee: '负责人',
+  reporter: '报告人', title: '标题', label: '标签', module: '模块',
+  created_at: '创建日期', updated_at: '更新日期',
+}
+
+const yAxisLabelMap: Record<string, string> = {
+  count: '数量', avg_days: '平均天数', throughput: '吞吐量', wip: '在制品',
+  in_progress: '进行中', done: '已完成', avg_cycle_time: '平均周期时间',
+  avg_resolution_days: '平均解决天数',
+}
+
+function axisLabel(field: string): string {
+  if (field.startsWith('custom_field_avg:')) {
+    return '自定义字段(平均)'
+  }
+  if (field.startsWith('custom_field_count:')) {
+    return '自定义字段(计数)'
+  }
+  if (field.startsWith('custom_field:')) {
+    return '自定义字段(' + field.split(':')[1] + ')'
+  }
+  return xAxisLabelMap[field] || yAxisLabelMap[field] || field
+}
 
 // Preview mode: chart.id === 0 means preview with inline data
 const isPreview = computed(() => props.chart.id === 0)
@@ -151,3 +187,17 @@ onUnmounted(() => {
   destroyChart()
 })
 </script>
+
+<style scoped>
+.card-axis-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 11px;
+  color: #64748b;
+}
+.axis-sep {
+  color: #cbd5e1;
+}
+</style>
