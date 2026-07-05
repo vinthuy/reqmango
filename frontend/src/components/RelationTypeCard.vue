@@ -70,7 +70,7 @@
         <!-- Priority -->
         <span class="flex items-center gap-1 text-[10px] shrink-0">
           <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: priorityColor(item.related_issue.priority) }"></span>
-          {{ t(`issue.priority${item.related_issue.priority.charAt(0).toUpperCase() + item.related_issue.priority.slice(1)}`) }}
+          {{ t(`issue.priority${(item.related_issue.priority || 'none').charAt(0).toUpperCase() + (item.related_issue.priority || 'none').slice(1)}`) }}
         </span>
         <!-- Assignee -->
         <span class="text-[10px] text-gray-500 shrink-0 w-12 truncate">
@@ -94,6 +94,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { stateColor, priorityColor, formatDate } from '@/composables/useRelationHelpers'
 
 const { t } = useI18n()
 
@@ -140,19 +141,4 @@ function getIssueType(issue: RelationItem['related_issue']) {
   return props.issueTypes.find((t) => t.id === issue?.issue_type?.id) || issue?.issue_type || null
 }
 
-function stateColor(group: string) {
-  const m: Record<string, string> = { done: '#22c55e', in_progress: '#3b82f6', backlog: '#9ca3af', todo: '#9ca3af', cancelled: '#ef4444' }
-  return m[group] || '#9ca3af'
-}
-
-function priorityColor(p: string) {
-  const m: Record<string, string> = { urgent: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', none: '#9ca3af' }
-  return m[p] || m.none
-}
-
-function formatDate(d: string) {
-  if (!d) return '—'
-  const date = new Date(d)
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
 </script>

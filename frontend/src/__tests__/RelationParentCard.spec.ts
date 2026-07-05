@@ -89,4 +89,20 @@ describe('RelationParentCard', () => {
     // Should show "—" for unassigned
     expect(wrapper.text()).toContain('—')
   })
+
+  it('renders "—" for invalid/unparseable target_date', () => {
+    const wrapper = mountCard({
+      parent: { ...parentIssue, target_date: 'not-a-date' },
+    })
+    expect(wrapper.text()).toContain('—')
+  })
+
+  it('does not crash when parent has no issue_type', () => {
+    const wrapper = mountCard({
+      parent: { ...parentIssue, issue_type: undefined },
+    })
+    expect(wrapper.exists()).toBe(true)
+    // Should show "—" for unknown type
+    expect(wrapper.text()).toContain('—')
+  })
 })

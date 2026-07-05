@@ -90,6 +90,26 @@ describe('RelationTypeCard', () => {
     expect(wrapper.text()).toContain('issueKanban.noRelations')
   })
 
+  it('renders "—" for invalid/unparseable target_date', () => {
+    const wrapper = mountCard({
+      items: [
+        {
+          id: 101,
+          related_issue: {
+            id: 55, sequence_id: 55, name: 'OAuth2 provider setup',
+            state_name: 'Todo', state_group: 'todo',
+            priority: 'high',
+            assignees: [],
+            start_date: null, target_date: 'invalid-date',
+            issue_type: { id: 2, name: 'Feature', color: '#6366f1' },
+          },
+          related_issue_id: 55,
+        },
+      ],
+    })
+    expect(wrapper.text()).toContain('—')
+  })
+
   it('collapses and expands when header is clicked', async () => {
     const wrapper = mountCard({
       items: [
