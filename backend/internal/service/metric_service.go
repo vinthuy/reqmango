@@ -505,6 +505,13 @@ func conditionsToRQL(conditions []interface{}) string {
 			continue
 		}
 
+		// Fallback: if values is empty but value (single string) is present, use it
+		if len(valuesRaw) == 0 {
+			if v, ok := cond["value"].(string); ok && v != "" {
+				valuesRaw = []interface{}{v}
+			}
+		}
+
 		if len(valuesRaw) == 0 {
 			continue
 		}
@@ -540,8 +547,18 @@ func conditionsToRQL(conditions []interface{}) string {
 			parts = append(parts, fmt.Sprintf("%s NOT IN (%s)", escapedField, strings.Join(quoted, ", ")))
 		case "LIKE", "NOT LIKE":
 			if len(valuesRaw) > 0 {
-				val := escapeRQLString(fmt.Sprintf("%v", valuesRaw[0]))
+				val := escapeRQLString(fmt.Sprintf("%%%s%%", valuesRaw[0]))
 				parts = append(parts, fmt.Sprintf("%s %s %s", escapedField, operator, val))
+			}
+		case "contains":
+			if len(valuesRaw) > 0 {
+				val := escapeRQLString(fmt.Sprintf("%%%s%%", valuesRaw[0]))
+				parts = append(parts, fmt.Sprintf("%s LIKE %s", escapedField, val))
+			}
+		case "not_contains":
+			if len(valuesRaw) > 0 {
+				val := escapeRQLString(fmt.Sprintf("%%%s%%", valuesRaw[0]))
+				parts = append(parts, fmt.Sprintf("%s NOT LIKE %s", escapedField, val))
 			}
 		case "IS NULL", "IS NOT NULL":
 			parts = append(parts, fmt.Sprintf("%s %s", escapedField, operator))

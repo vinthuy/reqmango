@@ -39,6 +39,45 @@
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
       </div>
+      <!-- Table View -->
+      <div v-else-if="hasData && isTableType" class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="border-b border-gray-100">
+              <th class="text-left py-2 px-3 text-gray-500 font-medium">{{ axisLabel(chart.x_axis) }}</th>
+              <th class="text-right py-2 px-3 text-gray-500 font-medium">{{ axisLabel(chart.y_axis) }}</th>
+              <th class="text-right py-2 px-3 text-gray-500 font-medium">占比</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, i) in paginatedItems" :key="i" class="border-b border-gray-50 hover:bg-gray-50/50">
+              <td class="py-1.5 px-3 text-gray-700">{{ item.label }}</td>
+              <td class="py-1.5 px-3 text-right font-medium text-gray-800">{{ item.value.toLocaleString() }}</td>
+              <td class="py-1.5 px-3 text-right text-gray-500">{{ item.pct }}%</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="border-t border-gray-200 font-medium">
+              <td class="py-1.5 px-3 text-gray-600">合计</td>
+              <td class="py-1.5 px-3 text-right text-gray-800">{{ renderData!.total.toLocaleString() }}</td>
+              <td class="py-1.5 px-3 text-right text-gray-500">100%</td>
+            </tr>
+          </tfoot>
+        </table>
+        <!-- Pagination -->
+        <div v-if="tablePageCount > 1" class="flex items-center justify-between py-2 px-3 border-t border-gray-100">
+          <span class="text-[11px] text-gray-400">共 {{ tableItems.length }} 条，第 {{ tablePage }}/{{ tablePageCount }} 页</span>
+          <div class="flex items-center gap-1">
+            <button @click="tablePage = Math.max(1, tablePage - 1)" :disabled="tablePage <= 1"
+              class="px-2 py-0.5 text-[11px] rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">上一页</button>
+            <button v-for="p in visiblePages" :key="p" @click="tablePage = p"
+              :class="['px-2 py-0.5 text-[11px] rounded border', p === tablePage ? 'bg-indigo-50 border-indigo-200 text-indigo-600 font-medium' : 'border-gray-200 hover:bg-gray-50']">{{ p }}</button>
+            <button @click="tablePage = Math.min(tablePageCount, tablePage + 1)" :disabled="tablePage >= tablePageCount"
+              class="px-2 py-0.5 text-[11px] rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">下一页</button>
+          </div>
+        </div>
+      </div>
+      <!-- Canvas Chart -->
       <div v-else-if="hasData" :class="['mx-auto', isPieType ? 'max-w-md' : 'max-w-full']" style="height: 280px">
         <canvas ref="chartCanvas"></canvas>
       </div>
@@ -89,6 +128,37 @@ const chartTypeMap: Record<string, string> = {
 }
 
 const isPieType = computed(() => ['pie', 'doughnut'].includes(currentType.value))
+const isTableType = computed(() => currentType.value === 'table')
+
+// ── Table Pagination ──
+const TABLE_PAGE_SIZE = 10
+const tablePage = ref(1)
+
+const tableItems = computed(() => {
+  if (!renderData.value) return []
+  return renderData.value.labels.map((label, i) => {
+    const value = renderData.value!.values[i] || 0
+    const pct = renderData.value!.total > 0 ? Math.round((value / renderData.value!.total) * 1000) / 10 : 0
+    return { label, value, pct }
+  })
+})
+
+const tablePageCount = computed(() => Math.max(1, Math.ceil(tableItems.value.length / TABLE_PAGE_SIZE)))
+
+const paginatedItems = computed(() => {
+  const start = (tablePage.value - 1) * TABLE_PAGE_SIZE
+  return tableItems.value.slice(start, start + TABLE_PAGE_SIZE)
+})
+
+const visiblePages = computed(() => {
+  const total = tablePageCount.value
+  const cur = tablePage.value
+  const pages: number[] = []
+  const start = Math.max(1, cur - 2)
+  const end = Math.min(total, start + 4)
+  for (let i = start; i <= end; i++) pages.push(i)
+  return pages
+})
 
 const xAxisLabelMap: Record<string, string> = {
   state: '状态', type: '类型', priority: '优先级', assignee: '负责人',
@@ -162,6 +232,9 @@ const renderData = computed(() => {
   return data
 })
 
+// Reset page when data changes
+watch(renderData, () => { tablePage.value = 1 })
+
 const hasData = computed(() => renderData.value && renderData.value.labels.length > 0)
 
 function toReportResponse(data: RenderResult): ReportResponse {
@@ -188,9 +261,9 @@ async function fetchAndRender() {
   }
 }
 
-// Render chart when data changes
+// Render chart when data changes (skip for table type)
 watch(renderData, async (data) => {
-  if (data && data.labels.length > 0) {
+  if (data && data.labels.length > 0 && !isTableType.value) {
     await nextTick()
     await new Promise(r => setTimeout(r, isPreview.value ? 100 : 50))
     renderChart(data, chartTypeMap[currentType.value] || 'Bar')

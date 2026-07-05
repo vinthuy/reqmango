@@ -125,8 +125,11 @@ func (e *GORMExecutor) Execute(db *gorm.DB, node Node, ctx *QueryContext) (*gorm
 	// 使用 rawCondition 统一构建 WHERE 子句
 	cond, err := e.buildRawCondition(node, ctx)
 	if err != nil {
+		fmt.Printf("[RQL EXECUTOR ERROR] %v\n", err)
 		return db, err
 	}
+
+	fmt.Printf("[RQL EXECUTOR] SQL: %s | Args: %v | Joins: %v\n", cond.SQL, cond.Args, cond.Joins)
 
 	// 应用 JOIN
 	for _, join := range cond.Joins {
@@ -305,10 +308,11 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 
 	case "number":
 		// If JoinTable has JoinKey "name", lookup by name via subquery (e.g. state → states, type → issue_types)
+		// Use LIKE to match bilingual names like "进行中 (In Progress)" when user sends "进行中"
 		if mapping.JoinTable != "" && mapping.JoinKey == "name" {
 			return &rawCondition{
-				SQL:  fmt.Sprintf("%s IN (SELECT id FROM %s WHERE name = ?)", mapping.ColumnName, mapping.JoinTable),
-				Args: []interface{}{value},
+				SQL:  fmt.Sprintf("%s IN (SELECT id FROM %s WHERE name LIKE ?)", mapping.ColumnName, mapping.JoinTable),
+				Args: []interface{}{"%" + fmt.Sprint(value) + "%"},
 			}, nil
 		}
 		return &rawCondition{SQL: fmt.Sprintf("%s = ?", mapping.ColumnName), Args: []interface{}{value}}, nil
@@ -358,10 +362,11 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 	switch mapping.FieldType {
 	case "number":
 		// If JoinTable has JoinKey "name", match by name via subquery (e.g. state → states, type → issue_types)
+		// Use LIKE to match bilingual names like "进行中 (In Progress)" when user sends "进行中"
 		if mapping.JoinTable != "" && mapping.JoinKey == "name" {
 			return &rawCondition{
-				SQL:  fmt.Sprintf("%s NOT IN (SELECT id FROM %s WHERE name = ?)", mapping.ColumnName, mapping.JoinTable),
-				Args: []interface{}{value},
+				SQL:  fmt.Sprintf("%s NOT IN (SELECT id FROM %s WHERE name LIKE ?)", mapping.ColumnName, mapping.JoinTable),
+				Args: []interface{}{"%" + fmt.Sprint(value) + "%"},
 			}, nil
 		}
 		return &rawCondition{SQL: fmt.Sprintf("%s != ?", mapping.ColumnName), Args: []interface{}{value}}, nil

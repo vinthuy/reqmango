@@ -63,7 +63,7 @@ func (l *Lexer) Tokenize() ([]Token, *ParseError) {
 		}
 
 		// 操作符
-		if char == '=' || char == '!' || char == '>' || char == '<' {
+		if char == '=' || char == '!' || char == '>' || char == '<' || char == '~' {
 			token := l.readOperator()
 			tokens = append(tokens, token)
 			continue
@@ -134,7 +134,7 @@ func (l *Lexer) readOperator() Token {
 	char := rune(l.input[l.position])
 	l.position++
 
-	// Two-character operators: >=, <=, !=
+	// Two-character operators: >=, <=, !=, !~
 	if l.position < len(l.input) && rune(l.input[l.position]) == '=' {
 		l.position++
 		switch char {
@@ -147,6 +147,12 @@ func (l *Lexer) readOperator() Token {
 		}
 	}
 
+	// Two-character: !~ → NOT followed by LIKE
+	if char == '!' && l.position < len(l.input) && rune(l.input[l.position]) == '~' {
+		// Consume only !, leave ~ for next iteration to tokenize as TOKEN_LIKE
+		return Token{Type: TOKEN_NOT, Value: "NOT", Position: start}
+	}
+
 	// Single-character operators
 	switch char {
 	case '=':
@@ -155,6 +161,8 @@ func (l *Lexer) readOperator() Token {
 		return Token{Type: TOKEN_OPERATOR, Value: ">", Position: start}
 	case '<':
 		return Token{Type: TOKEN_OPERATOR, Value: "<", Position: start}
+	case '~':
+		return Token{Type: TOKEN_LIKE, Value: "~", Position: start}
 	}
 
 	return Token{Type: TOKEN_ILLEGAL, Value: string(char), Position: start}

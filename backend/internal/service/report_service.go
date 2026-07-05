@@ -453,9 +453,6 @@ func (s *ReportService) getFilteredIssueIDs(projectID uint64, rqlQuery string) (
 	if err != nil {
 		return nil, err
 	}
-	if len(issues) == 0 {
-		return nil, nil // 返回 nil 表示无匹配
-	}
 	ids := make([]uint64, len(issues))
 	for i, issue := range issues {
 		ids[i] = issue.ID
