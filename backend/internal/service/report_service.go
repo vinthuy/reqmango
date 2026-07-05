@@ -108,11 +108,15 @@ func (s *ReportService) GenerateV2(projectID uint64, req *ReportV2Request) (*Rep
 
 	// 5. 构建 Y 轴表达式
 	yExpr, extraWhere := s.resolveYAxis(yAxis)
+	yJoin := s.resolveYAxisJoin(yAxis)
 
 	// 6. 组装 SQL
 	sql := "SELECT " + selectExpr + ", (" + yExpr + ") AS cnt FROM issues"
 	if joinClause != "" {
 		sql += " " + joinClause
+	}
+	if yJoin != "" {
+		sql += " " + yJoin
 	}
 	sql += " WHERE issues.project_id = ? AND issues.archived_at IS NULL"
 	args := []interface{}{projectID}
@@ -182,6 +186,14 @@ func (s *ReportService) GenerateV2(projectID uint64, req *ReportV2Request) (*Rep
 
 // resolveXAxis 根据 x_axis 值返回 (selectExpr, joinClause, rawColumnName)
 func (s *ReportService) resolveXAxis(xAxis, interval string) (selectExpr, joinClause, column string) {
+	// custom_field:{fieldId} 支持
+	if strings.HasPrefix(xAxis, "custom_field:") {
+		fieldID := strings.TrimPrefix(xAxis, "custom_field:")
+		sel := fmt.Sprintf("COALESCE(icfv_%s.value, 'N/A') as name", fieldID)
+		join := fmt.Sprintf("LEFT JOIN issue_custom_field_values icfv_%s ON issues.id = icfv_%s.issue_id AND icfv_%s.field_id = %s", fieldID, fieldID, fieldID, fieldID)
+		return sel, join, ""
+	}
+
 	switch xAxis {
 	// ---- 分类轴：复用 buildAggregation ----
 	case "state", "priority", "assignee", "type", "label", "cycle", "module", "state_group", "created_by":
@@ -237,6 +249,17 @@ func (s *ReportService) timeFormat(grain, interval string) string {
 
 // resolveYAxis 根据 y_axis 值返回 (ySelectExpr, extraWhere)
 func (s *ReportService) resolveYAxis(yAxis string) (selectExpr, extraWhere string) {
+	// custom_field_avg/count/sum:{fieldId} 支持
+	if strings.HasPrefix(yAxis, "custom_field_avg:") {
+		return "AVG(CASE WHEN icfv_y.value ~ '^[0-9.]+$' THEN CAST(icfv_y.value AS NUMERIC) END)", ""
+	}
+	if strings.HasPrefix(yAxis, "custom_field_count:") {
+		return "COUNT(CASE WHEN icfv_y.value IS NOT NULL AND icfv_y.value != '' THEN 1 END)", ""
+	}
+	if strings.HasPrefix(yAxis, "custom_field_sum:") {
+		return "SUM(CASE WHEN icfv_y.value ~ '^[0-9.]+$' THEN CAST(icfv_y.value AS NUMERIC) END)", ""
+	}
+
 	switch yAxis {
 	case "avg_processing_time":
 		return "AVG(EXTRACT(EPOCH FROM (issues.completed_at - issues.created_at)) / 86400)", "issues.completed_at IS NOT NULL"
@@ -257,6 +280,19 @@ func (s *ReportService) resolveYAxis(yAxis string) (selectExpr, extraWhere strin
 	default: // count
 		return "COUNT(*)", ""
 	}
+}
+
+// resolveYAxisJoin returns the JOIN clause needed for custom field Y-axis metrics.
+func (s *ReportService) resolveYAxisJoin(yAxis string) string {
+	if !strings.HasPrefix(yAxis, "custom_field_") {
+		return ""
+	}
+	parts := strings.SplitN(yAxis, ":", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	fieldID := parts[1]
+	return fmt.Sprintf("LEFT JOIN issue_custom_field_values icfv_y ON issues.id = icfv_y.issue_id AND icfv_y.field_id = %s", fieldID)
 }
 
 // v2CreatedVsResolved 处理 created_vs_resolved 指标：需要两个独立查询

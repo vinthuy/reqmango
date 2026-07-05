@@ -180,6 +180,9 @@
                     <optgroup label="更新时间">
                       <option v-for="d in xAxisTimeUpdatedOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
                     </optgroup>
+                    <optgroup v-if="customFields.length > 0" label="自定义字段">
+                      <option v-for="cf in customFields" :key="'cf-'+cf.id" :value="'custom_field:'+cf.id">{{ cf.name }}</option>
+                    </optgroup>
                   </select>
                 </div>
 
@@ -192,7 +195,13 @@
                   </div>
                   <select v-else v-model="form.y_axis"
                     class="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    <option v-for="m in yAxisOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+                    <optgroup label="内置指标">
+                      <option v-for="m in yAxisOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+                    </optgroup>
+                    <optgroup v-if="customFields.length > 0" label="自定义字段">
+                      <option v-for="cf in customFields" :key="'cf-avg-'+cf.id" :value="'custom_field_avg:'+cf.id">{{ cf.name }} (平均值)</option>
+                      <option v-for="cf in customFields" :key="'cf-count-'+cf.id" :value="'custom_field_count:'+cf.id">{{ cf.name }} (计数)</option>
+                    </optgroup>
                   </select>
                 </div>
 
@@ -225,6 +234,9 @@
                         <option value="module">模块</option>
                         <option value="created_by">创建人</option>
                         <option value="title">标题</option>
+                        <optgroup v-if="customFields.length > 0" label="自定义字段">
+                          <option v-for="cf in customFields" :key="'filter-cf-'+cf.id" :value="'custom_field:'+cf.id">{{ cf.name }}</option>
+                        </optgroup>
                       </select>
                       <!-- Operator selector -->
                       <select v-model="f.operator" @change="f.values = []; f.value = ''"
@@ -364,8 +376,17 @@ const advancedConfig = reactive<MetricChartConfig>({ stack_mode: 'none', show_la
 const canSave = computed(() => form.name.trim().length > 0)
 const isTemplateMode = computed(() => !!panel.selectedTemplate && panel.useCustom)
 
+// ── Custom Fields ──
+const customFields = ref<Array<{ id: number; name: string; field_type: string }>>([])
+
+async function loadCustomFields() {
+  try {
+    customFields.value = await metricsApi.getCustomFields(props.projectId)
+  } catch { /* ignore */ }
+}
+
 // ── Filter Values (for dropdown) ──
-const filterValues = ref<Record<string, string[]>>({})
+const filterValues = ref<Record<string, string[]> & { custom_fields?: Record<string, string[]> }>({})
 async function loadFilterValues() {
   try {
     filterValues.value = await metricsApi.getFilterValues(props.projectId)
@@ -373,6 +394,10 @@ async function loadFilterValues() {
 }
 
 function getFilterFieldValues(field: string): string[] {
+  if (field.startsWith('custom_field:')) {
+    const fieldId = field.split(':')[1]
+    return filterValues.value.custom_fields?.[fieldId] || []
+  }
   return filterValues.value[field] || []
 }
 
@@ -471,6 +496,7 @@ function openPanel(mode: 'new' | 'edit', chart?: MetricChart) {
   previewError.value = ''
   filters.splice(0)
   loadFilterValues()
+  loadCustomFields()
 
   if (mode === 'edit' && chart) {
     panel.editingChart = chart
@@ -483,11 +509,14 @@ function openPanel(mode: 'new' | 'edit', chart?: MetricChart) {
     try {
       const f = JSON.parse(chart.filters || '{}')
       if (f.conditions) {
-        f.conditions.forEach((c: any) => filters.push({ field: c.field || '', operator: c.operator || '=', value: c.value || '', values: [] }))
+        f.conditions.forEach((c: any) => {
+          const values = c.values || (c.value ? [c.value] : [])
+          filters.push({ field: c.field || '', operator: c.operator || '=', value: c.value || '', values })
+        })
       } else if (f.rql) {
         // Convert legacy RQL to visual filters (best effort)
         const match = f.rql.match(/^(\w+)\s*(!?=)\s*"?([^"]+)"?$/)
-        if (match) filters.push({ field: match[1], operator: match[2], value: match[3], values: [] })
+        if (match) filters.push({ field: match[1], operator: match[2], value: match[3], values: [match[3]] })
       }
     } catch { /* ignore */ }
     try {
@@ -600,13 +629,21 @@ async function handleSave() {
   if (!canSave.value || saving.value) return
   saving.value = true
   try {
-    const validFilters = filters.filter(f => f.field && (f.operator === 'empty' || f.operator === 'not_empty' || f.value))
+    const validFilters = filters.filter(f => {
+      if (!f.field) return false
+      if (f.operator === 'empty' || f.operator === 'not_empty') return true
+      if (f.operator === 'in' || f.operator === 'not_in') return f.values.length > 0
+      return f.value !== ''
+    })
     let filtersPayload: any = undefined
     if (validFilters.length > 0) {
       // Save as RQL for backend compatibility
       const rqlParts = validFilters.map(f => {
         if (f.operator === 'empty') return `${f.field} = ""`
         if (f.operator === 'not_empty') return `${f.field} != ""`
+        if (f.operator === 'in') return `(${f.values.map(v => `${f.field} = "${v}"`).join(' OR ')})`
+        if (f.operator === 'not_in') return `(${f.values.map(v => `${f.field} != "${v}"`).join(' AND ')})`
+        if (f.operator === 'contains') return `${f.field} ~ "${f.value}"`
         return `${f.field} ${f.operator} "${f.value}"`
       })
       filtersPayload = { rql: rqlParts.join(' AND '), conditions: validFilters }

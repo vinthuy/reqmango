@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
@@ -174,6 +175,24 @@ func (s *MetricService) ReorderCharts(projectID uint64, chartIDs []uint64) error
 	return nil
 }
 
+type CustomFieldInfo struct {
+	ID        uint64 `json:"id"`
+	Name      string `json:"name"`
+	FieldType string `json:"field_type"`
+}
+
+func (s *MetricService) GetCustomFields(projectID uint64) ([]CustomFieldInfo, error) {
+	var fields []CustomFieldInfo
+	err := s.db.Raw(
+		`SELECT id, name, field_type FROM custom_fields WHERE (project_id = ? OR project_id IS NULL) AND is_active = true ORDER BY name`,
+		projectID,
+	).Scan(&fields).Error
+	if err != nil {
+		return nil, common.Internal("Failed to query custom fields: " + err.Error())
+	}
+	return fields, nil
+}
+
 func (s *MetricService) RenderChart(projectID, chartID uint64) (*RenderResponse, error) {
 	chart, err := s.GetChart(projectID, chartID)
 	if err != nil {
@@ -291,13 +310,14 @@ func (s *MetricService) RenderChartData(projectID uint64, req *CreateChartReques
 
 // FilterValues holds distinct values for each filter field in a project.
 type FilterValues struct {
-	State     []string `json:"state"`
-	Priority  []string `json:"priority"`
-	Assignee  []string `json:"assignee"`
-	Type      []string `json:"type"`
-	Label     []string `json:"label"`
-	Module    []string `json:"module"`
-	CreatedBy []string `json:"created_by"`
+	State        []string            `json:"state"`
+	Priority     []string            `json:"priority"`
+	Assignee     []string            `json:"assignee"`
+	Type         []string            `json:"type"`
+	Label        []string            `json:"label"`
+	Module       []string            `json:"module"`
+	CreatedBy    []string            `json:"created_by"`
+	CustomFields map[string][]string `json:"custom_fields"` // field_id -> values
 }
 
 // GetFilterValues returns distinct non-empty values for filter fields in a project.
@@ -380,6 +400,26 @@ func (s *MetricService) GetFilterValues(projectID uint64) (*FilterValues, error)
 		return nil, common.Internal("Failed to query creator values: " + err.Error())
 	}
 	fv.CreatedBy = creators
+
+	// Custom field values
+	cfValues := make(map[string][]string)
+	var cfFields []struct {
+		ID   uint64
+		Name string
+		Type string
+	}
+	s.db.Raw(`SELECT id, name, field_type FROM custom_fields WHERE (project_id = ? OR project_id IS NULL) AND is_active = true`, projectID).Scan(&cfFields)
+	for _, cf := range cfFields {
+		var vals []string
+		s.db.Raw(
+			`SELECT DISTINCT value FROM issue_custom_field_values WHERE field_id = ? AND value IS NOT NULL AND value != '' AND issue_id IN (SELECT id FROM issues WHERE project_id = ? AND deleted_at IS NULL)`,
+			cf.ID, projectID,
+		).Scan(&vals)
+		if len(vals) > 0 {
+			cfValues[fmt.Sprintf("%d", cf.ID)] = vals
+		}
+	}
+	fv.CustomFields = cfValues
 
 	return fv, nil
 }

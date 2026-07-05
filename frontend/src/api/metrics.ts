@@ -41,4 +41,8 @@ export const metricsApi = {
     const res = await api.get(`/projects/${projectId}/metrics/filter-values`)
     return res.data
   },
+  getCustomFields: async (projectId: number) => {
+    const res = await api.get(`/projects/${projectId}/metrics/custom-fields`)
+    return res.data as Array<{ id: number; name: string; field_type: string }>
+  },
 }

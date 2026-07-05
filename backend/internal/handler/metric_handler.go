@@ -144,3 +144,18 @@ func (h *MetricHandler) PreviewChart(c *gin.Context) {
 	}
 	common.RespondOK(c, data)
 }
+
+// GetCustomFields returns custom fields available for the project.
+func (h *MetricHandler) GetCustomFields(c *gin.Context) {
+	pid, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		common.RespondError(c, common.BadRequest("Invalid project ID"))
+		return
+	}
+	fields, err := h.svc.GetCustomFields(pid)
+	if err != nil {
+		common.RespondError(c, err)
+		return
+	}
+	common.RespondOK(c, fields)
+}
