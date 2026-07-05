@@ -286,7 +286,7 @@ const mentionStyle = computed(() => {
 function detectMention(value: string, target: 'main' | 'reply' | 'edit', textarea: HTMLTextAreaElement) {
   const cursorPos = textarea.selectionStart || 0
   const textBefore = value.substring(0, cursorPos)
-  const atMatch = textBefore.match(/@([\w.\-]*)$/)
+  const atMatch = textBefore.match(/@(\S*)$/)
 
   if (atMatch) {
     mentionActive.value = true
@@ -299,7 +299,8 @@ function detectMention(value: string, target: 'main' | 'reply' | 'edit', textare
     mentionResults.value = members.value
       .filter(m => {
         const name = (m.display_name || '').toLowerCase()
-        return !q || name.includes(q) || (m.username || '').toLowerCase().includes(q)
+        const uname = (m.username || '').toLowerCase()
+        return !q || name.includes(q) || uname.includes(q)
       })
       .slice(0, 8)
   } else {
@@ -336,7 +337,11 @@ function handleMentionKeydown(e: KeyboardEvent) {
   else if (e.key === 'ArrowUp') { e.preventDefault(); mentionIndex.value = Math.max(mentionIndex.value - 1, 0) }
   else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
     e.preventDefault()
-    if (mentionResults.value[mentionIndex.value]) insertMention(mentionResults.value[mentionIndex.value])
+    if (mentionResults.value.length > 0 && mentionResults.value[mentionIndex.value]) {
+      insertMention(mentionResults.value[mentionIndex.value])
+    } else {
+      mentionActive.value = false
+    }
   }
   else if (e.key === 'Escape') { mentionActive.value = false }
 }
@@ -494,9 +499,9 @@ function renderBody(text: string | undefined): string {
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
   // Links
   html = html.replace(/(https?:\/\/\S+)/g, '<a href="$1" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">$1</a>')
-  // @mentions
-  html = html.replace(/@AI\s+\w[\w\s]*/g, '<span class="ai-mention px-1.5 py-0.5 rounded bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 font-medium">🤖 $&</span>')
-  html = html.replace(/(^|\s)@(\w+)/g, '$1<span class="text-indigo-600 font-medium bg-indigo-50 px-1 rounded">@$2</span>')
+  // @mentions (match non-whitespace after @, skip standalone @ with nothing after)
+  html = html.replace(/@AI\s+\S+/g, '<span class="ai-mention px-1.5 py-0.5 rounded bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 font-medium">🤖 $&</span>')
+  html = html.replace(/(^|\s)@(\S+)/g, '$1<span class="text-indigo-600 font-medium bg-indigo-50 px-1 rounded">@$2</span>')
   return html
 }
 
