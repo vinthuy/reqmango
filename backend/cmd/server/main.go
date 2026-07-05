@@ -9,6 +9,7 @@ import (
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/router"
 	"github.com/reqmango/backend/internal/seed"
+	searchtemplate "github.com/reqmango/backend/internal/service"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -94,6 +95,7 @@ func main() {
 		&model.SearchTemplate{},
 		&model.SavedDashboard{},
 		&model.DashboardWidget{},
+		&model.MetricChart{},
 		&model.Plugin{},
 		&model.PluginEventLog{},
 	); err != nil {
@@ -122,6 +124,16 @@ func main() {
 	fmt.Println("Full-text search index created")
 
 	seed.SeedAll(db)
+
+	// Update built-in search templates for all projects (fixes RQL / description)
+	var projects []model.Project
+	db.Find(&projects)
+	sts := searchtemplate.NewSearchTemplateService(db)
+	for _, p := range projects {
+		if err := sts.InitializeBuiltInTemplates(p.ID); err != nil {
+			fmt.Printf("WARNING: Failed to update built-in templates for project %d: %v\n", p.ID, err)
+		}
+	}
 
 	if !cfg.Debug {
 		gin.SetMode(gin.ReleaseMode)
