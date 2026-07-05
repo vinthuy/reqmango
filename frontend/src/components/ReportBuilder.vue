@@ -428,12 +428,15 @@ const quickCharts = computed(() => {
     { value: 'urgent', label: 'Urgent' }, { value: 'high', label: 'High' },
     { value: 'medium', label: 'Medium' }, { value: 'low', label: 'Low' },
   ]
+  const stateOpts = states.value.length > 0
+    ? states.value.map(s => ({ value: s.value, label: s.label }))
+    : [{ value: '待处理', label: '待处理' }, { value: '进行中', label: '进行中' }, { value: '已完成', label: '已完成' }]
   return [
     { type: 'distribution', groupBy: 'state', label: t('report.quick.stateDistribution'), desc: t('report.quick.stateDistributionDesc'), color: '#3B82F6', icon: IconState, defaultChart: 'Bar', chartTypes: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], filters: [{ field: 'priority', label: t('report.priority'), options: priorityOpts }] },
     { type: 'distribution', groupBy: 'priority', label: t('report.quick.priorityDistribution'), desc: t('report.quick.priorityDistributionDesc'), color: '#F59E0B', icon: IconPriority, defaultChart: 'Pie', chartTypes: ['Pie', 'Doughnut', 'Bar', 'Table'] as string[], filters: [] },
-    { type: 'distribution', groupBy: 'assignee', label: t('report.quick.assigneeWorkload'), desc: t('report.quick.assigneeWorkloadDesc'), color: '#10B981', icon: IconAssignee, defaultChart: 'Bar', chartTypes: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], filters: [{ field: 'priority', label: t('report.priority'), options: priorityOpts }] },
+    { type: 'distribution', groupBy: 'assignee', label: t('report.quick.assigneeWorkload'), desc: t('report.quick.assigneeWorkloadDesc'), color: '#10B981', icon: IconAssignee, defaultChart: 'Bar', chartTypes: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], filters: [{ field: 'state', label: t('report.state'), options: stateOpts }] },
     { type: 'distribution', groupBy: 'type', label: t('report.quick.typeDistribution'), desc: t('report.quick.typeDistributionDesc'), color: '#06B6D4', icon: IconType, defaultChart: 'Bar', chartTypes: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], filters: [] },
-    { type: 'created_trend', groupBy: '', label: t('report.quick.creationTrend'), desc: t('report.quick.creationTrendDesc'), color: '#8B5CF6', icon: IconTrend, defaultChart: 'Area', chartTypes: ['Area', 'Line', 'Bar', 'Table'] as string[], filters: [] },
+    { type: 'created_trend', groupBy: '', label: t('report.quick.creationTrend'), desc: t('report.quick.creationTrendDesc'), color: '#8B5CF6', icon: IconTrend, defaultChart: 'Area', chartTypes: ['Area', 'Line', 'Bar', 'Table'] as string[], filters: [{ field: 'priority', label: t('report.priority'), options: priorityOpts }] },
   ]
 })
 
