@@ -250,37 +250,59 @@
                         <option value="not_empty">不为空</option>
                       </select>
                       <!-- Value: Multi-select for in/not_in -->
-                      <div v-if="f.operator === 'in' || f.operator === 'not_in'" class="flex-1 relative">
-                        <div v-if="getFilterFieldValues(f.field).length > 0" @click="$event.stopPropagation()"
+                      <div v-if="f.operator === 'in' || f.operator === 'not_in'" class="flex-1 relative" @click="$event.stopPropagation()">
+                        <div @click="f._showDropdown = !f._showDropdown"
                           class="flex items-center gap-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] bg-white cursor-pointer hover:border-indigo-300 min-h-[30px] flex-wrap">
                           <span v-for="(v, vi) in f.values" :key="vi"
                             class="inline-flex items-center gap-0.5 bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-[10px]">
                             {{ v }}
-                            <button @click="f.values.splice(vi, 1)" class="text-indigo-400 hover:text-indigo-600">&times;</button>
+                            <button @click.stop="f.values.splice(vi, 1)" class="text-indigo-400 hover:text-indigo-600">&times;</button>
                           </span>
                           <span v-if="f.values.length === 0" class="text-gray-400">选择多个值</span>
                         </div>
-                        <div v-if="getFilterFieldValues(f.field).length > 0" class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                          <label v-for="v in getFilterFieldValues(f.field)" :key="v"
+                        <div v-if="f._showDropdown" class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                          <!-- Search input -->
+                          <div class="sticky top-0 bg-white border-b border-gray-100 px-2 py-1">
+                            <input v-model="f._search" placeholder="搜索..." @input="$event.stopPropagation()"
+                              class="w-full px-2 py-1 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                          </div>
+                          <label v-for="v in filterDropdownValues(f)" :key="v"
                             class="flex items-center gap-2 px-3 py-1.5 text-[11px] hover:bg-gray-50 cursor-pointer">
                             <input type="checkbox" :value="v" v-model="f.values"
                               class="w-3 h-3 rounded border-gray-300 text-indigo-500 focus:ring-indigo-400">
                             <span class="text-gray-700">{{ v }}</span>
                           </label>
+                          <div v-if="filterDropdownValues(f).length === 0" class="px-3 py-2 text-[11px] text-gray-400">无匹配项</div>
                         </div>
-                        <input v-else v-model="f.value" placeholder="输入值（逗号分隔）"
-                          class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400" />
                       </div>
                       <!-- Value: Single select/input for other operators -->
                       <template v-else-if="f.operator !== 'empty' && f.operator !== 'not_empty'">
-                        <select v-if="getFilterFieldValues(f.field).length > 0"
-                          v-model="f.value"
-                          class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                          <option value="">选择值</option>
-                          <option v-for="v in getFilterFieldValues(f.field)" :key="v" :value="v">{{ v }}</option>
-                        </select>
-                        <input v-else v-model="f.value" placeholder="输入值"
-                          class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                        <div class="flex-1 relative" @click="$event.stopPropagation()">
+                          <select v-if="filterDropdownValues(f).length > 0 && !f._showDropdown"
+                            v-model="f.value" @click="f._showDropdown = true"
+                            class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                            <option value="">选择值</option>
+                            <option v-for="v in filterDropdownValues(f)" :key="v" :value="v">{{ v }}</option>
+                          </select>
+                          <div v-else-if="f._showDropdown" class="w-full">
+                            <input v-model="f._search" :placeholder="'搜索 ' + fieldLabelMap[f.field] + '...'"
+                              class="w-full px-2 py-1.5 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                              @input="$event.stopPropagation()" @blur="f._showDropdown = false" />
+                            <div class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                              <div v-if="f.value" @click="f.value = ''; f._search = ''; f._showDropdown = false"
+                                class="px-3 py-1.5 text-[11px] text-red-500 hover:bg-red-50 cursor-pointer border-b border-gray-100">清除选择</div>
+                              <div v-for="v in filterDropdownValues(f)" :key="v"
+                                @click="f.value = v; f._search = ''; f._showDropdown = false"
+                                class="px-3 py-1.5 text-[11px] hover:bg-indigo-50 cursor-pointer"
+                                :class="{'bg-indigo-50 text-indigo-700': f.value === v}">
+                                {{ v }}
+                              </div>
+                              <div v-if="filterDropdownValues(f).length === 0" class="px-3 py-2 text-[11px] text-gray-400">无匹配项</div>
+                            </div>
+                          </div>
+                          <input v-else v-model="f.value" placeholder="输入值"
+                            class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                        </div>
                       </template>
                       <!-- Remove button -->
                       <button @click="removeFilter(i)" class="p-1 text-gray-300 hover:text-red-500 shrink-0 rounded hover:bg-red-50 transition-colors">
@@ -375,7 +397,7 @@ const panel = reactive({
 
 // ── Form ──
 const form = reactive({ name: '', chart_type: 'bar', x_axis: 'state', y_axis: 'count' })
-const filters = reactive<Array<{ field: string; operator: string; value: string; values: string[] }>>([])
+const filters = reactive<Array<{ field: string; operator: string; value: string; values: string[]; _showDropdown: boolean; _search: string }>>([])
 const advancedConfig = reactive<MetricChartConfig>({ stack_mode: 'none', show_labels: false, reference_lines: [] })
 const canSave = computed(() => form.name.trim().length > 0)
 const isTemplateMode = computed(() => !!panel.selectedTemplate && panel.useCustom)
@@ -391,22 +413,52 @@ async function loadCustomFields() {
 
 // ── Filter Values (for dropdown) ──
 const filterValues = ref<Record<string, string[]> & { custom_fields?: Record<string, string[]> }>({})
+const filterValuesLoaded = ref(false)
 async function loadFilterValues() {
   try {
     const data = await metricsApi.getFilterValues(props.projectId)
-    filterValues.value = data
-  } catch (e) {
-    console.warn('Failed to load filter values:', e)
+    filterValues.value = data || {}
+    filterValuesLoaded.value = true
+  } catch {
+    filterValues.value = {}
+    filterValuesLoaded.value = true
   }
 }
 
+// Local fallback values for common enum fields (used when API returns empty)
+const localFilterDefaults: Record<string, string[]> = {
+  state: ['待处理', '进行中', '已完成', '已关闭', '已拒绝'],
+  priority: ['高', '中', '低', '紧急', '非常紧急'],
+  type: ['Bug', 'Feature', 'Improvement', 'Task', 'Story', 'Epic'],
+  label: [],
+  module: [],
+  assignee: [],
+  reporter: [],
+  created_by: [],
+}
+
 function getFilterFieldValues(field: string): string[] {
+  if (!field) return []
   if (field.startsWith('custom_field:')) {
     const fieldId = field.split(':')[1]
-    // Try both string and number key formats
     return filterValues.value.custom_fields?.[fieldId] || filterValues.value.custom_fields?.[String(fieldId)] || []
   }
-  return filterValues.value[field] || []
+  // Use API values first, fallback to local defaults
+  const apiValues = filterValues.value[field] || []
+  if (apiValues.length > 0) return apiValues
+  return localFilterDefaults[field] || []
+}
+
+const fieldLabelMap: Record<string, string> = {
+  state: '状态', priority: '优先级', assignee: '负责人', type: '类型',
+  label: '标签', module: '模块', created_by: '创建人', title: '标题',
+}
+
+function filterDropdownValues(f: { field: string; _search?: string }): string[] {
+  const all = getFilterFieldValues(f.field)
+  const q = (f._search || '').toLowerCase()
+  if (!q) return all
+  return all.filter(v => v.toLowerCase().includes(q))
 }
 
 // ── Preview ──
@@ -519,12 +571,12 @@ function openPanel(mode: 'new' | 'edit', chart?: MetricChart) {
       if (f.conditions) {
         f.conditions.forEach((c: any) => {
           const values = c.values || (c.value ? [c.value] : [])
-          filters.push({ field: c.field || '', operator: c.operator || '=', value: c.value || '', values })
+          filters.push({ field: c.field || '', operator: c.operator || '=', value: c.value || '', values, _showDropdown: false, _search: '' })
         })
       } else if (f.rql) {
         // Convert legacy RQL to visual filters (best effort)
         const match = f.rql.match(/^(\w+)\s*(!?=)\s*"?([^"]+)"?$/)
-        if (match) filters.push({ field: match[1], operator: match[2], value: match[3], values: [match[3]] })
+        if (match) filters.push({ field: match[1], operator: match[2], value: match[3], values: [match[3]], _showDropdown: false, _search: '' })
       }
     } catch { /* ignore */ }
     try {
@@ -584,7 +636,7 @@ function updateChartType(type: string) {
 }
 
 function addFilter() {
-  filters.push({ field: '', operator: '=', value: '', values: [] })
+  filters.push({ field: '', operator: '=', value: '', values: [], _showDropdown: false, _search: '' })
 }
 
 function removeFilter(index: number) {
