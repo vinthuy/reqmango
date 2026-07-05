@@ -2,19 +2,11 @@
   <div class="bg-white border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
     <!-- Title Bar -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-50">
-      <h4 class="text-sm font-medium text-gray-700 truncate flex-1 mr-2">{{ chart.name }}</h4>
+      <div class="flex items-center gap-2 flex-1 mr-2 min-w-0">
+        <h4 class="text-sm font-medium text-gray-700 truncate">{{ chart.name }}</h4>
+        <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{{ typeLabel }}</span>
+      </div>
       <div class="flex items-center gap-1 shrink-0">
-        <!-- Type Switcher -->
-        <div class="inline-flex bg-gray-100 rounded-lg p-0.5">
-          <button v-for="t in typeOptions" :key="t.value" @click="switchType(t.value)"
-            :class="[
-              'px-2 py-0.5 text-[10px] rounded-md transition-colors',
-              currentType === t.value
-                ? 'bg-white shadow-sm font-medium text-gray-800'
-                : 'text-gray-400 hover:text-gray-600',
-            ]"
-          >{{ t.label }}</button>
-        </div>
         <!-- Edit -->
         <button @click="emit('edit', chart)" class="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,12 +69,10 @@ const loading = ref(false)
 const renderData = ref<ReportResponse | null>(null)
 const currentType = ref(props.chart.chart_type)
 
-const typeOptions = [
-  { value: 'bar', label: '柱状图' },
-  { value: 'line', label: '折线图' },
-  { value: 'pie', label: '饼图' },
-  { value: 'doughnut', label: '环形图' },
-]
+const typeLabel = computed(() => {
+  const map: Record<string, string> = { bar: '柱状图', line: '折线图', pie: '饼图', doughnut: '环形图', area: '面积图', radar: '雷达图', scatter: '散点图', bubble: '气泡图', mixed: '混合图', table: '表格' }
+  return map[currentType.value] || currentType.value
+})
 
 const chartTypeMap: Record<string, string> = {
   bar: 'Bar', line: 'Line', pie: 'Pie', doughnut: 'Doughnut',
@@ -115,19 +105,6 @@ async function fetchAndRender() {
     loading.value = false
   }
 }
-
-function switchType(newType: string) {
-  currentType.value = newType
-  emit('type-change', props.chart.id, newType)
-}
-
-watch(currentType, async (newVal) => {
-  if (renderData.value) {
-    await nextTick()
-    await new Promise(r => setTimeout(r, 30))
-    renderChart(renderData.value, chartTypeMap[newVal] || 'Bar')
-  }
-})
 
 watch(() => props.chart.id, () => {
   destroyChart()
