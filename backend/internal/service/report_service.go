@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -155,7 +156,7 @@ func (s *ReportService) GenerateV2(projectID uint64, req *ReportV2Request) (*Rep
 	// 7. 执行查询
 	type row struct {
 		Name string
-		Cnt  int
+		Cnt  float64
 	}
 	var rows []row
 	if err := s.db.Raw(sql, args...).Scan(&rows).Error; err != nil {
@@ -174,8 +175,8 @@ func (s *ReportService) GenerateV2(projectID uint64, req *ReportV2Request) (*Rep
 			name = "N/A"
 		}
 		resp.Labels = append(resp.Labels, name)
-		resp.Values = append(resp.Values, r.Cnt)
-		resp.Total += r.Cnt
+		resp.Values = append(resp.Values, int(math.Round(r.Cnt)))
+		resp.Total += int(math.Round(r.Cnt))
 	}
 	if resp.Labels == nil {
 		resp.Labels = []string{}

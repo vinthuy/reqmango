@@ -402,7 +402,7 @@ func (s *MetricService) GetFilterValues(projectID uint64) (*FilterValues, error)
 	// Created by (issue creator names)
 	var creators []string
 	err = s.db.Raw(
-		`SELECT DISTINCT COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) FROM issues i JOIN users u ON i.created_by = u.id WHERE i.project_id = ? AND i.deleted_at IS NULL`,
+		`SELECT DISTINCT COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) FROM issues i JOIN users u ON i.created_by_id = u.id WHERE i.project_id = ? AND i.deleted_at IS NULL`,
 		projectID,
 	).Scan(&creators).Error
 	if err != nil {

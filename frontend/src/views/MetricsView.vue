@@ -620,6 +620,17 @@ function selectTemplate(tpl: MetricTemplate) {
   form.x_axis = tpl.default_x_axis
   form.y_axis = tpl.default_y_axis
   filters.splice(0)
+  // 应用模板默认筛选条件
+  if (tpl.default_filters) {
+    if (tpl.default_filters.type_filter) {
+      const typeMap: Record<string, string> = {
+        bug: 'Bug', feature: 'Feature', improvement: 'Improvement',
+        task: 'Task', story: 'Story', epic: 'Epic',
+      }
+      const typeVal = typeMap[tpl.default_filters.type_filter] || tpl.default_filters.type_filter
+      filters.push({ field: 'type', operator: '=', value: typeVal, values: [], _showDropdown: false, _search: '' })
+    }
+  }
   if (tpl.default_config) {
     advancedConfig.stack_mode = tpl.default_config.stack_mode || 'none'
     advancedConfig.show_labels = tpl.default_config.show_labels || false
