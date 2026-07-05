@@ -31,21 +31,11 @@
         </div>
       </div>
 
-      <!-- Date Range Bar -->
-      <div class="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-2.5">
-        <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide">{{ t('report.dateFrom') }}</label>
-        <input v-model="quickDateFrom" type="date" class="px-2 py-1 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
-        <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide">{{ t('report.dateTo') }}</label>
-        <input v-model="quickDateTo" type="date" class="px-2 py-1 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
-        <button @click="refreshAllQuickCharts" class="px-3 py-1 bg-neutral-900 text-white text-xs rounded-md hover:bg-neutral-800 transition-colors">
-          {{ t('report.generate') }}
-        </button>
-      </div>
-
       <!-- Chart Widgets -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div v-for="q in quickCharts" :key="q.title"
-          class="bg-white border border-gray-100 rounded-xl overflow-hidden"
+          @click="runQuickChart(q)"
+          class="bg-white border border-gray-100 rounded-xl overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
         >
           <!-- Widget Header -->
           <div class="flex items-center justify-between px-4 py-3 border-b border-gray-50">
@@ -57,12 +47,14 @@
             </div>
           </div>
           <!-- Widget Filter -->
-          <div v-if="q.filterOptions.length > 0" class="px-4 py-2 flex items-center gap-2" @click.stop>
-            <select :value="q.filters.value" @change="setQuickFilter(q, ($event.target as HTMLSelectElement).value)"
+          <div class="px-4 py-2 flex items-center gap-2" @click.stop>
+            <select v-if="q.filterOptions.length > 0" :value="q.filters.value" @change="setQuickFilter(q, ($event.target as HTMLSelectElement).value)"
               class="text-xs px-2 py-1 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
               <option value="">{{ t('report.all') }}</option>
               <option v-for="o in q.filterOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
             </select>
+            <input v-model="q.dateFrom" type="date" class="px-2 py-1 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+            <input v-model="q.dateTo" type="date" class="px-2 py-1 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
           </div>
           <!-- Widget Body -->
           <div class="px-4 py-4">
@@ -312,20 +304,17 @@ const quickChartType = ref('Bar')
 const quickCanvasMap = new Map<string, HTMLCanvasElement | null>()
 const quickChartInstances = new Map<string, any>()
 const quickStats = ref({ total: 0, avgAge: 0, stateGroups: 0, completionRate: 0 })
-const quickDateFrom = ref('')
-const quickDateTo = ref('')
 const quickCharts = ref([
-  { title: t('report.quick.byState'), reportType: 'distribution', groupBy: 'state', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
-  { title: t('report.quick.byPriority'), reportType: 'distribution', groupBy: 'priority', style: 'Pie', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
-  { title: t('report.quick.byAssignee'), reportType: 'distribution', groupBy: 'assignee', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
-  { title: t('report.quick.byType'), reportType: 'distribution', groupBy: 'type', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
-  { title: t('report.quick.byTrend'), reportType: 'created_trend', groupBy: 'state', style: 'Area', charts: ['Area', 'Line', 'Bar', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[] },
+  { title: t('report.quick.byState'), reportType: 'distribution', groupBy: 'state', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[], dateFrom: '', dateTo: '' },
+  { title: t('report.quick.byPriority'), reportType: 'distribution', groupBy: 'priority', style: 'Pie', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[], dateFrom: '', dateTo: '' },
+  { title: t('report.quick.byAssignee'), reportType: 'distribution', groupBy: 'assignee', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[], dateFrom: '', dateTo: '' },
+  { title: t('report.quick.byType'), reportType: 'distribution', groupBy: 'type', style: 'Bar', charts: ['Bar', 'Pie', 'Doughnut', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[], dateFrom: '', dateTo: '' },
+  { title: t('report.quick.byTrend'), reportType: 'created_trend', groupBy: 'state', style: 'Area', charts: ['Area', 'Line', 'Bar', 'Table'] as string[], data: null as ReportResponse | null, loading: false, filters: { value: '' }, filterOptions: [] as {value:string;label:string}[], dateFrom: '', dateTo: '' },
 ])
 function setQuickCanvas(key: string, el: any) { if (el) quickCanvasMap.set(key, el) }
 function chartLabel(c: string) { return (chartLabels.value as Record<string,string>)[c] || c }
 function setQuickChartStyle(q: any, c: string) { q.style = c }
 function setQuickFilter(q: any, v: string) { q.filters.value = v; runQuickChart(q) }
-function refreshAllQuickCharts() { quickCharts.value.forEach((q: any) => runQuickChart(q)) }
 
 async function runQuickChart(q: any) {
   q.loading = true
@@ -338,7 +327,7 @@ async function runQuickChart(q: any) {
     const res = await reportApi.generate(props.projectId, {
       report_type: q.reportType, group_by: q.groupBy, chart: q.style.toLowerCase(),
       rql: rql || undefined, interval: q.reportType === 'created_trend' ? 'day' : undefined,
-      date_from: quickDateFrom.value || undefined, date_to: quickDateTo.value || undefined,
+      date_from: q.dateFrom || undefined, date_to: q.dateTo || undefined,
     })
     q.data = res
     quickData.value = res
@@ -613,5 +602,5 @@ watch(() => props.projectId, () => {
   destroyChart(); loadSavedFilters(); loadFilterOptions()
   selectedFilterId.value = null; data.value = null
 })
-onMounted(() => { loadSavedFilters(); loadFilterOptions(); loadQuickChartFilters().then(() => { quickCharts.value.forEach((q: any) => runQuickChart(q)) }) })
+onMounted(() => { loadSavedFilters(); loadFilterOptions(); loadQuickChartFilters() })
 </script>
