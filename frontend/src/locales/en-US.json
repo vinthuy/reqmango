@@ -1516,7 +1516,12 @@
     "minutesAgo": "{minutes} minutes ago",
     "hoursAgo": "{hours} hours ago",
     "daysAgo": "{days} days ago",
-    "confirmDelete": "Are you sure you want to delete this comment?"
+    "confirmDelete": "Are you sure you want to delete this comment?",
+    "shortcutHint": "Ctrl+Enter to send",
+    "cancelReply": "Cancel reply",
+    "edit": "Edit",
+    "save": "Save",
+    "saving": "Saving..."
   },
   "import": {
     "title": "Batch Import Issues",

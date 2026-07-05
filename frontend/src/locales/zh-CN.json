@@ -1524,7 +1524,12 @@
     "minutesAgo": "{minutes}分钟前",
     "hoursAgo": "{hours}小时前",
     "daysAgo": "{days}天前",
-    "confirmDelete": "确定要删除这条评论吗？"
+    "confirmDelete": "确定要删除这条评论吗？",
+    "shortcutHint": "Ctrl+Enter 发送",
+    "cancelReply": "取消回复",
+    "edit": "编辑",
+    "save": "保存",
+    "saving": "保存中..."
   },
   "import": {
     "title": "批量导入工作项",
