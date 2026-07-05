@@ -227,6 +227,7 @@ export function useReportChart(canvasRef: Ref<HTMLCanvasElement | null>) {
       case 'Pie': return renderPie(data)
       case 'Doughnut': return renderDoughnut(data)
       case 'Line': return renderLine(data)
+      case 'Area': return renderLine(data)
       default: return renderBar(data)
     }
   }

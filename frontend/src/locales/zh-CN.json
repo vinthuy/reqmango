@@ -1252,8 +1252,14 @@
       "priorityDistributionDesc": "按优先级查看工作项占比",
       "assigneeWorkload": "负责人工作量",
       "assigneeWorkloadDesc": "查看各负责人的工作项分配",
+      "typeDistribution": "类型分布",
+      "typeDistributionDesc": "按类型查看工作项占比",
       "creationTrend": "创建趋势",
-      "creationTrendDesc": "按时间查看工作项创建趋势"
+      "creationTrendDesc": "按时间查看工作项创建趋势",
+      "totalIssues": "工作项总数",
+      "completionRate": "完成率",
+      "avgAge": "平均周期",
+      "stateGroups": "状态组数"
     },
     "clickToGenerate": "点击上方图表卡片生成报表",
     "subtitle": "通过灵活的筛选、分组和图表构建自定义报表",
@@ -1322,6 +1328,7 @@
       "pie": "饼图",
       "doughnut": "环形图",
       "line": "折线图",
+      "area": "面积图",
       "table": "表格"
     },
     "success": {

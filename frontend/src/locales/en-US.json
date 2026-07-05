@@ -1252,8 +1252,14 @@
       "priorityDistributionDesc": "View issue breakdown by priority",
       "assigneeWorkload": "Assignee Workload",
       "assigneeWorkloadDesc": "View issue assignment across team",
+      "typeDistribution": "Type Distribution",
+      "typeDistributionDesc": "View issue breakdown by type",
       "creationTrend": "Creation Trend",
-      "creationTrendDesc": "View issue creation over time"
+      "creationTrendDesc": "View issue creation over time",
+      "totalIssues": "Total Issues",
+      "completionRate": "Completion Rate",
+      "avgAge": "Avg Age",
+      "stateGroups": "State Groups"
     },
     "clickToGenerate": "Click a chart card above to generate report",
     "subtitle": "Build custom reports with flexible filters, grouping, and charts",
@@ -1322,6 +1328,7 @@
       "pie": "Pie",
       "doughnut": "Doughnut",
       "line": "Line",
+      "area": "Area",
       "table": "Table"
     },
     "success": {
