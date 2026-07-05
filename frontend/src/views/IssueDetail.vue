@@ -149,7 +149,7 @@ const relationSidebarSummary = computed(() => {
 const tabs = computed(() => [
   { key: 'details', label: t('issue.tabDetails'), count: undefined },
   { key: 'relations', label: t('issue.tabRelations'), count: relationSidebarSummary.value?.total ?? undefined },
-  { key: 'attachments', label: t('issue.tabAttachments'), count: undefined },
+  { key: 'attachments', label: t('issue.tabAttachments'), count: issue.value?.attachment_count || undefined },
   { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
   { key: 'activity', label: t('issue.tabActivity'), count: undefined },
 ])

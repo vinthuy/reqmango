@@ -118,6 +118,7 @@
                 :custom-fields="customFieldEntries"
                 :workspace-id="workspaceId"
                 :agent-dispatching="agentDispatching"
+                :labels="projectLabels"
                 :relation-summary="relationSidebarSummary"
                 @update:state="(id: any) => quickUpdate('state_id', id)"
                 @update:priority="(p: any) => quickUpdate('priority', p)"
@@ -126,6 +127,7 @@
                 @update:module="quickUpdateModule"
                 @update:start-date="(d: any) => quickUpdate('start_date', d + 'T00:00:00Z')"
                 @update:target-date="(d: any) => quickUpdate('target_date', d + 'T00:00:00Z')"
+                @update:labels="handleLabelsUpdate"
                 @update:custom-field="updateCustomField"
                 @dispatch-agent="dispatchAgent"
               />
@@ -191,6 +193,7 @@ const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
 const saving = ref(false)
+const projectLabels = ref<Array<{ id: number; name: string; color: string }>>([])
 
 async function handleTitleChange(newTitle: string) {
   if (!issue.value || newTitle === issue.value.name) return
@@ -210,7 +213,7 @@ const relationSidebarSummary = computed(() => {
 const tabs = computed(() => [
   { key: 'details', label: t('issue.tabDetails'), count: undefined },
   { key: 'relations', label: t('issue.tabRelations'), count: relationSidebarSummary.value?.total ?? undefined },
-  { key: 'attachments', label: t('issue.tabAttachments'), count: undefined },
+  { key: 'attachments', label: t('issue.tabAttachments'), count: issue.value?.attachment_count || undefined },
   { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
   { key: 'activity', label: t('issue.tabActivity'), count: undefined },
 ])
@@ -238,6 +241,7 @@ watch(() => [props.issueId, props.visible] as const, async ([id, vis]) => {
         loadIssueTypes(),
         loadMembers(),
         loadCustomFields(),
+        loadLabels(),
       ])
     } catch (e) {
       console.error('Failed to load issue:', e)
@@ -327,6 +331,17 @@ async function updateCustomField(fieldId: number, value: string) {
     const entry = customFieldEntries.value.find(e => e.field.id === fieldId)
     if (entry) entry.value = value
   } catch { toast.error(t('issue.saveFailed')) }
+}
+
+async function loadLabels() {
+  try {
+    const resp = await api.get(`/projects/${props.projectId}/settings/labels`)
+    projectLabels.value = Array.isArray(resp.data) ? resp.data : (resp.data?.items || [])
+  } catch { /* */ }
+}
+
+async function handleLabelsUpdate(labelIds: number[]) {
+  await quickUpdate('label_ids', labelIds)
 }
 
 async function dispatchAgent(agentSelectorId: string) {
