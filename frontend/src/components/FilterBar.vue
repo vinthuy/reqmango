@@ -44,6 +44,7 @@ const showSubGroupDropdown = ref(false)
 const searchSuggestions = ref<IssueSearchResult[]>([])
 const showSuggestions = ref(false)
 const searchFocused = ref(false)
+const searchInputRef = ref<HTMLInputElement | null>(null)
 let suggestDebounce: ReturnType<typeof setTimeout> | null = null
 
 const states = ref<any[]>([])
@@ -218,6 +219,7 @@ function handleQuickSearchChange(value: string) {
 function selectSuggestion(suggestion: IssueSearchResult) {
   const query = `${suggestion.project_identifier}-${suggestion.sequence_id}`
   setQuickSearch(query)
+  if (searchInputRef.value) searchInputRef.value.value = query
   addToHistory(query)
   showSuggestions.value = false
   emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
@@ -248,6 +250,7 @@ function onSearchBlur() {
 
 function applyHistory(query: string) {
   setQuickSearch(query)
+  if (searchInputRef.value) searchInputRef.value.value = query
   addToHistory(query)
   showSuggestions.value = false
   emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
@@ -678,6 +681,7 @@ onUnmounted(() => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <input
+          ref="searchInputRef"
           :value="state.quickSearch"
           @input="handleQuickSearchChange(($event.target as HTMLInputElement).value)"
           @focus="onSearchFocus"
@@ -719,7 +723,7 @@ onUnmounted(() => {
             <div
               v-for="(query, index) in state.searchHistory"
               :key="'history-' + index"
-              @click="applyHistory(query)"
+              @mousedown.prevent="applyHistory(query)"
               class="px-3 py-2 hover:bg-indigo-50 cursor-pointer flex items-center justify-between"
             >
               <span class="text-sm text-gray-700">{{ query }}</span>
