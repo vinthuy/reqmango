@@ -147,13 +147,6 @@ const props = defineProps<{
   subIssues: IssueResponse[]
 }>()
 
-defineEmits<{
-  (e: 'navigate', issueId: number): void
-  (e: 'add-sub-issue'): void
-  (e: 'remove-sub-issue', issueId: number): void
-  (e: 'reorder', issueIds: number[]): void
-}>()
-
 const emit = defineEmits<{
   (e: 'navigate', issueId: number): void
   (e: 'add-sub-issue'): void

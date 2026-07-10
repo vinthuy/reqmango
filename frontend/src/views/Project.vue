@@ -52,6 +52,8 @@
           :project-id="projectId"
           :workspace-id="workspaceId"
           :issue-types="issueTypes"
+          :default-type-id="defaultTypeId"
+          :default-state-id="defaultStateId"
           :inline="true"
           @created="triggerRefresh"
         />
@@ -523,7 +525,18 @@ const slug = ref('')
 
 const pageTabs = ref<ProjectPageTab[]>([])
 const issueTypes = ref<any[]>([])
+const states = ref<any[]>([])
 const showPageConfig = ref(false)
+
+const defaultTypeId = computed(() => {
+  const defaultType = issueTypes.value.find((t: any) => t.is_default)
+  return defaultType?.id || null
+})
+
+const defaultStateId = computed(() => {
+  const todoState = states.value.find((s: any) => s.group === 'todo')
+  return todoState?.id || null
+})
 const defaultTabs = computed(() => [
   { id: 'issues', name: t('project.tab.issues') },
   { id: 'cycles', name: t('project.tab.cycles') },
@@ -583,6 +596,10 @@ onMounted(async () => {
       const issueTypeApi = await import('@/api/issue-type')
       issueTypes.value = await issueTypeApi.getIssueTypes(workspaceId.value, projectId.value)
     } catch { issueTypes.value = [] }
+    try {
+      const stateApi = await import('@/api/project-settings')
+      states.value = await stateApi.listStates(projectId.value)
+    } catch { states.value = [] }
   } catch (err) {
     console.error('Failed to load project:', err)
   } finally {
