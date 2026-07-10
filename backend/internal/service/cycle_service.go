@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -12,11 +13,12 @@ import (
 )
 
 type CycleService struct {
-	db *gorm.DB
+	db              *gorm.DB
+	notificationSvc *NotificationService
 }
 
-func NewCycleService(db *gorm.DB) *CycleService {
-	return &CycleService{db: db}
+func NewCycleService(db *gorm.DB, notificationSvc *NotificationService) *CycleService {
+	return &CycleService{db: db, notificationSvc: notificationSvc}
 }
 
 // ==================== Helpers ====================
@@ -216,6 +218,25 @@ func (s *CycleService) Create(workspaceID, userID uint64, req *request.CycleCrea
 
 	if err := s.db.Create(cycle).Error; err != nil {
 		return nil, common.Internal("Failed to create cycle")
+	}
+
+	if s.notificationSvc != nil {
+		var projectMembers []model.ProjectMember
+		s.db.Where("project_id = ?", req.ProjectID).Find(&projectMembers)
+		if len(projectMembers) > 0 {
+			recipientIDs := make([]uint64, 0, len(projectMembers))
+			for _, pm := range projectMembers {
+				if pm.UserID != userID {
+					recipientIDs = append(recipientIDs, pm.UserID)
+				}
+			}
+			if len(recipientIDs) > 0 {
+				title := fmt.Sprintf("Cycle 已创建: %s", req.Name)
+				message := fmt.Sprintf("新项目周期已创建，周期名为 %s", req.Name)
+				projectIDPtr := req.ProjectID
+				_ = s.notificationSvc.TriggerNotificationsBulk(s.db, "cycle_created", title, message, recipientIDs, &userID, &projectIDPtr, nil)
+			}
+		}
 	}
 
 	return s.buildResponse(cycle), nil

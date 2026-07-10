@@ -1,145 +1,117 @@
 <template>
-  <div class="p-6">
-    <div class="flex items-center justify-between mb-6">
+  <div class="work-item-template-manager">
+    <div class="flex items-center justify-between mb-4">
       <div>
-        <h1 class="text-xl font-semibold text-gray-900">{{ t('template.workItem') }}</h1>
-        <p class="text-sm text-gray-500 mt-1">{{ t('template.workItemDesc') }}</p>
+        <h3 class="text-lg font-semibold text-gray-800">{{ t('workItemTemplate.title') }}</h3>
+        <p class="text-sm text-gray-500 mt-1">{{ t('workItemTemplate.description') }}</p>
       </div>
-      <button @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">+ {{ t('template.create') }}</button>
+      <button
+        class="px-4 py-2 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 transition-colors"
+        @click="showForm = true"
+      >
+        {{ t('common.add') }}
+      </button>
     </div>
 
-    <div v-if="templates.length === 0" class="bg-white rounded-xl border border-gray-200 p-12 text-center">
-      <div class="text-5xl mb-4">📋</div>
-      <h3 class="text-lg font-medium text-gray-900 mb-2">{{ t('template.noTemplates') }}</h3>
-      <p class="text-sm text-gray-500 mb-4">{{ t('template.noTemplatesDesc') }}</p>
-      <button @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">+ {{ t('template.createFirst') }}</button>
+    <div v-if="templates.length === 0" class="bg-white border border-gray-200 rounded-lg p-6">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <h4 class="text-sm font-medium text-gray-700 mb-2">{{ t('workItemTemplate.noTemplates') }}</h4>
+        <p class="text-sm text-gray-500">{{ t('workItemTemplate.noTemplatesDesc') }}</p>
+      </div>
     </div>
 
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div v-for="tmpl in templates" :key="tmpl.id" class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition">
-        <div class="flex items-center space-x-3 mb-3">
-          <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg">📝</div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center space-x-2">
-              <h3 class="font-medium text-gray-900 truncate">{{ tmpl.name }}</h3>
-              <span v-if="tmpl.is_default" class="shrink-0 px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">Default</span>
-            </div>
-            <div class="flex items-center space-x-2 mt-1">
-              <span v-if="tmpl.issue_type" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" :style="{ backgroundColor: tmpl.issue_type.color + '20', color: tmpl.issue_type.color }">
-                {{ tmpl.issue_type.name }}
+    <div v-else class="space-y-3">
+      <div
+        v-for="template in templates"
+        :key="template.id"
+        class="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+      >
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-gray-800">{{ template.name }}</span>
+              <span v-if="template.is_default" class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                {{ t('workItemTemplate.default') }}
               </span>
             </div>
+            <p v-if="template.description" class="text-sm text-gray-500 mt-1">{{ template.description }}</p>
+            <div class="flex items-center gap-4 mt-2">
+              <span v-if="template.issue_type" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium" :style="{ backgroundColor: template.issue_type.color + '20', color: template.issue_type.color }">
+                {{ template.issue_type.name }}
+              </span>
+              <span class="text-xs text-gray-400">{{ t('workItemTemplate.fields') }}: {{ Object.keys(template.defaults).length }}</span>
+            </div>
           </div>
-        </div>
-        <p v-if="tmpl.description" class="text-sm text-gray-500 mb-3 line-clamp-2">{{ tmpl.description }}</p>
-
-        <div class="space-y-1.5 mb-3 text-xs text-gray-600">
-          <div v-if="tmpl.defaults.name_prefix" class="flex items-center">
-            <span class="text-gray-400 w-20">{{ t('template.namePrefix') }}:</span>
-            <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ tmpl.defaults.name_prefix }}</span>
+          <div class="flex items-center gap-2">
+            <button class="text-gray-400 hover:text-blue-500" @click="editTemplate(template)">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <button v-if="!template.is_default" class="text-gray-400 hover:text-red-500" @click="deleteTemplate(template)">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
           </div>
-          <div v-if="tmpl.defaults.priority" class="flex items-center">
-            <span class="text-gray-400 w-20">{{ t('template.priority') }}:</span>
-            <span>{{ getPriorityLabel(tmpl.defaults.priority) }}</span>
-          </div>
-          <div v-if="tmpl.defaults.state_id" class="flex items-center">
-            <span class="text-gray-400 w-20">{{ t('template.state') }}:</span>
-            <span>{{ getStateName(tmpl.defaults.state_id) }}</span>
-          </div>
-          <div v-if="tmpl.defaults.assignee_ids && tmpl.defaults.assignee_ids.length > 0" class="flex items-center">
-            <span class="text-gray-400 w-20">{{ t('template.assignees') }}:</span>
-            <span>{{ tmpl.defaults.assignee_ids.length }} {{ t('template.members') }}</span>
-          </div>
-          <div v-if="tmpl.defaults.label_ids && tmpl.defaults.label_ids.length > 0" class="flex items-center">
-            <span class="text-gray-400 w-20">{{ t('template.labels') }}:</span>
-            <span>{{ tmpl.defaults.label_ids.length }} {{ t('template.labelsCount') }}</span>
-          </div>
-        </div>
-
-        <div class="pt-3 border-t border-gray-100 flex space-x-2">
-          <button @click="openEdit(tmpl)" class="text-xs text-indigo-600 hover:text-indigo-800">{{ t('common.edit') }}</button>
-          <button @click="confirmDelete(tmpl)" class="text-xs text-red-500 hover:text-red-700">{{ t('common.delete') }}</button>
         </div>
       </div>
     </div>
 
-    <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeModal">
-      <div class="bg-white rounded-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold mb-4">{{ editingTemplate ? t('template.edit') : t('template.create') }}</h3>
+    <div v-if="showForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeForm">
+      <div class="bg-white rounded-lg w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <h4 class="text-lg font-semibold text-gray-800 mb-4">{{ editingTemplate ? t('workItemTemplate.edit') : t('workItemTemplate.create') }}</h4>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium mb-1">{{ t('template.name') }} *</label>
-            <input v-model="form.name" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('common.name') }}</label>
+            <input type="text" v-model="form.name" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('workItemTemplate.namePlaceholder')" />
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">{{ t('template.description') }}</label>
-            <input v-model="form.description" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('common.description') }}</label>
+            <textarea v-model="form.description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" :placeholder="t('workItemTemplate.descriptionPlaceholder')"></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium mb-1">{{ t('template.issueType') }}</label>
-            <select v-model.number="form.issue_type_id" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option :value="null">None</option>
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('workItemTemplate.issueType') }}</label>
+            <select v-model="form.issue_type_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <option :value="null">{{ t('common.all') }}</option>
               <option v-for="type in issueTypes" :key="type.id" :value="type.id">{{ type.name }}</option>
             </select>
           </div>
-          <div class="flex items-center">
-            <input v-model="form.is_default" type="checkbox" id="is_default" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
-            <label for="is_default" class="ml-2 text-sm font-medium text-gray-700">{{ t('template.setAsDefault') }}</label>
-          </div>
-
-          <div class="border-t pt-4 mt-4">
-            <h4 class="text-sm font-semibold text-gray-700 mb-3">{{ t('template.defaults') }}</h4>
-            <div class="space-y-3">
-              <div>
-                <label class="block text-sm font-medium mb-1">{{ t('template.namePrefix') }}</label>
-                <input v-model="form.defaults.name_prefix" :placeholder="t('template.namePrefixPlaceholder')" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">{{ t('template.priority') }}</label>
-                <select v-model="form.defaults.priority" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                  <option value="">{{ t('template.none') }}</option>
-                  <option value="urgent">{{ t('template.urgent') }}</option>
-                  <option value="high">{{ t('template.high') }}</option>
-                  <option value="medium">{{ t('template.medium') }}</option>
-                  <option value="low">{{ t('template.low') }}</option>
-                  <option value="none">{{ t('template.none') }}</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">{{ t('template.state') }}</label>
-                <select v-model.number="form.defaults.state_id" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                  <option :value="null">{{ t('template.none') }}</option>
-                  <option v-for="state in states" :key="state.id" :value="state.id">{{ state.name }}</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">{{ t('template.assignees') }}</label>
-                <div class="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
-                  <label v-for="member in members" :key="member.user_id" class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                    <input type="checkbox" :value="member.user_id" v-model="form.defaults.assignee_ids" class="rounded text-indigo-600 focus:ring-indigo-500" />
-                    <span>{{ member.user?.display_name || member.display_name || `User #${member.user_id}` }}</span>
-                  </label>
-                  <div v-if="members.length === 0" class="text-xs text-gray-400 text-center py-2">{{ t('template.noMembers') }}</div>
-                </div>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">{{ t('template.labels') }}</label>
-                <div class="border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
-                  <label v-for="label in labels" :key="label.id" class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                    <input type="checkbox" :value="label.id" v-model="form.defaults.label_ids" class="rounded text-indigo-600 focus:ring-indigo-500" />
-                    <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: label.color }"></span>
-                    <span>{{ label.name }}</span>
-                  </label>
-                  <div v-if="labels.length === 0" class="text-xs text-gray-400 text-center py-2">{{ t('template.noLabels') }}</div>
-                </div>
-              </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('workItemTemplate.defaultFields') }}</label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="flex items-center gap-2 p-2 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50">
+                <input type="text" v-model="form.defaults.name_prefix" class="flex-1 px-2 py-1 text-sm border-0 focus:ring-0" :placeholder="t('workItemTemplate.title')" />
+              </label>
+              <label class="flex items-center gap-2 p-2 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50">
+                <input type="text" v-model="form.defaults.priority" class="flex-1 px-2 py-1 text-sm border-0 focus:ring-0" :placeholder="t('workItemTemplate.priority')" />
+              </label>
+              <label class="flex items-center gap-2 p-2 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50">
+                <input type="text" v-model="form.defaults.state_id" class="flex-1 px-2 py-1 text-sm border-0 focus:ring-0" :placeholder="t('workItemTemplate.stateId')" />
+              </label>
+            </div>
+            <div class="mt-3">
+              <textarea v-model="form.defaults.description_html" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" rows="3" :placeholder="t('workItemTemplate.description')"></textarea>
             </div>
           </div>
+          <div>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="form.is_default" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+              <span class="text-sm text-gray-700">{{ t('workItemTemplate.setAsDefault') }}</span>
+            </label>
+          </div>
         </div>
-        <div class="flex justify-end space-x-3 mt-6">
-          <button @click="closeModal" class="px-4 py-2 border rounded-lg hover:bg-gray-50">{{ t('common.cancel') }}</button>
-          <button @click="saveTemplate" :disabled="!form.name.trim()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
-            {{ editingTemplate ? t('common.update') : t('common.create') }}
+        <div class="flex justify-end gap-2 mt-6">
+          <button class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800" @click="closeForm">
+            {{ t('common.cancel') }}
+          </button>
+          <button class="px-4 py-2 bg-neutral-900 text-white text-sm rounded-md hover:bg-neutral-800 transition-colors" @click="saveTemplate">
+            {{ t('common.save') }}
           </button>
         </div>
       </div>
@@ -149,216 +121,129 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import workItemTemplateApi from '@/api/work-item-template'
-import * as issueTypeApi from '@/api/issue-type'
-import * as stateApi from '@/api/project-settings'
-import projectApi from '@/api/project'
-import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
-import type { WorkItemTemplate, WorkItemTemplateCreate, WorkItemTemplateUpdate } from '@/types/work-item-template'
-import type { IssuePriority } from '@/types/issue'
-
-const { t } = useI18n()
+import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
+import { listWorkItemTemplates, createWorkItemTemplate, updateWorkItemTemplate, deleteWorkItemTemplate } from '@/api/work-item-template'
+import type { WorkItemTemplate } from '@/types/work-item-template'
+import { getIssueTypes } from '@/api/issue-type'
+import type { IssueType } from '@/types/issue-type'
 
 const props = defineProps<{
   projectId: number
   workspaceId: number
 }>()
 
+const { t } = useI18n()
+const toast = useToast()
 const { confirm } = useConfirm()
 
 const templates = ref<WorkItemTemplate[]>([])
-const issueTypes = ref<any[]>([])
-const states = ref<any[]>([])
-const labels = ref<any[]>([])
-const members = ref<any[]>([])
-const showModal = ref(false)
+const issueTypes = ref<IssueType[]>([])
+const showForm = ref(false)
 const editingTemplate = ref<WorkItemTemplate | null>(null)
 
-const form = ref<{
-  name: string
-  description: string
-  issue_type_id: number | null
-  is_default: boolean
-  defaults: {
-    name_prefix: string
-    priority: string
-    state_id: number | null
-    assignee_ids: number[]
-    label_ids: number[]
-  }
-}>({
+const form = ref({
   name: '',
   description: '',
-  issue_type_id: null,
-  is_default: false,
+  issue_type_id: null as number | null,
   defaults: {
     name_prefix: '',
+    description_html: '',
     priority: '',
-    state_id: null,
-    assignee_ids: [],
-    label_ids: []
-  }
+    state_id: '',
+  },
+  is_default: false,
 })
 
-function getPriorityLabel(priority: string): string {
-  const labels: Record<string, string> = {
-    urgent: t('template.urgent'),
-    high: t('template.high'),
-    medium: t('template.medium'),
-    low: t('template.low'),
-    none: t('template.none')
-  }
-  return labels[priority] || priority
-}
-
-function getStateName(stateId: number): string {
-  const state = states.value.find((s: any) => s.id === stateId)
-  return state?.name || `State #${stateId}`
-}
-
 async function loadTemplates() {
-  try {
-    templates.value = await workItemTemplateApi.listTemplates(props.projectId)
-  } catch (e) {
-    console.error('Failed to load templates:', e)
-  }
+  templates.value = await listWorkItemTemplates(props.projectId)
 }
 
 async function loadIssueTypes() {
-  try {
-    issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId)
-  } catch (e) {
-    console.error('Failed to load issue types:', e)
-  }
+  issueTypes.value = await getIssueTypes(props.workspaceId, props.projectId)
 }
 
-async function loadStates() {
-  try {
-    states.value = await stateApi.listStates(props.projectId)
-  } catch (e) {
-    console.error('Failed to load states:', e)
-  }
-}
-
-async function loadLabels() {
-  try {
-    labels.value = await stateApi.listLabels(props.projectId)
-  } catch (e) {
-    console.error('Failed to load labels:', e)
-  }
-}
-
-async function loadMembers() {
-  try {
-    const data = await projectApi.listProjectMembers(props.projectId)
-    members.value = Array.isArray(data) ? data : []
-  } catch (e) {
-    console.error('Failed to load members:', e)
-  }
-}
-
-function openCreate() {
+function closeForm() {
+  showForm.value = false
   editingTemplate.value = null
   form.value = {
     name: '',
     description: '',
     issue_type_id: null,
-    is_default: false,
     defaults: {
       name_prefix: '',
+      description_html: '',
       priority: '',
-      state_id: null,
-      assignee_ids: [],
-      label_ids: []
-    }
+      state_id: '',
+    },
+    is_default: false,
   }
-  showModal.value = true
 }
 
-function openEdit(tmpl: WorkItemTemplate) {
-  editingTemplate.value = tmpl
+function editTemplate(template: WorkItemTemplate) {
+  editingTemplate.value = template
   form.value = {
-    name: tmpl.name,
-    description: tmpl.description || '',
-    issue_type_id: tmpl.issue_type_id || null,
-    is_default: tmpl.is_default,
+    name: template.name,
+    description: template.description || '',
+    issue_type_id: template.issue_type_id || null,
     defaults: {
-      name_prefix: tmpl.defaults.name_prefix || '',
-      priority: tmpl.defaults.priority || '',
-      state_id: tmpl.defaults.state_id || null,
-      assignee_ids: tmpl.defaults.assignee_ids ? [...tmpl.defaults.assignee_ids] : [],
-      label_ids: tmpl.defaults.label_ids ? [...tmpl.defaults.label_ids] : []
-    }
+      name_prefix: template.defaults.name_prefix || '',
+      description_html: template.defaults.description_html || '',
+      priority: template.defaults.priority || '',
+      state_id: template.defaults.state_id || '',
+    },
+    is_default: template.is_default,
   }
-  showModal.value = true
-}
-
-function closeModal() {
-  showModal.value = false
-  editingTemplate.value = null
+  showForm.value = true
 }
 
 async function saveTemplate() {
-  if (!form.value.name.trim()) return
-
-  const defaults: any = {}
-  if (form.value.defaults.name_prefix) defaults.name_prefix = form.value.defaults.name_prefix
-  if (form.value.defaults.priority) defaults.priority = form.value.defaults.priority as IssuePriority
-  if (form.value.defaults.state_id) defaults.state_id = form.value.defaults.state_id
-  if (form.value.defaults.assignee_ids.length > 0) defaults.assignee_ids = form.value.defaults.assignee_ids
-  if (form.value.defaults.label_ids.length > 0) defaults.label_ids = form.value.defaults.label_ids
+  if (!form.value.name.trim()) {
+    toast.error(t('workItemTemplate.nameRequired'))
+    return
+  }
 
   try {
+    const data = {
+      name: form.value.name.trim(),
+      description: form.value.description.trim() || undefined,
+      issue_type_id: form.value.issue_type_id || undefined,
+      defaults: Object.fromEntries(
+        Object.entries(form.value.defaults).filter(([, v]) => v.trim())
+      ),
+      is_default: form.value.is_default,
+    }
+
     if (editingTemplate.value) {
-      const data: WorkItemTemplateUpdate = {
-        name: form.value.name,
-        description: form.value.description || undefined,
-        issue_type_id: form.value.issue_type_id || undefined,
-        is_default: form.value.is_default,
-        defaults
-      }
-      await workItemTemplateApi.updateTemplate(props.projectId, editingTemplate.value.id, data)
+      await updateWorkItemTemplate(props.projectId, editingTemplate.value.id, data)
+      toast.success(t('workItemTemplate.updateSuccess'))
     } else {
-      const data: WorkItemTemplateCreate = {
-        name: form.value.name,
-        description: form.value.description || undefined,
-        issue_type_id: form.value.issue_type_id || undefined,
-        is_default: form.value.is_default,
-        defaults
-      }
-      await workItemTemplateApi.createTemplate(props.projectId, data)
+      await createWorkItemTemplate(props.projectId, data)
+      toast.success(t('workItemTemplate.createSuccess'))
     }
-    closeModal()
+
+    closeForm()
     await loadTemplates()
-  } catch (e) {
-    console.error('Failed to save template:', e)
+  } catch (error: any) {
+    toast.error(error?.response?.data?.message || t('common.error'))
   }
 }
 
-async function confirmDelete(tmpl: WorkItemTemplate) {
-  if (await confirm({
-    title: t('template.deleteTitle'),
-    message: t('template.deleteConfirm', { name: tmpl.name }),
-    confirmText: t('common.delete'),
-    danger: true,
-  })) {
-    try {
-      await workItemTemplateApi.deleteTemplate(props.projectId, tmpl.id)
-      await loadTemplates()
-    } catch (e) {
-      console.error('Failed to delete template:', e)
-    }
+async function deleteTemplate(template: WorkItemTemplate) {
+  const confirmed = await confirm(t('workItemTemplate.deleteConfirm', { name: template.name }))
+  if (!confirmed) return
+  try {
+    await deleteWorkItemTemplate(props.projectId, template.id)
+    toast.success(t('workItemTemplate.deleteSuccess'))
+    await loadTemplates()
+  } catch (error: any) {
+    toast.error(error?.response?.data?.message || t('common.error'))
   }
 }
 
-onMounted(async () => {
-  await Promise.all([
-    loadTemplates(),
-    loadIssueTypes(),
-    loadStates(),
-    loadLabels(),
-    loadMembers()
-  ])
+onMounted(() => {
+  loadTemplates()
+  loadIssueTypes()
 })
 </script>

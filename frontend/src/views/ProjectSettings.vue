@@ -653,7 +653,7 @@ onMounted(async () => {
         </div>
 
         <!-- Templates -->
-        <div v-if="!loading && activeSection === 'templates'" class="bg-white rounded-lg border border-gray-200">
+        <div v-if="!loading && activeSection === 'templates'" class="bg-white rounded-lg border border-gray-200 p-4">
           <WorkItemTemplateManager :project-id="projectId" :workspace-id="workspaceId" />
         </div>
 

@@ -181,6 +181,33 @@ func (s *CustomFieldService) UnenrollField(projectID, fieldID uint64) error {
 	return s.db.Save(&enrollment).Error
 }
 
+func (s *CustomFieldService) ListWorkspaceFieldsWithEnrollment(workspaceID, projectID uint64) ([]map[string]interface{}, error) {
+	var fields []model.CustomField
+	if err := s.db.Where("workspace_id = ? AND project_id IS NULL", workspaceID).Order("created_at").Find(&fields).Error; err != nil {
+		return nil, common.Internal("Failed to list workspace fields")
+	}
+
+	var enrollments []model.ProjectCustomFieldEnrollment
+	if err := s.db.Where("project_id = ?", projectID).Find(&enrollments).Error; err != nil {
+		return nil, common.Internal("Failed to list enrollments")
+	}
+
+	enrollmentMap := make(map[uint64]bool)
+	for _, e := range enrollments {
+		enrollmentMap[e.FieldID] = e.IsEnabled
+	}
+
+	result := make([]map[string]interface{}, len(fields))
+	for i, f := range fields {
+		resp := s.buildResponse(f)
+		result[i] = map[string]interface{}{
+			"field":       resp,
+			"is_enabled":  enrollmentMap[f.ID],
+		}
+	}
+	return result, nil
+}
+
 func (s *CustomFieldService) Get(fieldID uint64) (*response.CustomFieldResponse, error) {
 	var f model.CustomField
 	if err := s.db.First(&f, fieldID).Error; err != nil {

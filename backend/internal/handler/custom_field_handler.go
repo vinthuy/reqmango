@@ -194,6 +194,28 @@ func (h *CustomFieldHandler) UnenrollField(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Field unenrolled successfully"})
 }
 
+func (h *CustomFieldHandler) ListWorkspaceFieldsWithEnrollment(c *gin.Context) {
+	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
+		return
+	}
+
+	projectID, err := strconv.ParseUint(c.Query("project_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project_id"})
+		return
+	}
+
+	resp, svcErr := h.svc.ListWorkspaceFieldsWithEnrollment(workspaceID, projectID)
+	if svcErr != nil {
+		h.respondError(c, svcErr)
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
 // ==================== Options ====================
 
 func (h *CustomFieldHandler) CreateOption(c *gin.Context) {

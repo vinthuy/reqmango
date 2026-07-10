@@ -200,6 +200,14 @@ export async function unenrollField(
   await api.post(`/projects/${projectId}/custom-fields/${fieldId}/unenroll`)
 }
 
+export async function listWorkspaceFieldsWithEnrollment(
+  workspaceId: number,
+  projectId: number
+): Promise<Array<{ field: CustomField; is_enabled: boolean }>> {
+  const response = await api.get(`/custom-fields/workspace-fields?workspace_id=${workspaceId}&project_id=${projectId}`)
+  return response.data
+}
+
 export const customFieldApi = {
   // Field CRUD
   createCustomField,
@@ -211,6 +219,7 @@ export const customFieldApi = {
   // Enrollment
   enrollField,
   unenrollField,
+  listWorkspaceFieldsWithEnrollment,
   
   // Options
   createFieldOption,

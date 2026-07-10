@@ -26,7 +26,7 @@ func NewDashboardService(db *gorm.DB) *DashboardService {
 		db:             db,
 		reportSvc:      NewReportService(db),
 		savedReportSvc: NewSavedReportService(db),
-		cycleSvc:       NewCycleService(db),
+		cycleSvc:       NewCycleService(db, nil),
 		issueSvc:       nil, // issueSvc needs notificationSvc, so we leave it nil for now
 	}
 }

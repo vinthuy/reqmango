@@ -588,22 +588,35 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		if s.notificationSvc != nil {
 			var oldState model.State
 			s.db.First(&oldState, oldStateID)
+
+			recipientIDs := make(map[uint64]bool)
+
 			var assignees []model.IssueAssignee
 			s.db.Where("issue_id = ?", issueID).Find(&assignees)
-			if len(assignees) > 0 {
-				recipientIDs := make([]uint64, 0, len(assignees))
-				for _, a := range assignees {
-					if a.UserID != userID {
-						recipientIDs = append(recipientIDs, a.UserID)
-					}
+			for _, a := range assignees {
+				if a.UserID != userID {
+					recipientIDs[a.UserID] = true
 				}
-				if len(recipientIDs) > 0 {
-					title := fmt.Sprintf("状态变更: %s", issue.Name)
-					message := fmt.Sprintf("工作项 #%d 状态从 %s 变为 %s", issue.SequenceID, oldState.Name, newState.Name)
-					issueIDPtr := issueID
-					projectIDPtr := issue.ProjectID
-					s.notificationSvc.TriggerNotificationsBulk(tx, "issue_state_changed", title, message, recipientIDs, &userID, &projectIDPtr, &issueIDPtr)
+			}
+
+			var watchers []model.IssueWatcher
+			s.db.Where("issue_id = ?", issueID).Find(&watchers)
+			for _, w := range watchers {
+				if w.UserID != userID {
+					recipientIDs[w.UserID] = true
 				}
+			}
+
+			if len(recipientIDs) > 0 {
+				ids := make([]uint64, 0, len(recipientIDs))
+				for id := range recipientIDs {
+					ids = append(ids, id)
+				}
+				title := fmt.Sprintf("状态变更: %s", issue.Name)
+				message := fmt.Sprintf("工作项 #%d 状态从 %s 变为 %s", issue.SequenceID, oldState.Name, newState.Name)
+				issueIDPtr := issueID
+				projectIDPtr := issue.ProjectID
+				s.notificationSvc.TriggerNotificationsBulk(tx, "issue_state_changed", title, message, ids, &userID, &projectIDPtr, &issueIDPtr)
 			}
 		}
 	}
@@ -2148,6 +2161,35 @@ func (s *IssueService) ListPages(issueID uint64) ([]model.Page, error) {
 	return issue.Pages, nil
 }
 
+func (s *IssueService) ReorderSubIssues(parentID uint64, issueIDs []uint64) error {
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Error; err != nil {
+		return common.Internal("Failed to begin transaction")
+	}
+
+	for i, issueID := range issueIDs {
+		sortOrder := float64(i)
+		if err := tx.Model(&model.Issue{}).
+			Where("id = ? AND parent_id = ?", issueID, parentID).
+			Update("sort_order", sortOrder).Error; err != nil {
+			tx.Rollback()
+			return common.Internal("Failed to update sort order")
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return common.Internal("Failed to commit transaction")
+	}
+
+	return nil
+}
+
 // BulkCopy copies issues to another project, creating new copies while preserving the originals.
 func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) ([]response.IssueResponse, error) {
 	var targetProject model.Project
@@ -2700,4 +2742,38 @@ func (s *IssueService) MergeDuplicates(req *request.MergeDuplicatesRequest, user
 	}
 
 	return s.buildResponse(targetIssue.ID)
+}
+
+// ==================== Watcher ====================
+
+// AddWatcher adds a user as a watcher for an issue.
+func (s *IssueService) AddWatcher(issueID, userID uint64) error {
+	var watcher model.IssueWatcher
+	if err := s.db.Where("issue_id = ? AND user_id = ?", issueID, userID).First(&watcher).Error; err == nil {
+		return common.BadRequest("User is already watching this issue")
+	}
+
+	return s.db.Create(&model.IssueWatcher{IssueID: issueID, UserID: userID}).Error
+}
+
+// RemoveWatcher removes a user from watching an issue.
+func (s *IssueService) RemoveWatcher(issueID, userID uint64) error {
+	result := s.db.Where("issue_id = ? AND user_id = ?", issueID, userID).Delete(&model.IssueWatcher{})
+	if result.RowsAffected == 0 {
+		return common.BadRequest("User is not watching this issue")
+	}
+	return result.Error
+}
+
+// ListWatchers returns watchers for an issue.
+func (s *IssueService) ListWatchers(issueID uint64) ([]uint64, error) {
+	var watchers []model.IssueWatcher
+	if err := s.db.Where("issue_id = ?", issueID).Find(&watchers).Error; err != nil {
+		return nil, common.Internal("Failed to fetch watchers")
+	}
+	userIDs := make([]uint64, len(watchers))
+	for i, w := range watchers {
+		userIDs[i] = w.UserID
+	}
+	return userIDs, nil
 }

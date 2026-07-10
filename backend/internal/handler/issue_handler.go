@@ -900,6 +900,100 @@ func (h *IssueHandler) RemovePage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Page removed from issue"})
 }
 
+// ReorderSubIssues handles POST /issues/:issueId/reorder-sub-issues
+func (h *IssueHandler) ReorderSubIssues(c *gin.Context) {
+	parentID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid parent issue ID"})
+		return
+	}
+
+	var req struct {
+		IssueIDs []uint64 `json:"issue_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
+		return
+	}
+
+	svcErr := h.svc.ReorderSubIssues(parentID, req.IssueIDs)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Sub-issues reordered successfully"})
+}
+
+// AddWatcher handles POST /issues/:issueId/watch
+func (h *IssueHandler) AddWatcher(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	err = h.svc.AddWatcher(issueID, user.ID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to add watcher"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Added as watcher"})
+}
+
+// RemoveWatcher handles DELETE /issues/:issueId/watch
+func (h *IssueHandler) RemoveWatcher(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	err = h.svc.RemoveWatcher(issueID, user.ID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to remove watcher"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Removed as watcher"})
+}
+
+// ListWatchers handles GET /issues/:issueId/watchers
+func (h *IssueHandler) ListWatchers(c *gin.Context) {
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	userIDs, err := h.svc.ListWatchers(issueID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to fetch watchers"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"watchers": userIDs})
+}
+
 // BulkCopy handles POST /issues/bulk/copy
 func (h *IssueHandler) BulkCopy(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)

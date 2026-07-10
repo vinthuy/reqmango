@@ -18,155 +18,96 @@ func NewWorkItemTemplateService(db *gorm.DB) *WorkItemTemplateService {
 	return &WorkItemTemplateService{db: db}
 }
 
-func (s *WorkItemTemplateService) List(projectID uint64, issueTypeID *uint64) ([]response.WorkItemTemplateResponse, error) {
+func (s *WorkItemTemplateService) List(projectID uint64) ([]response.WorkItemTemplateResponse, error) {
 	var templates []model.WorkItemTemplate
-	q := s.db.Where("project_id = ?", projectID).Preload("IssueType")
-	if issueTypeID != nil {
-		q = q.Where("issue_type_id = ?", *issueTypeID)
-	}
-	if err := q.Order("is_default DESC, created_at ASC").Find(&templates).Error; err != nil {
+	if err := s.db.Where("project_id = ?", projectID).Order("is_default DESC, name").Find(&templates).Error; err != nil {
 		return nil, common.Internal("Failed to fetch work item templates")
 	}
 
-	resps := make([]response.WorkItemTemplateResponse, len(templates))
-	for i, t := range templates {
-		resps[i] = templateToResponse(&t)
-	}
-	return resps, nil
+	return s.convertToResponses(templates), nil
 }
 
-func (s *WorkItemTemplateService) Get(projectID, id uint64) (*response.WorkItemTemplateResponse, error) {
-	var t model.WorkItemTemplate
-	if err := s.db.Preload("IssueType").Where("id = ? AND project_id = ?", id, projectID).First(&t).Error; err != nil {
+func (s *WorkItemTemplateService) Get(id, projectID uint64) (*response.WorkItemTemplateResponse, error) {
+	var template model.WorkItemTemplate
+	if err := s.db.Where("id = ? AND project_id = ?", id, projectID).First(&template).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, common.NotFound("Work item template not found")
 		}
 		return nil, common.Internal("Failed to fetch work item template")
 	}
-	resp := templateToResponse(&t)
-	return &resp, nil
+
+	return s.convertToResponse(&template), nil
 }
 
-func (s *WorkItemTemplateService) Create(projectID uint64, req *request.WorkItemTemplateCreate) (*response.WorkItemTemplateResponse, error) {
-	var project model.Project
-	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, common.NotFound("Project not found")
+func (s *WorkItemTemplateService) Create(projectID, workspaceID uint64, req *request.WorkItemTemplateCreate) (*response.WorkItemTemplateResponse, error) {
+	if req.IsDefault {
+		if err := s.db.Model(&model.WorkItemTemplate{}).Where("project_id = ? AND is_default = ?", projectID, true).Update("is_default", false).Error; err != nil {
+			return nil, common.Internal("Failed to update default template")
 		}
-		return nil, common.Internal("Failed to fetch project")
 	}
 
-	defaultsJSON := normalizeDefaultsJSON(req.Defaults)
-
-	t := &model.WorkItemTemplate{
-		Name:         req.Name,
-		Description:  req.Description,
-		IssueTypeID:  req.IssueTypeID,
-		DefaultsJSON: defaultsJSON,
-		IsDefault:    req.IsDefault,
-		ProjectID:    projectID,
-		WorkspaceID:  project.WorkspaceID,
-	}
-
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		if req.IsDefault {
-			q := tx.Model(&model.WorkItemTemplate{}).
-				Where("project_id = ? AND is_default = ?", projectID, true)
-			if req.IssueTypeID != nil {
-				q = q.Where("issue_type_id = ?", *req.IssueTypeID)
-			} else {
-				q = q.Where("issue_type_id IS NULL")
-			}
-			if err := q.Update("is_default", false).Error; err != nil {
-				return err
-			}
-		}
-
-		if err := tx.Create(t).Error; err != nil {
-			return err
-		}
-		return nil
-	})
+	defaultsJSON, err := json.Marshal(req.Defaults)
 	if err != nil {
+		return nil, common.BadRequest("Invalid defaults JSON")
+	}
+
+	template := &model.WorkItemTemplate{
+		Name:        req.Name,
+		IssueTypeID: req.IssueTypeID,
+		Defaults:    defaultsJSON,
+		IsDefault:   req.IsDefault,
+		ProjectID:   projectID,
+		WorkspaceID: workspaceID,
+	}
+
+	if err := s.db.Create(template).Error; err != nil {
 		return nil, common.Internal("Failed to create work item template")
 	}
 
-	if err := s.db.Preload("IssueType").First(t, t.ID).Error; err != nil {
-		return nil, common.Internal("Failed to fetch created work item template")
-	}
-
-	resp := templateToResponse(t)
-	return &resp, nil
+	return s.convertToResponse(template), nil
 }
 
-func (s *WorkItemTemplateService) Update(projectID, id uint64, req *request.WorkItemTemplateUpdate) (*response.WorkItemTemplateResponse, error) {
-	var t model.WorkItemTemplate
-	if err := s.db.Where("id = ? AND project_id = ?", id, projectID).First(&t).Error; err != nil {
+func (s *WorkItemTemplateService) Update(id, projectID uint64, req *request.WorkItemTemplateUpdate) (*response.WorkItemTemplateResponse, error) {
+	var template model.WorkItemTemplate
+	if err := s.db.Where("id = ? AND project_id = ?", id, projectID).First(&template).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, common.NotFound("Work item template not found")
 		}
 		return nil, common.Internal("Failed to fetch work item template")
 	}
 
-	updates := map[string]interface{}{}
+	if req.IsDefault != nil && *req.IsDefault {
+		if err := s.db.Model(&model.WorkItemTemplate{}).Where("project_id = ? AND is_default = ?", projectID, true).Update("is_default", false).Error; err != nil {
+			return nil, common.Internal("Failed to update default template")
+		}
+	}
+
+	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
-	}
-	if req.Description != nil {
-		updates["description"] = *req.Description
 	}
 	if req.IssueTypeID != nil {
 		updates["issue_type_id"] = *req.IssueTypeID
 	}
 	if req.Defaults != nil {
-		updates["defaults"] = normalizeDefaultsJSON(*req.Defaults)
+		defaultsJSON, err := json.Marshal(*req.Defaults)
+		if err != nil {
+			return nil, common.BadRequest("Invalid defaults JSON")
+		}
+		updates["defaults"] = defaultsJSON
 	}
-
-	newIssueTypeID := t.IssueTypeID
-	if req.IssueTypeID != nil {
-		newIssueTypeID = req.IssueTypeID
-	}
-
-	setDefault := false
 	if req.IsDefault != nil {
-		setDefault = *req.IsDefault
 		updates["is_default"] = *req.IsDefault
 	}
 
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		if setDefault {
-			q := tx.Model(&model.WorkItemTemplate{}).
-				Where("project_id = ? AND id != ? AND is_default = ?", t.ProjectID, id, true)
-			if newIssueTypeID != nil {
-				q = q.Where("issue_type_id = ?", *newIssueTypeID)
-			} else {
-				q = q.Where("issue_type_id IS NULL")
-			}
-			if err := q.Update("is_default", false).Error; err != nil {
-				return err
-			}
-		}
-
-		if len(updates) > 0 {
-			if err := tx.Model(&t).Updates(updates).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
+	if err := s.db.Model(&template).Updates(updates).Error; err != nil {
 		return nil, common.Internal("Failed to update work item template")
 	}
 
-	if err := s.db.Preload("IssueType").Where("id = ? AND project_id = ?", id, projectID).First(&t).Error; err != nil {
-		return nil, common.Internal("Failed to fetch updated work item template")
-	}
-
-	resp := templateToResponse(&t)
-	return &resp, nil
+	return s.convertToResponse(&template), nil
 }
 
-func (s *WorkItemTemplateService) Delete(projectID, id uint64) error {
+func (s *WorkItemTemplateService) Delete(id, projectID uint64) error {
 	result := s.db.Where("id = ? AND project_id = ?", id, projectID).Delete(&model.WorkItemTemplate{})
 	if result.Error != nil {
 		return common.Internal("Failed to delete work item template")
@@ -177,37 +118,35 @@ func (s *WorkItemTemplateService) Delete(projectID, id uint64) error {
 	return nil
 }
 
-func normalizeDefaultsJSON(defaults map[string]interface{}) json.RawMessage {
-	if defaults == nil || len(defaults) == 0 {
-		return json.RawMessage("{}")
+func (s *WorkItemTemplateService) GetDefault(projectID uint64) (*response.WorkItemTemplateResponse, error) {
+	var template model.WorkItemTemplate
+	if err := s.db.Where("project_id = ? AND is_default = ?", projectID, true).First(&template).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, common.Internal("Failed to fetch default template")
 	}
-	raw, err := json.Marshal(defaults)
-	if err != nil {
-		return json.RawMessage("{}")
-	}
-	return raw
+	return s.convertToResponse(&template), nil
 }
 
-func templateToResponse(t *model.WorkItemTemplate) response.WorkItemTemplateResponse {
-	resp := response.WorkItemTemplateResponse{
-		ID:          t.ID,
-		Name:        t.Name,
-		Description: t.Description,
-		IssueTypeID: t.IssueTypeID,
-		Defaults:    t.DefaultsJSON,
-		IsDefault:   t.IsDefault,
-		ProjectID:   t.ProjectID,
-		WorkspaceID: t.WorkspaceID,
-		CreatedAt:   t.CreatedAt,
-		UpdatedAt:   t.UpdatedAt,
+func (s *WorkItemTemplateService) convertToResponses(templates []model.WorkItemTemplate) []response.WorkItemTemplateResponse {
+	responses := make([]response.WorkItemTemplateResponse, len(templates))
+	for i, t := range templates {
+		responses[i] = *s.convertToResponse(&t)
 	}
-	if t.IssueType != nil {
-		resp.IssueType = &response.IssueTypeLite{
-			ID:    t.IssueType.ID,
-			Name:  t.IssueType.Name,
-			Color: t.IssueType.Color,
-			Icon:  t.IssueType.Icon,
-		}
+	return responses
+}
+
+func (s *WorkItemTemplateService) convertToResponse(template *model.WorkItemTemplate) *response.WorkItemTemplateResponse {
+	return &response.WorkItemTemplateResponse{
+		ID:          template.ID,
+		Name:        template.Name,
+		IssueTypeID: template.IssueTypeID,
+		Defaults:    template.Defaults,
+		IsDefault:   template.IsDefault,
+		ProjectID:   template.ProjectID,
+		WorkspaceID: template.WorkspaceID,
+		CreatedAt:   template.CreatedAt,
+		UpdatedAt:   template.UpdatedAt,
 	}
-	return resp
 }

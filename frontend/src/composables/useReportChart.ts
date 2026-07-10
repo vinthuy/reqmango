@@ -234,7 +234,6 @@ export function useReportChart(canvasRef: Ref<HTMLCanvasElement | null>) {
     const ctx = canvasRef.value.getContext('2d')
     if (!ctx) return
 
-    const colors = getColors(data)
     chartInstance.value = new Chart(ctx, {
       type: 'radar',
       data: {

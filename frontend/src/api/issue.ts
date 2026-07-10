@@ -435,6 +435,35 @@ export async function mergeIssues(
   return res.data
 }
 
+// ==================== Sub-issues ====================
+
+export async function reorderSubIssues(
+  parentIssueId: number,
+  issueIds: number[]
+): Promise<any> {
+  const res = await api.post(`/issues/${parentIssueId}/reorder-sub-issues`, {
+    issue_ids: issueIds,
+  })
+  return res.data
+}
+
+// ==================== Watcher ====================
+
+export async function addWatcher(issueId: number): Promise<any> {
+  const res = await api.post(`/issues/${issueId}/watch`)
+  return res.data
+}
+
+export async function removeWatcher(issueId: number): Promise<any> {
+  const res = await api.delete(`/issues/${issueId}/watch`)
+  return res.data
+}
+
+export async function listWatchers(issueId: number): Promise<any> {
+  const res = await api.get(`/issues/${issueId}/watchers`)
+  return res.data
+}
+
 // ==================== Flow Metrics ====================
 
 /**
@@ -601,6 +630,14 @@ export const issueApi = {
 
   // Flow Metrics
   getFlowMetrics,
+
+  // Sub-issues
+  reorderSubIssues,
+
+  // Watcher
+  addWatcher,
+  removeWatcher,
+  listWatchers,
 
   // AI
   generateAIComment,

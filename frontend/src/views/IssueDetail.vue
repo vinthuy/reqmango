@@ -149,7 +149,6 @@ const activeTab = ref('details')
 const isWatching = ref(false)
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
-const selectedAgentId = ref('')
 const agentDispatching = ref(false)
 
 // Relation summary for sidebar

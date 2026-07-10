@@ -21,7 +21,7 @@
       <!-- Vertical line -->
       <div class="absolute left-[11px] top-2 bottom-2 w-0.5 bg-gray-200"></div>
 
-      <div v-for="(group, gi) in groupedActivities" :key="group.date" class="mb-6">
+      <div v-for="group in groupedActivities" :key="group.date" class="mb-6">
         <!-- Date header -->
         <div class="flex items-center gap-3 mb-3 -ml-8">
           <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold shrink-0">●</span>
@@ -178,8 +178,8 @@ function getActivityRingColor(activity: Activity): string {
 function getActivityMessage(activity: Activity): string {
   switch (activity.verb) {
     case 'created': return t('activity.created')
-    case 'updated': return getFieldMessage(activity.field)
-    case 'changed': return getFieldMessage(activity.field)
+    case 'updated': return getFieldMessage(activity)
+    case 'changed': return getFieldMessage(activity)
     case 'state_changed': return t('activity.changedState')
     case 'priority_changed': return t('activity.changedPriority')
     case 'assigned': return t('activity.changedAssignees')
@@ -197,7 +197,8 @@ function getActivityMessage(activity: Activity): string {
   }
 }
 
-function getFieldMessage(field?: string | null): string {
+function getFieldMessage(activity: Activity): string {
+  const field = activity.field
   switch (field) {
     case 'state_id': return t('activity.changedState')
     case 'priority': return t('activity.changedPriority')

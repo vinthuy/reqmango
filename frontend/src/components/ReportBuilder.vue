@@ -442,7 +442,6 @@ const filterOperators = computed(() => [
 
 // ═══ DATA STATE ═══
 const data = ref<ReportResponse | null>(null)
-const loading = ref(false)
 const rqlError = ref<string | null>(null)
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
 function setChartCanvas(el: any) { chartCanvas.value = el || null }
@@ -641,31 +640,7 @@ async function generateV2() {
   }
 }
 
-// ═══ GENERATE (legacy, for quick charts) ═══
-async function generate() {
-  loading.value = true
-  rqlError.value = null
-  try {
-    const rql = filterMode.value === 'basic' ? buildRQLFromFilters() : rqlQuery.value
-    const res = await reportApi.generate(props.projectId, {
-      report_type: reportType.value, group_by: groupBy.value, chart: chartType.value.toLowerCase(),
-      rql: rql || undefined, date_from: dateFrom.value || undefined, date_to: dateTo.value || undefined,
-      interval: interval.value,
-    })
-    data.value = res
-    loading.value = false
-    await nextTick()
-    if (chartType.value !== 'Table') {
-      await new Promise(r => setTimeout(r, 50))
-      renderChart(res, chartType.value)
-    }
-  } catch (e: any) {
-    const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'Unknown error'
-    rqlError.value = String(msg)
-    data.value = null
-    loading.value = false
-  }
-}
+
 
 
 watch(chartType, async (newVal) => {

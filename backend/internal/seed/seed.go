@@ -825,10 +825,10 @@ func SeedDemoData(db *gorm.DB) {
 		}
 		for _, tmpl := range templates {
 			db.Create(&model.WorkItemTemplate{
-				Name:         tmpl.name,
-				DefaultsJSON: []byte(tmpl.defaults),
-				ProjectID:    proj.ID,
-				WorkspaceID:  proj.WorkspaceID,
+				Name:        tmpl.name,
+				Defaults:    []byte(tmpl.defaults),
+				ProjectID:   proj.ID,
+				WorkspaceID: proj.WorkspaceID,
 			})
 		}
 	}

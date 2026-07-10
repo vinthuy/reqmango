@@ -216,6 +216,8 @@ func (s *NotificationService) TriggerNotification(db *gorm.DB, event, title, mes
 	case "issue_due_soon":
 		nType = "reminder"
 		priority = "high"
+	case "cycle_created":
+		nType = "info"
 	}
 
 	n := &model.Notification{
@@ -250,6 +252,8 @@ func (s *NotificationService) TriggerNotificationsBulk(db *gorm.DB, event, title
 	case "issue_due_soon":
 		nType = "reminder"
 		priority = "high"
+	case "cycle_created":
+		nType = "info"
 	}
 
 	notifications := make([]*model.Notification, len(recipientIDs))

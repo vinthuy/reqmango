@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -19,149 +18,117 @@ func NewWorkItemTemplateHandler(svc *service.WorkItemTemplateService) *WorkItemT
 	return &WorkItemTemplateHandler{svc: svc}
 }
 
-func (h *WorkItemTemplateHandler) getProjectID(c *gin.Context) (uint64, error) {
-	return strconv.ParseUint(c.Param("projectId"), 10, 64)
-}
-
-func (h *WorkItemTemplateHandler) getUserID(c *gin.Context) uint64 {
-	user, exists := c.Get("currentUser")
-	if !exists {
-		return 0
-	}
-	if u, ok := user.(*model.User); ok {
-		return u.ID
-	}
-	return 0
+func (h *WorkItemTemplateHandler) getProjectID(c *gin.Context) (uint64, uint64) {
+	projectID, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	workspaceID, _ := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	return projectID, workspaceID
 }
 
 func (h *WorkItemTemplateHandler) List(c *gin.Context) {
-	projectID, err := h.getProjectID(c)
+	projectID, _ := h.getProjectID(c)
+	if projectID == 0 {
+		common.RespondError(c, common.BadRequest("Invalid project ID"))
+		return
+	}
+	r, err := h.svc.List(projectID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		common.RespondError(c, err)
 		return
 	}
-
-	var issueTypeID *uint64
-	if itID := c.Query("issue_type_id"); itID != "" {
-		id, err := strconv.ParseUint(itID, 10, 64)
-		if err == nil {
-			issueTypeID = &id
-		}
-	}
-
-	templates, svcErr := h.svc.List(projectID, issueTypeID)
-	if svcErr != nil {
-		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
-		return
-	}
-	c.JSON(http.StatusOK, templates)
+	common.RespondOK(c, r)
 }
 
 func (h *WorkItemTemplateHandler) Get(c *gin.Context) {
-	projectID, err := h.getProjectID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
+	projectID, _ := h.getProjectID(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || projectID == 0 {
+		common.RespondError(c, common.BadRequest("Invalid ID"))
+		return
+	}
+	r, err := h.svc.Get(id, projectID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid template ID"})
+		common.RespondError(c, err)
 		return
 	}
-
-	template, svcErr := h.svc.Get(projectID, id)
-	if svcErr != nil {
-		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
-		return
-	}
-	c.JSON(http.StatusOK, template)
+	common.RespondOK(c, r)
 }
 
 func (h *WorkItemTemplateHandler) Create(c *gin.Context) {
-	projectID, err := h.getProjectID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+	projectID, workspaceID := h.getProjectID(c)
+	if projectID == 0 || workspaceID == 0 {
+		common.RespondError(c, common.BadRequest("Invalid project/workspace ID"))
 		return
 	}
 
 	var req request.WorkItemTemplateCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		common.RespondError(c, common.BadRequest(err.Error()))
 		return
 	}
 
-	template, svcErr := h.svc.Create(projectID, &req)
-	if svcErr != nil {
-		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+	r, err := h.svc.Create(projectID, workspaceID, &req)
+	if err != nil {
+		common.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, template)
+	common.RespondCreated(c, r)
 }
 
 func (h *WorkItemTemplateHandler) Update(c *gin.Context) {
-	projectID, err := h.getProjectID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
+	projectID, _ := h.getProjectID(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid template ID"})
+	if err != nil || projectID == 0 {
+		common.RespondError(c, common.BadRequest("Invalid ID"))
 		return
 	}
 
 	var req request.WorkItemTemplateUpdate
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		common.RespondError(c, common.BadRequest(err.Error()))
 		return
 	}
 
-	template, svcErr := h.svc.Update(projectID, id, &req)
-	if svcErr != nil {
-		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+	r, err := h.svc.Update(id, projectID, &req)
+	if err != nil {
+		common.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, template)
+	common.RespondOK(c, r)
 }
 
 func (h *WorkItemTemplateHandler) Delete(c *gin.Context) {
-	projectID, err := h.getProjectID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
+	projectID, _ := h.getProjectID(c)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid template ID"})
+	if err != nil || projectID == 0 {
+		common.RespondError(c, common.BadRequest("Invalid ID"))
 		return
 	}
 
-	if svcErr := h.svc.Delete(projectID, id); svcErr != nil {
-		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+	if err := h.svc.Delete(id, projectID); err != nil {
+		common.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Work item template deleted"})
+	common.RespondOK(c, gin.H{"message": "Work item template deleted"})
+}
+
+func (h *WorkItemTemplateHandler) GetDefault(c *gin.Context) {
+	projectID, _ := h.getProjectID(c)
+	if projectID == 0 {
+		common.RespondError(c, common.BadRequest("Invalid project ID"))
+		return
+	}
+	r, err := h.svc.GetDefault(projectID)
+	if err != nil {
+		common.RespondError(c, err)
+		return
+	}
+	common.RespondOK(c, r)
+}
+
+func (h *WorkItemTemplateHandler) getCurrentUserID(c *gin.Context) uint64 {
+	u, _ := c.Get("currentUser")
+	if u, ok := u.(*model.User); ok {
+		return u.ID
+	}
+	return 0
 }

@@ -228,7 +228,7 @@ import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
 import projectApi from '@/api/project'
 
-import workItemTemplateApi from '@/api/work-item-template'
+import * as workItemTemplateApi from '@/api/work-item-template'
 import type { WorkItemTemplate } from '@/types/work-item-template'
 
 const route = useRoute()
@@ -314,7 +314,7 @@ function hasFieldValue(fieldId: number): boolean {
 
 async function loadTemplates() {
   try {
-    templates.value = await workItemTemplateApi.listTemplates(projectId.value)
+    templates.value = await workItemTemplateApi.listWorkItemTemplates(projectId.value)
   } catch (e) {
     console.error('Failed to load templates:', e)
   }
