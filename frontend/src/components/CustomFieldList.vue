@@ -46,25 +46,31 @@
         >
           <div class="flex items-start justify-between">
             <!-- 字段信息 -->
-            <div class="flex items-start space-x-3 flex-1">
-              <!-- 字段类型图标 -->
-              <div class="mt-0.5" :class="getFieldTypeColor(field.field_type)">
-                <component :is="getFieldTypeIcon(field.field_type)" class="w-5 h-5" />
-              </div>
-
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center space-x-2">
-                  <h4 class="text-sm font-medium text-gray-900">{{ field.name }}</h4>
-                  <span class="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
-                    {{ getFieldTypeName(field.field_type) }}
-                  </span>
-                  <span
-                    v-if="field.is_required"
-                    class="px-1.5 py-0.5 text-xs bg-red-100 text-red-600 rounded"
-                  >
-                    {{ t('customField.required') }}
-                  </span>
+              <div class="flex items-start space-x-3 flex-1">
+                <!-- 字段类型图标 -->
+                <div class="mt-0.5" :class="getFieldTypeColor(field.field_type)">
+                  <component :is="getFieldTypeIcon(field.field_type)" class="w-5 h-5" />
                 </div>
+
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center space-x-2">
+                    <h4 class="text-sm font-medium text-gray-900">{{ field.name }}</h4>
+                    <span class="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
+                      {{ getFieldTypeName(field.field_type) }}
+                    </span>
+                    <span
+                      v-if="field.project_id === null"
+                      class="px-1.5 py-0.5 text-xs bg-indigo-100 text-indigo-600 rounded"
+                    >
+                      {{ t('customField.workspaceLevel') }}
+                    </span>
+                    <span
+                      v-if="field.is_required"
+                      class="px-1.5 py-0.5 text-xs bg-red-100 text-red-600 rounded"
+                    >
+                      {{ t('customField.required') }}
+                    </span>
+                  </div>
 
                 <p v-if="field.description" class="text-xs text-gray-500 mt-0.5">
                   {{ field.description }}
@@ -88,6 +94,20 @@
 
             <!-- 操作 -->
             <div class="flex items-center space-x-2 ml-4">
+              <button
+                v-if="field.project_id === null"
+                @click="toggleEnroll(field)"
+                class="p-1.5 rounded"
+                :class="enrolledFields.includes(field.id) ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-indigo-600'"
+                :title="enrolledFields.includes(field.id) ? t('customField.disable') : t('customField.enable')"
+              >
+                <svg v-if="enrolledFields.includes(field.id)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              </button>
               <button
                 @click="$emit('edit', field)"
                 class="p-1.5 text-gray-400 hover:text-indigo-600 rounded"
@@ -138,6 +158,7 @@ defineEmits<{
 const { confirm } = useConfirm()
 const fields = ref<CustomField[]>([])
 const loading = ref(false)
+const enrolledFields = ref<number[]>([])
 
 // Load fields
 onMounted(() => {
@@ -147,11 +168,29 @@ onMounted(() => {
 async function loadFields() {
   loading.value = true
   try {
-    fields.value = await customFieldApi.listCustomFields(props.projectId)
+    const allFields = await customFieldApi.listCustomFields(props.projectId)
+    fields.value = allFields
+    enrolledFields.value = allFields.filter(f => f.project_id === null).map(f => f.id)
   } catch (error) {
     console.error('Failed to load custom fields:', error)
   } finally {
     loading.value = false
+  }
+}
+
+async function toggleEnroll(field: CustomField) {
+  const isEnrolled = enrolledFields.value.includes(field.id)
+  try {
+    if (isEnrolled) {
+      await customFieldApi.unenrollField(props.projectId, field.id)
+      enrolledFields.value = enrolledFields.value.filter(id => id !== field.id)
+    } else {
+      await customFieldApi.enrollField(props.projectId, field.id)
+      enrolledFields.value.push(field.id)
+    }
+    await loadFields()
+  } catch (error) {
+    console.error('Failed to toggle field enrollment:', error)
   }
 }
 

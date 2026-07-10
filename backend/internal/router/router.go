@@ -289,6 +289,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.POST("/:projectId/metrics/charts/reorder", metricH.ReorderCharts)
 			projects.GET("/:projectId/metrics/filter-values", metricH.GetFilterValues)
 			projects.GET("/:projectId/metrics/custom-fields", metricH.GetCustomFields)
+			projects.POST("/:projectId/custom-fields/:fieldId/enroll", customFieldH.EnrollField)
+			projects.POST("/:projectId/custom-fields/:fieldId/unenroll", customFieldH.UnenrollField)
 			projects.GET("/:projectId/intake", intakeH.ListPending)
 			projects.GET("/:projectId/webhooks", webhookH.List)
 			projects.POST("/:projectId/webhooks", webhookH.Create)

@@ -113,7 +113,7 @@ func (s *CustomFieldService) List(workspaceID uint64, projectID *uint64, issueTy
 	query := s.db.Model(&model.CustomField{}).Where("workspace_id = ?", workspaceID)
 
 	if projectID != nil {
-		query = query.Where("project_id = ? OR project_id IS NULL", *projectID)
+		query = query.Where("project_id = ? OR (project_id IS NULL AND EXISTS (SELECT 1 FROM project_custom_field_enrollments WHERE project_custom_field_enrollments.field_id = custom_fields.id AND project_custom_field_enrollments.project_id = ? AND project_custom_field_enrollments.is_enabled = true))", *projectID, *projectID)
 	} else {
 		query = query.Where("project_id IS NULL")
 	}
@@ -136,6 +136,49 @@ func (s *CustomFieldService) List(workspaceID uint64, projectID *uint64, issueTy
 		result = []response.CustomFieldResponse{}
 	}
 	return result, nil
+}
+
+func (s *CustomFieldService) EnrollField(projectID, fieldID uint64) error {
+	var field model.CustomField
+	if err := s.db.First(&field, fieldID).Error; err != nil {
+		return common.NotFound("Custom field not found")
+	}
+
+	if field.ProjectID != nil {
+		return common.BadRequest("Cannot enroll project-level field")
+	}
+
+	var enrollment model.ProjectCustomFieldEnrollment
+	if err := s.db.Where("project_id = ? AND field_id = ?", projectID, fieldID).First(&enrollment).Error; err == nil {
+		enrollment.IsEnabled = true
+		return s.db.Save(&enrollment).Error
+	}
+
+	enrollment = model.ProjectCustomFieldEnrollment{
+		ProjectID: projectID,
+		FieldID:   fieldID,
+		IsEnabled: true,
+	}
+	return s.db.Create(&enrollment).Error
+}
+
+func (s *CustomFieldService) UnenrollField(projectID, fieldID uint64) error {
+	var field model.CustomField
+	if err := s.db.First(&field, fieldID).Error; err != nil {
+		return common.NotFound("Custom field not found")
+	}
+
+	if field.ProjectID != nil {
+		return common.BadRequest("Cannot unenroll project-level field")
+	}
+
+	var enrollment model.ProjectCustomFieldEnrollment
+	if err := s.db.Where("project_id = ? AND field_id = ?", projectID, fieldID).First(&enrollment).Error; err != nil {
+		return common.NotFound("Field not enrolled for this project")
+	}
+
+	enrollment.IsEnabled = false
+	return s.db.Save(&enrollment).Error
 }
 
 func (s *CustomFieldService) Get(fieldID uint64) (*response.CustomFieldResponse, error) {

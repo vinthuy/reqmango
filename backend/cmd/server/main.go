@@ -92,6 +92,7 @@ func main() {
 		&model.RolePermission{},
 		&model.FieldPermission{},
 		&model.SavedReport{},
+		&model.ProjectCustomFieldEnrollment{},
 		&model.SearchTemplate{},
 		&model.SavedDashboard{},
 		&model.DashboardWidget{},
@@ -115,6 +116,15 @@ func main() {
 		END IF;
 	END $$`)
 	fmt.Println("Foreign key cleanup completed")
+
+	// Migrate existing workspace-level fields to enrolled state for all projects (backward compatibility)
+	db.Exec(`INSERT INTO project_custom_field_enrollments (project_id, field_id, is_enabled)
+		SELECT p.id, cf.id, true
+		FROM custom_fields cf
+		JOIN projects p ON cf.workspace_id = p.workspace_id
+		WHERE cf.project_id IS NULL
+		ON CONFLICT (project_id, field_id) DO NOTHING`)
+	fmt.Println("Custom field enrollment migration completed")
 
 	// Create full-text search index for issues
 	db.Exec(`

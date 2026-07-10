@@ -150,6 +150,50 @@ func (h *CustomFieldHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Custom field deleted"})
 }
 
+// ==================== Project Enrollment ====================
+
+func (h *CustomFieldHandler) EnrollField(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	fieldID, err := h.parseFieldID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid field ID"})
+		return
+	}
+
+	if svcErr := h.svc.EnrollField(projectID, fieldID); svcErr != nil {
+		h.respondError(c, svcErr)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Field enrolled successfully"})
+}
+
+func (h *CustomFieldHandler) UnenrollField(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	fieldID, err := h.parseFieldID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid field ID"})
+		return
+	}
+
+	if svcErr := h.svc.UnenrollField(projectID, fieldID); svcErr != nil {
+		h.respondError(c, svcErr)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Field unenrolled successfully"})
+}
+
 // ==================== Options ====================
 
 func (h *CustomFieldHandler) CreateOption(c *gin.Context) {

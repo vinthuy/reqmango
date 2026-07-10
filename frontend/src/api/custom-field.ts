@@ -186,6 +186,20 @@ export async function getIssueCustomFieldsWithDefinitions(
 
 // ==================== Export all ====================
 
+export async function enrollField(
+  projectId: number,
+  fieldId: number
+): Promise<void> {
+  await api.post(`/projects/${projectId}/custom-fields/${fieldId}/enroll`)
+}
+
+export async function unenrollField(
+  projectId: number,
+  fieldId: number
+): Promise<void> {
+  await api.post(`/projects/${projectId}/custom-fields/${fieldId}/unenroll`)
+}
+
 export const customFieldApi = {
   // Field CRUD
   createCustomField,
@@ -193,6 +207,10 @@ export const customFieldApi = {
   getCustomField,
   updateCustomField,
   deleteCustomField,
+  
+  // Enrollment
+  enrollField,
+  unenrollField,
   
   // Options
   createFieldOption,

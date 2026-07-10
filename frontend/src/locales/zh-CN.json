@@ -831,6 +831,7 @@
     "addOptionHint": "点击\"添加选项\"创建下拉选项",
     "isReadonly": "只读字段",
     "selectColor": "选择颜色",
+    "workspaceLevel": "工作区级",
     "confirm": "确定",
     "disableField": "禁用字段",
     "enableField": "启用字段",
