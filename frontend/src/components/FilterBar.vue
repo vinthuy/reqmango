@@ -280,6 +280,10 @@ function toggleGroupDropdown(e: Event) {
 
 function selectField(field: FilterField) {
   showFieldDropdown.value = false
+  const exists = state.filters.some(f => f.field === field.key)
+  if (exists) {
+    return
+  }
   const newCondition: FilterCondition = {
     field: field.key,
     operator: field.operators[0],
@@ -291,6 +295,10 @@ function selectField(field: FilterField) {
 }
 
 function handleFieldChange(index: number, newFieldKey: string) {
+  const exists = state.filters.some((f, i) => i !== index && f.field === newFieldKey)
+  if (exists) {
+    return
+  }
   state.filters[index].field = newFieldKey
   const fieldDef = allFilterFields.value.find(f => f.key === newFieldKey)
   state.filters[index].operator = fieldDef?.operators[0] || 'is'
@@ -761,9 +769,12 @@ onUnmounted(() => {
               v-for="field in allFilterFields"
               :key="field.key"
               @click="selectField(field)"
-              class="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+              :disabled="state.filters.some(f => f.field === field.key)"
+              class="w-full px-3 py-1.5 text-left text-sm transition-colors"
+              :class="state.filters.some(f => f.field === field.key) ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'"
             >
               {{ getFieldLabel(field.key) }}
+              <span v-if="state.filters.some(f => f.field === field.key)" class="float-right">✓</span>
             </button>
           </div>
         </div>

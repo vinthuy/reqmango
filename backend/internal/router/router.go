@@ -104,6 +104,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	roleH := handler.NewRoleHandler(roleSvc)
 	fieldPermH := handler.NewFieldPermissionHandler(fieldPermSvc)
 	pluginH := handler.NewPluginHandler(pluginSvc)
+	automationH := handler.NewAutomationHandler(automationSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -221,6 +222,26 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/plugins/:id/disable", pluginH.Disable)
 			workspaces.GET("/:wsParam/plugins/:id/logs", pluginH.GetEventLogs)
 			workspaces.POST("/:wsParam/plugins/:id/test", pluginH.TestExecute)
+
+			// Workspace-level Automation Rules
+			workspaces.GET("/:wsParam/automations", automationH.ListWorkspace)
+			workspaces.POST("/:wsParam/automations", automationH.CreateWorkspace)
+			workspaces.GET("/:wsParam/automations/:id", automationH.Get)
+			workspaces.PUT("/:wsParam/automations/:id", automationH.UpdateWorkspace)
+			workspaces.DELETE("/:wsParam/automations/:id", automationH.DeleteWorkspace)
+
+			// Workspace-level Workflows
+			workspaces.GET("/:wsParam/workflows", workflowH.ListWorkspaceWorkflows)
+			workspaces.POST("/:wsParam/workflows", workflowH.CreateWorkspaceWorkflow)
+			workspaces.GET("/:wsParam/workflows/:workflowId", workflowH.GetWorkflow)
+			workspaces.PUT("/:wsParam/workflows/:workflowId", workflowH.UpdateWorkspaceWorkflow)
+			workspaces.DELETE("/:wsParam/workflows/:workflowId", workflowH.DeleteWorkspaceWorkflow)
+			workspaces.POST("/:wsParam/workflows/:workflowId/transitions", workflowH.AddTransition)
+			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
+			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
+
+			// Workspace-level Settings: States
+			workspaces.GET("/:wsParam/settings/states", settingsH.ListWorkspaceStates)
 		}
 
 		// Permissions (global, read-only)
@@ -702,7 +723,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		projects.POST("/:projectId/agent/auto-assign", agentH.AutoAssignProject)
 
 		// Automation rules
-		automationH := handler.NewAutomationHandler(automationSvc)
 		projects.GET("/:projectId/automations", automationH.List)
 		projects.POST("/:projectId/automations", automationH.Create)
 		projects.GET("/:projectId/automations/:id", automationH.Get)

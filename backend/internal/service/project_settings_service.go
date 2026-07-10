@@ -136,6 +136,25 @@ func (s *ProjectSettingsService) DeleteState(projectID, stateID uint64) error {
 	return nil
 }
 
+// ListWorkspaceStates returns states from the first project in the workspace as workspace-level state template.
+func (s *ProjectSettingsService) ListWorkspaceStates(workspaceID uint64) ([]response.StateResponse, error) {
+	var firstProjectID uint64
+	if err := s.db.Model(&model.Project{}).Where("workspace_id = ?", workspaceID).Order("id ASC").Limit(1).Pluck("id", &firstProjectID).Error; err != nil || firstProjectID == 0 {
+		return nil, common.Internal("No project found in workspace")
+	}
+
+	var states []model.State
+	if err := s.db.Where("project_id = ? AND is_active = ?", firstProjectID, true).Order("sequence ASC").Find(&states).Error; err != nil {
+		return nil, common.Internal("Database error")
+	}
+
+	result := make([]response.StateResponse, len(states))
+	for i, st := range states {
+		result[i] = *stateToResponse(&st)
+	}
+	return result, nil
+}
+
 // CreateDefaultStates creates the 6 default states for a project.
 func (s *ProjectSettingsService) CreateDefaultStates(projectID, workspaceID uint64) ([]response.StateResponse, error) {
 	var states []model.State

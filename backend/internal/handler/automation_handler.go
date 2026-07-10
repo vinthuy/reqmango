@@ -158,3 +158,76 @@ func (h *AutomationHandler) Execute(c *gin.Context) {
 	results := h.svc.ExecuteTrigger(projectID, rule.TriggerType, req.IssueID, req.Context)
 	c.JSON(http.StatusOK, gin.H{"rule": rule, "results": results})
 }
+
+// ======== 工作区级自动化规则 API ========
+
+// ListWorkspace handles GET /workspaces/:workspaceId/automations
+func (h *AutomationHandler) ListWorkspace(c *gin.Context) {
+	workspaceID, err := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
+
+	rules, svcErr := h.svc.ListWorkspace(workspaceID)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, rules)
+}
+
+// CreateWorkspace handles POST /workspaces/:workspaceId/automations
+func (h *AutomationHandler) CreateWorkspace(c *gin.Context) {
+	workspaceID, err := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
+
+	var req service.AutomationCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	rule, svcErr := h.svc.CreateWorkspace(workspaceID, &req)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusCreated, rule)
+}
+
+// UpdateWorkspace handles PUT /workspaces/:workspaceId/automations/:id
+func (h *AutomationHandler) UpdateWorkspace(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid automation ID"})
+		return
+	}
+
+	var req service.AutomationUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	rule, svcErr := h.svc.UpdateWorkspace(id, &req)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, rule)
+}
+
+// DeleteWorkspace handles DELETE /workspaces/:workspaceId/automations/:id
+func (h *AutomationHandler) DeleteWorkspace(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid automation ID"})
+		return
+	}
+
+	if svcErr := h.svc.DeleteWorkspace(id); appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Automation rule deleted"})
+}

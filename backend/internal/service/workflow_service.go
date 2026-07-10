@@ -13,7 +13,8 @@ func NewWorkflowService(db *gorm.DB) *WorkflowService { return &WorkflowService{
 func descStr(d *string) string { if d != nil { return *d }; return "" }
 
 func (s *WorkflowService) Create(pid uint64, req request.WorkflowCreate) (*response.WorkflowResponse, error) {
-	w := model.Workflow{Name: req.Name, Description: req.Description, ProjectID: pid, IssueTypeID: req.IssueTypeID}
+	var projectID *uint64 = &pid
+	w := model.Workflow{Name: req.Name, Description: req.Description, ProjectID: projectID, IssueTypeID: req.IssueTypeID}
 	if err := s.db.Create(&w).Error; err != nil { return nil, common.Internal("Failed to create workflow") }
 	return s.Get(w.ID)
 }
@@ -22,7 +23,9 @@ func (s *WorkflowService) List(pid uint64) ([]response.WorkflowResponse, error) 
 	s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").Where("project_id = ?", pid).Find(&ws)
 	res := make([]response.WorkflowResponse, len(ws))
 	for i, w := range ws {
-		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: w.ProjectID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
+		var projectID uint64
+		if w.ProjectID != nil { projectID = *w.ProjectID }
+		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
 		for _, t := range w.Transitions {
 			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
 		}
@@ -32,7 +35,9 @@ func (s *WorkflowService) List(pid uint64) ([]response.WorkflowResponse, error) 
 func (s *WorkflowService) Get(id uint64) (*response.WorkflowResponse, error) {
 	var w model.Workflow
 	if err := s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").First(&w, id).Error; err != nil { return nil, common.NotFound("Workflow not found") }
-	r := &response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: w.ProjectID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
+	var projectID uint64
+	if w.ProjectID != nil { projectID = *w.ProjectID }
+	r := &response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
 	for _, t := range w.Transitions {
 		r.Transitions = append(r.Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
 	}
@@ -51,6 +56,35 @@ func (s *WorkflowService) Delete(id uint64) error {
 	s.db.Where("workflow_id = ?", id).Delete(&model.StateTransition{})
 	return s.db.Delete(&model.Workflow{}, id).Error
 }
+
+func (s *WorkflowService) CreateWorkspace(wid uint64, req request.WorkflowCreate) (*response.WorkflowResponse, error) {
+	w := model.Workflow{Name: req.Name, Description: req.Description, WorkspaceID: wid, IssueTypeID: req.IssueTypeID}
+	if err := s.db.Create(&w).Error; err != nil { return nil, common.Internal("Failed to create workflow") }
+	return s.Get(w.ID)
+}
+
+func (s *WorkflowService) ListWorkspace(wid uint64) ([]response.WorkflowResponse, error) {
+	var ws []model.Workflow
+	s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").Where("workspace_id = ?", wid).Find(&ws)
+	res := make([]response.WorkflowResponse, len(ws))
+	for i, w := range ws {
+		var projectID uint64
+		if w.ProjectID != nil { projectID = *w.ProjectID }
+		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
+		for _, t := range w.Transitions {
+			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
+		}
+	}
+	if res == nil { res = []response.WorkflowResponse{} }; return res, nil
+}
+
+func (s *WorkflowService) UpdateWorkspace(id uint64, req request.WorkflowUpdate) (*response.WorkflowResponse, error) {
+	return s.Update(id, req)
+}
+
+func (s *WorkflowService) DeleteWorkspace(id uint64) error {
+	return s.Delete(id)
+}
 func (s *WorkflowService) AddTransition(wid uint64, req request.TransitionCreate) (*response.TransitionResponse, error) {
 	var w model.Workflow
 	if err := s.db.First(&w, wid).Error; err != nil { return nil, common.NotFound("Workflow not found") }
@@ -62,12 +96,14 @@ func (s *WorkflowService) AddTransition(wid uint64, req request.TransitionCreate
 	}
 	var fs, ts model.State
 	s.db.First(&fs, req.FromStateID); s.db.First(&ts, req.ToStateID)
+	var projectID uint64
+	if w.ProjectID != nil { projectID = *w.ProjectID }
 	t := model.StateTransition{
 		Name: name, WorkflowID: wid,
 		SourceStateID: req.FromStateID, TargetStateID: req.ToStateID,
 		Description: &req.Description, RuleType: req.RuleType,
 		ApproverIDs: req.ApproverIDs, RoleAllowed: req.RoleAllowed,
-		ProjectID: w.ProjectID, WorkspaceID: fs.WorkspaceID,
+		ProjectID: projectID, WorkspaceID: fs.WorkspaceID,
 	}
 	if t.RuleType == "" { t.RuleType = "allow" }
 	if err := s.db.Create(&t).Error; err != nil { return nil, common.Internal("Failed to add transition") }

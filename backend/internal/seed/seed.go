@@ -938,7 +938,7 @@ func SeedConfigData(db *gorm.DB) {
 		db.Where("project_id = ? AND is_active = true", proj.ID).Order("sequence").Find(&stList)
 		if len(stList) >= 5 {
 			bid, tid, ipid, rid, dnid := stList[0].ID, stList[1].ID, stList[2].ID, stList[3].ID, stList[4].ID
-			wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: proj.ID, IsActive: true}
+			pid := proj.ID; wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: &pid, IsActive: true}
 			db.Create(&wf)
 			trs := []model.StateTransition{
 				{Name: "Backlog→Todo", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: tid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},

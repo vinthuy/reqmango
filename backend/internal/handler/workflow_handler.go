@@ -47,6 +47,32 @@ func (h *WorkflowHandler) DeleteWorkflow(c *gin.Context) {
 	if h.respond(c, h.svc.Delete(id)) { return }; c.JSON(200, gin.H{"message":"Deleted"})
 }
 
+// ---- Workspace-level Workflow routes ----
+func (h *WorkflowHandler) parseWorkspaceID(c *gin.Context) (uint64, error) { return strconv.ParseUint(c.Param("wsParam"), 10, 64) }
+func (h *WorkflowHandler) CreateWorkspaceWorkflow(c *gin.Context) {
+	wid, _ := h.parseWorkspaceID(c)
+	var req request.WorkflowCreate
+	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"message":"Invalid body"}); return }
+	resp, e := h.svc.CreateWorkspace(wid, req)
+	if h.respond(c, e) { return }; c.JSON(201, resp)
+}
+func (h *WorkflowHandler) ListWorkspaceWorkflows(c *gin.Context) {
+	wid, _ := h.parseWorkspaceID(c)
+	resp, e := h.svc.ListWorkspace(wid)
+	if h.respond(c, e) { return }; c.JSON(200, resp)
+}
+func (h *WorkflowHandler) UpdateWorkspaceWorkflow(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("workflowId"), 10, 64)
+	var req request.WorkflowUpdate
+	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"message":"Invalid body"}); return }
+	resp, e := h.svc.UpdateWorkspace(id, req)
+	if h.respond(c, e) { return }; c.JSON(200, resp)
+}
+func (h *WorkflowHandler) DeleteWorkspaceWorkflow(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("workflowId"), 10, 64)
+	if h.respond(c, h.svc.DeleteWorkspace(id)) { return }; c.JSON(200, gin.H{"message":"Deleted"})
+}
+
 // ---- Transition routes ----
 func (h *WorkflowHandler) AddTransition(c *gin.Context) {
 	wid, _ := strconv.ParseUint(c.Param("workflowId"), 10, 64)

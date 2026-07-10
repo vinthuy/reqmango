@@ -611,11 +611,23 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 
 	// 查询匹配的自动化规则
 	var rules []model.AutomationRule
+	
 	if err := s.db.Where("project_id = ? AND trigger_type = ? AND is_enabled = ?", 
 		event.ProjectID, event.Type, true).Order("sequence ASC").Find(&rules).Error; err != nil {
-		log.Printf("[Automation] Failed to query rules: %v", err)
+		log.Printf("[Automation] Failed to query project rules: %v", err)
 		return err
 	}
+
+	var workspaceRules []model.AutomationRule
+	var project model.Project
+	if err := s.db.Select("workspace_id").First(&project, event.ProjectID).Error; err == nil {
+		if err := s.db.Where("workspace_id = ? AND trigger_type = ? AND is_enabled = ?",
+			project.WorkspaceID, event.Type, true).Order("sequence ASC").Find(&workspaceRules).Error; err != nil {
+			log.Printf("[Automation] Failed to query workspace rules: %v", err)
+		}
+	}
+	
+	rules = append(rules, workspaceRules...)
 	
 	var allResults []string
 	var hasError bool
@@ -759,6 +771,7 @@ type AutomationResponse struct {
 	Name           string `json:"name"`
 	Description    string `json:"description"`
 	ProjectID      uint64 `json:"project_id"`
+	WorkspaceID    uint64 `json:"workspace_id"`
 	TriggerType    string `json:"trigger_type"`
 	Conditions     string `json:"conditions"`
 	Actions        string `json:"actions"`
@@ -912,6 +925,114 @@ func (s *AutomationService) ExecuteTrigger(projectID uint64, triggerType string,
 	return []string{"Executed"}
 }
 
+// ======== 工作区级自动化规则 CRUD ========
+
+func (s *AutomationService) ListWorkspace(workspaceID uint64) ([]AutomationResponse, error) {
+	var rules []model.AutomationRule
+	if err := s.db.Where("workspace_id = ?", workspaceID).Order("sequence ASC").Find(&rules).Error; err != nil {
+		return nil, common.Internal("Failed to list workspace automation rules")
+	}
+	res := make([]AutomationResponse, len(rules))
+	for i, r := range rules {
+		res[i] = s.toResponse(&r)
+	}
+	if res == nil {
+		res = []AutomationResponse{}
+	}
+	return res, nil
+}
+
+func (s *AutomationService) CreateWorkspace(workspaceID uint64, req *AutomationCreateRequest) (*AutomationResponse, error) {
+	enabled := true
+	if req.IsEnabled != nil {
+		enabled = *req.IsEnabled
+	}
+
+	if err := validateJSON(req.Conditions); err != nil {
+		return nil, common.BadRequest("invalid conditions JSON: " + err.Error())
+	}
+	if err := validateJSON(req.Actions); err != nil {
+		return nil, common.BadRequest("invalid actions JSON: " + err.Error())
+	}
+
+	rule := model.AutomationRule{
+		Name:        req.Name,
+		Description: req.Description,
+		WorkspaceID: workspaceID,
+		TriggerType: req.TriggerType,
+		Conditions:  req.Conditions,
+		Actions:     req.Actions,
+		IsEnabled:   enabled,
+		Sequence:    req.Sequence,
+	}
+
+	if err := s.db.Create(&rule).Error; err != nil {
+		return nil, common.Internal("Failed to create workspace automation rule")
+	}
+
+	r := s.toResponse(&rule)
+	return &r, nil
+}
+
+func (s *AutomationService) UpdateWorkspace(id uint64, req *AutomationUpdateRequest) (*AutomationResponse, error) {
+	var rule model.AutomationRule
+	if err := s.db.First(&rule, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, common.NotFound("Automation rule not found")
+		}
+		return nil, common.Internal("Failed to get automation rule")
+	}
+
+	if req.Name != nil {
+		rule.Name = *req.Name
+	}
+	if req.Description != nil {
+		rule.Description = *req.Description
+	}
+	if req.TriggerType != nil {
+		rule.TriggerType = *req.TriggerType
+	}
+	if req.Conditions != nil {
+		if err := validateJSON(*req.Conditions); err != nil {
+			return nil, common.BadRequest("invalid conditions JSON: " + err.Error())
+		}
+		rule.Conditions = *req.Conditions
+	}
+	if req.Actions != nil {
+		if err := validateJSON(*req.Actions); err != nil {
+			return nil, common.BadRequest("invalid actions JSON: " + err.Error())
+		}
+		rule.Actions = *req.Actions
+	}
+	if req.IsEnabled != nil {
+		rule.IsEnabled = *req.IsEnabled
+	}
+	if req.Sequence != nil {
+		rule.Sequence = *req.Sequence
+	}
+
+	if err := s.db.Save(&rule).Error; err != nil {
+		return nil, common.Internal("Failed to update automation rule")
+	}
+
+	r := s.toResponse(&rule)
+	return &r, nil
+}
+
+func (s *AutomationService) DeleteWorkspace(id uint64) error {
+	var rule model.AutomationRule
+	if err := s.db.First(&rule, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return common.NotFound("Automation rule not found")
+		}
+		return common.Internal("Failed to get automation rule")
+	}
+	if err := s.db.Delete(&rule).Error; err != nil {
+		return common.Internal("Failed to delete automation rule")
+	}
+	return nil
+}
+
 // Helpers
 
 func (s *AutomationService) toResponse(rule *model.AutomationRule) AutomationResponse {
@@ -920,6 +1041,7 @@ func (s *AutomationService) toResponse(rule *model.AutomationRule) AutomationRes
 		Name:           rule.Name,
 		Description:    rule.Description,
 		ProjectID:      rule.ProjectID,
+		WorkspaceID:    rule.WorkspaceID,
 		TriggerType:    rule.TriggerType,
 		Conditions:     rule.Conditions,
 		Actions:        rule.Actions,

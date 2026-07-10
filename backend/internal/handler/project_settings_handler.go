@@ -22,7 +22,32 @@ func (h *ProjectSettingsHandler) getProjectID(c *gin.Context) (uint64, error) {
 	return strconv.ParseUint(c.Param("projectId"), 10, 64)
 }
 
+func (h *ProjectSettingsHandler) getWorkspaceID(c *gin.Context) (uint64, error) {
+	return strconv.ParseUint(c.Param("wsParam"), 10, 64)
+}
+
 // ==================== States ====================
+
+// ListWorkspaceStates handles GET /workspaces/:wsParam/settings/states
+func (h *ProjectSettingsHandler) ListWorkspaceStates(c *gin.Context) {
+	workspaceID, err := h.getWorkspaceID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
+
+	states, svcErr := h.svc.ListWorkspaceStates(workspaceID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, states)
+}
 
 // CreateState handles POST /projects/:id/settings/states?workspace_id=int
 func (h *ProjectSettingsHandler) CreateState(c *gin.Context) {

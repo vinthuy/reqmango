@@ -1455,15 +1455,23 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 		issueTypeID = issue.IssueTypeID
 	}
 
-	// Query active workflows, optionally filtered by issue type
+	// Get workspace ID from project for workspace-level workflow lookup
+	var workspaceID uint64
+	db.Raw("SELECT workspace_id FROM projects WHERE id = ?", projectID).Scan(&workspaceID)
+
+	// Build the workflow query condition
 	var workflows []model.Workflow
-	query := db.Where("project_id = ? AND is_active = ?", projectID, true)
+	query := db.Where("is_active = ?", true)
+	
+	// Include both project-level workflows (project_id = ?) AND workspace-level workflows (workspace_id = ? AND project_id IS NULL)
 	if issueTypeID != nil {
 		// Include workflows bound to this issue type OR workflows with no issue type binding
-		query = query.Where("(issue_type_id = ? OR issue_type_id IS NULL)", *issueTypeID)
+		query = query.Where("(project_id = ? AND (issue_type_id = ? OR issue_type_id IS NULL)) OR (workspace_id = ? AND project_id IS NULL AND (issue_type_id = ? OR issue_type_id IS NULL))",
+			projectID, *issueTypeID, workspaceID, *issueTypeID)
 	} else {
 		// Only include workflows with no issue type binding
-		query = query.Where("issue_type_id IS NULL")
+		query = query.Where("(project_id = ? AND issue_type_id IS NULL) OR (workspace_id = ? AND project_id IS NULL AND issue_type_id IS NULL)",
+			projectID, workspaceID)
 	}
 	query.Find(&workflows)
 

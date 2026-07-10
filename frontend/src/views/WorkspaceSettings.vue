@@ -12,6 +12,7 @@ import AutomationList from '@/components/AutomationList.vue';
 import WorkspaceIntegrations from '@/components/WorkspaceIntegrations.vue'
 import RoleManagement from '@/components/RoleManagement.vue';
 import PluginManager from '@/views/PluginManager.vue';
+import WorkflowManager from '@/components/WorkflowManager.vue';
 import * as workflowApi from '@/api/workflow';
 import * as issueTypeApi from '@/api/issue-type';
 import * as customFieldApi from '@/api/custom-field';
@@ -41,6 +42,7 @@ const activeSection = ref('types');
 const issueTypes = ref<any[]>([]);
 const customFields = ref<any[]>([]);
 const automations = ref<any[]>([]);
+const workflows = ref<any[]>([]);
 const relationTypes = ref<any[]>([]);
 const memberCount = ref(0);
 const templateCount = ref(0);
@@ -54,6 +56,7 @@ const navItems = computed(() => [
   { id: 'templates', label: t('settings.templates'), icon: '📦', count: templateCount.value },
   { id: 'ai', label: t('settings.ai'), icon: '🤖', count: 0 },
   { id: 'fields', label: t('settings.fields'), icon: '📝', count: customFields.value.length },
+  { id: 'workflows', label: t('settings.workflows'), icon: '🔄', count: workflows.value.length },
   { id: 'automations', label: t('settings.automations'), icon: '🤖', count: automations.value.length },
   { id: 'relations', label: t('settings.relations'), icon: '🔗', count: relationTypes.value.length },
   { id: 'integrations', label: t('settings.integrations'), icon: '🔌', count: integrationCount.value },
@@ -77,12 +80,12 @@ async function loadAllData() {
   loading.value = true;
   try {
     const wid = workspaceId.value;
-    const pid = firstProjectId.value;
 
     const results = await Promise.allSettled([
       issueTypeApi.getIssueTypes(wid),
       customFieldApi.listCustomFields(wid),
-      pid ? workflowApi.listAutomations(pid) : Promise.resolve([]),
+      workflowApi.listWorkspaceWorkflows(wid),
+      workflowApi.listWorkspaceAutomations(wid),
       relationApi.listRelationTypes(wid),
       slug.value ? workspaceApi.listMembers(slug.value) : Promise.resolve([]),
       templateApi.listTemplates(wid),
@@ -94,17 +97,18 @@ async function loadAllData() {
     ]);
     issueTypes.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value) ? results[0].value : []) : [];
     customFields.value = results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : []) : [];
-    automations.value = results[2].status === 'fulfilled' ? (Array.isArray(results[2].value) ? results[2].value : []) : [];
-    relationTypes.value = results[3].status === 'fulfilled' ? (Array.isArray(results[3].value) ? results[3].value : []) : [];
-    memberCount.value = results[4].status === 'fulfilled' ? (Array.isArray(results[4].value) ? results[4].value.length : 0) : 0;
-    templateCount.value = results[5].status === 'fulfilled' ? (Array.isArray(results[5].value) ? results[5].value.length : 0) : 0;
-    pluginCount.value = results[6].status === 'fulfilled' ? (Array.isArray(results[6].value) ? results[6].value.length : 0) : 0;
-    const roles = results[7].status === 'fulfilled' ? results[7].value : null;
+    workflows.value = results[2].status === 'fulfilled' ? (Array.isArray(results[2].value) ? results[2].value : []) : [];
+    automations.value = results[3].status === 'fulfilled' ? (Array.isArray(results[3].value) ? results[3].value : []) : [];
+    relationTypes.value = results[4].status === 'fulfilled' ? (Array.isArray(results[4].value) ? results[4].value : []) : [];
+    memberCount.value = results[5].status === 'fulfilled' ? (Array.isArray(results[5].value) ? results[5].value.length : 0) : 0;
+    templateCount.value = results[6].status === 'fulfilled' ? (Array.isArray(results[6].value) ? results[6].value.length : 0) : 0;
+    pluginCount.value = results[7].status === 'fulfilled' ? (Array.isArray(results[7].value) ? results[7].value.length : 0) : 0;
+    const roles = results[8].status === 'fulfilled' ? results[8].value : null;
     const roleData = roles?.data;
     roleCount.value = Array.isArray(roleData) ? roleData.length : (Array.isArray(roles) ? roles.length : 0);
-    const mcp = results[8].status === 'fulfilled' ? (Array.isArray(results[8].value) ? results[8].value : []) : [];
-    const github = results[9].status === 'fulfilled' ? (Array.isArray(results[9].value) ? results[9].value : []) : [];
-    const slack = results[10].status === 'fulfilled' ? (Array.isArray(results[10].value) ? results[10].value : []) : [];
+    const mcp = results[9].status === 'fulfilled' ? (Array.isArray(results[9].value) ? results[9].value : []) : [];
+    const github = results[10].status === 'fulfilled' ? (Array.isArray(results[10].value) ? results[10].value : []) : [];
+    const slack = results[11].status === 'fulfilled' ? (Array.isArray(results[11].value) ? results[11].value : []) : [];
     integrationCount.value = mcp.length + github.length + slack.length;
   } catch (e) { console.error('Failed to load data:', e); }
   finally { loading.value = false; }
@@ -124,12 +128,12 @@ function handleEditAutomation(automation: any) {
 }
 async function handleSaveAutomation(data: any) {
   try {
-    const pid = firstProjectId.value;
-    if (!pid) return;
+    const wid = workspaceId.value;
+    if (!wid) return;
     if (editingAutomation.value) {
-      await workflowApi.updateAutomation(pid, editingAutomation.value.id, data);
+      await workflowApi.updateWorkspaceAutomation(wid, editingAutomation.value.id, data);
     } else {
-      await workflowApi.createAutomation(pid, data);
+      await workflowApi.createWorkspaceAutomation(wid, data);
     }
     showAutomationForm.value = false;
     await loadAllData();
@@ -138,8 +142,8 @@ async function handleSaveAutomation(data: any) {
 async function handleDeleteAutomation(automation: any) {
   if (!(await confirm({ title: t('settings.deleteAutomationGeneric'), message: t('settings.confirmDeleteAutomationGeneric', { name: automation.name }), danger: true, confirmText: t('common.delete') }))) return;
   try {
-    const pid = firstProjectId.value;
-    if (pid) await workflowApi.deleteAutomation(pid, automation.id);
+    const wid = workspaceId.value;
+    if (wid) await workflowApi.deleteWorkspaceAutomation(wid, automation.id);
     await loadAllData();
   } catch (e) { console.error('Failed to delete automation:', e); }
 }
@@ -148,9 +152,9 @@ async function handleToggleAutomation(automation: any) {
   const action = newStatus ? t('workflow.enable') : t('workflow.disable');
   if (!(await confirm({ title: newStatus ? t('settings.enableAutomation') : t('settings.disableAutomation'), message: t('settings.confirmToggleAutomation', { action, name: automation.name }), danger: !newStatus, confirmText: action }))) return;
   try {
-    const pid = firstProjectId.value;
-    if (pid) {
-      await workflowApi.updateAutomation(pid, automation.id, { is_enabled: newStatus });
+    const wid = workspaceId.value;
+    if (wid) {
+      await workflowApi.updateWorkspaceAutomation(wid, automation.id, { is_enabled: newStatus });
       await loadAllData();
     }
   } catch (e) { console.error('Failed to toggle automation:', e); }
@@ -209,6 +213,11 @@ onMounted(() => { loadWorkspace(); });
       <!-- Custom Fields Section -->
       <div v-if="!loading && activeSection === 'fields'" class="p-6">
         <CustomFieldManager :workspace-id="workspaceId" />
+      </div>
+
+      <!-- Workflows Section (workspace-level) -->
+      <div v-if="!loading && activeSection === 'workflows'" class="p-6">
+        <WorkflowManager :workspace-id="workspaceId" />
       </div>
 
       <!-- Automations Section (workspace-level) -->
