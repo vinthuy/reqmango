@@ -47,7 +47,7 @@ type IssueCustomFieldValue struct {
 	FieldID uint64 `gorm:"not null;index" json:"field_id"`
 	Value   string `gorm:"type:text" json:"value"`
 
-	Issue Issue       `gorm:"foreignKey:IssueID;constraint:OnDelete:CASCADE" json:"-"`
+	Issue Issue       `gorm:"foreignKey:IssueID" json:"-"`
 	Field CustomField `gorm:"foreignKey:FieldID;constraint:OnDelete:CASCADE" json:"-"`
 }
 

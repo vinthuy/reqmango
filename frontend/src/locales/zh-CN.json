@@ -271,7 +271,19 @@
     "confirmDelete": "确定要删除周期 \"{name}\" 吗？此操作不可撤销。",
     "confirmEndGeneric": "确定要结束这个周期吗？",
     "confirmCancelGeneric": "确定要取消这个周期吗？",
-    "confirmDeleteGeneric": "确定要删除这个周期吗？此操作不可撤销。"
+    "confirmDeleteGeneric": "确定要删除这个周期吗？此操作不可撤销。",
+    "automation": "自动化规则",
+    "autoAddTitle": "自动添加工作项",
+    "autoAddDesc": "当满足 RQL 条件的新工作项创建时，自动添加到当前周期",
+    "autoCloseTitle": "自动关闭工作项",
+    "autoCloseDesc": "当周期结束时，自动将所有工作项标记为已完成",
+    "autoProgressTitle": "自动推进工作项",
+    "autoProgressDesc": "根据预设规则自动推进工作项状态",
+    "rqlPlaceholder": "输入 RQL 查询条件，如: type = \"任务\" AND priority = \"high\"",
+    "applyNow": "立即应用",
+    "applying": "应用中...",
+    "applySuccess": "规则应用成功",
+    "applyFailed": "规则应用失败"
   },
   "home": {
     "title": "工作空间",

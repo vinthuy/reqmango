@@ -277,13 +277,14 @@ func (h *IssueHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /issues/:id
 func (h *IssueHandler) Delete(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	issueID, err := h.parseIssueID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
 		return
 	}
 
-	if svcErr := h.svc.Delete(issueID); svcErr != nil {
+	if svcErr := h.svc.Delete(issueID, user.ID); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
@@ -297,13 +298,14 @@ func (h *IssueHandler) Delete(c *gin.Context) {
 
 // Archive handles POST /issues/:id/archive
 func (h *IssueHandler) Archive(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	issueID, err := h.parseIssueID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
 		return
 	}
 
-	if svcErr := h.svc.Archive(issueID); svcErr != nil {
+	if svcErr := h.svc.Archive(issueID, user.ID); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
@@ -317,13 +319,14 @@ func (h *IssueHandler) Archive(c *gin.Context) {
 
 // Restore handles POST /issues/:id/restore
 func (h *IssueHandler) Restore(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	issueID, err := h.parseIssueID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
 		return
 	}
 
-	resp, svcErr := h.svc.Restore(issueID)
+	resp, svcErr := h.svc.Restore(issueID, user.ID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -478,13 +481,14 @@ func (h *IssueHandler) BulkUpdate(c *gin.Context) {
 
 // BulkDelete handles POST /issues/bulk/delete
 func (h *IssueHandler) BulkDelete(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	var req request.BulkDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
-	if svcErr := h.svc.BulkDelete(req.IssueIDs); svcErr != nil {
+	if svcErr := h.svc.BulkDelete(req.IssueIDs, user.ID); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return

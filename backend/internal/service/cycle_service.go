@@ -9,6 +9,7 @@ import (
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/backend/internal/rql"
 	"gorm.io/gorm"
 )
 
@@ -82,21 +83,25 @@ func (s *CycleService) buildResponse(cycle *model.Cycle) *response.CycleResponse
 	}
 
 	resp := &response.CycleResponse{
-		ID:              cycle.ID,
-		Name:            cycle.Name,
-		Description:     cycle.Description,
-		Status:          computeStatus(cycle),
-		Progress:        float64(int(progress*100)) / 100,
-		TotalIssues:     total,
-		CompletedIssues: completed,
-		StartDate:       cycle.StartDate.Format("2006-01-02"),
-		EndDate:         endDateStr,
-		ProjectID:       cycle.ProjectID,
-		WorkspaceID:     cycle.WorkspaceID,
-		CreatedAt:       cycle.CreatedAt,
-		UpdatedAt:       cycle.UpdatedAt,
-		CreatedByID:     cycle.CreatedByID,
-		UpdatedByID:     cycle.UpdatedByID,
+		ID:                  cycle.ID,
+		Name:                cycle.Name,
+		Description:         cycle.Description,
+		Status:              computeStatus(cycle),
+		Progress:            float64(int(progress*100)) / 100,
+		TotalIssues:         total,
+		CompletedIssues:     completed,
+		StartDate:           cycle.StartDate.Format("2006-01-02"),
+		EndDate:             endDateStr,
+		ProjectID:           cycle.ProjectID,
+		WorkspaceID:         cycle.WorkspaceID,
+		CreatedAt:           cycle.CreatedAt,
+		UpdatedAt:           cycle.UpdatedAt,
+		CreatedByID:         cycle.CreatedByID,
+		UpdatedByID:         cycle.UpdatedByID,
+		AutoAddEnabled:      cycle.AutoAddEnabled,
+		AutoAddRQL:          cycle.AutoAddRQL,
+		AutoCloseEnabled:    cycle.AutoCloseEnabled,
+		AutoProgressEnabled: cycle.AutoProgressEnabled,
 	}
 
 	var project model.Project
@@ -140,21 +145,25 @@ func (s *CycleService) buildResponseWithData(cycle *model.Cycle, projectsMap map
 	}
 
 	resp := &response.CycleResponse{
-		ID:              cycle.ID,
-		Name:            cycle.Name,
-		Description:     cycle.Description,
-		Status:          computeStatus(cycle),
-		Progress:        float64(int(progress*100)) / 100,
-		TotalIssues:     total,
-		CompletedIssues: completed,
-		StartDate:       cycle.StartDate.Format("2006-01-02"),
-		EndDate:         endDateStr,
-		ProjectID:       cycle.ProjectID,
-		WorkspaceID:     cycle.WorkspaceID,
-		CreatedAt:       cycle.CreatedAt,
-		UpdatedAt:       cycle.UpdatedAt,
-		CreatedByID:     cycle.CreatedByID,
-		UpdatedByID:     cycle.UpdatedByID,
+		ID:                  cycle.ID,
+		Name:                cycle.Name,
+		Description:         cycle.Description,
+		Status:              computeStatus(cycle),
+		Progress:            float64(int(progress*100)) / 100,
+		TotalIssues:         total,
+		CompletedIssues:     completed,
+		StartDate:           cycle.StartDate.Format("2006-01-02"),
+		EndDate:             endDateStr,
+		ProjectID:           cycle.ProjectID,
+		WorkspaceID:         cycle.WorkspaceID,
+		CreatedAt:           cycle.CreatedAt,
+		UpdatedAt:           cycle.UpdatedAt,
+		CreatedByID:         cycle.CreatedByID,
+		UpdatedByID:         cycle.UpdatedByID,
+		AutoAddEnabled:      cycle.AutoAddEnabled,
+		AutoAddRQL:          cycle.AutoAddRQL,
+		AutoCloseEnabled:    cycle.AutoCloseEnabled,
+		AutoProgressEnabled: cycle.AutoProgressEnabled,
 	}
 
 	if project, ok := projectsMap[cycle.ProjectID]; ok {
@@ -411,6 +420,19 @@ func (s *CycleService) Update(cycleID, userID uint64, req *request.CycleUpdateRe
 		return nil, common.BadRequest("Start date must be before or equal to end date")
 	}
 
+	if req.AutoAddEnabled != nil {
+		cycle.AutoAddEnabled = *req.AutoAddEnabled
+	}
+	if req.AutoAddRQL != nil {
+		cycle.AutoAddRQL = *req.AutoAddRQL
+	}
+	if req.AutoCloseEnabled != nil {
+		cycle.AutoCloseEnabled = *req.AutoCloseEnabled
+	}
+	if req.AutoProgressEnabled != nil {
+		cycle.AutoProgressEnabled = *req.AutoProgressEnabled
+	}
+
 	cycle.UpdatedByID = &userID
 	if err := s.db.Save(&cycle).Error; err != nil {
 		return nil, common.Internal("Failed to update cycle")
@@ -517,6 +539,78 @@ func (s *CycleService) Cancel(cycleID, userID uint64) (*response.CycleResponse, 
 	}
 
 	return s.buildResponse(&cycle), nil
+}
+
+// ==================== Automation ====================
+
+func (s *CycleService) ApplyAutoAddRules(cycleID uint64) error {
+	var cycle model.Cycle
+	if err := s.db.First(&cycle, cycleID).Error; err != nil {
+		return common.NotFound("Cycle not found")
+	}
+
+	if !cycle.AutoAddEnabled || cycle.AutoAddRQL == "" {
+		return nil
+	}
+
+	var existingIssueIDs []uint64
+	s.db.Model(&model.IssueCycle{}).Where("cycle_id = ?", cycleID).Pluck("issue_id", &existingIssueIDs)
+
+	rqlSvc := rql.NewRQLService()
+	issues, _, err := rqlSvc.SearchIssues(s.db, cycle.ProjectID, cycle.AutoAddRQL, 1, 10000)
+	if err != nil {
+		return common.Internal("Failed to apply RQL filter: " + err.Error())
+	}
+
+	for _, issue := range issues {
+		isExisting := false
+		for _, eid := range existingIssueIDs {
+			if eid == issue.ID {
+				isExisting = true
+				break
+			}
+		}
+		if !isExisting {
+			if err := s.db.Create(&model.IssueCycle{IssueID: issue.ID, CycleID: cycleID}).Error; err != nil {
+				return common.Internal("Failed to add issue to cycle")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *CycleService) ApplyAutoCloseRules(cycleID uint64) error {
+	var cycle model.Cycle
+	if err := s.db.First(&cycle, cycleID).Error; err != nil {
+		return common.NotFound("Cycle not found")
+	}
+
+	if !cycle.AutoCloseEnabled {
+		return nil
+	}
+
+	var completedStateID uint64
+	var state model.State
+	s.db.Joins("JOIN workflows ON workflows.id = states.workflow_id").
+		Where("workflows.project_id = ? AND states.group = ?", cycle.ProjectID, common.StateGroupCompleted).
+		First(&state)
+	if state.ID != 0 {
+		completedStateID = state.ID
+	}
+
+	if completedStateID == 0 {
+		return nil
+	}
+
+	var issueIDs []uint64
+	s.db.Model(&model.IssueCycle{}).Where("cycle_id = ?", cycleID).Pluck("issue_id", &issueIDs)
+
+	if len(issueIDs) > 0 {
+		s.db.Model(&model.Issue{}).Where("id IN ?", issueIDs).Update("state_id", completedStateID)
+	}
+
+	return nil
 }
 
 // ==================== Issue Association ====================

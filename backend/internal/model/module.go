@@ -29,7 +29,7 @@ type ModuleIssue struct {
 	IssueID  uint64 `gorm:"primaryKey;autoIncrement:false" json:"issue_id"`
 
 	Module Module `gorm:"foreignKey:ModuleID;constraint:OnDelete:CASCADE" json:"-"`
-	Issue  Issue  `gorm:"foreignKey:IssueID;constraint:OnDelete:CASCADE" json:"-"`
+	Issue  Issue  `gorm:"foreignKey:IssueID" json:"-"`
 }
 
 func (ModuleIssue) TableName() string {

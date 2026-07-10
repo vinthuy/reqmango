@@ -55,8 +55,8 @@ type IssueAssignee struct {
 	IssueID uint64 `gorm:"primaryKey;autoIncrement:false" json:"issue_id"`
 	UserID  uint64 `gorm:"primaryKey;autoIncrement:false" json:"user_id"`
 
-	Issue Issue `gorm:"foreignKey:IssueID;constraint:OnDelete:CASCADE" json:"-"`
-	User  User  `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE" json:"-"`
+	Issue Issue `gorm:"foreignKey:IssueID" json:"-"`
+	User  User  `gorm:"foreignKey:UserID" json:"-"`
 }
 
 func (IssueAssignee) TableName() string {
@@ -68,8 +68,8 @@ type IssueLabel struct {
 	IssueID uint64 `gorm:"primaryKey;autoIncrement:false" json:"issue_id"`
 	LabelID uint64 `gorm:"primaryKey;autoIncrement:false" json:"label_id"`
 
-	Issue Issue `gorm:"foreignKey:IssueID;constraint:OnDelete:CASCADE" json:"-"`
-	Label Label `gorm:"foreignKey:LabelID;constraint:OnDelete:CASCADE" json:"-"`
+	Issue Issue `gorm:"foreignKey:IssueID" json:"-"`
+	Label Label `gorm:"foreignKey:LabelID" json:"-"`
 }
 
 func (IssueLabel) TableName() string {
@@ -81,8 +81,8 @@ type IssueCycle struct {
 	IssueID uint64 `gorm:"primaryKey;autoIncrement:false" json:"issue_id"`
 	CycleID uint64 `gorm:"primaryKey;autoIncrement:false" json:"cycle_id"`
 
-	Issue Issue `gorm:"foreignKey:IssueID;constraint:OnDelete:CASCADE" json:"-"`
-	Cycle Cycle `gorm:"foreignKey:CycleID;constraint:OnDelete:CASCADE" json:"-"`
+	Issue Issue `gorm:"foreignKey:IssueID" json:"-"`
+	Cycle Cycle `gorm:"foreignKey:CycleID" json:"-"`
 }
 
 func (IssueCycle) TableName() string {
@@ -94,8 +94,8 @@ type IssuePage struct {
 	IssueID uint64 `gorm:"primaryKey;autoIncrement:false" json:"issue_id"`
 	PageID  uint64 `gorm:"primaryKey;autoIncrement:false" json:"page_id"`
 
-	Issue Issue `gorm:"foreignKey:IssueID;constraint:OnDelete:CASCADE" json:"-"`
-	Page  Page  `gorm:"foreignKey:PageID;constraint:OnDelete:CASCADE" json:"-"`
+	Issue Issue `gorm:"foreignKey:IssueID" json:"-"`
+	Page  Page  `gorm:"foreignKey:PageID" json:"-"`
 }
 
 func (IssuePage) TableName() string {

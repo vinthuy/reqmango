@@ -110,7 +110,7 @@ func TestBuildCreatedVsResolvedFromDates(t *testing.T) {
 
 	t.Run("single created date", func(t *testing.T) {
 		dates := []issueDates{
-			{CreatedAt: timePtr(time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)), ResolvedAt: nil},
+			{CreatedAt: timePtr(time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)), CompletedAt: nil},
 		}
 		result := svc.buildCreatedVsResolvedFromDates(dates, "week")
 		assert.Equal(t, "created_vs_resolved", result.Type)
@@ -120,11 +120,11 @@ func TestBuildCreatedVsResolvedFromDates(t *testing.T) {
 		assert.Equal(t, 1, result.Total)
 	})
 
-	t.Run("created and resolved same period", func(t *testing.T) {
+	t.Run("created and completed same period", func(t *testing.T) {
 		t1 := time.Date(2024, 6, 10, 0, 0, 0, 0, time.UTC)
 		t2 := time.Date(2024, 6, 12, 0, 0, 0, 0, time.UTC)
 		dates := []issueDates{
-			{CreatedAt: &t1, ResolvedAt: &t2},
+			{CreatedAt: &t1, CompletedAt: &t2},
 		}
 		result := svc.buildCreatedVsResolvedFromDates(dates, "week")
 		assert.Len(t, result.Labels, 1)
@@ -132,23 +132,23 @@ func TestBuildCreatedVsResolvedFromDates(t *testing.T) {
 		assert.Equal(t, 1, result.Values2[0])
 	})
 
-	t.Run("resolved in different period", func(t *testing.T) {
+	t.Run("completed in different period", func(t *testing.T) {
 		t1 := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
 		t2 := time.Date(2024, 7, 15, 0, 0, 0, 0, time.UTC) // different month
 		dates := []issueDates{
-			{CreatedAt: &t1, ResolvedAt: &t2},
+			{CreatedAt: &t1, CompletedAt: &t2},
 		}
 		result := svc.buildCreatedVsResolvedFromDates(dates, "month")
 		assert.Len(t, result.Labels, 2) // two periods
-		// first period: created=1 resolved=0
-		// second period: created=0 resolved=1
+		// first period: created=1 completed=0
+		// second period: created=0 completed=1
 		assert.Equal(t, 1, result.Total)
 	})
 
 	t.Run("nil CreatedAt should be skipped", func(t *testing.T) {
 		t2 := time.Date(2024, 6, 10, 0, 0, 0, 0, time.UTC)
 		dates := []issueDates{
-			{CreatedAt: nil, ResolvedAt: &t2},
+			{CreatedAt: nil, CompletedAt: &t2},
 		}
 		result := svc.buildCreatedVsResolvedFromDates(dates, "week")
 		assert.Empty(t, result.Labels)
@@ -159,9 +159,9 @@ func TestBuildCreatedVsResolvedFromDates(t *testing.T) {
 		t2 := time.Date(2024, 2, 10, 0, 0, 0, 0, time.UTC)
 		t3 := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
 		dates := []issueDates{
-			{CreatedAt: &t3, ResolvedAt: nil},
-			{CreatedAt: &t1, ResolvedAt: nil},
-			{CreatedAt: &t2, ResolvedAt: nil},
+			{CreatedAt: &t3, CompletedAt: nil},
+			{CreatedAt: &t1, CompletedAt: nil},
+			{CreatedAt: &t2, CompletedAt: nil},
 		}
 		result := svc.buildCreatedVsResolvedFromDates(dates, "month")
 		assert.Len(t, result.Labels, 3)

@@ -42,6 +42,18 @@ type rawCondition struct {
 	Joins []string
 }
 
+func isNumericValue(v interface{}) bool {
+	switch val := v.(type) {
+	case int, int64, uint, uint64:
+		return true
+	case string:
+		_, err := strconv.ParseInt(val, 10, 64)
+		return err == nil
+	default:
+		return false
+	}
+}
+
 // NewIssueQueryContext 创建 Issue 查询上下文
 func NewIssueQueryContext(db *gorm.DB, projectID uint64) *QueryContext {
 	return &QueryContext{
@@ -325,28 +337,52 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		}, nil
 
 	case "user":
-		// Look up assignee by display name through issue_assignees and users tables
+		// If value is numeric, match by user_id directly; otherwise match by display_name or username
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id IN (SELECT ia.issue_id FROM issue_assignees ia WHERE ia.user_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  "issues.id IN (SELECT ia.issue_id FROM issue_assignees ia JOIN users u ON ia.user_id = u.id WHERE COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) = ?)",
 			Args: []interface{}{value},
 		}, nil
 
 	case "label":
-		// Look up label by name through issue_labels and labels tables
+		// If value is numeric, match by label_id directly; otherwise match by name
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  "issues.id IN (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name = ?)",
 			Args: []interface{}{value},
 		}, nil
 
 	case "cycle":
-		// Look up cycle by name through issue_cycles and cycles tables
+		// If value is numeric, match by cycle_id directly; otherwise match by name
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id IN (SELECT ic.issue_id FROM issue_cycles ic WHERE ic.cycle_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  "issues.id IN (SELECT ic.issue_id FROM issue_cycles ic JOIN cycles c ON ic.cycle_id = c.id WHERE c.name = ?)",
 			Args: []interface{}{value},
 		}, nil
 
 	case "module":
-		// Look up module by name through module_issues and modules tables
+		// If value is numeric, match by module_id directly; otherwise match by name
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id WHERE m.name = ?)",
 			Args: []interface{}{value},
@@ -377,21 +413,45 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 			Joins: []string{"JOIN states ON states.id = issues.state_id"},
 		}, nil
 	case "user":
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id NOT IN (SELECT ia.issue_id FROM issue_assignees ia WHERE ia.user_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  "issues.id NOT IN (SELECT ia.issue_id FROM issue_assignees ia JOIN users u ON ia.user_id = u.id WHERE COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) = ?)",
 			Args: []interface{}{value},
 		}, nil
 	case "label":
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id NOT IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  "issues.id NOT IN (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name = ?)",
 			Args: []interface{}{value},
 		}, nil
 	case "cycle":
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id NOT IN (SELECT ic.issue_id FROM issue_cycles ic WHERE ic.cycle_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  "issues.id NOT IN (SELECT ic.issue_id FROM issue_cycles ic JOIN cycles c ON ic.cycle_id = c.id WHERE c.name = ?)",
 			Args: []interface{}{value},
 		}, nil
 	case "module":
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id NOT IN (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  "issues.id NOT IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id WHERE m.name = ?)",
 			Args: []interface{}{value},
@@ -555,24 +615,77 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 		}, nil
 
 	case "user":
+		// Check if all values are numeric - if so, match by user_id directly
+		allNumeric := true
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				allNumeric = false
+				break
+			}
+		}
+		if allNumeric {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("issues.id %s (SELECT ia.issue_id FROM issue_assignees ia WHERE ia.user_id IN (%s))", op, placeholderList),
+				Args: args,
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  fmt.Sprintf("issues.id %s (SELECT ia.issue_id FROM issue_assignees ia JOIN users u ON ia.user_id = u.id WHERE COALESCE(NULLIF(TRIM(u.display_name), ''), u.username) IN (%s))", op, placeholderList),
 			Args: args,
 		}, nil
 
 	case "label":
+		allNumeric := true
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				allNumeric = false
+				break
+			}
+		}
+		if allNumeric {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il WHERE il.label_id IN (%s))", op, placeholderList),
+				Args: args,
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name IN (%s))", op, placeholderList),
 			Args: args,
 		}, nil
 
 	case "cycle":
+		allNumeric := true
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				allNumeric = false
+				break
+			}
+		}
+		if allNumeric {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("issues.id %s (SELECT ic.issue_id FROM issue_cycles ic WHERE ic.cycle_id IN (%s))", op, placeholderList),
+				Args: args,
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  fmt.Sprintf("issues.id %s (SELECT ic.issue_id FROM issue_cycles ic JOIN cycles c ON ic.cycle_id = c.id WHERE c.name IN (%s))", op, placeholderList),
 			Args: args,
 		}, nil
 
 	case "module":
+		allNumeric := true
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				allNumeric = false
+				break
+			}
+		}
+		if allNumeric {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("issues.id %s (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id IN (%s))", op, placeholderList),
+				Args: args,
+			}, nil
+		}
 		return &rawCondition{
 			SQL:  fmt.Sprintf("issues.id %s (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id WHERE m.name IN (%s))", op, placeholderList),
 			Args: args,

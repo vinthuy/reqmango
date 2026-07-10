@@ -13,8 +13,12 @@ type CycleCreateRequest struct {
 
 // CycleUpdateRequest is the request body for updating a cycle.
 type CycleUpdateRequest struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
-	StartDate   *string `json:"start_date"`   // RFC3339 date
-	EndDate     *string `json:"end_date"`     // RFC3339 date
+	Name                *string `json:"name"`
+	Description         *string `json:"description"`
+	StartDate           *string `json:"start_date"`   // RFC3339 date
+	EndDate             *string `json:"end_date"`     // RFC3339 date
+	AutoAddEnabled      *bool   `json:"auto_add_enabled"`
+	AutoAddRQL          *string `json:"auto_add_rql"`
+	AutoCloseEnabled    *bool   `json:"auto_close_enabled"`
+	AutoProgressEnabled *bool   `json:"auto_progress_enabled"`
 }

@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
@@ -16,6 +18,23 @@ import (
 	"github.com/reqmango/backend/internal/rql"
 	"gorm.io/gorm"
 )
+
+var htmlTagRegex = regexp.MustCompile(`<[^>]*>`)
+
+func sanitizeHTML(html string) string {
+	if html == "" {
+		return "<p></p>"
+	}
+	policy := bluemonday.UGCPolicy()
+	return policy.Sanitize(html)
+}
+
+func stripHTMLTags(html string) string {
+	if html == "" {
+		return ""
+	}
+	return htmlTagRegex.ReplaceAllString(html, "")
+}
 
 type IssueService struct {
 	db              *gorm.DB
@@ -61,30 +80,35 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		priority = common.PriorityNone
 	}
 
-	descHTML := req.DescriptionHTML
-	if descHTML == "" {
-		descHTML = "<p></p>"
-	}
+	descHTML := sanitizeHTML(req.DescriptionHTML)
+	descStripped := stripHTMLTags(descHTML)
 
 	issue := &model.Issue{
-		Name:            req.Name,
-		DescriptionHTML: descHTML,
-		DescriptionJSON: req.DescriptionJSON,
-		Priority:        priority,
-		SortOrder:       65535,
-		IsDraft:         false,
-		ProjectID:       projectID,
-		WorkspaceID:     workspaceID,
-		StateID:         stateID,
-		ParentID:        req.ParentID,
-		ExternalID:      req.ExternalID,
-		ExternalSource:  req.ExternalSource,
-		CoverImageURL:   req.CoverImageURL,
-		IssueTypeID:     req.TypeID,
+		Name:                req.Name,
+		DescriptionHTML:     descHTML,
+		DescriptionJSON:     req.DescriptionJSON,
+		DescriptionStripped: &descStripped,
+		Priority:            priority,
+		SortOrder:           65535,
+		IsDraft:             false,
+		ProjectID:           projectID,
+		WorkspaceID:         workspaceID,
+		StateID:             stateID,
+		ParentID:            req.ParentID,
+		ExternalID:          req.ExternalID,
+		ExternalSource:      req.ExternalSource,
+		CoverImageURL:       req.CoverImageURL,
+		IssueTypeID:         req.TypeID,
 	}
 
 	// Hierarchy validation
 	if req.ParentID != nil && *req.ParentID > 0 {
+		if *req.ParentID == issue.ID {
+			return nil, common.BadRequest("An issue cannot be its own parent")
+		}
+		if s.checkCircularReference(issue.ID, *req.ParentID) {
+			return nil, common.BadRequest("Cannot create circular reference in issue hierarchy")
+		}
 		var parent model.Issue
 		if err := s.db.Preload("IssueType").First(&parent, *req.ParentID).Error; err != nil {
 			return nil, common.NotFound("Parent issue not found")
@@ -550,7 +574,9 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	}
 	if req.DescriptionHTML != nil && *req.DescriptionHTML != issue.DescriptionHTML {
 		s.createActivity(tx, issueID, "updated", strPtr("description"), nil, nil, nil, &userID)
-		issue.DescriptionHTML = *req.DescriptionHTML
+		issue.DescriptionHTML = sanitizeHTML(*req.DescriptionHTML)
+		descStripped := stripHTMLTags(issue.DescriptionHTML)
+		issue.DescriptionStripped = &descStripped
 		hasChanges = true
 	}
 	if req.Priority != nil && *req.Priority != issue.Priority {
@@ -734,6 +760,14 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		if *req.ParentID == 0 {
 			issue.ParentID = nil
 		} else {
+			if *req.ParentID == issueID {
+				tx.Rollback()
+				return nil, common.BadRequest("An issue cannot be its own parent")
+			}
+			if s.checkCircularReference(issueID, *req.ParentID) {
+				tx.Rollback()
+				return nil, common.BadRequest("Cannot create circular reference in issue hierarchy")
+			}
 			var parent model.Issue
 			if err := s.db.First(&parent, *req.ParentID).Error; err != nil {
 				tx.Rollback()
@@ -782,30 +816,44 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 }
 
 // Delete performs a soft delete on an issue.
-func (s *IssueService) Delete(issueID uint64) error {
+func (s *IssueService) Delete(issueID, userID uint64) error {
 	var issue model.Issue
-	if err := s.db.First(&issue, issueID).Error; err != nil {
+	if err := s.db.Preload("Project").First(&issue, issueID).Error; err != nil {
 		return common.NotFound("Issue not found")
 	}
+
+	if err := s.checkProjectMembership(issue.ProjectID, userID); err != nil {
+		return err
+	}
+
 	return s.db.Delete(&issue).Error
 }
 
 // Archive archives an issue.
-func (s *IssueService) Archive(issueID uint64) error {
+func (s *IssueService) Archive(issueID, userID uint64) error {
 	var issue model.Issue
-	if err := s.db.First(&issue, issueID).Error; err != nil {
+	if err := s.db.Preload("Project").First(&issue, issueID).Error; err != nil {
 		return common.NotFound("Issue not found")
 	}
+
+	if err := s.checkProjectMembership(issue.ProjectID, userID); err != nil {
+		return err
+	}
+
 	now := time.Now()
 	issue.ArchivedAt = &now
 	return s.db.Save(&issue).Error
 }
 
 // Restore restores an archived or deleted issue.
-func (s *IssueService) Restore(issueID uint64) (*response.IssueResponse, error) {
+func (s *IssueService) Restore(issueID, userID uint64) (*response.IssueResponse, error) {
 	var issue model.Issue
 	if err := s.db.Unscoped().First(&issue, issueID).Error; err != nil {
 		return nil, common.NotFound("Issue not found")
+	}
+
+	if err := s.checkProjectMembership(issue.ProjectID, userID); err != nil {
+		return nil, err
 	}
 
 	issue.ArchivedAt = nil
@@ -813,6 +861,42 @@ func (s *IssueService) Restore(issueID uint64) (*response.IssueResponse, error) 
 	s.db.Unscoped().Save(&issue)
 
 	return s.buildResponse(issueID)
+}
+
+func (s *IssueService) checkProjectMembership(projectID, userID uint64) error {
+	var count int64
+	s.db.Model(&model.ProjectMember{}).
+		Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, userID, true).
+		Count(&count)
+	if count == 0 {
+		return common.Forbidden("You must be a member of the project to perform this action")
+	}
+	return nil
+}
+
+func (s *IssueService) checkCircularReference(issueID, parentID uint64) bool {
+	visited := make(map[uint64]bool)
+	currentID := parentID
+	for {
+		if currentID == 0 {
+			return false
+		}
+		if currentID == issueID {
+			return true
+		}
+		if visited[currentID] {
+			return false
+		}
+		visited[currentID] = true
+		var issue model.Issue
+		if err := s.db.Select("parent_id").First(&issue, currentID).Error; err != nil {
+			return false
+		}
+		if issue.ParentID == nil {
+			return false
+		}
+		currentID = *issue.ParentID
+	}
 }
 
 // AddAssignee adds an assignee to an issue.
@@ -952,7 +1036,9 @@ func (s *IssueService) GetActivities(issueID uint64, limit, offset int) ([]respo
 		actorAvatar := ""
 		if a.Actor != nil {
 			actorName = a.Actor.DisplayName
-			if a.Actor.Avatar != nil { actorAvatar = *a.Actor.Avatar }
+			if a.Actor.Avatar != nil {
+				actorAvatar = *a.Actor.Avatar
+			}
 		}
 		result[i] = response.IssueActivityResponse{
 			ID:               a.ID,
@@ -1203,10 +1289,19 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 }
 
 // BulkDelete deletes multiple issues.
-func (s *IssueService) BulkDelete(issueIDs []uint64) error {
+func (s *IssueService) BulkDelete(issueIDs []uint64, userID uint64) error {
 	if len(issueIDs) == 0 {
 		return nil
 	}
+
+	var projectIDs []uint64
+	s.db.Model(&model.Issue{}).Where("id IN ?", issueIDs).Pluck("DISTINCT project_id", &projectIDs)
+	for _, pid := range projectIDs {
+		if err := s.checkProjectMembership(pid, userID); err != nil {
+			return err
+		}
+	}
+
 	tx := s.db.Begin()
 	if err := tx.Where("id IN ?", issueIDs).Delete(&model.Issue{}).Error; err != nil {
 		tx.Rollback()
@@ -1475,7 +1570,7 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 	// Build the workflow query condition
 	var workflows []model.Workflow
 	query := db.Where("is_active = ?", true)
-	
+
 	// Include both project-level workflows (project_id = ?) AND workspace-level workflows (workspace_id = ? AND project_id IS NULL)
 	if issueTypeID != nil {
 		// Include workflows bound to this issue type OR workflows with no issue type binding

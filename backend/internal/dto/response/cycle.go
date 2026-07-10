@@ -8,23 +8,27 @@ import "time"
 // so the time-of-day component is irrelevant. Issue dates (*time.Time / RFC3339)
 // carry full timestamps because they represent point-in-time events.
 type CycleResponse struct {
-	ID              uint64       `json:"id"`
-	Name            string       `json:"name"`
-	Description     *string      `json:"description"`
-	Status          string       `json:"status"`           // computed: upcoming|active|completed|cancelled
-	Progress        float64      `json:"progress"`          // 0-100
-	TotalIssues     int64        `json:"total_issues"`
-	CompletedIssues int64        `json:"completed_issues"`
-	StartDate       string       `json:"start_date"`        // "2006-01-02"
-	EndDate         *string      `json:"end_date"`          // "2006-01-02", nullable
-	ProjectID       uint64       `json:"project_id"`
-	WorkspaceID     uint64       `json:"workspace_id"`
-	OwnedBy         *UserLite    `json:"owned_by"`
-	Project         *ProjectLite `json:"project"`
-	CreatedAt       time.Time    `json:"created_at"`
-	UpdatedAt       time.Time    `json:"updated_at"`
-	CreatedByID     *uint64      `json:"created_by_id"`
-	UpdatedByID     *uint64      `json:"updated_by_id"`
+	ID                  uint64       `json:"id"`
+	Name                string       `json:"name"`
+	Description         *string      `json:"description"`
+	Status              string       `json:"status"`           // computed: upcoming|active|completed|cancelled
+	Progress            float64      `json:"progress"`          // 0-100
+	TotalIssues         int64        `json:"total_issues"`
+	CompletedIssues     int64        `json:"completed_issues"`
+	StartDate           string       `json:"start_date"`        // "2006-01-02"
+	EndDate             *string      `json:"end_date"`          // "2006-01-02", nullable
+	ProjectID           uint64       `json:"project_id"`
+	WorkspaceID         uint64       `json:"workspace_id"`
+	OwnedBy             *UserLite    `json:"owned_by"`
+	Project             *ProjectLite `json:"project"`
+	CreatedAt           time.Time    `json:"created_at"`
+	UpdatedAt           time.Time    `json:"updated_at"`
+	CreatedByID         *uint64      `json:"created_by_id"`
+	UpdatedByID         *uint64      `json:"updated_by_id"`
+	AutoAddEnabled      bool         `json:"auto_add_enabled"`
+	AutoAddRQL          string       `json:"auto_add_rql"`
+	AutoCloseEnabled    bool         `json:"auto_close_enabled"`
+	AutoProgressEnabled bool         `json:"auto_progress_enabled"`
 }
 
 // CycleLite is a compact cycle representation.

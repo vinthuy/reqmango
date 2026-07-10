@@ -242,22 +242,18 @@ async function deleteField(field: CustomField) {
 }
 
 function hasOptions(fieldType: string): boolean {
-  return ['select', 'multi_select', 'radio', 'checkbox'].includes(fieldType)
+  return ['dropdown'].includes(fieldType)
 }
 
 function getFieldTypeName(fieldType: string): string {
   const names: Record<string, string> = {
     text: t('customField.typeText'),
     number: t('customField.typeNumber'),
-    select: t('customField.typeSelectShort'),
-    multi_select: t('customField.typeMultiSelect'),
+    dropdown: t('customField.typeSelect'),
+    boolean: t('customField.typeBoolean'),
     date: t('customField.typeDate'),
-    checkbox: t('customField.typeCheckbox'),
-    radio: t('customField.typeRadio'),
-    url: t('customField.typeUrl'),
-    email: t('customField.typeEmail'),
-    phone: t('customField.typePhone'),
-    user: t('customField.typeUser')
+    member: t('customField.typeMember'),
+    url: t('customField.typeUrl')
   }
   return names[fieldType] || fieldType
 }
@@ -266,15 +262,11 @@ function getFieldTypeColor(fieldType: string): string {
   const colors: Record<string, string> = {
     text: 'text-gray-500',
     number: 'text-blue-500',
-    select: 'text-purple-500',
-    multi_select: 'text-pink-500',
+    dropdown: 'text-purple-500',
+    boolean: 'text-orange-500',
     date: 'text-green-500',
-    checkbox: 'text-orange-500',
-    radio: 'text-indigo-500',
-    url: 'text-cyan-500',
-    email: 'text-teal-500',
-    phone: 'text-yellow-500',
-    user: 'text-red-500'
+    member: 'text-red-500',
+    url: 'text-cyan-500'
   }
   return colors[fieldType] || 'text-gray-500'
 }
@@ -287,14 +279,20 @@ function getFieldTypeIcon(fieldType: string) {
     number: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
       h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M7 20l4-16m2 16l4-16M6 9h14M4 15h14' })
     ]),
-    select: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+    dropdown: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
       h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M19 9l-7 7-7-7' })
+    ]),
+    boolean: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' })
     ]),
     date: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
       h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' })
     ]),
-    checkbox: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' })
+    member: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' })
+    ]),
+    url: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' })
     ])
   }
   return icons[fieldType] || icons.text

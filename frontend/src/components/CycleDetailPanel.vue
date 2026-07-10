@@ -83,6 +83,15 @@
             </div>
           </div>
         </div>
+
+        <CycleAutomation
+          :cycle-id="cycle.id"
+          :auto-add-enabled="cycle.auto_add_enabled || false"
+          :auto-add-rql="cycle.auto_add_rql || ''"
+          :auto-close-enabled="cycle.auto_close_enabled || false"
+          :auto-progress-enabled="cycle.auto_progress_enabled || false"
+          @update="handleAutomationUpdate"
+        />
       </div>
     </div>
   </Transition>
@@ -94,9 +103,11 @@ import { useCycleStore } from '@/stores/cycle'
 import { issueApi } from '@/api/issue'
 import CycleProgressCard from './CycleProgressCard.vue'
 import CycleBurndownChart from './CycleBurndownChart.vue'
+import CycleAutomation from './CycleAutomation.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import type { CycleResponse } from '@/types/cycle'
 import { useI18n } from '@/composables/useI18n'
+import { cycleApi } from '@/api/cycle'
 
 const { t } = useI18n()
 
@@ -205,6 +216,17 @@ async function handleDelete() {
   if (!(await confirm(t('cycle.confirmDeleteGeneric')))) return
   await cycleStore.deleteCycleAction(props.cycle.id)
   emit('close')
+}
+
+async function handleAutomationUpdate(data: { autoAddEnabled: boolean; autoAddRQL: string; autoCloseEnabled: boolean; autoProgressEnabled: boolean }) {
+  if (!props.cycle) return
+  await cycleApi.updateCycle(props.cycle.id, {
+    auto_add_enabled: data.autoAddEnabled,
+    auto_add_rql: data.autoAddRQL,
+    auto_close_enabled: data.autoCloseEnabled,
+    auto_progress_enabled: data.autoProgressEnabled,
+  })
+  await cycleStore.fetchCycle(props.cycle.id)
 }
 </script>
 

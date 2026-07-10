@@ -1,6 +1,15 @@
 package model
 
-import "time"
+import (
+	"time"
+)
+
+type CycleAutomation struct {
+	AutoAddEnabled bool   `gorm:"default:false" json:"auto_add_enabled"`
+	AutoAddRQL     string `gorm:"size:1000" json:"auto_add_rql"`
+	AutoCloseEnabled bool `gorm:"default:false" json:"auto_close_enabled"`
+	AutoProgressEnabled bool `gorm:"default:false" json:"auto_progress_enabled"`
+}
 
 // Cycle represents an iteration/sprint cycle.
 type Cycle struct {
@@ -14,6 +23,8 @@ type Cycle struct {
 	CancelledAt *time.Time `json:"cancelled_at"`
 	ProjectID   uint64     `gorm:"not null;index" json:"project_id"`
 	WorkspaceID uint64     `gorm:"not null" json:"workspace_id"`
+
+	CycleAutomation
 
 	// Relationships
 	Project    Project      `gorm:"foreignKey:ProjectID" json:"-"`

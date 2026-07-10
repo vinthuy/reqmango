@@ -90,13 +90,24 @@ export async function getBurndownData(cycleId: number): Promise<BurndownData> {
   return response.data
 }
 
+// ==================== Automation ====================
+
+export async function applyAutoAddRules(cycleId: number): Promise<void> {
+  await api.post(`/cycles/${cycleId}/apply-auto-add`)
+}
+
+export async function applyAutoCloseRules(cycleId: number): Promise<void> {
+  await api.post(`/cycles/${cycleId}/apply-auto-close`)
+}
+
 // ==================== Export all ====================
 
 export const cycleApi = {
   createCycle, listCycles, getCycle, updateCycle, deleteCycle,
   startCycle, endCycle, cancelCycle,
   addIssueToCycle, removeIssueFromCycle, getCycleIssues,
-  getCycleProgress, getCycleStatistics, getBurndownData
+  getCycleProgress, getCycleStatistics, getBurndownData,
+  applyAutoAddRules, applyAutoCloseRules
 }
 
 export default cycleApi

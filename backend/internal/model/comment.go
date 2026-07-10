@@ -10,7 +10,7 @@ type Comment struct {
 	IsResolved bool `gorm:"default:false" json:"is_resolved"`
 	ParentID *uint64 `json:"parent_id"` // for threaded replies
 
-	Issue  Issue `gorm:"foreignKey:IssueID;constraint:OnDelete:CASCADE" json:"-"`
+	Issue  Issue `gorm:"foreignKey:IssueID" json:"-"`
 	Author *User `gorm:"foreignKey:AuthorID" json:"-"`
 }
 

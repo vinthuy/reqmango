@@ -105,7 +105,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	roleH := handler.NewRoleHandler(roleSvc)
 	fieldPermH := handler.NewFieldPermissionHandler(fieldPermSvc)
 	pluginH := handler.NewPluginHandler(pluginSvc)
-	automationH := handler.NewAutomationHandler(automationSvc)
+	automationH := handler.NewAutomationHandler(automationSvc, db)
 	gitIntegrationH := handler.NewGitIntegrationHandler(gitSvc)
 	gitWebhookH := handler.NewGitWebhookHandler(gitSvc)
 
@@ -506,10 +506,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.GET("/flow-metrics", issueH.GetFlowMetrics) // ?project_id=
 			issues.GET("/search", issueH.Search)               // ?workspace_id=&query=
 			issues.GET("/suggest", issueH.Suggest)             // ?project_id=&query=&limit=
-			issues.POST("/bulk/update", issueH.BulkUpdate)     // ?project_id=
-			issues.POST("/bulk/delete", issueH.BulkDelete)
-			issues.POST("/bulk/copy", issueH.BulkCopy)
-			issues.POST("/bulk/move", issueH.BulkMove)
+			issues.POST("/bulk/update", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkUpdate)     // ?project_id=
+			issues.POST("/bulk/delete", middleware.RequirePermission(db, "issue:delete", "project"), issueH.BulkDelete)
+			issues.POST("/bulk/copy", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkCopy)
+			issues.POST("/bulk/move", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkMove)
 			issues.POST("/merge", issueH.MergeDuplicates)
 
 			// Import
@@ -522,29 +522,29 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 			// Single issue
 			issues.GET("/:issueId", issueH.Get)
-			issues.PUT("/:issueId", issueH.Update)
-			issues.DELETE("/:issueId", issueH.Delete)
-			issues.POST("/:issueId/archive", issueH.Archive)
+			issues.PUT("/:issueId", middleware.RequirePermission(db, "issue:edit", "project"), issueH.Update)
+			issues.DELETE("/:issueId", middleware.RequirePermission(db, "issue:delete", "project"), issueH.Delete)
+			issues.POST("/:issueId/archive", middleware.RequirePermission(db, "issue:edit", "project"), issueH.Archive)
 			issues.GET("/:issueId/children", issueH.Children) // tree lazy-load children
-			issues.POST("/:issueId/reorder-sub-issues", issueH.ReorderSubIssues)
+			issues.POST("/:issueId/reorder-sub-issues", middleware.RequirePermission(db, "issue:edit", "project"), issueH.ReorderSubIssues)
 			issues.POST("/:issueId/watch", issueH.AddWatcher)
 			issues.DELETE("/:issueId/watch", issueH.RemoveWatcher)
 			issues.GET("/:issueId/watchers", issueH.ListWatchers)
-			issues.POST("/:issueId/restore", issueH.Restore)
-			issues.POST("/:issueId/convert-type", issueH.ConvertType)
+			issues.POST("/:issueId/restore", middleware.RequirePermission(db, "issue:edit", "project"), issueH.Restore)
+			issues.POST("/:issueId/convert-type", middleware.RequirePermission(db, "issue:edit", "project"), issueH.ConvertType)
 			issues.GET("/:issueId/activities", issueH.GetActivities) // ?limit=&offset=
 
 			// Assignees
-			issues.POST("/:issueId/assignees", issueH.AddAssignee) // ?user_id=
-			issues.DELETE("/:issueId/assignees/:userId", issueH.RemoveAssignee)
+			issues.POST("/:issueId/assignees", middleware.RequirePermission(db, "issue:edit", "project"), issueH.AddAssignee) // ?user_id=
+			issues.DELETE("/:issueId/assignees/:userId", middleware.RequirePermission(db, "issue:edit", "project"), issueH.RemoveAssignee)
 
 			// Labels
-			issues.POST("/:issueId/labels", issueH.AddLabel) // ?label_id=
-			issues.DELETE("/:issueId/labels/:labelId", issueH.RemoveLabel)
+			issues.POST("/:issueId/labels", middleware.RequirePermission(db, "issue:edit", "project"), issueH.AddLabel) // ?label_id=
+			issues.DELETE("/:issueId/labels/:labelId", middleware.RequirePermission(db, "issue:edit", "project"), issueH.RemoveLabel)
 
 			// Cycle
-			issues.POST("/:issueId/cycle", issueH.SetCycle) // ?cycle_id=
-			issues.DELETE("/:issueId/cycle", issueH.RemoveCycle)
+			issues.POST("/:issueId/cycle", middleware.RequirePermission(db, "issue:edit", "project"), issueH.SetCycle) // ?cycle_id=
+			issues.DELETE("/:issueId/cycle", middleware.RequirePermission(db, "issue:edit", "project"), issueH.RemoveCycle)
 
 			// Time Tracks
 			issues.POST("/:issueId/time-tracks/start", timeTrackH.Start)
@@ -563,14 +563,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 			// Pages
 			issues.GET("/:issueId/pages", issueH.ListPages)
-			issues.POST("/:issueId/pages", issueH.AddPage)      // ?page_id=
-			issues.DELETE("/:issueId/pages", issueH.RemovePage) // ?page_id=
+			issues.POST("/:issueId/pages", middleware.RequirePermission(db, "issue:edit", "project"), issueH.AddPage)      // ?page_id=
+			issues.DELETE("/:issueId/pages", middleware.RequirePermission(db, "issue:edit", "project"), issueH.RemovePage) // ?page_id=
 
 			// Attachments
 			issues.GET("/:issueId/attachments", attachmentH.ListByIssue)
-			issues.POST("/:issueId/attachments", attachmentH.Create)
+			issues.POST("/:issueId/attachments", middleware.RequirePermission(db, "issue:edit", "project"), attachmentH.Create)
 			issues.GET("/:issueId/attachments/:attachmentId", attachmentH.Get)
-			issues.DELETE("/:issueId/attachments/:attachmentId", attachmentH.Delete)
+			issues.DELETE("/:issueId/attachments/:attachmentId", middleware.RequirePermission(db, "issue:edit", "project"), attachmentH.Delete)
 		}
 
 		// ---- Modules (protected) ----
@@ -611,6 +611,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			cycles.GET("/:cycleId/progress", cycleH.GetProgress)
 			cycles.GET("/:cycleId/statistics", cycleH.GetStatistics)
 			cycles.GET("/:cycleId/burndown", cycleH.GetBurndown)
+			// Automation
+			cycles.POST("/:cycleId/apply-auto-add", cycleH.ApplyAutoAddRules)
+			cycles.POST("/:cycleId/apply-auto-close", cycleH.ApplyAutoCloseRules)
 		}
 
 		// ---- Issue Types (protected) ----

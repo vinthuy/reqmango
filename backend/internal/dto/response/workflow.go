@@ -10,6 +10,7 @@ type WorkflowResponse struct {
 	WorkspaceID uint64                 `json:"workspace_id"`
 	IssueTypeID *uint64                `json:"issue_type_id"`
 	IsActive    bool                   `json:"is_active"`
+	IsInherited bool                   `json:"is_inherited"`
 	Transitions []TransitionResponse   `json:"transitions"`
 	CreatedAt   time.Time              `json:"created_at"`
 	UpdatedAt   time.Time              `json:"updated_at"`

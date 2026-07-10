@@ -5,16 +5,31 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
+	"gorm.io/gorm"
 )
 
 // AutomationHandler handles HTTP requests for automation rules.
 type AutomationHandler struct {
 	svc *service.AutomationService
+	db  *gorm.DB
 }
 
-func NewAutomationHandler(svc *service.AutomationService) *AutomationHandler {
-	return &AutomationHandler{svc: svc}
+func NewAutomationHandler(svc *service.AutomationService, db *gorm.DB) *AutomationHandler {
+	return &AutomationHandler{svc: svc, db: db}
+}
+
+func (h *AutomationHandler) resolveWorkspaceID(c *gin.Context) (uint64, error) {
+	wsParam := c.Param("wsParam")
+	if id, err := strconv.ParseUint(wsParam, 10, 64); err == nil {
+		return id, nil
+	}
+	var workspace model.Workspace
+	if err := h.db.Where("slug = ?", wsParam).First(&workspace).Error; err != nil {
+		return 0, err
+	}
+	return workspace.ID, nil
 }
 
 // List handles GET /projects/:projectId/automations
@@ -161,11 +176,11 @@ func (h *AutomationHandler) Execute(c *gin.Context) {
 
 // ======== 工作区级自动化规则 API ========
 
-// ListWorkspace handles GET /workspaces/:workspaceId/automations
+// ListWorkspace handles GET /workspaces/:wsParam/automations
 func (h *AutomationHandler) ListWorkspace(c *gin.Context) {
-	workspaceID, err := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	workspaceID, err := h.resolveWorkspaceID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace identifier"})
 		return
 	}
 
@@ -176,11 +191,11 @@ func (h *AutomationHandler) ListWorkspace(c *gin.Context) {
 	c.JSON(http.StatusOK, rules)
 }
 
-// CreateWorkspace handles POST /workspaces/:workspaceId/automations
+// CreateWorkspace handles POST /workspaces/:wsParam/automations
 func (h *AutomationHandler) CreateWorkspace(c *gin.Context) {
-	workspaceID, err := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	workspaceID, err := h.resolveWorkspaceID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace identifier"})
 		return
 	}
 

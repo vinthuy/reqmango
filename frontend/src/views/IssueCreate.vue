@@ -469,7 +469,7 @@ function selectParent(p: any) {
 // 加载类型的关联字段
 async function loadLinkedFields(typeId: number) {
   try {
-    const fields = await issueTypeApi.getIssueTypeFields(typeId)
+    const fields = await issueTypeApi.getIssueTypeFields(typeId, projectId.value)
     linkedFields.value = fields
   } catch (error) {
     console.error('Failed to load linked fields:', error)

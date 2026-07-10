@@ -30,6 +30,10 @@ export interface CycleUpdate {
   start_date?: string
   end_date?: string
   archived_at?: string
+  auto_add_enabled?: boolean
+  auto_add_rql?: string
+  auto_close_enabled?: boolean
+  auto_progress_enabled?: boolean
 }
 
 // ==================== Project Lite ====================
@@ -60,6 +64,10 @@ export interface CycleResponse extends CycleBase {
   version?: number
   created_at: string
   updated_at: string
+  auto_add_enabled?: boolean
+  auto_add_rql?: string
+  auto_close_enabled?: boolean
+  auto_progress_enabled?: boolean
 }
 
 // ==================== Cycle Lite ====================

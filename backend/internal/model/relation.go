@@ -20,8 +20,8 @@ type IssueRelation struct {
 	RelationTypeID uint64  `gorm:"not null" json:"relation_type_id"`
 	Comment        *string `gorm:"type:text" json:"comment"`
 
-	Issue        Issue        `gorm:"foreignKey:IssueID;constraint:OnDelete:CASCADE" json:"-"`
-	RelatedIssue Issue        `gorm:"foreignKey:RelatedIssueID;constraint:OnDelete:CASCADE" json:"-"`
+	Issue        Issue        `gorm:"foreignKey:IssueID" json:"-"`
+	RelatedIssue Issue        `gorm:"foreignKey:RelatedIssueID" json:"-"`
 	RelationType RelationType `gorm:"foreignKey:RelationTypeID" json:"-"`
 }
 

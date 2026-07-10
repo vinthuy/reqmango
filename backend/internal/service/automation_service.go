@@ -82,15 +82,17 @@ type ConditionEvaluator interface {
 	Evaluate(conditions []Condition, context map[string]interface{}) bool
 }
 
-// Condition 增强的条件结构（支持 AND/OR/NOT）
+// Condition 增强的条件结构（支持 AND/OR/NOT 组合）
 type Condition struct {
-	Field    string      `json:"field"`
-	Operator string      `json:"operator"` // equals, not_equals, contains, in, gt, lt, is_empty, is_not_empty, matches_regex
-	Value    interface{} `json:"value"`
-	Logic    string      `json:"logic,omitempty"` // AND, OR, NOT (用于组合多个条件)
+	Field       string      `json:"field"`
+	Operator    string      `json:"operator"` // equals, not_equals, contains, in, gt, lt, is_empty, is_not_empty, matches_regex
+	Value       interface{} `json:"value"`
+	Logic       string      `json:"logic,omitempty"`       // AND, OR, NOT (用于组合多个条件)
+	Conditions  []Condition `json:"conditions,omitempty"` // 嵌套条件组
+	IsNegated   bool        `json:"is_negated,omitempty"` // 是否取反（NOT）
 }
 
-// DefaultConditionEvaluator 默认条件评估器实现
+// DefaultConditionEvaluator 默认条件评估器实现（支持复杂逻辑组合）
 type DefaultConditionEvaluator struct{}
 
 func NewDefaultConditionEvaluator() *DefaultConditionEvaluator {
@@ -99,18 +101,69 @@ func NewDefaultConditionEvaluator() *DefaultConditionEvaluator {
 
 func (e *DefaultConditionEvaluator) Evaluate(conditions []Condition, context map[string]interface{}) bool {
 	if len(conditions) == 0 {
-		return true // 无条件限制，始终匹配
+		return true
 	}
 
-	// 简单实现：所有条件必须满足（AND 逻辑）
-	// TODO: 支持复杂的 AND/OR/NOT 组合
-	for _, cond := range conditions {
-		if !e.evaluateSingleCondition(cond, context) {
-			return false
+	result := e.evaluateConditions(conditions, context)
+	return result
+}
+
+// evaluateConditions 递归评估条件列表，支持 AND/OR/NOT 逻辑
+func (e *DefaultConditionEvaluator) evaluateConditions(conditions []Condition, context map[string]interface{}) bool {
+	if len(conditions) == 0 {
+		return true
+	}
+
+	// 默认逻辑为 AND
+	logic := "AND"
+	if len(conditions) > 0 && conditions[0].Logic != "" {
+		logic = conditions[0].Logic
+	}
+
+	switch strings.ToUpper(logic) {
+	case "OR":
+		for _, cond := range conditions {
+			if e.evaluateCondition(cond, context) {
+				return true
+			}
 		}
+		return false
+
+	case "NOT":
+		// NOT 逻辑：取反第一个条件的结果
+		if len(conditions) > 0 {
+			return !e.evaluateCondition(conditions[0], context)
+		}
+		return true
+
+	default: // AND
+		for _, cond := range conditions {
+			if !e.evaluateCondition(cond, context) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+// evaluateCondition 评估单个条件（可能是叶子条件或条件组）
+func (e *DefaultConditionEvaluator) evaluateCondition(cond Condition, context map[string]interface{}) bool {
+	result := false
+
+	// 如果有嵌套条件，递归评估
+	if len(cond.Conditions) > 0 {
+		result = e.evaluateConditions(cond.Conditions, context)
+	} else {
+		// 叶子条件，评估单个条件
+		result = e.evaluateSingleCondition(cond, context)
 	}
 
-	return true
+	// 如果条件被取反，返回相反结果
+	if cond.IsNegated {
+		return !result
+	}
+
+	return result
 }
 
 func (e *DefaultConditionEvaluator) evaluateSingleCondition(cond Condition, context map[string]interface{}) bool {
@@ -621,7 +674,7 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 	var workspaceRules []model.AutomationRule
 	var project model.Project
 	if err := s.db.Select("workspace_id").First(&project, event.ProjectID).Error; err == nil {
-		if err := s.db.Where("workspace_id = ? AND trigger_type = ? AND is_enabled = ?",
+		if err := s.db.Where("workspace_id = ? AND project_id = 0 AND trigger_type = ? AND is_enabled = ?",
 			project.WorkspaceID, event.Type, true).Order("sequence ASC").Find(&workspaceRules).Error; err != nil {
 			log.Printf("[Automation] Failed to query workspace rules: %v", err)
 		}
@@ -776,6 +829,7 @@ type AutomationResponse struct {
 	Conditions     string `json:"conditions"`
 	Actions        string `json:"actions"`
 	IsEnabled      bool   `json:"is_enabled"`
+	IsInherited    bool   `json:"is_inherited"`
 	Sequence       int    `json:"sequence"`
 	ExecutionCount int    `json:"execution_count"`
 	CreatedAt      string `json:"created_at"`
@@ -785,13 +839,27 @@ type AutomationResponse struct {
 // ======== CRUD 方法（保留原有 API 兼容性）========
 
 func (s *AutomationService) List(projectID uint64) ([]AutomationResponse, error) {
-	var rules []model.AutomationRule
-	if err := s.db.Where("project_id = ?", projectID).Order("sequence ASC").Find(&rules).Error; err != nil {
-		return nil, common.Internal("Failed to list automation rules")
+	var project model.Project
+	if err := s.db.Select("workspace_id").First(&project, projectID).Error; err != nil {
+		return nil, common.NotFound("Project not found")
 	}
-	res := make([]AutomationResponse, len(rules))
-	for i, r := range rules {
-		res[i] = s.toResponse(&r)
+
+	var projectRules []model.AutomationRule
+	if err := s.db.Where("project_id = ?", projectID).Order("sequence ASC").Find(&projectRules).Error; err != nil {
+		return nil, common.Internal("Failed to list project automation rules")
+	}
+
+	var workspaceRules []model.AutomationRule
+	if err := s.db.Where("workspace_id = ? AND project_id = 0", project.WorkspaceID).Order("sequence ASC").Find(&workspaceRules).Error; err != nil {
+		return nil, common.Internal("Failed to list workspace automation rules")
+	}
+
+	mergedRules := append(projectRules, workspaceRules...)
+
+	res := make([]AutomationResponse, len(mergedRules))
+	for i, r := range mergedRules {
+		isInherited := r.ProjectID == 0
+		res[i] = s.toResponseWithInherited(&r, isInherited)
 	}
 	if res == nil {
 		res = []AutomationResponse{}
@@ -1036,6 +1104,10 @@ func (s *AutomationService) DeleteWorkspace(id uint64) error {
 // Helpers
 
 func (s *AutomationService) toResponse(rule *model.AutomationRule) AutomationResponse {
+	return s.toResponseWithInherited(rule, false)
+}
+
+func (s *AutomationService) toResponseWithInherited(rule *model.AutomationRule, isInherited bool) AutomationResponse {
 	return AutomationResponse{
 		ID:             rule.ID,
 		Name:           rule.Name,
@@ -1046,6 +1118,7 @@ func (s *AutomationService) toResponse(rule *model.AutomationRule) AutomationRes
 		Conditions:     rule.Conditions,
 		Actions:        rule.Actions,
 		IsEnabled:      rule.IsEnabled,
+		IsInherited:    isInherited,
 		Sequence:       rule.Sequence,
 		ExecutionCount: rule.ExecutionCount,
 		CreatedAt:      rule.CreatedAt.Format(time.RFC3339),

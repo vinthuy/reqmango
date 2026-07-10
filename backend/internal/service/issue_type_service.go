@@ -382,7 +382,7 @@ func (s *IssueTypeService) ReorderWorkspace(workspaceID uint64, typeIDs []uint64
 	return nil
 }
 
-func (s *IssueTypeService) ListFields(typeID uint64) ([]response.IssueTypeFieldResponse, error) {
+func (s *IssueTypeService) ListFields(typeID uint64, projectID ...uint64) ([]response.IssueTypeFieldResponse, error) {
 	var t model.IssueType
 	if err := s.db.First(&t, typeID).Error; err != nil {
 		return nil, common.NotFound("Issue type not found")
@@ -393,8 +393,24 @@ func (s *IssueTypeService) ListFields(typeID uint64) ([]response.IssueTypeFieldR
 		return nil, common.Internal("Failed to list fields")
 	}
 
-	result := make([]response.IssueTypeFieldResponse, len(links))
-	for i, link := range links {
+	var enabledFieldIDs map[uint64]bool
+	if len(projectID) > 0 && projectID[0] > 0 {
+		enabledFieldIDs = make(map[uint64]bool)
+		var enrollments []model.ProjectCustomFieldEnrollment
+		s.db.Where("project_id = ?", projectID[0]).Find(&enrollments)
+		for _, e := range enrollments {
+			enabledFieldIDs[e.FieldID] = true
+		}
+	}
+
+	result := make([]response.IssueTypeFieldResponse, 0)
+	for _, link := range links {
+		if len(projectID) > 0 && projectID[0] > 0 {
+			if link.Field.ProjectID == nil && !enabledFieldIDs[link.FieldID] {
+				continue
+			}
+		}
+
 		fr := response.IssueTypeFieldResponse{
 			FieldID:     link.FieldID,
 			TypeID:      link.TypeID,
@@ -405,7 +421,6 @@ func (s *IssueTypeService) ListFields(typeID uint64) ([]response.IssueTypeFieldR
 			Description: link.Field.Description,
 			Options:     make([]response.CustomFieldOptionResponse, 0),
 		}
-		// Load options for dropdown fields
 		if link.Field.FieldType == "dropdown" {
 			var opts []model.CustomFieldOption
 			s.db.Where("field_id = ?", link.FieldID).Order("sequence").Find(&opts)
@@ -419,7 +434,7 @@ func (s *IssueTypeService) ListFields(typeID uint64) ([]response.IssueTypeFieldR
 				})
 			}
 		}
-		result[i] = fr
+		result = append(result, fr)
 	}
 	if result == nil {
 		result = []response.IssueTypeFieldResponse{}

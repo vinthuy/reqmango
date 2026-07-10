@@ -212,7 +212,9 @@ func (h *IssueTypeHandler) ListFields(c *gin.Context) {
 		return
 	}
 
-	resp, svcErr := h.svc.ListFields(typeID)
+	projectID, _ := strconv.ParseUint(c.Query("project_id"), 10, 64)
+
+	resp, svcErr := h.svc.ListFields(typeID, projectID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})

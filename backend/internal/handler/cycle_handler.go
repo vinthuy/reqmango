@@ -364,3 +364,35 @@ func (h *CycleHandler) GetBurndown(c *gin.Context) {
 
 	c.JSON(http.StatusOK, resp)
 }
+
+// ==================== Automation ====================
+
+// ApplyAutoAddRules handles POST /cycles/:cycleId/apply-auto-add
+func (h *CycleHandler) ApplyAutoAddRules(c *gin.Context) {
+	cycleID, err := h.parseCycleID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid cycle ID"})
+		return
+	}
+
+	if appError(c, h.svc.ApplyAutoAddRules(cycleID)) {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Auto-add rules applied successfully"})
+}
+
+// ApplyAutoCloseRules handles POST /cycles/:cycleId/apply-auto-close
+func (h *CycleHandler) ApplyAutoCloseRules(c *gin.Context) {
+	cycleID, err := h.parseCycleID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid cycle ID"})
+		return
+	}
+
+	if appError(c, h.svc.ApplyAutoCloseRules(cycleID)) {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Auto-close rules applied successfully"})
+}

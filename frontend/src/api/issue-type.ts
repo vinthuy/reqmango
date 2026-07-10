@@ -71,8 +71,12 @@ export async function disableIssueType(typeId: number, isActive: boolean): Promi
 /**
  * 获取工作项类型关联的字段
  */
-export async function getIssueTypeFields(typeId: number): Promise<(IssueTypeField & { CustomField?: CustomField })[]> {
-  const response = await api.get(`/issue-types/${typeId}/fields`)
+export async function getIssueTypeFields(typeId: number, projectId?: number): Promise<(IssueTypeField & { CustomField?: CustomField })[]> {
+  const params: Record<string, any> = {}
+  if (projectId !== undefined && projectId !== null) {
+    params.project_id = projectId
+  }
+  const response = await api.get(`/issue-types/${typeId}/fields`, { params })
   return response.data
 }
 

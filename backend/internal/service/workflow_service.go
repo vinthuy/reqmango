@@ -19,13 +19,30 @@ func (s *WorkflowService) Create(pid uint64, req request.WorkflowCreate) (*respo
 	return s.Get(w.ID)
 }
 func (s *WorkflowService) List(pid uint64) ([]response.WorkflowResponse, error) {
-	var ws []model.Workflow
-	s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").Where("project_id = ?", pid).Find(&ws)
-	res := make([]response.WorkflowResponse, len(ws))
-	for i, w := range ws {
+	var project model.Project
+	if err := s.db.Select("workspace_id").First(&project, pid).Error; err != nil {
+		return nil, common.NotFound("Project not found")
+	}
+
+	var projectWorkflows []model.Workflow
+	s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").Where("project_id = ?", pid).Find(&projectWorkflows)
+
+	var workspaceWorkflows []model.Workflow
+	s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").Where("workspace_id = ? AND project_id IS NULL", project.WorkspaceID).Find(&workspaceWorkflows)
+
+	projectWorkflowNames := make(map[string]bool)
+	for _, w := range projectWorkflows {
+		projectWorkflowNames[w.Name] = true
+	}
+
+	mergedWorkflows := append(projectWorkflows, workspaceWorkflows...)
+
+	res := make([]response.WorkflowResponse, len(mergedWorkflows))
+	for i, w := range mergedWorkflows {
 		var projectID uint64
 		if w.ProjectID != nil { projectID = *w.ProjectID }
-		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
+		isInherited := w.ProjectID == nil
+		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0), IsInherited: isInherited}
 		for _, t := range w.Transitions {
 			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
 		}

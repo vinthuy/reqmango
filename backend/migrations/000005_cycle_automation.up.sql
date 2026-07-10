@@ -1,0 +1,5 @@
+ALTER TABLE cycles
+ADD COLUMN auto_add_enabled BOOLEAN DEFAULT FALSE,
+ADD COLUMN auto_add_rql TEXT,
+ADD COLUMN auto_close_enabled BOOLEAN DEFAULT FALSE,
+ADD COLUMN auto_progress_enabled BOOLEAN DEFAULT FALSE;
