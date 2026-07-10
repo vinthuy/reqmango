@@ -48,6 +48,13 @@
 
       <!-- 标签页内容 -->
       <div v-if="activeTab === 'issues'">
+        <QuickCreateInput
+          :project-id="projectId"
+          :workspace-id="workspaceId"
+          :issue-types="issueTypes"
+          :inline="true"
+          @created="triggerRefresh"
+        />
         <FilterBar
           :key="'filter-' + projectId"
           :project-id="projectId"
@@ -303,6 +310,7 @@ import ModuleList from '@/components/ModuleList.vue'
 import ModuleDetailPanel from '@/components/ModuleDetailPanel.vue'
 import ModuleFormModal from '@/components/ModuleFormModal.vue'
 import FilterBar from '@/components/FilterBar.vue'
+import QuickCreateInput from '@/components/QuickCreateInput.vue'
 import AICopilot from '@/components/AICopilot.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
 import PageTabConfig from '@/components/PageTabConfig.vue'
@@ -514,6 +522,7 @@ const projectId = ref(0)
 const slug = ref('')
 
 const pageTabs = ref<ProjectPageTab[]>([])
+const issueTypes = ref<any[]>([])
 const showPageConfig = ref(false)
 const defaultTabs = computed(() => [
   { id: 'issues', name: t('project.tab.issues') },
@@ -570,6 +579,10 @@ onMounted(async () => {
     // Filter data is loaded by FilterBar component internally
     await loadUpdates()
     await loadPageTabs()
+    try {
+      const issueTypeApi = await import('@/api/issue-type')
+      issueTypes.value = await issueTypeApi.getIssueTypes(workspaceId.value, projectId.value)
+    } catch { issueTypes.value = [] }
   } catch (err) {
     console.error('Failed to load project:', err)
   } finally {
