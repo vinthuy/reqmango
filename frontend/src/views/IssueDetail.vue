@@ -1,6 +1,6 @@
 <template>
   <div class="issue-detail-page min-h-screen bg-white">
-    <IssueDetailHeader :issue :saving :project-identifier="projectIdentifier" @back="goBack" @save="saveIssue" @delete="deleteIssue" />
+    <IssueDetailHeader :issue :saving :project-identifier="projectIdentifier" :is-watching="isWatching" @back="goBack" @save="saveIssue" @delete="deleteIssue" @toggle-watch="handleToggleWatch" />
 
     <div class="max-w-6xl mx-auto px-6 py-6">
       <div class="flex gap-8">
@@ -27,8 +27,13 @@
           <IssueTabDetails
             v-if="activeTab === 'details'"
             v-bind="detailProps"
+            :sub-issues="subIssues"
             @update:title="issueForm.name = $event"
             @update:description="issueForm.description = $event"
+            @navigate="navigateToIssue"
+            @add-sub-issue="handleAddSubIssue"
+            @remove-sub-issue="handleRemoveSubIssue"
+            @reorder-sub-issues="handleReorderSubIssues"
           />
           <IssueTabRelations
             v-else-if="activeTab === 'relations'"
@@ -48,6 +53,11 @@
             v-else-if="activeTab === 'attachments'"
             :issue-id="issueId"
             :project-id="projectId"
+          />
+          <IssueGitPanel
+            v-else-if="activeTab === 'git'"
+            :workspace-id="workspaceId"
+            :issue-id="issueId"
           />
           <IssueTabTimeTracking
             v-else-if="activeTab === 'timetrack'"
@@ -111,6 +121,7 @@ import IssueTabRelations from '@/components/IssueTabRelations.vue'
 import IssueTabAttachments from '@/components/IssueTabAttachments.vue'
 import IssueTabTimeTracking from '@/components/IssueTabTimeTracking.vue'
 import IssueTabActivity from '@/components/IssueTabActivity.vue'
+import IssueGitPanel from '@/components/IssueGitPanel.vue'
 
 // Route params
 const route = useRoute()
@@ -135,6 +146,7 @@ const projectMembers = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const subIssues = ref<any[]>([])
 const activeTab = ref('details')
+const isWatching = ref(false)
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const selectedAgentId = ref('')
@@ -150,6 +162,7 @@ const tabs = computed(() => [
   { key: 'details', label: t('issue.tabDetails'), count: undefined },
   { key: 'relations', label: t('issue.tabRelations'), count: relationSidebarSummary.value?.total ?? undefined },
   { key: 'attachments', label: t('issue.tabAttachments'), count: issue.value?.attachment_count || undefined },
+  { key: 'git', label: t('gitIntegration.title'), count: undefined },
   { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
   { key: 'activity', label: t('issue.tabActivity'), count: undefined },
 ])
@@ -188,6 +201,7 @@ onMounted(async () => {
       loadIssueTypes(),
       loadCustomFields(),
       loadLabels(),
+      loadWatchers(),
     ])
   } catch (error) {
     console.error('Failed to load issue:', error)
@@ -371,6 +385,60 @@ async function handleRelationsRefresh() {
     }
   } catch (err) {
     console.error('Failed to refresh issue after relations change:', err)
+  }
+}
+
+async function handleAddSubIssue() {
+  router.push({
+    path: `/workspace/${route.params.slug}/project/${projectId.value}/issues/new`,
+    query: { parent_id: issueId },
+  })
+}
+
+async function handleRemoveSubIssue(subIssueId: number) {
+  try {
+    await issueApi.updateIssue(subIssueId, { parent_id: null })
+    await handleRelationsRefresh()
+    toast.success(t('issue.removeParentSuccess'))
+  } catch (error: any) {
+    console.error('Failed to remove sub-issue:', error)
+    toast.error(error?.response?.data?.message || t('issue.removeParentFailed'))
+  }
+}
+
+async function handleReorderSubIssues(issueIds: number[]) {
+  try {
+    await issueApi.reorderSubIssues(issueId, issueIds)
+    await handleRelationsRefresh()
+  } catch (error) {
+    console.error('Failed to reorder sub-issues:', error)
+  }
+}
+
+async function loadWatchers() {
+  try {
+    const { watchers } = await issueApi.listWatchers(issueId)
+    const currentUserId = parseInt(localStorage.getItem('user_id') || '0', 10)
+    isWatching.value = watchers.includes(currentUserId)
+  } catch (error) {
+    console.error('Failed to load watchers:', error)
+  }
+}
+
+async function handleToggleWatch() {
+  try {
+    if (isWatching.value) {
+      await issueApi.removeWatcher(issueId)
+      isWatching.value = false
+      toast.success(t('issue.unwatch'))
+    } else {
+      await issueApi.addWatcher(issueId)
+      isWatching.value = true
+      toast.success(t('issue.watch'))
+    }
+  } catch (error: any) {
+    console.error('Failed to toggle watch:', error)
+    toast.error(error?.response?.data?.message || t('common.error'))
   }
 }
 

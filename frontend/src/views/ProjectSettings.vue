@@ -20,6 +20,7 @@ import ProjectIssueTypeManager from '@/components/ProjectIssueTypeManager.vue'
 import WorkItemTemplateManager from '@/components/WorkItemTemplateManager.vue'
 import ReleaseList from '@/components/ReleaseList.vue'
 import WebhookManager from '@/components/WebhookManager.vue'
+import GitIntegrationSettings from '@/components/GitIntegrationSettings.vue'
 import relationApi from '@/api/relation'
 
 const { confirm } = useConfirm()
@@ -124,6 +125,7 @@ const menuItems = computed(() => [
   { id: 'cycles', label: t('settings.cycles'), icon: '🔄' },
   { id: 'releases', label: t('settings.releases'), icon: '🚀' },
   { id: 'webhooks', label: t('settings.webhooks'), icon: '🔌' },
+  { id: 'git-integration', label: t('gitIntegration.title'), icon: '🌿' },
   { id: 'relations', label: t('settings.relations'), icon: '🔗' },
   { id: 'custom-fields', label: t('settings.customFields'), icon: '🔧' },
   { id: 'estimate-points', label: t('settings.estimatePoints'), icon: '📏' },
@@ -673,6 +675,11 @@ onMounted(async () => {
           <WebhookManager :project-id="projectId" :workspace-id="workspaceId" />
         </div>
 
+        <!-- Git Integration -->
+        <div v-if="!loading && activeSection === 'git-integration'" class="bg-white rounded-lg border border-gray-200">
+          <GitIntegrationSettings :workspace-id="workspaceId" :project-id="projectId" />
+        </div>
+
         <!-- Relations (read-only, from workspace) -->
         <div v-if="!loading && activeSection === 'relations'" class="bg-white rounded-lg border border-gray-200">
           <div class="p-6">
@@ -710,7 +717,7 @@ onMounted(async () => {
 
         <!-- Custom Fields -->
         <div v-if="!loading && activeSection === 'custom-fields'" class="bg-white rounded-lg border border-gray-200">
-          <CustomFieldList :project-id="projectId" @create="handleCreateField" @edit="handleEditField" />
+          <CustomFieldList :project-id="projectId" :workspace-id="workspaceId" @create="handleCreateField" @edit="handleEditField" />
         </div>
 
         <!-- Estimate Points -->

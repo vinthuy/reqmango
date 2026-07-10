@@ -99,6 +99,8 @@ func main() {
 		&model.MetricChart{},
 		&model.Plugin{},
 		&model.PluginEventLog{},
+		&model.GitIntegration{},
+		&model.GitIssueLink{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

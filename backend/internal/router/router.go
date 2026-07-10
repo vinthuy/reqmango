@@ -22,7 +22,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	automationSvc := service.NewAutomationService(db)
 	slackSvc := service.NewSlackService(db)
 	issueSvc := service.NewIssueService(db, notificationSvc, webhookSvc, automationSvc, slackSvc)
-	cycleSvc := service.NewCycleService(db)
+	cycleSvc := service.NewCycleService(db, notificationSvc)
 	moduleSvc := service.NewModuleService(db)
 	issueTypeSvc := service.NewIssueTypeService(db)
 	customFieldSvc := service.NewCustomFieldService(db)
@@ -33,6 +33,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	commentSvc := service.NewCommentService(db, notificationSvc)
 	savedViewSvc := service.NewSavedViewService(db)
 	searchTemplateSvc := service.NewSearchTemplateService(db)
+	gitSvc := service.NewGitService(db)
 	projectIssueTypeH := handler.NewProjectIssueTypeHandler(issueTypeSvc)
 	pageSvc := service.NewPageService(db)
 	pageVersionSvc := service.NewPageVersionService(db)
@@ -105,6 +106,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	fieldPermH := handler.NewFieldPermissionHandler(fieldPermSvc)
 	pluginH := handler.NewPluginHandler(pluginSvc)
 	automationH := handler.NewAutomationHandler(automationSvc)
+	gitIntegrationH := handler.NewGitIntegrationHandler(gitSvc)
+	gitWebhookH := handler.NewGitWebhookHandler(gitSvc)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -129,6 +132,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 		// ---- GitHub Webhook (public) ----
 		v1.POST("/webhook/github/:id", githubH.Webhook)
+
+		// ---- Git Webhook (public) ----
+		v1.POST("/webhook/git/:projectId", gitWebhookH.GitHubWebhook)
 
 		// ---- Auth (public + protected) ----
 		auth := v1.Group("/auth")
@@ -188,6 +194,13 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PUT("/:wsParam/github/:id", githubH.Update)
 			workspaces.DELETE("/:wsParam/github/:id", githubH.Delete)
 			workspaces.POST("/:wsParam/github/:id/sync", githubH.SyncIssues)
+
+			// Git integration
+			workspaces.POST("/:wsParam/git-integration", gitIntegrationH.CreateIntegration)
+			workspaces.GET("/:wsParam/git-integration", gitIntegrationH.GetIntegration)
+			workspaces.PUT("/:wsParam/git-integration", gitIntegrationH.UpdateIntegration)
+			workspaces.DELETE("/:wsParam/git-integration", gitIntegrationH.DeleteIntegration)
+			workspaces.GET("/:wsParam/issues/:issueId/git-links", gitIntegrationH.GetIssueGitLinks)
 
 			// Slack integration
 			workspaces.GET("/:wsParam/slack", slackH.List)
@@ -513,6 +526,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.DELETE("/:issueId", issueH.Delete)
 			issues.POST("/:issueId/archive", issueH.Archive)
 			issues.GET("/:issueId/children", issueH.Children) // tree lazy-load children
+			issues.POST("/:issueId/reorder-sub-issues", issueH.ReorderSubIssues)
+			issues.POST("/:issueId/watch", issueH.AddWatcher)
+			issues.DELETE("/:issueId/watch", issueH.RemoveWatcher)
+			issues.GET("/:issueId/watchers", issueH.ListWatchers)
 			issues.POST("/:issueId/restore", issueH.Restore)
 			issues.POST("/:issueId/convert-type", issueH.ConvertType)
 			issues.GET("/:issueId/activities", issueH.GetActivities) // ?limit=&offset=
@@ -629,6 +646,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			customFields.PUT("/issues/:issueId/values/:fieldId", customFieldH.UpdateIssueValue)
 			customFields.DELETE("/issues/:issueId/values/:fieldId", customFieldH.DeleteIssueValue)
 			customFields.GET("/issues/:issueId/fields", customFieldH.GetIssueFieldsWithValues)
+			customFields.GET("/workspace-fields", customFieldH.ListWorkspaceFieldsWithEnrollment)
 		}
 
 		// ---- Conditional Fields (protected) ----
