@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +21,7 @@ func NewWorkItemTemplateHandler(svc *service.WorkItemTemplateService) *WorkItemT
 
 func (h *WorkItemTemplateHandler) getProjectID(c *gin.Context) (uint64, uint64) {
 	projectID, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
-	workspaceID, _ := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	workspaceID, _ := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
 	return projectID, workspaceID
 }
 
@@ -62,9 +63,11 @@ func (h *WorkItemTemplateHandler) Create(c *gin.Context) {
 
 	var req request.WorkItemTemplateCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
+		fmt.Println("WorkItemTemplateCreate bind error:", err.Error())
 		common.RespondError(c, common.BadRequest(err.Error()))
 		return
 	}
+	fmt.Println("WorkItemTemplateCreate:", req.Name, "Defaults:", req.Defaults)
 
 	r, err := h.svc.Create(projectID, workspaceID, &req)
 	if err != nil {

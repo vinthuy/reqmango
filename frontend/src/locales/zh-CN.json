@@ -2274,6 +2274,7 @@
     "addTypesTo": "添加类型到",
     "required": "必填",
     "allTypesAdded": "所有类型模板已添加",
+    "creating": "创建中...",
     "backlog": "待办",
     "todo": "待办",
     "inProgress": "进行中",

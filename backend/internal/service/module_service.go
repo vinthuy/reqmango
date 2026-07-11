@@ -143,8 +143,25 @@ func (s *ModuleService) Delete(moduleID uint64) error {
 	if err := s.db.First(&module, moduleID).Error; err != nil {
 		return common.NotFound("Module not found")
 	}
-	s.db.Where("module_id = ?", moduleID).Delete(&model.ModuleIssue{})
-	return s.db.Delete(&module).Error
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	if err := tx.Where("parent_id = ?", moduleID).Update("parent_id", nil).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to update child modules")
+	}
+	if err := tx.Where("module_id = ?", moduleID).Delete(&model.ModuleIssue{}).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to delete module issues")
+	}
+	if err := tx.Delete(&module).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to delete module")
+	}
+	return tx.Commit().Error
 }
 
 // ==================== Issue Association ====================

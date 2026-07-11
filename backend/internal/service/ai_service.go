@@ -31,6 +31,19 @@ func NewAIService(db *gorm.DB, llm *LLMClient, issueSvc *IssueService, projectSv
 	return &AIService{db: db, llm: llm, issueSvc: issueSvc, projectSvc: projectSvc}
 }
 
+// ==================== Permission Check ====================
+
+func (s *AIService) isProjectMember(projectID, userID uint64) bool {
+	if userID == 0 {
+		return false
+	}
+	var count int64
+	s.db.Model(&model.ProjectMember{}).
+		Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, userID, true).
+		Count(&count)
+	return count > 0
+}
+
 // ==================== System Prompt ====================
 
 func (s *AIService) buildSystemPrompt(ctx *AIContext) string {
@@ -304,6 +317,7 @@ type AIContext struct {
 	IssueSequenceID   int
 	IssueName         string
 	Mode              string // "ask" | "build"
+	UserID            uint64
 }
 
 // ==================== Chat ====================
@@ -1202,7 +1216,7 @@ func (s *AIService) ExecuteTool(name string, rawInput json.RawMessage, actx *AIC
 	case "get_issue":
 		return s.toolGetIssue(args)
 	case "update_issue":
-		return s.toolUpdateIssue(args)
+		return s.toolUpdateIssue(args, actx)
 	case "get_project_stats":
 		return s.toolGetProjectStats(args, actx)
 	case "get_issues_summary":
@@ -1224,7 +1238,7 @@ func (s *AIService) ExecuteTool(name string, rawInput json.RawMessage, actx *AIC
 	case "get_issue_activities":
 		return s.toolGetIssueActivities(args)
 	case "add_comment":
-		return s.toolAddComment(args)
+		return s.toolAddComment(args, actx)
 	case "list_releases":
 		return s.toolListReleases(args, actx)
 	case "list_pages":
@@ -1288,6 +1302,10 @@ func (s *AIService) toolCreateIssue(args map[string]interface{}, actx *AIContext
 		return nil, fmt.Errorf("name is required")
 	}
 
+	if !s.isProjectMember(projectID, actx.UserID) {
+		return nil, fmt.Errorf("no permission to create issues in this project")
+	}
+
 	iss := &model.Issue{
 		Name:            name,
 		DescriptionHTML: getStrArg(args, "description", ""),
@@ -1295,6 +1313,7 @@ func (s *AIService) toolCreateIssue(args map[string]interface{}, actx *AIContext
 		ProjectID:       projectID,
 		WorkspaceID:     workspaceID,
 	}
+	iss.CreatedByID = &actx.UserID
 	if typeID := getUintArg(args, "type_id", 0); typeID > 0 {
 		iss.IssueTypeID = &typeID
 	}
@@ -1321,8 +1340,18 @@ func (s *AIService) toolGetIssue(args map[string]interface{}) (any, error) {
 	}, nil
 }
 
-func (s *AIService) toolUpdateIssue(args map[string]interface{}) (any, error) {
+func (s *AIService) toolUpdateIssue(args map[string]interface{}, actx *AIContext) (any, error) {
 	id := getUintArg(args, "issue_id", 0)
+
+	var iss model.Issue
+	if err := s.db.First(&iss, id).Error; err != nil {
+		return nil, err
+	}
+
+	if !s.isProjectMember(iss.ProjectID, actx.UserID) {
+		return nil, fmt.Errorf("no permission to update issues in this project")
+	}
+
 	updates := map[string]interface{}{}
 	if v := getStrArg(args, "name", ""); v != "" {
 		updates["name"] = v
@@ -1335,6 +1364,9 @@ func (s *AIService) toolUpdateIssue(args map[string]interface{}) (any, error) {
 	}
 	if v := getStrArg(args, "description", ""); v != "" {
 		updates["description_html"] = v
+	}
+	if len(updates) == 0 {
+		return nil, fmt.Errorf("no updates provided")
 	}
 	if err := s.db.Model(&model.Issue{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 		return nil, err
@@ -1447,13 +1479,23 @@ func (s *AIService) toolGetIssueActivities(args map[string]interface{}) (any, er
 	return result, nil
 }
 
-func (s *AIService) toolAddComment(args map[string]interface{}) (any, error) {
+func (s *AIService) toolAddComment(args map[string]interface{}, actx *AIContext) (any, error) {
 	issueID := getUintArg(args, "issue_id", 0)
 	body := getStrArg(args, "body", "")
 	if issueID == 0 || body == "" {
 		return nil, fmt.Errorf("issue_id and body are required")
 	}
+
+	var iss model.Issue
+	if err := s.db.First(&iss, issueID).Error; err != nil {
+		return nil, err
+	}
+	if !s.isProjectMember(iss.ProjectID, actx.UserID) {
+		return nil, fmt.Errorf("no permission to add comments in this project")
+	}
+
 	comment := &model.Comment{IssueID: issueID, Body: body}
+	comment.CreatedByID = &actx.UserID
 	if err := s.db.Create(comment).Error; err != nil {
 		return nil, err
 	}

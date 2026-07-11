@@ -32,10 +32,14 @@ func (h *ModuleHandler) Create(c *gin.Context) {
 		return
 	}
 
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
-		return
+	workspaceID := req.WorkspaceID
+	if workspaceID == 0 {
+		id, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+			return
+		}
+		workspaceID = id
 	}
 
 	module, svcErr := h.svc.Create(workspaceID, user.ID, req)

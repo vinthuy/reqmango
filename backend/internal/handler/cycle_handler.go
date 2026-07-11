@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -58,6 +59,7 @@ func (h *CycleHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
+	fmt.Println("CycleCreateRequest:", req.Name, "AutoAddEnabled:", req.AutoAddEnabled, "AutoAddRQL:", req.AutoAddRQL)
 
 	projectID, err := h.parseProjectID(c)
 	if err != nil {

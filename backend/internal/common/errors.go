@@ -62,12 +62,53 @@ func DashboardNotFound() *AppError     { return NewError(ErrDashboardNotFound, "
 
 // ==================== Standard Response Helpers ====================
 
-// RespondError writes a standardized error response.
+var localizedErrorCodes = map[ErrorCode]bool{
+	ErrProjectNotFound:    true,
+	ErrIssueNotFound:      true,
+	ErrUserNotFound:       true,
+	ErrWorkspaceNotFound:  true,
+	ErrPageNotFound:       true,
+	ErrCycleNotFound:      true,
+	ErrModuleNotFound:     true,
+	ErrStateNotFound:      true,
+	ErrLabelNotFound:      true,
+	ErrReleaseNotFound:    true,
+	ErrTemplateNotFound:   true,
+	ErrViewNotFound:       true,
+	ErrCommentNotFound:    true,
+	ErrAttachmentNotFound: true,
+	ErrTimeEntryNotFound:  true,
+	ErrRecurrenceNotFound: true,
+	ErrNotificationNotFound: true,
+	ErrAgentNotFound:       true,
+	ErrDashboardNotFound:   true,
+	ErrAlreadyExists:       true,
+	ErrAlreadyAssigned:     true,
+	ErrAlreadyLabelled:     true,
+	ErrSelfReference:      true,
+	ErrMaxDepthExceeded:    true,
+	ErrStateTransition:     true,
+	ErrWorkflowViolation:   true,
+	ErrDuplicateEntry:     true,
+	ErrTimerRunning:       true,
+	ErrAIConfigMissing:    true,
+	ErrAIAPIFailure:       true,
+	ErrAITimeout:          true,
+	ErrAIQuotaExceeded:    true,
+	ErrRequiredField:      true,
+	ErrInvalidFormat:      true,
+	ErrInvalidValue:       true,
+	ErrUnauthorized:       true,
+	ErrForbidden:          true,
+}
+
 func RespondError(c *gin.Context, err error) {
 	if ae, ok := err.(*AppError); ok {
 		lang := getLang(c)
-		if msg := i18n.GetMessage(lang, strings.ToLower(string(ae.ErrorCode))); msg != "" {
-			ae.Message = msg
+		if _, shouldLocalize := localizedErrorCodes[ae.ErrorCode]; shouldLocalize {
+			if msg := i18n.GetMessage(lang, strings.ToLower(string(ae.ErrorCode))); msg != "" {
+				ae.Message = msg
+			}
 		}
 		c.JSON(ae.Code, ae)
 		return

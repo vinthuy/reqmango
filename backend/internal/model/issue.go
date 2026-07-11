@@ -24,7 +24,7 @@ type Issue struct {
 	ParentID       *uint64 `json:"parent_id"`
 	Depth          int     `gorm:"default:0" json:"depth"`     // hierarchy depth: 0=root, max 5
 	IssueTypeID    *uint64 `json:"issue_type_id"`
-	StateID        uint64  `gorm:"not null;index" json:"state_id"`
+	StateID        uint64 `gorm:"not null;index" json:"state_id"`
 	ExternalID     *string `gorm:"size:255" json:"external_id"`
 	ExternalSource *string `gorm:"size:255" json:"external_source"`
 	CoverImageURL  *string `gorm:"size:500" json:"cover_image_url"`

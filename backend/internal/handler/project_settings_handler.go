@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -181,9 +182,11 @@ func (h *ProjectSettingsHandler) DeleteState(c *gin.Context) {
 
 	if svcErr := h.svc.DeleteState(projectID, stateID); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			fmt.Println("DeleteState error:", appErr.Message, "detail:", appErr.Detail)
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message, "detail": appErr.Detail, "error_code": appErr.ErrorCode})
 			return
 		}
+		fmt.Println("DeleteState unknown error:", svcErr.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}

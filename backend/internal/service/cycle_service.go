@@ -216,12 +216,18 @@ func (s *CycleService) Create(workspaceID, userID uint64, req *request.CycleCrea
 	}
 
 	cycle := &model.Cycle{
-		Name:        req.Name,
-		Description: req.Description,
-		StartDate:   startDate,
-		EndDate:     endDate,
-		ProjectID:   req.ProjectID,
-		WorkspaceID: workspaceID,
+		Name:                req.Name,
+		Description:         req.Description,
+		StartDate:           startDate,
+		EndDate:             endDate,
+		ProjectID:           req.ProjectID,
+		WorkspaceID:         workspaceID,
+		CycleAutomation: model.CycleAutomation{
+			AutoAddEnabled:      req.AutoAddEnabled,
+			AutoAddRQL:          req.AutoAddRQL,
+			AutoCloseEnabled:    req.AutoCloseEnabled,
+			AutoProgressEnabled: req.AutoProgressEnabled,
+		},
 	}
 	cycle.CreatedByID = &userID
 
@@ -849,6 +855,8 @@ func (s *CycleService) GetBurndown(cycleID uint64) (*response.BurndownData, erro
 
 	actualRemaining := total - completed
 
+	dailyPoints := s.buildDailyBurndownPoints(cycleID, &cycle, int(total), totalDays, daysElapsed, idealDailyBurn)
+
 	return &response.BurndownData{
 		CycleID:         cycleID,
 		CycleName:       cycle.Name,
@@ -862,5 +870,69 @@ func (s *CycleService) GetBurndown(cycleID uint64) (*response.BurndownData, erro
 		ActualCompleted: completed,
 		ActualRemaining: actualRemaining,
 		IsOnTrack:       float64(actualRemaining) <= idealRemaining,
+		DailyPoints:     dailyPoints,
 	}, nil
+}
+
+func (s *CycleService) buildDailyBurndownPoints(cycleID uint64, cycle *model.Cycle, totalIssues, totalDays, daysElapsed int, idealDailyBurn float64) []response.BurndownDayPoint {
+	type completionRow struct {
+		CompletedDate string
+		Count         int64
+	}
+	var rows []completionRow
+	err := s.db.Table("issue_cycles").
+		Select("DATE(issues.completed_at) as completed_date, COUNT(*) as count").
+		Joins("JOIN issues ON issues.id = issue_cycles.issue_id").
+		Joins("JOIN states ON states.id = issues.state_id").
+		Where("issue_cycles.cycle_id = ? AND issues.completed_at IS NOT NULL AND states.group = ?", cycleID, common.StateGroupCompleted).
+		Group("DATE(issues.completed_at)").
+		Scan(&rows).Error
+	if err != nil {
+		log.Printf("cycle: error scanning daily completion data for cycle %d: %v", cycleID, err)
+	}
+
+	dailyCompletion := make(map[string]int64)
+	for _, r := range rows {
+		dailyCompletion[r.CompletedDate] = r.Count
+	}
+
+	points := make([]response.BurndownDayPoint, 0, totalDays+1)
+
+	cumulativeCompleted := int64(0)
+	currentDate := cycle.StartDate
+
+	for dayIndex := 0; dayIndex <= totalDays; dayIndex++ {
+		if dayIndex > 0 {
+			currentDate = currentDate.Add(24 * time.Hour)
+		}
+
+		dateStr := currentDate.Format("2006-01-02")
+
+		if dayIndex > 0 && dayIndex <= daysElapsed {
+			if cnt, ok := dailyCompletion[dateStr]; ok {
+				cumulativeCompleted += cnt
+			}
+		}
+
+		idealRem := float64(totalIssues) - idealDailyBurn*float64(dayIndex)
+		if idealRem < 0 {
+			idealRem = 0
+		}
+
+		actualRem := int64(totalIssues) - cumulativeCompleted
+
+		if dayIndex > daysElapsed {
+			cumulativeCompleted = int64(totalIssues) - actualRem
+		}
+
+		points = append(points, response.BurndownDayPoint{
+			DayIndex:        dayIndex,
+			Date:            dateStr,
+			IdealRemaining:  float64(int(idealRem*100)) / 100,
+			ActualCompleted: cumulativeCompleted,
+			ActualRemaining: actualRem,
+		})
+	}
+
+	return points
 }

@@ -314,15 +314,15 @@ describe('export issues API', () => {
 describe('tree view API', () => {
   it('listTreeIssues should GET tree', async () => {
     mockGet.mockResolvedValue({ data: [], headers: {} })
-    const result = await listTreeIssues(1)
-    expect(mockGet).toHaveBeenCalledWith('/issues/tree?project_id=1')
+    const result = await listTreeIssues(1, 100)
+    expect(mockGet).toHaveBeenCalledWith('/issues/tree?project_id=1&workspace_id=100')
     expect(result.items).toEqual([])
     expect(result.total).toBe(0)
   })
 
   it('listTreeIssues with filters', async () => {
     mockGet.mockResolvedValue({ data: [{ id: 1, children: [] }], headers: { 'x-total-count': '1' } })
-    const result = await listTreeIssues(1, { state_id: 3, rql: 'priority=high' })
+    const result = await listTreeIssues(1, 100, { state_id: 3, rql: 'priority=high' })
     const url = mockGet.mock.calls[0][0]
     expect(url).toContain('state_id=3')
     expect(url).toContain('rql=priority%3Dhigh')

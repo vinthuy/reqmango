@@ -4,10 +4,10 @@ const api = axios.create({
   baseURL: '/api/v1',
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 30000
 })
 
-// 手动处理重定向以保留Authorization头
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {
@@ -16,18 +16,14 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// 处理307重定向（Gin trailing slash redirect）
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
     if (error.response?.status === 307 && !originalRequest._retry) {
       originalRequest._retry = true
-      // 跟随 Location 头重定向，保留方法 & body
       const location = error.response.headers.location
       if (location) {
-        // Gin 返回的 Location 是绝对路径如 /api/v1/workspaces/
-        // axios baseURL 是 /api/v1，所以只需要路径中 baseURL 之后的部分
         const baseURL = '/api/v1'
         originalRequest.url = location.startsWith(baseURL) ? location.slice(baseURL.length) : location
       }
@@ -35,7 +31,19 @@ api.interceptors.response.use(
     }
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
+      localStorage.removeItem('user')
       window.location.href = '/login'
+      return Promise.reject(error)
+    }
+    if (error.response?.status === 429) {
+      console.warn('Rate limited, please try again later')
+      return Promise.reject(error)
+    }
+    if (error.response?.status >= 500) {
+      console.error('Server error:', error.response.data)
+    }
+    if (error.code === 'ECONNABORTED') {
+      console.error('Request timeout')
     }
     return Promise.reject(error)
   }

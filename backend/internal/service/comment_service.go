@@ -51,6 +51,9 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 				issueIDPtr := issueID
 				projectIDPtr := issue.ProjectID
 				s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_commented", title, message, recipientIDs, &authorID, &projectIDPtr, &issueIDPtr)
+				for _, rid := range recipientIDs {
+					SSE.NotifyUser(rid, "issue_commented", title, message)
+				}
 			}
 		}
 
@@ -61,7 +64,9 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 			s.db.Where("username IN ?", mentioned).Find(&users)
 			mentionIDs := make([]uint64, 0, len(users))
 			for _, u := range users {
-				if u.ID != authorID { mentionIDs = append(mentionIDs, u.ID) }
+				if u.ID != authorID {
+					mentionIDs = append(mentionIDs, u.ID)
+				}
 			}
 			if len(mentionIDs) > 0 {
 				title := fmt.Sprintf("@提及: %s", issue.Name)
@@ -81,32 +86,43 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 					}(agent)
 				}
 			}
-			}
 		}
-
+	}
 
 	return &c, nil
 }
 
-// parseMentions extracts @username patterns from text.
 func parseMentions(text string) []string {
-	seen := map[string]bool{}
-	var result []string
-	for i := 0; i < len(text); i++ {
-		if text[i] == '@' && (i == 0 || text[i-1] == ' ' || text[i-1] == '\n') {
-			end := i + 1
-			for end < len(text) && isUsernameChar(text[end]) { end++ }
-			if end > i+1 {
-				name := text[i+1 : end]
-				if !seen[name] { seen[name] = true; result = append(result, name) }
+	result := make([]string, 0)
+	seen := make(map[string]bool)
+	runes := []rune(text)
+	i := 0
+	for i < len(runes) {
+		if runes[i] == '@' && (i == 0 || runes[i-1] == ' ' || runes[i-1] == '\n') {
+			start := i + 1
+			j := start
+			for j < len(runes) {
+				c := runes[j]
+				isValid := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' ||
+					(c >= 0x4E00 && c <= 0x9FFF) || (c >= 0x3400 && c <= 0x4DBF) || (c >= 0xAC00 && c <= 0xD7AF)
+				if !isValid {
+					break
+				}
+				j++
 			}
+			if j > start {
+				name := string(runes[start:j])
+				if !seen[name] {
+					seen[name] = true
+					result = append(result, name)
+				}
+			}
+			i = j
+		} else {
+			i++
 		}
 	}
 	return result
-}
-
-func isUsernameChar(c byte) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-'
 }
 
 func (s *CommentService) ListByIssue(issueID uint64, page, pageSize int) ([]model.Comment, int64, error) {
@@ -130,20 +146,62 @@ func (s *CommentService) Get(id uint64) (*model.Comment, error) {
 	return &c, nil
 }
 
-func (s *CommentService) Update(id uint64, body string) (*model.Comment, error) {
+func (s *CommentService) Update(id, userID uint64, body string) (*model.Comment, error) {
 	var c model.Comment
-	if err := s.db.First(&c, id).Error; err != nil {
+	if err := s.db.Preload("Author").First(&c, id).Error; err != nil {
 		return nil, common.NotFound("Comment not found")
 	}
+	if c.AuthorID == nil || *c.AuthorID != userID {
+		return nil, common.Forbidden("Forbidden")
+	}
+
 	c.Body = body
 	s.db.Save(&c)
-	s.db.Preload("Author").First(&c, id)
+
+	if s.notificationSvc != nil {
+		var issue model.Issue
+		if err := s.db.Preload("Project").First(&issue, c.IssueID).Error; err == nil {
+			mentioned := parseMentions(body)
+			if len(mentioned) > 0 {
+				var users []model.User
+				s.db.Where("username IN ?", mentioned).Find(&users)
+				mentionIDs := make([]uint64, 0, len(users))
+				for _, u := range users {
+					if u.ID != userID {
+						mentionIDs = append(mentionIDs, u.ID)
+					}
+				}
+				if len(mentionIDs) > 0 {
+					title := fmt.Sprintf("@提及: %s", issue.Name)
+					msg := fmt.Sprintf("你在工作项 #%d 的评论中被 @%s 提及", issue.SequenceID, c.Author.Username)
+					issueIDPtr := c.IssueID
+					projectIDPtr := issue.ProjectID
+					s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_mentioned", title, msg, mentionIDs, &userID, &projectIDPtr, &issueIDPtr)
+				}
+
+				if s.agentSvc != nil {
+					var agents []model.Agent
+					s.db.Where("workspace_id = ? AND name IN ? AND status = 'active'", issue.Project.WorkspaceID, mentioned).Find(&agents)
+					for _, agent := range agents {
+						go func(a model.Agent) {
+							s.agentSvc.HandleMention(a.ID, issue.Project.WorkspaceID, userID, body, issue.Name, &c.IssueID)
+						}(agent)
+					}
+				}
+			}
+		}
+	}
+
 	return &c, nil
 }
 
-func (s *CommentService) Delete(id uint64) error {
-	if err := s.db.First(&model.Comment{}, id).Error; err != nil {
+func (s *CommentService) Delete(id, userID uint64) error {
+	var c model.Comment
+	if err := s.db.First(&c, id).Error; err != nil {
 		return common.NotFound("Comment not found")
+	}
+	if c.AuthorID == nil || *c.AuthorID != userID {
+		return common.Forbidden("Forbidden")
 	}
 	return s.db.Delete(&model.Comment{}, id).Error
 }

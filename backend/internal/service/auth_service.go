@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -26,20 +27,6 @@ func NewAuthService(db *gorm.DB, cfg *config.Config) *AuthService {
 
 // Register creates a new user account.
 func (s *AuthService) Register(req *request.RegisterRequest) (*response.UserResponse, error) {
-	// Check email uniqueness
-	var count int64
-	s.db.Model(&model.User{}).Where("email = ?", req.Email).Count(&count)
-	if count > 0 {
-		return nil, common.Conflict("Email already registered")
-	}
-
-	// Check username uniqueness
-	s.db.Model(&model.User{}).Where("username = ?", req.Username).Count(&count)
-	if count > 0 {
-		return nil, common.Conflict("Username already taken")
-	}
-
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, common.Internal("Failed to hash password")
@@ -71,6 +58,15 @@ func (s *AuthService) Register(req *request.RegisterRequest) (*response.UserResp
 	}
 
 	if err := s.db.Create(user).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			if strings.Contains(err.Error(), "users_email") {
+				return nil, common.Conflict("Email already registered")
+			}
+			if strings.Contains(err.Error(), "users_username") {
+				return nil, common.Conflict("Username already taken")
+			}
+			return nil, common.Conflict("Duplicate entry")
+		}
 		return nil, common.Internal("Failed to create user")
 	}
 

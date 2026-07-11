@@ -160,11 +160,26 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	if req.StartDate != nil {
 		if t, err := time.Parse(time.RFC3339, *req.StartDate); err == nil {
 			issue.StartDate = &t
+		} else {
+			return nil, common.BadRequest("Invalid start_date format, expected RFC3339")
 		}
 	}
 	if req.TargetDate != nil {
 		if t, err := time.Parse(time.RFC3339, *req.TargetDate); err == nil {
 			issue.TargetDate = &t
+		} else {
+			return nil, common.BadRequest("Invalid target_date format, expected RFC3339")
+		}
+	}
+
+	// Validate assignees are project members
+	for _, assigneeID := range req.AssigneeIDs {
+		var count int64
+		s.db.Model(&model.ProjectMember{}).
+			Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, assigneeID, true).
+			Count(&count)
+		if count == 0 {
+			return nil, common.BadRequest(fmt.Sprintf("User %d is not a member of this project", assigneeID))
 		}
 	}
 
@@ -586,18 +601,17 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		hasChanges = true
 	}
 	if req.StateID != nil && *req.StateID != issue.StateID {
-		oldStateID = issue.StateID // Save to outer scope variable
+		oldStateID = issue.StateID
 		newStateID := *req.StateID
-		// Workflow enforcement
 		if err := s.validateStateTransition(tx, issue.ProjectID, issueID, oldStateID, newStateID, userID); err != nil {
 			tx.Rollback()
 			return nil, err
 		}
 		issue.StateID = newStateID
 
-		// Check if completed
-		var newState model.State
-		if err := s.db.First(&newState, *req.StateID).Error; err == nil {
+		var oldState, newState model.State
+		s.db.First(&oldState, oldStateID)
+		if err := s.db.First(&newState, newStateID).Error; err == nil {
 			if newState.Group == common.StateGroupCompleted {
 				now := time.Now()
 				issue.CompletedAt = &now
@@ -606,14 +620,11 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 			}
 		}
 
-		s.createActivity(tx, issueID, "updated", strPtr("state_id"),
-			strPtr(fmt.Sprintf("%d", oldStateID)), strPtr(fmt.Sprintf("%d", newStateID)), nil, &userID)
+		s.createActivity(tx, issueID, "updated", strPtr("state"),
+			strPtr(oldState.Name), strPtr(newState.Name), nil, &userID)
 		hasChanges = true
 
-		// Trigger notification for state change
 		if s.notificationSvc != nil {
-			var oldState model.State
-			s.db.First(&oldState, oldStateID)
 
 			recipientIDs := make(map[uint64]bool)
 
@@ -812,6 +823,15 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	}
 
 	s.webhookSvc.Fire(issue.ProjectID, event, map[string]interface{}{"issue_id": issueID, "name": issue.Name, "priority": issue.Priority, "state_id": issue.StateID})
+
+	var assignees []model.IssueAssignee
+	s.db.Where("issue_id = ?", issueID).Find(&assignees)
+	for _, a := range assignees {
+		if a.UserID != userID {
+			SSE.NotifyUser(a.UserID, "issue_updated", "工作项已更新", issue.Name)
+		}
+	}
+
 	return s.buildResponse(issueID)
 }
 
@@ -1159,12 +1179,15 @@ func (s *IssueService) Suggest(projectID uint64, query string, limit int) ([]res
 }
 
 // BulkUpdate updates multiple issues with the same changes.
-func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateRequest, userID uint64) ([]response.IssueResponse, error) {
+func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateRequest, userID uint64) (*response.BulkUpdateResultResponse, error) {
 	if len(req.IssueIDs) == 0 {
-		return []response.IssueResponse{}, nil
+		return &response.BulkUpdateResultResponse{}, nil
 	}
 
 	tx := s.db.Begin()
+
+	var failedItems []response.BulkFailedItem
+	var successIDs []uint64
 
 	hasSimpleUpdates := req.Priority != nil || req.StartDate != nil || req.TargetDate != nil || req.SortOrder != nil
 
@@ -1198,14 +1221,17 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 		for _, issueID := range req.IssueIDs {
 			var issue model.Issue
 			if err := tx.First(&issue, issueID).Error; err != nil {
+				failedItems = append(failedItems, response.BulkFailedItem{IssueID: issueID, Reason: "Issue not found"})
 				continue
 			}
 			oldStateID := issue.StateID
 			newStateID := *req.StateID
 			if oldStateID == newStateID {
+				successIDs = append(successIDs, issueID)
 				continue
 			}
 			if err := s.validateStateTransition(tx, projectID, issueID, oldStateID, newStateID, userID); err != nil {
+				failedItems = append(failedItems, response.BulkFailedItem{IssueID: issueID, Reason: err.Error()})
 				continue
 			}
 			issue.StateID = newStateID
@@ -1219,7 +1245,10 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 				}
 			}
 			tx.Save(&issue)
+			successIDs = append(successIDs, issueID)
 		}
+	} else {
+		successIDs = req.IssueIDs
 	}
 
 	if req.AssigneeIDs != nil {
@@ -1244,9 +1273,8 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 		return nil, common.Internal("Failed to commit bulk update")
 	}
 
-	// Automation trigger: fire after commit for state changes and other updates
 	if req.StateID != nil {
-		for _, issueID := range req.IssueIDs {
+		for _, issueID := range successIDs {
 			s.runAutomations(issueID, "state_changed", map[string]interface{}{
 				"issue_id":   issueID,
 				"new_state":  fmt.Sprintf("%d", *req.StateID),
@@ -1254,8 +1282,7 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 			})
 		}
 	} else if req.Priority != nil || req.AssigneeIDs != nil || req.LabelIDs != nil {
-		// Trigger issue_updated for other field changes
-		for _, issueID := range req.IssueIDs {
+		for _, issueID := range successIDs {
 			s.runAutomations(issueID, "issue_updated", map[string]interface{}{
 				"issue_id":   issueID,
 				"project_id": projectID,
@@ -1264,53 +1291,67 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 	}
 
 	var issues []model.Issue
-	if err := s.db.Preload("State").Preload("IssueType").Preload("AssigneeLinks.User").Preload("LabelLinks.Label").Preload("CycleLink").Where("id IN ?", req.IssueIDs).Find(&issues).Error; err != nil {
+	if err := s.db.Preload("State").Preload("IssueType").Preload("AssigneeLinks.User").Preload("LabelLinks.Label").Preload("CycleLink").Where("id IN ?", successIDs).Find(&issues).Error; err != nil {
 		return nil, common.Internal("Failed to fetch updated issues")
 	}
 
-	result := make([]response.IssueResponse, len(issues))
-	for i, issue := range issues {
-		resp, err := s.BuildIssueResponse(&issue)
-		if err != nil {
-			return nil, err
-		}
-		result[i] = *resp
-	}
-
-	results := make([]response.IssueResponse, 0, len(issues))
+	updatedItems := make([]response.IssueResponse, 0, len(issues))
 	for _, issue := range issues {
 		resp, err := s.BuildIssueResponse(&issue)
 		if err != nil {
 			continue
 		}
-		results = append(results, *resp)
+		updatedItems = append(updatedItems, *resp)
 	}
-	return results, nil
+
+	return &response.BulkUpdateResultResponse{
+		SuccessCount: len(successIDs),
+		FailedCount:  len(failedItems),
+		FailedItems:  failedItems,
+		UpdatedItems: updatedItems,
+	}, nil
 }
 
 // BulkDelete deletes multiple issues.
-func (s *IssueService) BulkDelete(issueIDs []uint64, userID uint64) error {
+func (s *IssueService) BulkDelete(issueIDs []uint64, userID uint64) (*response.BulkDeleteResultResponse, error) {
 	if len(issueIDs) == 0 {
-		return nil
+		return &response.BulkDeleteResultResponse{}, nil
 	}
 
 	var projectIDs []uint64
 	s.db.Model(&model.Issue{}).Where("id IN ?", issueIDs).Pluck("DISTINCT project_id", &projectIDs)
 	for _, pid := range projectIDs {
 		if err := s.checkProjectMembership(pid, userID); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
+	var failedItems []response.BulkFailedItem
+	var successIDs []uint64
 	tx := s.db.Begin()
-	if err := tx.Where("id IN ?", issueIDs).Delete(&model.Issue{}).Error; err != nil {
-		tx.Rollback()
-		return common.Internal("Failed to bulk delete issues")
+
+	for _, issueID := range issueIDs {
+		var issue model.Issue
+		if err := tx.First(&issue, issueID).Error; err != nil {
+			failedItems = append(failedItems, response.BulkFailedItem{IssueID: issueID, Reason: "Issue not found"})
+			continue
+		}
+		if err := tx.Delete(&issue).Error; err != nil {
+			failedItems = append(failedItems, response.BulkFailedItem{IssueID: issueID, Reason: "Failed to delete issue"})
+			continue
+		}
+		successIDs = append(successIDs, issueID)
 	}
+
 	if err := tx.Commit().Error; err != nil {
-		return common.Internal("Failed to commit bulk delete")
+		return nil, common.Internal("Failed to commit bulk delete")
 	}
-	return nil
+
+	return &response.BulkDeleteResultResponse{
+		SuccessCount: len(successIDs),
+		FailedCount:  len(failedItems),
+		FailedItems:  failedItems,
+	}, nil
 }
 
 // ==================== Private helpers ====================
@@ -1870,9 +1911,36 @@ func (s *IssueService) ImportFromJSON(projectID, workspaceID, userID uint64, ite
 	return result, nil
 }
 
+func stripBOM(r io.Reader) io.Reader {
+	return &bomStripper{Reader: r, done: false}
+}
+
+type bomStripper struct {
+	io.Reader
+	done bool
+}
+
+func (bs *bomStripper) Read(p []byte) (int, error) {
+	if !bs.done {
+		bs.done = true
+		buf := make([]byte, len(p)+3)
+		n, err := bs.Reader.Read(buf)
+		if err != nil {
+			return n, err
+		}
+		if n >= 3 && buf[0] == 0xef && buf[1] == 0xbb && buf[2] == 0xbf {
+			copy(p, buf[3:n])
+			return n - 3, nil
+		}
+		copy(p, buf[:n])
+		return n, nil
+	}
+	return bs.Reader.Read(p)
+}
+
 // ImportFromCSV imports issues from CSV content.
 func (s *IssueService) ImportFromCSV(projectID, workspaceID, userID uint64, csvContent io.Reader) (*response.ImportResult, error) {
-	reader := csv.NewReader(csvContent)
+	reader := csv.NewReader(stripBOM(csvContent))
 	records, err := reader.ReadAll()
 	if err != nil {
 		return nil, common.BadRequest("CSV 解析失败: " + err.Error())
@@ -2286,7 +2354,7 @@ func (s *IssueService) ReorderSubIssues(parentID uint64, issueIDs []uint64) erro
 }
 
 // BulkCopy copies issues to another project, creating new copies while preserving the originals.
-func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) ([]response.IssueResponse, error) {
+func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) (*response.BulkCopyMoveResultResponse, error) {
 	var targetProject model.Project
 	if err := s.db.First(&targetProject, req.TargetProjectID).Error; err != nil {
 		return nil, common.NotFound("Target project not found")
@@ -2302,6 +2370,7 @@ func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) ([]
 		return nil, common.BadRequest("No issues found")
 	}
 
+	var failedItems []response.BulkFailedItem
 	var results []response.IssueResponse
 	tx := s.db.Begin()
 
@@ -2331,8 +2400,8 @@ func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) ([]
 		}
 
 		if err := tx.Create(copiedIssue).Error; err != nil {
-			tx.Rollback()
-			return nil, common.Internal("Failed to copy issue")
+			failedItems = append(failedItems, response.BulkFailedItem{IssueID: issue.ID, Reason: "Failed to copy issue"})
+			continue
 		}
 
 		for _, assignee := range issue.AssigneeLinks {
@@ -2357,7 +2426,12 @@ func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) ([]
 		return nil, common.Internal("Failed to commit transaction")
 	}
 
-	return results, nil
+	return &response.BulkCopyMoveResultResponse{
+		SuccessCount: len(results),
+		FailedCount:  len(failedItems),
+		FailedItems:  failedItems,
+		Results:      results,
+	}, nil
 }
 
 // copySubtasks recursively copies subtasks to the target issue.
@@ -2407,7 +2481,7 @@ func (s *IssueService) copySubtasks(tx *gorm.DB, sourceParentID, targetParentID,
 }
 
 // BulkMove moves issues to another project, removing them from the source project.
-func (s *IssueService) BulkMove(req *request.BulkMoveRequest, userID uint64) ([]response.IssueResponse, error) {
+func (s *IssueService) BulkMove(req *request.BulkMoveRequest, userID uint64) (*response.BulkCopyMoveResultResponse, error) {
 	var targetProject model.Project
 	if err := s.db.First(&targetProject, req.TargetProjectID).Error; err != nil {
 		return nil, common.NotFound("Target project not found")
@@ -2423,6 +2497,7 @@ func (s *IssueService) BulkMove(req *request.BulkMoveRequest, userID uint64) ([]
 		return nil, common.BadRequest("No issues found")
 	}
 
+	var failedItems []response.BulkFailedItem
 	var results []response.IssueResponse
 	tx := s.db.Begin()
 
@@ -2434,8 +2509,8 @@ func (s *IssueService) BulkMove(req *request.BulkMoveRequest, userID uint64) ([]
 			"workspace_id":  targetProject.WorkspaceID,
 			"updated_by_id": userID,
 		}).Error; err != nil {
-			tx.Rollback()
-			return nil, common.Internal("Failed to move issue")
+			failedItems = append(failedItems, response.BulkFailedItem{IssueID: issue.ID, Reason: "Failed to move issue"})
+			continue
 		}
 
 		if req.IncludeSubtasks {
@@ -2457,7 +2532,12 @@ func (s *IssueService) BulkMove(req *request.BulkMoveRequest, userID uint64) ([]
 		return nil, common.Internal("Failed to commit transaction")
 	}
 
-	return results, nil
+	return &response.BulkCopyMoveResultResponse{
+		SuccessCount: len(results),
+		FailedCount:  len(failedItems),
+		FailedItems:  failedItems,
+		Results:      results,
+	}, nil
 }
 
 // moveSubtasks recursively moves subtasks to the target project.

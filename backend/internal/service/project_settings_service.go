@@ -129,11 +129,31 @@ func (s *ProjectSettingsService) UpdateState(projectID, stateID uint64, req *req
 
 // DeleteState soft-deletes a state.
 func (s *ProjectSettingsService) DeleteState(projectID, stateID uint64) error {
-	result := s.db.Where("id = ? AND project_id = ?", stateID, projectID).Delete(&model.State{})
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	var defaultState model.State
+	if err := tx.Where("project_id = ? AND is_default = ?", projectID, true).First(&defaultState).Error; err != nil {
+		tx.Rollback()
+		return common.NewErrorDetail(common.ErrInternal, "Failed to find default state", err.Error())
+	}
+	if defaultState.ID == stateID {
+		tx.Rollback()
+		return common.BadRequest("Cannot delete the default state")
+	}
+	if err := tx.Model(&model.Issue{}).Where("project_id = ? AND state_id = ?", projectID, stateID).Update("state_id", defaultState.ID).Error; err != nil {
+		tx.Rollback()
+		return common.NewErrorDetail(common.ErrInternal, "Failed to update issue states", err.Error())
+	}
+	result := tx.Where("id = ? AND project_id = ?", stateID, projectID).Delete(&model.State{})
 	if result.RowsAffected == 0 {
+		tx.Rollback()
 		return common.NotFound("State not found")
 	}
-	return nil
+	return tx.Commit().Error
 }
 
 // ListWorkspaceStates returns states from the first project in the workspace as workspace-level state template.
@@ -276,11 +296,22 @@ func (s *ProjectSettingsService) UpdateLabel(projectID, labelID uint64, req *req
 
 // DeleteLabel soft-deletes a label.
 func (s *ProjectSettingsService) DeleteLabel(projectID, labelID uint64) error {
-	result := s.db.Where("id = ? AND project_id = ?", labelID, projectID).Delete(&model.Label{})
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	if err := tx.Where("label_id = ?", labelID).Delete(&model.IssueLabel{}).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to delete issue labels")
+	}
+	result := tx.Where("id = ? AND project_id = ?", labelID, projectID).Delete(&model.Label{})
 	if result.RowsAffected == 0 {
+		tx.Rollback()
 		return common.NotFound("Label not found")
 	}
-	return nil
+	return tx.Commit().Error
 }
 
 // stateToResponse converts a State model to a StateResponse.

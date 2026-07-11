@@ -6,15 +6,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
+	"gorm.io/gorm"
 )
 
 type RoleHandler struct {
 	roleService *service.RoleService
+	db          *gorm.DB
 }
 
-func NewRoleHandler(roleService *service.RoleService) *RoleHandler {
-	return &RoleHandler{roleService: roleService}
+func NewRoleHandler(roleService *service.RoleService, db *gorm.DB) *RoleHandler {
+	return &RoleHandler{roleService: roleService, db: db}
+}
+
+func (h *RoleHandler) resolveWorkspaceID(c *gin.Context) (uint64, error) {
+	wsParam := c.Param("wsParam")
+	if id, err := strconv.ParseUint(wsParam, 10, 64); err == nil {
+		return id, nil
+	}
+	var workspace model.Workspace
+	if err := h.db.Where("slug = ?", wsParam).First(&workspace).Error; err != nil {
+		return 0, err
+	}
+	return workspace.ID, nil
 }
 
 // ListRoles returns roles for a workspace or project.
@@ -43,11 +58,19 @@ func (h *RoleHandler) ListPermissions(c *gin.Context) {
 
 // CreateRole creates a new custom role.
 func (h *RoleHandler) CreateRole(c *gin.Context) {
+	workspaceID, err := h.resolveWorkspaceID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workspace ID"})
+		return
+	}
+
 	var req request.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	req.WorkspaceID = &workspaceID
 	role, err := h.roleService.Create(&req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

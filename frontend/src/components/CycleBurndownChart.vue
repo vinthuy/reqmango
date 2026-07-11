@@ -12,6 +12,15 @@
           <line v-for="i in 5" :key="'h'+i" x1="0" :y1="i*40" x2="400" :y2="i*40" stroke="#f3f4f6" stroke-width="1" />
           <polyline :points="idealLinePoints" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-dasharray="6,3" />
           <polyline :points="actualLinePoints" fill="none" stroke="#3B82F6" stroke-width="2" />
+          <circle
+            v-for="(point, index) in actualPoints"
+            :key="'actual-'+index"
+            :cx="point.x"
+            :cy="point.y"
+            r="3"
+            fill="#3B82F6"
+            v-show="index <= data.days_elapsed"
+          />
         </svg>
       </div>
 
@@ -42,6 +51,17 @@ const idealLinePoints = computed(() => {
   const { total_issues, total_days } = props.data
   const xStep = 400 / Math.max(total_days, 1)
   const yScale = 200 / Math.max(total_issues, 1)
+
+  if (props.data.daily_points && props.data.daily_points.length > 0) {
+    return props.data.daily_points
+      .map((p) => {
+        const x = p.day_index * xStep
+        const y = p.ideal_remaining * yScale
+        return `${x},${y}`
+      })
+      .join(' ')
+  }
+
   let points = ''
   for (let d = 0; d <= total_days; d++) {
     const x = d * xStep
@@ -51,15 +71,48 @@ const idealLinePoints = computed(() => {
   return points.trim()
 })
 
-const actualLinePoints = computed(() => {
-  if (!props.data) return ''
-  const { total_issues, total_days, days_elapsed, actual_completed } = props.data
+const actualPoints = computed(() => {
+  if (!props.data) return []
+  const { total_issues, total_days } = props.data
   const xStep = 400 / Math.max(total_days, 1)
   const yScale = 200 / Math.max(total_issues, 1)
+
+  if (props.data.daily_points && props.data.daily_points.length > 0) {
+    return props.data.daily_points.map((p) => ({
+      x: p.day_index * xStep,
+      y: p.actual_remaining * yScale
+    }))
+  }
+
   const startX = 0
   const startY = total_issues * yScale
-  const endX = Math.min(days_elapsed, total_days) * xStep
-  const endY = Math.max(0, (total_issues - actual_completed)) * yScale
+  const endX = Math.min(props.data.days_elapsed, total_days) * xStep
+  const endY = Math.max(0, (total_issues - props.data.actual_completed)) * yScale
+  return [{ x: startX, y: startY }, { x: endX, y: endY }]
+})
+
+const actualLinePoints = computed(() => {
+  if (!props.data) return ''
+  const { total_issues, total_days } = props.data
+  const xStep = 400 / Math.max(total_days, 1)
+  const yScale = 200 / Math.max(total_issues, 1)
+
+  if (props.data.daily_points && props.data.daily_points.length > 0) {
+    const elapsed = props.data.days_elapsed
+    return props.data.daily_points
+      .filter((_, index) => index <= elapsed)
+      .map((p) => {
+        const x = p.day_index * xStep
+        const y = p.actual_remaining * yScale
+        return `${x},${y}`
+      })
+      .join(' ')
+  }
+
+  const startX = 0
+  const startY = total_issues * yScale
+  const endX = Math.min(props.data.days_elapsed, total_days) * xStep
+  const endY = Math.max(0, (total_issues - props.data.actual_completed)) * yScale
   return `${startX},${startY} ${endX},${endY}`
 })
 </script>

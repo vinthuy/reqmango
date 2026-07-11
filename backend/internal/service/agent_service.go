@@ -261,6 +261,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		WorkspaceID: ctx.WorkspaceID,
 		ProjectID:   0,
 		Mode:        "agent",
+		UserID:      userID,
 	}
 	if ctx.ProjectID != nil {
 		actx.ProjectID = *ctx.ProjectID

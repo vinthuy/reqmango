@@ -1,28 +1,4 @@
 {
-  "status": "failed",
-  "failedTests": [
-    "f4503e7bf841fafdad86-53fbbfda50686f9c0b09",
-    "f4503e7bf841fafdad86-66a3cbce8b4490228f12",
-    "f4503e7bf841fafdad86-5790595963e790e22ef6",
-    "f4503e7bf841fafdad86-2aedf6405b58d8fe9425",
-    "f4503e7bf841fafdad86-ded5f6a16175ef6f4731",
-    "f4503e7bf841fafdad86-a7c1065a4aaf14cd5732",
-    "f4503e7bf841fafdad86-7f4be5af2eac04a62440",
-    "f4503e7bf841fafdad86-875ec9db1bc8705b34f3",
-    "f4503e7bf841fafdad86-58e3c87db6115ec64252",
-    "f4503e7bf841fafdad86-735481a9c20d5f6f369e",
-    "f4503e7bf841fafdad86-519f160bcc894e9b3fa0",
-    "f4503e7bf841fafdad86-856ea3fbbbc35b381ac1",
-    "f4503e7bf841fafdad86-eb6fa5773148e102e0c3",
-    "f4503e7bf841fafdad86-60343a7f135ddb1d2306",
-    "f4503e7bf841fafdad86-76819b15f75277ce9b83",
-    "f4503e7bf841fafdad86-e3d0e6c27df2b1843082",
-    "f4503e7bf841fafdad86-5b91159cbec01e900880",
-    "f4503e7bf841fafdad86-d08053ea68b68f130922",
-    "f4503e7bf841fafdad86-eb135513b06a143d5050",
-    "f4503e7bf841fafdad86-cdeb1b1b6424f3ed3e90",
-    "f4503e7bf841fafdad86-2c8bdfb18d583cda6c64",
-    "f4503e7bf841fafdad86-2c86b610bd1c2b2c72aa",
-    "f4503e7bf841fafdad86-36e80359c4f7c21b44d1"
-  ]
+  "status": "passed",
+  "failedTests": []
 }

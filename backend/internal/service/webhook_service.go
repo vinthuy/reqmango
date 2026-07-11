@@ -77,11 +77,33 @@ func (s *WebhookService) send(w model.Webhook, event string, payload map[string]
 		mac.Write(b)
 		req.Header.Set("X-ReqMan-Signature", "sha256="+hex.EncodeToString(mac.Sum(nil)))
 	}
+
+	maxRetries := 3
+	backoff := 1 * time.Second
 	cli := &http.Client{Timeout: 10 * time.Second}
-	resp, err := cli.Do(req)
-	if err != nil {
-		fmt.Printf("webhook %s error: %v\n", w.Name, err)
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		resp, err := cli.Do(req)
+		if err != nil {
+			fmt.Printf("webhook %s attempt %d error: %v\n", w.Name, attempt, err)
+			if attempt < maxRetries {
+				time.Sleep(backoff)
+				backoff *= 2
+				continue
+			}
+			return
+		}
+		resp.Body.Close()
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return
+		}
+		if resp.StatusCode >= 500 && attempt < maxRetries {
+			fmt.Printf("webhook %s attempt %d returned %d, retrying...\n", w.Name, attempt, resp.StatusCode)
+			time.Sleep(backoff)
+			backoff *= 2
+			continue
+		}
+		fmt.Printf("webhook %s attempt %d returned %d\n", w.Name, attempt, resp.StatusCode)
 		return
 	}
-	resp.Body.Close()
 }

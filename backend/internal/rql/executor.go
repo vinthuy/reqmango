@@ -322,9 +322,12 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		// If JoinTable has JoinKey "name", lookup by name via subquery (e.g. state → states, type → issue_types)
 		// Use LIKE to match bilingual names like "进行中 (In Progress)" when user sends "进行中"
 		if mapping.JoinTable != "" && mapping.JoinKey == "name" {
+			likeValue := fmt.Sprint(value)
+			likeValue = strings.ReplaceAll(likeValue, "%", "\\%")
+			likeValue = strings.ReplaceAll(likeValue, "_", "\\_")
 			return &rawCondition{
-				SQL:  fmt.Sprintf("%s IN (SELECT id FROM %s WHERE name LIKE ?)", mapping.ColumnName, mapping.JoinTable),
-				Args: []interface{}{"%" + fmt.Sprint(value) + "%"},
+				SQL:  fmt.Sprintf("%s IN (SELECT id FROM %s WHERE name LIKE ? ESCAPE '\\')", mapping.ColumnName, mapping.JoinTable),
+				Args: []interface{}{"%" + likeValue + "%"},
 			}, nil
 		}
 		return &rawCondition{SQL: fmt.Sprintf("%s = ?", mapping.ColumnName), Args: []interface{}{value}}, nil
@@ -400,9 +403,12 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 		// If JoinTable has JoinKey "name", match by name via subquery (e.g. state → states, type → issue_types)
 		// Use LIKE to match bilingual names like "进行中 (In Progress)" when user sends "进行中"
 		if mapping.JoinTable != "" && mapping.JoinKey == "name" {
+			likeValue := fmt.Sprint(value)
+			likeValue = strings.ReplaceAll(likeValue, "%", "\\%")
+			likeValue = strings.ReplaceAll(likeValue, "_", "\\_")
 			return &rawCondition{
-				SQL:  fmt.Sprintf("%s NOT IN (SELECT id FROM %s WHERE name LIKE ?)", mapping.ColumnName, mapping.JoinTable),
-				Args: []interface{}{"%" + fmt.Sprint(value) + "%"},
+				SQL:  fmt.Sprintf("%s NOT IN (SELECT id FROM %s WHERE name LIKE ? ESCAPE '\\')", mapping.ColumnName, mapping.JoinTable),
+				Args: []interface{}{"%" + likeValue + "%"},
 			}, nil
 		}
 		return &rawCondition{SQL: fmt.Sprintf("%s != ?", mapping.ColumnName), Args: []interface{}{value}}, nil
@@ -484,6 +490,15 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 	value := expr.Value
 	if !strings.ContainsAny(value, "%_") {
 		value = fmt.Sprintf("%%%s%%", value)
+	} else {
+		value = strings.ReplaceAll(value, "%", "\\%")
+		value = strings.ReplaceAll(value, "_", "\\_")
+		if !strings.HasPrefix(value, "%") {
+			value = "%" + value
+		}
+		if !strings.HasSuffix(value, "%") {
+			value = value + "%"
+		}
 	}
 
 	if field == "name" || field == "description" {
@@ -491,7 +506,7 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 	}
 
 	return &rawCondition{
-		SQL:  fmt.Sprintf("%s %s ?", mapping.ColumnName, op),
+		SQL:  fmt.Sprintf("%s %s ? ESCAPE '\\'", mapping.ColumnName, op),
 		Args: []interface{}{value},
 	}, nil
 }
@@ -512,10 +527,19 @@ func (e *GORMExecutor) buildFullTextSearch(field, operator, value string) (*rawC
 	pattern := value
 	if !strings.ContainsAny(pattern, "%_") {
 		pattern = "%" + pattern + "%"
+	} else {
+		pattern = strings.ReplaceAll(pattern, "%", "\\%")
+		pattern = strings.ReplaceAll(pattern, "_", "\\_")
+		if !strings.HasPrefix(pattern, "%") {
+			pattern = "%" + pattern
+		}
+		if !strings.HasSuffix(pattern, "%") {
+			pattern = pattern + "%"
+		}
 	}
 
 	return &rawCondition{
-		SQL:  fmt.Sprintf("(COALESCE(name, '') %s ? OR COALESCE(description_stripped, '') %s ? OR issues.sequence_id::text %s ?)", op, op, op),
+		SQL:  fmt.Sprintf("(COALESCE(name, '') %s ? ESCAPE '\\' OR COALESCE(description_stripped, '') %s ? ESCAPE '\\' OR issues.sequence_id::text %s ? ESCAPE '\\')", op, op, op),
 		Args: []interface{}{pattern, pattern, pattern},
 	}, nil
 }
@@ -558,10 +582,19 @@ func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string, c
 
 	if !strings.ContainsAny(value, "%_") {
 		value = fmt.Sprintf("%%%s%%", value)
+	} else {
+		value = strings.ReplaceAll(value, "%", "\\%")
+		value = strings.ReplaceAll(value, "_", "\\_")
+		if !strings.HasPrefix(value, "%") {
+			value = "%" + value
+		}
+		if !strings.HasSuffix(value, "%") {
+			value = value + "%"
+		}
 	}
 
 	return &rawCondition{
-		SQL:   fmt.Sprintf("%s.value %s ?", alias, op),
+		SQL:   fmt.Sprintf("%s.value %s ? ESCAPE '\\'", alias, op),
 		Args:  []interface{}{value},
 		Joins: []string{join},
 	}, nil

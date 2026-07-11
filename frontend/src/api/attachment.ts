@@ -55,7 +55,7 @@ export async function deleteAttachment(
  * 获取附件下载URL
  */
 export function getAttachmentDownloadUrl(issueId: number, attachmentId: number): string {
-  return `/api/v1/issues/${issueId}/attachments/${attachmentId}`
+  return `/api/v1/issues/${issueId}/attachments/${attachmentId}/download`
 }
 
 export default {

@@ -72,7 +72,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import api from '@/api'
+import { listIssues } from '@/api/issue'
 
 const { t } = useI18n()
 
@@ -178,15 +178,14 @@ watch(() => [props.projectId, props.rql, props.filterSortBy, props.filterSortDir
 
 async function load() {
   try {
-    let url = `/issues?project_id=${props.projectId}&limit=500`
-    if (props.rql) url += `&rql=${encodeURIComponent(props.rql)}`
-    if (props.filterSortConfig) {
-      url += `&sort_config=${encodeURIComponent(props.filterSortConfig)}`
-    } else if (props.filterSortBy) {
-      url += `&sort_by=${props.filterSortBy}&sort_dir=${props.filterSortDir || 'desc'}`
-    }
-    const r = await api.get(url)
-    issues.value = Array.isArray(r.data) ? r.data : []
+    const result = await listIssues(props.projectId, props.workspaceId, {
+      rql: props.rql,
+      sort_by: props.filterSortBy,
+      sort_dir: props.filterSortDir,
+      sort_config: props.filterSortConfig,
+      limit: 500
+    })
+    issues.value = result.items || []
   } catch (_) { issues.value = [] }
 }
 </script>

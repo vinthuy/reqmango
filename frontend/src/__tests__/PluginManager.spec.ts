@@ -153,7 +153,7 @@ describe('Initial loading state', () => {
     const wrapper = mountComponent()
     expect(wrapper.find('.pm-loading').exists()).toBe(true)
     expect(wrapper.find('.spinner').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Loading plugins...')
+    expect(wrapper.text()).toContain('加载插件中...')
   })
 
   it('should hide loading spinner after data resolves', async () => {
@@ -219,7 +219,7 @@ describe('Catalog rendering', () => {
     setupWithInstalled()
     const wrapper = mountComponent()
     await flushPromises()
-    expect(wrapper.find('.pm-badge').text()).toBe('Installed')
+    expect(wrapper.find('.pm-badge').text()).toBe('已安装')
   })
 
   it('should NOT show "Installed" badge for uninstalled plugins', async () => {
@@ -270,10 +270,10 @@ describe('Installed plugins list', () => {
     const wrapper = mountComponent()
     await flushPromises()
     const actions = wrapper.find('.pm-item-actions')
-    expect(actions.text()).toContain('Config')
-    expect(actions.text()).toContain('Logs')
-    expect(actions.text()).toContain('Test')
-    expect(actions.text()).toContain('Remove')
+    expect(actions.text()).toContain('配置')
+    expect(actions.text()).toContain('日志')
+    expect(actions.text()).toContain('测试')
+    expect(actions.text()).toContain('移除')
   })
 
   it('should have toggle switch with correct checked state', async () => {
@@ -295,7 +295,7 @@ describe('Install flow', () => {
     await flushPromises()
     const btn = wrapper.find('.pm-card .btn-primary')
     expect(btn.exists()).toBe(true)
-    expect(btn.text()).toBe('Install')
+    expect(btn.text()).toBe('安装')
   })
 
   it('should call install API on button click', async () => {
@@ -332,7 +332,7 @@ describe('Install flow', () => {
     await flushPromises()
     await wrapper.find('.pm-card .btn-primary').trigger('click')
     await flushPromises()
-    expect(window.alert).toHaveBeenCalledWith('Failed to install plugin')
+    expect(window.alert).toHaveBeenCalledWith('安装插件失败')
   })
 })
 
@@ -346,9 +346,9 @@ describe('Uninstall flow', () => {
     mockApi.uninstall.mockResolvedValue(undefined)
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('button').find(b => b.text() === 'Remove')!
+    const btn = wrapper.findAll('button').find(b => b.text() === '移除')!
     await btn.trigger('click')
-    expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to uninstall this plugin?')
+    expect(window.confirm).toHaveBeenCalledWith('确定要卸载此插件吗？')
   })
 
   it('should NOT uninstall if user cancels', async () => {
@@ -356,7 +356,7 @@ describe('Uninstall flow', () => {
     vi.mocked(window.confirm).mockReturnValue(false)
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('button').find(b => b.text() === 'Remove')!
+    const btn = wrapper.findAll('button').find(b => b.text() === '移除')!
     await btn.trigger('click')
     expect(mockApi.uninstall).not.toHaveBeenCalled()
   })
@@ -368,7 +368,7 @@ describe('Uninstall flow', () => {
     const wrapper = mountComponent()
     await flushPromises()
     expect(wrapper.findAll('.pm-installed-item')).toHaveLength(1)
-    const btn = wrapper.findAll('button').find(b => b.text() === 'Remove')!
+    const btn = wrapper.findAll('button').find(b => b.text() === '移除')!
     await btn.trigger('click')
     await flushPromises()
     expect(mockApi.uninstall).toHaveBeenCalledWith(1, 1)
@@ -383,7 +383,7 @@ describe('Uninstall flow', () => {
     })
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('button').find(b => b.text() === 'Remove')!
+    const btn = wrapper.findAll('button').find(b => b.text() === '移除')!
     await btn.trigger('click')
     await flushPromises()
     expect(window.alert).toHaveBeenCalledWith('Cannot uninstall: locked')
@@ -439,7 +439,7 @@ describe('Config modal', () => {
     setupWithInstalled()
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Config')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '配置')!
     await btn.trigger('click')
     await flushPromises()
     expect(wrapper.find('.pm-modal-config').exists()).toBe(true)
@@ -450,7 +450,7 @@ describe('Config modal', () => {
     setupWithInstalled()
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Config')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '配置')!
     await btn.trigger('click')
     await flushPromises()
     expect(wrapper.find('.pm-config-schema').exists()).toBe(true)
@@ -460,7 +460,7 @@ describe('Config modal', () => {
     setupWithInstalled()
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Config')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '配置')!
     await btn.trigger('click')
     await flushPromises()
     const val = (wrapper.find('.pm-config-textarea').element as HTMLTextAreaElement).value
@@ -474,7 +474,7 @@ describe('Config modal', () => {
     })
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Config')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '配置')!
     await btn.trigger('click')
     await flushPromises()
     await wrapper.find('.pm-config-textarea').setValue('{"url":"https://updated.com"}')
@@ -488,13 +488,13 @@ describe('Config modal', () => {
     setupWithInstalled()
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Config')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '配置')!
     await btn.trigger('click')
     await flushPromises()
     await wrapper.find('.pm-config-textarea').setValue('{invalid')
     await wrapper.find('.pm-modal-footer .btn-primary').trigger('click')
     await flushPromises()
-    expect(wrapper.find('.pm-config-error').text()).toBe('Invalid JSON format')
+    expect(wrapper.find('.pm-config-error').text()).toBe('无效的 JSON 格式')
     expect(mockApi.update).not.toHaveBeenCalled()
   })
 
@@ -505,7 +505,7 @@ describe('Config modal', () => {
     })
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Config')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '配置')!
     await btn.trigger('click')
     await flushPromises()
     await wrapper.find('.pm-config-textarea').setValue('{}')
@@ -518,7 +518,7 @@ describe('Config modal', () => {
     setupWithInstalled()
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Config')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '配置')!
     await btn.trigger('click')
     await flushPromises()
     await wrapper.find('.pm-modal-footer .btn-outline').trigger('click')
@@ -530,7 +530,7 @@ describe('Config modal', () => {
     setupWithInstalled()
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Config')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '配置')!
     await btn.trigger('click')
     await flushPromises()
     await wrapper.find('.pm-modal-close').trigger('click')
@@ -542,7 +542,7 @@ describe('Config modal', () => {
     setupWithInstalled()
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.pm-card-actions .btn-outline').find(b => b.text() === 'Config')!
+    const btn = wrapper.findAll('.pm-card-actions .btn-outline').find(b => b.text() === '配置')!
     await btn.trigger('click')
     await flushPromises()
     expect(wrapper.find('.pm-modal-config').exists()).toBe(true)
@@ -558,7 +558,7 @@ describe('Logs modal', () => {
     mockApi.logs.mockResolvedValue(mockLogs)
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Logs')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '日志')!
     await btn.trigger('click')
     await flushPromises()
     expect(wrapper.find('.pm-modal-header h3').text()).toContain('Outgoing Webhook')
@@ -569,7 +569,7 @@ describe('Logs modal', () => {
     mockApi.logs.mockResolvedValue([])
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Logs')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '日志')!
     await btn.trigger('click')
     await flushPromises()
     expect(mockApi.logs).toHaveBeenCalledWith(1, 1, 50)
@@ -580,7 +580,7 @@ describe('Logs modal', () => {
     mockApi.logs.mockResolvedValue(mockLogs)
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Logs')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '日志')!
     await btn.trigger('click')
     await flushPromises()
     const entries = wrapper.findAll('.pm-log-entry')
@@ -598,7 +598,7 @@ describe('Logs modal', () => {
     mockApi.logs.mockResolvedValue([mockLogs[0]])
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Logs')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '日志')!
     await btn.trigger('click')
     await flushPromises()
     const detail = wrapper.find('.pm-log-detail')
@@ -611,10 +611,10 @@ describe('Logs modal', () => {
     mockApi.logs.mockResolvedValue([])
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Logs')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '日志')!
     await btn.trigger('click')
     await flushPromises()
-    expect(wrapper.find('.pm-logs-empty').text()).toBe('No execution logs yet.')
+    expect(wrapper.find('.pm-logs-empty').text()).toBe('尚无执行日志。')
   })
 
   it('should handle logs API failure gracefully', async () => {
@@ -623,7 +623,7 @@ describe('Logs modal', () => {
     mockApi.logs.mockRejectedValue(new Error('Failed'))
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Logs')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '日志')!
     await btn.trigger('click')
     await flushPromises()
     expect(spy).toHaveBeenCalledWith('Failed to load logs:', expect.anything())
@@ -636,7 +636,7 @@ describe('Logs modal', () => {
     mockApi.logs.mockResolvedValue([])
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Logs')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '日志')!
     await btn.trigger('click')
     await flushPromises()
     await wrapper.find('.pm-modal-close').trigger('click')
@@ -654,7 +654,7 @@ describe('Test execution', () => {
     mockApi.test.mockResolvedValue({ message: 'Test completed', payload: '{"status":"ok"}' })
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Test')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '测试')!
     await btn.trigger('click')
     await flushPromises()
     expect(mockApi.test).toHaveBeenCalledWith(1, 1)
@@ -668,11 +668,11 @@ describe('Test execution', () => {
     })
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Test')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '测试')!
     await btn.trigger('click')
     await flushPromises()
     const text = wrapper.find('.pm-test-result').text()
-    expect(text).toContain('Test failed')
+    expect(text).toContain('测试失败')
     expect(text).toContain('Connection refused')
   })
 
@@ -681,7 +681,7 @@ describe('Test execution', () => {
     mockApi.test.mockRejectedValue(new Error('Network Error'))
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Test')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '测试')!
     await btn.trigger('click')
     await flushPromises()
     expect(wrapper.find('.pm-test-result').text()).toContain('Network Error')
@@ -692,7 +692,7 @@ describe('Test execution', () => {
     mockApi.test.mockResolvedValue({ message: 'Test completed', payload: '{}' })
     const wrapper = mountComponent()
     await flushPromises()
-    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === 'Test')!
+    const btn = wrapper.findAll('.btn-outline').find(b => b.text().trim() === '测试')!
     await btn.trigger('click')
     await flushPromises()
     expect(wrapper.find('.pm-test-result').exists()).toBe(true)
@@ -711,7 +711,7 @@ describe('Empty state', () => {
     await flushPromises()
     const empty = wrapper.find('.pm-empty')
     expect(empty.exists()).toBe(true)
-    expect(empty.text()).toContain('No plugins installed yet')
+    expect(empty.text()).toContain('尚未安装任何插件')
   })
 
   it('should NOT show installed section when empty', async () => {
@@ -760,15 +760,15 @@ describe('Header and sections', () => {
   it('should render page title and subtitle', async () => {
     const wrapper = mountComponent()
     await flushPromises()
-    expect(wrapper.find('.pm-header h2').text()).toBe('Plugin Manager')
-    expect(wrapper.find('.pm-subtitle').text()).toContain('Install and manage plugins')
+    expect(wrapper.find('.pm-header h2').text()).toBe('插件管理')
+    expect(wrapper.find('.pm-subtitle').text()).toContain('安装和管理插件')
   })
 
   it('should show installed count in section heading', async () => {
     setupWithInstalled()
     const wrapper = mountComponent()
     await flushPromises()
-    const heading = wrapper.findAll('h3').find(h => h.text().includes('Installed Plugins'))!
+    const heading = wrapper.findAll('h3').find(h => h.text().includes('已安装'))!
     expect(heading.text()).toContain('(1)')
   })
 })

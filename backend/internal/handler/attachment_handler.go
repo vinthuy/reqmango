@@ -1,12 +1,49 @@
 package handler
 
 import (
-	"github.com/gin-gonic/gin"
+	"errors"
+	"mime/multipart"
 	"net/http"
+	"path/filepath"
+
+	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
 	"strconv"
 )
+
+const maxFileSize = 10 * 1024 * 1024
+
+var allowedMIMETypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+	"application/pdf": true,
+	"application/docx": true,
+	"application/xlsx": true,
+	"application/pptx": true,
+	"text/plain": true,
+	"text/csv":   true,
+	"text/markdown": true,
+	"application/json": true,
+	"application/octet-stream": true,
+}
+
+func validateFile(file *multipart.FileHeader) error {
+	if file.Size > maxFileSize {
+		return errors.New("File size exceeds 10MB limit")
+	}
+	mimeType := file.Header.Get("Content-Type")
+	if !allowedMIMETypes[mimeType] {
+		return errors.New("File type not allowed")
+	}
+	ext := filepath.Ext(file.Filename)
+	if ext == "" {
+		return errors.New("File must have an extension")
+	}
+	return nil
+}
 
 type AttachmentHandler struct {
 	attachmentService *service.AttachmentService
@@ -48,6 +85,22 @@ func (h *AttachmentHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, attachment)
 }
 
+func (h *AttachmentHandler) Download(c *gin.Context) {
+	attachmentID, err := strconv.ParseUint(c.Param("attachmentId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid attachment ID"})
+		return
+	}
+
+	attachment, err := h.attachmentService.Get(attachmentID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.File(attachment.FilePath)
+}
+
 func (h *AttachmentHandler) Create(c *gin.Context) {
 	issueID, err := strconv.ParseUint(c.Param("issueId"), 10, 64)
 	if err != nil {
@@ -61,6 +114,11 @@ func (h *AttachmentHandler) Create(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded: " + err.Error()})
+		return
+	}
+
+	if err := validateFile(file); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 

@@ -11,6 +11,17 @@ import (
 	"gorm.io/gorm"
 )
 
+var uploadsDir string
+
+func init() {
+	ex, err := os.Executable()
+	if err != nil {
+		uploadsDir = "./uploads"
+		return
+	}
+	uploadsDir = filepath.Join(filepath.Dir(ex), "uploads")
+}
+
 type AttachmentService struct {
 	db *gorm.DB
 }
@@ -38,9 +49,9 @@ func (s *AttachmentService) Create(issueID, uploaderID uint64, file io.Reader, f
 	fileID := uuid.New().String()
 	ext := filepath.Ext(fileName)
 	newFileName := fileID + ext
-	filePath := filepath.Join("uploads", newFileName)
+	filePath := filepath.Join(uploadsDir, newFileName)
 
-	if err := os.MkdirAll("uploads", os.ModePerm); err != nil {
+	if err := os.MkdirAll(uploadsDir, os.ModePerm); err != nil {
 		return nil, common.Internal("Failed to create uploads directory")
 	}
 

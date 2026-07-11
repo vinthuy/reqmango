@@ -94,23 +94,37 @@ const diffLines = computed(() => {
   const newLines = newContent.value.split('\n')
   const result: DiffLine[] = []
   
-  // Simple line-by-line diff
-  const maxLen = Math.max(oldLines.length, newLines.length)
-  let lineNum = 1
+  const m = oldLines.length
+  const n = newLines.length
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
   
-  for (let i = 0; i < maxLen; i++) {
-    const oldLine = oldLines[i]
-    const newLine = newLines[i]
-    
-    if (oldLine === undefined) {
-      result.push({ type: 'added', content: newLine, lineNum: lineNum++ })
-    } else if (newLine === undefined) {
-      result.push({ type: 'removed', content: oldLine })
-    } else if (oldLine !== newLine) {
-      result.push({ type: 'removed', content: oldLine })
-      result.push({ type: 'added', content: newLine, lineNum: lineNum++ })
-    } else {
-      result.push({ type: 'unchanged', content: oldLine, lineNum: lineNum++ })
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (oldLines[i - 1] === newLines[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+      }
+    }
+  }
+  
+  let i = m
+  let j = n
+  let lineNum = m
+  
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+      result.unshift({ type: 'unchanged', content: oldLines[i - 1], lineNum: i })
+      i--
+      j--
+      lineNum--
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      result.unshift({ type: 'added', content: newLines[j - 1], lineNum: lineNum + 1 })
+      j--
+    } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+      result.unshift({ type: 'removed', content: oldLines[i - 1] })
+      i--
+      lineNum--
     }
   }
   

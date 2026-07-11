@@ -227,6 +227,7 @@ import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
 import projectApi from '@/api/project'
+import { workspaceApi } from '@/api/workspace'
 
 import * as workItemTemplateApi from '@/api/work-item-template'
 import type { WorkItemTemplate } from '@/types/work-item-template'
@@ -236,8 +237,12 @@ const router = useRouter()
 const { t } = useI18n()
 const toast = useToast()
 
-const projectId = computed(() => parseInt(route.params.projectId as string, 10))
-const workspaceId = computed(() => parseInt(route.params.workspaceId as string, 10))
+const projectId = computed(() => {
+  const id = parseInt(route.params.id as string, 10) || parseInt(route.params.projectId as string, 10)
+  return id || 0
+})
+const workspaceId = ref(0)
+const slug = computed(() => route.params.slug as string || '')
 const returnView = computed(() => route.query.view as string || 'list')
 
 // 定义事件
@@ -380,6 +385,15 @@ function handleTemplateChange(templateId: number | null) {
 // 加载数据
 async function loadData() {
   try {
+    if (slug.value) {
+      try {
+        const ws = await workspaceApi.getBySlug(slug.value)
+        workspaceId.value = ws.id
+      } catch (e) {
+        console.error('Failed to load workspace:', e)
+      }
+    }
+    
     // 加载工作项类型 - 如果 API 不可用则使用默认类型
     try {
       const typesRes = await issueTypeApi.getIssueTypes(workspaceId.value, projectId.value)

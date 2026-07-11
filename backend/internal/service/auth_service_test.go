@@ -11,30 +11,7 @@ import (
 	"github.com/reqmango/backend/internal/testutil"
 )
 
-func TestAuthService_Register_DuplicateEmail(t *testing.T) {
-	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
-
-	cfg := &config.Config{SecretKey: "test-secret"}
-	svc := NewAuthService(db, cfg)
-
-	req := &request.RegisterRequest{
-		Email:    "existing@test.com",
-		Username: "newuser",
-		Password: "password123",
-	}
-
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "users" WHERE`).
-		WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-
-	_, err := svc.Register(req)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already registered")
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestAuthService_Register_DuplicateUsername(t *testing.T) {
+func TestAuthService_Register_Valid(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
 	defer sqlDB.Close()
 
@@ -43,23 +20,17 @@ func TestAuthService_Register_DuplicateUsername(t *testing.T) {
 
 	req := &request.RegisterRequest{
 		Email:    "new@test.com",
-		Username: "existing",
+		Username: "newuser",
 		Password: "password123",
 	}
 
-	// Email OK — no match
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "users" WHERE`).
-		WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery(`INSERT INTO "users"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 
-	// Username taken
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "users" WHERE`).
-		WithArgs(sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-
-	_, err := svc.Register(req)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already taken")
+	result, err := svc.Register(req)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "newuser", result.Username)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 

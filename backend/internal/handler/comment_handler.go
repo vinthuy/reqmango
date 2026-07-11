@@ -55,6 +55,7 @@ func (h *CommentHandler) Get(c *gin.Context) {
 }
 
 func (h *CommentHandler) Update(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	id, _ := strconv.ParseUint(c.Param("commentId"), 10, 64)
 	var req struct {
 		Body string `json:"body" binding:"required"`
@@ -63,18 +64,27 @@ func (h *CommentHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid body"})
 		return
 	}
-	resp, err := h.svc.Update(id, req.Body)
+	resp, err := h.svc.Update(id, user.ID, req.Body)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
+		if err.Error() == "Forbidden" {
+			c.JSON(http.StatusForbidden, gin.H{"message": "You can only edit your own comments"})
+		} else {
+			c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, resp)
 }
 
 func (h *CommentHandler) Delete(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	id, _ := strconv.ParseUint(c.Param("commentId"), 10, 64)
-	if err := h.svc.Delete(id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
+	if err := h.svc.Delete(id, user.ID); err != nil {
+		if err.Error() == "Forbidden" {
+			c.JSON(http.StatusForbidden, gin.H{"message": "You can only delete your own comments"})
+		} else {
+			c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Deleted"})

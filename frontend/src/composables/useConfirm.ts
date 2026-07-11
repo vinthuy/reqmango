@@ -12,6 +12,14 @@ const visible = ref(false)
 const options = ref<ConfirmOptions>({ message: '' })
 let resolvePromise: ((value: boolean) => void) | null = null
 
+export function cancelPendingConfirm() {
+  if (resolvePromise) {
+    resolvePromise(false)
+    resolvePromise = null
+  }
+  visible.value = false
+}
+
 export function useConfirm() {
   function confirm(message: string): Promise<boolean>
   function confirm(opts: ConfirmOptions): Promise<boolean>

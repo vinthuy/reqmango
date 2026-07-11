@@ -113,6 +113,14 @@ export interface CycleStatistics extends CycleProgress {
 
 // ==================== Burndown Chart ====================
 
+export interface BurndownDayPoint {
+  day_index: number
+  date: string
+  ideal_remaining: number
+  actual_completed: number
+  actual_remaining: number
+}
+
 export interface BurndownData {
   cycle_id: number
   cycle_name: string
@@ -126,13 +134,15 @@ export interface BurndownData {
   actual_completed: number
   actual_remaining: number
   is_on_track: boolean
+  daily_points?: BurndownDayPoint[]
 }
 
 // ==================== User Lite ====================
 
 export interface UserLite {
   id: number
-  name: string
+  display_name: string
+  username?: string
   email: string
   avatar_url?: string
 }

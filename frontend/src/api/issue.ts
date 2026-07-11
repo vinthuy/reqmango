@@ -536,6 +536,7 @@ export interface TreeListResult {
  */
 export async function listTreeIssues(
   projectId: number,
+  workspaceId: number,
   filters?: {
     state_id?: number
     priority?: string
@@ -544,10 +545,14 @@ export async function listTreeIssues(
     rql?: string
     limit?: number
     offset?: number
+    sort_by?: string
+    sort_dir?: string
+    sort_config?: string
   }
 ): Promise<TreeListResult> {
   const params = new URLSearchParams()
   params.append('project_id', projectId.toString())
+  params.append('workspace_id', workspaceId.toString())
   if (filters) {
     if (filters.state_id) params.append('state_id', filters.state_id.toString())
     if (filters.priority) params.append('priority', filters.priority)
@@ -556,6 +561,9 @@ export async function listTreeIssues(
     if (filters.rql) params.append('rql', filters.rql)
     if (filters.limit) params.append('limit', filters.limit.toString())
     if (filters.offset) params.append('offset', filters.offset.toString())
+    if (filters.sort_by) params.append('sort_by', filters.sort_by)
+    if (filters.sort_dir) params.append('sort_dir', filters.sort_dir)
+    if (filters.sort_config) params.append('sort_config', filters.sort_config)
   }
   const response = await api.get(`/issues/tree?${params.toString()}`)
   const total = parseInt(response.headers['x-total-count'] || '0', 10)

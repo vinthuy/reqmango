@@ -488,8 +488,9 @@ func (h *IssueHandler) BulkDelete(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.BulkDelete(req.IssueIDs, user.ID); svcErr != nil {
-		if appErr, ok := svcErr.(*common.AppError); ok {
+	result, err := h.svc.BulkDelete(req.IssueIDs, user.ID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
 		}
@@ -497,7 +498,7 @@ func (h *IssueHandler) BulkDelete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusNoContent, nil)
+	c.JSON(http.StatusOK, result)
 }
 
 // ==================== Assignee Management ====================
@@ -756,6 +757,7 @@ func (h *IssueHandler) Export(c *gin.Context) {
 	if format == "csv" {
 		c.Header("Content-Type", "text/csv; charset=utf-8")
 		c.Header("Content-Disposition", "attachment; filename=issues.csv")
+		c.Writer.Write([]byte("\xef\xbb\xbf"))
 		writer := csv.NewWriter(c.Writer)
 		if err := writer.Write([]string{"标题", "描述", "优先级", "状态", "类型", "负责人", "标签", "开始日期", "截止日期", "父标题"}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to write CSV header"})
@@ -772,6 +774,7 @@ func (h *IssueHandler) Export(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to flush CSV"})
 			return
 		}
+		return
 	} else {
 		c.JSON(http.StatusOK, issues)
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/config"
+	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/router"
 	"github.com/reqmango/backend/internal/seed"
@@ -150,7 +151,11 @@ func main() {
 	if !cfg.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	r := gin.Default()
+	r := gin.New()
+	r.RedirectFixedPath = false
+	r.RedirectTrailingSlash = false
+	r.Use(middleware.Logger())
+	r.Use(middleware.Recovery())
 	router.SetupRoutes(r, db, cfg)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

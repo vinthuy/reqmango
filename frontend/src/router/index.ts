@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { cancelPendingConfirm } from '@/composables/useConfirm'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -167,6 +168,8 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  cancelPendingConfirm()
+  
   const authStore = useAuthStore()
   
   if (to.meta.requiresAuth) {

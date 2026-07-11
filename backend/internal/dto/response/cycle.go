@@ -77,18 +77,28 @@ type DateRange struct {
 	EndDate   *string `json:"end_date"`
 }
 
-// BurndownData represents burndown chart data.
-type BurndownData struct {
-	CycleID         uint64  `json:"cycle_id"`
-	CycleName       string  `json:"cycle_name"`
-	StartDate       string  `json:"start_date"`
-	EndDate         string  `json:"end_date"`
-	TotalIssues     int64   `json:"total_issues"`
-	TotalDays       int     `json:"total_days"`
-	DaysElapsed     int     `json:"days_elapsed"`
-	IdealDailyBurn  float64 `json:"ideal_daily_burn"`
+// BurndownDayPoint represents daily burndown data point.
+type BurndownDayPoint struct {
+	DayIndex        int     `json:"day_index"`
+	Date            string  `json:"date"`
 	IdealRemaining  float64 `json:"ideal_remaining"`
 	ActualCompleted int64   `json:"actual_completed"`
 	ActualRemaining int64   `json:"actual_remaining"`
-	IsOnTrack       bool    `json:"is_on_track"`
+}
+
+// BurndownData represents burndown chart data.
+type BurndownData struct {
+	CycleID         uint64             `json:"cycle_id"`
+	CycleName       string             `json:"cycle_name"`
+	StartDate       string             `json:"start_date"`
+	EndDate         string             `json:"end_date"`
+	TotalIssues     int64              `json:"total_issues"`
+	TotalDays       int                `json:"total_days"`
+	DaysElapsed     int                `json:"days_elapsed"`
+	IdealDailyBurn  float64            `json:"ideal_daily_burn"`
+	IdealRemaining  float64            `json:"ideal_remaining"`
+	ActualCompleted int64              `json:"actual_completed"`
+	ActualRemaining int64              `json:"actual_remaining"`
+	IsOnTrack       bool               `json:"is_on_track"`
+	DailyPoints     []BurndownDayPoint `json:"daily_points"`
 }

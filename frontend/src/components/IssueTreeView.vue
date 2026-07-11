@@ -214,7 +214,7 @@ async function loadRootNodes() {
     if (props.filterSortConfig) params.sort_config = props.filterSortConfig
     if (props.filterSortBy) params.sort_by = props.filterSortBy
     if (props.filterSortDir) params.sort_dir = props.filterSortDir
-    const result = await issueApi.listTreeIssues(props.projectId, params)
+    const result = await issueApi.listTreeIssues(props.projectId, props.workspaceId, params)
     rootNodes.value = result.items
     totalCount.value = result.total
     totalPages.value = Math.max(1, Math.ceil(result.total / limit.value))

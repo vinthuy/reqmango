@@ -88,6 +88,35 @@ type IssueSearchResult struct {
 	WorkspaceSlug     string `json:"workspace_slug"`
 }
 
+// BulkUpdateResultResponse represents the result of a bulk update operation.
+type BulkUpdateResultResponse struct {
+	SuccessCount int             `json:"success_count"`
+	FailedCount  int             `json:"failed_count"`
+	FailedItems  []BulkFailedItem `json:"failed_items"`
+	UpdatedItems []IssueResponse `json:"updated_items"`
+}
+
+// BulkFailedItem represents a failed item in bulk operations.
+type BulkFailedItem struct {
+	IssueID uint64 `json:"issue_id"`
+	Reason  string `json:"reason"`
+}
+
+// BulkDeleteResultResponse represents the result of a bulk delete operation.
+type BulkDeleteResultResponse struct {
+	SuccessCount int             `json:"success_count"`
+	FailedCount  int             `json:"failed_count"`
+	FailedItems  []BulkFailedItem `json:"failed_items"`
+}
+
+// BulkCopyMoveResultResponse represents the result of a bulk copy or move operation.
+type BulkCopyMoveResultResponse struct {
+	SuccessCount int             `json:"success_count"`
+	FailedCount  int             `json:"failed_count"`
+	FailedItems  []BulkFailedItem `json:"failed_items"`
+	Results      []IssueResponse `json:"results"`
+}
+
 // RelatedIssueLite is used for the parent issue reference in issue detail responses.
 type RelatedIssueLite struct {
 	ID         uint64         `json:"id"`

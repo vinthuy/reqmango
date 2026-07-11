@@ -39,6 +39,8 @@ func (h *AIHandler) getUserID(c *gin.Context) uint64 {
 func (h *AIHandler) buildContext(c *gin.Context) *service.AIContext {
 	actx := &service.AIContext{Mode: "ask"}
 
+	actx.UserID = h.getUserID(c)
+
 	if pid, err := strconv.ParseUint(c.Param("projectId"), 10, 64); err == nil {
 		actx.ProjectID = pid
 	}

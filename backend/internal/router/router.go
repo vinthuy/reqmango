@@ -102,7 +102,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	mcpH := handler.NewMCPHandler(mcpSvc)
 	githubH := handler.NewGitHubHandler(githubSvc)
 	slackH := handler.NewSlackHandler(slackSvc)
-	roleH := handler.NewRoleHandler(roleSvc)
+	roleH := handler.NewRoleHandler(roleSvc, db)
 	fieldPermH := handler.NewFieldPermissionHandler(fieldPermSvc)
 	pluginH := handler.NewPluginHandler(pluginSvc)
 	automationH := handler.NewAutomationHandler(automationSvc, db)
@@ -570,6 +570,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.GET("/:issueId/attachments", attachmentH.ListByIssue)
 			issues.POST("/:issueId/attachments", middleware.RequirePermission(db, "issue:edit", "project"), attachmentH.Create)
 			issues.GET("/:issueId/attachments/:attachmentId", attachmentH.Get)
+			issues.GET("/:issueId/attachments/:attachmentId/download", attachmentH.Download)
 			issues.DELETE("/:issueId/attachments/:attachmentId", middleware.RequirePermission(db, "issue:edit", "project"), attachmentH.Delete)
 		}
 
