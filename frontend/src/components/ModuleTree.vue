@@ -37,6 +37,7 @@
 
           <!-- 模块名称 -->
           <span class="text-sm font-medium text-gray-900 truncate">{{ node.name }}</span>
+          <span v-if="node.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium whitespace-nowrap">⚙️</span>
 
           <!-- 进度 -->
           <span class="text-xs text-gray-500">
@@ -55,6 +56,7 @@
         <!-- 操作按钮 -->
         <div class="flex items-center space-x-2 mr-2" @click.stop>
           <button
+            v-if="!node.is_inherited"
             @click="$emit('delete', node)"
             class="p-1 text-gray-400 hover:text-red-600 rounded"
           >
@@ -89,6 +91,7 @@
             </div>
             <div class="flex items-center mr-2" @click.stop>
               <button
+                v-if="!child.is_inherited"
                 @click="$emit('delete', child)"
                 class="p-1 text-gray-400 hover:text-red-600 rounded"
               >

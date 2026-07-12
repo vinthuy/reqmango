@@ -1,20 +1,20 @@
 ---
-title: Plane Pro — 完整特性差异 GAP 分析 & 分阶段任务表
+title: 竞品 Pro — 完整特性差异 GAP 分析 & 分阶段任务表
 author: ReqMango
 date: 2026-06-28
 ---
 
-# Plane Pro — 完整特性差异 GAP 分析 & 分阶段开发任务
+# 竞品 Pro — 完整特性差异 GAP 分析 & 分阶段开发任务
 
-> 基准：Plane 官方文档 v.s. ReqMango 当前代码  
-> 覆盖：Work Item Filters / PQL (RQL) / Display Options / Views 四模块  
+> 基准：主流项目管理平台官方文档 v.s. ReqMango 当前代码  
+> 覆盖：Work Item Filters / RQL / Display Options / Views 四模块  
 > 策略：四阶段推进，每阶段可独立验证
 
 ---
 
 ## 一、全量 GAP 总表 (33 项)
 
-| # | 模块 | 特性 | Plane | ReqMango 现状 | 优先级 |
+| # | 模块 | 特性 | 竞品 | ReqMango 现状 | 优先级 |
 |---|------|------|-------|--------------|--------|
 | 1 | Filters | 统一筛选入口 | Filters 按钮 → 字段下拉 | 分散在 IssueFilterBar/Kanban/List 各自实现 | 🔴 |
 | 2 | Filters | 条件芯片行 | 芯片展示 + × 删除 + 点击编辑 | 部分芯片，编辑需确认 | 🔴 |
@@ -80,11 +80,11 @@ date: 2026-06-28
 
 ---
 
-### Phase 2 — 核心体验升级 (Plane Par)
+### Phase 2 — 核心体验升级 (Feature Parity)
 
 > 目标：语义操作符 + 即时更新 + Title / State Group / Date operators 补齐  
 > 预计文件变更：~10 个  
-> 可验证：操作符使用 Plane 语义标签，条件变更即时刷数据
+> 可验证：操作符使用语义标签，条件变更即时刷数据
 
 | ID | 任务 | 关联 GAP | 工作量 |
 |----|------|----------|--------|
@@ -99,7 +99,7 @@ date: 2026-06-28
 | **F2.9** | i18n 新增操作符 + State Group keys | — | S |
 | **F2.10** | TypeScript + Vite build 验证 | — | S |
 
-**Phase 2 输出：筛选体验与 Plane Free 版完全对齐，操作符语义化、即时筛选、Date/Title/StateGroup 完整**
+**Phase 2 输出：筛选体验与主流平台对齐，操作符语义化、即时筛选、Date/Title/StateGroup 完整**
 
 ---
 
@@ -113,7 +113,7 @@ date: 2026-06-28
 |----|------|----------|--------|
 | **F3.1** | PQL 引导式编辑器 — 键入时字段下拉 → 操作符下拉 → 值建议（复用 FilterBar 数据源） | #13 | L |
 | **F3.2** | PQL 内置函数 — `isOverdue` / `hasNoAssignee` / `hasNoLabel` / `isTopLevel` / `isSubWorkItem` / `hasChildren` | #15 | M |
-| **F3.3** | PQL/RQL 语义标记标准化 — `state` → `state_id`，`assignee` → `assignee_id`，对标 Plane 字段命名 | #17 | S |
+| **F3.3** | PQL/RQL 语义标记标准化 — `state` → `state_id`，`assignee` → `assignee_id`，对标主流平台字段命名 | #17 | S |
 | **F3.4** | Sub-group by 子分组 — Display Options 中第二层分组下拉 + savedView.sub_group_by 存储 | #21 | M |
 | **F3.5** | Show empty groups — Display Options 开关 + 各组视图适配 | #23 | S |
 | **F3.6** | Created by / Mentions 筛选字段 — `created_by` + `mention` 字段 + 操作符 + RQL 映射 | #8,#9 | M |
@@ -121,7 +121,7 @@ date: 2026-06-28
 | **F3.8** | i18n 补充 | — | S |
 | **F3.9** | 测试验证 | — | S |
 
-**Phase 3 输出：PQL 编辑器对标 Plane Pro，Display Options 完整（Group/Sub-group/Empty），Views 收藏**
+**Phase 3 输出：PQL 编辑器对标主流平台 Pro，Display Options 完整（Group/Sub-group/Empty），Views 收藏**
 
 ---
 
@@ -138,7 +138,7 @@ date: 2026-06-28
 | **F4.3** | Publish View — 生成公开 URL + Comments/Reactions/Votes 开关 + Layouts 限制 | #28 | L |
 | **F4.4** | Export View — CSV / XLSX / JSON 导出 + 异步任务 + 下载 | #29 | L |
 | **F4.5** | Workspace Views — 跨项目视图列表 + 4 个内置视图 (All/Assigned to Me/Created by Me/Subscribed) | #31 | L |
-| **F4.6** | Milestone 筛选字段 — 对标 Plane milestone → 映射到 ReqMango cycle（别名） | #10 | S |
+| **F4.6** | Milestone 筛选字段 — 对标主流平台 milestone → 映射到 ReqMango cycle（别名） | #10 | S |
 | **F4.7** | Custom Properties 筛选 — 动态字段 + 类型感知操作符 | #11 | L |
 | **F4.8** | Show sub-items — 列表/看板中展开子工作项 | #24 | M |
 | **F4.9** | 测试验证 | — | S |

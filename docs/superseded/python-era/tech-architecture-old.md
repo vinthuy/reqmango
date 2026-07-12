@@ -1,10 +1,10 @@
-# Plane AI 技术架构文档
+# reqmango 技术架构文档（历史版本）
 
 ---
 
 ## 1. 架构概述
 
-基于 Plane 原版代码分析，采用 **Vue3 + Python3 + FastAPI（异步） + SDD（Schema-Driven Development）** 模式重新设计。
+基于竞品原版代码分析，采用 **Vue3 + Python3 + FastAPI（异步） + SDD（Schema-Driven Development）** 模式重新设计。
 
 ### 1.1 SDD 模式核心理念
 
@@ -17,7 +17,7 @@ Schema-Driven Development（SDD）是一种以数据 Schema 为核心的开发�
 
 ### 1.2 技术栈对比
 
-| 层级 | Plane 原版 | 本项目 |
+| 层级 | 竞品原版 | 本项目 |
 |------|-----------|--------|
 | 前端框架 | React 18 | Vue 3 + Composition API |
 | 前端构建 | Vite | Vite |
@@ -123,7 +123,7 @@ flowchart LR
 ### 3.1 目录结构
 
 ```
-planepy/
+reqmango/
 ├── frontend/                    # Vue3 前端
 │   ├── src/
 │   │   ├── api/                 # API 客户端（自动生成）
@@ -1536,4 +1536,4 @@ def run_migrations_online():
 
 **文档版本**：v1.0  
 **创建日期**：2026-06-13  
-**参考代码**：D:\code\plane
+**参考代码**：内部代码库

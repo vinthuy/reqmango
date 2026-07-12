@@ -18,6 +18,7 @@ type IssueTypeResponse struct {
 	WorkspaceID  uint64    `json:"workspace_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+	IsInherited  bool      `json:"is_inherited"`
 }
 
 // IssueTypeLite is a minimal issue type reference used in issue responses.

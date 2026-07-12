@@ -86,20 +86,44 @@ func (s *ProjectService) Create(req *request.ProjectCreateRequest, workspaceID, 
 
 	// Create default states (skip if using template — template provides them via Apply)
 	if req.TemplateID == nil {
-		for _, ds := range common.DefaultStates {
-			state := &model.State{
-				Name:        ds.Name,
-				Color:       ds.Color,
-				Group:       ds.Group,
-				Sequence:    ds.Sequence,
-				IsDefault:   ds.IsDefault,
-				IsActive:    true,
-				ProjectID:   project.ID,
-				WorkspaceID: workspaceID,
+		var workspaceStates []model.State
+		tx.Where("workspace_id = ? AND project_id IS NULL AND is_active = ?", workspaceID, true).Order("sequence").Find(&workspaceStates)
+
+		if len(workspaceStates) > 0 {
+			for _, ws := range workspaceStates {
+				projectIDPtr := project.ID
+				state := &model.State{
+					Name:        ws.Name,
+					Color:       ws.Color,
+					Group:       ws.Group,
+					Sequence:    ws.Sequence,
+					IsDefault:   ws.IsDefault,
+					IsActive:    true,
+					ProjectID:   &projectIDPtr,
+					WorkspaceID: workspaceID,
+				}
+				if err := tx.Create(state).Error; err != nil {
+					tx.Rollback()
+					return nil, common.Internal("Failed to create workspace states")
+				}
 			}
-			if err := tx.Create(state).Error; err != nil {
-				tx.Rollback()
-				return nil, common.Internal("Failed to create default states")
+		} else {
+			for _, ds := range common.DefaultStates {
+				projectIDPtr := project.ID
+				state := &model.State{
+					Name:        ds.Name,
+					Color:       ds.Color,
+					Group:       ds.Group,
+					Sequence:    ds.Sequence,
+					IsDefault:   ds.IsDefault,
+					IsActive:    true,
+					ProjectID:   &projectIDPtr,
+					WorkspaceID: workspaceID,
+				}
+				if err := tx.Create(state).Error; err != nil {
+					tx.Rollback()
+					return nil, common.Internal("Failed to create default states")
+				}
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-﻿# reqmango Documentation
+# reqmango Documentation
 
 reqmango 项目管理平台的文档中心。本文档库分为四大区域：
 
@@ -68,7 +68,7 @@ reqmango 项目管理平台的文档中心。本文档库分为四大区域：
 ```
 docs/
 ├── README.md                         # 你在这里
-├── reqmango-vs-planeai.md            # 竞品对标分析
+├── reqmango-vs-competitor.md         # 竞品对标分析
 ├── kb/                               # 全量知识库
 │   ├── PRD.md                        # 产品需求文档
 │   ├── architecture/                 # 架构参考（9 文档）

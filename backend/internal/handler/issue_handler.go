@@ -70,30 +70,33 @@ func (h *IssueHandler) Create(c *gin.Context) {
 func (h *IssueHandler) List(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	projectID, _ := strconv.ParseUint(c.Query("project_id"), 10, 64)
-
-	// Support workspace-level list
 	workspaceID, _ := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
 	if projectID == 0 && workspaceID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "project_id or workspace_id is required"})
 		return
 	}
 
-	// Security Check: Verify user belongs to the workspace
-	if workspaceID > 0 {
-		var member model.WorkspaceMember
-		if err := h.svc.DB().Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, user.ID, true).First(&member).Error; err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you are not a member of this workspace"})
-			return
-		}
-	} else if projectID > 0 {
-		// If only project_id is provided, verify project membership and derive workspace_id
-		var project model.Project
-		if err := h.svc.DB().First(&project, projectID).Error; err == nil {
-			var member model.ProjectMember
-			if err := h.svc.DB().Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, user.ID, true).First(&member).Error; err != nil {
-				c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you are not a member of this project"})
+	if !user.IsSuperuser {
+		if workspaceID > 0 {
+			var member model.WorkspaceMember
+			if err := h.svc.DB().Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, user.ID, true).First(&member).Error; err != nil {
+				c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you are not a member of this workspace"})
 				return
 			}
+		} else if projectID > 0 {
+			var project model.Project
+			if err := h.svc.DB().First(&project, projectID).Error; err == nil {
+				var member model.ProjectMember
+				if err := h.svc.DB().Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, user.ID, true).First(&member).Error; err != nil {
+					c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you are not a member of this project"})
+					return
+				}
+				workspaceID = project.WorkspaceID
+			}
+		}
+	} else if projectID > 0 {
+		var project model.Project
+		if err := h.svc.DB().First(&project, projectID).Error; err == nil {
 			workspaceID = project.WorkspaceID
 		}
 	}

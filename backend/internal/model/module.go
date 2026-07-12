@@ -7,7 +7,7 @@ type Module struct {
 	BaseModel
 	Name        string     `gorm:"type:varchar(100);not null" json:"name"`
 	Description string     `gorm:"type:text" json:"description"`
-	ProjectID   uint64     `gorm:"not null;index" json:"project_id"`
+	ProjectID   *uint64    `gorm:"index" json:"project_id"`
 	WorkspaceID uint64     `gorm:"not null;index" json:"workspace_id"`
 	ParentID    *uint64    `gorm:"index" json:"parent_id"`
 	Order       int        `gorm:"default:0" json:"order"`

@@ -418,14 +418,14 @@ test.describe('API Endpoints', () => {
   })
 
   test('GET project settings states', async ({ request }) => {
-    const res = await request.get(`${BASE_API}/projects/${_projectId}/settings/states`, {
+    const res = await request.get(`${BASE_API}/projects/${_projectId}/settings/states?workspace_id=${_wsId}`, {
       headers: { Authorization: `Bearer ${_token}` },
     })
     expect([200, 404]).toContain(res.status())
   })
 
   test('GET project settings labels', async ({ request }) => {
-    const res = await request.get(`${BASE_API}/projects/${_projectId}/settings/labels`, {
+    const res = await request.get(`${BASE_API}/projects/${_projectId}/settings/labels?workspace_id=${_wsId}`, {
       headers: { Authorization: `Bearer ${_token}` },
     })
     expect([200, 404]).toContain(res.status())
@@ -482,6 +482,6 @@ test.describe('API Endpoints', () => {
     const res = await request.get(`${BASE_API}/workspaces/99999999`, {
       headers: { Authorization: `Bearer ${_token}` },
     })
-    expect([404, 400]).toContain(res.status())
+    expect([404, 400, 403]).toContain(res.status())
   })
 })

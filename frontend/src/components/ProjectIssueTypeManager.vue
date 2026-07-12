@@ -18,7 +18,7 @@
     </div>
 
     <div v-else class="space-y-4">
-      <div v-for="(t, index) in types" :key="t.id" class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div v-for="(t, index) in types" :key="t.id" class="bg-white rounded-lg border border-gray-200 overflow-hidden" :class="{ 'opacity-60': t.is_inherited }">
         <div class="flex items-center justify-between p-3 hover:bg-gray-50 transition">
           <div class="flex items-center gap-3">
             <span class="text-gray-400 text-sm w-6 text-center">{{ index + 1 }}</span>
@@ -28,16 +28,15 @@
               <span v-if="t.description" class="text-xs text-gray-400 ml-2">{{ t.description }}</span>
             </div>
             <span v-if="t.is_default" class="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">Default</span>
-            <span v-if="t.project_id" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs">Project</span>
-            <span v-else class="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">Workspace</span>
+            <span v-if="t.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️ {{ $t('settings.inherited') }}</span>
           </div>
           <div class="flex items-center gap-2">
             <button @click="loadTypeFields(t)" class="px-2 py-1 text-xs text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded border border-gray-200">
               {{ t.fields?.length || 0 }} {{ $t('issueTypeManager.fields') }}
             </button>
-            <button @click="moveUp(index)" :disabled="index === 0" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↑</button>
-            <button @click="moveDown(index)" :disabled="index === types.length - 1" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↓</button>
-            <button @click="saveReorder" v-if="reorderDirty" class="ml-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium">{{ $t('issueType.saveOrder') }}</button>
+            <button v-if="!t.is_inherited" @click="moveUp(index)" :disabled="index === 0" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↑</button>
+            <button v-if="!t.is_inherited" @click="moveDown(index)" :disabled="index === types.length - 1" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↓</button>
+            <button v-if="!t.is_inherited && reorderDirty" @click="saveReorder" class="ml-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium">{{ $t('issueType.saveOrder') }}</button>
           </div>
         </div>
 
@@ -117,6 +116,7 @@ interface IssueType {
   is_active: boolean
   project_id?: number
   workspace_id: number
+  is_inherited: boolean
   fields?: any[]
 }
 

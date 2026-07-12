@@ -203,7 +203,7 @@ Router ──→ Middleware Chain ──→ Handler ──→ Service ──→ 
 - 自研 RQL（reqmango Query Language）查询语言
 - 完整的词法分析 → 语法分析 → AST → SQL/GORM 生成流水线
 - 端点：`POST /api/v1/rql/search`
-- 功能对标 Plane PQL，社区版免费可用
+- 功能对标主流查询语言，社区版免费可用
 
 ---
 

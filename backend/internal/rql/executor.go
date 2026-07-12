@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
@@ -52,6 +53,15 @@ func isNumericValue(v interface{}) bool {
 	default:
 		return false
 	}
+}
+
+// escapeLikeWildcards escapes SQL LIKE special characters in a pattern value.
+// The backslash is used as the ESCAPE character, so \, %, and _ are escaped.
+func escapeLikeWildcards(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
 }
 
 // NewIssueQueryContext 创建 Issue 查询上下文
@@ -467,8 +477,16 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 }
 
 func (e *GORMExecutor) buildComparisonOpRaw(value interface{}, mapping FieldMapping, op string) (*rawCondition, error) {
-	// For state field with join table, use subquery for comparison ops
-	// Note: comparison ops on state names are lexicographic and rarely useful
+	// For date fields, parse the value to time.Time to ensure proper comparison
+	if mapping.FieldType == "date" {
+		valueStr, ok := value.(string)
+		if ok {
+			parsed, err := time.Parse("2006-01-02", valueStr)
+			if err == nil {
+				value = parsed
+			}
+		}
+	}
 	return &rawCondition{SQL: fmt.Sprintf("%s %s ?", mapping.ColumnName, op), Args: []interface{}{value}}, nil
 }
 
@@ -487,12 +505,10 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 		op = "NOT ILIKE"
 	}
 
-	value := expr.Value
-	if !strings.ContainsAny(value, "%_") {
+	value := escapeLikeWildcards(expr.Value)
+	if !strings.ContainsAny(expr.Value, "%_") {
 		value = fmt.Sprintf("%%%s%%", value)
 	} else {
-		value = strings.ReplaceAll(value, "%", "\\%")
-		value = strings.ReplaceAll(value, "_", "\\_")
 		if !strings.HasPrefix(value, "%") {
 			value = "%" + value
 		}
@@ -523,13 +539,12 @@ func (e *GORMExecutor) buildFullTextSearch(field, operator, value string) (*rawC
 		op = "NOT ILIKE"
 	}
 
-	// Ensure value has wildcards for substring matching
-	pattern := value
-	if !strings.ContainsAny(pattern, "%_") {
+	// Ensure value has wildcards for substring matching.
+	// Escape special LIKE characters: \ (escape char), % (wildcard), _ (wildcard).
+	pattern := escapeLikeWildcards(value)
+	if !strings.ContainsAny(value, "%_") {
 		pattern = "%" + pattern + "%"
 	} else {
-		pattern = strings.ReplaceAll(pattern, "%", "\\%")
-		pattern = strings.ReplaceAll(pattern, "_", "\\_")
 		if !strings.HasPrefix(pattern, "%") {
 			pattern = "%" + pattern
 		}
@@ -580,11 +595,11 @@ func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string, c
 		op = "NOT ILIKE"
 	}
 
-	if !strings.ContainsAny(value, "%_") {
+	origValue := value
+	value = escapeLikeWildcards(value)
+	if !strings.ContainsAny(origValue, "%_") {
 		value = fmt.Sprintf("%%%s%%", value)
 	} else {
-		value = strings.ReplaceAll(value, "%", "\\%")
-		value = strings.ReplaceAll(value, "_", "\\_")
 		if !strings.HasPrefix(value, "%") {
 			value = "%" + value
 		}

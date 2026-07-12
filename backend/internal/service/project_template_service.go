@@ -237,13 +237,14 @@ func (s *ProjectTemplateService) Apply(templateID, projectID uint64) error {
 			tx.Rollback(); return common.BadRequest("Invalid template states JSON")
 		}
 		for _, ts := range templateStates {
+			projectIDPtr := projectID
 			state := model.State{
 				Name:        ts.Name,
 				Color:       ts.Color,
 				Group:       ts.Group,
 				Sequence:    ts.Sequence,
 				IsActive:    true,
-				ProjectID:   projectID,
+				ProjectID:   &projectIDPtr,
 				WorkspaceID: project.WorkspaceID,
 			}
 			if err := tx.Create(&state).Error; err != nil {
@@ -262,10 +263,12 @@ func (s *ProjectTemplateService) Apply(templateID, projectID uint64) error {
 			tx.Rollback(); return common.BadRequest("Invalid template labels JSON")
 		}
 		for _, tl := range templateLabels {
+			projectIDPtr := projectID
 			label := model.Label{
-				Name:      tl.Name,
-				Color:     tl.Color,
-				ProjectID: projectID,
+				Name:        tl.Name,
+				Color:       tl.Color,
+				ProjectID:   &projectIDPtr,
+				WorkspaceID: project.WorkspaceID,
 			}
 			if err := tx.Create(&label).Error; err != nil {
 				tx.Rollback(); return common.Internal("Failed to create label: " + tl.Name)

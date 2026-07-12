@@ -1,9 +1,8 @@
-# Plane-Style Filter System Redesign — Design Spec v2.0
+# 筛选系统重新设计 — Design Spec v2.0
 
-> **Status**: v2.0 — Aligned with Plane Official Filters  
+> **Status**: v2.0 — 对标主流项目管理平台筛选规范  
 > **Date**: 2026-06-28  
-> **Scope**: 清空全部现有条件搜索代码，完全对标 Plane 官方筛选规范  
-> **Ref**: https://docs.plane.so/core-concepts/issues/visualise_filter
+> **Scope**: 清空全部现有条件搜索代码，完全对标主流平台筛选规范  
 
 ---
 
@@ -16,14 +15,14 @@
 | 多套筛选逻辑并存 | 用户体验分裂 |
 | props drilling | 耦合严重 |
 | RQL 与可视化筛选割裂 | 用户需在两种模式间抉择 |
-| 操作符使用原始符号（`=`/`!=`） | 与 Plane 语义操作符不一致 |
+| 操作符使用原始符号（`=`/`!=`） | 与主流平台语义操作符不一致 |
 | 日期操作符不足 | 缺少 `before`/`after`/`between` |
 | 无 State Group、标题筛选 | 功能缺失 |
-| 需确认/取消按钮 | 与 Plane 即时更新理念不一致 |
+| 需确认/取消按钮 | 与主流平台即时更新理念不一致 |
 
 ### 1.2 目标
 
-完全对标 [Plane 官方筛选](https://docs.plane.so/core-concepts/issues/visualise_filter) ：
+完全对标主流项目管理平台筛选规范：
 
 1. **语义操作符** — `is` / `is not` / `is any of` / `contains` / `does not contain` / `is empty` 等
 2. **即时更新** — 条件变更实时筛选，无确认/取消按钮
@@ -35,9 +34,9 @@
 8. **RQL 双向同步**
 9. **完整 i18n**
 
-### 1.3 Plane vs ReqMango 差距对照
+### 1.3 主流平台 vs ReqMango 差距对照
 
-| # | 差距 | Plane | ReqMango 旧 | v2 修正 |
+| # | 差距 | 主流平台 | ReqMango 旧 | v2 修正 |
 |---|---|---|---|---|
 | 1 | 操作符 | `is` / `contains` / `is any of` | `=` / `~` / `in` | 改为语义标签 |
 | 2 | 即时更新 | 选完即筛选 | 需点确认/取消 | 去掉确认步骤 |
@@ -60,7 +59,7 @@ FilterBar.vue (唯一筛选入口)
   │     ├── rql: ComputedRef<string>       ← 自动派生
   │     └── addFilter(field, operator, value)  → 即时触发
   │
-  └── UI 构成 (Plane-style):
+  └── UI 构成 (主流平台风格):
         [Filters icon ▾] [Title is "bug fix" ×] [State is any of [Todo,In Progress] ×] [+ Add filter] [Clear all] [RQL ▸]
 ```
 
@@ -97,7 +96,7 @@ useFilters state (reactive)
 
 ---
 
-## 3. 类型设计（v2 — Plane 对齐）
+## 3. 类型设计（v2 — 对标主流平台）
 
 ### 3.1 `types/filters.ts`
 
@@ -124,7 +123,7 @@ export interface FilterHistoryItem {
 }
 ```
 
-### 3.2 字段定义（完全对标 Plane）
+### 3.2 字段定义（对标主流平台）
 
 ```typescript
 export const FILTER_FIELDS: FilterField[] = [
@@ -233,9 +232,9 @@ export function injectFilters(): ReturnType<typeof useFilters>
 
 ---
 
-## 5. 组件设计（v2 — Plane 对齐）
+## 5. 组件设计（v2 — 对标主流平台）
 
-### 5.1 FilterBar.vue — UI 布局（对标 Plane）
+### 5.1 FilterBar.vue — UI 布局（对标主流平台）
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -254,10 +253,10 @@ export function injectFilters(): ReturnType<typeof useFilters>
 
 ### 5.2 关键设计变更
 
-| 变更 | 旧设计 | v2 Plane 对齐 |
+| 变更 | 旧设计 | v2 对标主流平台 |
 |---|---|---|
-| **触发方式** | 搜索框 + 预设按钮 + "+ 筛选" | Filters 按钮 → 字段下拉（与 Plane 完全一致） |
-| **修复操作** | 点击确认/取消 | **即时更新**：值选定即生效 |
+| **触发方式** | 搜索框 + 预设按钮 + "+ 筛选" | Filters 按钮 → 字段下拉（与主流平台完全一致） |
+| **操作确认** | 点击确认/取消 | **即时更新**：值选定即生效 |
 | **标题筛选** | 独立搜索框（name ~ "text"） | **Title 字段**：is/contains/does not contain |
 | **操作符** | `=` / `!=` / `~` | **语义标签**：is / is not / contains / is any of |
 | **日期操作符** | `>=` / `<=` / `>` | before / after / before or on / after or on / between |
@@ -366,7 +365,7 @@ export function injectFilters(): ReturnType<typeof useFilters>
 
 - [ ] TypeScript 零错误
 - [ ] Vite 构建成功
-- [ ] 操作符使用 Plane 语义标签（is/contains/is any of）
+- [ ] 操作符使用语义标签（is/contains/is any of）
 - [ ] 条件变更即时生效（无确认步骤）
 - [ ] Title 作为正式筛选字段
 - [ ] State Group 可用

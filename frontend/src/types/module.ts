@@ -39,6 +39,7 @@ export interface ModuleResponse {
   archived_at: string | null
   created_at: string
   updated_at: string
+  is_inherited?: boolean
 }
 
 // ==================== Module Lite ====================
@@ -89,4 +90,5 @@ export interface ModuleTreeNode {
   total_issues: number
   completed_issues: number
   progress: number
+  is_inherited?: boolean
 }

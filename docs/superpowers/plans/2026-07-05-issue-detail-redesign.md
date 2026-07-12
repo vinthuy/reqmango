@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rewrite `IssueDetail.vue` from a single flat scrollable page into a 5-tab layout (Details/Relations/Attachments/Time Tracking/Activity) with 10 decomposed sub-components, referencing Plane AI design.
+**Goal:** Rewrite `IssueDetail.vue` from a single flat scrollable page into a 5-tab layout (Details/Relations/Attachments/Time Tracking/Activity) with 10 decomposed sub-components, referencing modern project management platform design.
 
 **Architecture:** Route entry `IssueDetail.vue` fetches issue data and orchestrates 9 child components: a header bar, a property sidebar, 5 tab panels (Details, Relations, Attachments, TimeTracking, Activity), and 3 relation cards (Parent, SubIssues, TypeCard) used inside the Relations tab. Props flow down, events bubble up. Sidebar properties use instant-save; title/description/custom-fields use batched save.
 

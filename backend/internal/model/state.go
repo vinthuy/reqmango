@@ -4,14 +4,14 @@ package model
 type State struct {
 	BaseModel
 
-	Name        string `gorm:"size:255;not null" json:"name"`
-	Color       string `gorm:"size:50;default:#6B7280" json:"color"`
-	Group       string `gorm:"size:50;default:backlog" json:"group"`
-	Sequence    int    `gorm:"default:1" json:"sequence"`
-	IsDefault   bool   `gorm:"default:false" json:"is_default"`
-	IsActive    bool   `gorm:"default:true" json:"is_active"`
-	ProjectID   uint64 `gorm:"not null;index" json:"project_id"`
-	WorkspaceID uint64 `gorm:"not null" json:"workspace_id"`
+	Name        string  `gorm:"size:255;not null" json:"name"`
+	Color       string  `gorm:"size:50;default:#6B7280" json:"color"`
+	Group       string  `gorm:"size:50;default:backlog" json:"group"`
+	Sequence    int     `gorm:"default:1" json:"sequence"`
+	IsDefault   bool    `gorm:"default:false" json:"is_default"`
+	IsActive    bool    `gorm:"default:true" json:"is_active"`
+	ProjectID   *uint64 `gorm:"index" json:"project_id"`
+	WorkspaceID uint64  `gorm:"not null" json:"workspace_id"`
 
 	// Relationships
 	Project            Project           `gorm:"foreignKey:ProjectID" json:"-"`
@@ -38,7 +38,7 @@ type StateTransition struct {
 	RuleType      string  `gorm:"default:'allow'" json:"rule_type"`
 	ApproverIDs   *string `gorm:"type:text" json:"approver_ids"`
 	RoleAllowed   string  `gorm:"size:50" json:"role_allowed"`
-	ProjectID     uint64  `gorm:"not null" json:"project_id"`
+	ProjectID     *uint64 `json:"project_id"`
 	WorkspaceID   uint64  `gorm:"not null" json:"workspace_id"`
 
 	Workflow    Workflow `gorm:"foreignKey:WorkflowID" json:"-"`

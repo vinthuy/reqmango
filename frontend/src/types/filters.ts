@@ -83,7 +83,17 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
         const sequenceId = parts[1]
         clauses.push(`sequence_id = ${sequenceId}`)
       } else {
-        clauses.push(`(name LIKE "%${qs}%" OR description LIKE "%${qs}%")`)
+        // Escape special characters for safe RQL string embedding.
+        // The backend lexer uses \ as escape character in strings.
+        // Also escape % and _ so they are treated as literals in the
+        // SQL LIKE pattern (the backend buildFullTextSearch wraps with
+        // its own % wildcards; any % or _ from the user should be literal).
+        const escaped = qs
+          .replace(/\\/g, '\\\\')
+          .replace(/"/g, '\\"')
+          .replace(/%/g, '\\%')
+          .replace(/_/g, '\\_')
+        clauses.push(`(name LIKE "${escaped}" OR description LIKE "${escaped}")`)
       }
     }
   }
@@ -123,12 +133,16 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
         const formattedNotAnyOf = notAnyOfValues.map(v => formatValue(v, valueType)).join(', ')
         clause = `${dbKey} NOT IN (${formattedNotAnyOf})`
         break
-      case 'contains':
-        clause = `${dbKey} LIKE "%${value}%"`
+      case 'contains': {
+        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
+        clause = `${dbKey} LIKE "${escaped}"`
         break
-      case 'does not contain':
-        clause = `${dbKey} NOT LIKE "%${value}%"`
+      }
+      case 'does not contain': {
+        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
+        clause = `${dbKey} NOT LIKE "${escaped}"`
         break
+      }
       case 'is empty':
         clause = `${dbKey} IS NULL`
         break
@@ -233,13 +247,13 @@ export function parseRQL(rqlStr: string): RQLResult {
     let value: any = ''
     let displayValue: string = ''
 
-    const likeMatch = trimmed.match(/^(\w+) (NOT LIKE|LIKE) "%([^"]+)"$/)
+    const likeMatch = trimmed.match(/^(\w+) (NOT LIKE|LIKE) "((?:[^"\\]|\\.)*)"$/)
     if (likeMatch) {
       field = likeMatch[1]
       operator = likeMatch[2] === 'LIKE' ? 'contains' : 'does not contain'
-      // Strip trailing % from value (buildRQL wraps value with %...%)
-      let rawValue = likeMatch[3] || ''
-      value = rawValue.replace(/%$/, '')
+      // Unescape RQL string escape sequences
+      let rawValue = (likeMatch[3] || '').replace(/\\(.)/g, '$1')
+      value = rawValue
       displayValue = value
       conditions.push({ field, operator, value, displayValue })
       continue

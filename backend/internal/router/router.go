@@ -255,6 +255,24 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 			// Workspace-level Settings: States
 			workspaces.GET("/:wsParam/settings/states", settingsH.ListWorkspaceStates)
+			workspaces.POST("/:wsParam/settings/states", settingsH.CreateWorkspaceState)
+			workspaces.GET("/:wsParam/settings/states/:stateId", settingsH.GetWorkspaceState)
+			workspaces.PUT("/:wsParam/settings/states/:stateId", settingsH.UpdateWorkspaceState)
+			workspaces.DELETE("/:wsParam/settings/states/:stateId", settingsH.DeleteWorkspaceState)
+
+			// Workspace-level Settings: Labels
+			workspaces.GET("/:wsParam/settings/labels", settingsH.ListWorkspaceLabels)
+			workspaces.POST("/:wsParam/settings/labels", settingsH.CreateWorkspaceLabel)
+			workspaces.GET("/:wsParam/settings/labels/:labelId", settingsH.GetWorkspaceLabel)
+			workspaces.PUT("/:wsParam/settings/labels/:labelId", settingsH.UpdateWorkspaceLabel)
+			workspaces.DELETE("/:wsParam/settings/labels/:labelId", settingsH.DeleteWorkspaceLabel)
+
+			// Workspace-level Modules
+			workspaces.GET("/:wsParam/modules", moduleH.ListWorkspaceModules)
+			workspaces.POST("/:wsParam/modules", moduleH.CreateWorkspaceModule)
+			workspaces.GET("/:wsParam/modules/:moduleId", moduleH.GetWorkspaceModule)
+			workspaces.PUT("/:wsParam/modules/:moduleId", moduleH.UpdateWorkspaceModule)
+			workspaces.DELETE("/:wsParam/modules/:moduleId", moduleH.DeleteWorkspaceModule)
 		}
 
 		// Permissions (global, read-only)
@@ -494,6 +512,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				pageTabs.DELETE("/:tabId", pageTabH.Delete)
 			}
 		}
+
+		// ---- Test route ----
+		v1.GET("/test-issues", authMiddleware, issueH.List)
 
 		// ---- Issues (protected) ----
 		issues := v1.Group("/issues", authMiddleware)

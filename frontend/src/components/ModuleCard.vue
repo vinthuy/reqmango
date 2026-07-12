@@ -10,6 +10,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
         <h3 class="text-base font-semibold text-gray-900">{{ module.name }}</h3>
+        <span v-if="module.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️</span>
       </div>
     </div>
 
@@ -43,6 +44,7 @@
             {{ t('moduleCard.viewDetails') }}
           </button>
           <button
+            v-if="!module.is_inherited"
             @click="$emit('delete', module); showMenu = false"
             class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
           >

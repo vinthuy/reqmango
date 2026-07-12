@@ -264,10 +264,11 @@ func SeedDemoData(db *gorm.DB) {
 		// States
 		states := make([]model.State, len(defaultStates))
 		for i, sd := range defaultStates {
+			projID := proj.ID
 			states[i] = model.State{
 				Name: sd.name, Color: sd.color, Group: sd.group,
 				Sequence: i + 1, IsDefault: i == 0,
-				ProjectID: proj.ID, WorkspaceID: ws.ID,
+				ProjectID: &projID, WorkspaceID: ws.ID,
 			}
 			db.Create(&states[i])
 		}
@@ -300,8 +301,9 @@ func SeedDemoData(db *gorm.DB) {
 		moduleSet := moduleTemplates[rng.Intn(len(moduleTemplates))]
 		modules := make([]model.Module, len(moduleSet))
 		for i, name := range moduleSet {
+			projectIDPtr := proj.ID
 			modules[i] = model.Module{
-				Name: name, ProjectID: proj.ID, WorkspaceID: ws.ID,
+				Name: name, ProjectID: &projectIDPtr, WorkspaceID: ws.ID,
 			}
 			db.Create(&modules[i])
 		}
@@ -310,8 +312,10 @@ func SeedDemoData(db *gorm.DB) {
 		// Labels
 		labels := make([]model.Label, len(labelTemplates))
 		for i, l := range labelTemplates {
+			projectIDPtr := proj.ID
 			labels[i] = model.Label{
-				Name: l.name, Color: l.color, ProjectID: proj.ID,
+				Name:        l.name, Color: l.color, ProjectID: &projectIDPtr,
+				WorkspaceID: ws.ID,
 			}
 			db.Create(&labels[i])
 		}
@@ -925,7 +929,8 @@ func SeedConfigData(db *gorm.DB) {
 			{"设计", "#A855F7"}, {"需求", "#EC4899"}, {"架构", "#0EA5E9"},
 		}
 		for _, l := range labelDefs {
-			db.Create(&model.Label{Name: l.name, Color: l.color, ProjectID: proj.ID})
+			projectIDPtr := proj.ID
+			db.Create(&model.Label{Name: l.name, Color: l.color, ProjectID: &projectIDPtr, WorkspaceID: ws.ID})
 		}
 		fmt.Printf("  Created %d labels\n", len(labelDefs))
 	}
@@ -941,20 +946,20 @@ func SeedConfigData(db *gorm.DB) {
 			pid := proj.ID; wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: &pid, IsActive: true}
 			db.Create(&wf)
 			trs := []model.StateTransition{
-				{Name: "Backlog→Todo", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: tid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-				{Name: "Todo→InProgress", WorkflowID: wf.ID, SourceStateID: tid, TargetStateID: ipid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-				{Name: "InProgress→Review", WorkflowID: wf.ID, SourceStateID: ipid, TargetStateID: rid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-				{Name: "Review→Done", WorkflowID: wf.ID, SourceStateID: rid, TargetStateID: dnid, RuleType: "approval", ProjectID: proj.ID, WorkspaceID: ws.ID},
-				{Name: "Review→InProgress", WorkflowID: wf.ID, SourceStateID: rid, TargetStateID: ipid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
+				{Name: "Backlog→Todo", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: tid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
+				{Name: "Todo→InProgress", WorkflowID: wf.ID, SourceStateID: tid, TargetStateID: ipid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
+				{Name: "InProgress→Review", WorkflowID: wf.ID, SourceStateID: ipid, TargetStateID: rid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
+				{Name: "Review→Done", WorkflowID: wf.ID, SourceStateID: rid, TargetStateID: dnid, RuleType: "approval", ProjectID: &pid, WorkspaceID: ws.ID},
+				{Name: "Review→InProgress", WorkflowID: wf.ID, SourceStateID: rid, TargetStateID: ipid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
 			}
 			if len(stList) >= 6 {
 				cid := stList[5].ID
 				trs = append(trs,
-					model.StateTransition{Name: "Backlog→Cancelled", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-					model.StateTransition{Name: "Todo→Cancelled", WorkflowID: wf.ID, SourceStateID: tid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-					model.StateTransition{Name: "InProgress→Cancelled", WorkflowID: wf.ID, SourceStateID: ipid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-					model.StateTransition{Name: "Review→Cancelled", WorkflowID: wf.ID, SourceStateID: rid, TargetStateID: cid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
-					model.StateTransition{Name: "Done→Review", WorkflowID: wf.ID, SourceStateID: dnid, TargetStateID: rid, RuleType: "allow", ProjectID: proj.ID, WorkspaceID: ws.ID},
+					model.StateTransition{Name: "Backlog→Cancelled", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: cid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
+					model.StateTransition{Name: "Todo→Cancelled", WorkflowID: wf.ID, SourceStateID: tid, TargetStateID: cid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
+					model.StateTransition{Name: "InProgress→Cancelled", WorkflowID: wf.ID, SourceStateID: ipid, TargetStateID: cid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
+					model.StateTransition{Name: "Review→Cancelled", WorkflowID: wf.ID, SourceStateID: rid, TargetStateID: cid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
+					model.StateTransition{Name: "Done→Review", WorkflowID: wf.ID, SourceStateID: dnid, TargetStateID: rid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
 				)
 			}
 			for _, tr := range trs {

@@ -5,7 +5,7 @@
 
 ## Overview
 
-Rewrite the issue detail page (`IssueDetail.vue`) from a single flat scrollable page into a tab-based layout with clean component decomposition. Reference Plane AI design for visual structure. All relationships (parent, sub-issues, linked issues) are consolidated into a single "Relations" tab with card-based organization.
+Rewrite the issue detail page (`IssueDetail.vue`) from a single flat scrollable page into a tab-based layout with clean component decomposition. Reference modern project management platform design for visual structure. All relationships (parent, sub-issues, linked issues) are consolidated into a single "Relations" tab with card-based organization.
 
 ## Architecture
 

@@ -37,11 +37,12 @@ func NewTestProject(workspaceID uint64) *model.Project {
 
 // NewTestState returns a state fixture for tests.
 func NewTestState(projectID, workspaceID uint64) *model.State {
+	projectIDPtr := projectID
 	return &model.State{
 		BaseModel:   model.BaseModel{ID: 1, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 		Name:        "Backlog",
 		Group:       "backlog",
-		ProjectID:   projectID,
+		ProjectID:   &projectIDPtr,
 		WorkspaceID: workspaceID,
 		IsDefault:   true,
 	}

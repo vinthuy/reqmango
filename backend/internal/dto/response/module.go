@@ -3,10 +3,10 @@ package response
 import "time"
 
 type ModuleResponse struct {
-	ID          uint64     `json:"id"`
+	ID          *uint64    `json:"id"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
-	ProjectID   uint64     `json:"project_id"`
+	ProjectID   *uint64    `json:"project_id"`
 	WorkspaceID uint64     `json:"workspace_id"`
 	ParentID    *uint64    `json:"parent_id"`
 	Order       int        `json:"order"`
@@ -14,6 +14,7 @@ type ModuleResponse struct {
 	ArchivedAt  *time.Time `json:"archived_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
+	IsInherited bool       `json:"is_inherited"`
 }
 
 type ModuleTreeNode struct {

@@ -1,12 +1,12 @@
 # 自定义关联关系架构设计
 
-> 参考 PlaneAI Enterprise Grid Relations 设计
+> 参考企业级平台 Relations 设计
 
 ---
 
-## 1. PlaneAI 参考模型
+## 1. 企业级平台参考模型
 
-PlaneAI 支持三种关联关系：
+企业级平台支持三种关联关系：
 
 ### 1.1 内置关系
 | 类型 | 触发 | 说明 |

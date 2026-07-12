@@ -1,5 +1,5 @@
-﻿# reqmango 追平 PlaneAI �?开发任务清�?
-> 基于 [reqmango vs PlaneAI 全面功能对比分析](./reqmango-vs-planeai.md)
+# reqmango 功能差距补全开发任务清单
+> 基于 [reqmango vs 同类产品 全面功能对比分析](./reqmango-vs-competitor.md)
 > 所有任务可直接导入 Trae 进行开�?
 ---
 
@@ -124,7 +124,7 @@
 
 - **文件�?* `mcp-server/transport/http.go`
 - **内容�?*
-  - HTTP + OAuth 传输模式（Plane Cloud 同款�?  - PAT Token 认证模式（CI/CD 场景�?  - 端点：`/http/mcp`
+  - HTTP + OAuth 传输模式（主流平台同款）  - PAT Token 认证模式（CI/CD 场景�?  - 端点：`/http/mcp`
 
 #### 2.8 配置模板与文�?[0.5d]
 

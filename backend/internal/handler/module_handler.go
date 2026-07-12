@@ -298,3 +298,132 @@ func (h *ModuleHandler) GetTree(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, resp)
 }
+
+// ==================== Workspace Modules ====================
+
+func (h *ModuleHandler) ListWorkspaceModules(c *gin.Context) {
+	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
+
+	modules, svcErr := h.svc.ListWorkspaceModules(workspaceID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, modules)
+}
+
+func (h *ModuleHandler) CreateWorkspaceModule(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
+
+	var req request.ModuleCreate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
+		return
+	}
+
+	module, svcErr := h.svc.CreateWorkspaceModule(workspaceID, user.ID, req)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, module)
+}
+
+func (h *ModuleHandler) GetWorkspaceModule(c *gin.Context) {
+	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
+
+	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+
+	module, svcErr := h.svc.GetWorkspaceModule(workspaceID, moduleID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, module)
+}
+
+func (h *ModuleHandler) UpdateWorkspaceModule(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+
+	var req request.ModuleUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
+		return
+	}
+
+	module, svcErr := h.svc.UpdateWorkspaceModule(moduleID, user.ID, req)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, module)
+}
+
+func (h *ModuleHandler) DeleteWorkspaceModule(c *gin.Context) {
+	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
+
+	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+
+	if svcErr := h.svc.DeleteWorkspaceModule(workspaceID, moduleID); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Workspace module deleted successfully"})
+}

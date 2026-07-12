@@ -618,10 +618,11 @@ onMounted(async () => {
                   <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: state.color }"></div>
                   <span class="text-sm text-gray-800">{{ state.name }}</span>
                   <span v-if="state.is_default" class="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">{{ t('settings.default') }}</span>
+                  <span v-if="state.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️ {{ t('settings.inherited') }}</span>
                 </div>
                 <div class="flex items-center space-x-2">
-                  <button @click.stop="handleEditState(group.id, state)" class="p-1 text-gray-400 hover:text-gray-600">✏️</button>
-                  <button @click.stop="handleDeleteState(group.id, state)" class="p-1 text-gray-400 hover:text-red-500">🗑️</button>
+                  <button v-if="!state.is_inherited" @click.stop="handleEditState(group.id, state)" class="p-1 text-gray-400 hover:text-gray-600">✏️</button>
+                  <button v-if="!state.is_inherited" @click.stop="handleDeleteState(group.id, state)" class="p-1 text-gray-400 hover:text-red-500">🗑️</button>
                 </div>
               </div>
               <div v-if="group.states.length === 0" class="px-4 py-6 text-center text-gray-400 text-sm">{{ t('settings.noStates') }}</div>
@@ -637,10 +638,11 @@ onMounted(async () => {
           </div>
           <div class="bg-white rounded-xl border border-gray-200 p-6">
             <div class="flex flex-wrap gap-3">
-              <div v-for="label in labels" :key="label.id" @click="handleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
+              <div v-for="label in labels" :key="label.id" @click="label.is_inherited ? {} : handleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
                 <div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: label.color }"></div>
                 <span class="text-sm font-medium" :style="{ color: label.color }">{{ label.name }}</span>
-                <button @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
+                <span v-if="label.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium ml-1">⚙️</span>
+                <button v-if="!label.is_inherited" @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
               </div>
               <div v-if="labels.length === 0" class="w-full text-center text-gray-400 py-8">{{ t('settings.noLabels') }}</div>
             </div>
@@ -734,16 +736,19 @@ onMounted(async () => {
           <div class="grid gap-4">
             <div v-for="workflow in workflows" :key="workflow.id" class="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-md transition-all">
               <div class="flex items-center justify-between">
-                <div @click="handleViewWorkflow(workflow.id)" class="flex-1 cursor-pointer">
+                <div @click="!workflow.is_inherited && handleViewWorkflow(workflow.id)" class="flex-1 cursor-pointer" :class="{ 'opacity-60': workflow.is_inherited }">
                   <div class="flex items-center justify-between">
                     <div>
                       <h3 class="font-medium text-gray-900">{{ workflow.name }}</h3>
-                      <p class="mt-1 text-sm text-gray-500">{{ (workflow.transitions || []).length }} {{ t('settings.transitions') }}</p>
+                      <div class="flex items-center space-x-2 mt-1">
+                        <span class="text-sm text-gray-500">{{ (workflow.transitions || []).length }} {{ t('settings.transitions') }}</span>
+                        <span v-if="workflow.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️ {{ t('settings.inherited') }}</span>
+                      </div>
                     </div>
-                    <span class="text-gray-400">→</span>
+                    <span v-if="!workflow.is_inherited" class="text-gray-400">→</span>
                   </div>
                 </div>
-                <button @click.stop="handleDeleteWorkflow(workflow)" class="ml-3 text-gray-400 hover:text-red-500 p-1">✕</button>
+                <button v-if="!workflow.is_inherited" @click.stop="handleDeleteWorkflow(workflow)" class="ml-3 text-gray-400 hover:text-red-500 p-1">✕</button>
               </div>
             </div>
             <div v-if="workflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">{{ t('settings.noWorkflows') }}</div>
@@ -757,14 +762,17 @@ onMounted(async () => {
             <button @click="handleAddAutomation" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createAutomation') }}</button>
           </div>
           <div class="space-y-4">
-            <div v-for="automation in automations" :key="automation.id" class="bg-white rounded-xl border border-gray-200 p-4">
+            <div v-for="automation in automations" :key="automation.id" class="bg-white rounded-xl border border-gray-200 p-4" :class="{ 'opacity-60': automation.is_inherited }">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
                   <div :class="['w-10 h-10 rounded-lg flex items-center justify-center', automation.is_enabled ? 'bg-green-100' : 'bg-gray-100']">
                     <span class="text-lg">🤖</span>
                   </div>
                   <div>
-                    <h3 class="font-medium text-gray-900">{{ automation.name }}</h3>
+                    <div class="flex items-center space-x-2">
+                      <h3 class="font-medium text-gray-900">{{ automation.name }}</h3>
+                      <span v-if="automation.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️ {{ t('settings.inherited') }}</span>
+                    </div>
                     <p class="text-sm text-gray-500">{{ automation.description || t('settings.noDescription') }}</p>
                   </div>
                 </div>
@@ -772,7 +780,7 @@ onMounted(async () => {
                   <span :class="['px-3 py-1 rounded-full text-xs font-medium', automation.is_enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500']">
                     {{ automation.is_enabled ? t('settings.enabled') : t('settings.disabled') }}
                   </span>
-                  <button @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500">🗑️</button>
+                  <button v-if="!automation.is_inherited" @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500">🗑️</button>
                 </div>
               </div>
               <div class="mt-4 pt-4 border-t border-gray-100">

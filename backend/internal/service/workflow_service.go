@@ -106,21 +106,22 @@ func (s *WorkflowService) AddTransition(wid uint64, req request.TransitionCreate
 	var w model.Workflow
 	if err := s.db.First(&w, wid).Error; err != nil { return nil, common.NotFound("Workflow not found") }
 	name := req.Name
-	if name == "" {
-		var fs, ts model.State
-		s.db.First(&fs, req.FromStateID); s.db.First(&ts, req.ToStateID)
-		name = fs.Name + "→" + ts.Name
-	}
 	var fs, ts model.State
 	s.db.First(&fs, req.FromStateID); s.db.First(&ts, req.ToStateID)
-	var projectID uint64
-	if w.ProjectID != nil { projectID = *w.ProjectID }
+	if name == "" {
+		name = fs.Name + "→" + ts.Name
+	}
+	var projectIDPtr *uint64
+	if w.ProjectID != nil {
+		pid := *w.ProjectID
+		projectIDPtr = &pid
+	}
 	t := model.StateTransition{
 		Name: name, WorkflowID: wid,
 		SourceStateID: req.FromStateID, TargetStateID: req.ToStateID,
 		Description: &req.Description, RuleType: req.RuleType,
 		ApproverIDs: req.ApproverIDs, RoleAllowed: req.RoleAllowed,
-		ProjectID: projectID, WorkspaceID: fs.WorkspaceID,
+		ProjectID: projectIDPtr, WorkspaceID: fs.WorkspaceID,
 	}
 	if t.RuleType == "" { t.RuleType = "allow" }
 	if err := s.db.Create(&t).Error; err != nil { return nil, common.Internal("Failed to add transition") }

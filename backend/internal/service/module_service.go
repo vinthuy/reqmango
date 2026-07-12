@@ -17,8 +17,9 @@ func NewModuleService(db *gorm.DB) *ModuleService {
 }
 
 func (s *ModuleService) buildResponse(m model.Module) *response.ModuleResponse {
+	id := m.ID
 	return &response.ModuleResponse{
-		ID:          m.ID,
+		ID:          &id,
 		Name:        m.Name,
 		Description: m.Description,
 		ProjectID:   m.ProjectID,
@@ -29,6 +30,7 @@ func (s *ModuleService) buildResponse(m model.Module) *response.ModuleResponse {
 		ArchivedAt:  m.ArchivedAt,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
+		IsInherited: m.ProjectID == nil,
 	}
 }
 
@@ -54,10 +56,11 @@ func (s *ModuleService) Create(workspaceID, userID uint64, req request.ModuleCre
 		return nil, common.NotFound("Project not found")
 	}
 
+	projectIDPtr := req.ProjectID
 	module := model.Module{
 		Name:        req.Name,
 		Description: req.Description,
-		ProjectID:   req.ProjectID,
+		ProjectID:   &projectIDPtr,
 		WorkspaceID: workspaceID,
 		ParentID:    req.ParentID,
 	}
@@ -71,7 +74,7 @@ func (s *ModuleService) Create(workspaceID, userID uint64, req request.ModuleCre
 }
 
 func (s *ModuleService) List(projectID, workspaceID uint64, includeArchived bool) ([]response.ModuleResponse, int64, error) {
-	query := s.db.Model(&model.Module{}).Where("project_id = ? AND workspace_id = ?", projectID, workspaceID)
+	query := s.db.Model(&model.Module{}).Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, workspaceID)
 	if !includeArchived {
 		query = query.Where("is_archived = ?", false)
 	}
@@ -96,7 +99,7 @@ func (s *ModuleService) List(projectID, workspaceID uint64, includeArchived bool
 
 func (s *ModuleService) Search(projectID, workspaceID uint64, query string) ([]response.ModuleResponse, error) {
 	var modules []model.Module
-	if err := s.db.Where("project_id = ? AND workspace_id = ? AND name ILIKE ?", projectID, workspaceID, "%"+query+"%").Order("\"order\", created_at").Find(&modules).Error; err != nil {
+	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?)) AND name ILIKE ?", projectID, workspaceID, "%"+query+"%").Order("\"order\", created_at").Find(&modules).Error; err != nil {
 		return nil, common.Internal("Failed to search modules")
 	}
 	result := make([]response.ModuleResponse, len(modules))
@@ -104,6 +107,90 @@ func (s *ModuleService) Search(projectID, workspaceID uint64, query string) ([]r
 		result[i] = *s.buildResponse(m)
 	}
 	return result, nil
+}
+
+func (s *ModuleService) ListWorkspaceModules(workspaceID uint64) ([]response.ModuleResponse, error) {
+	var modules []model.Module
+	if err := s.db.Where("workspace_id = ? AND project_id IS NULL AND is_archived = ?", workspaceID, false).Order("\"order\", created_at").Find(&modules).Error; err != nil {
+		return nil, common.Internal("Failed to list workspace modules")
+	}
+	result := make([]response.ModuleResponse, len(modules))
+	for i, m := range modules {
+		result[i] = *s.buildResponse(m)
+	}
+	return result, nil
+}
+
+func (s *ModuleService) CreateWorkspaceModule(workspaceID, userID uint64, req request.ModuleCreate) (*response.ModuleResponse, error) {
+	module := model.Module{
+		Name:        req.Name,
+		Description: req.Description,
+		ProjectID:   nil,
+		WorkspaceID: workspaceID,
+		ParentID:    req.ParentID,
+	}
+	module.CreatedByID = &userID
+
+	if err := s.db.Create(&module).Error; err != nil {
+		return nil, common.Internal("Failed to create workspace module")
+	}
+
+	return s.buildResponse(module), nil
+}
+
+func (s *ModuleService) GetWorkspaceModule(workspaceID, moduleID uint64) (*response.ModuleResponse, error) {
+	var module model.Module
+	if err := s.db.Where("id = ? AND workspace_id = ? AND project_id IS NULL", moduleID, workspaceID).First(&module).Error; err != nil {
+		return nil, common.NotFound("Workspace module not found")
+	}
+	return s.buildResponse(module), nil
+}
+
+func (s *ModuleService) UpdateWorkspaceModule(moduleID, userID uint64, req request.ModuleUpdate) (*response.ModuleResponse, error) {
+	var module model.Module
+	if err := s.db.Where("id = ? AND project_id IS NULL", moduleID).First(&module).Error; err != nil {
+		return nil, common.NotFound("Workspace module not found")
+	}
+
+	if req.Name != nil {
+		module.Name = *req.Name
+	}
+	if req.Description != nil {
+		module.Description = *req.Description
+	}
+	if req.ParentID != nil {
+		module.ParentID = req.ParentID
+	}
+
+	module.UpdatedByID = &userID
+	if err := s.db.Save(&module).Error; err != nil {
+		return nil, common.Internal("Failed to update workspace module")
+	}
+
+	return s.buildResponse(module), nil
+}
+
+func (s *ModuleService) DeleteWorkspaceModule(workspaceID, moduleID uint64) error {
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	if err := tx.Where("parent_id = ?", moduleID).Update("parent_id", nil).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to update child modules")
+	}
+	if err := tx.Where("module_id = ?", moduleID).Delete(&model.ModuleIssue{}).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to delete module issues")
+	}
+	result := tx.Where("id = ? AND workspace_id = ? AND project_id IS NULL", moduleID, workspaceID).Delete(&model.Module{})
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return common.NotFound("Workspace module not found")
+	}
+	return tx.Commit().Error
 }
 
 func (s *ModuleService) Get(moduleID uint64) (*response.ModuleResponse, error) {
@@ -177,7 +264,7 @@ func (s *ModuleService) AddIssue(moduleID, issueID uint64) error {
 		return common.NotFound("Issue not found")
 	}
 
-	if issue.ProjectID != module.ProjectID {
+	if module.ProjectID != nil && issue.ProjectID != *module.ProjectID {
 		return common.BadRequest("Issue does not belong to this module's project")
 	}
 
@@ -376,7 +463,9 @@ func (s *ModuleService) BuildTree(projectID uint64) ([]*response.ModuleTreeNode,
 	var attachChildren func(nodes []*response.ModuleTreeNode)
 	attachChildren = func(nodes []*response.ModuleTreeNode) {
 		for _, n := range nodes {
-			n.Children = childrenMap[n.ID]
+			if n.ID != nil {
+				n.Children = childrenMap[*n.ID]
+			}
 			if n.Children == nil {
 				n.Children = []*response.ModuleTreeNode{}
 			}

@@ -498,6 +498,7 @@
     "none": "无",
     "current": "当前",
     "default": "默认",
+    "inherited": "继承",
     "noDescription": "无描述",
     "enabled": "已启用",
     "disabled": "已停用",

@@ -32,6 +32,7 @@ func (s *IssueTypeService) buildResponse(t model.IssueType) *response.IssueTypeR
 		WorkspaceID:  t.WorkspaceID,
 		CreatedAt:    t.CreatedAt,
 		UpdatedAt:    t.UpdatedAt,
+		IsInherited:  t.ProjectID == nil,
 	}
 }
 

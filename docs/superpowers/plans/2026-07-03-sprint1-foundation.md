@@ -693,7 +693,7 @@ git commit -m "feat: complete i18n coverage for all 23 views and core components
 
 ---
 
-### Task A1.3: 筛选栏 Plane 风格 Phase 2
+### Task A1.3: 筛选栏主流风格 Phase 2
 
 **Files:**
 - Modify: `frontend/src/components/FilterBar.vue` (843 lines)

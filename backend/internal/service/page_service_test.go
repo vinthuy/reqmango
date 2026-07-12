@@ -60,7 +60,8 @@ func seedTestData(t *testing.T, db *gorm.DB) (workspaceID, projectID, userID uin
 	require.NoError(t, db.Create(it).Error)
 
 	// Default state (required for convert-to-issue)
-	state := &model.State{Name: "Backlog", Color: "#ccc", ProjectID: projectID, WorkspaceID: workspaceID}
+	projectIDPtr := projectID
+	state := &model.State{Name: "Backlog", Color: "#ccc", ProjectID: &projectIDPtr, WorkspaceID: workspaceID}
 	require.NoError(t, db.Create(state).Error)
 
 	return

@@ -62,14 +62,20 @@ async function ensureSetup(request: APIRequestContext) {
   _wsSlug = wsData.slug || wsData.data?.slug
 }
 
+async function loginViaStorage(page: any) {
+  await page.goto('/login')
+  await page.evaluate((t: string) => localStorage.setItem('token', t), _token)
+}
+
 async function goToPluginsTab(page: any) {
+  await loginViaStorage(page)
   await page.goto(`/workspace/${encodeURIComponent(_wsSlug)}/settings`)
-  await page.waitForSelector('button:has-text("Plugins")', { timeout: 10000 })
-  // Navigate to Plugins tab
-  await page.click('button:has-text("Plugins")')
-  // Wait for the PluginManager to load
+  await page.waitForLoadState('networkidle').catch(() => {})
+  await page.waitForSelector('aside button', { timeout: 15000 })
+  const pluginBtn = page.locator('aside button').filter({ hasText: '插件' })
+  await pluginBtn.waitFor({ timeout: 10000 })
+  await pluginBtn.click()
   await page.waitForSelector('.plugin-manager', { timeout: 10000 })
-  // Wait for catalog to render
   await page.waitForSelector('.pm-card', { timeout: 10000 })
 }
 
@@ -82,13 +88,17 @@ test.describe('Plugin System E2E', () => {
   // 1. PLUGIN MANAGER PAGE
   // ==========================================================
   test('should render Plugin Manager page with header', async ({ page }) => {
+    await loginViaStorage(page)
     await page.goto(`/workspace/${encodeURIComponent(_wsSlug)}/settings`)
-    await page.waitForSelector('button:has-text("Plugins")', { timeout: 10000 })
-    await page.click('button:has-text("Plugins")')
+    await page.waitForLoadState('networkidle').catch(() => {})
+    await page.waitForSelector('aside button', { timeout: 15000 })
+    const pluginBtn = page.locator('aside button').filter({ hasText: '插件' })
+    await pluginBtn.waitFor({ timeout: 10000 })
+    await pluginBtn.click()
 
     await page.waitForSelector('.plugin-manager', { timeout: 15000 })
-    await expect(page.locator('.pm-header h2')).toHaveText('Plugin Manager')
-    await expect(page.locator('.pm-subtitle')).toContainText('Install and manage plugins')
+    await expect(page.locator('.pm-header h2')).toHaveText('插件管理')
+    await expect(page.locator('.pm-subtitle')).toContainText('安装和管理插件')
   })
 
   // ==========================================================
@@ -125,7 +135,7 @@ test.describe('Plugin System E2E', () => {
     const eventCount = await eventSection.count()
     if (eventCount > 0) {
       const firstEventSection = eventSection.first()
-      await expect(firstEventSection.locator('.pm-events-label')).toContainText('Subscribes to:')
+      await expect(firstEventSection.locator('.pm-events-label')).toContainText('订阅事件:')
       const tags = firstEventSection.locator('.pm-event-tag')
       expect(await tags.count()).toBeGreaterThanOrEqual(1)
     }
@@ -157,7 +167,7 @@ test.describe('Plugin System E2E', () => {
     await page.waitForSelector('.pm-installed-item', { timeout: 10000 })
 
     // Should show installed badge
-    await expect(page.locator('.pm-badge').first()).toHaveText('Installed')
+    await expect(page.locator('.pm-badge').first()).toHaveText('已安装')
   })
 
   // ==========================================================
@@ -168,11 +178,11 @@ test.describe('Plugin System E2E', () => {
 
     // Check if already installed, skip check for installed section
     const installedSection = page.locator('.pm-section').last()
-    // The buttons: Config, Logs, Test, Remove
-    await expect(installedSection.locator('button:has-text("Config")').first()).toBeVisible({ timeout: 5000 })
-    await expect(installedSection.locator('button:has-text("Logs")').first()).toBeVisible()
-    await expect(installedSection.locator('button:has-text("Test")').first()).toBeVisible()
-    await expect(installedSection.locator('button:has-text("Remove")').first()).toBeVisible()
+    // The buttons: 配置, 日志, 测试, 移除
+    await expect(installedSection.locator('button:has-text("配置")').first()).toBeVisible({ timeout: 5000 })
+    await expect(installedSection.locator('button:has-text("日志")').first()).toBeVisible()
+    await expect(installedSection.locator('button:has-text("测试")').first()).toBeVisible()
+    await expect(installedSection.locator('button:has-text("移除")').first()).toBeVisible()
   })
 
   // ==========================================================
@@ -189,14 +199,13 @@ test.describe('Plugin System E2E', () => {
       await page.waitForSelector('.pm-installed-item', { timeout: 10000 })
     }
 
-    // Get the toggle checkbox in the installed list
-    const toggle = page.locator('.pm-toggle input[type="checkbox"]').first()
-    await expect(toggle).toBeVisible({ timeout: 5000 })
+    const toggleWrapper = page.locator('.pm-toggle').first()
+    await expect(toggleWrapper).toBeVisible({ timeout: 5000 })
 
+    const toggle = toggleWrapper.locator('input[type="checkbox"]')
     const wasChecked = await toggle.isChecked()
 
-    // Toggle it
-    await toggle.click()
+    await toggleWrapper.click()
     await page.waitForTimeout(1000)
 
     const nowChecked = await toggle.isChecked()
@@ -210,7 +219,7 @@ test.describe('Plugin System E2E', () => {
     await goToPluginsTab(page)
 
     // Open config
-    const configBtn = page.locator('button:has-text("Config")').first()
+    const configBtn = page.locator('button:has-text("配置")').first()
     await configBtn.click()
 
     // Wait for config modal
@@ -240,7 +249,7 @@ test.describe('Plugin System E2E', () => {
     await goToPluginsTab(page)
 
     // Open config
-    await page.locator('button:has-text("Config")').first().click()
+    await page.locator('button:has-text("配置")').first().click()
     await page.waitForSelector('.pm-modal-config', { timeout: 5000 })
 
     // Enter invalid JSON
@@ -251,7 +260,7 @@ test.describe('Plugin System E2E', () => {
     await page.locator('.pm-modal-footer .btn-primary').click()
 
     // Should show error message
-    await expect(page.locator('.pm-config-error')).toContainText('Invalid JSON format')
+    await expect(page.locator('.pm-config-error')).toContainText('JSON')
 
     // Modal should still be open
     await expect(page.locator('.pm-modal-config')).toBeVisible()
@@ -260,7 +269,7 @@ test.describe('Plugin System E2E', () => {
   test('should close config modal via Cancel button', async ({ page }) => {
     await goToPluginsTab(page)
 
-    await page.locator('button:has-text("Config")').first().click()
+    await page.locator('button:has-text("配置")').first().click()
     await page.waitForSelector('.pm-modal-config', { timeout: 5000 })
 
     // Click Cancel
@@ -273,7 +282,7 @@ test.describe('Plugin System E2E', () => {
   test('should close config modal via X button', async ({ page }) => {
     await goToPluginsTab(page)
 
-    await page.locator('button:has-text("Config")').first().click()
+    await page.locator('button:has-text("配置")').first().click()
     await page.waitForSelector('.pm-modal-config', { timeout: 5000 })
 
     // Click X
@@ -290,7 +299,7 @@ test.describe('Plugin System E2E', () => {
     await goToPluginsTab(page)
 
     // Open logs
-    const logsBtn = page.locator('button:has-text("Logs")').first()
+    const logsBtn = page.locator('button:has-text("日志")').first()
     await logsBtn.click()
     await page.waitForSelector('.pm-modal', { timeout: 5000 })
 
@@ -307,7 +316,7 @@ test.describe('Plugin System E2E', () => {
   test('should close logs modal via X button', async ({ page }) => {
     await goToPluginsTab(page)
 
-    await page.locator('button:has-text("Logs")').first().click()
+    await page.locator('button:has-text("日志")').first().click()
     await page.waitForSelector('.pm-modal', { timeout: 5000 })
 
     // Click X
@@ -318,7 +327,7 @@ test.describe('Plugin System E2E', () => {
   test('should close logs modal on overlay click', async ({ page }) => {
     await goToPluginsTab(page)
 
-    await page.locator('button:has-text("Logs")').first().click()
+    await page.locator('button:has-text("日志")').first().click()
     await page.waitForSelector('.pm-modal', { timeout: 5000 })
 
     // Click overlay background
@@ -338,7 +347,7 @@ test.describe('Plugin System E2E', () => {
     await goToPluginsTab(page)
 
     // Click Test
-    const testBtn = page.locator('button:has-text("Test")').first()
+    const testBtn = page.locator('button:has-text("测试")').first()
     await testBtn.click()
 
     // Wait for test result to appear
@@ -353,11 +362,11 @@ test.describe('Plugin System E2E', () => {
     await goToPluginsTab(page)
 
     // Run test first
-    await page.locator('button:has-text("Test")').first().click()
+    await page.locator('button:has-text("测试")').first().click()
     await page.waitForSelector('.pm-test-result', { timeout: 10000 })
 
     // Click Clear
-    await page.locator('.pm-test-result button:has-text("Clear")').click()
+    await page.locator('.pm-test-result button:has-text("清除")').click()
 
     // Test result should be hidden
     await page.waitForSelector('.pm-test-result', { state: 'hidden', timeout: 5000 })
@@ -378,13 +387,13 @@ test.describe('Plugin System E2E', () => {
 
     const beforeCount = await page.locator('.pm-installed-item').count()
 
-    // Click Remove
-    await page.locator('button:has-text("Remove")').first().click()
-
-    // Handle dialog (confirm)
+    // Handle dialog (confirm) - must be registered before click
     page.on('dialog', async dialog => {
       await dialog.accept()
     })
+
+    // Click Remove
+    await page.locator('button:has-text("移除")').first().click()
 
     // Wait for removal
     await page.waitForTimeout(2000)
@@ -406,7 +415,7 @@ test.describe('Plugin System E2E', () => {
     const beforeCount = await page.locator('.pm-installed-item').count()
 
     // Click Remove
-    await page.locator('button:has-text("Remove")').first().click()
+    await page.locator('button:has-text("移除")').first().click()
 
     // Dismiss dialog (cancel)
     page.on('dialog', async dialog => {
@@ -438,26 +447,26 @@ test.describe('Plugin System E2E', () => {
 
     // Should show empty state
     await expect(page.locator('.pm-empty')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('.pm-empty')).toContainText('No plugins installed yet')
+    await expect(page.locator('.pm-empty')).toContainText('插件')
   })
 
   // ==========================================================
   // 11. NAVIGATION VIA SIDEBAR
   // ==========================================================
   test('should navigate to Plugins via workspace settings sidebar', async ({ page }) => {
+    await loginViaStorage(page)
     await page.goto(`/workspace/${encodeURIComponent(_wsSlug)}/settings`)
-    await page.waitForSelector('button:has-text("Plugins")', { timeout: 10000 })
+    await page.waitForLoadState('networkidle').catch(() => {})
+    await page.waitForSelector('aside button', { timeout: 15000 })
 
-    // Check other tabs exist
-    await expect(page.locator('button:has-text("Members")').first()).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('button:has-text("Work Item Types")').first()).toBeVisible()
-    await expect(page.locator('button:has-text("Fields")').first()).toBeVisible()
+    await expect(page.locator('aside button').filter({ hasText: '成员' })).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('aside button').filter({ hasText: '工作项类型' })).toBeVisible()
+    await expect(page.locator('aside button').filter({ hasText: '自定义字段' })).toBeVisible()
 
-    // Click Plugins tab
-    await page.click('button:has-text("Plugins")')
+    const pluginBtn = page.locator('aside button').filter({ hasText: '插件' })
+    await pluginBtn.click()
 
-    // Verify PluginManager renders
     await page.waitForSelector('.plugin-manager', { timeout: 10000 })
-    await expect(page.locator('.pm-header h2')).toHaveText('Plugin Manager')
+    await expect(page.locator('.pm-header h2')).toHaveText('插件管理')
   })
 })

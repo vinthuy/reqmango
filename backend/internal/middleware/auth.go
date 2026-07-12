@@ -25,6 +25,13 @@ func msg(c *gin.Context, key, fallback string) string {
 // AuthMiddleware validates JWT tokens and sets the current user in context.
 func AuthMiddleware(db *gorm.DB, secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		fmt.Printf("[DEBUG AuthMiddleware] Request: %s %s, Query: %s\n", c.Request.Method, c.Request.URL.Path, c.Request.URL.RawQuery)
+		
+		// Debug: check if this is the issues endpoint
+		if c.Request.URL.Path == "/api/v1/issues" {
+			fmt.Printf("[DEBUG AuthMiddleware] This is the issues endpoint!\n")
+		}
+		
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "missing_auth_header", "Missing authorization header")})

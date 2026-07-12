@@ -39,6 +39,7 @@ func (s *ProjectSettingsService) CreateState(req *request.StateCreateRequest, pr
 		isDefault = *req.IsDefault
 	}
 
+	projectIDPtr := projectID
 	state := &model.State{
 		Name:        req.Name,
 		Color:       color,
@@ -46,7 +47,7 @@ func (s *ProjectSettingsService) CreateState(req *request.StateCreateRequest, pr
 		Sequence:    seq,
 		IsDefault:   isDefault,
 		IsActive:    true,
-		ProjectID:   projectID,
+		ProjectID:   &projectIDPtr,
 		WorkspaceID: workspaceID,
 	}
 
@@ -57,9 +58,9 @@ func (s *ProjectSettingsService) CreateState(req *request.StateCreateRequest, pr
 	return stateToResponse(state), nil
 }
 
-// ListStates returns all states for a project.
-func (s *ProjectSettingsService) ListStates(projectID uint64, includeInactive bool) ([]response.StateResponse, error) {
-	query := s.db.Where("project_id = ?", projectID)
+// ListStates returns all states for a project including inherited workspace states.
+func (s *ProjectSettingsService) ListStates(projectID, workspaceID uint64, includeInactive bool) ([]response.StateResponse, error) {
+	query := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, workspaceID)
 	if !includeInactive {
 		query = query.Where("is_active = ?", true)
 	}
@@ -156,15 +157,10 @@ func (s *ProjectSettingsService) DeleteState(projectID, stateID uint64) error {
 	return tx.Commit().Error
 }
 
-// ListWorkspaceStates returns states from the first project in the workspace as workspace-level state template.
+// ListWorkspaceStates returns workspace-level states (project_id IS NULL).
 func (s *ProjectSettingsService) ListWorkspaceStates(workspaceID uint64) ([]response.StateResponse, error) {
-	var firstProjectID uint64
-	if err := s.db.Model(&model.Project{}).Where("workspace_id = ?", workspaceID).Order("id ASC").Limit(1).Pluck("id", &firstProjectID).Error; err != nil || firstProjectID == 0 {
-		return nil, common.Internal("No project found in workspace")
-	}
-
 	var states []model.State
-	if err := s.db.Where("project_id = ? AND is_active = ?", firstProjectID, true).Order("sequence ASC").Find(&states).Error; err != nil {
+	if err := s.db.Where("workspace_id = ? AND project_id IS NULL AND is_active = ?", workspaceID, true).Order("sequence ASC").Find(&states).Error; err != nil {
 		return nil, common.Internal("Database error")
 	}
 
@@ -175,10 +171,130 @@ func (s *ProjectSettingsService) ListWorkspaceStates(workspaceID uint64) ([]resp
 	return result, nil
 }
 
+// CreateWorkspaceState creates a new workspace-level state.
+func (s *ProjectSettingsService) CreateWorkspaceState(req *request.StateCreateRequest, workspaceID uint64) (*response.StateResponse, error) {
+	color := req.Color
+	if color == "" {
+		color = "#6B7280"
+	}
+	group := req.Group
+	if group == "" {
+		group = common.StateGroupBacklog
+	}
+	seq := 1
+	if req.Sequence != nil {
+		seq = *req.Sequence
+	}
+	isDefault := false
+	if req.IsDefault != nil {
+		isDefault = *req.IsDefault
+	}
+
+	state := &model.State{
+		Name:        req.Name,
+		Color:       color,
+		Group:       group,
+		Sequence:    seq,
+		IsDefault:   isDefault,
+		IsActive:    true,
+		ProjectID:   nil,
+		WorkspaceID: workspaceID,
+	}
+
+	if err := s.db.Create(state).Error; err != nil {
+		return nil, common.Internal("Failed to create workspace state")
+	}
+
+	return stateToResponse(state), nil
+}
+
+// GetWorkspaceState returns a single workspace-level state by ID.
+func (s *ProjectSettingsService) GetWorkspaceState(workspaceID, stateID uint64) (*response.StateResponse, error) {
+	var state model.State
+	if err := s.db.Where("id = ? AND workspace_id = ? AND project_id IS NULL", stateID, workspaceID).First(&state).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("Workspace state not found")
+		}
+		return nil, common.Internal("Database error")
+	}
+	return stateToResponse(&state), nil
+}
+
+// UpdateWorkspaceState updates a workspace-level state's properties.
+func (s *ProjectSettingsService) UpdateWorkspaceState(workspaceID, stateID uint64, req *request.StateUpdateRequest) (*response.StateResponse, error) {
+	var state model.State
+	if err := s.db.Where("id = ? AND workspace_id = ? AND project_id IS NULL", stateID, workspaceID).First(&state).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("Workspace state not found")
+		}
+		return nil, common.Internal("Database error")
+	}
+
+	updates := map[string]interface{}{}
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Color != nil {
+		updates["color"] = *req.Color
+	}
+	if req.Group != nil {
+		updates["group"] = *req.Group
+	}
+	if req.Sequence != nil {
+		updates["sequence"] = *req.Sequence
+	}
+	if req.IsDefault != nil {
+		updates["is_default"] = *req.IsDefault
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+
+	if len(updates) > 0 {
+		if err := s.db.Model(&state).Updates(updates).Error; err != nil {
+			return nil, common.Internal("Failed to update workspace state")
+		}
+	}
+
+	return stateToResponse(&state), nil
+}
+
+// DeleteWorkspaceState soft-deletes a workspace-level state.
+func (s *ProjectSettingsService) DeleteWorkspaceState(workspaceID, stateID uint64) error {
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var state model.State
+	if err := tx.Where("id = ? AND workspace_id = ? AND project_id IS NULL", stateID, workspaceID).First(&state).Error; err != nil {
+		tx.Rollback()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.NotFound("Workspace state not found")
+		}
+		return common.Internal("Database error")
+	}
+
+	if state.IsDefault {
+		tx.Rollback()
+		return common.BadRequest("Cannot delete the default state")
+	}
+
+	result := tx.Where("id = ? AND workspace_id = ? AND project_id IS NULL", stateID, workspaceID).Delete(&model.State{})
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return common.NotFound("Workspace state not found")
+	}
+	return tx.Commit().Error
+}
+
 // CreateDefaultStates creates the 6 default states for a project.
 func (s *ProjectSettingsService) CreateDefaultStates(projectID, workspaceID uint64) ([]response.StateResponse, error) {
 	var states []model.State
 	for _, ds := range common.DefaultStates {
+		projectIDPtr := projectID
 		state := model.State{
 			Name:        ds.Name,
 			Color:       ds.Color,
@@ -186,7 +302,7 @@ func (s *ProjectSettingsService) CreateDefaultStates(projectID, workspaceID uint
 			Sequence:    ds.Sequence,
 			IsDefault:   ds.IsDefault,
 			IsActive:    true,
-			ProjectID:   projectID,
+			ProjectID:   &projectIDPtr,
 			WorkspaceID: workspaceID,
 		}
 		if err := s.db.Create(&state).Error; err != nil {
@@ -205,17 +321,19 @@ func (s *ProjectSettingsService) CreateDefaultStates(projectID, workspaceID uint
 // ==================== Label CRUD ====================
 
 // CreateLabel creates a new label for a project.
-func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, projectID uint64) (*response.LabelResponse, error) {
+func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, projectID, workspaceID uint64) (*response.LabelResponse, error) {
 	color := req.Color
 	if color == "" {
 		color = "#6B7280"
 	}
 
+	projectIDPtr := projectID
 	label := &model.Label{
 		Name:        req.Name,
 		Color:       color,
 		Description: req.Description,
-		ProjectID:   projectID,
+		ProjectID:   &projectIDPtr,
+		WorkspaceID: workspaceID,
 	}
 
 	if err := s.db.Create(label).Error; err != nil {
@@ -225,10 +343,10 @@ func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, pr
 	return labelToResponse(label), nil
 }
 
-// ListLabels returns all labels for a project.
-func (s *ProjectSettingsService) ListLabels(projectID uint64) ([]response.LabelResponse, error) {
+// ListLabels returns all labels for a project including inherited workspace labels.
+func (s *ProjectSettingsService) ListLabels(projectID, workspaceID uint64) ([]response.LabelResponse, error) {
 	var labels []model.Label
-	if err := s.db.Where("project_id = ?", projectID).Order("created_at ASC").Find(&labels).Error; err != nil {
+	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, workspaceID).Order("created_at ASC").Find(&labels).Error; err != nil {
 		return nil, common.Internal("Database error")
 	}
 
@@ -240,9 +358,9 @@ func (s *ProjectSettingsService) ListLabels(projectID uint64) ([]response.LabelR
 }
 
 // SearchLabels returns labels matching the query.
-func (s *ProjectSettingsService) SearchLabels(projectID uint64, query string) ([]response.LabelResponse, error) {
+func (s *ProjectSettingsService) SearchLabels(projectID, workspaceID uint64, query string) ([]response.LabelResponse, error) {
 	var labels []model.Label
-	if err := s.db.Where("project_id = ? AND name ILIKE ?", projectID, "%"+query+"%").Order("created_at ASC").Find(&labels).Error; err != nil {
+	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?)) AND name ILIKE ?", projectID, workspaceID, "%"+query+"%").Order("created_at ASC").Find(&labels).Error; err != nil {
 		return nil, common.Internal("Database error")
 	}
 	result := make([]response.LabelResponse, len(labels))
@@ -250,6 +368,106 @@ func (s *ProjectSettingsService) SearchLabels(projectID uint64, query string) ([
 		result[i] = *labelToResponse(&l)
 	}
 	return result, nil
+}
+
+// ListWorkspaceLabels returns workspace-level labels (project_id IS NULL).
+func (s *ProjectSettingsService) ListWorkspaceLabels(workspaceID uint64) ([]response.LabelResponse, error) {
+	var labels []model.Label
+	if err := s.db.Where("workspace_id = ? AND project_id IS NULL", workspaceID).Order("created_at ASC").Find(&labels).Error; err != nil {
+		return nil, common.Internal("Database error")
+	}
+
+	result := make([]response.LabelResponse, len(labels))
+	for i, l := range labels {
+		result[i] = *labelToResponse(&l)
+	}
+	return result, nil
+}
+
+// CreateWorkspaceLabel creates a new workspace-level label.
+func (s *ProjectSettingsService) CreateWorkspaceLabel(req *request.LabelCreateRequest, workspaceID uint64) (*response.LabelResponse, error) {
+	color := req.Color
+	if color == "" {
+		color = "#6B7280"
+	}
+
+	label := &model.Label{
+		Name:        req.Name,
+		Color:       color,
+		Description: req.Description,
+		ProjectID:   nil,
+		WorkspaceID: workspaceID,
+	}
+
+	if err := s.db.Create(label).Error; err != nil {
+		return nil, common.Internal("Failed to create workspace label")
+	}
+
+	return labelToResponse(label), nil
+}
+
+// GetWorkspaceLabel returns a single workspace-level label by ID.
+func (s *ProjectSettingsService) GetWorkspaceLabel(workspaceID, labelID uint64) (*response.LabelResponse, error) {
+	var label model.Label
+	if err := s.db.Where("id = ? AND workspace_id = ? AND project_id IS NULL", labelID, workspaceID).First(&label).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("Workspace label not found")
+		}
+		return nil, common.Internal("Database error")
+	}
+	return labelToResponse(&label), nil
+}
+
+// UpdateWorkspaceLabel updates a workspace-level label's properties.
+func (s *ProjectSettingsService) UpdateWorkspaceLabel(workspaceID, labelID uint64, req *request.LabelUpdateRequest) (*response.LabelResponse, error) {
+	var label model.Label
+	if err := s.db.Where("id = ? AND workspace_id = ? AND project_id IS NULL", labelID, workspaceID).First(&label).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("Workspace label not found")
+		}
+		return nil, common.Internal("Database error")
+	}
+
+	updates := map[string]interface{}{}
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Color != nil {
+		updates["color"] = *req.Color
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+
+	if len(updates) > 0 {
+		if err := s.db.Model(&label).Updates(updates).Error; err != nil {
+			return nil, common.Internal("Failed to update workspace label")
+		}
+	}
+
+	return labelToResponse(&label), nil
+}
+
+// DeleteWorkspaceLabel soft-deletes a workspace-level label.
+func (s *ProjectSettingsService) DeleteWorkspaceLabel(workspaceID, labelID uint64) error {
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Where("label_id = ?", labelID).Delete(&model.IssueLabel{}).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to delete issue labels")
+	}
+
+	result := tx.Where("id = ? AND workspace_id = ? AND project_id IS NULL", labelID, workspaceID).Delete(&model.Label{})
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return common.NotFound("Workspace label not found")
+	}
+	return tx.Commit().Error
 }
 
 // GetLabel returns a single label by ID.
@@ -316,8 +534,9 @@ func (s *ProjectSettingsService) DeleteLabel(projectID, labelID uint64) error {
 
 // stateToResponse converts a State model to a StateResponse.
 func stateToResponse(state *model.State) *response.StateResponse {
+	id := state.ID
 	resp := &response.StateResponse{
-		ID:          state.ID,
+		ID:          &id,
 		Name:        state.Name,
 		Color:       state.Color,
 		Group:       state.Group,
@@ -330,6 +549,7 @@ func stateToResponse(state *model.State) *response.StateResponse {
 		UpdatedAt:   state.UpdatedAt,
 		CreatedByID: state.CreatedByID,
 		UpdatedByID: state.UpdatedByID,
+		IsInherited: state.ProjectID == nil,
 	}
 
 	if state.DeletedAt.Valid {
@@ -342,16 +562,19 @@ func stateToResponse(state *model.State) *response.StateResponse {
 
 // labelToResponse converts a Label model to a LabelResponse.
 func labelToResponse(label *model.Label) *response.LabelResponse {
+	id := label.ID
 	resp := &response.LabelResponse{
-		ID:          label.ID,
+		ID:          &id,
 		Name:        label.Name,
 		Color:       label.Color,
 		Description: label.Description,
 		ProjectID:   label.ProjectID,
+		WorkspaceID: label.WorkspaceID,
 		CreatedAt:   label.CreatedAt,
 		UpdatedAt:   label.UpdatedAt,
 		CreatedByID: label.CreatedByID,
 		UpdatedByID: label.UpdatedByID,
+		IsInherited: label.ProjectID == nil,
 	}
 
 	if label.DeletedAt.Valid {

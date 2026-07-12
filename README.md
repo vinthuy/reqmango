@@ -1,46 +1,53 @@
-﻿# reqmango
+# Reqmango
 
-现代化的项目管理平台，支持工作项管理、自定义字段、类型模板、工作流和自动化。
+A modern project management platform supporting work item management, custom fields, type templates, workflows, and automation.
 
 ---
 
-## 技术栈
+## 🌐 Language
 
-| 层 | 技术 |
-|----|------|
-| 后端 | Go 1.21+ + Gin + GORM |
-| 数据库 | PostgreSQL 16+ |
-| 前端 | Vue 3 + TypeScript + Vite + Pinia + Tailwind CSS |
-| 认证 | JWT (golang-jwt/v5) |
+- **English** (this document)
+- [中文文档](README-zh.md)
 
-## 快速开始
+---
 
-### 前置条件
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | Go 1.21+ + Gin + GORM |
+| Database | PostgreSQL 16+ |
+| Frontend | Vue 3 + TypeScript + Vite + Pinia + Tailwind CSS |
+| Authentication | JWT (golang-jwt/v5) |
+
+## Quick Start
+
+### Prerequisites
 
 - Go 1.21+
 - PostgreSQL 16+
 - Node.js 18+
 
-### 1. 克隆项目
+### 1. Clone the Project
 
 ```bash
-git clone https://gitcode.com/yongfeng9m-/reqmango.git
+git clone https://github.com/vinthuy/reqmango.git
 cd reqmango
 ```
 
-### 2. 配置数据库
+### 2. Configure Database
 
 ```bash
-# 创建数据库
+# Create database
 psql -U postgres -c "CREATE DATABASE reqmango;"
 ```
 
-### 3. 配置后端
+### 3. Configure Backend
 
 ```bash
 cd backend
 
-# 创建环境配置文件
+# Create environment configuration file
 cat > .env << EOF
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/reqmango?sslmode=disable
 SECRET_KEY=change-me-in-production-use-a-long-random-string
@@ -49,19 +56,19 @@ PORT=8000
 DEBUG=true
 EOF
 
-# 启动后端 (自动建表 + 种子数据)
+# Start backend (auto-migrate + seed data)
 go run ./cmd/server/
 ```
 
-后端启动后自动创建数据库表并插入演示数据：
-- 管理员账号: `demo@example.com` / `demo1234`
-- 测试账号: `demo1@reqman.local` ~ `demo19@reqman.local` (密码同)
+Upon startup, the backend automatically creates database tables and inserts demo data:
+- Admin account: `demo@example.com` / `demo1234`
+- Test accounts: `demo1@reqman.local` ~ `demo19@reqman.local` (same password)
 - Demo Workspace (slug: demo) + Demo Project (identifier: DEMO)
-- 6 个默认状态, 4 个 Sprint, 5 个模块, 100 个工作项
-- 3 个默认工作项类型 (Bug/Feature/Epic)
-- 3 个自定义字段 (优先级/截止日期/版本号)
+- 6 default states, 4 Sprints, 5 modules, 100 work items
+- 3 default issue types (Bug/Feature/Epic)
+- 3 custom fields (Priority/Target Date/Version)
 
-### 4. 配置前端
+### 4. Configure Frontend
 
 ```bash
 cd frontend
@@ -69,85 +76,85 @@ npm install
 npm run dev
 ```
 
-浏览器打开 `http://localhost:5173`，使用 `demo@example.com` / `demo1234` 登录。
+Open browser at `http://localhost:5173`, login with `demo@example.com` / `demo1234`.
 
-### 5. 生产构建
+### 5. Production Build
 
 ```bash
-# 后端
+# Backend
 cd backend && go build -o server ./cmd/server/
 
-# 前端
+# Frontend
 cd frontend && npm run build
 ```
 
 ---
 
-## 项目结构
+## Project Structure
 
 ```
 reqmango/
-├── backend/              # Go 后端
-│   ├── cmd/server/          # 入口
+├── backend/              # Go Backend
+│   ├── cmd/server/          # Entry point
 │   ├── internal/
-│   │   ├── model/           # GORM 数据模型（34 文件）
-│   │   ├── dto/             # 请求/响应 DTO（45 文件）
-│   │   ├── service/         # 业务逻辑（35 文件）
-│   │   ├── handler/         # HTTP 处理器（37 文件）
-│   │   ├── rql/             # RQL 查询语言引擎
-│   │   ├── middleware/      # 中间件（Auth/CORS/Lang/Log/RateLimit）
-│   │   ├── i18n/            # 国际化 (en/zh)
-│   │   ├── seed/            # 种子数据
-│   │   ├── common/          # 公共工具
-│   │   └── config/          # 配置加载
-│   └── config/              # YAML 配置
+│   │   ├── model/           # GORM Data Models (34 files)
+│   │   ├── dto/             # Request/Response DTOs (45 files)
+│   │   ├── service/         # Business Logic (35 files)
+│   │   ├── handler/         # HTTP Handlers (37 files)
+│   │   ├── rql/             # RQL Query Language Engine
+│   │   ├── middleware/      # Middleware (Auth/CORS/Lang/Log/RateLimit)
+│   │   ├── i18n/            # Internationalization (en/zh)
+│   │   ├── seed/            # Seed Data
+│   │   ├── common/          # Utility Functions
+│   │   └── config/          # Configuration Loading
+│   └── config/              # YAML Configuration
 ├── mcp-server/              # MCP Server
-├── frontend/                # Vue 3 前端
+├── frontend/                # Vue 3 Frontend
 │   └── src/
-│       ├── api/             # API 调用（35 模块）
-│       ├── types/           # TypeScript 类型
-│       ├── stores/          # Pinia 状态管理
-│       ├── views/           # 页面
-│       ├── components/      # 组件
-│       └── router/          # 路由
-└── docs/                    # 文档
-    ├── kb/                  # 知识库 (架构文档)
-    ├── dev/                 # 开发管线
-    └── superseded/          # 历史归档
+│       ├── api/             # API Calls (35 modules)
+│       ├── types/           # TypeScript Types
+│       ├── stores/          # Pinia State Management
+│       ├── views/           # Pages
+│       ├── components/      # Components
+│       └── router/          # Routing
+└── docs/                    # Documentation
+    ├── kb/                  # Knowledge Base (Architecture Docs)
+    ├── dev/                 # Development Pipeline
+    └── superseded/          # Historical Archive
 ```
 
-## 核心功能
+## Core Features
 
-| 功能 | 说明 |
-|------|------|
-| 工作项管理 | CRUD + 状态流转 + 列表/看板视图 |
-| 自定义字段 | 7种类型 (text/number/dropdown/boolean/date/member/url) |
-| 类型模板 | 工作空间级类型蓝图 + 层级定义 + 字段绑定 |
-| 项目模板 | 打包类型模板，一键应用到项目 |
-| 工作流 | 状态转换规则 + 审批 + 角色限制 |
-| 自动化 | 触发器→条件→动作规则引擎 |
-| 关联关系 | 自定义关系类型 (Blocks/Relates/Duplicates) |
-| 层级系统 | 最多6层工作项层级 + 类型校验 |
-| 高级搜索 | 多字段 AND 组合筛选 |
-| API | 90+ RESTful 端点 |
+| Feature | Description |
+|---------|-------------|
+| Work Item Management | CRUD + State Transitions + List/Kanban Views |
+| Custom Fields | 7 types (text/number/dropdown/boolean/date/member/url) |
+| Type Templates | Workspace-level type blueprints + Hierarchy + Field Binding |
+| Project Templates | Package type templates, apply to projects in one click |
+| Workflows | State transition rules + Approval + Role restrictions |
+| Automation | Trigger → Condition → Action rule engine |
+| Relations | Custom relation types (Blocks/Relates/Duplicates) |
+| Hierarchy System | Up to 6 levels of work item hierarchy + Type validation |
+| Advanced Search | Multi-field AND combination filtering |
+| API | 90+ RESTful endpoints |
 
-## API 文档
+## API Documentation
 
-详见 [docs/kb/architecture/](docs/kb/architecture/) 目录下的架构文档。
+See architecture documents in the [docs/kb/architecture/](docs/kb/architecture/) directory.
 
-## 架构文档
+## Architecture Documents
 
-- [技术栈](docs/kb/architecture/tech-stack.md)
-- [Go 后端架构](docs/kb/architecture/backend.md)
-- [前端架构](docs/kb/architecture/frontend.md)
-- [数据模型](docs/kb/architecture/data-model.md)
-- [API 约定](docs/kb/architecture/api-conventions.md)
-- [类型层级 & 模板设计](docs/kb/architecture/type-hierarchy-template-design.md)
-- [关联关系设计](docs/kb/architecture/relation-system-design.md)
+- [Tech Stack](docs/kb/architecture/tech-stack.md)
+- [Go Backend Architecture](docs/kb/architecture/backend-go.md)
+- [Frontend Architecture](docs/kb/architecture/frontend.md)
+- [Data Model](docs/kb/architecture/data-model.md)
+- [API Conventions](docs/kb/architecture/api-conventions.md)
+- [Type Hierarchy & Template Design](docs/kb/architecture/type-hierarchy-template-design.md)
+- [Relation System Design](docs/kb/architecture/relation-system-design.md)
 
-## 贡献
+## Contributing
 
-欢迎提交 Issue 和 Pull Request。
+Contributions are welcome. Please submit Issues and Pull Requests.
 
 ## License
 

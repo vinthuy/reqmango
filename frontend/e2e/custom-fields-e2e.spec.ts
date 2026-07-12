@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 const API = 'http://localhost:8000/api/v1'
-const BASE = 'http://localhost:5176'
+const BASE = 'http://localhost:5173'
 
 async function getToken(request: any) {
   const r = await request.post(`${API}/auth/login`, {

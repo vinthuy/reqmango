@@ -29,7 +29,7 @@ type Event struct {
 // EventHandler 事件处理器接口
 type EventHandler func(ctx context.Context, event Event) error
 
-// EventBus 事件总线接口（参考 Plane 的事件驱动架构）
+// EventBus 事件总线接口（参考主流事件驱动架构）
 type EventBus interface {
 	Publish(event Event) error
 	Subscribe(triggerType string, handler EventHandler)
@@ -56,7 +56,7 @@ func (bus *InMemoryEventBus) Publish(event Event) error {
 		return nil // 没有订阅者，静默跳过
 	}
 
-	// 异步执行所有处理器（参考 Plane 的后台任务模式）
+	// 异步执行所有处理器（参考主流后台任务模式）
 	for _, handler := range handlers {
 		go func(h EventHandler) {
 			ctx := context.Background()
@@ -573,7 +573,7 @@ func handleClose(action Action, context map[string]interface{}, db *gorm.DB) err
 
 // ======== 重构后的 AutomationService ========
 
-// AutomationService 重构后的自动化服务（参考 Plane 架构）
+// AutomationService 重构后的自动化服务（参考主流架构）
 type AutomationService struct {
 	db              *gorm.DB
 	eventBus        EventBus

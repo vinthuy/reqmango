@@ -326,9 +326,9 @@ make ci          # lint + test + build
 make test        # 运行所有测试
 ```
 
-## 🆚 与 Plane / Linear / Jira 的对比
+## 🆚 与竞品 / Linear / Jira 的对比
 
-| 特性 | reqmango | Plane | Linear | Jira |
+| 特性 | reqmango | 竞品 | Linear | Jira |
 |------|:---:|:---:|:---:|:---:|
 | 开源协议 | MIT ✅ | AGPL v3 | 闭源 | 闭源 |
 | 后端语言 | Go 🚀 | Python | Ruby | Java |
@@ -1024,7 +1024,7 @@ git commit -m "feat: email-to-issue intake + enhanced intake form with custom fi
   <section class="py-24 px-4 bg-gray-50 dark:bg-gray-900">
     <h2 class="text-3xl font-bold text-center mb-16">功能对比</h2>
     <table class="comparison-table max-w-4xl mx-auto">
-      <!-- reqmango vs Plane vs Linear vs Jira -->
+      <!-- reqmango vs 竞品 vs Linear vs Jira -->
     </table>
   </section>
 

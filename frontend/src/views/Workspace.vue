@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi } from '@/api/project'
+import templateApi from '@/api/template'
 import type { Workspace, ProjectCreate } from '@/types'
 import type { ProjectResponse } from '@/types/project'
+import type { ProjectTemplate } from '@/types/template'
 import AICopilot from '@/components/AICopilot.vue'
 
 const route = useRoute()
@@ -19,6 +21,8 @@ const newProject = ref<ProjectCreate>({ name: '', identifier: '', description: '
 const loading = ref(false)
 const createLoading = ref(false)
 const error = ref('')
+const templates = ref<ProjectTemplate[]>([])
+const templatesLoading = ref(false)
 
 const fetchWorkspace = async () => {
   loading.value = true
@@ -32,6 +36,25 @@ const fetchWorkspace = async () => {
     loading.value = false
   }
 }
+
+const fetchTemplates = async () => {
+  if (!workspace.value) return
+  templatesLoading.value = true
+  try {
+    templates.value = await templateApi.listTemplates(workspace.value.id)
+  } catch (err) {
+    console.error('Failed to fetch templates:', err)
+    templates.value = []
+  } finally {
+    templatesLoading.value = false
+  }
+}
+
+watch(showCreateModal, (val) => {
+  if (val) {
+    fetchTemplates()
+  }
+})
 
 const fetchProjects = async () => {
   if (!workspace.value) return
@@ -175,6 +198,16 @@ onUnmounted(() => {
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('common.description', '描述') }}</label>
             <textarea v-model="newProject.description" class="w-full px-3.5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm" rows="3" :placeholder="t('common.descriptionHint', '项目描述')" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{{ t('settings.templates', '模板') }}</label>
+            <select v-model.number="newProject.template_id" :disabled="templatesLoading" class="w-full px-3.5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm">
+              <option :value="null">{{ t('common.none', '无') }}</option>
+              <option v-for="template in templates" :key="template.id" :value="template.id">
+                {{ template.name }}
+                <span v-if="template.is_default" class="text-indigo-500">*</span>
+              </option>
+            </select>
           </div>
         </div>
         <div class="flex gap-3 mt-6">

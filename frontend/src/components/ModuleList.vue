@@ -102,13 +102,17 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
             <div>
-              <div class="text-sm font-medium text-gray-900">{{ module.name }}</div>
+              <div class="text-sm font-medium text-gray-900 flex items-center">
+                {{ module.name }}
+                <span v-if="module.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium ml-2">⚙️</span>
+              </div>
               <div v-if="module.description" class="text-xs text-gray-500 truncate max-w-md">{{ module.description }}</div>
             </div>
           </div>
           <div class="flex items-center space-x-3">
             <span class="text-xs text-gray-400">{{ module.parent_id ? t('module.submodule') : t('module.topLevel') }}</span>
             <button
+              v-if="!module.is_inherited"
               @click.stop="$emit('delete', module)"
               class="text-gray-400 hover:text-red-500 p-1"
               :title="t('common.delete')"

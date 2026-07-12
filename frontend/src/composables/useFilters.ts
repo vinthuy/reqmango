@@ -168,9 +168,14 @@ export function useFilters() {
     // Resolve template variables before parsing
     cleaned = resolveTemplateVars(cleaned, auth.user?.id)
     if (extractQuickSearch) {
-      const likeMatch = cleaned.match(/\(name\s+LIKE\s+"%(.+?)%"\s+OR\s+description\s+LIKE\s+"%(.+?)%"\)/i)
-      state.quickSearch = likeMatch ? likeMatch[1] : ''
-      cleaned = cleaned.replace(/\(name\s+LIKE\s+"%.+?%"\s+OR\s+description\s+LIKE\s+"%.+?%"\)/i, '')
+      const likeMatch = cleaned.match(/\(name\s+LIKE\s+"((?:[^"\\]|\\.)*)"\s+OR\s+description\s+LIKE\s+"((?:[^"\\]|\\.)*)"\)/i)
+      if (likeMatch) {
+        // Unescape RQL string escape sequences (\", \\, \%, \_)
+        state.quickSearch = likeMatch[1].replace(/\\(.)/g, '$1')
+      } else {
+        state.quickSearch = ''
+      }
+      cleaned = cleaned.replace(/\(name\s+LIKE\s+"(?:[^"\\]|\\.)*"\s+OR\s+description\s+LIKE\s+"(?:[^"\\]|\\.)*"\)/i, '')
       cleaned = cleaned.replace(/\s*AND\s*AND\s*/gi, ' AND ').replace(/^\s*AND\s*/i, '').replace(/\s*AND\s*$/i, '').trim()
     }
     if (cleaned) {

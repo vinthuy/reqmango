@@ -1,10 +1,10 @@
-# Plane AI 产品需求文档
+# reqmango 产品需求文档
 
 ---
 
 ## 1. 产品概述
 
-Plane 是一款现代化的项目管理平台，旨在帮助团队高效地规划、跟踪和交付工作。该平台提供了灵活的工作空间管理、直观的看板视图、强大的自动化能力和 AI 智能助手，让团队能够在一个统一的平台上完成从项目规划到交付的全流程管理。
+reqmango 是一款现代化的项目管理平台，旨在帮助团队高效地规划、跟踪和交付工作。该平台提供了灵活的工作空间管理、直观的看板视图、强大的自动化能力和 AI 智能助手，让团队能够在一个统一的平台上完成从项目规划到交付的全流程管理。
 
 ### 1.1 核心价值
 
@@ -83,7 +83,7 @@ flowchart TB
 
 ### 3.1 功能概述
 
-工作空间是 Plane 的顶层容器，类似于组织或公司的概念。它包含了团队协作所需的所有资源，包括项目、成员、设置和配置。
+工作空间是 reqmango 的顶层容器，类似于组织或公司的概念。它包含了团队协作所需的所有资源，包括项目、成员、设置和配置。
 
 ### 3.2 核心功能点
 
@@ -167,7 +167,7 @@ stateDiagram-v2
 
 ### 5.1 功能概述
 
-工作项是项目中最基本的任务载体。Plane 支持多种工作项类型，包括 Issue（问题）、Task（任务）、Bug（缺陷）等，每种类型都可以自定义状态、优先级和字段。
+工作项是项目中最基本的任务载体。reqmango 支持多种工作项类型，包括 Issue（问题）、Task（任务）、Bug（缺陷）等，每种类型都可以自定义状态、优先级和字段。
 
 ### 5.2 核心功能点
 
@@ -318,7 +318,7 @@ gantt
 
 ### 8.1 功能概述
 
-页面（Pages）是 Plane 的文档和知识管理工具。团队可以用它来撰写产品规格、会议记录、团队规范等，并支持实时协作。
+页面（Pages）是 reqmango 的文档和知识管理工具。团队可以用它来撰写产品规格、会议记录、团队规范等，并支持实时协作。
 
 ### 8.2 核心功能点
 
@@ -362,7 +362,7 @@ flowchart TB
 
 ### 9.1 功能概述
 
-Plane AI 是集成在平台中的 AI 助手，允许用户通过自然语言与项目数据交互，快速获取信息、创建内容、执行操作。
+reqmango AI 是集成在平台中的 AI 助手，允许用户通过自然语言与项目数据交互，快速获取信息、创建内容、执行操作。
 
 ### 9.2 核心功能点
 
@@ -411,7 +411,7 @@ flowchart TD
 
 ### 14.1 功能概述
 
-Plane 支持灵活的自动化规则，帮助团队减少重复性操作。当满足特定条件时，自动执行预定义的动作。
+reqmango 支持灵活的自动化规则，帮助团队减少重复性操作。当满足特定条件时，自动执行预定义的动作。
 
 ### 14.2 自动化组件
 
@@ -436,7 +436,7 @@ Plane 支持灵活的自动化规则，帮助团队减少重复性操作。当�
 
 ### 15.1 功能概述
 
-Plane 提供原生的时间跟踪功能，让团队记录和管理工作时间。
+reqmango 提供原生的时间跟踪功能，让团队记录和管理工作时间。
 
 ### 15.2 核心功能点
 
@@ -471,7 +471,7 @@ Plane 提供原生的时间跟踪功能，让团队记录和管理工作时间�
 
 ### 17.1 功能概述
 
-Command K 是 Plane 的键盘优先快速操作界面，让用户通过快捷键快速导航和执行操作。
+Command K 是 reqmango 的键盘优先快速操作界面，让用户通过快捷键快速导航和执行操作。
 
 ### 17.2 核心功能点
 
@@ -488,7 +488,7 @@ Command K 是 Plane 的键盘优先快速操作界面，让用户通过快捷键
 
 ### 18.1 功能概述
 
-Plane 提供了丰富的原生集成，可以与团队日常使用的工具无缝连接，避免在多个平台间切换。
+reqmango 提供了丰富的原生集成，可以与团队日常使用的工具无缝连接，避免在多个平台间切换。
 
 ### 18.2 支持的集成
 
@@ -507,10 +507,10 @@ Plane 提供了丰富的原生集成，可以与团队日常使用的工具无�
 
 ```mermaid
 flowchart LR
-    Plane[Plane 平台] <-->|Webhook| GitHub[GitHub]
-    Plane <-->|Webhook| GitLab[GitLab]
-    Plane <-->|API| Slack[Slack]
-    Plane <-->|Webhook| Sentry[Sentry]
+    Reqmango[reqmango 平台] <-->|Webhook| GitHub[GitHub]
+    Reqmango <-->|Webhook| GitLab[GitLab]
+    Reqmango <-->|API| Slack[Slack]
+    Reqmango <-->|Webhook| Sentry[Sentry]
     
     GitHub -->|同步| Issues[工作项]
     GitLab -->|同步| Issues
@@ -524,7 +524,7 @@ flowchart LR
 
 ### 19.1 功能概述
 
-Plane 提供完整的审计日志和合规记录功能，满足企业合规性要求。
+reqmango 提供完整的审计日志和合规记录功能，满足企业合规性要求。
 
 ### 19.2 核心功能点
 
@@ -541,7 +541,7 @@ Plane 提供完整的审计日志和合规记录功能，满足企业合规性�
 
 ### 20.1 功能概述
 
-Plane 支持多种企业级认证方式，满足组织的安全和合规要求。
+reqmango 支持多种企业级认证方式，满足组织的安全和合规要求。
 
 ### 20.2 支持的认证方式
 
@@ -565,7 +565,7 @@ Plane 支持多种企业级认证方式，满足组织的安全和合规要求�
 
 ### 21.2 配色方案
 
-| 用途 | 艱值 | 说明 |
+| 用途 | 色值 | 说明 |
 |------|------|------|
 | 主色调 | #6366F1 | Indigo，用于主要按钮和强调 |
 | 辅助色 | #8B5CF6 | 紫色，用于 AI 相关功能 |
@@ -746,9 +746,9 @@ erDiagram
 
 ## 24. 实施计划
 
-### 24.1 SDD 开发流程
+### 24.1 开发流程
 
-基于 Schema-Driven Development 模式，开发流程遵循以下顺序：
+开发流程遵循以下顺序：
 
 ```mermaid
 flowchart LR
@@ -764,8 +764,8 @@ flowchart LR
 
 | 阶段 | 功能范围 | 主要任务 | 输出 |
 |------|---------|---------|------|
-| Phase 1 | Schema 定义 + 数据库 | Pydantic Schema、SQLAlchemy Model、Alembic 迁移 | 数据层完成 |
-| Phase 2 | 础 API + 认证 | FastAPI 路由、JWT 认证、权限控制 | API 层完成 |
+| Phase 1 | Schema 定义 + 数据库 | Pydantic Schema、GORM Model、迁移脚本 | 数据层完成 |
+| Phase 2 | 基础 API + 认证 | Gin 路由、JWT 认证、权限控制 | API 层完成 |
 | Phase 3 | 前端基础架构 | Vue3 项目初始化、Pinia Store、API 客户端 | 前端框架完成 |
 | Phase 4 | 核心功能开发 | 工作项、项目、周期、模块 CRUD | 核心功能可用 |
 | Phase 5 | AI 功能集成 | AI 聊天、搜索、智能创建 | AI 功能可用 |
@@ -776,8 +776,8 @@ flowchart LR
 
 | 优先级 | 功能 | 依赖关系 | Schema 定义 |
 |--------|------|---------|------------|
-| P0 | Pydantic Schema 定义 | 无 | UserSchema, WorkspaceSchema, ProjectSchema, IssueSchema |
-| P0 | SQLAlchemy 模型 | Schema | User, Workspace, Project, Issue, State |
+| P0 | Schema 定义 | 无 | UserSchema, WorkspaceSchema, ProjectSchema, IssueSchema |
+| P0 | GORM 模型 | Schema | User, Workspace, Project, Issue, State |
 | P0 | 认证系统（JWT） | User 模型 | AuthSchema, TokenSchema |
 | P0 | 工作空间 API | Workspace 模型 | WorkspaceCreate, WorkspaceUpdate, WorkspaceResponse |
 | P0 | 项目 API | Project 模型 | ProjectCreate, ProjectUpdate, ProjectResponse |
@@ -804,16 +804,15 @@ flowchart LR
 | 模块 | 关键技术 | 说明 |
 |------|---------|------|
 | Schema 定义 | Pydantic V2 | 使用 `BaseModel` + `ConfigDict(from_attributes=True)` |
-| 数据库模型 | SQLAlchemy 2.0 | 使用 `Mapped` + `mapped_column` 异步语法 |
-| API 路由 | FastAPI | 使用 `APIRouter` + `Depends` 依赖注入 |
-| 认证 | JWT + OAuth2 | 使用 `python-jose` + `passlib` |
+| 数据库模型 | GORM 2.0 | 使用 GORM tag + 嵌入 BaseModel |
+| API 路由 | Gin | 使用 `RouterGroup` + 中间件 |
+| 认证 | JWT | 使用 `golang-jwt/v5` |
 | 类型生成 | openapi-typescript | 从 OpenAPI 自动生成 TypeScript 类型 |
 | 状态管理 | Pinia | 使用 `defineStore` + Composition API |
 | 前端组件 | Vue3 SFC | 使用 `<script setup>` 语法 |
 
 ---
 
-**文档版本**：v4.0（完整特性 + Vue3 + FastAPI + SDD 模式）  
+**文档版本**：v4.0（完整特性 + Vue3 + Go + Gin 模式）  
 **创建日期**：2026-06-13  
-**参考来源**：https://docs.plane.so/  
-**参考代码**：D:\code\plane
+**所属项目**：reqmango

@@ -113,6 +113,21 @@ func (l *Lexer) readString(quote rune) Token {
 	var value strings.Builder
 	for l.position < len(l.input) {
 		char, size := utf8.DecodeRuneInString(l.input[l.position:])
+
+		// Handle backslash escape sequences
+		if char == '\\' {
+			l.position += size // consume backslash
+			if l.position < len(l.input) {
+				escapedChar, escapedSize := utf8.DecodeRuneInString(l.input[l.position:])
+				value.WriteRune(escapedChar)
+				l.position += escapedSize
+			} else {
+				// Trailing backslash — include it literally
+				value.WriteRune('\\')
+			}
+			continue
+		}
+
 		if char == quote {
 			l.position += size // skip closing quote
 			return Token{Type: TOKEN_STRING, Value: value.String(), Position: start}

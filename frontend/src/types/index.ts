@@ -81,14 +81,7 @@ export interface Project {
   updated_at: string
 }
 
-export interface ProjectCreate {
-  name: string
-  identifier: string
-  description?: string
-  is_public?: boolean
-  timezone?: string
-  default_assignee_id?: number
-}
+
 
 // Work Item Type
 export interface WorkItemType {
