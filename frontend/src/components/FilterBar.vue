@@ -681,7 +681,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="filter-bar border-b border-gray-200 bg-white">
+  <div class="filter-bar issue-filter-bar border-b border-gray-200 bg-white">
     <!-- 快速搜索（独立区域） -->
     <div class="px-4 py-2 border-b border-gray-100">
       <div class="relative max-w-xl">

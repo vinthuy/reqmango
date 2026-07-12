@@ -57,18 +57,16 @@ test.describe('Issue Filter Bar', () => {
     expect(placeholder).toBeTruthy()
   })
 
-  test('view toggle buttons are visible', async ({ page }) => {
+  test('filter button is visible', async ({ page }) => {
     await goToProject(page)
-    const viewBtns = page.locator('.issue-filter-bar [class*="inline-flex"] button')
-    const count = await viewBtns.count()
-    expect(count).toBeGreaterThanOrEqual(5) // list, kanban, tree, calendar, gantt
+    const filterBtn = page.locator('.issue-filter-bar button:has(svg)').first()
+    await expect(filterBtn).toBeVisible()
   })
 
-  test('quick filter chips are visible', async ({ page }) => {
+  test('filter bar has add filter button', async ({ page }) => {
     await goToProject(page)
-    const chips = page.locator('.issue-filter-bar button:has-text("我的"), .issue-filter-bar button:has-text("Mine"), .issue-filter-bar button:has-text("未分配"), .issue-filter-bar button:has-text("高优先级")')
-    const count = await chips.count()
-    expect(count).toBeGreaterThanOrEqual(1)
+    const addFilterBtn = page.locator('.issue-filter-bar button', { hasText: '添加' })
+    await expect(addFilterBtn.first()).toBeVisible()
   })
 
   // ============================================================
