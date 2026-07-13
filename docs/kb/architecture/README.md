@@ -128,3 +128,10 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 | 模块 | 说明 |
 |------|------|
 | Calendar/Gantt View | 日历/甘特图视图 |
+
+---
+
+## 🌐 语言
+
+- **中文** (本文档)
+- [English](README.en.md)

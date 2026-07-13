@@ -313,3 +313,10 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 | `AI_BASE_URL` | AI API 地址 | api.deepseek.com |
 | `DEBUG` | 调试模式 | false |
 | `LANGUAGE` | 默认语言 | zh |
+
+---
+
+## 🌐 语言
+
+- **中文** (本文档)
+- [English](backend-go.en.md)
