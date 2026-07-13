@@ -1,6 +1,6 @@
 # Data Model（数据模型总览）
 
-**最后更新**: 2026-07-04
+**最后更新**: 2026-07-13
 
 ---
 
@@ -106,7 +106,7 @@ User     1──N Notification
 | `states` | name, color, group, sequence, is_default, project_id | 工作项状态 (5 固定分组) |
 | `state_transitions` | source_state_id, target_state_id, workflow_id, rule_type, approver_ids, name, description, issue_type_id, is_auto, role_allowed, project_id, workspace_id | 状态流转规则 |
 | `labels` | name, color, project_id | 标签 |
-| `workflows` | name, description, project_id, issue_type_id | 工作流 |
+| `workflows` | name, description, project_id (nullable), issue_type_id, workspace_id | 工作流（支持工作空间级） |
 | `automation_rules` | name, trigger_type, conditions (text), actions (text), description, is_enabled, sequence, execution_count, project_id | 自动化规则 |
 
 ### 工作项 (7 表)
@@ -130,13 +130,14 @@ User     1──N Notification
 | `issue_type_templates` | name, color, icon, level, parent_type_id, workspace_id | 类型蓝图 (工作空间级) |
 | `issue_type_template_fields` | template_type_id, field_id, is_required | 蓝图-字段绑定 |
 
-### 自定义字段 (3 表)
+### 自定义字段 (4 表)
 
 | 表 | 关键字段 | 说明 |
 |----|----------|------|
 | `custom_fields` | name, field_type (text/number/dropdown/boolean/date/member/url), is_required, project_id, workspace_id | 自定义字段定义 |
 | `custom_field_options` | field_id, value, color, sequence | 下拉选项 |
 | `issue_custom_field_values` | issue_id, field_id, value | 工作项字段值 |
+| `project_custom_field_enrollments` | project_id, field_id, is_enabled | 项目级自定义字段启用状态 |
 
 ### 模板 (3 表)
 

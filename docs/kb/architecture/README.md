@@ -1,8 +1,8 @@
-﻿# Architecture Overview
+# Architecture Overview
 
 reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
-**最后更新**: 2026-07-03
+**最后更新**: 2026-07-13
 
 ---
 
@@ -109,6 +109,10 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 | Command Palette（⌘K） | ✅ | ✅ | 键盘快速导航 |
 | AI Settings（AI 配置） | ✅ | ✅ | Provider/Model/APIKey UI 配置 |
 | RBAC（权限角色） | ✅ | ✅ | 55 权限 + 3 默认角色 + 自定义角色管理 |
+| Quick Create（快速创建） | ✅ | ✅ | 行内快速创建工作项 |
+| Git Integration（Git 集成） | ✅ | ✅ | GitHub/GitLab 原生集成 + Webhook |
+| Project CustomField Enrollment | ✅ | ✅ | 项目级自定义字段启用/禁用 |
+| Workspace Workflow（工作空间工作流） | ✅ | ✅ | 工作空间级工作流 + 项目级覆盖 |
 
 ---
 
