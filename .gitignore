@@ -63,3 +63,6 @@ backend-go/uploads/
 
 # Private (do not distribute)
 .private/
+
+# Superpowers (temporary brainstorming files)
+.superpowers/
