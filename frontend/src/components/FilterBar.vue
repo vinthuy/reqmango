@@ -310,12 +310,15 @@ function handleOperatorChange(index: number, operator: string) {
   state.filters[index].operator = operator
   state.filters[index].value = ''
   state.filters[index].displayValue = ''
+  delete dateRangeValues.value[index]
 }
 
 function handleValueChange(index: number, value: any, displayValue: string) {
   state.filters[index].value = value
   state.filters[index].displayValue = displayValue
-  if (value !== '' && !Array.isArray(value) && value !== null && value !== undefined) {
+  const hasValidValue = value !== '' && value !== null && value !== undefined && 
+                        (!Array.isArray(value) || value.length > 0)
+  if (hasValidValue) {
     editingIndex.value = null
   }
 }

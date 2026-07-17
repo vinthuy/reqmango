@@ -50,6 +50,14 @@ function formatValue(value: any, valueType: 'string' | 'number' | 'date' | 'bool
   if (valueType === 'number' || valueType === 'boolean') {
     return String(value)
   }
+  if (valueType === 'string') {
+    if (/^\d+$/.test(String(value))) {
+      return String(value)
+    }
+    if (value === 'true' || value === 'false') {
+      return value
+    }
+  }
   return `"${value}"`
 }
 
@@ -93,7 +101,7 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
           .replace(/"/g, '\\"')
           .replace(/%/g, '\\%')
           .replace(/_/g, '\\_')
-        clauses.push(`(name LIKE "${escaped}" OR description LIKE "${escaped}")`)
+        clauses.push(`(name LIKE "%${escaped}%" OR description LIKE "%${escaped}%")`)
       }
     }
   }
@@ -106,8 +114,9 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
 
     // Skip filters with empty array values (all items deselected)
     if (Array.isArray(rawValue) && rawValue.length === 0) continue
-    // Skip filters with empty/null/undefined single values
-    if (rawValue === '' || rawValue === null || rawValue === undefined) continue
+    // Skip filters with empty/null/undefined single values, but not for "is empty"/"is not empty" operators
+    if ((rawValue === '' || rawValue === null || rawValue === undefined) && 
+        !['is empty', 'is not empty'].includes(operator)) continue
 
     // Resolve template variables in values
     const value = Array.isArray(rawValue) ? resolveArrayValue(rawValue) : resolveValue(rawValue)
@@ -135,12 +144,12 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
         break
       case 'contains': {
         const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
-        clause = `${dbKey} LIKE "${escaped}"`
+        clause = `${dbKey} LIKE "%${escaped}%"`
         break
       }
       case 'does not contain': {
         const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
-        clause = `${dbKey} NOT LIKE "${escaped}"`
+        clause = `${dbKey} NOT LIKE "%${escaped}%"`
         break
       }
       case 'is empty':
@@ -212,8 +221,9 @@ export function parseRQL(rqlStr: string): RQLResult {
       continue
     }
 
-    // Try BETWEEN: field >= "v1" AND field <= "v2"
-    const betweenMatch = trimmed.match(/^(\w+)\s+>=\s+"([^"]+)"\s+AND\s+\1\s+<=\s+"([^"]+)"$/i)
+    // Try BETWEEN: field >= "v1" AND field <= "v2" (supports both double and single quotes)
+    const betweenMatch = trimmed.match(/^(\w+)\s+>=\s+"([^"]+)"\s+AND\s+\1\s+<=\s+"([^"]+)"$/i) || 
+                         trimmed.match(/^(\w+)\s+>=\s+'([^']+)'\s+AND\s+\1\s+<=\s+'([^']+)'$/i)
     if (betweenMatch) {
       const field = betweenMatch[1]
       const from = betweenMatch[2]
@@ -227,8 +237,9 @@ export function parseRQL(rqlStr: string): RQLResult {
       continue
     }
 
-    // Try NOT BETWEEN: field < "v1" OR field > "v2"
-    const notBetweenMatch = trimmed.match(/^(\w+)\s+<\s+"([^"]+)"\s+OR\s+\1\s+>\s+"([^"]+)"$/i)
+    // Try NOT BETWEEN: field < "v1" OR field > "v2" (supports both double and single quotes)
+    const notBetweenMatch = trimmed.match(/^(\w+)\s+<\s+"([^"]+)"\s+OR\s+\1\s+>\s+"([^"]+)"$/i) ||
+                           trimmed.match(/^(\w+)\s+<\s+'([^']+)'\s+OR\s+\1\s+>\s+'([^']+)'$/i)
     if (notBetweenMatch) {
       const field = notBetweenMatch[1]
       const from = notBetweenMatch[2]
@@ -253,7 +264,8 @@ export function parseRQL(rqlStr: string): RQLResult {
       operator = likeMatch[2] === 'LIKE' ? 'contains' : 'does not contain'
       // Unescape RQL string escape sequences
       let rawValue = (likeMatch[3] || '').replace(/\\(.)/g, '$1')
-      value = rawValue
+      // Remove leading/trailing % wildcards (they are added by buildRQL)
+      value = rawValue.replace(/^%/, '').replace(/%$/, '')
       displayValue = value
       conditions.push({ field, operator, value, displayValue })
       continue

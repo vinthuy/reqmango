@@ -3,6 +3,7 @@
  * 覆盖：CRUD 筛选条件、排序、分组、快速搜索、搜索历史、RQL 双向同步
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 import { useFilters, type FiltersContext } from './useFilters'
 
 // Mock localStorage
@@ -20,8 +21,9 @@ describe('useFilters', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     storage.clear()
+    const pinia = createPinia()
+    setActivePinia(pinia)
     ctx = useFilters()
-    // Reset to initial state
     ctx.clearAll()
   })
 

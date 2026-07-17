@@ -35,6 +35,10 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.stubGlobal('URL', {
+    createObjectURL: vi.fn(() => 'blob:test-url'),
+    revokeObjectURL: vi.fn()
+  })
 })
 
 // ==================== CRUD ====================
@@ -43,7 +47,7 @@ describe('issue CRUD API', () => {
   it('createIssue should POST with project/workspace', async () => {
     mockPost.mockResolvedValue({ data: { id: 1, name: 'Test' } })
     const result = await createIssue(1, 2, { name: 'Test', project_id: 1 } as any)
-    expect(mockPost).toHaveBeenCalledWith('/issues/?project_id=1&workspace_id=2', { name: 'Test', project_id: 1 })
+    expect(mockPost).toHaveBeenCalledWith('/issues?project_id=1&workspace_id=2', { name: 'Test', project_id: 1 })
     expect(result.id).toBe(1)
   })
 

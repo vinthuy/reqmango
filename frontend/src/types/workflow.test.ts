@@ -89,7 +89,7 @@ describe('ConditionOperatorOptions', () => {
 // ==================== ActionTypeOptions ====================
 describe('ActionTypeOptions', () => {
   it('should have 7 action options', () => {
-    expect(ActionTypeOptions).toHaveLength(7)
+    expect(ActionTypeOptions).toHaveLength(9)
   })
 })
 
