@@ -6,26 +6,25 @@ import (
 	"fmt"
 	"time"
 
-	agentloop "github.com/reqmango/backend/internal/agent/loop"
-	agentmodel "github.com/reqmango/backend/internal/agent/model"
-	"github.com/reqmango/backend/internal/common"
-	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/agent-service/internal/client"
+	"github.com/reqmango/agent-service/internal/common"
+	loopeng "github.com/reqmango/agent-service/internal/loop"
+	"github.com/reqmango/agent-service/internal/model"
 	"gorm.io/gorm"
 )
 
 // LoopService manages Loop CRUD and execution.
 type LoopService struct {
-	db       *gorm.DB
-	agentSvc *AgentService
+	db          *gorm.DB
+	agentClient *client.AgentClient
 }
 
-func NewLoopService(db *gorm.DB, agentSvc *AgentService) *LoopService {
-	return &LoopService{db: db, agentSvc: agentSvc}
+func NewLoopService(db *gorm.DB, agentClient *client.AgentClient) *LoopService {
+	return &LoopService{db: db, agentClient: agentClient}
 }
 
-// CreateLoop persists a new Loop definition.
-func (s *LoopService) CreateLoop(workspaceID, userID uint64, name, description string, loopDef json.RawMessage) (*agentmodel.Loop, error) {
-	loop := &agentmodel.Loop{
+func (s *LoopService) CreateLoop(workspaceID, userID uint64, name, description string, loopDef json.RawMessage) (*model.Loop, error) {
+	loop := &model.Loop{
 		WorkspaceID: workspaceID,
 		Name:        name,
 		LoopDef:     loopDef,
@@ -41,9 +40,8 @@ func (s *LoopService) CreateLoop(workspaceID, userID uint64, name, description s
 	return loop, nil
 }
 
-// ListLoops returns all active Loops for a workspace.
-func (s *LoopService) ListLoops(workspaceID uint64) ([]agentmodel.Loop, error) {
-	var loops []agentmodel.Loop
+func (s *LoopService) ListLoops(workspaceID uint64) ([]model.Loop, error) {
+	var loops []model.Loop
 	if err := s.db.Where("workspace_id = ? AND status != ?", workspaceID, "archived").
 		Order("created_at DESC").Find(&loops).Error; err != nil {
 		return nil, common.Internal(fmt.Sprintf("failed to list loops: %v", err))
@@ -51,9 +49,8 @@ func (s *LoopService) ListLoops(workspaceID uint64) ([]agentmodel.Loop, error) {
 	return loops, nil
 }
 
-// GetLoop retrieves a single Loop by ID.
-func (s *LoopService) GetLoop(workspaceID, loopID uint64) (*agentmodel.Loop, error) {
-	var loop agentmodel.Loop
+func (s *LoopService) GetLoop(workspaceID, loopID uint64) (*model.Loop, error) {
+	var loop model.Loop
 	if err := s.db.Where("id = ? AND workspace_id = ?", loopID, workspaceID).First(&loop).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, common.NotFound("loop not found")
@@ -63,8 +60,7 @@ func (s *LoopService) GetLoop(workspaceID, loopID uint64) (*agentmodel.Loop, err
 	return &loop, nil
 }
 
-// UpdateLoop updates a Loop definition.
-func (s *LoopService) UpdateLoop(workspaceID, loopID uint64, name, description *string, loopDef json.RawMessage, status *string) (*agentmodel.Loop, error) {
+func (s *LoopService) UpdateLoop(workspaceID, loopID uint64, name, description *string, loopDef json.RawMessage, status *string) (*model.Loop, error) {
 	loop, err := s.GetLoop(workspaceID, loopID)
 	if err != nil {
 		return nil, err
@@ -87,9 +83,8 @@ func (s *LoopService) UpdateLoop(workspaceID, loopID uint64, name, description *
 	return loop, nil
 }
 
-// DeleteLoop soft-deletes a Loop.
 func (s *LoopService) DeleteLoop(workspaceID, loopID uint64) error {
-	result := s.db.Where("id = ? AND workspace_id = ?", loopID, workspaceID).Delete(&agentmodel.Loop{})
+	result := s.db.Where("id = ? AND workspace_id = ?", loopID, workspaceID).Delete(&model.Loop{})
 	if result.RowsAffected == 0 {
 		return common.NotFound("loop not found")
 	}
@@ -97,7 +92,7 @@ func (s *LoopService) DeleteLoop(workspaceID, loopID uint64) error {
 }
 
 // StartLoop creates a LoopRun and starts execution in a background goroutine.
-func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64) (*agentmodel.LoopRun, error) {
+func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64, authToken string) (*model.LoopRun, error) {
 	loop, err := s.GetLoop(workspaceID, loopID)
 	if err != nil {
 		return nil, err
@@ -113,7 +108,6 @@ func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64) (*age
 	if err := json.Unmarshal(loop.LoopDef, &def); err != nil {
 		return nil, common.Validation("invalid loop definition")
 	}
-
 	if def.MaxIterations == 0 {
 		def.MaxIterations = 10
 	}
@@ -124,7 +118,7 @@ func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64) (*age
 		def.MaxDurationSec = 3600
 	}
 
-	run := &agentmodel.LoopRun{
+	run := &model.LoopRun{
 		LoopID:        loopID,
 		Status:        "running",
 		MaxIterations: def.MaxIterations,
@@ -136,47 +130,39 @@ func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64) (*age
 		return nil, common.Internal(fmt.Sprintf("failed to create loop run: %v", err))
 	}
 
-	executor := &loopAgentExecutor{
-		agentSvc:    s.agentSvc,
-		workspaceID: workspaceID,
-		userID:      userID,
-	}
-	collector := &loopMetricsCollector{db: s.db, workspaceID: workspaceID}
-	evaluator := &loopGoalEvaluator{}
+	executor := &agentExecutorAdapter{client: s.agentClient, workspaceID: workspaceID, userID: userID, token: authToken}
+	collector := &metricsCollector{db: s.db, workspaceID: workspaceID}
+	evaluator := &goalEvaluator{}
 
-	config := agentloop.LoopConfig{
+	config := loopeng.LoopConfig{
 		Goal:          def.Goal,
 		MaxIterations: def.MaxIterations,
 		MaxTokens:     def.MaxTokens,
 		MaxCost:       def.MaxCost,
 		MaxDuration:   time.Duration(def.MaxDurationSec) * time.Second,
 	}
-
-	runner := agentloop.NewLoopRunner(s.db, executor, collector, evaluator, config)
+	runner := loopeng.NewLoopRunner(s.db, executor, collector, evaluator, config)
 
 	go func() {
 		ctx := context.Background()
 		iterations, stopReason, runErr := runner.Run(ctx)
-
 		now := time.Now()
 		run.CompletedAt = &now
 		run.StoppedReason = &stopReason
 		run.TokensUsed = runner.Budget().UsedTokens
 		run.CostUSD = runner.Budget().UsedCost
-
 		if runErr != nil || (stopReason != "goal_achieved" && stopReason != "cancelled") {
 			run.Status = "failed"
 		} else {
 			run.Status = "completed"
 		}
 		s.db.Save(run)
-
 		for _, iter := range iterations {
 			actionJSON, _ := json.Marshal(map[string]string{"task": iter.Action, "result": iter.Result})
 			resultJSON, _ := json.Marshal(iter.Metrics)
 			reasoning := iter.Reasoning
 			dur := iter.DurationMs
-			iteration := &agentmodel.LoopIteration{
+			s.db.Create(&model.LoopIteration{
 				LoopRunID:      run.ID,
 				IterationNum:   iter.Num,
 				ActionTaken:    actionJSON,
@@ -185,78 +171,47 @@ func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64) (*age
 				Decision:       string(iter.Decision),
 				TokensUsed:     iter.TokensUsed,
 				DurationMs:     &dur,
-			}
-			s.db.Create(iteration)
+			})
 		}
-
 		s.recordSession(workspaceID, runner.SessionID(), stopReason, runner.Budget().UsedTokens, runner.Budget().UsedCost, runErr)
 	}()
 
 	return run, nil
 }
 
-// StopLoop marks a running LoopRun as stopped.
 func (s *LoopService) StopLoop(workspaceID, runID uint64) error {
 	reason := "manual"
 	now := time.Now()
-	result := s.db.Model(&agentmodel.LoopRun{}).
-		Where("id = ? AND status = ?", runID, "running").
-		Updates(map[string]interface{}{
-			"status":         "stopped",
-			"stopped_reason": &reason,
-			"completed_at":   &now,
-		})
+	result := s.db.Model(&model.LoopRun{}).Where("id = ? AND status = ?", runID, "running").
+		Updates(map[string]interface{}{"status": "stopped", "stopped_reason": &reason, "completed_at": &now})
 	if result.RowsAffected == 0 {
 		return common.NotFound("loop run not found or not running")
 	}
 	return result.Error
 }
 
-// GetLoopRuns returns run history for a Loop.
-func (s *LoopService) GetLoopRuns(workspaceID, loopID uint64, limit int) ([]agentmodel.LoopRun, error) {
+func (s *LoopService) GetLoopRuns(workspaceID, loopID uint64, limit int) ([]model.LoopRun, error) {
 	if limit == 0 {
 		limit = 20
 	}
-	var runs []agentmodel.LoopRun
-	if err := s.db.Where("loop_id = ?", loopID).
-		Order("started_at DESC").Limit(limit).Find(&runs).Error; err != nil {
+	var runs []model.LoopRun
+	if err := s.db.Where("loop_id = ?", loopID).Order("started_at DESC").Limit(limit).Find(&runs).Error; err != nil {
 		return nil, common.Internal(fmt.Sprintf("failed to get loop runs: %v", err))
 	}
 	return runs, nil
 }
 
-// GetLoopRun retrieves a single run with its iterations.
-func (s *LoopService) GetLoopRun(workspaceID, runID uint64) (*agentmodel.LoopRun, []agentmodel.LoopIteration, error) {
-	var run agentmodel.LoopRun
+func (s *LoopService) GetLoopRun(workspaceID, runID uint64) (*model.LoopRun, []model.LoopIteration, error) {
+	var run model.LoopRun
 	if err := s.db.Where("id = ?", runID).First(&run).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil, common.NotFound("loop run not found")
 		}
 		return nil, nil, err
 	}
-	var iterations []agentmodel.LoopIteration
+	var iterations []model.LoopIteration
 	s.db.Where("loop_run_id = ?", runID).Order("iteration_num ASC").Find(&iterations)
 	return &run, iterations, nil
-}
-
-// SeedSprintGuardianLoop creates a default "Sprint Guardian" loop for a workspace if one doesn't already exist.
-func (s *LoopService) SeedSprintGuardianLoop(workspaceID, userID uint64) error {
-	var count int64
-	s.db.Model(&agentmodel.Loop{}).Where("workspace_id = ? AND name = ?", workspaceID, "Sprint Guardian").Count(&count)
-	if count > 0 {
-		return nil
-	}
-
-	loopDef := json.RawMessage(`{
-		"goal": "Monitor sprint progress and ensure issues are completed on time",
-		"max_iterations": 100,
-		"max_tokens": 50000,
-		"max_cost": 0,
-		"max_duration_sec": 3600
-	}`)
-
-	_, err := s.CreateLoop(workspaceID, userID, "Sprint Guardian", "Monitors sprint health and automates routine sprint management tasks", loopDef)
-	return err
 }
 
 func (s *LoopService) recordSession(workspaceID uint64, sessionID, reason string, tokens int, cost float64, runErr error) {
@@ -269,7 +224,7 @@ func (s *LoopService) recordSession(workspaceID uint64, sessionID, reason string
 	}
 	now := time.Now()
 	summary := fmt.Sprintf("Loop run completed: %s", reason)
-	session := &agentmodel.AgentSession{
+	s.db.Create(&model.AgentSession{
 		ID:            sessionID,
 		WorkspaceID:   workspaceID,
 		AgentType:     "loop_iteration",
@@ -282,69 +237,55 @@ func (s *LoopService) recordSession(workspaceID uint64, sessionID, reason string
 		ErrorMessage:  errMsg,
 		StartedAt:     time.Now().Add(-1 * time.Minute),
 		CompletedAt:   &now,
-	}
-	s.db.Create(session)
+	})
 }
 
 // --- Internal adapters ---
 
-type loopAgentExecutor struct {
-	agentSvc    *AgentService
+type agentExecutorAdapter struct {
+	client      *client.AgentClient
 	workspaceID uint64
 	userID      uint64
+	token       string
 }
 
-func (e *loopAgentExecutor) Execute(ctx context.Context, task string, context map[string]interface{}) (string, int, float64, error) {
-	agents, err := e.agentSvc.ListByWorkspace(e.workspaceID)
+func (e *agentExecutorAdapter) Execute(ctx context.Context, task string, context map[string]interface{}) (string, int, float64, error) {
+	agents, err := e.client.ListByWorkspace(e.workspaceID, e.token)
 	if err != nil || len(agents) == 0 {
 		return "", 0, 0, fmt.Errorf("no agents available: %w", err)
 	}
-
-	var runner *model.Agent
-	for i := range agents {
-		if agents[i].Status == "active" {
-			runner = &agents[i]
+	var agentID uint64
+	for _, a := range agents {
+		if a.Status == "active" {
+			agentID = a.ID
 			break
 		}
 	}
-	if runner == nil {
+	if agentID == 0 {
 		return "", 0, 0, fmt.Errorf("no active agent found")
 	}
-
-	var issueIDPtr *uint64
-	if issueID, ok := context["issue_id"].(uint64); ok {
-		issueIDPtr = &issueID
+	var issueIDPtr, projectIDPtr *uint64
+	if id, ok := context["issue_id"].(uint64); ok {
+		issueIDPtr = &id
 	}
-	var projectIDPtr *uint64
-	if projectID, ok := context["project_id"].(uint64); ok {
-		projectIDPtr = &projectID
+	if id, ok := context["project_id"].(uint64); ok {
+		projectIDPtr = &id
 	}
-
-	dispCtx := &DispatchContext{
-		IssueID:     issueIDPtr,
-		ProjectID:   projectIDPtr,
-		WorkspaceID: e.workspaceID,
-		TriggeredBy: "loop",
-	}
-
-	activity, err := e.agentSvc.DispatchAgent(runner.ID, e.userID, task, dispCtx)
+	result, err := e.client.DispatchAgent(e.workspaceID, agentID, e.userID, task, issueIDPtr, projectIDPtr, e.token)
 	if err != nil {
 		return "", 0, 0, err
 	}
-
-	result := activity.ResultSummary
 	tokens := 500
 	cost := float64(tokens) * 0.000002
-
-	return result, tokens, cost, nil
+	return result.ResultSummary, tokens, cost, nil
 }
 
-type loopMetricsCollector struct {
+type metricsCollector struct {
 	db          *gorm.DB
 	workspaceID uint64
 }
 
-func (c *loopMetricsCollector) Collect(ctx context.Context, context map[string]interface{}) (map[string]float64, error) {
+func (c *metricsCollector) Collect(ctx context.Context, context map[string]interface{}) (map[string]float64, error) {
 	metrics := make(map[string]float64)
 	if cycleID, ok := context["cycle_id"]; ok {
 		var total, completed int64
@@ -359,9 +300,9 @@ func (c *loopMetricsCollector) Collect(ctx context.Context, context map[string]i
 	return metrics, nil
 }
 
-type loopGoalEvaluator struct{}
+type goalEvaluator struct{}
 
-func (e *loopGoalEvaluator) Evaluate(goal string, metrics map[string]float64) (bool, string) {
+func (e *goalEvaluator) Evaluate(goal string, metrics map[string]float64) (bool, string) {
 	if progress, ok := metrics["progress"]; ok {
 		if progress >= 0.9 {
 			return true, fmt.Sprintf("progress %.1f%% meets 90%% target", progress*100)

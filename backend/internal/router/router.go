@@ -1,11 +1,10 @@
 package router
 
 import (
-	"log"
-	"strconv"
+	"net/http/httputil"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
-	"github.com/reqmango/backend/internal/agent/registry"
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/handler"
 	"github.com/reqmango/backend/internal/middleware"
@@ -65,7 +64,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	automationSvc.SetAgentService(agentSvc) // break circular dependency: automation -> agent -> issue -> automation
 	commentSvc.SetAgentService(agentSvc)    // enable @agent-name mention handling in comments
 	commentSvc.SetAutomationService(automationSvc) // enable comment_added automation trigger
-	loopSvc := service.NewLoopService(db, agentSvc)
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
 	roleSvc := service.NewRoleService(db)
@@ -111,10 +109,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	roleH := handler.NewRoleHandler(roleSvc, db)
 	fieldPermH := handler.NewFieldPermissionHandler(fieldPermSvc)
 	pluginH := handler.NewPluginHandler(pluginSvc)
-	loopH := handler.NewAgentLoopHandler(loopSvc)
-	sessionH := handler.NewAgentSessionHandler(db)
-	reg := registry.NewRegistry(db)
-	pipelineH := handler.NewAgentPipelineHandler(db, reg)
 	automationH := handler.NewAutomationHandler(automationSvc, db)
 	gitIntegrationH := handler.NewGitIntegrationHandler(gitSvc)
 	gitWebhookH := handler.NewGitWebhookHandler(gitSvc)
@@ -188,36 +182,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/agents/:id/auto-assign", agentH.AutoAssign)
 
 			// Agent Loops
-			workspaces.GET("/:wsParam/loops", loopH.List)
-			workspaces.POST("/:wsParam/loops", loopH.Create)
-			workspaces.GET("/:wsParam/loops/:id", loopH.Get)
-			workspaces.PUT("/:wsParam/loops/:id", loopH.Update)
-			workspaces.DELETE("/:wsParam/loops/:id", loopH.Delete)
-			workspaces.POST("/:wsParam/loops/:id/start", loopH.Start)
-			workspaces.GET("/:wsParam/loops/:id/runs", loopH.GetRuns)
-			workspaces.POST("/:wsParam/loops/runs/:runId/stop", loopH.Stop)
-			workspaces.GET("/:wsParam/loops/runs/:runId", loopH.GetRun)
-
-			// Agent Pipelines
-			workspaces.GET("/:wsParam/pipelines", pipelineH.List)
-			workspaces.POST("/:wsParam/pipelines", pipelineH.Create)
-			workspaces.GET("/:wsParam/pipelines/:id", pipelineH.Get)
-			workspaces.PUT("/:wsParam/pipelines/:id", pipelineH.Update)
-			workspaces.DELETE("/:wsParam/pipelines/:id", pipelineH.Delete)
-			workspaces.POST("/:wsParam/pipelines/:id/run", pipelineH.Run)
-			workspaces.GET("/:wsParam/pipelines/:id/runs", pipelineH.GetRuns)
-			workspaces.GET("/:wsParam/pipelines/runs/:runId", pipelineH.GetRun)
-
-			// Agent Registry
-			workspaces.GET("/:wsParam/agents/registry", func(c *gin.Context) {
-				wsID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
-				entries, _ := reg.ListByWorkspace(wsID)
-				c.JSON(200, entries)
-			})
-
-			// Agent Sessions
-			workspaces.GET("/:wsParam/agent-sessions", sessionH.List)
-			workspaces.GET("/:wsParam/agent-sessions/:sessionId", sessionH.Get)
+				// Agent Service Reverse Proxy — forwards to agent-service:8001
+				agentProxy := reverseProxy(cfg.AgentServiceURL)
+				workspaces.Any("/:wsParam/loops/*path", agentProxy)
+				workspaces.Any("/:wsParam/pipelines/*path", agentProxy)
+				workspaces.Any("/:wsParam/agent-sessions/*path", agentProxy)
+				workspaces.Any("/:wsParam/agents/registry/*path", agentProxy)
 
 			// MCP Server
 			workspaces.GET("/:wsParam/mcp", mcpH.List)
@@ -841,5 +811,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		if err := loopSvc.SeedSprintGuardianLoop(ws.ID, 1); err != nil {
 			log.Printf("[Seed] Sprint Guardian loop for workspace %d: %v", ws.ID, err)
 		}
+
+// reverseProxy creates a Gin handler that proxies requests to the agent service.
+func reverseProxy(targetURL string) gin.HandlerFunc {
+	target, _ := url.Parse(targetURL)
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	return func(c *gin.Context) {
+		// Preserve the original path including /api/v1/workspaces/:wsParam/... prefix
+		c.Request.URL.Host = target.Host
+		c.Request.URL.Scheme = target.Scheme
+		c.Request.URL.Path = c.Request.URL.Path
+		c.Request.Header.Set("X-Forwarded-Host", c.Request.Host)
+		proxy.ServeHTTP(c.Writer, c.Request)
 	}
 }

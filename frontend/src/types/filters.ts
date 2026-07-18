@@ -121,11 +121,11 @@ function buildNodeRQL(node: FilterNode, currentUserId?: number | null): string {
         return `${dbKey} NOT IN (${formattedNotAnyOf})`
       }
       case 'contains': {
-        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
+        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
         return `${dbKey} LIKE "%${escaped}%"`
       }
       case 'does not contain': {
-        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
+        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
         return `${dbKey} NOT LIKE "%${escaped}%"`
       }
       case 'is empty':
@@ -190,8 +190,6 @@ export function buildRQL(filtersOrGroups: FilterCondition[] | FilterGroup[], qui
         const escaped = qs
           .replace(/\\/g, '\\\\')
           .replace(/"/g, '\\"')
-          .replace(/%/g, '\\%')
-          .replace(/_/g, '\\_')
         clauses.push(`(name LIKE "%${escaped}%" OR description LIKE "%${escaped}%")`)
       }
     }
