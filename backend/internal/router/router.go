@@ -272,13 +272,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PUT("/:wsParam/settings/states/:stateId", settingsH.UpdateWorkspaceState)
 			workspaces.DELETE("/:wsParam/settings/states/:stateId", settingsH.DeleteWorkspaceState)
 
-			// Workspace-level Settings: Labels
-			workspaces.GET("/:wsParam/settings/labels", settingsH.ListWorkspaceLabels)
-			workspaces.POST("/:wsParam/settings/labels", settingsH.CreateWorkspaceLabel)
-			workspaces.GET("/:wsParam/settings/labels/:labelId", settingsH.GetWorkspaceLabel)
-			workspaces.PUT("/:wsParam/settings/labels/:labelId", settingsH.UpdateWorkspaceLabel)
-			workspaces.DELETE("/:wsParam/settings/labels/:labelId", settingsH.DeleteWorkspaceLabel)
-
 			// Workspace-level Modules
 			workspaces.GET("/:wsParam/modules", moduleH.ListWorkspaceModules)
 			workspaces.POST("/:wsParam/modules", moduleH.CreateWorkspaceModule)
