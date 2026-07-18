@@ -239,6 +239,26 @@ func (s *LoopService) GetLoopRun(workspaceID, runID uint64) (*agentmodel.LoopRun
 	return &run, iterations, nil
 }
 
+// SeedSprintGuardianLoop creates a default "Sprint Guardian" loop for a workspace if one doesn't already exist.
+func (s *LoopService) SeedSprintGuardianLoop(workspaceID, userID uint64) error {
+	var count int64
+	s.db.Model(&agentmodel.Loop{}).Where("workspace_id = ? AND name = ?", workspaceID, "Sprint Guardian").Count(&count)
+	if count > 0 {
+		return nil
+	}
+
+	loopDef := json.RawMessage(`{
+		"goal": "Monitor sprint progress and ensure issues are completed on time",
+		"max_iterations": 100,
+		"max_tokens": 50000,
+		"max_cost": 0,
+		"max_duration_sec": 3600
+	}`)
+
+	_, err := s.CreateLoop(workspaceID, userID, "Sprint Guardian", "Monitors sprint health and automates routine sprint management tasks", loopDef)
+	return err
+}
+
 func (s *LoopService) recordSession(workspaceID uint64, sessionID, reason string, tokens int, cost float64, runErr error) {
 	status := "completed"
 	var errMsg *string

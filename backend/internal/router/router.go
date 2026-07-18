@@ -1,6 +1,8 @@
 package router
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/handler"
@@ -60,6 +62,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
 	automationSvc.SetAgentService(agentSvc) // break circular dependency: automation -> agent -> issue -> automation
 	commentSvc.SetAgentService(agentSvc)    // enable @agent-name mention handling in comments
+	loopSvc := service.NewLoopService(db, agentSvc)
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
 	roleSvc := service.NewRoleService(db)
@@ -105,6 +108,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	roleH := handler.NewRoleHandler(roleSvc, db)
 	fieldPermH := handler.NewFieldPermissionHandler(fieldPermSvc)
 	pluginH := handler.NewPluginHandler(pluginSvc)
+	loopH := handler.NewAgentLoopHandler(loopSvc)
+	sessionH := handler.NewAgentSessionHandler(db)
 	automationH := handler.NewAutomationHandler(automationSvc, db)
 	gitIntegrationH := handler.NewGitIntegrationHandler(gitSvc)
 	gitWebhookH := handler.NewGitWebhookHandler(gitSvc)
@@ -176,6 +181,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/agents/:id/activity", agentH.GetActivity)
 			workspaces.POST("/:wsParam/agents/:id/auto-triage", agentH.AutoTriage)
 			workspaces.POST("/:wsParam/agents/:id/auto-assign", agentH.AutoAssign)
+
+			// Agent Loops
+			workspaces.GET("/:wsParam/loops", loopH.List)
+			workspaces.POST("/:wsParam/loops", loopH.Create)
+			workspaces.GET("/:wsParam/loops/:id", loopH.Get)
+			workspaces.PUT("/:wsParam/loops/:id", loopH.Update)
+			workspaces.DELETE("/:wsParam/loops/:id", loopH.Delete)
+			workspaces.POST("/:wsParam/loops/:id/start", loopH.Start)
+			workspaces.GET("/:wsParam/loops/:id/runs", loopH.GetRuns)
+			workspaces.POST("/:wsParam/loops/runs/:runId/stop", loopH.Stop)
+			workspaces.GET("/:wsParam/loops/runs/:runId", loopH.GetRun)
+
+			// Agent Sessions
+			workspaces.GET("/:wsParam/agent-sessions", sessionH.List)
+			workspaces.GET("/:wsParam/agent-sessions/:sessionId", sessionH.Get)
 
 			// MCP Server
 			workspaces.GET("/:wsParam/mcp", mcpH.List)
@@ -790,6 +810,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			notifications.PATCH("/:id/read", notificationH.MarkRead)
 			notifications.POST("/read-all", notificationH.MarkAllRead)
 			notifications.DELETE("/:id", notificationH.Delete)
+		}
+	}
+
+	// Seed Sprint Guardian loop for all workspaces
+	workspaces, _ := workspaceSvc.List()
+	for _, ws := range workspaces {
+		if err := loopSvc.SeedSprintGuardianLoop(ws.ID, 1); err != nil {
+			log.Printf("[Seed] Sprint Guardian loop for workspace %d: %v", ws.ID, err)
 		}
 	}
 }

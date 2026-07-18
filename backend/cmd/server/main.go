@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	agentmodel "github.com/reqmango/backend/internal/agent/model"
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
@@ -102,6 +103,10 @@ func main() {
 		&model.PluginEventLog{},
 		&model.GitIntegration{},
 		&model.GitIssueLink{},
+		&agentmodel.Loop{},
+		&agentmodel.LoopRun{},
+		&agentmodel.LoopIteration{},
+		&agentmodel.AgentSession{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
