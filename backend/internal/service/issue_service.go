@@ -53,6 +53,30 @@ func (s *IssueService) DB() *gorm.DB {
 	return s.db
 }
 
+// validateLabelsBelongToProject returns 400 if any label ID does not belong to the project.
+func validateLabelsBelongToProject(db *gorm.DB, labelIDs []uint64, projectID uint64) error {
+	if len(labelIDs) == 0 {
+		return nil
+	}
+	// Deduplicate to handle potential duplicates in the input
+	uniqueIDs := make([]uint64, 0, len(labelIDs))
+	seen := make(map[uint64]struct{}, len(labelIDs))
+	for _, id := range labelIDs {
+		if _, ok := seen[id]; !ok {
+			uniqueIDs = append(uniqueIDs, id)
+			seen[id] = struct{}{}
+		}
+	}
+	var count int64
+	if err := db.Model(&model.Label{}).Where("id IN ? AND project_id = ?", uniqueIDs, projectID).Count(&count).Error; err != nil {
+		return common.Internal("Failed to validate labels")
+	}
+	if count != int64(len(uniqueIDs)) {
+		return common.BadRequest("Label does not belong to this project")
+	}
+	return nil
+}
+
 // Create creates a new issue.
 func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, workspaceID, userID uint64) (*response.IssueResponse, error) {
 	// Validate project exists
@@ -181,6 +205,11 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		if count == 0 {
 			return nil, common.BadRequest(fmt.Sprintf("User %d is not a member of this project", assigneeID))
 		}
+	}
+
+	// Validate labels belong to this project
+	if err := validateLabelsBelongToProject(s.db, req.LabelIDs, projectID); err != nil {
+		return nil, err
 	}
 
 	tx := s.db.Begin()
@@ -685,6 +714,11 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	// Handle labels
 	if req.LabelIDs != nil {
+		// Validate labels belong to this issue's project
+		if err := validateLabelsBelongToProject(tx, req.LabelIDs, issue.ProjectID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
 		tx.Where("issue_id = ?", issueID).Delete(&model.IssueLabel{})
 		for _, lid := range req.LabelIDs {
 			tx.Create(&model.IssueLabel{IssueID: issueID, LabelID: lid})
@@ -1282,6 +1316,11 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 	}
 
 	if req.LabelIDs != nil {
+		// Validate labels belong to this project
+		if err := validateLabelsBelongToProject(tx, req.LabelIDs, projectID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
 		tx.Where("issue_id IN ?", req.IssueIDs).Delete(&model.IssueLabel{})
 		for _, issueID := range req.IssueIDs {
 			for _, lid := range req.LabelIDs {
@@ -2468,8 +2507,23 @@ func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) (*r
 			tx.Create(&model.IssueAssignee{IssueID: copiedIssue.ID, UserID: assignee.UserID})
 		}
 
-		for _, label := range issue.LabelLinks {
-			tx.Create(&model.IssueLabel{IssueID: copiedIssue.ID, LabelID: label.LabelID})
+		// Only copy labels belonging to the target project
+		if len(issue.LabelLinks) > 0 {
+			ids := make([]uint64, len(issue.LabelLinks))
+			for i, l := range issue.LabelLinks {
+				ids[i] = l.LabelID
+			}
+			var validIDs []uint64
+			tx.Model(&model.Label{}).Where("id IN ? AND project_id = ?", ids, req.TargetProjectID).Pluck("id", &validIDs)
+			validSet := make(map[uint64]bool, len(validIDs))
+			for _, id := range validIDs {
+				validSet[id] = true
+			}
+			for _, label := range issue.LabelLinks {
+				if validSet[label.LabelID] {
+					tx.Create(&model.IssueLabel{IssueID: copiedIssue.ID, LabelID: label.LabelID})
+				}
+			}
 		}
 
 		if req.IncludeSubtasks {
@@ -2532,8 +2586,23 @@ func (s *IssueService) copySubtasks(tx *gorm.DB, sourceParentID, targetParentID,
 			tx.Create(&model.IssueAssignee{IssueID: copiedSubtask.ID, UserID: assignee.UserID})
 		}
 
-		for _, label := range subtask.LabelLinks {
-			tx.Create(&model.IssueLabel{IssueID: copiedSubtask.ID, LabelID: label.LabelID})
+		// Only copy labels belonging to the target project
+		if len(subtask.LabelLinks) > 0 {
+			ids := make([]uint64, len(subtask.LabelLinks))
+			for i, l := range subtask.LabelLinks {
+				ids[i] = l.LabelID
+			}
+			var validIDs []uint64
+			tx.Model(&model.Label{}).Where("id IN ? AND project_id = ?", ids, targetProjectID).Pluck("id", &validIDs)
+			validSet := make(map[uint64]bool, len(validIDs))
+			for _, id := range validIDs {
+				validSet[id] = true
+			}
+			for _, label := range subtask.LabelLinks {
+				if validSet[label.LabelID] {
+					tx.Create(&model.IssueLabel{IssueID: copiedSubtask.ID, LabelID: label.LabelID})
+				}
+			}
 		}
 
 		s.copySubtasks(tx, subtask.ID, copiedSubtask.ID, targetProjectID, workspaceID)
@@ -2577,6 +2646,11 @@ func (s *IssueService) BulkMove(req *request.BulkMoveRequest, userID uint64) (*r
 			s.moveSubtasks(tx, issue.ID, req.TargetProjectID, targetProject.WorkspaceID)
 		}
 
+		// When moving to a different project, delete stale label links
+		if sourceProjectID != req.TargetProjectID {
+			tx.Exec("DELETE FROM issue_labels WHERE issue_id = ? AND label_id IN (SELECT id FROM labels WHERE project_id <> ?)", issue.ID, req.TargetProjectID)
+		}
+
 		resp, _ := s.buildResponse(issue.ID)
 		if resp != nil {
 			results = append(results, *resp)
@@ -2610,6 +2684,9 @@ func (s *IssueService) moveSubtasks(tx *gorm.DB, parentID, targetProjectID, work
 			"project_id":   targetProjectID,
 			"workspace_id": workspaceID,
 		})
+
+		// Delete stale label links that don't belong to the target project
+		tx.Exec("DELETE FROM issue_labels WHERE issue_id = ? AND label_id IN (SELECT id FROM labels WHERE project_id <> ?)", subtask.ID, targetProjectID)
 
 		s.moveSubtasks(tx, subtask.ID, targetProjectID, workspaceID)
 	}
@@ -2939,8 +3016,26 @@ func (s *IssueService) MergeDuplicates(req *request.MergeDuplicatesRequest, user
 	tx := s.db.Begin()
 
 	if req.KeepSourceLabels {
+		// Determine which source label IDs belong to the target issue's project
+		validLabelIDs := make(map[uint64]bool)
+		var allSourceLabelIDs []uint64
 		for _, source := range sourceIssues {
 			for _, labelLink := range source.LabelLinks {
+				allSourceLabelIDs = append(allSourceLabelIDs, labelLink.LabelID)
+			}
+		}
+		if len(allSourceLabelIDs) > 0 {
+			var valid []uint64
+			tx.Model(&model.Label{}).Where("id IN ? AND project_id = ?", allSourceLabelIDs, targetIssue.ProjectID).Pluck("id", &valid)
+			for _, id := range valid {
+				validLabelIDs[id] = true
+			}
+		}
+		for _, source := range sourceIssues {
+			for _, labelLink := range source.LabelLinks {
+				if !validLabelIDs[labelLink.LabelID] {
+					continue
+				}
 				var exists bool
 				tx.Model(&targetIssue).Where("issue_id = ? AND label_id = ?", targetIssue.ID, labelLink.LabelID).
 					First(&model.IssueLabel{}).Scan(&exists)
