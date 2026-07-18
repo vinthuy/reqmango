@@ -34,6 +34,12 @@ func main() {
 		&model.Pipeline{},
 		&model.PipelineRun{},
 		&registry.AgentEntry{},
+		// AI models (from Phase 1; tables already exist in shared DB)
+		&model.Agent{},
+		&model.AgentActivity{},
+		&model.AIConfig{},
+		&model.AIThread{},
+		&model.AIMessage{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
@@ -44,8 +50,10 @@ func main() {
 		log.Printf("Warning: failed to seed default agents: %v", err)
 	}
 
-	// Create HTTP client to main backend
+	// Create HTTP clients to main backend
 	agentClient := client.NewAgentClient(cfg.MainBackendURL)
+	backendClient := client.NewBackendClient(cfg.MainBackendURL)
+	_ = backendClient // will be used by AgentService and AIService in Phases 2-3
 
 	// Initialize services
 	loopSvc := service.NewLoopService(db, agentClient)
