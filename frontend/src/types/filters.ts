@@ -81,28 +81,6 @@ function formatValue(value: any, valueType: 'string' | 'number' | 'date' | 'bool
   return `"${value}"`
 }
 
-function buildFunctionRQL(funcName: string, currentUserId?: number | null): string {
-  const today = new Date().toISOString().split('T')[0]
-  switch (funcName) {
-    case 'isOverdue':
-      return `(target_date < "${today}" AND state_group IN ("backlog", "in_progress"))`
-    case 'hasNoAssignee':
-      return 'assignee_id IS NULL'
-    case 'hasNoLabel':
-      return 'label IS NULL'
-    case 'isTopLevel':
-      return 'parent_id IS NULL'
-    case 'isSubWorkItem':
-      return 'parent_id IS NOT NULL'
-    case 'hasChildren':
-      return 'has_children = true'
-    case 'hasStartAndDueDates':
-      return 'start_date IS NOT NULL AND target_date IS NOT NULL'
-    default:
-      return ''
-  }
-}
-
 function isFilterCondition(node: FilterNode): node is FilterCondition {
   return 'field' in node && 'operator' in node && 'value' in node
 }
@@ -258,7 +236,6 @@ export function buildRQL(filtersOrGroups: FilterCondition[] | FilterGroup[], qui
 function parseSimpleCondition(clause: string): FilterCondition | null {
   const fieldMatch = clause.match(/^(\w+)/)
   if (!fieldMatch) return null
-  const field = fieldMatch[1]
 
   const likeMatch = clause.match(/^(\w+) (NOT LIKE|LIKE) "((?:[^"\\]|\\.)*)"$/)
   if (likeMatch) {
@@ -483,7 +460,7 @@ function parseRQLGroup(rqlStr: string): FilterGroup | null {
   }
 
   if (children.length === 0) return null
-  if (children.length === 1) return children[0]
+  if (children.length === 1) return { operator, children: [children[0]] }
 
   return { operator, children }
 }

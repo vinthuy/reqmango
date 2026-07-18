@@ -822,6 +822,16 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		})
 	}
 
+	// Automation trigger: fire after commit for issue updates (non-state changes)
+	if hasChanges && req.StateID == nil {
+		s.runAutomations(issueID, "issue_updated", map[string]interface{}{
+			"issue_id":   issueID,
+			"project_id": issue.ProjectID,
+			"priority":   issue.Priority,
+			"state_id":   issue.StateID,
+		})
+	}
+
 	s.webhookSvc.Fire(issue.ProjectID, event, map[string]interface{}{"issue_id": issueID, "name": issue.Name, "priority": issue.Priority, "state_id": issue.StateID})
 
 	var assignees []model.IssueAssignee
@@ -1695,8 +1705,10 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 // Called after transaction commit — uses the automation service's event bus.
 func (s *IssueService) runAutomations(issueID uint64, triggerType string, context map[string]interface{}) {
 	if s.automationSvc == nil {
+		log.Printf("[IssueService] automationSvc is nil, skipping automations")
 		return
 	}
+	log.Printf("[IssueService] Running automations: trigger=%s, issue=%d", triggerType, issueID)
 
 	var issue model.Issue
 	if err := s.db.First(&issue, issueID).Error; err != nil {

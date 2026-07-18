@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
@@ -12,6 +13,7 @@ type CommentService struct {
 	db              *gorm.DB
 	notificationSvc *NotificationService
 	agentSvc        *AgentService
+	automationSvc   *AutomationService
 }
 
 func NewCommentService(db *gorm.DB, notificationSvc *NotificationService) *CommentService {
@@ -21,6 +23,11 @@ func NewCommentService(db *gorm.DB, notificationSvc *NotificationService) *Comme
 // SetAgentService sets the agent service for @agent-name mention handling.
 func (s *CommentService) SetAgentService(agentSvc *AgentService) {
 	s.agentSvc = agentSvc
+}
+
+// SetAutomationService sets the automation service for comment_added triggers.
+func (s *CommentService) SetAutomationService(automationSvc *AutomationService) {
+	s.automationSvc = automationSvc
 }
 
 func (s *CommentService) Create(issueID, authorID uint64, body string, parentID *uint64) (*model.Comment, error) {
@@ -57,7 +64,6 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 			}
 		}
 
-		// @mention notifications: parse @username in comment body
 		mentioned := parseMentions(body)
 		if len(mentioned) > 0 {
 			var users []model.User
@@ -76,7 +82,6 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 				s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_mentioned", title, msg, mentionIDs, &authorID, &projectIDPtr, &issueIDPtr)
 			}
 
-			// @agent-name mentions: auto-dispatch mentioned agents with comment context
 			if s.agentSvc != nil {
 				var agents []model.Agent
 				s.db.Where("workspace_id = ? AND name IN ? AND status = 'active'", issue.Project.WorkspaceID, mentioned).Find(&agents)
@@ -87,6 +92,26 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 				}
 			}
 		}
+	}
+
+	if s.automationSvc != nil {
+		event := Event{
+			Type:      "comment_added",
+			ProjectID: issue.ProjectID,
+			IssueID:   issueID,
+			Context: map[string]interface{}{
+				"issue_id":   issueID,
+				"project_id": issue.ProjectID,
+				"author_id":  authorID,
+				"comment":    body,
+			},
+			Timestamp: time.Now(),
+		}
+		go func() {
+			if err := s.automationSvc.PublishEvent(event); err != nil {
+				fmt.Printf("[CommentService] Failed to publish automation event: %v\n", err)
+			}
+		}()
 	}
 
 	return &c, nil

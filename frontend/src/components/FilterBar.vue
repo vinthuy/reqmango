@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import type { FilterCondition, FilterField, SortOption, GroupOption, SubGroupOption, FilterGroup, FilterNode } from '../types/filters'
-import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, SUB_GROUP_OPTIONS, BUILT_IN_FUNCTIONS, flattenFilterGroups } from '../types/filters'
+import type { FilterCondition, FilterField, SortOption, GroupOption, SubGroupOption, FilterNode } from '../types/filters'
+import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, SUB_GROUP_OPTIONS, BUILT_IN_FUNCTIONS } from '../types/filters'
 import { useFilters } from '../composables/useFilters'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
 import type { SavedView } from '@/types/saved-view'
@@ -948,7 +948,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <template v-for="(group, groupIndex) in activeFilterGroups" :key="'group-' + groupIndex">
+        <template v-for="(group, _groupIndex) in activeFilterGroups" :key="'group-' + _groupIndex">
           <div class="flex items-center gap-1 bg-purple-50 text-purple-700 rounded-full px-3 py-1 border border-purple-200">
             <span class="text-xs font-medium px-1.5 py-0.5 bg-purple-200 rounded">{{ group.operator }}</span>
             <template v-for="(node, nodeIndex) in group.children" :key="'node-' + groupIndex + '-' + nodeIndex">

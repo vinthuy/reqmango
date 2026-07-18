@@ -962,7 +962,7 @@ onMounted(async () => {
     <!-- Automation Modal -->
     <div v-if="showAutomationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAutomationModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-lg">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('settings.createAutomation') }}</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingAutomation ? t('settings.editAutomation') : t('settings.createAutomation') }}</h3>
         <div class="space-y-4">
           <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="newAutomationForm.name" type="text" :placeholder="t('settings.automationNamePlaceholder')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
           <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.descriptionOptional') }}</label><input v-model="newAutomationForm.description" type="text" :placeholder="t('settings.automationDescriptionPlaceholder')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
@@ -987,7 +987,7 @@ onMounted(async () => {
         </div>
         <div class="flex justify-end space-x-3 mt-6">
           <button @click="showAutomationModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
-          <button @click="handleSaveAutomation" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ t('settings.create') }}</button>
+          <button @click="handleSaveAutomation" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingAutomation ? t('settings.update') : t('settings.create') }}</button>
         </div>
       </div>
     </div>
