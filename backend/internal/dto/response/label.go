@@ -8,7 +8,7 @@ type LabelResponse struct {
 	Name        string     `json:"name"`
 	Color       string     `json:"color"`
 	Description *string    `json:"description"`
-	ProjectID   *uint64    `json:"project_id"`
+	ProjectID   uint64     `json:"project_id"`
 	WorkspaceID uint64     `json:"workspace_id"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`

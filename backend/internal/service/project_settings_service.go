@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
@@ -343,16 +344,18 @@ func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, pr
 		color = "#6B7280"
 	}
 
-	projectIDPtr := projectID
 	label := &model.Label{
 		Name:        req.Name,
 		Color:       color,
 		Description: req.Description,
-		ProjectID:   &projectIDPtr,
+		ProjectID:   projectID,
 		WorkspaceID: project.WorkspaceID,
 	}
 
 	if err := s.db.Create(label).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			return nil, common.Conflict("Label name already exists in this project")
+		}
 		return nil, common.Internal("Failed to create label")
 	}
 
@@ -421,6 +424,9 @@ func (s *ProjectSettingsService) UpdateLabel(projectID, labelID uint64, req *req
 
 	if len(updates) > 0 {
 		if err := s.db.Model(&label).Updates(updates).Error; err != nil {
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				return nil, common.Conflict("Label name already exists in this project")
+			}
 			return nil, common.Internal("Failed to update label")
 		}
 	}

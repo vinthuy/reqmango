@@ -312,9 +312,8 @@ func SeedDemoData(db *gorm.DB) {
 		// Labels
 		labels := make([]model.Label, len(labelTemplates))
 		for i, l := range labelTemplates {
-			projectIDPtr := proj.ID
 			labels[i] = model.Label{
-				Name:        l.name, Color: l.color, ProjectID: &projectIDPtr,
+				Name: l.name, Color: l.color, ProjectID: proj.ID,
 				WorkspaceID: ws.ID,
 			}
 			db.Create(&labels[i])
@@ -929,8 +928,7 @@ func SeedConfigData(db *gorm.DB) {
 			{"设计", "#A855F7"}, {"需求", "#EC4899"}, {"架构", "#0EA5E9"},
 		}
 		for _, l := range labelDefs {
-			projectIDPtr := proj.ID
-			db.Create(&model.Label{Name: l.name, Color: l.color, ProjectID: &projectIDPtr, WorkspaceID: ws.ID})
+			db.Create(&model.Label{Name: l.name, Color: l.color, ProjectID: proj.ID, WorkspaceID: ws.ID})
 		}
 		fmt.Printf("  Created %d labels\n", len(labelDefs))
 	}
@@ -943,7 +941,8 @@ func SeedConfigData(db *gorm.DB) {
 		db.Where("project_id = ? AND is_active = true", proj.ID).Order("sequence").Find(&stList)
 		if len(stList) >= 5 {
 			bid, tid, ipid, rid, dnid := stList[0].ID, stList[1].ID, stList[2].ID, stList[3].ID, stList[4].ID
-			pid := proj.ID; wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: &pid, IsActive: true}
+			pid := proj.ID
+			wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: &pid, IsActive: true}
 			db.Create(&wf)
 			trs := []model.StateTransition{
 				{Name: "Backlog→Todo", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: tid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},

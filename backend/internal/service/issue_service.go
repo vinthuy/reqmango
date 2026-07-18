@@ -990,6 +990,14 @@ func (s *IssueService) AddLabel(issueID, labelID, actorID uint64) error {
 		return common.NotFound("Issue not found")
 	}
 
+	var label model.Label
+	if err := s.db.First(&label, labelID).Error; err != nil {
+		return common.NotFound("Label not found")
+	}
+	if label.ProjectID != issue.ProjectID {
+		return common.BadRequest("Label does not belong to this project")
+	}
+
 	var count int64
 	s.db.Model(&model.IssueLabel{}).
 		Where("issue_id = ? AND label_id = ?", issueID, labelID).Count(&count)

@@ -194,7 +194,8 @@ func (s *ProjectTemplateService) Apply(templateID, projectID uint64) error {
 			ProjectID: &projectID, WorkspaceID: project.WorkspaceID,
 		}
 		if err := tx.Create(&it).Error; err != nil {
-			tx.Rollback(); return common.Internal("Failed to create issue type: " + tt.Name)
+			tx.Rollback()
+			return common.Internal("Failed to create issue type: " + tt.Name)
 		}
 		typeMapping[tt.ID] = it.ID
 	}
@@ -234,7 +235,8 @@ func (s *ProjectTemplateService) Apply(templateID, projectID uint64) error {
 			Sequence int    `json:"sequence"`
 		}
 		if err := json.Unmarshal([]byte(*pt.States), &templateStates); err != nil {
-			tx.Rollback(); return common.BadRequest("Invalid template states JSON")
+			tx.Rollback()
+			return common.BadRequest("Invalid template states JSON")
 		}
 		for _, ts := range templateStates {
 			projectIDPtr := projectID
@@ -248,7 +250,8 @@ func (s *ProjectTemplateService) Apply(templateID, projectID uint64) error {
 				WorkspaceID: project.WorkspaceID,
 			}
 			if err := tx.Create(&state).Error; err != nil {
-				tx.Rollback(); return common.Internal("Failed to create state: " + ts.Name)
+				tx.Rollback()
+				return common.Internal("Failed to create state: " + ts.Name)
 			}
 		}
 	}
@@ -260,18 +263,19 @@ func (s *ProjectTemplateService) Apply(templateID, projectID uint64) error {
 			Color string `json:"color"`
 		}
 		if err := json.Unmarshal([]byte(*pt.Labels), &templateLabels); err != nil {
-			tx.Rollback(); return common.BadRequest("Invalid template labels JSON")
+			tx.Rollback()
+			return common.BadRequest("Invalid template labels JSON")
 		}
 		for _, tl := range templateLabels {
-			projectIDPtr := projectID
 			label := model.Label{
 				Name:        tl.Name,
 				Color:       tl.Color,
-				ProjectID:   &projectIDPtr,
+				ProjectID:   projectID,
 				WorkspaceID: project.WorkspaceID,
 			}
 			if err := tx.Create(&label).Error; err != nil {
-				tx.Rollback(); return common.Internal("Failed to create label: " + tl.Name)
+				tx.Rollback()
+				return common.Internal("Failed to create label: " + tl.Name)
 			}
 		}
 	}
