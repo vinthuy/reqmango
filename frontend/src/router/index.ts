@@ -188,6 +188,18 @@ const router = createRouter({
       component: () => import('@/views/agents/AgentSessions.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/workspaces/:wsParam/agents/pipelines',
+      name: 'agent-pipelines',
+      component: () => import('@/views/agents/PipelineBuilder.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/pipelines/runs/:runId',
+      name: 'pipeline-run-detail',
+      component: () => import('@/views/agents/PipelineRunDetail.vue'),
+      meta: { requiresAuth: true },
+    },
   ]
 })
 
