@@ -304,35 +304,71 @@ async function handleDeleteWorkflow(workflow: any) {
 
 // ===== Automation handlers =====
 const showAutomationModal = ref(false)
+const editingAutomation = ref<any>(null)
 const newAutomationForm = ref({ name: '', description: '', trigger: 'issue_created', conditions: '[]', actions: '[]' })
 
 function handleAddAutomation() {
+  editingAutomation.value = null
   newAutomationForm.value = { name: '', description: '', trigger: 'issue_created', conditions: '[]', actions: '[]' }
   showAutomationModal.value = true
 }
+
+function handleEditAutomation(automation: any) {
+  editingAutomation.value = automation
+  newAutomationForm.value = {
+    name: automation.name,
+    description: automation.description,
+    trigger: automation.trigger_type,
+    conditions: automation.conditions || '[]',
+    actions: automation.actions || '[]'
+  }
+  showAutomationModal.value = true
+}
+
 async function handleSaveAutomation() {
   if (!newAutomationForm.value.name || !projectId.value) return
   try {
     let conds = '[]', acts = '[]'
     try { conds = JSON.stringify(JSON.parse(newAutomationForm.value.conditions || '[]')); } catch { conds = '[]' }
     try { acts = JSON.stringify(JSON.parse(newAutomationForm.value.actions || '[]')); } catch { acts = '[]' }
-    const triggerMap: Record<string, string> = {
-      issue_created: 'issue.created', issue_updated: 'issue.updated',
-      state_changed: 'issue.state_changed', assignee_changed: 'issue.assigned',
-      comment_added: 'comment.added',
-    }
-    const triggerType = JSON.stringify({ type: triggerMap[newAutomationForm.value.trigger] || newAutomationForm.value.trigger })
-    await workflowApi.createAutomation(projectId.value, {
+    
+    const data = {
       name: newAutomationForm.value.name,
       description: newAutomationForm.value.description,
-      trigger_type: triggerType,
+      trigger_type: newAutomationForm.value.trigger,
       conditions: conds,
       actions: acts
-    })
+    }
+    
+    if (editingAutomation.value) {
+      await workflowApi.updateAutomation(projectId.value, editingAutomation.value.id, data)
+    } else {
+      await workflowApi.createAutomation(projectId.value, data)
+    }
+    
     showAutomationModal.value = false
+    editingAutomation.value = null
     await loadData()
-  } catch (e: any) { console.error('Failed to create automation:', e); toast.error(e?.response?.data?.message || 'Failed to create automation') }
+  } catch (e: any) { console.error('Failed to save automation:', e); toast.error(e?.response?.data?.message || 'Failed to save automation') }
 }
+
+async function handleToggleAutomation(automation: any) {
+  if (!projectId.value) return
+  const newStatus = !automation.is_enabled
+  const action = newStatus ? t('settings.enable') : t('settings.disable')
+  if (!(await confirm({ 
+    title: newStatus ? t('settings.enableAutomation') : t('settings.disableAutomation'), 
+    message: t('settings.confirmToggleAutomation', { action, name: automation.name }), 
+    danger: !newStatus, 
+    confirmText: action 
+  }))) return
+  
+  try { 
+    await workflowApi.updateAutomation(projectId.value, automation.id, { is_enabled: newStatus })
+    await loadData() 
+  } catch (e: any) { console.error('Failed to toggle automation:', e); toast.error(e?.response?.data?.message || 'Failed to toggle automation') }
+}
+
 async function handleDeleteAutomation(automation: any) {
   if (!projectId.value) return
   if (!(await confirm({ title: t('settings.deleteAutomation'), message: t('settings.confirmDeleteAutomation', { 0: automation.name }), danger: true, confirmText: t('common.delete') }))) return
@@ -776,11 +812,13 @@ onMounted(async () => {
                     <p class="text-sm text-gray-500">{{ automation.description || t('settings.noDescription') }}</p>
                   </div>
                 </div>
-                <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-2">
                   <span :class="['px-3 py-1 rounded-full text-xs font-medium', automation.is_enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500']">
                     {{ automation.is_enabled ? t('settings.enabled') : t('settings.disabled') }}
                   </span>
-                  <button v-if="!automation.is_inherited" @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500">🗑️</button>
+                  <button v-if="!automation.is_inherited" @click="handleToggleAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm">{{ automation.is_enabled ? '⏸️' : '▶️' }}</button>
+                  <button v-if="!automation.is_inherited" @click="handleEditAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm">✏️</button>
+                  <button v-if="!automation.is_inherited" @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
                 </div>
               </div>
               <div class="mt-4 pt-4 border-t border-gray-100">
