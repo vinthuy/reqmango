@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import type { FilterCondition, FilterField, SortOption, GroupOption, SubGroupOption } from '../types/filters'
-import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, SUB_GROUP_OPTIONS } from '../types/filters'
+import type { FilterCondition, FilterField, SortOption, GroupOption, SubGroupOption, FilterGroup, FilterNode } from '../types/filters'
+import { FILTER_FIELDS, SORT_OPTIONS, GROUP_OPTIONS, SUB_GROUP_OPTIONS, BUILT_IN_FUNCTIONS, flattenFilterGroups } from '../types/filters'
 import { useFilters } from '../composables/useFilters'
 import SavedViewSelector from '@/components/SavedViewSelector.vue'
 import type { SavedView } from '@/types/saved-view'
@@ -54,8 +54,9 @@ const modules = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const labels = ref<any[]>([])
 const customFields = ref<CustomField[]>([])
+const milestones = ref<any[]>([])
 
-// Merge system fields with custom fields
+// Merge system fields with custom fields and built-in functions
 const allFilterFields = computed<FilterField[]>(() => {
   const custom: FilterField[] = customFields.value.map(cf => {
     const key = `cf_${cf.id}`
@@ -76,7 +77,17 @@ const allFilterFields = computed<FilterField[]>(() => {
       operators: buildCustomFieldOperators(cf),
     } as FilterField
   })
-  return [...FILTER_FIELDS, ...custom]
+
+  const builtInFunctions: FilterField[] = BUILT_IN_FUNCTIONS.map(fn => ({
+    key: `fn_${fn.name}`,
+    dbKey: `fn_${fn.name}`,
+    labelKey: fn.label,
+    type: 'select',
+    valueType: 'string',
+    operators: ['is'],
+  }))
+
+  return [...FILTER_FIELDS, ...builtInFunctions, ...custom]
 })
 
 function buildCustomFieldOperators(cf: CustomField): string[] {
@@ -105,6 +116,11 @@ function getFieldLabel(fieldKey: string): string {
   if (custom) return custom.name
   const sys = FILTER_FIELDS.find(f => f.key === fieldKey)
   if (sys) return t(sys.labelKey)
+  const fnMatch = fieldKey.match(/^fn_(\w+)$/)
+  if (fnMatch) {
+    const fn = BUILT_IN_FUNCTIONS.find(f => f.name === fnMatch[1])
+    if (fn) return t(fn.label)
+  }
   return fieldKey
 }
 
@@ -117,6 +133,11 @@ const priorityOptions = [
 ]
 
 const activeFilterChips = computed(() => state.filters)
+const activeFilterGroups = computed(() => state.filterGroups)
+
+function isFilterCondition(node: FilterNode): node is FilterCondition {
+  return 'field' in node && 'operator' in node && 'value' in node
+}
 
 watch(() => rql.value, (newRQL: string) => {
   emit('filters-changed', newRQL, state.sortBy, state.groupBy, state.subGroupBy)
@@ -188,6 +209,13 @@ async function loadModules() {
 async function loadCustomFields() {
   try {
     customFields.value = await listCustomFields(props.workspaceId, props.projectId)
+  } catch (e) { /* */ }
+}
+
+async function loadMilestones() {
+  try {
+    const r = await api.get(`/projects/${props.projectId}/milestones`)
+    milestones.value = r.data
   } catch (e) { /* */ }
 }
 
@@ -521,6 +549,10 @@ function getOptionsForField(fieldKey: string): { value: any; label: string }[] {
       ]
     case 'label':
       return labels.value.map(l => ({ value: l.id, label: l.name }))
+    case 'created_by':
+      return members.value.map(m => ({ value: m.user?.id || m.id, label: m.user?.display_name || m.display_name || m.email || 'Unknown' }))
+    case 'milestone':
+      return milestones.value.map(m => ({ value: m.id, label: m.name }))
   }
   // Custom fields: dropdown, boolean, member
   const cfKey = fieldKey.match(/^cf_(\d+)$/)
@@ -674,7 +706,7 @@ function handleSearchTemplateApply(template: SearchTemplate) {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   if (props.projectId > 0) {
-    Promise.all([loadStates(), loadCycles(), loadMembers(), loadModules(), loadIssueTypes(), loadLabels(), loadCustomFields()])
+    Promise.all([loadStates(), loadCycles(), loadMembers(), loadModules(), loadIssueTypes(), loadLabels(), loadCustomFields(), loadMilestones()])
   }
 })
 
@@ -915,6 +947,31 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
+
+        <template v-for="(group, groupIndex) in activeFilterGroups" :key="'group-' + groupIndex">
+          <div class="flex items-center gap-1 bg-purple-50 text-purple-700 rounded-full px-3 py-1 border border-purple-200">
+            <span class="text-xs font-medium px-1.5 py-0.5 bg-purple-200 rounded">{{ group.operator }}</span>
+            <template v-for="(node, nodeIndex) in group.children" :key="'node-' + groupIndex + '-' + nodeIndex">
+              <template v-if="isFilterCondition(node)">
+                <span class="text-sm">{{ getFieldLabel(node.field) }}</span>
+                <span class="text-sm">{{ getOperatorTranslation(node.operator) }}</span>
+                <span class="text-sm font-medium">{{ node.displayValue || node.value }}</span>
+              </template>
+              <template v-else>
+                <span class="text-xs font-medium px-1.5 py-0.5 bg-purple-300 rounded">{{ node.operator }}</span>
+                <template v-for="(child, childIndex) in node.children" :key="'child-' + groupIndex + '-' + nodeIndex + '-' + childIndex">
+                  <template v-if="isFilterCondition(child)">
+                    <span class="text-sm">{{ getFieldLabel(child.field) }}</span>
+                    <span class="text-sm">{{ getOperatorTranslation(child.operator) }}</span>
+                    <span class="text-sm font-medium">{{ child.displayValue || child.value }}</span>
+                  </template>
+                  <span v-if="childIndex < node.children.length - 1" class="text-sm text-purple-500">{{ node.operator }}</span>
+                </template>
+              </template>
+              <span v-if="nodeIndex < group.children.length - 1" class="text-sm text-purple-500">{{ group.operator }}</span>
+            </template>
+          </div>
+        </template>
 
         <button
           v-if="!isEmpty"

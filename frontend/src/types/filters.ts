@@ -5,6 +5,13 @@ export interface FilterCondition {
   displayValue: string
 }
 
+export type FilterNode = FilterCondition | FilterGroup
+
+export interface FilterGroup {
+  operator: 'AND' | 'OR'
+  children: FilterNode[]
+}
+
 export interface FilterField {
   key: string
   dbKey: string
@@ -44,6 +51,19 @@ export const FILTER_FIELDS: FilterField[] = [
   { key: 'start_date', dbKey: 'start_date', labelKey: 'filter.fieldStartDate', type: 'date', valueType: 'date', operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty', 'is not empty'] },
   { key: 'target_date', dbKey: 'target_date', labelKey: 'filter.fieldTargetDate', type: 'date', valueType: 'date', operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty', 'is not empty'] },
   { key: 'created_at', dbKey: 'created_at', labelKey: 'filter.fieldCreatedAt', type: 'date', valueType: 'date', operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty', 'is not empty'] },
+  { key: 'updated_at', dbKey: 'updated_at', labelKey: 'filter.fieldUpdatedAt', type: 'date', valueType: 'date', operators: ['is', 'is not', 'before', 'after', 'before or on', 'after or on', 'between', 'not between', 'is empty', 'is not empty'] },
+  { key: 'created_by', dbKey: 'created_by', labelKey: 'filter.fieldCreatedBy', type: 'select', valueType: 'number', operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty', 'is not empty'] },
+  { key: 'milestone', dbKey: 'milestone', labelKey: 'filter.fieldMilestone', type: 'select', valueType: 'number', operators: ['is', 'is any of', 'is not', 'is not any of', 'is empty', 'is not empty'] },
+]
+
+export const BUILT_IN_FUNCTIONS = [
+  { name: 'isOverdue', label: 'filter.fnIsOverdue', description: '截止日期已过且状态为开放' },
+  { name: 'hasNoAssignee', label: 'filter.fnHasNoAssignee', description: '无负责人' },
+  { name: 'hasNoLabel', label: 'filter.fnHasNoLabel', description: '无标签' },
+  { name: 'isTopLevel', label: 'filter.fnIsTopLevel', description: '非子工作项' },
+  { name: 'isSubWorkItem', label: 'filter.fnIsSubWorkItem', description: '是子工作项' },
+  { name: 'hasChildren', label: 'filter.fnHasChildren', description: '有子工作项' },
+  { name: 'hasStartAndDueDates', label: 'filter.fnHasStartAndDueDates', description: '同时设置了开始和截止日期' },
 ]
 
 function formatValue(value: any, valueType: 'string' | 'number' | 'date' | 'boolean'): string {
@@ -61,26 +81,124 @@ function formatValue(value: any, valueType: 'string' | 'number' | 'date' | 'bool
   return `"${value}"`
 }
 
-export interface RQLResult {
-  filters: FilterCondition[]
-  sortBy?: SortOption[]  // multi-sort, parsed from orderby clauses
+function buildFunctionRQL(funcName: string, currentUserId?: number | null): string {
+  const today = new Date().toISOString().split('T')[0]
+  switch (funcName) {
+    case 'isOverdue':
+      return `(target_date < "${today}" AND state_group IN ("backlog", "in_progress"))`
+    case 'hasNoAssignee':
+      return 'assignee_id IS NULL'
+    case 'hasNoLabel':
+      return 'label IS NULL'
+    case 'isTopLevel':
+      return 'parent_id IS NULL'
+    case 'isSubWorkItem':
+      return 'parent_id IS NOT NULL'
+    case 'hasChildren':
+      return 'has_children = true'
+    case 'hasStartAndDueDates':
+      return 'start_date IS NOT NULL AND target_date IS NOT NULL'
+    default:
+      return ''
+  }
 }
 
-export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[]): string {
-  const clauses: string[] = []
+function isFilterCondition(node: FilterNode): node is FilterCondition {
+  return 'field' in node && 'operator' in node && 'value' in node
+}
 
-  // Helper to resolve template variables in a single value
-  const resolveValue = (val: any): any => {
-    if (val === '$CURRENT_USER' && currentUserId != null) {
-      return currentUserId
+function buildNodeRQL(node: FilterNode, currentUserId?: number | null): string {
+  if (isFilterCondition(node)) {
+    const { field, operator, value: rawValue } = node
+
+    if (Array.isArray(rawValue) && rawValue.length === 0) return ''
+    if ((rawValue === '' || rawValue === null || rawValue === undefined) && 
+        !['is empty', 'is not empty'].includes(operator)) return ''
+
+    const resolveValue = (val: any): any => {
+      if (val === '$CURRENT_USER' && currentUserId != null) {
+        return currentUserId
+      }
+      return val
     }
-    return val
-  }
+    const value = Array.isArray(rawValue) ? rawValue.map(v => resolveValue(v)) : resolveValue(rawValue)
 
-  // Helper to resolve template variables in array values
-  const resolveArrayValue = (arr: any[]): any[] => {
-    return arr.map(v => resolveValue(v))
+    const fieldDef = FILTER_FIELDS.find(f => f.key === field)
+    const dbKey = fieldDef?.dbKey || field
+    const valueType = fieldDef?.valueType || 'string'
+
+    switch (operator) {
+      case 'is':
+        return `${dbKey} = ${formatValue(value, valueType)}`
+      case 'is not':
+        return `${dbKey} != ${formatValue(value, valueType)}`
+      case 'is any of': {
+        const anyOfValues = Array.isArray(value) ? value : [value]
+        const formattedAnyOf = anyOfValues.map(v => formatValue(v, valueType)).join(', ')
+        return `${dbKey} IN (${formattedAnyOf})`
+      }
+      case 'is not any of': {
+        const notAnyOfValues = Array.isArray(value) ? value : [value]
+        const formattedNotAnyOf = notAnyOfValues.map(v => formatValue(v, valueType)).join(', ')
+        return `${dbKey} NOT IN (${formattedNotAnyOf})`
+      }
+      case 'contains': {
+        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
+        return `${dbKey} LIKE "%${escaped}%"`
+      }
+      case 'does not contain': {
+        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
+        return `${dbKey} NOT LIKE "%${escaped}%"`
+      }
+      case 'is empty':
+        return `${dbKey} IS NULL`
+      case 'is not empty':
+        return `${dbKey} IS NOT NULL`
+      case 'before':
+        return `${dbKey} < "${value}"`
+      case 'after':
+        return `${dbKey} > "${value}"`
+      case 'before or on':
+        return `${dbKey} <= "${value}"`
+      case 'after or on':
+        return `${dbKey} >= "${value}"`
+      case 'between': {
+        if (Array.isArray(value) && value.length >= 2 && value[0] !== '' && value[1] !== '') {
+          return `${dbKey} >= ${formatValue(value[0], valueType)} AND ${dbKey} <= ${formatValue(value[1], valueType)}`
+        }
+        return ''
+      }
+      case 'not between': {
+        if (Array.isArray(value) && value.length >= 2 && value[0] !== '' && value[1] !== '') {
+          return `${dbKey} < ${formatValue(value[0], valueType)} OR ${dbKey} > ${formatValue(value[1], valueType)}`
+        }
+        return ''
+      }
+      default:
+        return ''
+    }
+  } else {
+    const childClauses = node.children
+      .map(child => buildNodeRQL(child, currentUserId))
+      .filter(clause => clause)
+    
+    if (childClauses.length === 0) return ''
+    if (childClauses.length === 1) return childClauses[0]
+    
+    return `(${childClauses.join(` ${node.operator} `)})`
   }
+}
+
+export interface RQLResult {
+  filters: FilterCondition[]
+  filterGroups: FilterGroup[]
+  sortBy?: SortOption[]
+}
+
+export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[]): string
+export function buildRQL(filterGroups: FilterGroup[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[]): string
+export function buildRQL(filtersOrGroups: FilterCondition[] | FilterGroup[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[]): string {
+  const clauses: string[] = []
 
   if (quickSearchValue) {
     const qs = quickSearchValue.trim()
@@ -91,11 +209,6 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
         const sequenceId = parts[1]
         clauses.push(`sequence_id = ${sequenceId}`)
       } else {
-        // Escape special characters for safe RQL string embedding.
-        // The backend lexer uses \ as escape character in strings.
-        // Also escape % and _ so they are treated as literals in the
-        // SQL LIKE pattern (the backend buildFullTextSearch wraps with
-        // its own % wildcards; any % or _ from the user should be literal).
         const escaped = qs
           .replace(/\\/g, '\\\\')
           .replace(/"/g, '\\"')
@@ -106,292 +219,338 @@ export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, 
     }
   }
 
-  if (filters.length === 0 && !quickSearchValue && (!sortBy || sortBy.length === 0)) return ''
+  let hasFilterContent = false
 
-  for (const filter of filters) {
-    let clause = ''
-    const { field, operator, value: rawValue } = filter
-
-    // Skip filters with empty array values (all items deselected)
-    if (Array.isArray(rawValue) && rawValue.length === 0) continue
-    // Skip filters with empty/null/undefined single values, but not for "is empty"/"is not empty" operators
-    if ((rawValue === '' || rawValue === null || rawValue === undefined) && 
-        !['is empty', 'is not empty'].includes(operator)) continue
-
-    // Resolve template variables in values
-    const value = Array.isArray(rawValue) ? resolveArrayValue(rawValue) : resolveValue(rawValue)
-
-    const fieldDef = FILTER_FIELDS.find(f => f.key === field)
-    const dbKey = fieldDef?.dbKey || field
-    const valueType = fieldDef?.valueType || 'string'
-
-    switch (operator) {
-      case 'is':
-        clause = `${dbKey} = ${formatValue(value, valueType)}`
-        break
-      case 'is not':
-        clause = `${dbKey} != ${formatValue(value, valueType)}`
-        break
-      case 'is any of':
-        const anyOfValues = Array.isArray(value) ? value : [value]
-        const formattedAnyOf = anyOfValues.map(v => formatValue(v, valueType)).join(', ')
-        clause = `${dbKey} IN (${formattedAnyOf})`
-        break
-      case 'is not any of':
-        const notAnyOfValues = Array.isArray(value) ? value : [value]
-        const formattedNotAnyOf = notAnyOfValues.map(v => formatValue(v, valueType)).join(', ')
-        clause = `${dbKey} NOT IN (${formattedNotAnyOf})`
-        break
-      case 'contains': {
-        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
-        clause = `${dbKey} LIKE "%${escaped}%"`
-        break
+  if ((filtersOrGroups as FilterGroup[]).some((f: any) => 'operator' in f)) {
+    const groups = filtersOrGroups as FilterGroup[]
+    for (const group of groups) {
+      const rql = buildNodeRQL(group, currentUserId)
+      if (rql) {
+        clauses.push(rql)
+        hasFilterContent = true
       }
-      case 'does not contain': {
-        const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '\\%').replace(/_/g, '\\_')
-        clause = `${dbKey} NOT LIKE "%${escaped}%"`
-        break
+    }
+  } else {
+    const filters = filtersOrGroups as FilterCondition[]
+    for (const filter of filters) {
+      const rql = buildNodeRQL(filter, currentUserId)
+      if (rql) {
+        clauses.push(rql)
+        hasFilterContent = true
       }
-      case 'is empty':
-        clause = `${dbKey} IS NULL`
-        break
-      case 'is not empty':
-        clause = `${dbKey} IS NOT NULL`
-        break
-      case 'before':
-        clause = `${dbKey} < "${value}"`
-        break
-      case 'after':
-        clause = `${dbKey} > "${value}"`
-        break
-      case 'before or on':
-        clause = `${dbKey} <= "${value}"`
-        break
-      case 'after or on':
-        clause = `${dbKey} >= "${value}"`
-        break
-      case 'between':
-        if (Array.isArray(value) && value.length >= 2 && value[0] !== '' && value[1] !== '') {
-          clause = `${dbKey} >= ${formatValue(value[0], valueType)} AND ${dbKey} <= ${formatValue(value[1], valueType)}`
-        }
-        break
-      case 'not between':
-        if (Array.isArray(value) && value.length >= 2 && value[0] !== '' && value[1] !== '') {
-          clause = `${dbKey} < ${formatValue(value[0], valueType)} OR ${dbKey} > ${formatValue(value[1], valueType)}`
-        }
-        break
-      }
-
-    if (clause) clauses.push(clause)
+    }
   }
 
-  // Append orderby clauses for sort options (multi-sort support)
   if (sortBy && sortBy.length > 0) {
     for (const sort of sortBy) {
-      // Map UI key to dbKey for sort fields
       const fieldDef = FILTER_FIELDS.find(f => f.key === sort.key)
       const dbKey = fieldDef?.dbKey || sort.key
       clauses.push(`orderby ${dbKey} ${sort.direction}`)
     }
+    hasFilterContent = true
   }
+
+  if (!hasFilterContent && !quickSearchValue) return ''
 
   return clauses.join(' AND ')
 }
 
-export function parseRQL(rqlStr: string): RQLResult {
-  if (!rqlStr.trim()) return { filters: [] }
+function parseSimpleCondition(clause: string): FilterCondition | null {
+  const fieldMatch = clause.match(/^(\w+)/)
+  if (!fieldMatch) return null
+  const field = fieldMatch[1]
 
-  const conditions: FilterCondition[] = []
-  const sortBy: SortOption[] = []
-
-  // Split by AND but preserve BETWEEN ranges (field >= "v1" AND field <= "v2")
-  const clauses = splitRQLClauses(rqlStr)
-
-  for (const clause of clauses) {
-    const trimmed = clause.trim()
-    if (!trimmed) continue
-
-    const orderbyMatch = trimmed.match(/^orderby (\w+) (asc|desc)$/i)
-    if (orderbyMatch) {
-      sortBy.push({
-        key: orderbyMatch[1],
-        labelKey: SORT_OPTION_MAP[orderbyMatch[1]]?.labelKey || '',
-        direction: orderbyMatch[2].toLowerCase() as 'asc' | 'desc'
-      })
-      continue
-    }
-
-    // Try BETWEEN: field >= "v1" AND field <= "v2" (supports both double and single quotes)
-    const betweenMatch = trimmed.match(/^(\w+)\s+>=\s+"([^"]+)"\s+AND\s+\1\s+<=\s+"([^"]+)"$/i) || 
-                         trimmed.match(/^(\w+)\s+>=\s+'([^']+)'\s+AND\s+\1\s+<=\s+'([^']+)'$/i)
-    if (betweenMatch) {
-      const field = betweenMatch[1]
-      const from = betweenMatch[2]
-      const to = betweenMatch[3]
-      conditions.push({
-        field,
-        operator: 'between',
-        value: [from, to],
-        displayValue: `${from} - ${to}`
-      })
-      continue
-    }
-
-    // Try NOT BETWEEN: field < "v1" OR field > "v2" (supports both double and single quotes)
-    const notBetweenMatch = trimmed.match(/^(\w+)\s+<\s+"([^"]+)"\s+OR\s+\1\s+>\s+"([^"]+)"$/i) ||
-                           trimmed.match(/^(\w+)\s+<\s+'([^']+)'\s+OR\s+\1\s+>\s+'([^']+)'$/i)
-    if (notBetweenMatch) {
-      const field = notBetweenMatch[1]
-      const from = notBetweenMatch[2]
-      const to = notBetweenMatch[3]
-      conditions.push({
-        field,
-        operator: 'not between',
-        value: [from, to],
-        displayValue: `not ${from} - ${to}`
-      })
-      continue
-    }
-
-    let field: string = ''
-    let operator: string = ''
-    let value: any = ''
-    let displayValue: string = ''
-
-    const likeMatch = trimmed.match(/^(\w+) (NOT LIKE|LIKE) "((?:[^"\\]|\\.)*)"$/)
-    if (likeMatch) {
-      field = likeMatch[1]
-      operator = likeMatch[2] === 'LIKE' ? 'contains' : 'does not contain'
-      // Unescape RQL string escape sequences
-      let rawValue = (likeMatch[3] || '').replace(/\\(.)/g, '$1')
-      // Remove leading/trailing % wildcards (they are added by buildRQL)
-      value = rawValue.replace(/^%/, '').replace(/%$/, '')
-      displayValue = value
-      conditions.push({ field, operator, value, displayValue })
-      continue
-    }
-
-    const inMatch = trimmed.match(/^(\w+) (NOT IN|IN) \((.*)\)$/)
-    if (inMatch) {
-      field = inMatch[1]
-      operator = inMatch[2] === 'IN' ? 'is any of' : 'is not any of'
-      const valuesStr = inMatch[3]
-      const values = valuesStr.split(',').map(v => {
-        const trimmedV = v.trim()
-        const quotedMatch = trimmedV.match(/^"([^"]+)"$/) || trimmedV.match(/^'([^']+)'$/)
-        return quotedMatch ? quotedMatch[1] : trimmedV
-      })
-      value = values
-      displayValue = values.join(', ')
-      conditions.push({ field, operator, value, displayValue })
-      continue
-    }
-
-    const nullMatch = trimmed.match(/^(\w+) (IS NOT NULL|IS NULL)$/)
-    if (nullMatch) {
-      field = nullMatch[1]
-      operator = nullMatch[2] === 'IS NULL' ? 'is empty' : 'is not empty'
-      value = ''
-      displayValue = ''
-      conditions.push({ field, operator, value, displayValue })
-      continue
-    }
-
-    // Try quoted value (strings, dates) - supports both double and single quotes
-    const quotedMatch = trimmed.match(/^(\w+) ([=<>!]+) "([^"]+)"$/) || trimmed.match(/^(\w+) ([=<>!]+) '([^']+)'$/)
-    if (quotedMatch) {
-      field = quotedMatch[1]
-      const op = quotedMatch[2]
-      value = quotedMatch[3]
-      displayValue = value
-
-      switch (op) {
-        case '=':  operator = 'is'; break
-        case '!=': operator = 'is not'; break
-        case '>':  operator = 'after'; break
-        case '<':  operator = 'before'; break
-        case '>=': operator = 'after or on'; break
-        case '<=': operator = 'before or on'; break
-      }
-
-      if (operator) {
-        conditions.push({ field, operator, value, displayValue })
-      }
-      continue
-    }
-
-    // Try unquoted value (numbers)
-    const unquotedMatch = trimmed.match(/^(\w+) ([=<>!]+) (\S+)$/)
-    if (unquotedMatch) {
-      field = unquotedMatch[1]
-      const op = unquotedMatch[2]
-      value = unquotedMatch[3]
-      displayValue = value
-
-      switch (op) {
-        case '=':  operator = 'is'; break
-        case '!=': operator = 'is not'; break
-        case '>':  operator = 'after'; break
-        case '<':  operator = 'before'; break
-        case '>=': operator = 'after or on'; break
-        case '<=': operator = 'before or on'; break
-      }
-
-      if (operator) {
-        conditions.push({ field, operator, value, displayValue })
-      }
-      continue
+  const likeMatch = clause.match(/^(\w+) (NOT LIKE|LIKE) "((?:[^"\\]|\\.)*)"$/)
+  if (likeMatch) {
+    let rawValue = (likeMatch[3] || '').replace(/\\(.)/g, '$1')
+    const value = rawValue.replace(/^%/, '').replace(/%$/, '')
+    return {
+      field: likeMatch[1],
+      operator: likeMatch[2] === 'LIKE' ? 'contains' : 'does not contain',
+      value,
+      displayValue: value
     }
   }
 
-  return { filters: conditions, sortBy: sortBy.length > 0 ? sortBy : undefined }
+  const inMatch = clause.match(/^(\w+) (NOT IN|IN) \((.*)\)$/)
+  if (inMatch) {
+    const valuesStr = inMatch[3]
+    const values = valuesStr.split(',').map(v => {
+      const trimmedV = v.trim()
+      const quotedMatch = trimmedV.match(/^"([^"]+)"$/) || trimmedV.match(/^'([^']+)'$/)
+      return quotedMatch ? quotedMatch[1] : trimmedV
+    })
+    return {
+      field: inMatch[1],
+      operator: inMatch[2] === 'IN' ? 'is any of' : 'is not any of',
+      value: values,
+      displayValue: values.join(', ')
+    }
+  }
+
+  const nullMatch = clause.match(/^(\w+) (IS NOT NULL|IS NULL)$/)
+  if (nullMatch) {
+    return {
+      field: nullMatch[1],
+      operator: nullMatch[2] === 'IS NULL' ? 'is empty' : 'is not empty',
+      value: '',
+      displayValue: ''
+    }
+  }
+
+  const betweenMatch = clause.match(/^(\w+)\s+>=\s+"([^"]+)"\s+AND\s+\1\s+<=\s+"([^"]+)"$/i) || 
+                       clause.match(/^(\w+)\s+>=\s+'([^']+)'\s+AND\s+\1\s+<=\s+'([^']+)'$/i)
+  if (betweenMatch) {
+    return {
+      field: betweenMatch[1],
+      operator: 'between',
+      value: [betweenMatch[2], betweenMatch[3]],
+      displayValue: `${betweenMatch[2]} - ${betweenMatch[3]}`
+    }
+  }
+
+  const notBetweenMatch = clause.match(/^(\w+)\s+<\s+"([^"]+)"\s+OR\s+\1\s+>\s+"([^"]+)"$/i) ||
+                         clause.match(/^(\w+)\s+<\s+'([^']+)'\s+OR\s+\1\s+>\s+'([^']+)'$/i)
+  if (notBetweenMatch) {
+    return {
+      field: notBetweenMatch[1],
+      operator: 'not between',
+      value: [notBetweenMatch[2], notBetweenMatch[3]],
+      displayValue: `not ${notBetweenMatch[2]} - ${notBetweenMatch[3]}`
+    }
+  }
+
+  const quotedMatch = clause.match(/^(\w+) ([=<>!]+) "([^"]+)"$/) || clause.match(/^(\w+) ([=<>!]+) '([^']+)'$/)
+  if (quotedMatch) {
+    const op = quotedMatch[2]
+    let operator = ''
+    switch (op) {
+      case '=':  operator = 'is'; break
+      case '!=': operator = 'is not'; break
+      case '>':  operator = 'after'; break
+      case '<':  operator = 'before'; break
+      case '>=': operator = 'after or on'; break
+      case '<=': operator = 'before or on'; break
+    }
+    if (operator) {
+      return {
+        field: quotedMatch[1],
+        operator,
+        value: quotedMatch[3],
+        displayValue: quotedMatch[3]
+      }
+    }
+  }
+
+  const unquotedMatch = clause.match(/^(\w+) ([=<>!]+) (\S+)$/)
+  if (unquotedMatch) {
+    const op = unquotedMatch[2]
+    let operator = ''
+    switch (op) {
+      case '=':  operator = 'is'; break
+      case '!=': operator = 'is not'; break
+      case '>':  operator = 'after'; break
+      case '<':  operator = 'before'; break
+      case '>=': operator = 'after or on'; break
+      case '<=': operator = 'before or on'; break
+    }
+    if (operator) {
+      return {
+        field: unquotedMatch[1],
+        operator,
+        value: unquotedMatch[3],
+        displayValue: unquotedMatch[3]
+      }
+    }
+  }
+
+  return null
 }
 
-/**
- * Split RQL string by AND, but preserve BETWEEN compound clauses
- * (e.g. "field >= 'v1' AND field <= 'v2'" stays together).
- * Also handles NOT BETWEEN (field < "v1" OR field > "v2").
- */
-function splitRQLClauses(rqlStr: string): string[] {
-  // Pre-process: merge BETWEEN and NOT BETWEEN patterns back together
-  // Replace "field >= \"v1\" AND field <= \"v2\"" with "field >= \"v1\" AND field <= \"v2\""
-  // (these will be handled by betweenMatch)
-  // Replace "field < \"v1\" OR field > \"v2\"" with the same preserved form
+function parseRQLExpression(rqlStr: string): FilterNode | null {
+  const trimmed = rqlStr.trim()
+  
+  if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
+    const inner = trimmed.slice(1, -1).trim()
+    return parseRQLGroup(inner)
+  }
 
-  // Strategy: use a placeholder approach
-  const placeholders: { placeholder: string; original: string }[] = []
-  let processed = rqlStr
-  let counter = 0
-
-  // Find and protect BETWEEN patterns
-  const betweenRegex = /(\w+)\s+>=\s+"([^"]+)"\s+AND\s+\1\s+<=\s+"([^"]+)"/gi
-  processed = processed.replace(betweenRegex, (match) => {
-    const placeholder = `__BETWEEN_${counter}__`
-    placeholders.push({ placeholder, original: match })
-    counter++
-    return placeholder
-  })
-
-  // Find and protect NOT BETWEEN patterns
-  const notBetweenRegex = /(\w+)\s+<\s+"([^"]+)"\s+OR\s+\1\s+>\s+"([^"]+)"/gi
-  processed = processed.replace(notBetweenRegex, (match) => {
-    const placeholder = `__BETWEEN_${counter}__`
-    placeholders.push({ placeholder, original: match })
-    counter++
-    return placeholder
-  })
-
-  // Now split by AND safely
-  const parts = processed.split(' AND ').map(p => {
-    let result = p.trim()
-    // Restore placeholders
-    for (const { placeholder, original } of placeholders) {
-      result = result.replace(placeholder, original)
+  const betweenMatch = trimmed.match(/^(\w+)\s+>=\s+"([^"]+)"\s+AND\s+(\w+)\s+<=\s+"([^"]+)"$/i) || 
+                       trimmed.match(/^(\w+)\s+>=\s+'([^']+)'\s+AND\s+(\w+)\s+<=\s+'([^']+)'$/i)
+  if (betweenMatch && betweenMatch[1] === betweenMatch[3]) {
+    return {
+      field: betweenMatch[1],
+      operator: 'between',
+      value: [betweenMatch[2], betweenMatch[4]],
+      displayValue: `${betweenMatch[2]} - ${betweenMatch[4]}`
     }
-    return result
-  })
+  }
 
-  return parts
+  const notBetweenMatch = trimmed.match(/^(\w+)\s+<\s+"([^"]+)"\s+OR\s+(\w+)\s+>\s+"([^"]+)"$/i) ||
+                         trimmed.match(/^(\w+)\s+<\s+'([^']+)'\s+OR\s+(\w+)\s+>\s+'([^']+)'$/i)
+  if (notBetweenMatch && notBetweenMatch[1] === notBetweenMatch[3]) {
+    return {
+      field: notBetweenMatch[1],
+      operator: 'not between',
+      value: [notBetweenMatch[2], notBetweenMatch[4]],
+      displayValue: `not ${notBetweenMatch[2]} - ${notBetweenMatch[4]}`
+    }
+  }
+
+  const simple = parseSimpleCondition(trimmed)
+  if (simple) {
+    return simple
+  }
+
+  return parseRQLGroup(trimmed)
+}
+
+function parseRQLGroup(rqlStr: string): FilterGroup | null {
+  const trimmed = rqlStr.trim()
+  
+  const betweenMatch = trimmed.match(/^(\w+)\s+>=\s+"([^"]+)"\s+AND\s+\1\s+<=\s+"([^"]+)"$/i) || 
+                       trimmed.match(/^(\w+)\s+>=\s+'([^']+)'\s+AND\s+\1\s+<=\s+'([^']+)'$/i)
+  if (betweenMatch) {
+    return null
+  }
+
+  const notBetweenMatch = trimmed.match(/^(\w+)\s+<\s+"([^"]+)"\s+OR\s+\1\s+>\s+"([^"]+)"$/i) ||
+                         trimmed.match(/^(\w+)\s+<\s+'([^']+)'\s+OR\s+\1\s+>\s+'([^']+)'$/i)
+  if (notBetweenMatch) {
+    return null
+  }
+
+  const parts: string[] = []
+  let current = ''
+  let depth = 0
+  let inString = false
+  let stringChar = ''
+  let topLevelOperator: 'AND' | 'OR' | null = null
+
+  for (let i = 0; i < rqlStr.length; i++) {
+    const char = rqlStr[i]
+    const nextChar = rqlStr[i + 1]
+
+    if (!inString && char === '(') {
+      depth++
+      current += char
+    } else if (!inString && char === ')') {
+      depth--
+      current += char
+    } else if (!inString && (char === '"' || char === "'")) {
+      inString = true
+      stringChar = char
+      current += char
+    } else if (inString && char === stringChar && nextChar !== '\\') {
+      inString = false
+      current += char
+    } else if (!inString && depth === 0) {
+      const potentialAnd = rqlStr.slice(i, i + 4).toUpperCase()
+      const potentialOr = rqlStr.slice(i, i + 3).toUpperCase()
+
+      if (potentialAnd === ' AND') {
+        if (topLevelOperator === null) topLevelOperator = 'AND'
+        parts.push(current.trim())
+        current = ''
+        i += 3
+      } else if (potentialOr === ' OR') {
+        if (topLevelOperator === null) topLevelOperator = 'OR'
+        parts.push(current.trim())
+        current = ''
+        i += 2
+      } else {
+        current += char
+      }
+    } else {
+      current += char
+    }
+  }
+
+  if (current.trim()) {
+    parts.push(current.trim())
+  }
+
+  if (parts.length < 2) return null
+
+  const operator: 'AND' | 'OR' = topLevelOperator || 'AND'
+
+  const children: FilterNode[] = []
+  for (const part of parts) {
+    const node = parseRQLExpression(part)
+    if (node) {
+      children.push(node)
+    }
+  }
+
+  if (children.length === 0) return null
+  if (children.length === 1) return children[0]
+
+  return { operator, children }
+}
+
+export function parseRQL(rqlStr: string): RQLResult {
+  if (!rqlStr.trim()) return { filters: [], filterGroups: [] }
+
+  const conditions: FilterCondition[] = []
+  const filterGroups: FilterGroup[] = []
+  const sortBy: SortOption[] = []
+
+  let rqlWithoutOrderby = rqlStr
+  let orderbyMatch = rqlWithoutOrderby.match(/orderby (\w+) (asc|desc)$/i)
+  while (orderbyMatch) {
+    sortBy.push({
+      key: orderbyMatch[1],
+      labelKey: SORT_OPTION_MAP[orderbyMatch[1]]?.labelKey || '',
+      direction: orderbyMatch[2].toLowerCase() as 'asc' | 'desc'
+    })
+    const newRql = rqlWithoutOrderby.replace(/\s+(AND|OR)\s+orderby \w+ (asc|desc)$/i, '').trim()
+    if (newRql !== rqlWithoutOrderby) {
+      rqlWithoutOrderby = newRql
+    } else {
+      rqlWithoutOrderby = rqlWithoutOrderby.replace(/\s*orderby \w+ (asc|desc)$/i, '').trim()
+    }
+    orderbyMatch = rqlWithoutOrderby.match(/orderby (\w+) (asc|desc)$/i)
+  }
+  sortBy.reverse()
+
+  const node = parseRQLExpression(rqlWithoutOrderby)
+  if (!node) return { filters: [], filterGroups: [], sortBy: sortBy.length > 0 ? sortBy : undefined }
+
+  if (isFilterCondition(node)) {
+    conditions.push(node)
+  } else {
+    if (node.operator === 'AND' && node.children.every(c => isFilterCondition(c))) {
+      for (const child of node.children) {
+        if (isFilterCondition(child)) {
+          conditions.push(child)
+        }
+      }
+    } else {
+      filterGroups.push(node)
+    }
+  }
+
+  return { filters: conditions, filterGroups, sortBy: sortBy.length > 0 ? sortBy : undefined }
+}
+
+export function flattenFilterGroups(groups: FilterGroup[]): FilterCondition[] {
+  const conditions: FilterCondition[] = []
+
+  function traverse(node: FilterNode): void {
+    if (isFilterCondition(node)) {
+      conditions.push(node)
+    } else {
+      for (const child of node.children) {
+        traverse(child)
+      }
+    }
+  }
+
+  for (const group of groups) {
+    traverse(group)
+  }
+
+  return conditions
 }
 
 export const SORT_OPTIONS: SortOption[] = [
@@ -406,7 +565,6 @@ export const SORT_OPTIONS: SortOption[] = [
   { key: 'issue_type', labelKey: 'filter.orderType', direction: 'asc' },
 ]
 
-// Map of sort field key → SortOption for quick lookup (used when restoring from RQL/saved views)
 export const SORT_OPTION_MAP: Record<string, SortOption> = {}
 SORT_OPTIONS.forEach(s => { SORT_OPTION_MAP[s.key] = s })
 

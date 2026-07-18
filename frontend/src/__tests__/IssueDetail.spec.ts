@@ -41,6 +41,9 @@ const { mockGetIssue, mockUpdateIssue, mockListStates, mockListCycles, mockListM
 vi.mock('@/api/issue', () => ({
   getIssue: (...args: any[]) => mockGetIssue(...args),
   updateIssue: (...args: any[]) => mockUpdateIssue(...args),
+  listWatchers: vi.fn().mockResolvedValue({ watchers: [] }),
+  addWatcher: vi.fn().mockResolvedValue({}),
+  removeWatcher: vi.fn().mockResolvedValue({}),
   issueApi: {
     getIssue: (...args: any[]) => mockGetIssue(...args),
     updateIssue: (...args: any[]) => mockUpdateIssue(...args),
@@ -155,6 +158,13 @@ vi.mock('@/components/IssueTabActivity.vue', () => ({
   },
 }))
 
+vi.mock('@/components/IssueGitPanel.vue', () => ({
+  default: {
+    template: '<div data-test="mock-git">Git Panel</div>',
+    props: ['workspaceId', 'issueId'],
+  },
+}))
+
 vi.mock('@/components/AgentSelector.vue', () => ({
   default: {
     template: '<select data-test="mock-agent-selector"><option>Agent</option></select>',
@@ -186,18 +196,19 @@ describe('IssueDetail', () => {
     expect(wrapper.text()).toContain('issue.save')
   })
 
-  it('renders 5 tab buttons', async () => {
+  it('renders 6 tab buttons', async () => {
     const wrapper = mountComponent()
     await nextTick()
     await nextTick()
 
     const tabBtns = wrapper.findAll('[data-test="tab-btn"]')
-    expect(tabBtns.length).toBe(5)
+    expect(tabBtns.length).toBe(6)
     expect(tabBtns[0].text()).toBe('issue.tabDetails')
     expect(tabBtns[1].text()).toBe('issue.tabRelations')
     expect(tabBtns[2].text()).toBe('issue.tabAttachments')
-    expect(tabBtns[3].text()).toBe('issue.tabTimetrack')
-    expect(tabBtns[4].text()).toBe('issue.tabActivity')
+    expect(tabBtns[3].text()).toBe('gitIntegration.title')
+    expect(tabBtns[4].text()).toBe('issue.tabTimetrack')
+    expect(tabBtns[5].text()).toBe('issue.tabActivity')
   })
 
   it('shows Details tab by default', async () => {
@@ -217,16 +228,15 @@ describe('IssueDetail', () => {
     await nextTick()
     await nextTick()
 
-    // Click on Relations tab
     const tabBtns = wrapper.findAll('[data-test="tab-btn"]')
+    
     await tabBtns[1].trigger('click')
     await nextTick()
 
     expect(wrapper.find('[data-test="mock-details"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="mock-relations"]').exists()).toBe(true)
 
-    // Click on Activity tab
-    await tabBtns[4].trigger('click')
+    await tabBtns[5].trigger('click')
     await nextTick()
 
     expect(wrapper.find('[data-test="mock-relations"]').exists()).toBe(false)

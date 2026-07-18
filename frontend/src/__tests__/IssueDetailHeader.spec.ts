@@ -15,9 +15,9 @@ const mockIssue = {
 
 describe('IssueDetailHeader', () => {
   it('renders the issue type badge and sequence ID', () => {
-    const wrapper = mount(IssueDetailHeader, { props: { issue: mockIssue, saving: false } })
+    const wrapper = mount(IssueDetailHeader, { props: { issue: mockIssue, saving: false, projectIdentifier: 'DEV' } })
     expect(wrapper.text()).toContain('Task')
-    expect(wrapper.text()).toContain('#42')
+    expect(wrapper.text()).toContain('DEV-42')
   })
 
   it('emits "back" when back button is clicked', () => {

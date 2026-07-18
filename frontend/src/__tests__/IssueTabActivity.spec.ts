@@ -21,6 +21,10 @@ const mockActivities = [
     verb: 'updated',
     field: 'priority',
     comment: '',
+    actor_id: 1,
+    actor_display_name: 'User',
+    old_value: 'low',
+    new_value: 'high',
   },
   {
     id: 2,
@@ -28,6 +32,8 @@ const mockActivities = [
     verb: 'created',
     field: '',
     comment: '',
+    actor_id: 2,
+    actor_display_name: 'Admin',
   },
 ]
 
@@ -59,9 +65,10 @@ describe('IssueTabActivity', () => {
       props: { issueId: 1 },
     })
     await flushPromises()
-    expect(wrapper.text()).toContain('updated')
-    expect(wrapper.text()).toContain('created')
-    expect(wrapper.text()).toContain('priority')
+    expect(wrapper.text()).toContain('activity.changedPriority')
+    expect(wrapper.text()).toContain('activity.created')
+    expect(wrapper.text()).toContain('User')
+    expect(wrapper.text()).toContain('Admin')
   })
 
   it('handles API error gracefully', async () => {

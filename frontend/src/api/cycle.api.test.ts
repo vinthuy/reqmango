@@ -160,7 +160,8 @@ describe('cycleApi export', () => {
     expect(cycleApi.getCycleProgress).toBeDefined()
     expect(cycleApi.getCycleStatistics).toBeDefined()
     expect(cycleApi.getBurndownData).toBeDefined()
-    // 14 methods total
-    expect(Object.keys(cycleApi)).toHaveLength(14)
+    expect(cycleApi.applyAutoAddRules).toBeDefined()
+    expect(cycleApi.applyAutoCloseRules).toBeDefined()
+    expect(Object.keys(cycleApi)).toHaveLength(16)
   })
 })

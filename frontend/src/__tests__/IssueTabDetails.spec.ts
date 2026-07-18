@@ -27,6 +27,7 @@ const defaultProps = {
   projectId: 1,
   issueTypeId: 1,
   members: [],
+  showTitle: true,
 }
 
 function mountComponent(overrides: Record<string, any> = {}) {

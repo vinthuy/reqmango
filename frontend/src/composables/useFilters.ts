@@ -1,6 +1,6 @@
 import { reactive, computed, provide, inject, type ComputedRef } from 'vue'
-import type { FilterCondition, SortOption, GroupOption, SubGroupOption } from '../types/filters'
-import { buildRQL, parseRQL, FILTER_FIELDS } from '../types/filters'
+import type { FilterCondition, SortOption, GroupOption, SubGroupOption, FilterGroup } from '../types/filters'
+import { buildRQL, parseRQL, FILTER_FIELDS, flattenFilterGroups } from '../types/filters'
 import { useAuthStore } from '../stores/auth'
 
 const FILTERS_KEY = Symbol('filters')
@@ -13,6 +13,7 @@ FILTER_FIELDS.forEach(f => { DB_TO_UI_KEY[f.dbKey] = f.key })
 
 export interface FiltersState {
   filters: FilterCondition[]
+  filterGroups: FilterGroup[]
   sortBy: SortOption[]  // multi-sort, empty array = default order
   groupBy: GroupOption | null
   subGroupBy: SubGroupOption | null
@@ -62,6 +63,7 @@ export function useFilters() {
   
   const state = reactive<FiltersState>({
     filters: [],
+    filterGroups: [],
     sortBy: [],
     groupBy: null,
     subGroupBy: null,
@@ -70,10 +72,16 @@ export function useFilters() {
   })
 
   const rql = computed<string>(() => {
+    if (state.filterGroups.length > 0) {
+      return buildRQL(state.filterGroups, state.quickSearch, auth.user?.id, state.sortBy)
+    }
     return buildRQL(state.filters, state.quickSearch, auth.user?.id, state.sortBy)
   })
   
-  const activeFilterCount = computed<number>(() => state.filters.length + (state.quickSearch ? 1 : 0))
+  const activeFilterCount = computed<number>(() => {
+    const groupCount = state.filterGroups.length > 0 ? flattenFilterGroups(state.filterGroups).length : 0
+    return state.filters.length + groupCount + (state.quickSearch ? 1 : 0)
+  })
   const isEmpty = computed<boolean>(() => activeFilterCount.value === 0)
 
   function addFilter(field: string, operator: string, value: any, displayValue: string): void {
@@ -91,6 +99,7 @@ export function useFilters() {
 
   function clearAll(): void {
     state.filters = []
+    state.filterGroups = []
     state.sortBy = []
     state.groupBy = null
     state.subGroupBy = null
@@ -157,9 +166,24 @@ export function useFilters() {
     return result
   }
 
+  function mapFieldKey(node: FilterGroup['children'][number]): FilterGroup['children'][number] {
+    if ('field' in node) {
+      return {
+        ...node,
+        field: DB_TO_UI_KEY[node.field] || node.field
+      }
+    } else {
+      return {
+        ...node,
+        children: node.children.map(mapFieldKey)
+      }
+    }
+  }
+
   function restoreFromRQL(rqlStr: string, extractQuickSearch?: boolean): void {
     if (!rqlStr.trim()) {
       state.filters = []
+      state.filterGroups = []
       state.sortBy = []
       if (extractQuickSearch) state.quickSearch = ''
       return
@@ -185,9 +209,14 @@ export function useFilters() {
         ...f,
         field: DB_TO_UI_KEY[f.field] || f.field
       }))
+      state.filterGroups = parsed.filterGroups.map(g => ({
+        ...g,
+        children: g.children.map(mapFieldKey)
+      }))
       state.sortBy = parsed.sortBy || []
     } else {
       state.filters = []
+      state.filterGroups = []
       state.sortBy = []
     }
   }
