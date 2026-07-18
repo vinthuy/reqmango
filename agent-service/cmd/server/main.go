@@ -71,6 +71,7 @@ func main() {
 	sessionH := handler.NewAgentSessionHandler(db)
 	pipelineH := handler.NewAgentPipelineHandler(db, reg)
 	agentH := handler.NewAgentHandler(agentSvc)
+	aiH := handler.NewAIHandler(aiSvc, db)
 
 	// Setup router
 	r := gin.Default()
@@ -143,19 +144,45 @@ func main() {
 			agents.POST("/:id/auto-assign", agentH.AutoAssign)
 			agents.POST("/:id/mention", agentH.HandleMention)
 		}
+
+		// AI config (workspace-level)
+		api.GET("/ai-config", aiH.GetAIConfig)
+		api.PUT("/ai-config", aiH.UpdateAIConfig)
 	}
 
-	// Project-level agent routes (proxy preserved path)
+	// Project-level agent + AI routes
 	proj := r.Group("/api/v1/projects/:projectId", auth)
 	{
 		proj.POST("/agent/auto-triage", agentH.AutoTriageProject)
 		proj.POST("/agent/auto-assign", agentH.AutoAssignProject)
+
+		// AI routes (project-level)
+		aiGroup := proj.Group("/ai")
+		{
+			aiGroup.POST("/chat", aiH.Chat)
+			aiGroup.POST("/search", aiH.Search)
+			aiGroup.POST("/create", aiH.CreatePreview)
+			aiGroup.POST("/analyze", aiH.Analyze)
+			aiGroup.POST("/suggest-labels", aiH.SuggestLabels)
+			aiGroup.POST("/sprint-plan", aiH.SprintPlan)
+			aiGroup.POST("/chart", aiH.Chart)
+		}
+
+		// Intake AI triage
+		proj.POST("/intake/:issueId/ai-analyze", aiH.TriageAnalyze)
 	}
 
-	// Issue-level agent mention
+	// Issue-level agent mention + AI comment assistance
 	issues := r.Group("/api/v1/issues/:issueId", auth)
 	{
 		issues.POST("/agents/:agentId/mention", agentH.HandleMention)
+		issues.POST("/ai/comment", aiH.AssistComment)
+	}
+
+	// Page-level AI
+	pages := r.Group("/api/v1/pages/:pageId", auth)
+	{
+		pages.POST("/ai", aiH.PageAI)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
