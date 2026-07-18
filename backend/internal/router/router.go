@@ -127,6 +127,15 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	sseH := handler.NewSSEHandler()
 	v1SSE := r.Group("/api/v1")
 	v1SSE.GET("/sse", authMiddleware, sseH.Connect)
+		// ---- Internal Data API (for agent-service) ----
+		internalH := handler.NewInternalDataHandler(db)
+		internal := r.Group("/api/internal", authMiddleware)
+		{
+			internal.GET("/issues/:id", internalH.GetIssue)
+			internal.POST("/issues/search", internalH.SearchIssues)
+			internal.GET("/projects/:id", internalH.GetProject)
+			internal.GET("/users/:id", internalH.GetUser)
+		}
 
 	// ==================== API v1 ====================
 	v1 := r.Group("/api/v1")
