@@ -230,7 +230,7 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	}
 
 	// Automation trigger: issue_created (after commit, uses own DB connection)
-	s.runAutomations(issue.ID, "issue_created", map[string]interface{}{
+	s.runAutomations(issue.ID, "issue.created", map[string]interface{}{
 		"issue_id": issue.ID, "priority": issue.Priority,
 		"state_id": issue.StateID, "project_id": issue.ProjectID,
 	})
@@ -579,7 +579,8 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	// Track changes for activity
 	hasChanges := false
-	var oldStateID uint64 // Store old state ID for automation context
+	var oldStateID uint64         // Store old state ID for automation context
+	oldPriority := issue.Priority // Store old priority for automation context
 
 	if req.Name != nil && *req.Name != issue.Name {
 		oldVal := issue.Name
@@ -808,13 +809,12 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	// Automation trigger: fire after commit for state changes
 	if req.StateID != nil {
-		// Fetch new state details for context
 		var newState model.State
 		s.db.First(&newState, *req.StateID)
 
-		s.runAutomations(issueID, "state_changed", map[string]interface{}{
+		s.runAutomations(issueID, "issue.state_changed", map[string]interface{}{
 			"issue_id":    issueID,
-			"old_state":   fmt.Sprintf("%d", oldStateID), // Use the saved old value
+			"old_state":   fmt.Sprintf("%d", oldStateID),
 			"new_state":   fmt.Sprintf("%d", *req.StateID),
 			"state_group": newState.Group,
 			"project_id":  issue.ProjectID,
@@ -822,13 +822,16 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		})
 	}
 
-	// Automation trigger: fire after commit for issue updates (non-state changes)
+	// Automation trigger: fire after commit for issue updates (including priority changes)
 	if hasChanges && req.StateID == nil {
-		s.runAutomations(issueID, "issue_updated", map[string]interface{}{
-			"issue_id":   issueID,
-			"project_id": issue.ProjectID,
-			"priority":   issue.Priority,
-			"state_id":   issue.StateID,
+		log.Printf("[IssueService] Triggering automation: issue.updated for issue %d, priority: %s (old: %s)", issueID, issue.Priority, oldPriority)
+		s.runAutomations(issueID, "issue.updated", map[string]interface{}{
+			"issue_id":     issueID,
+			"project_id":   issue.ProjectID,
+			"priority":     issue.Priority,
+			"old_priority": oldPriority,
+			"new_priority": issue.Priority,
+			"state_id":     issue.StateID,
 		})
 	}
 

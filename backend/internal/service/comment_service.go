@@ -96,7 +96,7 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 
 	if s.automationSvc != nil {
 		event := Event{
-			Type:      "comment_added",
+			Type:      "comment.added",
 			ProjectID: issue.ProjectID,
 			IssueID:   issueID,
 			Context: map[string]interface{}{

@@ -55,7 +55,7 @@
             <option value="issue.deleted">{{ t('workflowRule.trigger_issue_deleted') }}</option>
             <option value="issue.assigned">{{ t('workflowRule.trigger_issue_assigned') }}</option>
             <option value="issue.state_changed">{{ t('workflowRule.trigger_state_changed') }}</option>
-            <option value="issue.priority_changed">{{ t('workflowRule.trigger_priority_changed') }}</option>
+            
             <option value="issue.due_soon">{{ t('workflowRule.trigger_due_soon') }}</option>
             <option value="issue.due_date_passed">{{ t('workflowRule.trigger_due_date_passed') }}</option>
             <option value="cycle.started">{{ t('workflowRule.trigger_cycle_started') }}</option>

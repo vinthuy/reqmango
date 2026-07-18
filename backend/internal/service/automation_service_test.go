@@ -110,12 +110,12 @@ func TestToUint64(t *testing.T) {
 func TestAutomationCreateRequest_JSON(t *testing.T) {
 	req := &AutomationCreateRequest{
 		Name:        "Test Rule",
-		TriggerType: "issue_created",
+		TriggerType: "issue.created",
 		Conditions:  `[{"field":"priority","operator":"equals","value":"high"}]`,
 		Actions:     `[{"type":"add_comment","value":"test"}]`,
 	}
 	body, err := json.Marshal(req)
 	assert.NoError(t, err)
-	assert.Contains(t, string(body), "issue_created")
+	assert.Contains(t, string(body), "issue.created")
 	assert.Contains(t, string(body), "add_comment")
 }

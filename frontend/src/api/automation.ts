@@ -18,6 +18,19 @@ export interface AutomationRule {
   updated_at: string
 }
 
+export interface AutomationExecution {
+  id: number
+  rule_id: number
+  issue_id: number
+  trigger_type: string
+  context_json: string
+  actions_taken: string
+  status: string
+  error: string
+  duration: number
+  executed_at: string
+}
+
 export interface AutomationCreate {
   name: string
   description?: string
@@ -58,6 +71,13 @@ export const automationApi = {
       issue_id: issueId,
       context: context || {},
     })
+    return res.data
+  },
+
+  getExecutionHistory: async (issueId: number, limit?: number): Promise<AutomationExecution[]> => {
+    const params = new URLSearchParams()
+    if (limit) params.append('limit', limit.toString())
+    const res = await api.get(`/issues/${issueId}/automation-history?${params.toString()}`)
     return res.data
   },
 }

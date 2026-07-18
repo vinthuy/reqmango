@@ -169,12 +169,16 @@ func (e *DefaultConditionEvaluator) evaluateCondition(cond Condition, context ma
 func (e *DefaultConditionEvaluator) evaluateSingleCondition(cond Condition, context map[string]interface{}) bool {
 	fieldValue, exists := context[cond.Field]
 	if !exists {
+		log.Printf("[Automation] Condition field '%s' not found in context", cond.Field)
 		return false // 字段不存在，不匹配
 	}
 
 	switch cond.Operator {
 	case "equals":
-		return fmt.Sprintf("%v", fieldValue) == fmt.Sprintf("%v", cond.Value)
+		result := fmt.Sprintf("%v", fieldValue) == fmt.Sprintf("%v", cond.Value)
+		log.Printf("[Automation] Condition: field=%s, operator=%s, context_value=%v, condition_value=%v, result=%v", 
+			cond.Field, cond.Operator, fieldValue, cond.Value, result)
+		return result
 	case "not_equals":
 		return fmt.Sprintf("%v", fieldValue) != fmt.Sprintf("%v", cond.Value)
 	case "contains":
@@ -445,12 +449,24 @@ func (e *DefaultActionExecutor) handleChangeState(action Action, context map[str
 		return fmt.Errorf("missing issue_id in context")
 	}
 	
-	stateID, ok := toUint64(action.Value)
-	if !ok {
-		return fmt.Errorf("invalid state_id: %v", action.Value)
+	projectID, _ := context["project_id"].(uint64)
+	
+	var stateID uint64
+	
+	if strValue, ok := action.Value.(string); ok {
+		var state model.State
+		if err := db.Where("project_id = ? AND name = ?", projectID, strValue).First(&state).Error; err != nil {
+			return fmt.Errorf("state '%s' not found for project %d", strValue, projectID)
+		}
+		stateID = state.ID
+	} else {
+		var ok bool
+		stateID, ok = toUint64(action.Value)
+		if !ok {
+			return fmt.Errorf("invalid state_id: %v", action.Value)
+		}
 	}
 	
-	// 验证状态转换是否合法（可选：检查工作流规则）
 	var newState model.State
 	if err := db.First(&newState, stateID).Error; err != nil {
 		return fmt.Errorf("state %d not found", stateID)
@@ -458,7 +474,6 @@ func (e *DefaultActionExecutor) handleChangeState(action Action, context map[str
 	
 	updateData := map[string]interface{}{"state_id": stateID}
 	
-	// 如果新状态是完成状态，设置 completed_at
 	if newState.Group == common.StateGroupCompleted {
 		now := time.Now()
 		updateData["completed_at"] = now
@@ -607,11 +622,11 @@ func NewAutomationService(db *gorm.DB) *AutomationService {
 func (s *AutomationService) registerEventHandlers() {
 	// 订阅所有触发类型的事件
 	triggerTypes := []string{
-		"issue_created",
-		"issue_updated",
-		"state_changed",
-		"assignee_changed",
-		"comment_added",
+		"issue.created",
+		"issue.updated",
+		"issue.state_changed",
+		"issue.assigned",
+		"comment.added",
 	}
 	
 	for _, triggerType := range triggerTypes {
@@ -665,8 +680,8 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 	// 查询匹配的自动化规则
 	var rules []model.AutomationRule
 	
-	if err := s.db.Where("project_id = ? AND trigger_type = ? AND is_enabled = ?", 
-		event.ProjectID, event.Type, true).Order("sequence ASC").Find(&rules).Error; err != nil {
+	if err := s.db.Where("project_id = ? AND is_enabled = ?", 
+		event.ProjectID, true).Order("sequence ASC").Find(&rules).Error; err != nil {
 		log.Printf("[Automation] Failed to query project rules: %v", err)
 		return err
 	}
@@ -674,13 +689,35 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 	var workspaceRules []model.AutomationRule
 	var project model.Project
 	if err := s.db.Select("workspace_id").First(&project, event.ProjectID).Error; err == nil {
-		if err := s.db.Where("workspace_id = ? AND project_id = 0 AND trigger_type = ? AND is_enabled = ?",
-			project.WorkspaceID, event.Type, true).Order("sequence ASC").Find(&workspaceRules).Error; err != nil {
+		if err := s.db.Where("workspace_id = ? AND project_id = 0 AND is_enabled = ?",
+			project.WorkspaceID, true).Order("sequence ASC").Find(&workspaceRules).Error; err != nil {
 			log.Printf("[Automation] Failed to query workspace rules: %v", err)
 		}
 	}
 	
 	rules = append(rules, workspaceRules...)
+	
+	// 过滤匹配的触发器类型（支持 JSON 格式和纯字符串格式）
+	var matchedRules []model.AutomationRule
+	for _, rule := range rules {
+		triggerType := rule.TriggerType
+		parsedType := triggerType
+		if strings.HasPrefix(triggerType, "{") {
+			var triggerObj map[string]interface{}
+			if err := json.Unmarshal([]byte(triggerType), &triggerObj); err == nil {
+				if t, ok := triggerObj["type"].(string); ok {
+					parsedType = t
+				}
+			}
+		}
+		log.Printf("[Automation] Rule %d trigger_type: '%s', parsed type: '%s', event type: '%s', enabled: %v", 
+			rule.ID, rule.TriggerType, parsedType, event.Type, rule.IsEnabled)
+		if parsedType == event.Type {
+			matchedRules = append(matchedRules, rule)
+		}
+	}
+	rules = matchedRules
+	log.Printf("[Automation] Found %d matching rules for event %s", len(rules), event.Type)
 	
 	var allResults []string
 	var hasError bool
@@ -845,12 +882,12 @@ func (s *AutomationService) List(projectID uint64) ([]AutomationResponse, error)
 	}
 
 	var projectRules []model.AutomationRule
-	if err := s.db.Where("project_id = ?", projectID).Order("sequence ASC").Find(&projectRules).Error; err != nil {
+	if err := s.db.Where("project_id = ?", projectID).Order("created_at DESC").Find(&projectRules).Error; err != nil {
 		return nil, common.Internal("Failed to list project automation rules")
 	}
 
 	var workspaceRules []model.AutomationRule
-	if err := s.db.Where("workspace_id = ? AND project_id = 0", project.WorkspaceID).Order("sequence ASC").Find(&workspaceRules).Error; err != nil {
+	if err := s.db.Where("workspace_id = ? AND project_id = 0", project.WorkspaceID).Order("created_at DESC").Find(&workspaceRules).Error; err != nil {
 		return nil, common.Internal("Failed to list workspace automation rules")
 	}
 

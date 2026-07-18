@@ -11,7 +11,6 @@ export enum TriggerTypeEnum {
   ISSUE_DELETED = 'issue.deleted',
   ISSUE_ASSIGNED = 'issue.assigned',
   STATE_CHANGED = 'issue.state_changed',
-  PRIORITY_CHANGED = 'issue.priority_changed',
   DUE_SOON = 'issue.due_soon',
   DUE_DATE_PASSED = 'issue.due_date_passed',
   
@@ -28,7 +27,6 @@ export const TriggerTypeOptions = [
   { value: 'issue.updated', label: '工作项更新时', icon: '✏️' },
   { value: 'issue.state_changed', label: '状态变更时', icon: '🔄' },
   { value: 'issue.assigned', label: '分配人变更时', icon: '👤' },
-  { value: 'issue.priority_changed', label: '优先级变更时', icon: '⚡' },
   { value: 'issue.due_soon', label: '截止日期临近时', icon: '⏰' },
   { value: 'issue.due_date_passed', label: '截止日期过期时', icon: '⚠️' },
   { value: 'cycle.started', label: '周期开始时', icon: '▶️' },
@@ -240,7 +238,6 @@ export function getTriggerDisplayName(triggerType: TriggerTypeEnum): string {
     [TriggerTypeEnum.ISSUE_DELETED]: '工作项删除时',
     [TriggerTypeEnum.ISSUE_ASSIGNED]: '工作项分配时',
     [TriggerTypeEnum.STATE_CHANGED]: '状态变更时',
-    [TriggerTypeEnum.PRIORITY_CHANGED]: '优先级变更时',
     [TriggerTypeEnum.DUE_SOON]: '截止日期临近时',
     [TriggerTypeEnum.DUE_DATE_PASSED]: '截止日期过期时',
     [TriggerTypeEnum.CYCLE_STARTED]: '周期开始时',
@@ -299,7 +296,7 @@ export function getTriggerIcon(triggerType: TriggerTypeEnum): string {
     [TriggerTypeEnum.ISSUE_DELETED]: 'trash',
     [TriggerTypeEnum.ISSUE_ASSIGNED]: 'user',
     [TriggerTypeEnum.STATE_CHANGED]: 'git-branch',
-    [TriggerTypeEnum.PRIORITY_CHANGED]: 'flag',
+    
     [TriggerTypeEnum.DUE_SOON]: 'clock',
     [TriggerTypeEnum.DUE_DATE_PASSED]: 'alert-circle',
     [TriggerTypeEnum.CYCLE_STARTED]: 'play',

@@ -21,6 +21,7 @@ import WorkItemTemplateManager from '@/components/WorkItemTemplateManager.vue'
 import ReleaseList from '@/components/ReleaseList.vue'
 import WebhookManager from '@/components/WebhookManager.vue'
 import GitIntegrationSettings from '@/components/GitIntegrationSettings.vue'
+import AutomationRuleBuilder from '@/components/AutomationRuleBuilder.vue'
 import relationApi from '@/api/relation'
 
 const { confirm } = useConfirm()
@@ -190,6 +191,76 @@ async function loadData() {
   } finally { loading.value = false }
 }
 
+// ===== Automation Templates =====
+const automationTemplates = ref([
+  {
+    name: 'autoAssignBugs',
+    icon: '🐛',
+    bgClass: 'bg-red-100',
+    trigger: 'issue_created',
+    conditions: [{ field: 'priority', operator: 'equals', value: 'urgent' }],
+    actions: [{ type: 'add_comment', value: '⚠️ 紧急Bug已创建，请尽快处理！' }]
+  },
+  {
+    name: 'notifyOnComment',
+    icon: '💬',
+    bgClass: 'bg-blue-100',
+    trigger: 'comment_added',
+    conditions: [],
+    actions: [{ type: 'add_comment', value: '🔔 收到新评论，请及时回复' }]
+  },
+  {
+    name: 'setDefaultPriority',
+    icon: '⚡',
+    bgClass: 'bg-amber-100',
+    trigger: 'issue_created',
+    conditions: [],
+    actions: [{ type: 'set_priority', value: 'medium' }]
+  },
+  {
+    name: 'autoCloseOnDone',
+    icon: '✅',
+    bgClass: 'bg-green-100',
+    trigger: 'state_changed',
+    conditions: [{ field: 'state', operator: 'equals', value: 'done' }],
+    actions: [{ type: 'add_comment', value: '🎉 工作项已完成！' }]
+  },
+  {
+    name: 'remindDueSoon',
+    icon: '⏰',
+    bgClass: 'bg-purple-100',
+    trigger: 'issue_created',
+    conditions: [{ field: 'due_date', operator: 'is_not_empty', value: '' }],
+    actions: [{ type: 'add_comment', value: '📅 注意：此工作项有截止日期，请按时完成！' }]
+  },
+  {
+    name: 'archiveOnCancel',
+    icon: '📦',
+    bgClass: 'bg-gray-100',
+    trigger: 'state_changed',
+    conditions: [{ field: 'state', operator: 'equals', value: 'cancelled' }],
+    actions: [{ type: 'add_comment', value: '📋 工作项已取消归档' }]
+  }
+])
+
+async function applyTemplate(template: any) {
+  try {
+    const data = {
+      name: t(`automationTemplates.${template.name}`),
+      description: t(`automationTemplates.${template.name}Desc`),
+      trigger_type: JSON.stringify({ type: template.trigger }),
+      conditions: template.conditions.length > 0 ? JSON.stringify(template.conditions) : undefined,
+      actions: JSON.stringify(template.actions)
+    }
+    await workflowApi.createAutomation(projectId.value, data)
+    await loadData()
+    toast.success(t('automationTemplates.createdSuccess'))
+  } catch (e: any) {
+    console.error('Failed to apply template:', e)
+    toast.error(e?.response?.data?.message || t('automationTemplates.createFailed'))
+  }
+}
+
 // ===== State handlers =====
 const showStateModal = ref(false)
 const editingState = ref<{ groupId: string; state: any } | null>(null)
@@ -305,41 +376,20 @@ async function handleDeleteWorkflow(workflow: any) {
 // ===== Automation handlers =====
 const showAutomationModal = ref(false)
 const editingAutomation = ref<any>(null)
-const newAutomationForm = ref({ name: '', description: '', trigger: 'issue_created', conditions: '[]', actions: '[]' })
 
 function handleAddAutomation() {
   editingAutomation.value = null
-  newAutomationForm.value = { name: '', description: '', trigger: 'issue_created', conditions: '[]', actions: '[]' }
   showAutomationModal.value = true
 }
 
 function handleEditAutomation(automation: any) {
   editingAutomation.value = automation
-  newAutomationForm.value = {
-    name: automation.name,
-    description: automation.description,
-    trigger: automation.trigger_type,
-    conditions: automation.conditions || '[]',
-    actions: automation.actions || '[]'
-  }
   showAutomationModal.value = true
 }
 
-async function handleSaveAutomation() {
-  if (!newAutomationForm.value.name || !projectId.value) return
+async function handleSaveAutomation(data: any) {
+  if (!projectId.value) return
   try {
-    let conds = '[]', acts = '[]'
-    try { conds = JSON.stringify(JSON.parse(newAutomationForm.value.conditions || '[]')); } catch { conds = '[]' }
-    try { acts = JSON.stringify(JSON.parse(newAutomationForm.value.actions || '[]')); } catch { acts = '[]' }
-    
-    const data = {
-      name: newAutomationForm.value.name,
-      description: newAutomationForm.value.description,
-      trigger_type: newAutomationForm.value.trigger,
-      conditions: conds,
-      actions: acts
-    }
-    
     if (editingAutomation.value) {
       await workflowApi.updateAutomation(projectId.value, editingAutomation.value.id, data)
     } else {
@@ -827,7 +877,37 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
-            <div v-if="automations.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">{{ t('settings.noAutomations') }}</div>
+            <div v-if="automations.length === 0" class="space-y-4">
+            <div class="text-center text-gray-400 py-4 bg-white rounded-xl border border-gray-200">
+              <p class="text-sm">{{ t('settings.noAutomations') }}</p>
+              <p class="text-xs mt-1">{{ t('automationTemplates.chooseTemplate') }}</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div
+                v-for="template in automationTemplates"
+                :key="template.name"
+                @click="applyTemplate(template)"
+                class="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group"
+              >
+                <div class="flex items-center space-x-3 mb-3">
+                  <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl" :class="template.bgClass">
+                    {{ template.icon }}
+                  </div>
+                  <div>
+                    <h4 class="font-medium text-gray-900 text-sm">{{ t(`automationTemplates.${template.name}`) }}</h4>
+                    <p class="text-xs text-gray-500">{{ t(`automationTemplates.${template.name}Desc`) }}</p>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-2 text-xs text-gray-400">
+                  <span class="px-2 py-0.5 bg-gray-100 rounded">{{ t(`settings.triggerTypes.${template.trigger}`) }}</span>
+                  <span>{{ template.actions.length }} {{ t('settings.actions') }}</span>
+                </div>
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                  <span class="text-xs text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">{{ t('automationTemplates.clickToCreate') }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
           </div>
         </div>
 
@@ -961,33 +1041,17 @@ onMounted(async () => {
 
     <!-- Automation Modal -->
     <div v-if="showAutomationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAutomationModal = false">
-      <div class="bg-white rounded-xl p-6 w-full max-w-lg">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ editingAutomation ? t('settings.editAutomation') : t('settings.createAutomation') }}</h3>
-        <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="newAutomationForm.name" type="text" :placeholder="t('settings.automationNamePlaceholder')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.descriptionOptional') }}</label><input v-model="newAutomationForm.description" type="text" :placeholder="t('settings.automationDescriptionPlaceholder')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
-          <div class="p-4 bg-gray-50 rounded-lg">
-            <div class="text-sm font-medium text-gray-700 mb-2">{{ t('settings.trigger') }}</div>
-            <select v-model="newAutomationForm.trigger" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              <option value="issue_created">{{ t('settings.triggerTypes.issue_created') }}</option>
-              <option value="issue_updated">{{ t('settings.triggerTypes.issue_updated') }}</option>
-              <option value="state_changed">{{ t('settings.triggerTypes.state_changed') }}</option>
-              <option value="assignee_changed">{{ t('settings.triggerTypes.assignee_changed') }}</option>
-              <option value="comment_added">{{ t('settings.triggerTypes.comment_added') }}</option>
-            </select>
-          </div>
-          <div class="p-4 bg-gray-50 rounded-lg">
-            <div class="text-sm font-medium text-gray-700 mb-2">{{ t('settings.conditions') }} (JSON)</div>
-            <textarea v-model="newAutomationForm.conditions" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono" :placeholder="t('settings.conditionsPlaceholder')"></textarea>
-          </div>
-          <div class="p-4 bg-gray-50 rounded-lg">
-            <div class="text-sm font-medium text-gray-700 mb-2">{{ t('settings.actions') }} (JSON)</div>
-            <textarea v-model="newAutomationForm.actions" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono" :placeholder="t('settings.actionsPlaceholder')"></textarea>
-          </div>
-        </div>
-        <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showAutomationModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
-          <button @click="handleSaveAutomation" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingAutomation ? t('settings.update') : t('settings.create') }}</button>
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <AutomationRuleBuilder
+            :project-id="projectId"
+            :workspace-id="workspaceId"
+            :rule="editingAutomation"
+            :states="states"
+            :members="members"
+            @submit="handleSaveAutomation"
+            @cancel="showAutomationModal = false"
+          />
         </div>
       </div>
     </div>
