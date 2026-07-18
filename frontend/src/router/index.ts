@@ -163,7 +163,31 @@ const router = createRouter({
       name: 'Dashboards',
       component: () => import('@/views/Dashboard.vue'),
       meta: { requiresAuth: true }
-    }
+    },
+    {
+      path: '/workspaces/:wsParam/agents',
+      name: 'agent-dashboard',
+      component: () => import('@/views/agents/AgentDashboard.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/loops',
+      name: 'agent-loops',
+      component: () => import('@/views/agents/LoopList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/loops/runs/:runId',
+      name: 'loop-run-detail',
+      component: () => import('@/views/agents/LoopRunDetail.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/sessions',
+      name: 'agent-sessions',
+      component: () => import('@/views/agents/AgentSessions.vue'),
+      meta: { requiresAuth: true },
+    },
   ]
 })
 
