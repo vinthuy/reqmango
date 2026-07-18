@@ -20,11 +20,11 @@ import (
 
 // Event 表示自动化系统中的事件
 type Event struct {
-	Type        string                 `json:"type"`         // issue_created, state_changed, etc.
-	ProjectID   uint64                 `json:"project_id"`
-	IssueID     uint64                 `json:"issue_id"`
-	Context     map[string]interface{} `json:"context"`      // old_state, new_state, state_group, priority, etc.
-	Timestamp   time.Time              `json:"timestamp"`
+	Type      string                 `json:"type"` // issue_created, state_changed, etc.
+	ProjectID uint64                 `json:"project_id"`
+	IssueID   uint64                 `json:"issue_id"`
+	Context   map[string]interface{} `json:"context"` // old_state, new_state, state_group, priority, etc.
+	Timestamp time.Time              `json:"timestamp"`
 }
 
 // EventHandler 事件处理器接口
@@ -85,12 +85,12 @@ type ConditionEvaluator interface {
 
 // Condition 增强的条件结构（支持 AND/OR/NOT 组合）
 type Condition struct {
-	Field       string      `json:"field"`
-	Operator    string      `json:"operator"` // equals, not_equals, contains, in, gt, lt, is_empty, is_not_empty, matches_regex
-	Value       interface{} `json:"value"`
-	Logic       string      `json:"logic,omitempty"`       // AND, OR, NOT (用于组合多个条件)
-	Conditions  []Condition `json:"conditions,omitempty"` // 嵌套条件组
-	IsNegated   bool        `json:"is_negated,omitempty"` // 是否取反（NOT）
+	Field      string      `json:"field"`
+	Operator   string      `json:"operator"` // equals, not_equals, contains, in, gt, lt, is_empty, is_not_empty, matches_regex
+	Value      interface{} `json:"value"`
+	Logic      string      `json:"logic,omitempty"`      // AND, OR, NOT (用于组合多个条件)
+	Conditions []Condition `json:"conditions,omitempty"` // 嵌套条件组
+	IsNegated  bool        `json:"is_negated,omitempty"` // 是否取反（NOT）
 }
 
 // DefaultConditionEvaluator 默认条件评估器实现（支持复杂逻辑组合和自定义字段）
@@ -188,7 +188,7 @@ func (e *DefaultConditionEvaluator) evaluateSingleCondition(cond Condition, cont
 	switch cond.Operator {
 	case "equals":
 		result := fmt.Sprintf("%v", fieldValue) == fmt.Sprintf("%v", cond.Value)
-		log.Printf("[Automation] Condition: field=%s, operator=%s, context_value=%v, condition_value=%v, result=%v", 
+		log.Printf("[Automation] Condition: field=%s, operator=%s, context_value=%v, condition_value=%v, result=%v",
 			cond.Field, cond.Operator, fieldValue, cond.Value, result)
 		return result
 	case "not_equals":
@@ -325,8 +325,8 @@ type DefaultActionExecutor struct {
 
 func NewDefaultActionExecutor(db *gorm.DB, agentClient *client.AgentClient) *DefaultActionExecutor {
 	executor := &DefaultActionExecutor{
-		handlers: make(map[string]ActionHandler),
-		db:       db,
+		handlers:    make(map[string]ActionHandler),
+		db:          db,
 		agentClient: agentClient,
 	}
 
@@ -356,22 +356,22 @@ func (e *DefaultActionExecutor) RegisterAction(actionType string, handler Action
 
 func (e *DefaultActionExecutor) Execute(actions []Action, context map[string]interface{}) ([]string, error) {
 	var results []string
-	
+
 	for _, action := range actions {
 		handler, exists := e.handlers[action.Type]
 		if !exists {
 			log.Printf("[ActionExecutor] Unknown action type: %s", action.Type)
 			continue
 		}
-		
+
 		if err := handler(action, context, e.db); err != nil {
 			log.Printf("[ActionExecutor] Failed to execute action %s: %v", action.Type, err)
 			return results, err
 		}
-		
+
 		results = append(results, fmt.Sprintf("Executed %s", action.Type))
 	}
-	
+
 	return results, nil
 }
 
@@ -381,20 +381,20 @@ func (e *DefaultActionExecutor) handleSetField(action Action, context map[string
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	field := action.Field
 	value := action.Value
-	
+
 	// 验证字段是否允许修改
 	allowedFields := map[string]bool{
 		"priority": true,
 		"state_id": true,
 	}
-	
+
 	if !allowedFields[field] {
 		return fmt.Errorf("field %s is not allowed to be set via automation", field)
 	}
-	
+
 	return db.Model(&model.Issue{}).Where("id = ?", issueID).Update(field, value).Error
 }
 
@@ -403,19 +403,32 @@ func (e *DefaultActionExecutor) handleAddLabel(action Action, context map[string
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	labelID, ok := toUint64(action.Value)
 	if !ok {
 		return fmt.Errorf("invalid label_id: %v", action.Value)
 	}
-	
+
 	// 检查是否已存在
 	var count int64
 	db.Model(&model.IssueLabel{}).Where("issue_id = ? AND label_id = ?", issueID, labelID).Count(&count)
 	if count > 0 {
 		return nil // 已存在，跳过
 	}
-	
+
+	// 验证 issue 和 label 属于同一个项目
+	var issue model.Issue
+	if err := db.First(&issue, issueID).Error; err != nil {
+		return fmt.Errorf("issue not found: %w", err)
+	}
+	var label model.Label
+	if err := db.First(&label, labelID).Error; err != nil {
+		return fmt.Errorf("label not found: %w", err)
+	}
+	if label.ProjectID != issue.ProjectID {
+		return fmt.Errorf("label %d does not belong to project %d", labelID, issue.ProjectID)
+	}
+
 	return db.Create(&model.IssueLabel{IssueID: issueID, LabelID: labelID}).Error
 }
 
@@ -424,12 +437,12 @@ func (e *DefaultActionExecutor) handleRemoveLabel(action Action, context map[str
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	labelID, ok := toUint64(action.Value)
 	if !ok {
 		return fmt.Errorf("invalid label_id: %v", action.Value)
 	}
-	
+
 	return db.Where("issue_id = ? AND label_id = ?", issueID, labelID).Delete(&model.IssueLabel{}).Error
 }
 
@@ -438,12 +451,12 @@ func (e *DefaultActionExecutor) handleAddComment(action Action, context map[stri
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	comment, ok := action.Value.(string)
 	if !ok {
 		return fmt.Errorf("invalid comment value: %v", action.Value)
 	}
-	
+
 	return db.Create(&model.Comment{IssueID: issueID, Body: comment}).Error
 }
 
@@ -452,19 +465,19 @@ func (e *DefaultActionExecutor) handleAssignTo(action Action, context map[string
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	userID, ok := toUint64(action.Value)
 	if !ok {
 		return fmt.Errorf("invalid user_id: %v", action.Value)
 	}
-	
+
 	// 检查是否已分配
 	var count int64
 	db.Model(&model.IssueAssignee{}).Where("issue_id = ? AND user_id = ?", issueID, userID).Count(&count)
 	if count > 0 {
 		return nil // 已分配，跳过
 	}
-	
+
 	return db.Create(&model.IssueAssignee{IssueID: issueID, UserID: userID}).Error
 }
 
@@ -473,12 +486,12 @@ func (e *DefaultActionExecutor) handleUnassign(action Action, context map[string
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	userID, ok := toUint64(action.Value)
 	if !ok {
 		return fmt.Errorf("invalid user_id: %v", action.Value)
 	}
-	
+
 	return db.Where("issue_id = ? AND user_id = ?", issueID, userID).Delete(&model.IssueAssignee{}).Error
 }
 
@@ -487,11 +500,11 @@ func (e *DefaultActionExecutor) handleChangeState(action Action, context map[str
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	projectID, _ := context["project_id"].(uint64)
-	
+
 	var stateID uint64
-	
+
 	if strValue, ok := action.Value.(string); ok {
 		var state model.State
 		if err := db.Where("project_id = ? AND name = ?", projectID, strValue).First(&state).Error; err != nil {
@@ -505,21 +518,21 @@ func (e *DefaultActionExecutor) handleChangeState(action Action, context map[str
 			return fmt.Errorf("invalid state_id: %v", action.Value)
 		}
 	}
-	
+
 	var newState model.State
 	if err := db.First(&newState, stateID).Error; err != nil {
 		return fmt.Errorf("state %d not found", stateID)
 	}
-	
+
 	updateData := map[string]interface{}{"state_id": stateID}
-	
+
 	if newState.Group == common.StateGroupCompleted {
 		now := time.Now()
 		updateData["completed_at"] = now
 	} else {
 		updateData["completed_at"] = nil
 	}
-	
+
 	return db.Model(&model.Issue{}).Where("id = ?", issueID).Updates(updateData).Error
 }
 
@@ -528,25 +541,25 @@ func (e *DefaultActionExecutor) handleSetPriority(action Action, context map[str
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	priority, ok := action.Value.(string)
 	if !ok {
 		return fmt.Errorf("invalid priority value: %v", action.Value)
 	}
-	
+
 	// 验证优先级值
 	validPriorities := map[string]bool{
-		"urgent":   true,
-		"high":     true,
-		"medium":   true,
-		"low":      true,
-		"none":     true,
+		"urgent": true,
+		"high":   true,
+		"medium": true,
+		"low":    true,
+		"none":   true,
 	}
-	
+
 	if !validPriorities[priority] {
 		return fmt.Errorf("invalid priority: %s", priority)
 	}
-	
+
 	return db.Model(&model.Issue{}).Where("id = ?", issueID).Update("priority", priority).Error
 }
 
@@ -555,7 +568,7 @@ func (e *DefaultActionExecutor) handleArchive(action Action, context map[string]
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	return db.Model(&model.Issue{}).Where("id = ?", issueID).Update("archived", true).Error
 }
 
@@ -610,13 +623,13 @@ func handleClose(action Action, context map[string]interface{}, db *gorm.DB) err
 	if !ok {
 		return fmt.Errorf("missing issue_id in context")
 	}
-	
+
 	// 查找"已关闭"状态
 	var closedState model.State
 	if err := db.Where("project_id = (SELECT project_id FROM issues WHERE id = ?) AND group = ?", issueID, common.StateGroupCompleted).First(&closedState).Error; err != nil {
 		return fmt.Errorf("closed state not found")
 	}
-	
+
 	now := time.Now()
 	return db.Model(&model.Issue{}).Where("id = ?", issueID).Updates(map[string]interface{}{
 		"state_id":     closedState.ID,
@@ -628,10 +641,10 @@ func handleClose(action Action, context map[string]interface{}, db *gorm.DB) err
 
 // AutomationService 重构后的自动化服务（参考主流架构）
 type AutomationService struct {
-	db              *gorm.DB
-	eventBus        EventBus
-	ruleEngine      ConditionEvaluator
-	actionExecutor  ActionExecutor
+	db               *gorm.DB
+	eventBus         EventBus
+	ruleEngine       ConditionEvaluator
+	actionExecutor   ActionExecutor
 	executionHistory sync.Map // 保留用于循环检测
 	maxExecutions    int
 	execWindow       time.Duration
@@ -641,19 +654,19 @@ func NewAutomationService(db *gorm.DB) *AutomationService {
 	eventBus := NewInMemoryEventBus()
 	ruleEngine := NewDefaultConditionEvaluator(db)
 	actionExecutor := NewDefaultActionExecutor(db, nil) // agentClient set via SetAgentService after construction
-	
+
 	service := &AutomationService{
-		db:              db,
-		eventBus:        eventBus,
-		ruleEngine:      ruleEngine,
-		actionExecutor:  actionExecutor,
-		maxExecutions:   10,
-		execWindow:      5 * time.Minute,
+		db:             db,
+		eventBus:       eventBus,
+		ruleEngine:     ruleEngine,
+		actionExecutor: actionExecutor,
+		maxExecutions:  10,
+		execWindow:     5 * time.Minute,
 	}
-	
+
 	// 注册事件处理器
 	service.registerEventHandlers()
-	
+
 	return service
 }
 
@@ -666,7 +679,7 @@ func (s *AutomationService) registerEventHandlers() {
 		"issue.assigned",
 		"comment.added",
 	}
-	
+
 	for _, triggerType := range triggerTypes {
 		s.eventBus.Subscribe(triggerType, s.handleAutomationEvent)
 	}
@@ -674,11 +687,11 @@ func (s *AutomationService) registerEventHandlers() {
 
 func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Event) error {
 	startTime := time.Now()
-	
+
 	// 循环检测
 	key := fmt.Sprintf("%d:%s", event.IssueID, event.Type)
 	now := time.Now()
-	
+
 	if lastTime, ok := s.executionHistory.Load(key); ok {
 		if lastExecTime, isTime := lastTime.(time.Time); isTime {
 			if now.Sub(lastExecTime) < s.execWindow {
@@ -693,11 +706,11 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 					}
 					return true
 				})
-				
+
 				if execCount >= s.maxExecutions {
-					log.Printf("[Automation] Cycle detected: issue %d trigger %s executed %d times in %v, skipping", 
+					log.Printf("[Automation] Cycle detected: issue %d trigger %s executed %d times in %v, skipping",
 						event.IssueID, event.Type, execCount, s.execWindow)
-					
+
 					// 记录跳过的执行历史
 					s.recordExecutionHistory(event, nil, 0, "skipped", "Cycle detected", startTime)
 					return nil
@@ -705,7 +718,7 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 			}
 		}
 	}
-	
+
 	// 记录本次执行
 	s.executionHistory.Store(key, now)
 
@@ -717,8 +730,8 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 
 	// 查询匹配的自动化规则
 	var rules []model.AutomationRule
-	
-	if err := s.db.Where("project_id = ? AND is_enabled = ?", 
+
+	if err := s.db.Where("project_id = ? AND is_enabled = ?",
 		event.ProjectID, true).Order("sequence ASC").Find(&rules).Error; err != nil {
 		log.Printf("[Automation] Failed to query project rules: %v", err)
 		s.recordExecutionHistory(event, nil, 0, "failed", "Failed to query project rules", startTime)
@@ -733,9 +746,9 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 			log.Printf("[Automation] Failed to query workspace rules: %v", err)
 		}
 	}
-	
+
 	rules = append(rules, workspaceRules...)
-	
+
 	// 过滤匹配的触发器类型（支持 JSON 格式和纯字符串格式）
 	var matchedRules []model.AutomationRule
 	for _, rule := range rules {
@@ -749,7 +762,7 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 				}
 			}
 		}
-		log.Printf("[Automation] Rule %d trigger_type: '%s', parsed type: '%s', event type: '%s', enabled: %v", 
+		log.Printf("[Automation] Rule %d trigger_type: '%s', parsed type: '%s', event type: '%s', enabled: %v",
 			rule.ID, rule.TriggerType, parsedType, event.Type, rule.IsEnabled)
 		if parsedType == event.Type {
 			matchedRules = append(matchedRules, rule)
@@ -757,9 +770,9 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 	}
 	rules = matchedRules
 	log.Printf("[Automation] Found %d matching rules for event %s", len(rules), event.Type)
-	
+
 	var allResults []string
-	
+
 	for _, rule := range rules {
 		// 解析条件
 		var conditions []Condition
@@ -770,32 +783,32 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 				continue
 			}
 		}
-		
+
 		// 评估条件
 		if !s.ruleEngine.Evaluate(conditions, event.Context) {
 			log.Printf("[Automation] Rule %d conditions not met for event %s, skipping", rule.ID, event.Type)
 			s.recordExecutionHistory(event, nil, rule.ID, "skipped", "Conditions not met", startTime)
 			continue // 条件不匹配，跳过
 		}
-		
+
 		// 解析动作
 		var actions []Action
 		if err := json.Unmarshal([]byte(rule.Actions), &actions); err != nil {
 			log.Printf("[Automation] Failed to parse actions for rule %d: %v", rule.ID, err)
 			continue
 		}
-		
+
 		// 执行动作
 		results, err := s.actionExecutor.Execute(actions, event.Context)
 		if err != nil {
 			log.Printf("[Automation] Failed to execute actions for rule %d: %v", rule.ID, err)
 		}
-		
+
 		allResults = append(allResults, results...)
-		
+
 		// 更新规则执行计数
 		s.db.Model(&rule).Update("execution_count", gorm.Expr("execution_count + 1"))
-		
+
 		// 记录每条规则的执行历史
 		ruleStatus := "success"
 		ruleError := ""
@@ -805,7 +818,7 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 		}
 		s.recordExecutionHistory(event, results, rule.ID, ruleStatus, ruleError, startTime)
 	}
-	
+
 	return nil
 }
 
@@ -813,7 +826,7 @@ func (s *AutomationService) recordExecutionHistory(event Event, results []string
 	contextJSON, _ := json.Marshal(event.Context)
 	actionsJSON, _ := json.Marshal(results)
 	duration := time.Since(startTime).Milliseconds()
-	
+
 	execution := model.AutomationExecution{
 		RuleID:       ruleID,
 		IssueID:      event.IssueID,
@@ -825,7 +838,7 @@ func (s *AutomationService) recordExecutionHistory(event Event, results []string
 		Duration:     duration,
 		ExecutedAt:   time.Now(),
 	}
-	
+
 	if err := s.db.Create(&execution).Error; err != nil {
 		log.Printf("[Automation] Failed to record execution history: %v", err)
 	}
@@ -856,20 +869,20 @@ func (s *AutomationService) GetExecutionHistory(issueID uint64, limit int) ([]mo
 func (s *AutomationService) GetRuleExecutionHistory(ruleID uint64, limit int, offset int, startTime *time.Time, endTime *time.Time) ([]model.AutomationExecution, int64, error) {
 	var executions []model.AutomationExecution
 	var total int64
-	
+
 	query := s.db.Model(&model.AutomationExecution{}).Where("rule_id = ?", ruleID)
-	
+
 	if startTime != nil {
 		query = query.Where("executed_at >= ?", *startTime)
 	}
 	if endTime != nil {
 		query = query.Where("executed_at <= ?", *endTime)
 	}
-	
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, common.Internal("Failed to count execution history")
 	}
-	
+
 	if err := query.Order("executed_at DESC").Offset(offset).Limit(limit).Find(&executions).Error; err != nil {
 		return nil, 0, common.Internal("Failed to get rule execution history")
 	}
@@ -880,22 +893,22 @@ func (s *AutomationService) GetRuleExecutionHistory(ruleID uint64, limit int, of
 func (s *AutomationService) GetProjectExecutionHistory(projectID uint64, limit int, offset int, startTime *time.Time, endTime *time.Time) ([]model.AutomationExecution, int64, error) {
 	var executions []model.AutomationExecution
 	var total int64
-	
+
 	query := s.db.Model(&model.AutomationExecution{}).
 		Joins("JOIN automation_rules ON automation_rules.id = automation_executions.rule_id").
 		Where("automation_rules.project_id = ?", projectID)
-	
+
 	if startTime != nil {
 		query = query.Where("automation_executions.executed_at >= ?", *startTime)
 	}
 	if endTime != nil {
 		query = query.Where("automation_executions.executed_at <= ?", *endTime)
 	}
-	
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, common.Internal("Failed to count project execution history")
 	}
-	
+
 	if err := query.Order("automation_executions.executed_at DESC").Offset(offset).Limit(limit).Find(&executions).Error; err != nil {
 		return nil, 0, common.Internal("Failed to get project execution history")
 	}
@@ -926,13 +939,13 @@ func toUint64(v interface{}) (uint64, bool) {
 // ======== Request/Response types ========
 
 type AutomationCreateRequest struct {
-	Name        string  `json:"name" binding:"required"`
-	Description string  `json:"description"`
-	TriggerType string  `json:"trigger_type" binding:"required"`
-	Conditions  string  `json:"conditions"`
-	Actions     string  `json:"actions" binding:"required"`
-	IsEnabled   *bool   `json:"is_enabled"`
-	Sequence    int     `json:"sequence"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	TriggerType string `json:"trigger_type" binding:"required"`
+	Conditions  string `json:"conditions"`
+	Actions     string `json:"actions" binding:"required"`
+	IsEnabled   *bool  `json:"is_enabled"`
+	Sequence    int    `json:"sequence"`
 }
 
 type AutomationUpdateRequest struct {
