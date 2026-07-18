@@ -596,11 +596,11 @@ func (s *AIService) GenerateChart(ctx context.Context, req *AIChartRequest, actx
 	inProgress := started // "started" = in progress
 
 	dataCtx := fmt.Sprintf(`项目数据:
-	- 工作项总数: %d
-	- 已完成: %d, 进行中: %d, 未开始: %d, 已取消: %d
-	- 成员数: %d
-	- 按状态: %v
-	- 按优先级: %v`,
+- 工作项总数: %d
+- 已完成: %d, 进行中: %d, 未开始: %d, 已取消: %d
+- 成员数: %d
+- 按状态: %v
+- 按优先级: %v`,
 		stats.TotalIssues, stats.CompletedIssues,
 		inProgress, todo, cancelled,
 		stats.ActiveMembers,
@@ -610,25 +610,25 @@ func (s *AIService) GenerateChart(ctx context.Context, req *AIChartRequest, actx
 	// 2. Ask LLM to determine chart config
 	prompt := fmt.Sprintf(`你是一个数据可视化专家。根据用户请求和数据上下文，生成图表配置。
 
-	%s
+%s
 
-	用户请求: %s
+用户请求: %s
 
-	请直接输出纯 JSON（不要 markdown 标记），格式如下:
-	{
-	  "chart_type": "bar|pie|doughnut|line|polarArea",
-	  "title": "图表标题",
-	  "labels": ["标签1", "标签2"],
-	  "datasets": [{"label": "数据集标签", "data": [10, 20]}]
-	}
+请直接输出纯 JSON（不要 markdown 标记），格式如下:
+{
+  "chart_type": "bar|pie|doughnut|line|polarArea",
+  "title": "图表标题",
+  "labels": ["标签1", "标签2"],
+  "datasets": [{"label": "数据集标签", "data": [10, 20]}]
+}
 
-	规则:
-	1. 聚合类（按状态/优先级/类型/负责人统计数量）用 pie/doughnut/bar
-	2. 趋势类（随时间变化）用 line
-	3. 对比类用 bar（可为 horizontal）
-	4. data 必须是真实统计数据，如果数据不足用 0 填充
-	5. labels 用中文
-	6. 不要编造数据，基于上面提供的数据上下文推算`, dataCtx, req.Query)
+规则:
+1. 聚合类（按状态/优先级/类型/负责人统计数量）用 pie/doughnut/bar
+2. 趋势类（随时间变化）用 line
+3. 对比类用 bar（可为 horizontal）
+4. data 必须是真实统计数据，如果数据不足用 0 填充
+5. labels 用中文
+6. 不要编造数据，基于上面提供的数据上下文推算`, dataCtx, req.Query)
 
 	content, err := s.llm.Complete(ctx, "你是一个数据可视化专家。输出纯 JSON，不要有任何其他内容。", prompt)
 	if err != nil {
@@ -731,15 +731,15 @@ type AISearchResponse struct {
 func (s *AIService) Search(ctx context.Context, req *AISearchRequest, actx *AIContext) (*AISearchResponse, error) {
 	translatePrompt := fmt.Sprintf(`你是一个查询翻译器。将用户的自然语言需求翻译为 reqmango 查询，然后搜索并返回结果。
 
-	项目信息：
-	- 项目 ID: %d
-	- 项目标识符: %s
-	- 可用状态: 通过 list_states 工具查询
-	- 可用类型: 通过 list_issue_types 工具查询
+项目信息：
+- 项目 ID: %d
+- 项目标识符: %s
+- 可用状态: 通过 list_states 工具查询
+- 可用类型: 通过 list_issue_types 工具查询
 
-	用户需求: %s
+用户需求: %s
 
-	请先用工具查询匹配的工作项，然后用中文解释搜索结果。`,
+请先用工具查询匹配的工作项，然后用中文解释搜索结果。`,
 		actx.ProjectID, actx.ProjectIdentifier, req.Query)
 
 	tools := s.getTools()
@@ -811,31 +811,31 @@ func (s *AIService) CreatePreview(ctx context.Context, req *AICreateRequest, act
 
 	createPrompt := fmt.Sprintf(`你是一个工作项创建助手。将用户的自然语言描述解析为结构化的工作项预览。
 
-	当前项目：%s（标识符: %s）
+当前项目：%s（标识符: %s）
 
-	可用状态（ID:名称(分组)）：%s
-	可用类型（ID:名称）：%s
-	可用成员（ID:显示名）：%s
+可用状态（ID:名称(分组)）：%s
+可用类型（ID:名称）：%s
+可用成员（ID:显示名）：%s
 
-	解析规则：
-	1. 提取标题：问题的简短描述（不要包含"创建"等动词前缀）
-	2. 识别类型：根据关键词匹配上述可用类型，选最接近的。不确定就留空。
-	3. 识别优先级：P0/紧急/crash=urgent, P1/高=high, P2/中=medium, P3/低=low, 未提及=none
-	4. 识别人名→匹配上述成员ID。只使用列出的成员ID。
-	5. 识别日期→格式 YYYY-MM-DD
-	6. 生成详细描述（Markdown 格式，包含复现步骤、期望行为等）
+解析规则：
+1. 提取标题：问题的简短描述（不要包含"创建"等动词前缀）
+2. 识别类型：根据关键词匹配上述可用类型，选最接近的。不确定就留空。
+3. 识别优先级：P0/紧急/crash=urgent, P1/高=high, P2/中=medium, P3/低=low, 未提及=none
+4. 识别人名→匹配上述成员ID。只使用列出的成员ID。
+5. 识别日期→格式 YYYY-MM-DD
+6. 生成详细描述（Markdown 格式，包含复现步骤、期望行为等）
 
-	只输出纯JSON，不要markdown标记，不要其他文字：
-	{
-	  "name": "标题",
-	  "description": "详细描述",
-	  "priority": "high",
-	  "type_id": 4,
-	  "state_id": 1,
-	  "assignee_ids": [3],
-	  "label_ids": [],
-	  "target_date": "2026-07-03"
-	}`,
+只输出纯JSON，不要markdown标记，不要其他文字：
+{
+  "name": "标题",
+  "description": "详细描述",
+  "priority": "high",
+  "type_id": 4,
+  "state_id": 1,
+  "assignee_ids": [3],
+  "label_ids": [],
+  "target_date": "2026-07-03"
+}`,
 		actx.ProjectName, actx.ProjectIdentifier,
 		strings.Join(stateInfo, ", "),
 		strings.Join(typeInfo, ", "),
@@ -923,27 +923,27 @@ func (s *AIService) Analyze(ctx context.Context, actx *AIContext) (*AIAnalyzeRes
 
 	analyzePrompt := fmt.Sprintf(`你是一个高级项目分析师。根据以下真实数据，对项目「%s」进行专业分析。
 
-	## 项目统计
-	%s
+## 项目统计
+%s
 
-	## 工作项概要
-	%s
+## 工作项概要
+%s
 
-	## 瓶颈检测 (停滞超过3天的进行中任务)
-	%s
+## 瓶颈检测 (停滞超过3天的进行中任务)
+%s
 
-	请用中文输出 JSON 格式的分析报告：
-	{
-	  "summary": "一段简洁的项目健康度概述 (100字以内)",
-	  "insights": ["洞察1", "洞察2", "洞察3"],
-	  "recommendations": ["建议1", "建议2"]
-	}
+请用中文输出 JSON 格式的分析报告：
+{
+  "summary": "一段简洁的项目健康度概述 (100字以内)",
+  "insights": ["洞察1", "洞察2", "洞察3"],
+  "recommendations": ["建议1", "建议2"]
+}
 
-	关注点：
-	1. 完成率是否健康
-	2. 是否有任务积压
-	3. 瓶颈在哪里
-	4. 需要立即关注的事项`,
+关注点：
+1. 完成率是否健康
+2. 是否有任务积压
+3. 瓶颈在哪里
+4. 需要立即关注的事项`,
 		actx.ProjectName, statsJSON, summaryJSON, bottleneckJSON)
 
 	// 3. Call LLM (read-only, no tools needed)
@@ -1015,10 +1015,10 @@ func (s *AIService) SuggestLabels(ctx context.Context, projectID uint64, name, d
 	}
 
 	prompt := fmt.Sprintf(`根据工作项标题和描述，从以下标签中选择最合适的1-3个标签。
-	可用标签: %s
-	标题: %s
-	描述: %s
-	输出JSON: {"labels":[{"id":1,"reason":"简短理由"}]}`,
+可用标签: %s
+标题: %s
+描述: %s
+输出JSON: {"labels":[{"id":1,"reason":"简短理由"}]}`,
 		strings.Join(labelList, ", "), name, description[:min(len(description), 300)])
 
 	result, err := s.llm.Complete(ctx, "你是标签分类专家。只输出JSON。", prompt)
@@ -1119,18 +1119,18 @@ func (s *AIService) SprintPlan(ctx context.Context, projectID uint64) (*AISprint
 
 	prompt := fmt.Sprintf(`你是敏捷教练。根据以下数据给出Sprint规划建议。
 
-	历史Sprint数据:
-	%s
+历史Sprint数据:
+%s
 
-	待办高优先级工作项:
-	%s
+待办高优先级工作项:
+%s
 
-	请输出JSON（不要markdown标记）:
-	{
-	  "recommended_capacity": 建议纳入的工作项数量,
-	  "reasoning": "简短中文分析（50字内）",
-	  "risks": ["风险1", "风险2"]
-	}`,
+请输出JSON（不要markdown标记）:
+{
+  "recommended_capacity": 建议纳入的工作项数量,
+  "reasoning": "简短中文分析（50字内）",
+  "risks": ["风险1", "风险2"]
+}`,
 		cycleSummary, issueList)
 
 	result, err := s.llm.Complete(ctx, "你是敏捷规划专家。输出纯JSON。", prompt)
@@ -1223,17 +1223,17 @@ func (s *AIService) TriageAnalyze(ctx context.Context, issueID uint64, projectID
 	// Build prompt
 	prompt := fmt.Sprintf(`分析以下新提交的工作项，给出分类建议。
 
-	标题: %s
-	描述: %s
-	提交者: %s
-	可能重复: %d 个相似工作项
+标题: %s
+描述: %s
+提交者: %s
+可能重复: %d 个相似工作项
 
-	请输出JSON格式（不要markdown标记）:
-	{
-	  "suggested_type": "Bug|Feature|Task|Improvement",
-	  "suggested_priority": "urgent|high|medium|low",
-	  "summary": "一句话总结（中文，30字内）"
-	}`,
+请输出JSON格式（不要markdown标记）:
+{
+  "suggested_type": "Bug|Feature|Task|Improvement",
+  "suggested_priority": "urgent|high|medium|low",
+  "summary": "一句话总结（中文，30字内）"
+}`,
 		issue.Name, issue.DescriptionHTML, "外部用户", len(dupes))
 
 	result, err := s.llm.Complete(ctx, "你是项目分诊专家。只输出JSON，不加解释。", prompt)
