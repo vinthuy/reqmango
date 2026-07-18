@@ -9,8 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// backendBaseModel provides common fields matching backend's model.BaseModel.
-type backendBaseModel struct {
+// BackendBaseModel provides common fields matching backend's model.BaseModel.
+type BackendBaseModel struct {
 	ID          uint64         `gorm:"primaryKey;autoIncrement" json:"id"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
@@ -21,7 +21,7 @@ type backendBaseModel struct {
 
 // Issue is a partial mapping of the backend "issues" table.
 type Issue struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Name            string  `gorm:"size:255;not null" json:"name"`
 	DescriptionHTML string  `gorm:"type:text;default:<p></p>" json:"description_html"`
@@ -41,7 +41,7 @@ func (Issue) TableName() string { return "issues" }
 
 // State is a partial mapping of the backend "states" table.
 type State struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Name        string  `gorm:"size:255;not null" json:"name"`
 	Color       string  `gorm:"size:50;default:#6B7280" json:"color"`
@@ -57,7 +57,7 @@ func (State) TableName() string { return "states" }
 
 // IssueType is a partial mapping of the backend "issue_types" table.
 type IssueType struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Name        string  `gorm:"type:varchar(100);not null" json:"name"`
 	Color       string  `gorm:"type:varchar(20);default:'#6366F1'" json:"color"`
@@ -73,7 +73,7 @@ func (IssueType) TableName() string { return "issue_types" }
 
 // Label is a partial mapping of the backend "labels" table.
 type Label struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Name        string  `gorm:"size:255;not null" json:"name"`
 	Color       string  `gorm:"size:50;default:#6B7280" json:"color"`
@@ -86,7 +86,7 @@ func (Label) TableName() string { return "labels" }
 
 // Cycle is a partial mapping of the backend "cycles" table.
 type Cycle struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Name        string     `gorm:"size:255;not null" json:"name"`
 	StartDate   time.Time  `gorm:"type:date;not null" json:"start_date"`
@@ -109,7 +109,7 @@ func (IssueCycle) TableName() string { return "issue_cycles" }
 
 // Module is a partial mapping of the backend "modules" table.
 type Module struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Name        string  `gorm:"type:varchar(100);not null" json:"name"`
 	Description string  `gorm:"type:text" json:"description"`
@@ -121,7 +121,7 @@ func (Module) TableName() string { return "modules" }
 
 // ProjectMember is a partial mapping of the backend "project_members" table.
 type ProjectMember struct {
-	backendBaseModel
+	BackendBaseModel
 
 	ProjectID uint64 `gorm:"not null;uniqueIndex:idx_proj_member_user" json:"project_id"`
 	UserID    uint64 `gorm:"not null;uniqueIndex:idx_proj_member_user" json:"user_id"`
@@ -136,7 +136,7 @@ func (ProjectMember) TableName() string { return "project_members" }
 
 // Project is a partial mapping of the backend "projects" table.
 type Project struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Name        string  `gorm:"size:255;not null" json:"name"`
 	Identifier  string  `gorm:"size:10;not null" json:"identifier"`
@@ -148,7 +148,7 @@ func (Project) TableName() string { return "projects" }
 
 // Page is a partial mapping of the backend "pages" table.
 type Page struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Title       string     `gorm:"size:255;not null" json:"title"`
 	Content     string     `gorm:"type:text;not null;default:''" json:"content"`
@@ -162,7 +162,7 @@ func (Page) TableName() string { return "pages" }
 
 // Release is a partial mapping of the backend "releases" table.
 type Release struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Name      string `gorm:"size:100;not null" json:"name"`
 	Version   string `gorm:"size:50;not null" json:"version"`
@@ -174,7 +174,7 @@ func (Release) TableName() string { return "releases" }
 
 // Comment is a partial mapping of the backend "comments" table.
 type Comment struct {
-	backendBaseModel
+	BackendBaseModel
 
 	IssueID uint64  `gorm:"not null;index" json:"issue_id"`
 	Body    string  `gorm:"type:text;not null" json:"body"`
@@ -185,7 +185,7 @@ func (Comment) TableName() string { return "comments" }
 
 // IssueActivity is a partial mapping of the backend "issue_activities" table.
 type IssueActivity struct {
-	backendBaseModel
+	BackendBaseModel
 
 	IssueID  *uint64 `json:"issue_id"`
 	Verb     string  `gorm:"size:255;default:created" json:"verb"`
@@ -200,7 +200,7 @@ func (IssueActivity) TableName() string { return "issue_activities" }
 
 // User is a partial mapping of the backend "users" table.
 type User struct {
-	backendBaseModel
+	BackendBaseModel
 
 	Email       string `gorm:"uniqueIndex;size:255;not null" json:"email"`
 	Username    string `gorm:"uniqueIndex;size:128;not null" json:"username"`

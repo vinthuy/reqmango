@@ -59,7 +59,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	metricH := handler.NewMetricHandler(metricSvc)
 	dashboardSvc := service.NewDashboardService(db)
 	dashboardH := handler.NewDashboardHandler(dashboardSvc)
-	agentClient := client.NewAgentClient(cfg.AgentServiceURL)
+	agentClient := client.NewAgentClient(cfg.AgentServiceURL, cfg.SecretKey)
 	automationSvc.SetAgentService(agentClient)        // break circular dependency: automation -> agent -> issue -> automation
 	commentSvc.SetAgentService(agentClient)           // enable @agent-name mention handling in comments
 	commentSvc.SetAutomationService(automationSvc) // enable comment_added automation trigger
@@ -177,11 +177,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/initiatives/search", initiativeH.Search)
 
 			// Agent routes -- proxied to agent-service:8001
+			// Wildcard does not match the bare collection path, so register it explicitly.
+			workspaces.Any("/:wsParam/agents", agentProxy)
 			workspaces.Any("/:wsParam/agents/*path", agentProxy)
 
 			// Agent Loops
+			workspaces.Any("/:wsParam/loops", agentProxy)
 			workspaces.Any("/:wsParam/loops/*path", agentProxy)
+			workspaces.Any("/:wsParam/pipelines", agentProxy)
 			workspaces.Any("/:wsParam/pipelines/*path", agentProxy)
+			workspaces.Any("/:wsParam/agent-sessions", agentProxy)
 			workspaces.Any("/:wsParam/agent-sessions/*path", agentProxy)
 
 			// MCP Server

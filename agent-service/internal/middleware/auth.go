@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -52,8 +53,12 @@ func AuthMiddleware(secretKey string) gin.HandlerFunc {
 			return
 		}
 
-		// Extract user info from JWT claims (matches main backend's JWT structure)
-		userID, _ := claims["user_id"].(float64)
+		// Extract user info from JWT claims. The main backend issues tokens with
+		// the user ID in the "sub" claim as a decimal string (see backend auth_service).
+		var userID uint64
+		if sub, ok := claims["sub"].(string); ok {
+			userID, _ = strconv.ParseUint(sub, 10, 64)
+		}
 		email, _ := claims["email"].(string)
 		wsID, _ := claims["workspace_id"].(float64)
 

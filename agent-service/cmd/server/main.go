@@ -141,7 +141,6 @@ func main() {
 			agents.GET("/:id/activity", agentH.GetActivity)
 			agents.POST("/:id/auto-triage", agentH.AutoTriage)
 			agents.POST("/:id/auto-assign", agentH.AutoAssign)
-			agents.POST("/:id/mention", agentH.HandleMention)
 		}
 
 		// AI config (workspace-level)
