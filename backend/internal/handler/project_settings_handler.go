@@ -482,4 +482,3 @@ func (h *ProjectSettingsHandler) DeleteLabel(c *gin.Context) {
 
 	c.JSON(http.StatusNoContent, nil)
 }
-

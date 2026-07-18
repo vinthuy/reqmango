@@ -359,14 +359,10 @@ func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, pr
 	return labelToResponse(label), nil
 }
 
-// ListLabels returns all labels for a project including inherited workspace labels.
+// ListLabels returns all labels for a project.
 func (s *ProjectSettingsService) ListLabels(projectID uint64) ([]response.LabelResponse, error) {
-	var project model.Project
-	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
-		return nil, common.Internal("Project not found")
-	}
 	var labels []model.Label
-	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, project.WorkspaceID).Order("created_at ASC").Find(&labels).Error; err != nil {
+	if err := s.db.Where("project_id = ?", projectID).Order("created_at ASC").Find(&labels).Error; err != nil {
 		return nil, common.Internal("Database error")
 	}
 
@@ -379,12 +375,8 @@ func (s *ProjectSettingsService) ListLabels(projectID uint64) ([]response.LabelR
 
 // SearchLabels returns labels matching the query.
 func (s *ProjectSettingsService) SearchLabels(projectID uint64, query string) ([]response.LabelResponse, error) {
-	var project model.Project
-	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
-		return nil, common.Internal("Project not found")
-	}
 	var labels []model.Label
-	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?)) AND name ILIKE ?", projectID, project.WorkspaceID, "%"+query+"%").Order("created_at ASC").Find(&labels).Error; err != nil {
+	if err := s.db.Where("project_id = ? AND name ILIKE ?", projectID, "%"+query+"%").Order("created_at ASC").Find(&labels).Error; err != nil {
 		return nil, common.Internal("Database error")
 	}
 	result := make([]response.LabelResponse, len(labels))
@@ -393,7 +385,6 @@ func (s *ProjectSettingsService) SearchLabels(projectID uint64, query string) ([
 	}
 	return result, nil
 }
-
 
 // GetLabel returns a single label by ID.
 func (s *ProjectSettingsService) GetLabel(projectID, labelID uint64) (*response.LabelResponse, error) {
@@ -499,7 +490,6 @@ func labelToResponse(label *model.Label) *response.LabelResponse {
 		UpdatedAt:   label.UpdatedAt,
 		CreatedByID: label.CreatedByID,
 		UpdatedByID: label.UpdatedByID,
-		IsInherited: label.ProjectID == nil,
 	}
 
 	if label.DeletedAt.Valid {

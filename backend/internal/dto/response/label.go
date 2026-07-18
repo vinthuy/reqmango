@@ -16,5 +16,4 @@ type LabelResponse struct {
 	UpdatedByID *uint64    `json:"updated_by_id"`
 	DeletedAt   *time.Time `json:"deleted_at"`
 	IsDeleted   bool       `json:"is_deleted"`
-	IsInherited bool       `json:"is_inherited"`
 }
