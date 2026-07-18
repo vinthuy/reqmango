@@ -1033,7 +1033,12 @@ func (s *AIService) SuggestLabels(ctx context.Context, projectID uint64, name, d
 			Reason string `json:"reason"`
 		} `json:"labels"`
 	}
-	if json.Unmarshal([]byte(result), &parsed) != nil {
+	// LLMs often wrap JSON in markdown fences; extract the JSON block first.
+	jsonStr := result
+	if start, end := strings.Index(result, "{"), strings.LastIndex(result, "}"); start >= 0 && end > start {
+		jsonStr = result[start : end+1]
+	}
+	if json.Unmarshal([]byte(jsonStr), &parsed) != nil {
 		return s.ruleBasedLabels(labels, name, description), nil
 	}
 
