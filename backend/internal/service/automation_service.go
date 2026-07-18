@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/reqmango/backend/internal/client"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
@@ -317,16 +318,16 @@ type Action struct {
 
 // DefaultActionExecutor 默认动作执行器实现
 type DefaultActionExecutor struct {
-	handlers map[string]ActionHandler
-	db       *gorm.DB
-	agentSvc *AgentService // 用于 dispatch_agent 动作
+	handlers    map[string]ActionHandler
+	db          *gorm.DB
+	agentClient *client.AgentClient // 用于 dispatch_agent 动作
 }
 
-func NewDefaultActionExecutor(db *gorm.DB, agentSvc *AgentService) *DefaultActionExecutor {
+func NewDefaultActionExecutor(db *gorm.DB, agentClient *client.AgentClient) *DefaultActionExecutor {
 	executor := &DefaultActionExecutor{
 		handlers: make(map[string]ActionHandler),
 		db:       db,
-		agentSvc: agentSvc,
+		agentClient: agentClient,
 	}
 
 	// 注册内置动作处理器
@@ -559,8 +560,8 @@ func (e *DefaultActionExecutor) handleArchive(action Action, context map[string]
 }
 
 func (e *DefaultActionExecutor) handleDispatchAgent(action Action, context map[string]interface{}, db *gorm.DB) error {
-	if e.agentSvc == nil {
-		return fmt.Errorf("agent service not available")
+	if e.agentClient == nil {
+		return fmt.Errorf("agent client not available")
 	}
 
 	issueID, _ := context["issue_id"].(uint64)
@@ -578,7 +579,6 @@ func (e *DefaultActionExecutor) handleDispatchAgent(action Action, context map[s
 		task = fmt.Sprintf("处理工作项 #%d 的自动化触发", issueID)
 	}
 
-	// Build dispatch context
 	var issueIDPtr *uint64
 	if issueID > 0 {
 		issueIDPtr = &issueID
@@ -588,14 +588,14 @@ func (e *DefaultActionExecutor) handleDispatchAgent(action Action, context map[s
 		projectIDPtr = &projectID
 	}
 
-	dispatchCtx := &DispatchContext{
-		IssueID:     issueIDPtr,
-		ProjectID:   projectIDPtr,
-		TriggeredBy: "automation",
+	// Look up agent to get workspaceID
+	var agent model.Agent
+	if err := db.First(&agent, agentID).Error; err != nil {
+		return fmt.Errorf("agent not found: %w", err)
 	}
 
 	// Use system user (user ID 1) as the actor for automation-triggered dispatches
-	_, err := e.agentSvc.DispatchAgent(agentID, 1, task, dispatchCtx)
+	err := e.agentClient.DispatchAgent(agent.WorkspaceID, agentID, 1, task, issueIDPtr, projectIDPtr, "automation")
 	if err != nil {
 		log.Printf("[Automation] Agent dispatch failed: agent=%d issue=%d err=%v", agentID, issueID, err)
 		return err
@@ -640,7 +640,7 @@ type AutomationService struct {
 func NewAutomationService(db *gorm.DB) *AutomationService {
 	eventBus := NewInMemoryEventBus()
 	ruleEngine := NewDefaultConditionEvaluator(db)
-	actionExecutor := NewDefaultActionExecutor(db, nil) // agentSvc set via SetAgentService after construction
+	actionExecutor := NewDefaultActionExecutor(db, nil) // agentClient set via SetAgentService after construction
 	
 	service := &AutomationService{
 		db:              db,
@@ -832,10 +832,10 @@ func (s *AutomationService) recordExecutionHistory(event Event, results []string
 }
 
 // PublishEvent 发布事件到事件总线（供 IssueService 调用）
-// SetAgentService sets the agent service on the action executor (breaks circular dependency).
-func (s *AutomationService) SetAgentService(agentSvc *AgentService) {
+// SetAgentService sets the agent client on the action executor (breaks circular dependency).
+func (s *AutomationService) SetAgentService(agentClient *client.AgentClient) {
 	if exec, ok := s.actionExecutor.(*DefaultActionExecutor); ok {
-		exec.agentSvc = agentSvc
+		exec.agentClient = agentClient
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/client"
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/handler"
 	"github.com/reqmango/backend/internal/middleware"
@@ -60,9 +61,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	dashboardH := handler.NewDashboardHandler(dashboardSvc)
 	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
 	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
-	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
-	automationSvc.SetAgentService(agentSvc)        // break circular dependency: automation -> agent -> issue -> automation
-	commentSvc.SetAgentService(agentSvc)           // enable @agent-name mention handling in comments
+	agentClient := client.NewAgentClient(cfg.AgentServiceURL)
+	automationSvc.SetAgentService(agentClient)        // break circular dependency: automation -> agent -> issue -> automation
+	commentSvc.SetAgentService(agentClient)           // enable @agent-name mention handling in comments
 	commentSvc.SetAutomationService(automationSvc) // enable comment_added automation trigger
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
@@ -102,7 +103,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	recurrenceH := handler.NewRecurrenceHandler(recurrenceSvc)
 	aiH := handler.NewAIHandler(aiSvc, db)
 	pageTabH := handler.NewProjectPageTabHandler(pageTabSvc)
-	agentH := handler.NewAgentHandler(agentSvc)
 	mcpH := handler.NewMCPHandler(mcpSvc)
 	githubH := handler.NewGitHubHandler(githubSvc)
 	slackH := handler.NewSlackHandler(slackSvc)
@@ -136,6 +136,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			internal.GET("/projects/:id", internalH.GetProject)
 			internal.GET("/users/:id", internalH.GetUser)
 		}
+
+	// Agent Service Reverse Proxy — forwards to agent-service:8001
+	agentProxy := reverseProxy(cfg.AgentServiceURL)
 
 	// ==================== API v1 ====================
 	v1 := r.Group("/api/v1")
@@ -177,26 +180,13 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/initiatives", initiativeH.List)
 			workspaces.GET("/:wsParam/initiatives/search", initiativeH.Search)
 
-			// AI Agents
-			workspaces.GET("/:wsParam/agents", agentH.List)
-			workspaces.POST("/:wsParam/agents", agentH.Create)
-			workspaces.GET("/:wsParam/agents/activity", agentH.ListWorkspaceActivity)
-			workspaces.PATCH("/:wsParam/agents/activity/:id/feedback", agentH.UpdateActivityFeedback)
-			workspaces.GET("/:wsParam/agents/:id", agentH.GetByID)
-			workspaces.PUT("/:wsParam/agents/:id", agentH.Update)
-			workspaces.DELETE("/:wsParam/agents/:id", agentH.Delete)
-			workspaces.POST("/:wsParam/agents/:id/dispatch", agentH.Dispatch)
-			workspaces.GET("/:wsParam/agents/:id/activity", agentH.GetActivity)
-			workspaces.POST("/:wsParam/agents/:id/auto-triage", agentH.AutoTriage)
-			workspaces.POST("/:wsParam/agents/:id/auto-assign", agentH.AutoAssign)
+			// Agent routes -- proxied to agent-service:8001
+			workspaces.Any("/:wsParam/agents/*path", agentProxy)
 
 			// Agent Loops
-			// Agent Service Reverse Proxy — forwards to agent-service:8001
-			agentProxy := reverseProxy(cfg.AgentServiceURL)
 			workspaces.Any("/:wsParam/loops/*path", agentProxy)
 			workspaces.Any("/:wsParam/pipelines/*path", agentProxy)
 			workspaces.Any("/:wsParam/agent-sessions/*path", agentProxy)
-			workspaces.Any("/:wsParam/agents/registry/*path", agentProxy)
 
 			// MCP Server
 			workspaces.GET("/:wsParam/mcp", mcpH.List)
@@ -599,7 +589,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.POST("/:issueId/recurrence", recurrenceH.Create)
 			issues.GET("/:issueId/recurrence", recurrenceH.Get)
 			issues.POST("/:issueId/ai/comment", aiH.AssistComment)
-			issues.POST("/:issueId/agents/:agentId/mention", agentH.HandleMention)
+			// Agent routes -- proxied to agent-service:8001
+			issues.Any("/:issueId/agents/*path", agentProxy)
 			issues.PUT("/:issueId/recurrence", recurrenceH.Update)
 			issues.DELETE("/:issueId/recurrence", recurrenceH.Delete)
 
@@ -784,9 +775,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			aiGroup.POST("/chart", aiH.Chart)
 		}
 
-		// Agent project-level convenience routes
-		projects.POST("/:projectId/agent/auto-triage", agentH.AutoTriageProject)
-		projects.POST("/:projectId/agent/auto-assign", agentH.AutoAssignProject)
+		// Agent routes -- proxied to agent-service:8001
+		projects.Any("/:projectId/agent/*path", agentProxy)
 
 		// Automation rules
 		projects.GET("/:projectId/automations", automationH.List)
