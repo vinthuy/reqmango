@@ -59,8 +59,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	metricH := handler.NewMetricHandler(metricSvc)
 	dashboardSvc := service.NewDashboardService(db)
 	dashboardH := handler.NewDashboardHandler(dashboardSvc)
-	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
-	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
 	agentClient := client.NewAgentClient(cfg.AgentServiceURL)
 	automationSvc.SetAgentService(agentClient)        // break circular dependency: automation -> agent -> issue -> automation
 	commentSvc.SetAgentService(agentClient)           // enable @agent-name mention handling in comments
@@ -101,7 +99,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	webhookH := handler.NewWebhookHandler(webhookSvc)
 	timeTrackH := handler.NewTimeTrackHandler(timeTrackSvc)
 	recurrenceH := handler.NewRecurrenceHandler(recurrenceSvc)
-	aiH := handler.NewAIHandler(aiSvc, db)
 	pageTabH := handler.NewProjectPageTabHandler(pageTabSvc)
 	mcpH := handler.NewMCPHandler(mcpSvc)
 	githubH := handler.NewGitHubHandler(githubSvc)
@@ -172,8 +169,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/members", workspaceH.AddMember)
 			workspaces.PATCH("/:wsParam/members/:userId", workspaceH.UpdateMember)
 			workspaces.DELETE("/:wsParam/members/:userId", workspaceH.RemoveMember)
-			workspaces.GET("/:wsParam/ai-config", aiH.GetAIConfig)
-			workspaces.PUT("/:wsParam/ai-config", aiH.UpdateAIConfig)
+			workspaces.Any("/:wsParam/ai-config", agentProxy)
 
 			// Initiatives
 			workspaces.POST("/:wsParam/initiatives", initiativeH.Create)
@@ -339,7 +335,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.PUT("/:projectId/webhooks/:id", webhookH.Update)
 			projects.DELETE("/:projectId/webhooks/:id", webhookH.Delete)
 			projects.POST("/:projectId/intake/:issueId/triage", intakeH.Triage)
-			projects.POST("/:projectId/intake/:issueId/ai-analyze", aiH.TriageAnalyze)
+			projects.Any("/:projectId/intake/:issueId/ai-analyze", agentProxy)
 			projects.GET("/:projectId/issues-summary", projectH.GetIssuesSummary)
 			projects.PATCH("/:projectId/lead", projectH.UpdateProjectLead)
 			projects.GET("/:projectId/subscribers", projectH.ListSubscribers)
@@ -588,7 +584,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// Recurrence
 			issues.POST("/:issueId/recurrence", recurrenceH.Create)
 			issues.GET("/:issueId/recurrence", recurrenceH.Get)
-			issues.POST("/:issueId/ai/comment", aiH.AssistComment)
+			issues.Any("/:issueId/ai/comment", agentProxy)
 			// Agent routes -- proxied to agent-service:8001
 			issues.Any("/:issueId/agents/*path", agentProxy)
 			issues.PUT("/:issueId/recurrence", recurrenceH.Update)
@@ -756,24 +752,15 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			comments.POST("/:commentId/unresolve", commentH.Unresolve)
 		}
 		// ---- RQL (protected) ----
-		v1.POST("/pages/:pageId/ai", authMiddleware, aiH.PageAI)
+		v1.Any("/pages/:pageId/ai", authMiddleware, agentProxy)
 
 		rqlHandler := rql.NewRQLHandler(db)
 		rqlGroup := v1.Group("/rql", authMiddleware)
 		{
 			rqlGroup.POST("/search", rqlHandler.Search)
 		}
-		// ---- AI (protected) ----
-		aiGroup := projects.Group("/:projectId/ai", authMiddleware)
-		{
-			aiGroup.POST("/chat", aiH.Chat)
-			aiGroup.POST("/search", aiH.Search)
-			aiGroup.POST("/create", aiH.CreatePreview)
-			aiGroup.POST("/analyze", aiH.Analyze)
-			aiGroup.POST("/suggest-labels", aiH.SuggestLabels)
-			aiGroup.POST("/sprint-plan", aiH.SprintPlan)
-			aiGroup.POST("/chart", aiH.Chart)
-		}
+		// ---- AI (proxied to agent-service) ----
+		projects.Any("/:projectId/ai/*path", agentProxy)
 
 		// Agent routes -- proxied to agent-service:8001
 		projects.Any("/:projectId/agent/*path", agentProxy)
