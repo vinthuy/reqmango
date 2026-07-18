@@ -804,13 +804,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			notifications.DELETE("/:id", notificationH.Delete)
 		}
 	}
-
-	// Seed Sprint Guardian loop for all workspaces
-	workspaces, _ := workspaceSvc.List()
-	for _, ws := range workspaces {
-		if err := loopSvc.SeedSprintGuardianLoop(ws.ID, 1); err != nil {
-			log.Printf("[Seed] Sprint Guardian loop for workspace %d: %v", ws.ID, err)
-		}
+}
 
 // reverseProxy creates a Gin handler that proxies requests to the agent service.
 func reverseProxy(targetURL string) gin.HandlerFunc {

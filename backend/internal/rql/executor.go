@@ -505,16 +505,12 @@ func (e *GORMExecutor) buildLikeRaw(expr *LikeExpr, ctx *QueryContext) (*rawCond
 		op = "NOT ILIKE"
 	}
 
-	value := escapeLikeWildcards(expr.Value)
-	if !strings.ContainsAny(expr.Value, "%_") {
-		value = fmt.Sprintf("%%%s%%", value)
+	var value string
+	if strings.ContainsAny(expr.Value, "%_") {
+		value = expr.Value
 	} else {
-		if !strings.HasPrefix(value, "%") {
-			value = "%" + value
-		}
-		if !strings.HasSuffix(value, "%") {
-			value = value + "%"
-		}
+		value = escapeLikeWildcards(expr.Value)
+		value = fmt.Sprintf("%%%s%%", value)
 	}
 
 	if field == "name" || field == "description" {
@@ -539,18 +535,12 @@ func (e *GORMExecutor) buildFullTextSearch(field, operator, value string) (*rawC
 		op = "NOT ILIKE"
 	}
 
-	// Ensure value has wildcards for substring matching.
-	// Escape special LIKE characters: \ (escape char), % (wildcard), _ (wildcard).
-	pattern := escapeLikeWildcards(value)
-	if !strings.ContainsAny(value, "%_") {
-		pattern = "%" + pattern + "%"
+	var pattern string
+	if strings.ContainsAny(value, "%_") {
+		pattern = value
 	} else {
-		if !strings.HasPrefix(pattern, "%") {
-			pattern = "%" + pattern
-		}
-		if !strings.HasSuffix(pattern, "%") {
-			pattern = pattern + "%"
-		}
+		pattern = escapeLikeWildcards(value)
+		pattern = "%" + pattern + "%"
 	}
 
 	return &rawCondition{
@@ -595,22 +585,17 @@ func (e *GORMExecutor) buildCustomFieldLike(fieldName, operator, value string, c
 		op = "NOT ILIKE"
 	}
 
-	origValue := value
-	value = escapeLikeWildcards(value)
-	if !strings.ContainsAny(origValue, "%_") {
-		value = fmt.Sprintf("%%%s%%", value)
+	var escapedValue string
+	if strings.ContainsAny(value, "%_") {
+		escapedValue = value
 	} else {
-		if !strings.HasPrefix(value, "%") {
-			value = "%" + value
-		}
-		if !strings.HasSuffix(value, "%") {
-			value = value + "%"
-		}
+		escapedValue = escapeLikeWildcards(value)
+		escapedValue = fmt.Sprintf("%%%s%%", escapedValue)
 	}
 
 	return &rawCondition{
 		SQL:   fmt.Sprintf("%s.value %s ? ESCAPE '\\'", alias, op),
-		Args:  []interface{}{value},
+		Args:  []interface{}{escapedValue},
 		Joins: []string{join},
 	}, nil
 }
