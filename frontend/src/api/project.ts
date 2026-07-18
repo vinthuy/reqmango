@@ -49,7 +49,7 @@ export async function listProjects(
   if (options?.limit) params.append('limit', options.limit.toString())
   if (options?.offset) params.append('offset', options.offset.toString())
   
-  const response = await api.get(`/projects/?${params.toString()}`)
+  const response = await api.get(`/projects?${params.toString()}`)
   return response.data
 }
 

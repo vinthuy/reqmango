@@ -118,18 +118,7 @@ func (s *WorkspaceService) GetByID(workspaceID uint64) (*response.WorkspaceRespo
 
 // Get retrieves a workspace by ID.
 func (s *WorkspaceService) Get(id uint64) (*response.WorkspaceResponse, error) {
-	var ws model.Workspace
-	if err := s.db.First(&ws, id).Error; err != nil {
-		return nil, common.NotFound("Workspace not found")
-	}
-
-	return &response.WorkspaceResponse{
-		ID:          ws.ID,
-		Name:        ws.Name,
-		Slug:        ws.Slug,
-		CreatedAt:   ws.CreatedAt,
-		UpdatedAt:   ws.UpdatedAt,
-	}, nil
+	return s.buildResponse(id)
 }
 
 // List returns all workspaces (for admin use or future filtering).
