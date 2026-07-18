@@ -101,8 +101,7 @@ These are the internal endpoints agent-service exposes. Main backend's public ro
 
 - Add `BackendClient` to agent-service (calls main backend `/api/internal/*` for issue/project/user data)
 - Add `/api/internal/*` data API to main backend (JWT-protected)
-- Add DB migrations in agent-service for `agents`, `agent_activities`, `ai_configs`, `ai_threads`, `ai_messages` tables
-- Refactor `automation_service` and `comment_service` in main backend: replace direct `agentSvc` calls with HTTP client calls to agent-service
+- Add DB model definitions in agent-service for `agents`, `agent_activities`, `ai_configs`, `ai_threads`, `ai_messages` — these tables already exist in the shared Postgres; agent-service reads/writes them directly. Migrations use `IF NOT EXISTS` to avoid conflicts with main backend's existing schema
 
 ### Phase 2: Agent CRUD + Dispatch
 
@@ -111,11 +110,12 @@ These are the internal endpoints agent-service exposes. Main backend's public ro
 - Move `handler/agent_handler.go` → agent-service
 - Replace main backend agent routes (`/workspaces/:ws/agents/*`) with reverse proxy
 - Remove agent code from main backend
+- Refactor `automation_service` and `comment_service` in main backend: replace direct `agentSvc` calls with HTTP client calls to agent-service (now that agent routes are proxied)
 
 ### Phase 3: AI Features
 
 - Move `model/ai_config.go` → agent-service
-- Move `service/ai_service.go` → agent-service
+- Move `service/ai_service.go` → agent-service (**largest single change**: 57KB file deeply coupled with `issueSvc`/`projectSvc` via direct GORM queries; all issue/project DB access must be rewritten to use `BackendClient` HTTP calls)
 - Move `service/llm_client.go` → agent-service
 - Move `handler/ai_handler.go` → agent-service
 - Replace main backend AI routes (`/ai/*`, `/ai-config`, `/ai-analyze`) with reverse proxy
@@ -124,7 +124,7 @@ These are the internal endpoints agent-service exposes. Main backend's public ro
 ### Phase 4: Cleanup
 
 - Remove residual agent/AI type references and imports from main backend
-- Refactor `agent-service/internal/client/agent_client.go` — no longer calls main backend agent API, uses local service instead
+- Refactor `agent-service/internal/client/agent_client.go` — no longer needs to call main backend's agent API via HTTP; agent dispatch/mention now happens in-process (direct AgentService call), so this client simplifies to only issue/project data queries
 - Full end-to-end regression test
 
 ## Error Handling
