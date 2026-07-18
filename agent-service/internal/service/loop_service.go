@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/reqmango/agent-service/internal/client"
 	"github.com/reqmango/agent-service/internal/common"
 	loopeng "github.com/reqmango/agent-service/internal/loop"
 	"github.com/reqmango/agent-service/internal/model"
@@ -15,12 +14,12 @@ import (
 
 // LoopService manages Loop CRUD and execution.
 type LoopService struct {
-	db          *gorm.DB
-	agentClient *client.AgentClient
+	db       *gorm.DB
+	agentSvc *AgentService
 }
 
-func NewLoopService(db *gorm.DB, agentClient *client.AgentClient) *LoopService {
-	return &LoopService{db: db, agentClient: agentClient}
+func NewLoopService(db *gorm.DB, agentSvc *AgentService) *LoopService {
+	return &LoopService{db: db, agentSvc: agentSvc}
 }
 
 func (s *LoopService) CreateLoop(workspaceID, userID uint64, name, description string, loopDef json.RawMessage) (*model.Loop, error) {
@@ -92,7 +91,7 @@ func (s *LoopService) DeleteLoop(workspaceID, loopID uint64) error {
 }
 
 // StartLoop creates a LoopRun and starts execution in a background goroutine.
-func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64, authToken string) (*model.LoopRun, error) {
+func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64) (*model.LoopRun, error) {
 	loop, err := s.GetLoop(workspaceID, loopID)
 	if err != nil {
 		return nil, err
@@ -130,7 +129,7 @@ func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64, authT
 		return nil, common.Internal(fmt.Sprintf("failed to create loop run: %v", err))
 	}
 
-	executor := &agentExecutorAdapter{client: s.agentClient, workspaceID: workspaceID, userID: userID, token: authToken}
+	executor := &agentExecutorAdapter{svc: s.agentSvc, workspaceID: workspaceID, userID: userID}
 	collector := &metricsCollector{db: s.db, workspaceID: workspaceID}
 	evaluator := &goalEvaluator{}
 
@@ -243,14 +242,13 @@ func (s *LoopService) recordSession(workspaceID uint64, sessionID, reason string
 // --- Internal adapters ---
 
 type agentExecutorAdapter struct {
-	client      *client.AgentClient
+	svc         *AgentService
 	workspaceID uint64
 	userID      uint64
-	token       string
 }
 
 func (e *agentExecutorAdapter) Execute(ctx context.Context, task string, context map[string]interface{}) (string, int, float64, error) {
-	agents, err := e.client.ListByWorkspace(e.workspaceID, e.token)
+	agents, err := e.svc.ListByWorkspace(e.workspaceID)
 	if err != nil || len(agents) == 0 {
 		return "", 0, 0, fmt.Errorf("no agents available: %w", err)
 	}
@@ -271,7 +269,12 @@ func (e *agentExecutorAdapter) Execute(ctx context.Context, task string, context
 	if id, ok := context["project_id"].(uint64); ok {
 		projectIDPtr = &id
 	}
-	result, err := e.client.DispatchAgent(e.workspaceID, agentID, e.userID, task, issueIDPtr, projectIDPtr, e.token)
+	result, err := e.svc.DispatchAgent(agentID, e.userID, task, &DispatchContext{
+		IssueID:     issueIDPtr,
+		ProjectID:   projectIDPtr,
+		WorkspaceID: e.workspaceID,
+		TriggeredBy: "loop",
+	})
 	if err != nil {
 		return "", 0, 0, err
 	}

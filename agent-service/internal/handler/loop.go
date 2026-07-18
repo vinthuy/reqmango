@@ -143,13 +143,13 @@ func (h *AgentLoopHandler) Delete(c *gin.Context) {
 }
 
 func (h *AgentLoopHandler) Start(c *gin.Context) {
-	wsID, userID, token, err := h.getWSAndToken(c)
+	wsID, userID, _, err := h.getWSAndToken(c)
 	if err != nil {
 		c.JSON(400, gin.H{"message": "invalid workspace"})
 		return
 	}
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	run, err := h.svc.StartLoop(wsID, id, userID, token)
+	run, err := h.svc.StartLoop(wsID, id, userID)
 	if err != nil {
 		if ae, ok := err.(*common.AppError); ok {
 			c.JSON(ae.Code, gin.H{"message": ae.Message})

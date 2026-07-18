@@ -52,7 +52,6 @@ func main() {
 	}
 
 	// Create HTTP clients to main backend
-	agentClient := client.NewAgentClient(cfg.MainBackendURL)
 	backendClient := client.NewBackendClient(cfg.MainBackendURL)
 
 	// Initialize LLM client, AI service, and agent service
@@ -61,7 +60,7 @@ func main() {
 	agentSvc := service.NewAgentService(db, llmClient, backendClient, aiSvc)
 
 	// Initialize services
-	loopSvc := service.NewLoopService(db, agentClient)
+	loopSvc := service.NewLoopService(db, agentSvc)
 
 	// Seed Sprint Guardian loop for workspaces
 	// (Will be seeded on-demand when a workspace first accesses the API)
