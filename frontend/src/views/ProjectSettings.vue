@@ -11,10 +11,8 @@ import type { Workspace } from '@/types'
 import type { ProjectResponse, ProjectUpdate, ProjectSubscriber } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
 import ProjectMemberList from '@/components/ProjectMemberList.vue'
-import CycleList from '@/components/CycleList.vue'
 import CustomFieldList from '@/components/CustomFieldList.vue'
 import CustomFieldForm from '@/components/CustomFieldForm.vue'
-import EstimatePointManager from '@/components/EstimatePointManager.vue'
 import ProjectIssueTypeManager from '@/components/ProjectIssueTypeManager.vue'
 import WorkItemTemplateManager from '@/components/WorkItemTemplateManager.vue'
 import ReleaseList from '@/components/ReleaseList.vue'
@@ -122,13 +120,11 @@ const menuItems = computed(() => [
   { id: 'labels', label: t('settings.labels'), icon: '🏷️' },
   { id: 'issue-types', label: t('settings.issueTypes'), icon: '📐' },
   { id: 'templates', label: t('settings.templates'), icon: '📋' },
-  { id: 'cycles', label: t('settings.cycles'), icon: '🔄' },
   { id: 'releases', label: t('settings.releases'), icon: '🚀' },
   { id: 'webhooks', label: t('settings.webhooks'), icon: '🔌' },
   { id: 'git-integration', label: t('gitIntegration.title'), icon: '🌿' },
   { id: 'relations', label: t('settings.relations'), icon: '🔗' },
   { id: 'custom-fields', label: t('settings.customFields'), icon: '🔧' },
-  { id: 'estimate-points', label: t('settings.estimatePoints'), icon: '📏' },
   { id: 'workflows', label: t('settings.workflows'), icon: '⚙️' },
   { id: 'automations', label: t('settings.automations'), icon: '🤖' },
   { id: 'delete', label: t('settings.deleteProject'), icon: '🗑️' },
@@ -750,11 +746,6 @@ onMounted(async () => {
           <WorkItemTemplateManager :project-id="projectId" :workspace-id="workspaceId" />
         </div>
 
-        <!-- Cycles -->
-        <div v-if="!loading && activeSection === 'cycles'" class="bg-white rounded-lg border border-gray-200">
-          <CycleList :project-id="projectId" :workspace-id="workspaceId" />
-        </div>
-
         <!-- Releases -->
         <div v-if="!loading && activeSection === 'releases'" class="bg-white rounded-lg border border-gray-200">
           <ReleaseList :project-id="projectId" />
@@ -806,11 +797,6 @@ onMounted(async () => {
         <!-- Custom Fields -->
         <div v-if="!loading && activeSection === 'custom-fields'" class="bg-white rounded-lg border border-gray-200">
           <CustomFieldList :project-id="projectId" :workspace-id="workspaceId" @create="handleCreateField" @edit="handleEditField" />
-        </div>
-
-        <!-- Estimate Points -->
-        <div v-if="!loading && activeSection === 'estimate-points'" class="bg-white rounded-lg border border-gray-200">
-          <EstimatePointManager :project-id="projectId" />
         </div>
 
         <!-- Workflows -->
