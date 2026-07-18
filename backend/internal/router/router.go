@@ -807,7 +807,6 @@ func reverseProxy(targetURL string) gin.HandlerFunc {
 		// Preserve the original path including /api/v1/workspaces/:wsParam/... prefix
 		c.Request.URL.Host = target.Host
 		c.Request.URL.Scheme = target.Scheme
-		c.Request.URL.Path = c.Request.URL.Path
 		c.Request.Header.Set("X-Forwarded-Host", c.Request.Host)
 		proxy.ServeHTTP(c.Writer, c.Request)
 	}

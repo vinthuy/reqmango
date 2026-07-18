@@ -80,8 +80,6 @@ func main() {
 		&model.InitiativeProject{},
 		&model.ProjectUpdate{},
 		&model.ProjectPageTab{},
-		&model.Agent{},
-		&model.AgentActivity{},
 		&model.MCPConfig{},
 		&model.GitHubConnection{},
 		&model.SlackConnection{},
