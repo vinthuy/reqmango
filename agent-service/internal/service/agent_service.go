@@ -22,8 +22,8 @@ type AgentService struct {
 }
 
 // NewAgentService creates a new AgentService.
-func NewAgentService(db *gorm.DB, llmClient *llm.LLMClient, backend *client.BackendClient) *AgentService {
-	return &AgentService{db: db, llm: llmClient, backend: backend}
+func NewAgentService(db *gorm.DB, llmClient *llm.LLMClient, backend *client.BackendClient, aiSvc *AIService) *AgentService {
+	return &AgentService{db: db, llm: llmClient, backend: backend, aiSvc: aiSvc}
 }
 
 // ======== CRUD ========
@@ -253,12 +253,29 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	// Convert agent capabilities to LLM tools
 	tools := s.filterToolsByCapabilities(agent)
 
+	// Build context for tool execution
+	actx := &AIContext{
+		WorkspaceID: ctx.WorkspaceID,
+		ProjectID:   0,
+		Mode:        "agent",
+		UserID:      userID,
+	}
+	if ctx.ProjectID != nil {
+		actx.ProjectID = *ctx.ProjectID
+	}
+
 	// Call the LLM with multi-turn tool execution
 	executedTools := make([]string, 0)
 	resp, llmErr := s.llm.ChatSyncWithTools(context.Background(), systemPrompt, []llm.Message{
 		{Role: "user", Content: task},
 	}, tools, func(name string, input json.RawMessage) (string, error) {
-		return "", fmt.Errorf("AI service not yet available")
+		result, execErr := s.aiSvc.ExecuteTool(name, input, actx)
+		if execErr != nil {
+			return "", execErr
+		}
+		executedTools = append(executedTools, fmt.Sprintf("%s(%v)", name, input))
+		b, _ := json.Marshal(result)
+		return string(b), nil
 	})
 	if llmErr != nil {
 		// Record failed attempt
@@ -452,9 +469,7 @@ func (s *AgentService) buildAgentSystemPrompt(agent *model.Agent, ctx *DispatchC
 
 // filterToolsByCapabilities returns only the tools that match the agent's capabilities.
 func (s *AgentService) filterToolsByCapabilities(agent *model.Agent) []llm.Tool {
-	// Phase 2: AI service not yet migrated; return empty tools list.
-	// Phase 3 will replace this with s.aiSvc.GetTools()
-	var allTools []llm.Tool
+	allTools := s.aiSvc.GetTools()
 
 	var caps []string
 	if agent.Capabilities != nil {
@@ -530,6 +545,3 @@ func (s *AgentService) getLatestActivity(agentID uint64) (*model.AgentActivity, 
 	return &activity, nil
 }
 
-// AIService is a placeholder. In Phase 3, the real AIService will be migrated
-// from the main backend, replacing this stub.
-type AIService struct{}
