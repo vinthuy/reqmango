@@ -27,6 +27,10 @@ func main() {
 	}
 	fmt.Println("Database connected")
 
+	// Purge legacy workspace-level labels so project_id can become NOT NULL (project-only labels, aligned with Plane)
+	db.Exec(`DELETE FROM issue_labels WHERE label_id IN (SELECT id FROM labels WHERE project_id IS NULL)`)
+	db.Exec(`DELETE FROM labels WHERE project_id IS NULL`)
+
 	if err := db.AutoMigrate(
 		&model.User{},
 		&model.Workspace{},
@@ -132,6 +136,10 @@ func main() {
 		USING gin(to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')))
 	`)
 	fmt.Println("Full-text search index created")
+
+	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_labels_project_name ON labels (project_id, name) WHERE deleted_at IS NULL`).Error; err != nil {
+		log.Printf("WARNING: failed to create labels unique index: %v", err)
+	}
 
 	seed.SeedAll(db)
 
