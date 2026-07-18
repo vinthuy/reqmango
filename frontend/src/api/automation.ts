@@ -31,6 +31,13 @@ export interface AutomationExecution {
   executed_at: string
 }
 
+export interface AutomationExecutionResponse {
+  data: AutomationExecution[]
+  total: number
+  limit: number
+  offset: number
+}
+
 export interface AutomationCreate {
   name: string
   description?: string
@@ -78,6 +85,26 @@ export const automationApi = {
     const params = new URLSearchParams()
     if (limit) params.append('limit', limit.toString())
     const res = await api.get(`/issues/${issueId}/automation-history?${params.toString()}`)
+    return res.data
+  },
+
+  getRuleExecutionHistory: async (ruleId: number, params?: { limit?: number; offset?: number; startTime?: string; endTime?: string }): Promise<AutomationExecutionResponse> => {
+    const query = new URLSearchParams()
+    if (params?.limit) query.append('limit', params.limit.toString())
+    if (params?.offset) query.append('offset', params.offset.toString())
+    if (params?.startTime) query.append('start_time', params.startTime)
+    if (params?.endTime) query.append('end_time', params.endTime)
+    const res = await api.get(`/automations/${ruleId}/execution-history?${query.toString()}`)
+    return res.data
+  },
+
+  getProjectExecutionHistory: async (projectId: number, params?: { limit?: number; offset?: number; startTime?: string; endTime?: string }): Promise<AutomationExecutionResponse> => {
+    const query = new URLSearchParams()
+    if (params?.limit) query.append('limit', params.limit.toString())
+    if (params?.offset) query.append('offset', params.offset.toString())
+    if (params?.startTime) query.append('start_time', params.startTime)
+    if (params?.endTime) query.append('end_time', params.endTime)
+    const res = await api.get(`/projects/${projectId}/automation-executions?${query.toString()}`)
     return res.data
   },
 }

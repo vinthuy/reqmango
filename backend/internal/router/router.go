@@ -61,8 +61,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
 	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
 	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
-	automationSvc.SetAgentService(agentSvc) // break circular dependency: automation -> agent -> issue -> automation
-	commentSvc.SetAgentService(agentSvc)    // enable @agent-name mention handling in comments
+	automationSvc.SetAgentService(agentSvc)        // break circular dependency: automation -> agent -> issue -> automation
+	commentSvc.SetAgentService(agentSvc)           // enable @agent-name mention handling in comments
 	commentSvc.SetAutomationService(automationSvc) // enable comment_added automation trigger
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
@@ -182,12 +182,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/agents/:id/auto-assign", agentH.AutoAssign)
 
 			// Agent Loops
-				// Agent Service Reverse Proxy — forwards to agent-service:8001
-				agentProxy := reverseProxy(cfg.AgentServiceURL)
-				workspaces.Any("/:wsParam/loops/*path", agentProxy)
-				workspaces.Any("/:wsParam/pipelines/*path", agentProxy)
-				workspaces.Any("/:wsParam/agent-sessions/*path", agentProxy)
-				workspaces.Any("/:wsParam/agents/registry/*path", agentProxy)
+			// Agent Service Reverse Proxy — forwards to agent-service:8001
+			agentProxy := reverseProxy(cfg.AgentServiceURL)
+			workspaces.Any("/:wsParam/loops/*path", agentProxy)
+			workspaces.Any("/:wsParam/pipelines/*path", agentProxy)
+			workspaces.Any("/:wsParam/agent-sessions/*path", agentProxy)
+			workspaces.Any("/:wsParam/agents/registry/*path", agentProxy)
 
 			// MCP Server
 			workspaces.GET("/:wsParam/mcp", mcpH.List)
@@ -532,14 +532,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		issues := v1.Group("/issues", authMiddleware)
 		{
 			// CRUD
-			issues.POST("", issueH.Create)                     // ?project_id=&workspace_id=
-			issues.GET("", issueH.List)                        // ?project_id=&filters...
-			issues.GET("/tree", issueH.Tree)                   // ?project_id=&search=&limit=&offset=
-			issues.GET("/statistics", issueH.GetStatistics)    // ?project_id=
-			issues.GET("/flow-metrics", issueH.GetFlowMetrics) // ?project_id=
-			issues.GET("/search", issueH.Search)               // ?workspace_id=&query=
-			issues.GET("/suggest", issueH.Suggest)             // ?project_id=&query=&limit=
-			issues.POST("/bulk/update", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkUpdate)     // ?project_id=
+			issues.POST("", issueH.Create)                                                                            // ?project_id=&workspace_id=
+			issues.GET("", issueH.List)                                                                               // ?project_id=&filters...
+			issues.GET("/tree", issueH.Tree)                                                                          // ?project_id=&search=&limit=&offset=
+			issues.GET("/statistics", issueH.GetStatistics)                                                           // ?project_id=
+			issues.GET("/flow-metrics", issueH.GetFlowMetrics)                                                        // ?project_id=
+			issues.GET("/search", issueH.Search)                                                                      // ?workspace_id=&query=
+			issues.GET("/suggest", issueH.Suggest)                                                                    // ?project_id=&query=&limit=
+			issues.POST("/bulk/update", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkUpdate) // ?project_id=
 			issues.POST("/bulk/delete", middleware.RequirePermission(db, "issue:delete", "project"), issueH.BulkDelete)
 			issues.POST("/bulk/copy", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkCopy)
 			issues.POST("/bulk/move", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkMove)
@@ -789,6 +789,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 		// Execution history
 		v1.GET("/issues/:issueId/automation-history", authMiddleware, automationH.GetExecutionHistory)
+		v1.GET("/automations/:ruleId/execution-history", authMiddleware, automationH.GetRuleExecutionHistory)
+		v1.GET("/projects/:projectId/automation-executions", authMiddleware, automationH.GetProjectExecutionHistory)
 
 		// ---- Notifications (protected) ----
 		notifications := v1.Group("/notifications", authMiddleware)

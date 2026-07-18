@@ -92,11 +92,13 @@ type Condition struct {
 	IsNegated   bool        `json:"is_negated,omitempty"` // 是否取反（NOT）
 }
 
-// DefaultConditionEvaluator 默认条件评估器实现（支持复杂逻辑组合）
-type DefaultConditionEvaluator struct{}
+// DefaultConditionEvaluator 默认条件评估器实现（支持复杂逻辑组合和自定义字段）
+type DefaultConditionEvaluator struct {
+	db *gorm.DB
+}
 
-func NewDefaultConditionEvaluator() *DefaultConditionEvaluator {
-	return &DefaultConditionEvaluator{}
+func NewDefaultConditionEvaluator(db *gorm.DB) *DefaultConditionEvaluator {
+	return &DefaultConditionEvaluator{db: db}
 }
 
 func (e *DefaultConditionEvaluator) Evaluate(conditions []Condition, context map[string]interface{}) bool {
@@ -169,8 +171,17 @@ func (e *DefaultConditionEvaluator) evaluateCondition(cond Condition, context ma
 func (e *DefaultConditionEvaluator) evaluateSingleCondition(cond Condition, context map[string]interface{}) bool {
 	fieldValue, exists := context[cond.Field]
 	if !exists {
-		log.Printf("[Automation] Condition field '%s' not found in context", cond.Field)
-		return false // 字段不存在，不匹配
+		// 尝试从自定义字段获取值
+		if strings.HasPrefix(cond.Field, "custom_") {
+			fieldValue = e.getCustomFieldValue(cond.Field, context)
+			if fieldValue == nil {
+				log.Printf("[Automation] Custom field '%s' not found or has no value", cond.Field)
+				return false
+			}
+		} else {
+			log.Printf("[Automation] Condition field '%s' not found in context", cond.Field)
+			return false
+		}
 	}
 
 	switch cond.Operator {
@@ -226,6 +237,33 @@ func (e *DefaultConditionEvaluator) evaluateSingleCondition(cond Condition, cont
 		log.Printf("[ConditionEvaluator] Unknown operator: %s", cond.Operator)
 		return false
 	}
+}
+
+// getCustomFieldValue 从数据库获取自定义字段的值
+// field格式: custom_{field_id}
+func (e *DefaultConditionEvaluator) getCustomFieldValue(fieldName string, context map[string]interface{}) interface{} {
+	// 提取字段ID: custom_5 -> 5
+	fieldIDStr := strings.TrimPrefix(fieldName, "custom_")
+	var fieldID uint64
+	_, err := fmt.Sscanf(fieldIDStr, "%d", &fieldID)
+	if err != nil {
+		log.Printf("[Automation] Invalid custom field format: %s", fieldName)
+		return nil
+	}
+
+	issueID, ok := context["issue_id"].(uint64)
+	if !ok {
+		log.Printf("[Automation] issue_id not found in context for custom field lookup")
+		return nil
+	}
+
+	var fieldValue model.IssueCustomFieldValue
+	if err := e.db.Where("issue_id = ? AND field_id = ?", issueID, fieldID).First(&fieldValue).Error; err != nil {
+		log.Printf("[Automation] Custom field value not found for issue %d, field %d", issueID, fieldID)
+		return nil
+	}
+
+	return fieldValue.Value
 }
 
 func compareNumeric(a, b interface{}) int {
@@ -601,7 +639,7 @@ type AutomationService struct {
 
 func NewAutomationService(db *gorm.DB) *AutomationService {
 	eventBus := NewInMemoryEventBus()
-	ruleEngine := NewDefaultConditionEvaluator()
+	ruleEngine := NewDefaultConditionEvaluator(db)
 	actionExecutor := NewDefaultActionExecutor(db, nil) // agentSvc set via SetAgentService after construction
 	
 	service := &AutomationService{
@@ -661,7 +699,7 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 						event.IssueID, event.Type, execCount, s.execWindow)
 					
 					// 记录跳过的执行历史
-					s.recordExecutionHistory(event, nil, "skipped", "Cycle detected", startTime)
+					s.recordExecutionHistory(event, nil, 0, "skipped", "Cycle detected", startTime)
 					return nil
 				}
 			}
@@ -683,6 +721,7 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 	if err := s.db.Where("project_id = ? AND is_enabled = ?", 
 		event.ProjectID, true).Order("sequence ASC").Find(&rules).Error; err != nil {
 		log.Printf("[Automation] Failed to query project rules: %v", err)
+		s.recordExecutionHistory(event, nil, 0, "failed", "Failed to query project rules", startTime)
 		return err
 	}
 
@@ -720,7 +759,6 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 	log.Printf("[Automation] Found %d matching rules for event %s", len(rules), event.Type)
 	
 	var allResults []string
-	var hasError bool
 	
 	for _, rule := range rules {
 		// 解析条件
@@ -728,12 +766,15 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 		if rule.Conditions != "" && rule.Conditions != "[]" {
 			if err := json.Unmarshal([]byte(rule.Conditions), &conditions); err != nil {
 				log.Printf("[Automation] Failed to parse conditions for rule %d: %v", rule.ID, err)
+				s.recordExecutionHistory(event, nil, rule.ID, "failed", "Failed to parse conditions", startTime)
 				continue
 			}
 		}
 		
 		// 评估条件
 		if !s.ruleEngine.Evaluate(conditions, event.Context) {
+			log.Printf("[Automation] Rule %d conditions not met for event %s, skipping", rule.ID, event.Type)
+			s.recordExecutionHistory(event, nil, rule.ID, "skipped", "Conditions not met", startTime)
 			continue // 条件不匹配，跳过
 		}
 		
@@ -748,35 +789,33 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 		results, err := s.actionExecutor.Execute(actions, event.Context)
 		if err != nil {
 			log.Printf("[Automation] Failed to execute actions for rule %d: %v", rule.ID, err)
-			hasError = true
 		}
 		
 		allResults = append(allResults, results...)
 		
 		// 更新规则执行计数
 		s.db.Model(&rule).Update("execution_count", gorm.Expr("execution_count + 1"))
+		
+		// 记录每条规则的执行历史
+		ruleStatus := "success"
+		ruleError := ""
+		if err != nil {
+			ruleStatus = "failed"
+			ruleError = err.Error()
+		}
+		s.recordExecutionHistory(event, results, rule.ID, ruleStatus, ruleError, startTime)
 	}
-	
-	// 记录执行历史
-	status := "success"
-	errorMsg := ""
-	if hasError {
-		status = "failed"
-		errorMsg = "Some actions failed"
-	}
-	
-	s.recordExecutionHistory(event, allResults, status, errorMsg, startTime)
 	
 	return nil
 }
 
-func (s *AutomationService) recordExecutionHistory(event Event, results []string, status string, errorMsg string, startTime time.Time) {
+func (s *AutomationService) recordExecutionHistory(event Event, results []string, ruleID uint64, status string, errorMsg string, startTime time.Time) {
 	contextJSON, _ := json.Marshal(event.Context)
 	actionsJSON, _ := json.Marshal(results)
 	duration := time.Since(startTime).Milliseconds()
 	
 	execution := model.AutomationExecution{
-		RuleID:       0, // TODO: 跟踪具体规则 ID
+		RuleID:       ruleID,
 		IssueID:      event.IssueID,
 		TriggerType:  event.Type,
 		ContextJSON:  string(contextJSON),
@@ -811,6 +850,56 @@ func (s *AutomationService) GetExecutionHistory(issueID uint64, limit int) ([]mo
 		return nil, common.Internal("Failed to get execution history")
 	}
 	return executions, nil
+}
+
+// GetRuleExecutionHistory 获取指定规则的执行历史
+func (s *AutomationService) GetRuleExecutionHistory(ruleID uint64, limit int, offset int, startTime *time.Time, endTime *time.Time) ([]model.AutomationExecution, int64, error) {
+	var executions []model.AutomationExecution
+	var total int64
+	
+	query := s.db.Model(&model.AutomationExecution{}).Where("rule_id = ?", ruleID)
+	
+	if startTime != nil {
+		query = query.Where("executed_at >= ?", *startTime)
+	}
+	if endTime != nil {
+		query = query.Where("executed_at <= ?", *endTime)
+	}
+	
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, common.Internal("Failed to count execution history")
+	}
+	
+	if err := query.Order("executed_at DESC").Offset(offset).Limit(limit).Find(&executions).Error; err != nil {
+		return nil, 0, common.Internal("Failed to get rule execution history")
+	}
+	return executions, total, nil
+}
+
+// GetProjectExecutionHistory 获取项目的自动化执行历史
+func (s *AutomationService) GetProjectExecutionHistory(projectID uint64, limit int, offset int, startTime *time.Time, endTime *time.Time) ([]model.AutomationExecution, int64, error) {
+	var executions []model.AutomationExecution
+	var total int64
+	
+	query := s.db.Model(&model.AutomationExecution{}).
+		Joins("JOIN automation_rules ON automation_rules.id = automation_executions.rule_id").
+		Where("automation_rules.project_id = ?", projectID)
+	
+	if startTime != nil {
+		query = query.Where("automation_executions.executed_at >= ?", *startTime)
+	}
+	if endTime != nil {
+		query = query.Where("automation_executions.executed_at <= ?", *endTime)
+	}
+	
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, common.Internal("Failed to count project execution history")
+	}
+	
+	if err := query.Order("automation_executions.executed_at DESC").Offset(offset).Limit(limit).Find(&executions).Error; err != nil {
+		return nil, 0, common.Internal("Failed to get project execution history")
+	}
+	return executions, total, nil
 }
 
 // Helper functions

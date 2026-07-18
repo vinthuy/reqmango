@@ -9,6 +9,7 @@ import AISettingsPanel from '@/components/AISettingsPanel.vue';
 import CustomFieldManager from '@/components/CustomFieldManager.vue';
 import AutomationForm from '@/components/AutomationForm.vue';
 import AutomationList from '@/components/AutomationList.vue';
+import AutomationExecutionLog from '@/components/AutomationExecutionLog.vue';
 import WorkspaceIntegrations from '@/components/WorkspaceIntegrations.vue'
 import RoleManagement from '@/components/RoleManagement.vue';
 import PluginManager from '@/views/PluginManager.vue';
@@ -132,6 +133,8 @@ async function loadAllData() {
 // ===== Automation handlers (workspace-level) =====
 const editingAutomation = ref<any>(null);
 const showAutomationForm = ref(false);
+const showAutomationLogModal = ref(false);
+const viewingAutomationId = ref<number | null>(null);
 
 function handleAddAutomation() {
   editingAutomation.value = null;
@@ -140,6 +143,10 @@ function handleAddAutomation() {
 function handleEditAutomation(automation: any) {
   editingAutomation.value = automation;
   showAutomationForm.value = true;
+}
+function handleViewAutomationLog(automation: any) {
+  viewingAutomationId.value = automation.id;
+  showAutomationLogModal.value = true;
 }
 async function handleSaveAutomation(data: any) {
   try {
@@ -452,6 +459,7 @@ onMounted(() => { loadWorkspace(); });
           @edit="handleEditAutomation"
           @delete="handleDeleteAutomation"
           @toggle="handleToggleAutomation"
+          @viewHistory="handleViewAutomationLog"
         />
       </div>
 
@@ -494,6 +502,13 @@ onMounted(() => { loadWorkspace(); });
         </div>
       </div>
     </div>
+
+    <!-- Automation Execution Log Drawer -->
+    <AutomationExecutionLog
+      :visible="showAutomationLogModal"
+      :rule-id="viewingAutomationId || undefined"
+      @close="showAutomationLogModal = false"
+    />
 
     <!-- Workspace State Modal -->
     <div v-if="wsShowStateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="wsShowStateModal = false">
