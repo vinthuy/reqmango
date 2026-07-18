@@ -131,9 +131,11 @@
               </div>
             </div>
 
-            <div v-if="log.error" class="p-2 bg-red-50 rounded-lg border border-red-100">
-              <h4 class="text-xs font-semibold text-red-600 uppercase mb-1">{{ t('automationExecutionLog.error') }}</h4>
-              <p class="text-xs text-red-700">{{ log.error }}</p>
+            <div v-if="log.error" :class="getErrorClass(log)">
+              <h4 class="text-xs font-semibold uppercase mb-1" :class="log.status === 'skipped' && log.error === 'Conditions not met' ? 'text-yellow-600' : 'text-red-600'">
+                {{ log.status === 'skipped' && log.error === 'Conditions not met' ? t('automationExecutionLog.conditionNotMet') : t('automationExecutionLog.error') }}
+              </h4>
+              <p class="text-xs" :class="log.status === 'skipped' && log.error === 'Conditions not met' ? 'text-yellow-700' : 'text-red-700'">{{ log.error }}</p>
             </div>
 
             <div v-if="log.rule_id" class="mt-2 pt-2 border-t border-gray-200">
@@ -350,6 +352,13 @@ function getStatusLabel(status: string) {
     case 'skipped': return t('automationExecutionLog.skipped')
     default: return status
   }
+}
+
+function getErrorClass(log: AutomationExecution) {
+  if (log.status === 'skipped' && log.error === 'Conditions not met') {
+    return 'p-2 bg-yellow-50 rounded-lg border border-yellow-100'
+  }
+  return 'p-2 bg-red-50 rounded-lg border border-red-100'
 }
 
 function getTriggerLabel(triggerType: string) {

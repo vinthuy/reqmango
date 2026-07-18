@@ -1721,9 +1721,14 @@ func (s *IssueService) runAutomations(issueID uint64, triggerType string, contex
 		context = make(map[string]interface{})
 	}
 
+	var state model.State
+	if err := s.db.First(&state, issue.StateID).Error; err == nil {
+		context["state"] = state.Name
+	}
+
 	context["issue_id"] = issueID
 	context["project_id"] = issue.ProjectID
-	context["state"] = issue.StateID
+	context["state_id"] = issue.StateID
 	context["priority"] = issue.Priority
 	context["title"] = issue.Name
 	context["description"] = issue.DescriptionHTML
@@ -1743,7 +1748,13 @@ func (s *IssueService) runAutomations(issueID uint64, triggerType string, contex
 
 	var cycleID uint64
 	if err := s.db.Model(&model.IssueCycle{}).Where("issue_id = ?", issueID).Pluck("cycle_id", &cycleID).Error; err == nil && cycleID > 0 {
-		context["cycle"] = cycleID
+		var cycle model.Cycle
+		if err := s.db.First(&cycle, cycleID).Error; err == nil {
+			context["cycle"] = cycle.Name
+		} else {
+			context["cycle"] = cycleID
+		}
+		context["cycle_id"] = cycleID
 	}
 
 	event := Event{

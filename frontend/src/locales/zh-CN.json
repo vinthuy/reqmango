@@ -1251,7 +1251,8 @@
     "total": "总记录",
     "prev": "上一页",
     "next": "下一页",
-    "page": "第"
+    "page": "第",
+    "conditionNotMet": "条件未满足"
   },
   "issueList": {
     "searchPlaceholder": "搜索工作项...",

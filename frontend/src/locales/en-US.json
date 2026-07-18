@@ -1365,7 +1365,8 @@
     "total": "Total",
     "prev": "Previous",
     "next": "Next",
-    "page": "Page"
+    "page": "Page",
+    "conditionNotMet": "Conditions Not Met"
   },
   "filter": {
     "filterButton": "Filters",
