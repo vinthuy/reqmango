@@ -163,17 +163,11 @@ func (h *ProjectSettingsHandler) DeleteWorkspaceState(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
 }
 
-// CreateState handles POST /projects/:id/settings/states?workspace_id=int
+// CreateState handles POST /projects/:id/settings/states
 func (h *ProjectSettingsHandler) CreateState(c *gin.Context) {
 	projectID, err := h.getProjectID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
 		return
 	}
 
@@ -183,7 +177,7 @@ func (h *ProjectSettingsHandler) CreateState(c *gin.Context) {
 		return
 	}
 
-	resp, svcErr := h.svc.CreateState(&req, projectID, workspaceID)
+	resp, svcErr := h.svc.CreateState(&req, projectID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -196,7 +190,7 @@ func (h *ProjectSettingsHandler) CreateState(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
-// ListStates handles GET /projects/:id/settings/states?include_inactive=false&workspace_id=int
+// ListStates handles GET /projects/:id/settings/states?include_inactive=false
 func (h *ProjectSettingsHandler) ListStates(c *gin.Context) {
 	projectID, err := h.getProjectID(c)
 	if err != nil {
@@ -204,15 +198,9 @@ func (h *ProjectSettingsHandler) ListStates(c *gin.Context) {
 		return
 	}
 
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
-		return
-	}
-
 	includeInactive := c.Query("include_inactive") == "true"
 
-	states, svcErr := h.svc.ListStates(projectID, workspaceID, includeInactive)
+	states, svcErr := h.svc.ListStates(projectID, includeInactive)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -313,7 +301,7 @@ func (h *ProjectSettingsHandler) DeleteState(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
 }
 
-// CreateDefaultStates handles POST /projects/:id/settings/states/default?workspace_id=int
+// CreateDefaultStates handles POST /projects/:id/settings/states/default
 func (h *ProjectSettingsHandler) CreateDefaultStates(c *gin.Context) {
 	projectID, err := h.getProjectID(c)
 	if err != nil {
@@ -321,13 +309,7 @@ func (h *ProjectSettingsHandler) CreateDefaultStates(c *gin.Context) {
 		return
 	}
 
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
-		return
-	}
-
-	states, svcErr := h.svc.CreateDefaultStates(projectID, workspaceID)
+	states, svcErr := h.svc.CreateDefaultStates(projectID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -342,17 +324,11 @@ func (h *ProjectSettingsHandler) CreateDefaultStates(c *gin.Context) {
 
 // ==================== Labels ====================
 
-// CreateLabel handles POST /projects/:id/settings/labels?workspace_id=int
+// CreateLabel handles POST /projects/:id/settings/labels
 func (h *ProjectSettingsHandler) CreateLabel(c *gin.Context) {
 	projectID, err := h.getProjectID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
 		return
 	}
 
@@ -362,7 +338,7 @@ func (h *ProjectSettingsHandler) CreateLabel(c *gin.Context) {
 		return
 	}
 
-	resp, svcErr := h.svc.CreateLabel(&req, projectID, workspaceID)
+	resp, svcErr := h.svc.CreateLabel(&req, projectID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -375,7 +351,7 @@ func (h *ProjectSettingsHandler) CreateLabel(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
-// ListLabels handles GET /projects/:id/settings/labels?workspace_id=int
+// ListLabels handles GET /projects/:id/settings/labels
 func (h *ProjectSettingsHandler) ListLabels(c *gin.Context) {
 	projectID, err := h.getProjectID(c)
 	if err != nil {
@@ -383,13 +359,7 @@ func (h *ProjectSettingsHandler) ListLabels(c *gin.Context) {
 		return
 	}
 
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
-		return
-	}
-
-	labels, svcErr := h.svc.ListLabels(projectID, workspaceID)
+	labels, svcErr := h.svc.ListLabels(projectID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -402,17 +372,11 @@ func (h *ProjectSettingsHandler) ListLabels(c *gin.Context) {
 	c.JSON(http.StatusOK, labels)
 }
 
-// SearchLabels handles GET /projects/:id/settings/labels/search?q=xxx&workspace_id=int
+// SearchLabels handles GET /projects/:id/settings/labels/search?q=xxx
 func (h *ProjectSettingsHandler) SearchLabels(c *gin.Context) {
 	projectID, err := h.getProjectID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
 		return
 	}
 
@@ -421,7 +385,7 @@ func (h *ProjectSettingsHandler) SearchLabels(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "query parameter 'q' is required"})
 		return
 	}
-	labels, svcErr := h.svc.SearchLabels(projectID, workspaceID, query)
+	labels, svcErr := h.svc.SearchLabels(projectID, query)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})

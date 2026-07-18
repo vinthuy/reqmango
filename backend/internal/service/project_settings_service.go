@@ -21,7 +21,11 @@ func NewProjectSettingsService(db *gorm.DB) *ProjectSettingsService {
 // ==================== State CRUD ====================
 
 // CreateState creates a new state for a project.
-func (s *ProjectSettingsService) CreateState(req *request.StateCreateRequest, projectID, workspaceID uint64) (*response.StateResponse, error) {
+func (s *ProjectSettingsService) CreateState(req *request.StateCreateRequest, projectID uint64) (*response.StateResponse, error) {
+	var project model.Project
+	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
+		return nil, common.Internal("Project not found")
+	}
 	color := req.Color
 	if color == "" {
 		color = "#6B7280"
@@ -48,7 +52,7 @@ func (s *ProjectSettingsService) CreateState(req *request.StateCreateRequest, pr
 		IsDefault:   isDefault,
 		IsActive:    true,
 		ProjectID:   &projectIDPtr,
-		WorkspaceID: workspaceID,
+		WorkspaceID: project.WorkspaceID,
 	}
 
 	if err := s.db.Create(state).Error; err != nil {
@@ -59,8 +63,12 @@ func (s *ProjectSettingsService) CreateState(req *request.StateCreateRequest, pr
 }
 
 // ListStates returns all states for a project including inherited workspace states.
-func (s *ProjectSettingsService) ListStates(projectID, workspaceID uint64, includeInactive bool) ([]response.StateResponse, error) {
-	query := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, workspaceID)
+func (s *ProjectSettingsService) ListStates(projectID uint64, includeInactive bool) ([]response.StateResponse, error) {
+	var project model.Project
+	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
+		return nil, common.Internal("Project not found")
+	}
+	query := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, project.WorkspaceID)
 	if !includeInactive {
 		query = query.Where("is_active = ?", true)
 	}
@@ -291,7 +299,11 @@ func (s *ProjectSettingsService) DeleteWorkspaceState(workspaceID, stateID uint6
 }
 
 // CreateDefaultStates creates the 6 default states for a project.
-func (s *ProjectSettingsService) CreateDefaultStates(projectID, workspaceID uint64) ([]response.StateResponse, error) {
+func (s *ProjectSettingsService) CreateDefaultStates(projectID uint64) ([]response.StateResponse, error) {
+	var project model.Project
+	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
+		return nil, common.Internal("Project not found")
+	}
 	var states []model.State
 	for _, ds := range common.DefaultStates {
 		projectIDPtr := projectID
@@ -303,7 +315,7 @@ func (s *ProjectSettingsService) CreateDefaultStates(projectID, workspaceID uint
 			IsDefault:   ds.IsDefault,
 			IsActive:    true,
 			ProjectID:   &projectIDPtr,
-			WorkspaceID: workspaceID,
+			WorkspaceID: project.WorkspaceID,
 		}
 		if err := s.db.Create(&state).Error; err != nil {
 			return nil, common.Internal("Failed to create default states")
@@ -321,7 +333,11 @@ func (s *ProjectSettingsService) CreateDefaultStates(projectID, workspaceID uint
 // ==================== Label CRUD ====================
 
 // CreateLabel creates a new label for a project.
-func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, projectID, workspaceID uint64) (*response.LabelResponse, error) {
+func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, projectID uint64) (*response.LabelResponse, error) {
+	var project model.Project
+	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
+		return nil, common.Internal("Project not found")
+	}
 	color := req.Color
 	if color == "" {
 		color = "#6B7280"
@@ -333,7 +349,7 @@ func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, pr
 		Color:       color,
 		Description: req.Description,
 		ProjectID:   &projectIDPtr,
-		WorkspaceID: workspaceID,
+		WorkspaceID: project.WorkspaceID,
 	}
 
 	if err := s.db.Create(label).Error; err != nil {
@@ -344,9 +360,13 @@ func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, pr
 }
 
 // ListLabels returns all labels for a project including inherited workspace labels.
-func (s *ProjectSettingsService) ListLabels(projectID, workspaceID uint64) ([]response.LabelResponse, error) {
+func (s *ProjectSettingsService) ListLabels(projectID uint64) ([]response.LabelResponse, error) {
+	var project model.Project
+	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
+		return nil, common.Internal("Project not found")
+	}
 	var labels []model.Label
-	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, workspaceID).Order("created_at ASC").Find(&labels).Error; err != nil {
+	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, project.WorkspaceID).Order("created_at ASC").Find(&labels).Error; err != nil {
 		return nil, common.Internal("Database error")
 	}
 
@@ -358,9 +378,13 @@ func (s *ProjectSettingsService) ListLabels(projectID, workspaceID uint64) ([]re
 }
 
 // SearchLabels returns labels matching the query.
-func (s *ProjectSettingsService) SearchLabels(projectID, workspaceID uint64, query string) ([]response.LabelResponse, error) {
+func (s *ProjectSettingsService) SearchLabels(projectID uint64, query string) ([]response.LabelResponse, error) {
+	var project model.Project
+	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
+		return nil, common.Internal("Project not found")
+	}
 	var labels []model.Label
-	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?)) AND name ILIKE ?", projectID, workspaceID, "%"+query+"%").Order("created_at ASC").Find(&labels).Error; err != nil {
+	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?)) AND name ILIKE ?", projectID, project.WorkspaceID, "%"+query+"%").Order("created_at ASC").Find(&labels).Error; err != nil {
 		return nil, common.Internal("Database error")
 	}
 	result := make([]response.LabelResponse, len(labels))
