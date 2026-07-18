@@ -23,6 +23,7 @@ type AgentSession struct {
 	ErrorMessage  *string         `gorm:"type:text" json:"error_message,omitempty"`
 	StartedAt     time.Time       `gorm:"autoCreateTime" json:"started_at"`
 	CompletedAt   *time.Time      `json:"completed_at,omitempty"`
+	UpdatedAt     time.Time       `json:"updated_at"`
 	Metadata      json.RawMessage `gorm:"type:jsonb;default:'{}'" json:"metadata"`
 }
 

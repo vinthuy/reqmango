@@ -18,6 +18,7 @@ type Loop struct {
 	Version     string          `gorm:"size:50;default:1.0" json:"version"`
 	Status      string          `gorm:"size:50;default:active" json:"status"`
 	CreatedByID *uint64         `json:"created_by_id,omitempty"`
+	UpdatedByID *uint64         `json:"updated_by_id,omitempty"`
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt  `gorm:"index" json:"-"`
@@ -40,7 +41,6 @@ type LoopRun struct {
 	StoppedReason    *string         `gorm:"size:100" json:"stopped_reason,omitempty"`
 	StartedAt        time.Time       `gorm:"autoCreateTime" json:"started_at"`
 	CompletedAt      *time.Time      `json:"completed_at,omitempty"`
-	CreatedAt        time.Time       `json:"created_at"`
 	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
