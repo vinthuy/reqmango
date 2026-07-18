@@ -22,6 +22,7 @@ import ReleaseList from '@/components/ReleaseList.vue'
 import WebhookManager from '@/components/WebhookManager.vue'
 import GitIntegrationSettings from '@/components/GitIntegrationSettings.vue'
 import AutomationRuleBuilder from '@/components/AutomationRuleBuilder.vue'
+import AutomationExecutionLog from '@/components/AutomationExecutionLog.vue'
 import relationApi from '@/api/relation'
 
 const { confirm } = useConfirm()
@@ -376,6 +377,8 @@ async function handleDeleteWorkflow(workflow: any) {
 // ===== Automation handlers =====
 const showAutomationModal = ref(false)
 const editingAutomation = ref<any>(null)
+const showAutomationLogModal = ref(false)
+const viewingAutomationId = ref<number | null>(null)
 
 function handleAddAutomation() {
   editingAutomation.value = null
@@ -385,6 +388,11 @@ function handleAddAutomation() {
 function handleEditAutomation(automation: any) {
   editingAutomation.value = automation
   showAutomationModal.value = true
+}
+
+function handleViewAutomationLog(automation: any) {
+  viewingAutomationId.value = automation.id
+  showAutomationLogModal.value = true
 }
 
 async function handleSaveAutomation(data: any) {
@@ -869,6 +877,7 @@ onMounted(async () => {
                   <button v-if="!automation.is_inherited" @click="handleToggleAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm">{{ automation.is_enabled ? '⏸️' : '▶️' }}</button>
                   <button v-if="!automation.is_inherited" @click="handleEditAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm">✏️</button>
                   <button v-if="!automation.is_inherited" @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
+                  <button v-if="!automation.is_inherited" @click="handleViewAutomationLog(automation)" class="text-gray-400 hover:text-purple-500 text-sm ml-2" :title="t('automation.viewHistory')">📊</button>
                 </div>
               </div>
               <div class="mt-4 pt-4 border-t border-gray-100">
@@ -1055,6 +1064,13 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- Automation Execution Log Drawer -->
+    <AutomationExecutionLog
+      :visible="showAutomationLogModal"
+      :rule-id="viewingAutomationId || undefined"
+      @close="showAutomationLogModal = false"
+    />
 
     <!-- Subscriber Picker Modal -->
     <div v-if="showSubscriberPicker" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showSubscriberPicker = false">

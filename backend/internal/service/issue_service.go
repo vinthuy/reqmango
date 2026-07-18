@@ -963,8 +963,8 @@ func (s *IssueService) AddAssignee(issueID, userID, actorID uint64) error {
 		s.notificationSvc.TriggerNotification(s.db, "issue_assigned", title, message, userID, &actorID, &projectIDPtr, &issueIDPtr)
 	}
 
-	// Automation trigger: assignee_changed
-	s.runAutomations(issueID, "assignee_changed", map[string]interface{}{
+	// Automation trigger: issue.assigned
+	s.runAutomations(issueID, "issue.assigned", map[string]interface{}{
 		"issue_id": issueID, "project_id": issue.ProjectID,
 		"new_assignee": userID, "actor_id": actorID,
 	})
@@ -1288,7 +1288,7 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 
 	if req.StateID != nil {
 		for _, issueID := range successIDs {
-			s.runAutomations(issueID, "state_changed", map[string]interface{}{
+			s.runAutomations(issueID, "issue.state_changed", map[string]interface{}{
 				"issue_id":   issueID,
 				"new_state":  fmt.Sprintf("%d", *req.StateID),
 				"project_id": projectID,
@@ -1296,7 +1296,7 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 		}
 	} else if req.Priority != nil || req.AssigneeIDs != nil || req.LabelIDs != nil {
 		for _, issueID := range successIDs {
-			s.runAutomations(issueID, "issue_updated", map[string]interface{}{
+			s.runAutomations(issueID, "issue.updated", map[string]interface{}{
 				"issue_id":   issueID,
 				"project_id": projectID,
 			})
@@ -1712,12 +1712,40 @@ func (s *IssueService) runAutomations(issueID uint64, triggerType string, contex
 	}
 
 	var issue model.Issue
-	if err := s.db.First(&issue, issueID).Error; err != nil {
+	if err := s.db.Preload("AssigneeLinks").First(&issue, issueID).Error; err != nil {
 		log.Printf("[IssueService] Failed to fetch issue %d for automation: %v", issueID, err)
 		return
 	}
 
-	// 创建事件并发布到事件总线（异步执行）
+	if context == nil {
+		context = make(map[string]interface{})
+	}
+
+	context["issue_id"] = issueID
+	context["project_id"] = issue.ProjectID
+	context["state"] = issue.StateID
+	context["priority"] = issue.Priority
+	context["title"] = issue.Name
+	context["description"] = issue.DescriptionHTML
+	context["due_date"] = issue.TargetDate
+	context["start_date"] = issue.StartDate
+
+	var assigneeIDs []uint64
+	for _, a := range issue.AssigneeLinks {
+		assigneeIDs = append(assigneeIDs, a.UserID)
+	}
+	context["assignee"] = assigneeIDs
+
+	var labelIDs []uint64
+	if err := s.db.Model(&model.IssueLabel{}).Where("issue_id = ?", issueID).Pluck("label_id", &labelIDs).Error; err == nil {
+		context["labels"] = labelIDs
+	}
+
+	var cycleID uint64
+	if err := s.db.Model(&model.IssueCycle{}).Where("issue_id = ?", issueID).Pluck("cycle_id", &cycleID).Error; err == nil && cycleID > 0 {
+		context["cycle"] = cycleID
+	}
+
 	event := Event{
 		Type:      triggerType,
 		ProjectID: issue.ProjectID,

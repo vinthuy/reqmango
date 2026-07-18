@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/model"
@@ -124,6 +125,88 @@ func (h *AutomationHandler) GetExecutionHistory(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, history)
+}
+
+// GetRuleExecutionHistory handles GET /automations/:ruleId/execution-history
+func (h *AutomationHandler) GetRuleExecutionHistory(c *gin.Context) {
+	ruleID, err := strconv.ParseUint(c.Param("ruleId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid rule ID"})
+		return
+	}
+
+	limit := 20
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	offset := 0
+	if o := c.Query("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	var startTime, endTime *time.Time
+	if s := c.Query("start_time"); s != "" {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			startTime = &t
+		}
+	}
+	if e := c.Query("end_time"); e != "" {
+		if t, err := time.Parse(time.RFC3339, e); err == nil {
+			endTime = &t
+		}
+	}
+
+	history, total, svcErr := h.svc.GetRuleExecutionHistory(ruleID, limit, offset, startTime, endTime)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": history, "total": total, "limit": limit, "offset": offset})
+}
+
+// GetProjectExecutionHistory handles GET /projects/:projectId/automation-executions
+func (h *AutomationHandler) GetProjectExecutionHistory(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	limit := 20
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	offset := 0
+	if o := c.Query("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	var startTime, endTime *time.Time
+	if s := c.Query("start_time"); s != "" {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			startTime = &t
+		}
+	}
+	if e := c.Query("end_time"); e != "" {
+		if t, err := time.Parse(time.RFC3339, e); err == nil {
+			endTime = &t
+		}
+	}
+
+	history, total, svcErr := h.svc.GetProjectExecutionHistory(projectID, limit, offset, startTime, endTime)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": history, "total": total, "limit": limit, "offset": offset})
 }
 
 // Delete handles DELETE /projects/:projectId/automations/:id

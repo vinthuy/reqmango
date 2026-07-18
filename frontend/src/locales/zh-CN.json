@@ -428,6 +428,10 @@
     "createField": "创建字段",
     "deleteAutomationGeneric": "删除自动化",
     "confirmDeleteAutomationGeneric": "确定要删除自动化规则 \"{name}\" 吗？",
+    "enable": "启用",
+    "disable": "停用",
+    "enabled": "已启用",
+    "disabled": "已禁用",
     "enableAutomation": "启用自动化规则",
     "disableAutomation": "停用自动化规则",
     "confirmToggleAutomation": "确定要{action}规则 \"{name}\" 吗？",
@@ -1151,6 +1155,8 @@
     "notificationPlaceholder": "通知内容"
   },
   "automationBuilder": {
+    "title": "标题",
+    "description": "描述",
     "when": "当",
     "then": "然后",
     "conditions": "条件",
@@ -1198,7 +1204,11 @@
     "labelName": "标签名称",
     "commentText": "评论内容",
     "fieldName": "字段名称",
-    "fieldValue": "字段值"
+    "fieldValue": "字段值",
+    "systemFields": "系统字段",
+    "customFields": "自定义字段",
+    "selectValue": "选择值",
+    "numberValue": "数值"
   },
   "automationHistory": {
     "title": "自动化执行记录",
@@ -1220,6 +1230,28 @@
     "actionAssign": "分配给",
     "actionAddComment": "添加评论",
     "actionAddLabel": "添加标签"
+  },
+  "automationExecutionLog": {
+    "title": "自动化执行日志",
+    "description": "查看自动化规则的执行历史和详情",
+    "emptyTitle": "暂无执行日志",
+    "emptyDescription": "此规则尚未执行或没有执行记录",
+    "success": "执行成功",
+    "failed": "执行失败",
+    "skipped": "已跳过",
+    "ruleId": "规则ID",
+    "issueId": "工作项ID",
+    "context": "执行上下文",
+    "actionsTaken": "执行动作",
+    "error": "错误信息",
+    "viewHistory": "查看日志",
+    "startDate": "开始日期",
+    "endDate": "结束日期",
+    "reset": "重置",
+    "total": "总记录",
+    "prev": "上一页",
+    "next": "下一页",
+    "page": "第"
   },
   "issueList": {
     "searchPlaceholder": "搜索工作项...",
