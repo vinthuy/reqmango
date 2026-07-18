@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
@@ -276,7 +275,7 @@ func (s *ProjectTemplateService) Apply(templateID, projectID uint64) error {
 			}
 			if err := tx.Create(&label).Error; err != nil {
 				tx.Rollback()
-				if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				if common.IsUniqueViolation(err) {
 					return common.Conflict("Label name already exists in this project: " + tl.Name)
 				}
 				return common.Internal("Failed to create label: " + tl.Name)
