@@ -3,14 +3,16 @@ package model
 import (
 	"encoding/json"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // AIConfig stores workspace-level AI configuration.
 type AIConfig struct {
-	ID           uint64     `gorm:"primaryKey" json:"id"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `gorm:"index" json:"-"`
+	ID           uint64         `gorm:"primaryKey" json:"id"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
 	Provider    string `gorm:"size:20;default:deepseek" json:"provider"`
 	Model       string `gorm:"size:50;default:deepseek-chat" json:"model"`
@@ -24,9 +26,10 @@ func (AIConfig) TableName() string { return "ai_configs" }
 
 // AIThread stores a conversation thread.
 type AIThread struct {
-	ID        uint64    `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint64         `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
 	Title       string  `gorm:"size:255" json:"title"`
 	WorkspaceID uint64  `gorm:"not null;index" json:"workspace_id"`
@@ -40,9 +43,10 @@ func (AIThread) TableName() string { return "ai_threads" }
 
 // AIMessage stores a single message in a conversation.
 type AIMessage struct {
-	ID        uint64    `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint64         `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
 	ThreadID  uint64           `gorm:"not null;index" json:"thread_id"`
 	Role      string           `gorm:"size:20;not null" json:"role"`

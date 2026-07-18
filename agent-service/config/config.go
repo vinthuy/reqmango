@@ -23,7 +23,7 @@ func Load() *Config {
 		DatabaseURL:    os.Getenv("DATABASE_URL"),
 		MainBackendURL: getEnv("MAIN_BACKEND_URL", "http://localhost:8000"),
 		SecretKey:      getEnv("SECRET_KEY", "change-me-in-production"),
-		AIAPIKey:       os.Getenv("AI_API_KEY"),
+		AIAPIKey:       getEnv("AI_API_KEY", os.Getenv("DEEPSEEK_API_KEY")),
 		AIModel:        getEnv("AI_MODEL", "deepseek-chat"),
 		AIBaseURL:      getEnv("AI_BASE_URL", "https://api.deepseek.com/v1"),
 		AIProvider:     getEnv("AI_PROVIDER", "deepseek"),

@@ -3,6 +3,8 @@ package model
 import (
 	"encoding/json"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // Agent represents an AI agent that can be assigned to work items and @mentioned in comments.
@@ -10,7 +12,7 @@ type Agent struct {
 	ID           uint64          `gorm:"primaryKey" json:"id"`
 	CreatedAt    time.Time       `json:"created_at"`
 	UpdatedAt    time.Time       `json:"updated_at"`
-	DeletedAt    *time.Time      `gorm:"index" json:"-"`
+	DeletedAt    gorm.DeletedAt  `gorm:"index" json:"deleted_at"`
 	CreatedByID  *uint64         `json:"created_by_id"`
 	UpdatedByID  *uint64         `json:"updated_by_id"`
 
@@ -28,12 +30,12 @@ func (Agent) TableName() string { return "agents" }
 
 // AgentActivity records every action an AI agent performs for audit trail purposes.
 type AgentActivity struct {
-	ID           uint64     `gorm:"primaryKey" json:"id"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `gorm:"index" json:"-"`
-	CreatedByID  *uint64    `json:"created_by_id"`
-	UpdatedByID  *uint64    `json:"updated_by_id"`
+	ID           uint64         `gorm:"primaryKey" json:"id"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	CreatedByID  *uint64        `json:"created_by_id"`
+	UpdatedByID  *uint64        `json:"updated_by_id"`
 
 	AgentID       uint64    `gorm:"not null;index" json:"agent_id"`
 	IssueID       *uint64   `gorm:"index" json:"issue_id"`
