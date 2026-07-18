@@ -561,7 +561,7 @@ async function loadFilterOptions() {
       ]}),
       api.get(`/projects/${props.projectId}/members`).catch(() => ({ data: [] })),
       api.get(`/projects/issue-types`).catch(() => ({ data: [] })),
-      api.get(`/projects/${props.projectId}/labels`).catch(() => ({ data: [] })),
+      api.get(`/projects/${props.projectId}/settings/labels`).catch(() => ({ data: [] })),
       api.get(`/projects/${props.projectId}/cycles`).catch(() => ({ data: [] })),
       api.get(`/projects/${props.projectId}/modules`).catch(() => ({ data: [] })),
     ])

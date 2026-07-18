@@ -330,7 +330,7 @@ async function handleSaveLabel() {
         name: newLabelForm.value.name, color: newLabelForm.value.color
       })
     } else {
-      await api.post(`/projects/${projectId.value}/settings/labels?workspace_id=${workspaceId.value}`, {
+      await api.post(`/projects/${projectId.value}/settings/labels`, {
         name: newLabelForm.value.name, color: newLabelForm.value.color
       })
     }
@@ -732,11 +732,10 @@ onMounted(async () => {
           </div>
           <div class="bg-white rounded-xl border border-gray-200 p-6">
             <div class="flex flex-wrap gap-3">
-              <div v-for="label in labels" :key="label.id" @click="label.is_inherited ? {} : handleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
+              <div v-for="label in labels" :key="label.id" @click="handleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
                 <div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: label.color }"></div>
                 <span class="text-sm font-medium" :style="{ color: label.color }">{{ label.name }}</span>
-                <span v-if="label.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium ml-1">⚙️</span>
-                <button v-if="!label.is_inherited" @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
+                <button @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
               </div>
               <div v-if="labels.length === 0" class="w-full text-center text-gray-400 py-8">{{ t('settings.noLabels') }}</div>
             </div>
