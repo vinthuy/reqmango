@@ -8,6 +8,7 @@ import (
 	"github.com/reqmango/agent-service/config"
 	"github.com/reqmango/agent-service/internal/client"
 	"github.com/reqmango/agent-service/internal/handler"
+	"github.com/reqmango/agent-service/internal/llm"
 	"github.com/reqmango/agent-service/internal/middleware"
 	"github.com/reqmango/agent-service/internal/model"
 	"github.com/reqmango/agent-service/internal/registry"
@@ -55,6 +56,10 @@ func main() {
 	backendClient := client.NewBackendClient(cfg.MainBackendURL)
 	_ = backendClient // will be used by AgentService and AIService in Phases 2-3
 
+	// Initialize LLM client and agent service
+	llmClient := llm.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
+	agentSvc := service.NewAgentService(db, llmClient, backendClient)
+
 	// Initialize services
 	loopSvc := service.NewLoopService(db, agentClient)
 
@@ -65,6 +70,7 @@ func main() {
 	loopH := handler.NewAgentLoopHandler(loopSvc)
 	sessionH := handler.NewAgentSessionHandler(db)
 	pipelineH := handler.NewAgentPipelineHandler(db, reg)
+	agentH := handler.NewAgentHandler(agentSvc)
 
 	// Setup router
 	r := gin.Default()
@@ -120,6 +126,36 @@ func main() {
 			sessions.GET("", sessionH.List)
 			sessions.GET("/:sessionId", sessionH.Get)
 		}
+
+		// Agent CRUD and dispatch routes
+		agents := api.Group("/agents")
+		{
+			agents.GET("", agentH.List)
+			agents.POST("", agentH.Create)
+			agents.GET("/activity", agentH.ListWorkspaceActivity)
+			agents.PATCH("/activity/:id/feedback", agentH.UpdateActivityFeedback)
+			agents.GET("/:id", agentH.GetByID)
+			agents.PUT("/:id", agentH.Update)
+			agents.DELETE("/:id", agentH.Delete)
+			agents.POST("/:id/dispatch", agentH.Dispatch)
+			agents.GET("/:id/activity", agentH.GetActivity)
+			agents.POST("/:id/auto-triage", agentH.AutoTriage)
+			agents.POST("/:id/auto-assign", agentH.AutoAssign)
+			agents.POST("/:id/mention", agentH.HandleMention)
+		}
+	}
+
+	// Project-level agent routes (proxy preserved path)
+	proj := r.Group("/api/v1/projects/:projectId", auth)
+	{
+		proj.POST("/agent/auto-triage", agentH.AutoTriageProject)
+		proj.POST("/agent/auto-assign", agentH.AutoAssignProject)
+	}
+
+	// Issue-level agent mention
+	issues := r.Group("/api/v1/issues/:issueId", auth)
+	{
+		issues.POST("/agents/:agentId/mention", agentH.HandleMention)
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
