@@ -165,15 +165,8 @@ export async function createDefaultStates(
 /**
  * 创建标签
  */
-export async function createLabel(
-  projectId: number,
-  workspaceId: number,
-  data: LabelCreate
-): Promise<Label> {
-  const response = await api.post(
-    `/projects/${projectId}/settings/labels?workspace_id=${workspaceId}`,
-    data
-  )
+export async function createLabel(projectId: number, data: LabelCreate): Promise<Label> {
+  const response = await api.post(`/projects/${projectId}/settings/labels`, data)
   return response.data
 }
 
