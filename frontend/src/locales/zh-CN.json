@@ -997,7 +997,25 @@
     "descriptionPlaceholder": "描述...",
     "parentModule": "父模块",
     "noParent": "无（顶级模块）",
-    "saving": "保存中..."
+    "saving": "保存中...",
+    "inherited": "继承",
+    "override": "覆盖",
+    "editOverride": "编辑覆盖",
+    "exclude": "排除",
+    "resetOverride": "重置覆盖",
+    "overrideName": "覆盖名称",
+    "overrideDescription": "覆盖描述",
+    "inheritanceTooltip": "此模块继承自工作空间"
+  },
+  "moduleCard": {
+    "submodule": "子模块",
+    "topLevel": "顶级模块",
+    "viewDetails": "查看详情",
+    "editOverride": "编辑覆盖",
+    "override": "覆盖",
+    "exclude": "排除",
+    "resetOverride": "重置覆盖",
+    "delete": "删除"
   },
   "workspaceMember": {
     "memberManagement": "成员管理",

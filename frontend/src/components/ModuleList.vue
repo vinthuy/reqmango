@@ -1,6 +1,5 @@
 <template>
   <div class="module-list">
-    <!-- 头部工具栏 -->
     <div class="bg-white border-b border-gray-200 px-4 py-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-1 bg-gray-100 rounded-lg p-0.5">
@@ -56,9 +55,7 @@
       </div>
     </div>
 
-    <!-- 列表内容 -->
     <div class="p-4">
-      <!-- 加载状态 -->
       <div v-if="loading" class="text-center py-12">
         <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -67,7 +64,6 @@
         <p class="mt-2 text-gray-500">{{ t('common.loading') }}</p>
       </div>
 
-      <!-- 空状态 -->
       <div v-else-if="modules.length === 0" class="text-center py-12">
         <svg class="h-12 w-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -78,7 +74,6 @@
         </button>
       </div>
 
-      <!-- 卡片视图 -->
       <div v-else-if="viewMode === 'card'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <ModuleCard
           v-for="module in modules"
@@ -86,10 +81,12 @@
           :module="module"
           @click="$emit('select', module)"
           @delete="$emit('delete', module)"
+          @exclude="handleExcludeModule"
+          @override="openOverrideModal"
+          @reset-override="handleResetOverride"
         />
       </div>
 
-      <!-- 列表视图 -->
       <div v-else-if="viewMode === 'list'" class="space-y-1">
         <div
           v-for="module in modules"
@@ -105,12 +102,33 @@
               <div class="text-sm font-medium text-gray-900 flex items-center">
                 {{ module.name }}
                 <span v-if="module.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium ml-2">⚙️</span>
+                <span v-if="module.has_override" class="px-2 py-0.5 bg-amber-100 text-amber-600 rounded text-xs font-medium ml-1">✏️</span>
               </div>
               <div v-if="module.description" class="text-xs text-gray-500 truncate max-w-md">{{ module.description }}</div>
             </div>
           </div>
-          <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-2">
             <span class="text-xs text-gray-400">{{ module.parent_id ? t('module.submodule') : t('module.topLevel') }}</span>
+            <template v-if="module.is_inherited">
+              <button
+                @click.stop="openOverrideModal(module)"
+                class="text-gray-400 hover:text-indigo-600 p-1"
+                :title="module.has_override ? t('module.editOverride') : t('module.override')"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button
+                @click.stop="handleExcludeModule(module)"
+                class="text-gray-400 hover:text-red-500 p-1"
+                :title="t('module.exclude')"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </template>
             <button
               v-if="!module.is_inherited"
               @click.stop="$emit('delete', module)"
@@ -125,13 +143,77 @@
         </div>
       </div>
 
-      <!-- 树形视图 -->
       <div v-else class="space-y-1">
         <ModuleTree
           :tree="moduleTree"
           @select="$emit('select', $event)"
           @delete="$emit('delete', $event)"
+          @exclude="handleExcludeModule"
+          @override="openOverrideModal"
+          @reset-override="handleResetOverride"
         />
+      </div>
+    </div>
+
+    <div
+      v-if="showOverrideModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="showOverrideModal = false"
+    >
+      <div class="bg-white rounded-lg w-full max-w-md mx-4 shadow-xl">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+          <h3 class="text-lg font-medium text-gray-900">{{ editingModule?.has_override ? t('module.editOverride') : t('module.override') }}</h3>
+          <button @click="showOverrideModal = false" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="p-6">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              {{ t('module.overrideName') }}
+            </label>
+            <input
+              v-model="overrideForm.name"
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              :placeholder="editingModule?.name"
+            />
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              {{ t('module.overrideDescription') }}
+            </label>
+            <textarea
+              v-model="overrideForm.description"
+              rows="3"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              :placeholder="editingModule?.description"
+            ></textarea>
+          </div>
+        </div>
+        <div class="flex items-center justify-end space-x-3 px-6 py-4 border-t">
+          <button
+            v-if="editingModule?.has_override"
+            @click="handleResetOverride(editingModule)"
+            class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+          >
+            {{ t('module.resetOverride') }}
+          </button>
+          <button
+            @click="showOverrideModal = false"
+            class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+          >
+            {{ t('common.cancel') }}
+          </button>
+          <button
+            @click="saveOverride"
+            class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            {{ t('common.save') }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -164,10 +246,61 @@ const moduleTree = computed(() => moduleStore.moduleTree)
 const loading = computed(() => moduleStore.isLoading)
 const viewMode = ref<'card' | 'list' | 'tree'>('card')
 
+const showOverrideModal = ref(false)
+const editingModule = ref<ModuleResponse | ModuleTreeNode | null>(null)
+const overrideForm = ref({
+  name: '',
+  description: ''
+})
+
 onMounted(() => {
   moduleStore.fetchModules(props.projectId, props.workspaceId)
-  moduleStore.fetchModuleTree(props.projectId)
+  moduleStore.fetchModuleTree(props.projectId, props.workspaceId)
 })
+
+function openOverrideModal(module: ModuleResponse | ModuleTreeNode) {
+  editingModule.value = module
+  overrideForm.value = {
+    name: module.has_override ? module.name : '',
+    description: module.has_override ? module.description : ''
+  }
+  showOverrideModal.value = true
+}
+
+function saveOverride() {
+  if (!editingModule.value) return
+  
+  const projectId = props.projectId
+  const moduleId = editingModule.value.id
+  
+  const data = {
+    is_excluded: false,
+    override_name: overrideForm.value.name || null,
+    override_description: overrideForm.value.description || null
+  }
+  
+  moduleStore.createOrUpdateOverride(projectId, moduleId, data)
+  showOverrideModal.value = false
+}
+
+function handleExcludeModule(module: ModuleResponse | ModuleTreeNode) {
+  const projectId = props.projectId
+  const moduleId = module.id
+  
+  moduleStore.createOrUpdateOverride(projectId, moduleId, {
+    is_excluded: true,
+    override_name: null,
+    override_description: null
+  })
+}
+
+function handleResetOverride(module: ModuleResponse | ModuleTreeNode) {
+  const projectId = props.projectId
+  const moduleId = module.id
+  
+  moduleStore.deleteOverride(projectId, moduleId, props.workspaceId)
+  showOverrideModal.value = false
+}
 </script>
 
 <style scoped>

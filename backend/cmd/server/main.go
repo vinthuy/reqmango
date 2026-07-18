@@ -50,6 +50,7 @@ func main() {
 		&model.Cycle{},
 		&model.Module{},
 		&model.ModuleIssue{},
+		&model.ModuleInheritanceOverride{},
 		&model.IssueType{},
 		&model.IssueTypeField{},
 		&model.CustomField{},

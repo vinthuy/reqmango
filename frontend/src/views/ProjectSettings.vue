@@ -11,7 +11,6 @@ import type { Workspace } from '@/types'
 import type { ProjectResponse, ProjectUpdate, ProjectSubscriber } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
 import ProjectMemberList from '@/components/ProjectMemberList.vue'
-import ModuleList from '@/components/ModuleList.vue'
 import CycleList from '@/components/CycleList.vue'
 import CustomFieldList from '@/components/CustomFieldList.vue'
 import CustomFieldForm from '@/components/CustomFieldForm.vue'
@@ -123,7 +122,6 @@ const menuItems = computed(() => [
   { id: 'labels', label: t('settings.labels'), icon: '🏷️' },
   { id: 'issue-types', label: t('settings.issueTypes'), icon: '📐' },
   { id: 'templates', label: t('settings.templates'), icon: '📋' },
-  { id: 'modules', label: t('settings.modules'), icon: '📦' },
   { id: 'cycles', label: t('settings.cycles'), icon: '🔄' },
   { id: 'releases', label: t('settings.releases'), icon: '🚀' },
   { id: 'webhooks', label: t('settings.webhooks'), icon: '🔌' },
@@ -750,11 +748,6 @@ onMounted(async () => {
         <!-- Templates -->
         <div v-if="!loading && activeSection === 'templates'" class="bg-white rounded-lg border border-gray-200 p-4">
           <WorkItemTemplateManager :project-id="projectId" :workspace-id="workspaceId" />
-        </div>
-
-        <!-- Modules -->
-        <div v-if="!loading && activeSection === 'modules'" class="bg-white rounded-lg border border-gray-200">
-          <ModuleList :project-id="projectId" :workspace-id="workspaceId" />
         </div>
 
         <!-- Cycles -->

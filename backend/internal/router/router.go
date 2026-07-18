@@ -60,8 +60,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	dashboardSvc := service.NewDashboardService(db)
 	dashboardH := handler.NewDashboardHandler(dashboardSvc)
 	agentClient := client.NewAgentClient(cfg.AgentServiceURL, cfg.SecretKey)
-	automationSvc.SetAgentService(agentClient)        // break circular dependency: automation -> agent -> issue -> automation
-	commentSvc.SetAgentService(agentClient)           // enable @agent-name mention handling in comments
+	automationSvc.SetAgentService(agentClient)     // break circular dependency: automation -> agent -> issue -> automation
+	commentSvc.SetAgentService(agentClient)        // enable @agent-name mention handling in comments
 	commentSvc.SetAutomationService(automationSvc) // enable comment_added automation trigger
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
@@ -124,15 +124,15 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	sseH := handler.NewSSEHandler()
 	v1SSE := r.Group("/api/v1")
 	v1SSE.GET("/sse", authMiddleware, sseH.Connect)
-		// ---- Internal Data API (for agent-service) ----
-		internalH := handler.NewInternalDataHandler(db)
-		internal := r.Group("/api/internal", authMiddleware)
-		{
-			internal.GET("/issues/:id", internalH.GetIssue)
-			internal.POST("/issues/search", internalH.SearchIssues)
-			internal.GET("/projects/:id", internalH.GetProject)
-			internal.GET("/users/:id", internalH.GetUser)
-		}
+	// ---- Internal Data API (for agent-service) ----
+	internalH := handler.NewInternalDataHandler(db)
+	internal := r.Group("/api/internal", authMiddleware)
+	{
+		internal.GET("/issues/:id", internalH.GetIssue)
+		internal.POST("/issues/search", internalH.SearchIssues)
+		internal.GET("/projects/:id", internalH.GetProject)
+		internal.GET("/users/:id", internalH.GetUser)
+	}
 
 	// Agent Service Reverse Proxy — forwards to agent-service:8001
 	agentProxy := reverseProxy(cfg.AgentServiceURL)
@@ -457,6 +457,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				releases.GET("/:releaseId/progress", releaseH.GetProgress)
 			}
 
+			// ---- Milestones (alias for releases) ----
+			projects.GET("/:projectId/milestones", authMiddleware, releaseH.ListMilestones)
+
 			// ---- Estimates ----
 			estimates := projects.Group("/:projectId/estimate-points", authMiddleware)
 			{
@@ -622,8 +625,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			modules.GET("/:moduleId/statistics", moduleH.GetStatistics)
 
 			// Tree
-			modules.GET("/tree", moduleH.GetTree) // ?project_id=
+			modules.GET("/tree", moduleH.GetTree) // ?project_id=&workspace_id=
 		}
+
+		// ---- Module Inheritance Overrides (protected) ----
+		projects.POST("/:projectId/modules/:moduleId/override", moduleH.CreateOrUpdateOverride)
+		projects.DELETE("/:projectId/modules/:moduleId/override", moduleH.DeleteOverride)
 		// ---- Cycles (protected) ----
 		cycles := v1.Group("/cycles", authMiddleware)
 		{

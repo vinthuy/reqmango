@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import moduleApi from '@/api/module'
-import type { ModuleResponse, ModuleCreate, ModuleUpdate, ModuleProgress, ModuleTreeNode } from '@/types/module'
+import type { ModuleResponse, ModuleCreate, ModuleUpdate, ModuleProgress, ModuleTreeNode, ModuleOverrideRequest } from '@/types/module'
 
 export const useModuleStore = defineStore('module', () => {
   const modules = ref<ModuleResponse[]>([])
@@ -19,14 +19,14 @@ export const useModuleStore = defineStore('module', () => {
     finally { isLoading.value = false }
   }
 
-  async function fetchModuleTree(projectId: number) {
-    try { moduleTree.value = await moduleApi.getModuleTree(projectId) }
+  async function fetchModuleTree(projectId: number, workspaceId: number) {
+    try { moduleTree.value = await moduleApi.getModuleTree(projectId, workspaceId) }
     catch (e: any) { error.value = e.response?.data?.message || e.message }
   }
 
   async function createModule(workspaceId: number, data: ModuleCreate) {
     error.value = null
-    try { const created = await moduleApi.createModule(workspaceId, data); modules.value.unshift(created); await fetchModuleTree(data.project_id); return created }
+    try { const created = await moduleApi.createModule(workspaceId, data); modules.value.unshift(created); await fetchModuleTree(data.project_id, data.workspace_id); return created }
     catch (e: any) { error.value = e.response?.data?.message || e.message; return null }
   }
 
@@ -37,7 +37,7 @@ export const useModuleStore = defineStore('module', () => {
       const idx = modules.value.findIndex(m => m.id === id)
       if (idx !== -1) modules.value[idx] = updated
       if (currentModule.value?.id === id) currentModule.value = updated
-      await fetchModuleTree(updated.project_id)
+      if (updated.project_id) await fetchModuleTree(updated.project_id, updated.workspace_id)
       return updated
     } catch (e: any) { error.value = e.response?.data?.message || e.message; return null }
   }
@@ -49,7 +49,27 @@ export const useModuleStore = defineStore('module', () => {
       await moduleApi.deleteModule(id)
       modules.value = modules.value.filter(m => m.id !== id)
       if (currentModule.value?.id === id) currentModule.value = null
-      if (m) await fetchModuleTree(m.project_id)
+      if (m?.project_id) await fetchModuleTree(m.project_id, m.workspace_id)
+    } catch (e: any) { error.value = e.response?.data?.message || e.message }
+  }
+
+  async function createOrUpdateOverride(projectId: number, moduleId: number, data: ModuleOverrideRequest) {
+    error.value = null
+    try {
+      const updated = await moduleApi.createOrUpdateModuleOverride(projectId, moduleId, data)
+      const idx = modules.value.findIndex(m => m.id === moduleId)
+      if (idx !== -1) modules.value[idx] = updated
+      await fetchModuleTree(projectId, updated.workspace_id)
+      return updated
+    } catch (e: any) { error.value = e.response?.data?.message || e.message; return null }
+  }
+
+  async function deleteOverride(projectId: number, moduleId: number, workspaceId: number) {
+    error.value = null
+    try {
+      await moduleApi.deleteModuleOverride(projectId, moduleId)
+      await fetchModules(projectId, workspaceId)
+      await fetchModuleTree(projectId, workspaceId)
     } catch (e: any) { error.value = e.response?.data?.message || e.message }
   }
 
@@ -84,5 +104,6 @@ export const useModuleStore = defineStore('module', () => {
     modules, moduleTree, currentModule, progress, moduleIssues, isLoading, error,
     fetchModules, fetchModuleTree, createModule, updateModuleAction, deleteModuleAction,
     addIssueToModule, removeIssueFromModule, fetchModuleIssues, fetchProgress,
+    createOrUpdateOverride, deleteOverride,
   }
 })

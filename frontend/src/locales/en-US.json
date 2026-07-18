@@ -997,7 +997,25 @@
     "descriptionPlaceholder": "Description...",
     "parentModule": "Parent Module",
     "noParent": "None (Top Level)",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "inherited": "Inherited",
+    "override": "Override",
+    "editOverride": "Edit Override",
+    "exclude": "Exclude",
+    "resetOverride": "Reset Override",
+    "overrideName": "Override Name",
+    "overrideDescription": "Override Description",
+    "inheritanceTooltip": "This module is inherited from workspace"
+  },
+  "moduleCard": {
+    "submodule": "Submodule",
+    "topLevel": "Top Level",
+    "viewDetails": "View Details",
+    "editOverride": "Edit Override",
+    "override": "Override",
+    "exclude": "Exclude",
+    "resetOverride": "Reset Override",
+    "delete": "Delete"
   },
   "issueList": {
     "searchPlaceholder": "Search by title...",

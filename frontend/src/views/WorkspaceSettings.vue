@@ -54,13 +54,11 @@ const pluginCount = ref(0);
 const roleCount = ref(0);
 const integrationCount = ref(0);
 const workspaceStates = ref<any[]>([]);
-const workspaceModules = ref<any[]>([]);
 
 const navItems = computed(() => [
   { id: 'members', label: t('settings.members'), icon: '👥', count: memberCount.value },
   { id: 'types', label: t('settings.workItemTypes'), icon: '📋', count: issueTypes.value.length },
   { id: 'states', label: t('settings.states'), icon: '🔄', count: workspaceStates.value.length },
-  { id: 'modules', label: t('settings.modules'), icon: '📦', count: workspaceModules.value.length },
   { id: 'templates', label: t('settings.templates'), icon: '📦', count: templateCount.value },
   { id: 'ai', label: t('settings.ai'), icon: '🤖', count: 0 },
   { id: 'fields', label: t('settings.fields'), icon: '📝', count: customFields.value.length },
@@ -103,7 +101,6 @@ async function loadAllData() {
       githubApi.list(wid),
       slackApi.list(wid),
       api.get(`/workspaces/${wid}/settings/states`).then(r => r.data),
-      api.get(`/workspaces/${wid}/modules`).then(r => r.data),
     ]);
     issueTypes.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value) ? results[0].value : []) : [];
     customFields.value = results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : []) : [];
@@ -121,7 +118,6 @@ async function loadAllData() {
     const slack = results[11].status === 'fulfilled' ? (Array.isArray(results[11].value) ? results[11].value : []) : [];
     integrationCount.value = mcp.length + github.length + slack.length;
     workspaceStates.value = results[12].status === 'fulfilled' ? (Array.isArray(results[12].value) ? results[12].value : []) : [];
-    workspaceModules.value = results[13].status === 'fulfilled' ? (Array.isArray(results[13].value) ? results[13].value : []) : [];
   } catch (e) { console.error('Failed to load data:', e); }
   finally { loading.value = false; }
 }
@@ -232,45 +228,6 @@ async function wsHandleDeleteState(_groupId: string, state: any) {
   catch (e: any) { console.error('Failed to delete state:', e); toast.error(e?.response?.data?.message || 'Failed to delete state'); }
 }
 
-// ===== Workspace Modules handlers =====
-const wsShowModuleModal = ref(false);
-const wsEditingModule = ref<any>(null);
-const wsNewModuleForm = ref({ name: '', description: '', parentId: null as number | null });
-
-function wsHandleAddModule() {
-  wsEditingModule.value = null;
-  wsNewModuleForm.value = { name: '', description: '', parentId: null };
-  wsShowModuleModal.value = true;
-}
-function wsHandleEditModule(module: any) {
-  wsEditingModule.value = { ...module };
-  wsNewModuleForm.value = { name: module.name, description: module.description || '', parentId: module.parent_id || null };
-  wsShowModuleModal.value = true;
-}
-async function wsHandleSaveModule() {
-  if (!wsNewModuleForm.value.name || !workspaceId.value) return;
-  try {
-    const wid = workspaceId.value;
-    if (wsEditingModule.value) {
-      await api.put(`/workspaces/${wid}/modules/${wsEditingModule.value.id}`, {
-        name: wsNewModuleForm.value.name, description: wsNewModuleForm.value.description, parent_id: wsNewModuleForm.value.parentId
-      });
-    } else {
-      await api.post(`/workspaces/${wid}/modules`, {
-        name: wsNewModuleForm.value.name, description: wsNewModuleForm.value.description, parent_id: wsNewModuleForm.value.parentId
-      });
-    }
-    wsShowModuleModal.value = false;
-    await loadAllData();
-  } catch (e: any) { console.error('Failed to save module:', e); toast.error(e?.response?.data?.message || 'Failed to save module'); }
-}
-async function wsHandleDeleteModule(module: any) {
-  if (!workspaceId.value) return;
-  if (!(await confirm({ title: t('settings.delete'), message: t('settings.confirmDelete', { 0: module.name }), danger: true, confirmText: t('common.delete') }))) return;
-  try { await api.delete(`/workspaces/${workspaceId.value}/modules/${module.id}`); await loadAllData(); }
-  catch (e: any) { console.error('Failed to delete module:', e); toast.error(e?.response?.data?.message || 'Failed to delete module'); }
-}
-
 onMounted(() => { loadWorkspace(); });
 </script>
 
@@ -337,29 +294,6 @@ onMounted(() => { loadWorkspace(); });
               </div>
             </div>
             <div v-if="group.states.length === 0" class="px-4 py-6 text-center text-gray-400 text-sm">{{ t('settings.noStates') }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Workspace Modules Section -->
-      <div v-if="!loading && activeSection === 'modules'" class="p-6 space-y-6">
-        <div class="flex items-center justify-between">
-          <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.modules') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.workspaceModulesDesc') }}</p></div>
-          <button @click="wsHandleAddModule" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.addModule') }}</button>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200">
-          <div class="divide-y divide-gray-100">
-            <div v-for="module in workspaceModules" :key="module.id" class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
-              <div>
-                <span class="text-sm text-gray-800 font-medium">{{ module.name }}</span>
-                <span v-if="module.description" class="text-xs text-gray-500 ml-2">{{ module.description }}</span>
-              </div>
-              <div class="flex items-center space-x-2">
-                <button @click.stop="wsHandleEditModule(module)" class="p-1 text-gray-400 hover:text-gray-600">✏️</button>
-                <button @click.stop="wsHandleDeleteModule(module)" class="p-1 text-gray-400 hover:text-red-500">🗑️</button>
-              </div>
-            </div>
-            <div v-if="workspaceModules.length === 0" class="px-4 py-8 text-center text-gray-400 text-sm">{{ t('settings.noModules') }}</div>
           </div>
         </div>
       </div>
@@ -465,27 +399,6 @@ onMounted(() => { loadWorkspace(); });
         <div class="flex justify-end space-x-3 mt-6">
           <button @click="wsShowStateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
           <button @click="wsHandleSaveState" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ wsEditingState ? t('settings.update') : t('settings.create') }}</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Workspace Module Modal -->
-    <div v-if="wsShowModuleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="wsShowModuleModal = false">
-      <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ wsEditingModule ? t('settings.editModule') : t('settings.addModule') }}</h3>
-        <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="wsNewModuleForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.descriptionOptional') }}</label><textarea v-model="wsNewModuleForm.description" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></textarea></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.parentModule') }}</label>
-            <select v-model="wsNewModuleForm.parentId" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              <option :value="null">{{ t('settings.none') }}</option>
-              <option v-for="m in workspaceModules.filter((mod: any) => mod.id !== wsEditingModule?.id)" :key="m.id" :value="m.id">{{ m.name }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="flex justify-end space-x-3 mt-6">
-          <button @click="wsShowModuleModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
-          <button @click="wsHandleSaveModule" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ wsEditingModule ? t('settings.update') : t('settings.create') }}</button>
         </div>
       </div>
     </div>

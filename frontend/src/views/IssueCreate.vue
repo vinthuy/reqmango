@@ -350,6 +350,10 @@ function applyTemplate(template: WorkItemTemplate | null) {
     selectedLabelIds.value = [...defaults.label_ids]
   }
 
+  if (defaults.module_id) {
+    formData.value.module_id = defaults.module_id
+  }
+
   if (defaults.description_html) {
     formData.value.description = defaults.description_html
   }
@@ -563,6 +567,16 @@ async function submitForm() {
     // Add labels if selected
     if (selectedLabelIds.value.length > 0) {
       data.label_ids = selectedLabelIds.value
+    }
+
+    // Add module if selected
+    if (formData.value.module_id) {
+      const moduleId = typeof formData.value.module_id === 'string'
+        ? parseInt(formData.value.module_id)
+        : formData.value.module_id
+      if (moduleId > 0) {
+        data.module_id = moduleId
+      }
     }
 
     // Add parent if selected

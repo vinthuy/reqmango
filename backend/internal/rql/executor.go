@@ -77,16 +77,16 @@ func NewIssueQueryContext(db *gorm.DB, projectID uint64) *QueryContext {
 			"state_id":      {ColumnName: "issues.state_id", FieldType: "number"},
 			"state_group":   {ColumnName: "state_group", FieldType: "state_group"},
 			"priority":      {ColumnName: "issues.priority", FieldType: "string"},
-		"type":          {ColumnName: "issues.issue_type_id", FieldType: "number", JoinTable: "issue_types", JoinKey: "name"},
-		"assignee":      {ColumnName: "issues.id", FieldType: "user"},
-		"assignee_id":   {ColumnName: "assignee_id", FieldType: "user", JoinTable: "issue_assignees"},
-		"reporter":      {ColumnName: "issues.reporter_id", FieldType: "number"},
-		"label":         {ColumnName: "issues.id", FieldType: "label"},
-		"cycle":         {ColumnName: "issues.id", FieldType: "cycle"},
-		"cycle_id":      {ColumnName: "cycle_id", FieldType: "cycle", JoinTable: "issue_cycles"},
-		"module":        {ColumnName: "issues.id", FieldType: "module"},
-		"module_id":     {ColumnName: "module_id", FieldType: "module", JoinTable: "module_issues"},
-		"issue_type_id": {ColumnName: "issues.issue_type_id", FieldType: "number"},
+			"type":          {ColumnName: "issues.issue_type_id", FieldType: "number", JoinTable: "issue_types", JoinKey: "name"},
+			"assignee":      {ColumnName: "issues.id", FieldType: "user"},
+			"assignee_id":   {ColumnName: "assignee_id", FieldType: "user", JoinTable: "issue_assignees"},
+			"reporter":      {ColumnName: "issues.reporter_id", FieldType: "number"},
+			"label":         {ColumnName: "issues.id", FieldType: "label"},
+			"cycle":         {ColumnName: "issues.id", FieldType: "cycle"},
+			"cycle_id":      {ColumnName: "cycle_id", FieldType: "cycle", JoinTable: "issue_cycles"},
+			"module":        {ColumnName: "issues.id", FieldType: "module"},
+			"module_id":     {ColumnName: "module_id", FieldType: "module", JoinTable: "module_issues"},
+			"issue_type_id": {ColumnName: "issues.issue_type_id", FieldType: "number"},
 			"project_id":    {ColumnName: "issues.project_id", FieldType: "number"},
 			"workspace_id":  {ColumnName: "issues.workspace_id", FieldType: "number"},
 			"created_at":    {ColumnName: "issues.created_at", FieldType: "date"},
@@ -389,7 +389,6 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		}, nil
 
 	case "module":
-		// If value is numeric, match by module_id directly; otherwise match by name
 		if isNumericValue(value) {
 			return &rawCondition{
 				SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id = ?)",
@@ -397,7 +396,7 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 			}, nil
 		}
 		return &rawCondition{
-			SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id WHERE m.name = ?)",
+			SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id LEFT JOIN module_inheritance_overrides mo ON m.project_id IS NULL AND mo.project_id = issues.project_id AND mo.workspace_module_id = m.id AND mo.is_excluded = false WHERE COALESCE(mo.override_name, m.name) = ?)",
 			Args: []interface{}{value},
 		}, nil
 
@@ -469,7 +468,7 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 			}, nil
 		}
 		return &rawCondition{
-			SQL:  "issues.id NOT IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id WHERE m.name = ?)",
+			SQL:  "issues.id NOT IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id LEFT JOIN module_inheritance_overrides mo ON m.project_id IS NULL AND mo.project_id = issues.project_id AND mo.workspace_module_id = m.id AND mo.is_excluded = false WHERE COALESCE(mo.override_name, m.name) = ?)",
 			Args: []interface{}{value},
 		}, nil
 	}
@@ -720,7 +719,7 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 			}, nil
 		}
 		return &rawCondition{
-			SQL:  fmt.Sprintf("issues.id %s (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id WHERE m.name IN (%s))", op, placeholderList),
+			SQL:  fmt.Sprintf("issues.id %s (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id LEFT JOIN module_inheritance_overrides mo ON m.project_id IS NULL AND mo.project_id = issues.project_id AND mo.workspace_module_id = m.id AND mo.is_excluded = false WHERE COALESCE(mo.override_name, m.name) IN (%s))", op, placeholderList),
 			Args: args,
 		}, nil
 	}

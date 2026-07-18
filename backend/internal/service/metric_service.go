@@ -388,10 +388,14 @@ func (s *MetricService) GetFilterValues(projectID uint64) (*FilterValues, error)
 	}
 	fv.Label = labels
 
-	// Module names via join with module_issues and modules
+	// Module names via join with module_issues and modules, considering inheritance overrides
 	var modules []string
 	err = s.db.Raw(
-		`SELECT DISTINCT m.name FROM issues i JOIN module_issues mi ON mi.issue_id = i.id JOIN modules m ON mi.module_id = m.id WHERE i.project_id = ? AND i.deleted_at IS NULL`,
+		`SELECT DISTINCT COALESCE(mo.override_name, m.name) FROM issues i 
+		JOIN module_issues mi ON mi.issue_id = i.id 
+		JOIN modules m ON mi.module_id = m.id 
+		LEFT JOIN module_inheritance_overrides mo ON m.project_id IS NULL AND mo.project_id = i.project_id AND mo.workspace_module_id = m.id AND mo.is_excluded = false
+		WHERE i.project_id = ? AND i.deleted_at IS NULL`,
 		projectID,
 	).Scan(&modules).Error
 	if err != nil {

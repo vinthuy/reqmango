@@ -999,7 +999,7 @@ func (s *ReportService) buildAggregation(groupBy string) (selectExpr, join strin
 	case "cycle":
 		return "COALESCE(c.name, 'No Cycle') as name", "LEFT JOIN issue_cycles ic ON issues.id = ic.issue_id LEFT JOIN cycles c ON ic.cycle_id = c.id"
 	case "module":
-		return "COALESCE(m.name, 'No Module') as name", "LEFT JOIN module_issues mi ON issues.id = mi.issue_id LEFT JOIN modules m ON mi.module_id = m.id"
+		return "COALESCE(mo.override_name, m.name, 'No Module') as name", "LEFT JOIN module_issues mi ON issues.id = mi.issue_id LEFT JOIN modules m ON mi.module_id = m.id LEFT JOIN module_inheritance_overrides mo ON m.project_id IS NULL AND mo.project_id = issues.project_id AND mo.workspace_module_id = m.id AND mo.is_excluded = false"
 	case "created_by":
 		return "COALESCE(cu.display_name, 'Unknown') as name", "LEFT JOIN users cu ON issues.created_by_id = cu.id"
 	default:

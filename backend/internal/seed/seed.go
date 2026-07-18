@@ -21,9 +21,101 @@ func SeedAll(db *gorm.DB) {
 	SeedDemoData(db)
 	SeedConfigData(db)
 	SeedIssueTypesForAllWorkspaces(db)
+	BackfillIssueTypeIDs(db)
 	SeedSearchTemplates(db)
 
 	fmt.Println("=== Data initialization complete ===")
+}
+
+// BackfillIssueTypeIDs assigns issue_type_id to existing issues that lack one,
+// by inferring the type from the issue title.
+func BackfillIssueTypeIDs(db *gorm.DB) {
+	var missingCount int64
+	db.Model(&model.Issue{}).Where("issue_type_id IS NULL").Count(&missingCount)
+	if missingCount == 0 {
+		fmt.Println("All issues already have issue_type_id, skipping backfill")
+		return
+	}
+	fmt.Printf("--- Backfilling issue_type_id for %d issues ---\n", missingCount)
+
+	// Build workspaceID -> {typeName -> issueType} map
+	typeMap := make(map[uint64]map[string]model.IssueType)
+	var allTypes []model.IssueType
+	db.Find(&allTypes)
+	for _, t := range allTypes {
+		if _, ok := typeMap[t.WorkspaceID]; !ok {
+			typeMap[t.WorkspaceID] = make(map[string]model.IssueType)
+		}
+		typeMap[t.WorkspaceID][t.Name] = t
+	}
+
+	// Fetch issues lacking issue_type_id
+	var issues []model.Issue
+	db.Where("issue_type_id IS NULL").Find(&issues)
+
+	updated := 0
+	for _, issue := range issues {
+		typeName := inferIssueTypeFromTitle(issue.Name)
+		wsTypes, ok := typeMap[issue.WorkspaceID]
+		if !ok {
+			continue
+		}
+		it, ok := wsTypes[typeName]
+		if !ok {
+			// Fallback: use default type (Epic) or first available
+			if def, ok := wsTypes["Epic"]; ok {
+				it = def
+			} else {
+				continue
+			}
+		}
+		issueTypeID := it.ID
+		if err := db.Model(&model.Issue{}).Where("id = ?", issue.ID).Update("issue_type_id", issueTypeID).Error; err != nil {
+			fmt.Printf("  WARN: failed to update issue %d: %v\n", issue.ID, err)
+			continue
+		}
+		updated++
+	}
+	fmt.Printf("  Backfilled issue_type_id for %d issues\n", updated)
+}
+
+// inferIssueTypeFromTitle guesses the issue type name based on title keywords.
+func inferIssueTypeFromTitle(title string) string {
+	switch {
+	case containsAny(title, "Epic:"):
+		return "Epic"
+	case containsAny(title, "技术调研:"):
+		return "Spike"
+	case containsAny(title, "作为"):
+		return "Story"
+	case containsAny(title, "修复", "Bug", "bug", "崩溃", "异常", "报错", "失效", "缺失", "错位", "无法", "未保存", "未刷新", "未更新", "未清理", "不显示", "不更新"):
+		return "Bug"
+	case containsAny(title, "编写", "优化", "配置", "升级", "部署", "分析", "调整", "测试", "整理", "创建", "修复", "演练", "扫描"):
+		return "Task"
+	default:
+		return "Feature"
+	}
+}
+
+func containsAny(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if len(sub) == 0 {
+			continue
+		}
+		if idx := indexOf(s, sub); idx >= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func indexOf(s, sub string) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
 }
 
 func SeedDemoData(db *gorm.DB) {
@@ -234,6 +326,8 @@ func SeedDemoData(db *gorm.DB) {
 	allCycles := make(map[uint64][]model.Cycle)
 	allModules := make(map[uint64][]model.Module)
 	allLabels := make(map[uint64][]model.Label)
+	// allIssueTypes maps workspaceID -> {typeName -> IssueType}
+	allIssueTypes := make(map[uint64]map[string]model.IssueType)
 
 	moduleTemplates := [][]string{
 		{"用户管理", "权限系统", "消息通知", "数据报表", "系统配置", "日志审计", "API网关", "任务调度"},
@@ -259,6 +353,80 @@ func SeedDemoData(db *gorm.DB) {
 				ws = w
 				break
 			}
+		}
+
+		// Ensure issue types exist for this workspace (create once, cache by name)
+		if _, ok := allIssueTypes[ws.ID]; !ok {
+			typeMap := make(map[string]model.IssueType)
+			var existingTypes []model.IssueType
+			db.Where("workspace_id = ?", ws.ID).Find(&existingTypes)
+			for _, t := range existingTypes {
+				typeMap[t.Name] = t
+			}
+			// Create missing standard types
+			typeDefs := []struct {
+				name, color, icon, desc string
+				level                   int
+				isDefault               bool
+				sequence                int
+			}{
+				{"Epic", "#8B5CF6", "layers", "顶层史诗级工作项", 0, true, 1},
+				{"Feature", "#6366F1", "star", "功能特性", 1, false, 2},
+				{"Bug", "#EF4444", "bug", "缺陷/问题", 2, false, 3},
+				{"Task", "#10B981", "check-circle", "开发任务", 2, false, 4},
+				{"Story", "#F59E0B", "bookmark", "用户故事", 1, false, 5},
+				{"Spike", "#06B6D4", "zap", "技术调研/探索", 1, false, 6},
+			}
+			var epicID uint64
+			var featureID uint64
+			for _, td := range typeDefs {
+				if existing, ok := typeMap[td.name]; ok {
+					if td.name == "Epic" {
+						epicID = existing.ID
+					}
+					if td.name == "Feature" {
+						featureID = existing.ID
+					}
+					continue
+				}
+				it := model.IssueType{
+					Name:        td.name,
+					Color:       td.color,
+					Icon:        td.icon,
+					Description: td.desc,
+					Level:       td.level,
+					IsDefault:   td.isDefault,
+					Sequence:    td.sequence,
+					WorkspaceID: ws.ID,
+				}
+				if td.name == "Feature" || td.name == "Bug" || td.name == "Task" {
+					if epicID != 0 {
+						parentID := epicID
+						if td.name == "Bug" || td.name == "Task" {
+							if featureID != 0 {
+								parentID = featureID
+							}
+						}
+						it.ParentTypeID = &parentID
+					}
+				} else if td.name == "Story" || td.name == "Spike" {
+					if epicID != 0 {
+						it.ParentTypeID = &epicID
+					}
+				}
+				if err := db.Create(&it).Error; err != nil {
+					fmt.Printf("  WARN: failed to create issue type %s: %v\n", td.name, err)
+					continue
+				}
+				typeMap[td.name] = it
+				if td.name == "Epic" {
+					epicID = it.ID
+				}
+				if td.name == "Feature" {
+					featureID = it.ID
+				}
+			}
+			allIssueTypes[ws.ID] = typeMap
 		}
 
 		// States
@@ -445,6 +613,14 @@ func SeedDemoData(db *gorm.DB) {
 				TargetDate:          targetDate,
 				CompletedAt:         completedAt,
 				SortOrder:           float64(rng.Intn(10000)) / 100.0,
+			}
+
+			// Assign IssueTypeID based on issueTypeTag
+			if typeMap, ok := allIssueTypes[ws.ID]; ok {
+				if it, ok := typeMap[issueTypeTag]; ok {
+					issueTypeID := it.ID
+					issue.IssueTypeID = &issueTypeID
+				}
 			}
 
 			if err := db.Create(&issue).Error; err != nil {
