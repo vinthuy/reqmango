@@ -51,15 +51,10 @@ func (bus *InMemoryEventBus) Publish(event Event) error {
 	bus.mu.RLock()
 	defer bus.mu.RUnlock()
 
-	log.Printf("[EventBus] Publishing event: type=%s, project=%d, issue=%d", event.Type, event.ProjectID, event.IssueID)
-	
 	handlers, exists := bus.handlers[event.Type]
 	if !exists {
-		log.Printf("[EventBus] No handlers for event type: %s", event.Type)
 		return nil // 没有订阅者，静默跳过
 	}
-	
-	log.Printf("[EventBus] Found %d handlers for event type: %s", len(handlers), event.Type)
 
 	// 异步执行所有处理器（参考主流后台任务模式）
 	for _, handler := range handlers {
@@ -626,8 +621,6 @@ func (s *AutomationService) registerEventHandlers() {
 
 func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Event) error {
 	startTime := time.Now()
-	
-	log.Printf("[Automation] Received event: type=%s, project=%d, issue=%d", event.Type, event.ProjectID, event.IssueID)
 	
 	// 循环检测
 	key := fmt.Sprintf("%d:%s", event.IssueID, event.Type)

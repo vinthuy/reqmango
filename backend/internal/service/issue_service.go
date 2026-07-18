@@ -1705,10 +1705,8 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 // Called after transaction commit — uses the automation service's event bus.
 func (s *IssueService) runAutomations(issueID uint64, triggerType string, context map[string]interface{}) {
 	if s.automationSvc == nil {
-		log.Printf("[IssueService] automationSvc is nil, skipping automations")
 		return
 	}
-	log.Printf("[IssueService] Running automations: trigger=%s, issue=%d", triggerType, issueID)
 
 	var issue model.Issue
 	if err := s.db.First(&issue, issueID).Error; err != nil {

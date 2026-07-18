@@ -177,7 +177,7 @@ test.describe('自动化功能全面验证 - 前后端联动', () => {
       '[{"type":"add_comment","value":"🎉 新工作项已创建"}]'
     )
     
-    const issueRes = await request.post(`${BASE_API}/issues?project_id=${_projectId}`, {
+    const issueRes = await request.post(`${BASE_API}/issues?project_id=${_projectId}&workspace_id=${_wsId}`, {
       data: { name: '测试issue_created触发', description: '测试触发器' },
       headers: { Authorization: `Bearer ${_token}` },
     })
