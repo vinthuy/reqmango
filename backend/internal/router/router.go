@@ -2,8 +2,10 @@ package router
 
 import (
 	"log"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/agent/registry"
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/handler"
 	"github.com/reqmango/backend/internal/middleware"
@@ -62,6 +64,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
 	automationSvc.SetAgentService(agentSvc) // break circular dependency: automation -> agent -> issue -> automation
 	commentSvc.SetAgentService(agentSvc)    // enable @agent-name mention handling in comments
+	commentSvc.SetAutomationService(automationSvc) // enable comment_added automation trigger
 	loopSvc := service.NewLoopService(db, agentSvc)
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
@@ -110,6 +113,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	pluginH := handler.NewPluginHandler(pluginSvc)
 	loopH := handler.NewAgentLoopHandler(loopSvc)
 	sessionH := handler.NewAgentSessionHandler(db)
+	reg := registry.NewRegistry(db)
+	pipelineH := handler.NewAgentPipelineHandler(db, reg)
 	automationH := handler.NewAutomationHandler(automationSvc, db)
 	gitIntegrationH := handler.NewGitIntegrationHandler(gitSvc)
 	gitWebhookH := handler.NewGitWebhookHandler(gitSvc)
@@ -192,6 +197,23 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/loops/:id/runs", loopH.GetRuns)
 			workspaces.POST("/:wsParam/loops/runs/:runId/stop", loopH.Stop)
 			workspaces.GET("/:wsParam/loops/runs/:runId", loopH.GetRun)
+
+			// Agent Pipelines
+			workspaces.GET("/:wsParam/pipelines", pipelineH.List)
+			workspaces.POST("/:wsParam/pipelines", pipelineH.Create)
+			workspaces.GET("/:wsParam/pipelines/:id", pipelineH.Get)
+			workspaces.PUT("/:wsParam/pipelines/:id", pipelineH.Update)
+			workspaces.DELETE("/:wsParam/pipelines/:id", pipelineH.Delete)
+			workspaces.POST("/:wsParam/pipelines/:id/run", pipelineH.Run)
+			workspaces.GET("/:wsParam/pipelines/:id/runs", pipelineH.GetRuns)
+			workspaces.GET("/:wsParam/pipelines/runs/:runId", pipelineH.GetRun)
+
+			// Agent Registry
+			workspaces.GET("/:wsParam/agents/registry", func(c *gin.Context) {
+				wsID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+				entries, _ := reg.ListByWorkspace(wsID)
+				c.JSON(200, entries)
+			})
 
 			// Agent Sessions
 			workspaces.GET("/:wsParam/agent-sessions", sessionH.List)

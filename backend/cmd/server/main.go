@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	agentmodel "github.com/reqmango/backend/internal/agent/model"
+	"github.com/reqmango/backend/internal/agent/registry"
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
@@ -107,6 +108,9 @@ func main() {
 		&agentmodel.LoopRun{},
 		&agentmodel.LoopIteration{},
 		&agentmodel.AgentSession{},
+		&agentmodel.Pipeline{},
+		&agentmodel.PipelineRun{},
+		&registry.AgentEntry{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
@@ -133,6 +137,12 @@ func main() {
 		WHERE cf.project_id IS NULL
 		ON CONFLICT (project_id, field_id) DO NOTHING`)
 	fmt.Println("Custom field enrollment migration completed")
+
+	// Seed default agents in registry
+	reg := registry.NewRegistry(db)
+	if err := reg.SeedDefaults(nil); err != nil {
+		log.Printf("WARNING: failed to seed registry defaults: %v", err)
+	}
 
 	// Create full-text search index for issues
 	db.Exec(`
