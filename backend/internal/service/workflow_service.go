@@ -14,7 +14,7 @@ func descStr(d *string) string { if d != nil { return *d }; return "" }
 
 func (s *WorkflowService) Create(pid uint64, req request.WorkflowCreate) (*response.WorkflowResponse, error) {
 	var projectID *uint64 = &pid
-	w := model.Workflow{Name: req.Name, Description: req.Description, ProjectID: projectID, IssueTypeID: req.IssueTypeID}
+	w := model.Workflow{Name: req.Name, Description: req.Description, ProjectID: projectID, IssueTypeID: req.IssueTypeID, IssueTypeIDs: req.IssueTypeIDs}
 	if err := s.db.Create(&w).Error; err != nil { return nil, common.Internal("Failed to create workflow") }
 	return s.Get(w.ID)
 }
@@ -42,7 +42,7 @@ func (s *WorkflowService) List(pid uint64) ([]response.WorkflowResponse, error) 
 		var projectID uint64
 		if w.ProjectID != nil { projectID = *w.ProjectID }
 		isInherited := w.ProjectID == nil
-		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0), IsInherited: isInherited}
+		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IssueTypeIDs: w.IssueTypeIDs, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0), IsInherited: isInherited}
 		for _, t := range w.Transitions {
 			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
 		}
@@ -54,7 +54,7 @@ func (s *WorkflowService) Get(id uint64) (*response.WorkflowResponse, error) {
 	if err := s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").First(&w, id).Error; err != nil { return nil, common.NotFound("Workflow not found") }
 	var projectID uint64
 	if w.ProjectID != nil { projectID = *w.ProjectID }
-	r := &response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
+	r := &response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IssueTypeIDs: w.IssueTypeIDs, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
 	for _, t := range w.Transitions {
 		r.Transitions = append(r.Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
 	}
@@ -66,6 +66,7 @@ func (s *WorkflowService) Update(id uint64, req request.WorkflowUpdate) (*respon
 	if req.Name != nil { w.Name = *req.Name }
 	if req.Description != nil { w.Description = *req.Description }
 	if req.IssueTypeID != nil { w.IssueTypeID = req.IssueTypeID }
+	if req.IssueTypeIDs != nil { w.IssueTypeIDs = *req.IssueTypeIDs }
 	if req.IsActive != nil { w.IsActive = *req.IsActive }
 	s.db.Save(&w); return s.Get(id)
 }
@@ -75,7 +76,7 @@ func (s *WorkflowService) Delete(id uint64) error {
 }
 
 func (s *WorkflowService) CreateWorkspace(wid uint64, req request.WorkflowCreate) (*response.WorkflowResponse, error) {
-	w := model.Workflow{Name: req.Name, Description: req.Description, WorkspaceID: wid, IssueTypeID: req.IssueTypeID}
+	w := model.Workflow{Name: req.Name, Description: req.Description, WorkspaceID: wid, IssueTypeID: req.IssueTypeID, IssueTypeIDs: req.IssueTypeIDs}
 	if err := s.db.Create(&w).Error; err != nil { return nil, common.Internal("Failed to create workflow") }
 	return s.Get(w.ID)
 }
@@ -87,7 +88,7 @@ func (s *WorkflowService) ListWorkspace(wid uint64) ([]response.WorkflowResponse
 	for i, w := range ws {
 		var projectID uint64
 		if w.ProjectID != nil { projectID = *w.ProjectID }
-		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
+		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IssueTypeIDs: w.IssueTypeIDs, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
 		for _, t := range w.Transitions {
 			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
 		}

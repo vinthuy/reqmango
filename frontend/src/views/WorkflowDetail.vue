@@ -5,24 +5,25 @@ import WorkflowVisualization from '@/components/WorkflowVisualization.vue';
 import api from '@/api';
 import * as workflowApi from '@/api/workflow';
 import { useI18n } from '@/composables/useI18n';
-import { useConfirm } from '@/composables/useConfirm';
 
 const { t } = useI18n();
-const { confirm } = useConfirm();
 
 const route = useRoute();
 const router = useRouter();
 
 const workflowId = ref(0);
 const projectId = ref(0);
+const workspaceId = ref(0);
 
 const workflowName = ref('');
 const workflowDescription = ref('');
 const isActive = ref(true);
-const updatingStatus = ref(false);
 const states = ref<any[]>([]);
 const transitions = ref<any[]>([]);
 const members = ref<any[]>([]);
+const issueTypes = ref<any[]>([]);
+const selectedIssueTypeIds = ref<number[]>([]);
+const savingIssueTypes = ref(false);
 
 const showAddTransitionModal = ref(false);
 const selectedFromState = ref<number | null>(null);
@@ -33,6 +34,37 @@ const newTransitionDesc = ref('');
 const newTransitionApproverIds = ref<number[]>([]);
 
 const loading = ref(true);
+
+function parseIssueTypeIds(ids: string | null | undefined): number[] {
+  if (!ids) return [];
+  try {
+    const parsed = JSON.parse(ids);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function toggleIssueType(id: number) {
+  const idx = selectedIssueTypeIds.value.indexOf(id);
+  if (idx > -1) {
+    selectedIssueTypeIds.value.splice(idx, 1);
+  } else {
+    selectedIssueTypeIds.value.push(id);
+  }
+}
+
+async function saveIssueTypes() {
+  if (!workflowId.value || savingIssueTypes.value) return;
+  savingIssueTypes.value = true;
+  try {
+    await workflowApi.updateWorkflow(projectId.value, workflowId.value, {
+      issue_type_ids: JSON.stringify(selectedIssueTypeIds.value)
+    });
+  } catch (e) {
+    console.error('Failed to save issue types:', e);
+  } finally {
+    savingIssueTypes.value = false;
+  }
+}
 
 function getStateName(id: number): string {
   const s = states.value.find((s: any) => s.id === id);
@@ -64,9 +96,21 @@ async function loadData() {
     workflowDescription.value = wf.description || '';
     isActive.value = wf.is_active ?? true;
     transitions.value = wf.transitions || [];
+    selectedIssueTypeIds.value = parseIssueTypeIds(wf.issue_type_ids);
+    if (wf.issue_type_id && !selectedIssueTypeIds.value.includes(wf.issue_type_id)) {
+      selectedIssueTypeIds.value.push(wf.issue_type_id);
+    }
+    workspaceId.value = wf.workspace_id || 0;
 
     const sts = await api.get(`/projects/${pid}/settings/states`).then(r => r.data);
     states.value = Array.isArray(sts) ? sts : (sts?.data || []);
+
+    try {
+      const itRes = await api.get(`/projects/${pid}/issue-types`, {
+        params: { workspace_id: workspaceId.value || undefined }
+      }).then(r => r.data);
+      issueTypes.value = Array.isArray(itRes) ? itRes : (itRes?.data || []);
+    } catch (e) { console.error('Failed to load issue types:', e); issueTypes.value = []; }
 
     await loadMembers();
   } catch (e) {
@@ -150,28 +194,6 @@ function goBack() {
   router.push(`/workspace/${slug}/project/${pid}/settings`);
 }
 
-async function toggleActive() {
-  if (!workflowId.value || updatingStatus.value) return;
-
-  const newStatus = !isActive.value;
-
-  if (!(await confirm({
-    title: newStatus ? t('workflow.enableWorkflow') : t('workflow.disableWorkflow'),
-    message: newStatus ? t('workflow.confirmEnable', { name: workflowName.value }) : t('workflow.confirmDisable', { name: workflowName.value }),
-    danger: !newStatus,
-    confirmText: newStatus ? t('workflow.enable') : t('workflow.disable')
-  }))) return;
-  
-  updatingStatus.value = true;
-  try {
-    await workflowApi.updateWorkflow(projectId.value, workflowId.value, {
-      is_active: newStatus
-    });
-    isActive.value = newStatus;
-  } catch (e) { console.error('Failed to toggle workflow status:', e); }
-  finally { updatingStatus.value = false; }
-}
-
 onMounted(loadData);
 </script>
 
@@ -185,20 +207,74 @@ onMounted(loadData);
           <div class="flex items-center space-x-4">
             <button @click="goBack" class="text-gray-500 hover:text-gray-700">{{ t('common.back') }}</button>
             <div>
-              <h1 class="text-xl font-semibold text-gray-800">{{ workflowName }}</h1>
+              <div class="flex items-center space-x-2">
+                <h1 class="text-xl font-semibold text-gray-800">{{ workflowName }}</h1>
+                <span
+                  :class="['px-2 py-0.5 rounded text-xs font-medium', isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500']"
+                >
+                  {{ isActive ? t('settings.enabled') : t('settings.disabled') }}
+                </span>
+              </div>
               <p class="text-sm text-gray-500">{{ workflowDescription }}</p>
             </div>
-          </div>
-          <div class="flex items-center space-x-3">
-            <button @click="toggleActive" :disabled="updatingStatus" :class="['px-3 py-1 rounded-full text-sm font-medium transition-colors', isActive ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer', updatingStatus ? 'opacity-50 cursor-not-allowed' : '']">
-              {{ isActive ? t('workflow.enable') : t('workflow.disable') }}
-            </button>
           </div>
         </div>
       </header>
 
       <main class="p-6">
         <div class="max-w-5xl mx-auto">
+          <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 class="font-semibold text-gray-800">{{ t('workflow.issueType') }}</h2>
+                <p class="text-xs text-gray-500 mt-1">{{ t('workflow.issueTypeDesc') }}</p>
+              </div>
+              <button
+                @click="saveIssueTypes"
+                :disabled="savingIssueTypes"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ savingIssueTypes ? t('common.saving') : t('common.save') }}
+              </button>
+            </div>
+            <div class="p-6">
+              <div class="border rounded-lg p-3 max-h-60 overflow-y-auto space-y-1">
+                <label
+                  v-for="it in issueTypes"
+                  :key="it.id"
+                  class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded px-2 py-1.5"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="selectedIssueTypeIds.includes(it.id)"
+                    @change="toggleIssueType(it.id)"
+                    class="rounded text-purple-600 focus:ring-purple-500"
+                  />
+                  <div class="flex items-center space-x-2">
+                    <div
+                      v-if="it.color"
+                      class="w-3 h-3 rounded-full"
+                      :style="{ backgroundColor: it.color }"
+                    ></div>
+                    <span class="text-sm text-gray-800">{{ it.name }}</span>
+                  </div>
+                  <span v-if="it.is_default" class="ml-auto px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-xs font-medium">{{ t('settings.default') }}</span>
+                </label>
+                <p v-if="issueTypes.length === 0" class="text-center py-6 text-gray-400 text-sm">{{ t('workflow.noIssueType') }}</p>
+              </div>
+              <div v-if="selectedIssueTypeIds.length > 0" class="mt-3 flex flex-wrap gap-1">
+                <span
+                  v-for="tid in selectedIssueTypeIds"
+                  :key="tid"
+                  class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700"
+                >
+                  {{ issueTypes.find((i: any) => i.id === tid)?.name || `#${tid}` }}
+                </span>
+              </div>
+              <p v-else class="mt-3 text-xs text-gray-400">{{ t('workflow.noIssueTypeSelected') }}</p>
+            </div>
+          </div>
+
           <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>

@@ -10,6 +10,7 @@ type Workflow struct {
 	ProjectID    *uint64 `gorm:"index" json:"project_id"`
 	WorkspaceID  uint64  `gorm:"index" json:"workspace_id"`
 	IssueTypeID  *uint64 `gorm:"index" json:"issue_type_id"`
+	IssueTypeIDs string  `gorm:"type:text" json:"issue_type_ids"`
 	IsActive     bool    `gorm:"default:true" json:"is_active"`
 
 	Transitions []StateTransition `gorm:"foreignKey:WorkflowID" json:"-"`

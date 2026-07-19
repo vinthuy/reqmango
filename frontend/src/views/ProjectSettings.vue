@@ -374,6 +374,29 @@ async function handleDeleteWorkflow(workflow: any) {
   catch (e: any) { console.error('Failed to delete workflow:', e); toast.error(e?.response?.data?.message || 'Failed to delete workflow') }
 }
 
+const togglingWorkflowId = ref<number | null>(null)
+async function handleToggleWorkflowStatus(workflow: any) {
+  if (!projectId.value || togglingWorkflowId.value) return
+  const newStatus = !workflow.is_active
+  const action = newStatus ? t('workflow.enable') : t('workflow.disable')
+  if (!(await confirm({
+    title: newStatus ? t('workflow.enableWorkflow') : t('workflow.disableWorkflow'),
+    message: t('workflow.confirmToggleWorkflow', { action, name: workflow.name }),
+    danger: !newStatus,
+    confirmText: action
+  }))) return
+  togglingWorkflowId.value = workflow.id
+  try {
+    await workflowApi.updateWorkflow(projectId.value, workflow.id, { is_active: newStatus })
+    await loadData()
+  } catch (e: any) {
+    console.error('Failed to toggle workflow status:', e)
+    toast.error(e?.response?.data?.message || 'Failed to toggle workflow status')
+  } finally {
+    togglingWorkflowId.value = null
+  }
+}
+
 // ===== Automation handlers =====
 const showAutomationModal = ref(false)
 const editingAutomation = ref<any>(null)
@@ -833,16 +856,35 @@ onMounted(async () => {
                 <div @click="!workflow.is_inherited && handleViewWorkflow(workflow.id)" class="flex-1 cursor-pointer" :class="{ 'opacity-60': workflow.is_inherited }">
                   <div class="flex items-center justify-between">
                     <div>
-                      <h3 class="font-medium text-gray-900">{{ workflow.name }}</h3>
+                      <div class="flex items-center space-x-2">
+                        <h3 class="font-medium text-gray-900">{{ workflow.name }}</h3>
+                        <span
+                          v-if="!workflow.is_inherited"
+                          :class="['px-2 py-0.5 rounded text-xs font-medium', workflow.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500']"
+                        >
+                          {{ workflow.is_active ? t('settings.enabled') : t('settings.disabled') }}
+                        </span>
+                        <span v-if="workflow.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️ {{ t('settings.inherited') }}</span>
+                      </div>
                       <div class="flex items-center space-x-2 mt-1">
                         <span class="text-sm text-gray-500">{{ (workflow.transitions || []).length }} {{ t('settings.transitions') }}</span>
-                        <span v-if="workflow.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️ {{ t('settings.inherited') }}</span>
                       </div>
                     </div>
                     <span v-if="!workflow.is_inherited" class="text-gray-400">→</span>
                   </div>
                 </div>
-                <button v-if="!workflow.is_inherited" @click.stop="handleDeleteWorkflow(workflow)" class="ml-3 text-gray-400 hover:text-red-500 p-1">✕</button>
+                <div class="flex items-center space-x-1 ml-3">
+                  <button
+                    v-if="!workflow.is_inherited"
+                    @click.stop="handleToggleWorkflowStatus(workflow)"
+                    :disabled="togglingWorkflowId === workflow.id"
+                    :class="['p-1 text-sm hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed', workflow.is_active ? 'text-gray-400 hover:text-gray-600' : 'text-green-500 hover:text-green-600']"
+                    :title="workflow.is_active ? t('workflow.disable') : t('workflow.enable')"
+                  >
+                    {{ workflow.is_active ? '⏸️' : '▶️' }}
+                  </button>
+                  <button v-if="!workflow.is_inherited" @click.stop="handleDeleteWorkflow(workflow)" class="text-gray-400 hover:text-red-500 p-1" :title="t('common.delete')">✕</button>
+                </div>
               </div>
             </div>
             <div v-if="workflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">{{ t('settings.noWorkflows') }}</div>

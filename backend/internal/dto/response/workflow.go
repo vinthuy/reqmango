@@ -3,17 +3,18 @@ package response
 import "time"
 
 type WorkflowResponse struct {
-	ID          uint64                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	ProjectID   uint64                 `json:"project_id"`
-	WorkspaceID uint64                 `json:"workspace_id"`
-	IssueTypeID *uint64                `json:"issue_type_id"`
-	IsActive    bool                   `json:"is_active"`
-	IsInherited bool                   `json:"is_inherited"`
-	Transitions []TransitionResponse   `json:"transitions"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	ID           uint64                 `json:"id"`
+	Name         string                 `json:"name"`
+	Description  string                 `json:"description"`
+	ProjectID    uint64                 `json:"project_id"`
+	WorkspaceID  uint64                 `json:"workspace_id"`
+	IssueTypeID  *uint64                `json:"issue_type_id"`
+	IssueTypeIDs string                 `json:"issue_type_ids"`
+	IsActive     bool                   `json:"is_active"`
+	IsInherited  bool                   `json:"is_inherited"`
+	Transitions  []TransitionResponse   `json:"transitions"`
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
 }
 
 type TransitionResponse struct {

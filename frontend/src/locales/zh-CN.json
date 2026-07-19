@@ -2124,6 +2124,7 @@
     "disableWorkflow": "停用工作流",
     "confirmEnable": "确定要启用工作流 \"{name}\" 吗？",
     "confirmDisable": "确定要停用工作流 \"{name}\" 吗？停用后该工作流将不参与状态流转。",
+    "confirmToggleWorkflow": "确定要{action}工作流 \"{name}\" 吗？",
     "confirmDelete": "确定要删除此工作流吗？",
     "title": "工作流",
     "desc": "定义状态转换规则",
@@ -2153,7 +2154,11 @@
     "approvers": "审批人",
     "selectApprovers": "选择可审批此转换的用户",
     "noMembersFound": "未找到成员。",
-    "statesManagedInSettings": "状态在项目设置中管理"
+    "statesManagedInSettings": "状态在项目设置中管理",
+    "issueType": "关联类型",
+    "issueTypeDesc": "绑定项目下的工作项类型，此工作流将仅对所选类型生效；不选则表示通用。",
+    "noIssueType": "不关联（通用）",
+    "noIssueTypeSelected": "尚未选择任何工作项类型（表示通用）"
   },
   "language": {
     "switchToEn": "切换到中文",

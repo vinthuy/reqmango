@@ -2126,6 +2126,7 @@
     "disableWorkflow": "Disable Workflow",
     "confirmEnable": "Are you sure you want to enable workflow \"{name}\"?",
     "confirmDisable": "Are you sure you want to disable workflow \"{name}\"? It will no longer participate in state transitions.",
+    "confirmToggleWorkflow": "Are you sure you want to {action} workflow \"{name}\"?",
     "confirmDelete": "Are you sure you want to delete this workflow?",
     "title": "Workflows",
     "desc": "Define state transition rules",
@@ -2155,7 +2156,11 @@
     "approvers": "Approvers",
     "selectApprovers": "Select users who can approve this transition",
     "noMembersFound": "No members found.",
-    "statesManagedInSettings": "States are managed in project settings"
+    "statesManagedInSettings": "States are managed in project settings",
+    "issueType": "Issue Type",
+    "issueTypeDesc": "Bind issue types in this project. The workflow applies only to selected types; empty means universal.",
+    "noIssueType": "None (Universal)",
+    "noIssueTypeSelected": "No issue types selected (Universal)"
   },
   "language": {
     "switchToEn": "Switch to Chinese",
