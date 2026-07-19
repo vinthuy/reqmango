@@ -116,6 +116,7 @@
                 :members="projectMembers"
                 :cycles="cycleOptions"
                 :modules="moduleOptions"
+                :releases="releaseOptions"
                 :custom-fields="customFieldEntries"
                 :workspace-id="workspaceId"
                 :agent-dispatching="agentDispatching"
@@ -126,6 +127,7 @@
                 @update:assignee="quickUpdateAssignee"
                 @update:cycle="quickUpdateCycle"
                 @update:module="quickUpdateModule"
+                @update:release="quickUpdateRelease"
                 @update:start-date="(d: any) => quickUpdate('start_date', d + 'T00:00:00Z')"
                 @update:target-date="(d: any) => quickUpdate('target_date', d + 'T00:00:00Z')"
                 @update:labels="handleLabelsUpdate"
@@ -148,6 +150,7 @@ import * as issueTypeApi from '@/api/issue-type'
 import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
+import { releaseApi } from '@/api/release'
 import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
@@ -187,6 +190,7 @@ const activeTab = ref('details')
 const stateOptions = ref<any[]>([])
 const cycleOptions = ref<any[]>([])
 const moduleOptions = ref<any[]>([])
+const releaseOptions = ref<{ id: number; name: string; version: string }[]>([])
 const issueTypeOptions = ref<any[]>([])
 const projectMembers = ref<any[]>([])
 const projectIdentifier = ref('')
@@ -239,6 +243,7 @@ watch(() => [props.issueId, props.visible] as const, async ([id, vis]) => {
         loadStates(),
         loadCycles(),
         loadModules(),
+        loadReleases(),
         loadIssueTypes(),
         loadMembers(),
         loadCustomFields(),
@@ -263,6 +268,9 @@ async function loadCycles() {
 }
 async function loadModules() {
   try { moduleOptions.value = await moduleApi.listModules(props.projectId, props.workspaceId) } catch { /* */ }
+}
+async function loadReleases() {
+  try { releaseOptions.value = await releaseApi.list(props.projectId) } catch { /* */ }
 }
 async function loadIssueTypes() {
   try { issueTypeOptions.value = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId) } catch { /* */ }
@@ -324,6 +332,10 @@ async function quickUpdateCycle(cycleId: number | null) {
 
 async function quickUpdateModule(moduleId: number | null) {
   await quickUpdate('module_ids', moduleId ? [moduleId] : [])
+}
+
+async function quickUpdateRelease(releaseId: number | null) {
+  await quickUpdate('release_id', releaseId ?? 0)
 }
 
 async function updateCustomField(fieldId: number, value: string) {

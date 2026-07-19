@@ -40,6 +40,7 @@
             :slug="(route.params.slug as string)"
             :states
             :parent="issue?.parent"
+            :sub-issues="issue?.sub_issues || []"
             :issue-types="issueTypes"
             @navigate="navigateToIssue"
             @refresh="handleRelationsRefresh"
