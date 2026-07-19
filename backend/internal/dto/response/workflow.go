@@ -18,16 +18,21 @@ type WorkflowResponse struct {
 }
 
 type TransitionResponse struct {
-	ID          uint64 `json:"id"`
-	WorkflowID  uint64 `json:"workflow_id"`
-	SourceStateID uint64 `json:"from_state_id"`
-	TargetStateID   uint64 `json:"to_state_id"`
-	Description string `json:"description"`
-	RuleType    string `json:"rule_type"`
-	ApproverIDs *string `json:"approver_ids"`
-	RoleAllowed string `json:"role_allowed"`
-	SourceName    string `json:"from_name,omitempty"`
-	TargetName      string `json:"to_name,omitempty"`
+	ID                   uint64  `json:"id"`
+	WorkflowID           uint64  `json:"workflow_id"`
+	SourceStateID        uint64  `json:"from_state_id"`
+	TargetStateID        uint64  `json:"to_state_id"`
+	Description          string  `json:"description"`
+	RuleType             string  `json:"rule_type"`
+	ApproverIDs          *string `json:"approver_ids"`
+	RoleAllowed          string  `json:"role_allowed"`
+	ApproveTargetStateID *uint64 `json:"approve_target_state_id"`
+	ApproveStateName     string  `json:"approve_target_state_name"`
+	RejectTargetStateID  *uint64 `json:"reject_target_state_id"`
+	RejectStateName      string  `json:"reject_target_state_name"`
+	ApprovalMode         string  `json:"approval_mode"`
+	SourceName           string  `json:"from_name,omitempty"`
+	TargetName           string  `json:"to_name,omitempty"`
 }
 
 type AutomationResponse struct {
