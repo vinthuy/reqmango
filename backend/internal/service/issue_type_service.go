@@ -113,10 +113,9 @@ func (s *IssueTypeService) Create(workspaceID, userID uint64, req request.IssueT
 //   - workspace scope (projectID == nil): returns all workspace-level types
 //     (project_id IS NULL). IsImported is always false (no project context).
 //   - project scope (projectID != nil): returns project-private types plus
-//     workspace-level types that the project can see (legacy auto-inherit OR
-//     query, kept for backward compatibility). The IsImported flag is true
-//     for workspace-level types the project has explicitly imported via the
-//     Plane v3-style Import model.
+//     workspace-level types that the project has explicitly imported via the
+//     Plane v3-style Import model. Legacy auto-inherit is removed — workspace
+//     types are only visible when imported.
 func (s *IssueTypeService) List(workspaceID uint64, projectID *uint64) ([]response.IssueTypeResponse, error) {
 	if projectID == nil {
 		var types []model.IssueType
@@ -134,22 +133,34 @@ func (s *IssueTypeService) List(workspaceID uint64, projectID *uint64) ([]respon
 		return result, nil
 	}
 
-	// Project scope: project-private + workspace-shared (legacy auto-inherit).
-	var types []model.IssueType
-	if err := s.db.Where("workspace_id = ? AND (project_id = ? OR project_id IS NULL)", workspaceID, *projectID).
-		Order("sequence, created_at").Find(&types).Error; err != nil {
-		return nil, common.Internal("Failed to list issue types")
-	}
-
+	// Project scope: project-private + explicitly imported workspace types.
 	importedIDs, err := s.listImportedTypeIDs(*projectID)
 	if err != nil {
 		return nil, common.Internal("Failed to load import records")
 	}
 
+	var types []model.IssueType
+	query := s.db.Where("workspace_id = ?", workspaceID)
+
+	if len(importedIDs) == 0 {
+		// No imports: only project-private types.
+		query = query.Where("project_id = ?", *projectID)
+	} else {
+		ids := make([]uint64, 0, len(importedIDs))
+		for id := range importedIDs {
+			ids = append(ids, id)
+		}
+		query = query.Where("project_id = ? OR (project_id IS NULL AND id IN ?)", *projectID, ids)
+	}
+
+	if err := query.Order("sequence, created_at").Find(&types).Error; err != nil {
+		return nil, common.Internal("Failed to list issue types")
+	}
+
+	// In project scope, any workspace-level type (project_id IS NULL) is imported by definition.
 	result := make([]response.IssueTypeResponse, len(types))
 	for i, t := range types {
-		isImported := t.ProjectID == nil && importedIDs[t.ID]
-		result[i] = *s.buildResponse(t, isImported)
+		result[i] = *s.buildResponse(t, t.ProjectID == nil)
 	}
 	if result == nil {
 		result = []response.IssueTypeResponse{}
@@ -327,85 +338,6 @@ func (s *IssueTypeService) UpdateField(typeID, fieldID uint64, req request.Issue
 
 // ==================== Project-scoped Operations ====================
 
-// CopyFromWorkspace copies all workspace-level issue types to the target project.
-func (s *IssueTypeService) CopyFromWorkspace(workspaceID, projectID, userID uint64) ([]response.IssueTypeResponse, error) {
-	var templates []model.IssueType
-	if err := s.db.Where("workspace_id = ? AND project_id IS NULL AND is_active = ?", workspaceID, true).
-		Order("sequence, created_at").Find(&templates).Error; err != nil {
-		return nil, common.Internal("Failed to fetch workspace issue types")
-	}
-
-	// Check if project already has types
-	var existingCount int64
-	s.db.Model(&model.IssueType{}).Where("project_id = ?", projectID).Count(&existingCount)
-	if existingCount > 0 {
-		return nil, common.Conflict("Project already has issue types configured")
-	}
-
-	types := make([]model.IssueType, len(templates))
-	for i, tmpl := range templates {
-		types[i] = model.IssueType{
-			Name:         tmpl.Name,
-			Color:        tmpl.Color,
-			Icon:         tmpl.Icon,
-			Description:  tmpl.Description,
-			Level:        tmpl.Level,
-			ParentTypeID: nil, // Reset hierarchy for project scope — will be re-linked post-creation
-			IsDefault:    tmpl.IsDefault,
-			Sequence:     tmpl.Sequence,
-			IsActive:     true,
-			ProjectID:    &projectID,
-			WorkspaceID:  workspaceID,
-		}
-		types[i].CreatedByID = &userID
-	}
-
-	if err := s.db.Create(&types).Error; err != nil {
-		return nil, common.Internal("Failed to copy issue types to project")
-	}
-
-	// Re-link parent relationships within the copied types
-	// Build a map from template ID -> new type ID
-	idMap := make(map[uint64]uint64)
-	for i, tmpl := range templates {
-		idMap[tmpl.ID] = types[i].ID
-	}
-	for i, tmpl := range templates {
-		if tmpl.ParentTypeID != nil {
-			if newParentID, ok := idMap[*tmpl.ParentTypeID]; ok {
-				s.db.Model(&types[i]).Update("parent_type_id", newParentID)
-			}
-		}
-	}
-
-	// Also copy field associations from workspace types to project types
-	// Build a map from workspace type ID -> new project type ID
-	for i, tmpl := range templates {
-		// Copy IssueTypeField associations from workspace type
-		var workspaceFields []model.IssueTypeField
-		if err := s.db.Where("type_id = ?", tmpl.ID).Find(&workspaceFields).Error; err != nil {
-			continue
-		}
-
-		// Create corresponding fields for the new project type
-		for _, wf := range workspaceFields {
-			newField := model.IssueTypeField{
-				TypeID:     types[i].ID,
-				FieldID:    wf.FieldID,
-				IsRequired: wf.IsRequired,
-				Sequence:   wf.Sequence,
-			}
-			s.db.Create(&newField)
-		}
-	}
-
-	result := make([]response.IssueTypeResponse, len(types))
-	for i, t := range types {
-		result[i] = *s.buildResponse(t, false)
-	}
-	return result, nil
-}
-
 // Reorder updates the sequence for issue types within a project.
 func (s *IssueTypeService) Reorder(projectID uint64, typeIDs []uint64) error {
 	for i, typeID := range typeIDs {
@@ -428,18 +360,13 @@ func (s *IssueTypeService) ReorderWorkspace(workspaceID uint64, typeIDs []uint64
 	return nil
 }
 
-// ListFields returns the custom fields attached to a type, optionally filtered
-// by project enrollment.
+// ListFields returns the custom fields attached to a type.
 //
-// Behavior:
-//   - No project context: all attached fields are returned.
-//   - Project context:
-//   - If the type is project-private, all its attached fields are visible.
-//   - If the type is a workspace-level type imported by the project via the
-//     Plane v3-style Import model, all attached fields are visible (they
-//     "follow" the type) — no enrollment required.
-//   - Otherwise (workspace-level type visible only via legacy auto-inherit),
-//     workspace-shared fields require explicit enrollment to be visible.
+// All attached fields are always visible — no enrollment filter is needed:
+//   - Project-private types: fields are naturally visible within the project.
+//   - Workspace types visible in a project: they are always imported (legacy
+//     auto-inherit has been removed), so custom fields "follow" the type
+//     automatically without requiring separate enrollment.
 func (s *IssueTypeService) ListFields(typeID uint64, projectID ...uint64) ([]response.IssueTypeFieldResponse, error) {
 	var t model.IssueType
 	if err := s.db.First(&t, typeID).Error; err != nil {
@@ -451,34 +378,8 @@ func (s *IssueTypeService) ListFields(typeID uint64, projectID ...uint64) ([]res
 		return nil, common.Internal("Failed to list fields")
 	}
 
-	hasProjectContext := len(projectID) > 0 && projectID[0] > 0
-	var enabledFieldIDs map[uint64]bool
-	typeIsImported := false
-	if hasProjectContext {
-		pid := projectID[0]
-		// Imported workspace type: all attached fields visible without enrollment.
-		typeIsImported = s.IsImported(pid, typeID)
-		if !typeIsImported && t.ProjectID == nil {
-			// Legacy auto-inherited workspace type: fall back to enrollment filter.
-			enabledFieldIDs = make(map[uint64]bool)
-			var enrollments []model.ProjectCustomFieldEnrollment
-			s.db.Where("project_id = ?", pid).Find(&enrollments)
-			for _, e := range enrollments {
-				enabledFieldIDs[e.FieldID] = true
-			}
-		}
-	}
-
 	result := make([]response.IssueTypeFieldResponse, 0)
 	for _, link := range links {
-		// Skip workspace-shared fields the project hasn't enrolled, but only when
-		// the type is NOT imported (legacy auto-inherit path).
-		if hasProjectContext && !typeIsImported && t.ProjectID == nil {
-			if link.Field.ProjectID == nil && !enabledFieldIDs[link.FieldID] {
-				continue
-			}
-		}
-
 		fr := response.IssueTypeFieldResponse{
 			FieldID:     link.FieldID,
 			TypeID:      link.TypeID,
@@ -567,11 +468,11 @@ func (s *IssueTypeService) ImportType(projectID, workspaceTypeID uint64) error {
 	return nil
 }
 
-// UnimportType removes a project's reference to a workspace-level type. The
-// type itself is not deleted — it remains available at the workspace level and
-// may still be visible to the project via the legacy auto-inherit OR query
-// (backward compatibility). To fully hide a workspace type from a project,
-// an exclusion mechanism would be required (not part of the v2 Import model).
+// UnimportType removes a project's reference to a workspace-level type.
+// The type itself is not deleted — it remains available at the workspace level.
+// After unimporting, the type is no longer visible in the project's type list
+// (legacy auto-inherit has been removed; only explicitly imported workspace
+// types appear in project scope).
 //
 // Hard-deletes (Unscoped) instead of soft-deletes because IssueTypeImport is a
 // pure reference/join table: a soft-deleted row would still occupy the

@@ -4,14 +4,11 @@
       <div>
         <h2 class="text-lg font-semibold text-gray-900">{{ $t('issueType.workItemTypes') }}</h2>
         <p class="text-sm text-gray-500 mt-1">{{ $t('issueType.configureDesc') }}</p>
-        <p class="text-xs text-gray-400 mt-1">{{ $t('issueType.copyVsImportHint') }}</p>
+        <p class="text-xs text-gray-400 mt-1">{{ $t('issueType.importHint') }}</p>
       </div>
       <div class="flex items-center gap-2">
-        <button @click="openImportModal" class="bg-white border border-indigo-300 text-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors text-sm font-medium" :disabled="importing">
+        <button @click="openImportModal" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium" :disabled="importing">
           {{ importing ? $t('issueType.importing') : $t('issueType.importFromWorkspace') }}
-        </button>
-        <button @click="copyFromWorkspace" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium" :disabled="copying">
-          {{ copying ? $t('issueType.copying') : $t('issueType.copyFromWorkspace') }}
         </button>
       </div>
     </div>
@@ -22,13 +19,11 @@
       <p class="text-gray-500 mb-4">{{ $t('issueType.noTypes') }}</p>
       <div class="flex items-center justify-center gap-4">
         <button @click="openImportModal" class="text-indigo-600 hover:text-indigo-700 font-medium">{{ $t('issueType.importFromWorkspace') }} →</button>
-        <span class="text-gray-300">|</span>
-        <button @click="copyFromWorkspace" class="text-indigo-600 hover:text-indigo-700 font-medium">{{ $t('issueType.copyFromWorkspace') }} →</button>
       </div>
     </div>
 
     <div v-else class="space-y-4">
-      <div v-for="(t, index) in types" :key="t.id" class="bg-white rounded-lg border border-gray-200 overflow-hidden" :class="{ 'opacity-60': t.is_inherited }">
+      <div v-for="(t, index) in types" :key="t.id" class="bg-white rounded-lg border border-gray-200 overflow-hidden" :class="{ 'opacity-60': t.is_imported }">
         <div class="flex items-center justify-between p-3 hover:bg-gray-50 transition">
           <div class="flex items-center gap-3">
             <span class="text-gray-400 text-sm w-6 text-center">{{ index + 1 }}</span>
@@ -38,14 +33,13 @@
               <span v-if="t.description" class="text-xs text-gray-400 ml-2">{{ t.description }}</span>
             </div>
             <span v-if="t.is_default" class="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">Default</span>
-            <span v-if="t.is_inherited && t.is_imported" class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-medium" :title="$t('issueType.imported')">📦 {{ $t('issueType.imported') }}</span>
-            <span v-else-if="t.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️ {{ $t('settings.inherited') }}</span>
+            <span v-if="t.is_imported" class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-medium">📦 {{ $t('issueType.imported') }}</span>
           </div>
           <div class="flex items-center gap-2">
             <button @click="loadTypeFields(t)" class="px-2 py-1 text-xs text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded border border-gray-200">
               {{ t.fields?.length || 0 }} {{ $t('issueTypeManager.fields') }}
             </button>
-            <button v-if="t.is_inherited && t.is_imported" @click="handleUnimportType(t)" :disabled="unimportingId === t.id" class="px-2 py-1 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded border border-amber-200" :title="$t('issueType.unimport')">
+            <button v-if="t.is_imported" @click="handleUnimportType(t)" :disabled="unimportingId === t.id" class="px-2 py-1 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded border border-amber-200" :title="$t('issueType.unimport')">
               {{ unimportingId === t.id ? '...' : $t('issueType.unimport') }}
             </button>
             <button v-if="!t.is_inherited" @click="moveUp(index)" :disabled="index === 0" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↑</button>
@@ -57,7 +51,7 @@
         <div v-if="expandedType === t.id" class="border-t border-gray-200 p-4 bg-gray-50">
           <div class="flex items-center justify-between mb-3">
             <h4 class="text-sm font-medium text-gray-700">{{ $t('issueTypeManager.relatedFields') }}</h4>
-            <button v-if="!t.is_inherited || !t.is_imported" @click="openFieldBindModal" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ {{ $t('issueTypeManager.addField') }}</button>
+            <button v-if="!t.is_inherited" @click="openFieldBindModal" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ {{ $t('issueTypeManager.addField') }}</button>
             <span v-else class="text-xs text-gray-400">{{ $t('issueType.imported') }} · {{ $t('issueTypeManager.relatedFields') }}</span>
           </div>
 
@@ -72,7 +66,7 @@
                 <span class="text-sm text-gray-700">{{ field.name }}</span>
                 <span v-if="field.is_required" class="text-xs text-red-600 font-medium">*</span>
               </div>
-              <button v-if="!t.is_inherited || !t.is_imported" @click="removeField(t.id, field.field_id, fIndex)" class="text-xs text-red-500 hover:text-red-700">{{ $t('issueTypeManager.remove') }}</button>
+              <button v-if="!t.is_inherited" @click="removeField(t.id, field.field_id, fIndex)" class="text-xs text-red-500 hover:text-red-700">{{ $t('issueTypeManager.remove') }}</button>
             </div>
           </div>
         </div>
@@ -161,14 +155,13 @@ interface IssueType {
   is_active: boolean
   project_id?: number
   workspace_id: number
-  is_inherited?: boolean
   is_imported?: boolean
+  is_inherited?: boolean
   fields?: any[]
 }
 
 const types = ref<IssueType[]>([])
 const loading = ref(false)
-const copying = ref(false)
 const reorderDirty = ref(false)
 
 const expandedType = ref<number | null>(null)
@@ -197,18 +190,6 @@ async function loadTypes() {
     reorderDirty.value = false
   } catch (e) { console.error('Failed to load issue types:', e) }
   finally { loading.value = false }
-}
-
-async function copyFromWorkspace() {
-  copying.value = true
-  try {
-    await api.post(`/projects/${props.projectId}/issue-types/copy-from-workspace?workspace_id=${props.workspaceId}`)
-    await loadTypes()
-  } catch (e: any) {
-    const msg = e.response?.data?.message || 'Failed to copy'
-    toast.error(msg)
-  }
-  finally { copying.value = false }
 }
 
 // ==================== Plane v3-style Import Model ====================

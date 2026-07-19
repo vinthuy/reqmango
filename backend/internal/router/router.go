@@ -388,7 +388,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			{
 				projTypes.GET("", projectIssueTypeH.ListProjectTypes)
 				projTypes.POST("", projectIssueTypeH.CreateProjectType)
-				projTypes.POST("/copy-from-workspace", projectIssueTypeH.CopyFromWorkspace)
 				projTypes.PATCH("/reorder", projectIssueTypeH.Reorder)
 
 				// Plane v3-style Import model (project references workspace type by link)

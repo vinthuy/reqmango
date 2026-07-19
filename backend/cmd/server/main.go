@@ -133,21 +133,6 @@ func main() {
 		ON CONFLICT (project_id, field_id) DO NOTHING`)
 	fmt.Println("Custom field enrollment migration completed")
 
-	// Migrate existing workspace-level issue types to imported state for all projects
-	// (Plane v3-style Import model: project references workspace type by link).
-	// After this migration, every project that can see a workspace-level type will
-	// have an explicit IssueTypeImport record, so the IsImported flag is set and
-	// attached custom fields become visible without separate enrollment.
-	db.Exec(`INSERT INTO issue_type_imports (project_id, workspace_type_id, workspace_id, created_at, updated_at)
-		SELECT DISTINCT p.id, t.id, t.workspace_id, NOW(), NOW()
-		FROM projects p
-		JOIN issue_types t ON t.workspace_id = p.workspace_id AND t.project_id IS NULL
-		WHERE NOT EXISTS (
-			SELECT 1 FROM issue_type_imports iti
-			WHERE iti.project_id = p.id AND iti.workspace_type_id = t.id
-		)
-		ON CONFLICT DO NOTHING`)
-	fmt.Println("Issue type import migration completed")
 
 	// Seed default agents in registry
 

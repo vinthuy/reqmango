@@ -97,32 +97,6 @@ func (h *ProjectIssueTypeHandler) CreateProjectType(c *gin.Context) {
 	c.JSON(http.StatusCreated, result)
 }
 
-// CopyFromWorkspace handles POST /projects/:projectId/issue-types/copy-from-workspace
-func (h *ProjectIssueTypeHandler) CopyFromWorkspace(c *gin.Context) {
-	projectID, err := h.getProjectID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
-		return
-	}
-
-	types, svcErr := h.svc.CopyFromWorkspace(workspaceID, projectID, h.getUserID(c))
-	if svcErr != nil {
-		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
-		return
-	}
-	c.JSON(http.StatusCreated, types)
-}
-
 // Reorder handles PATCH /projects/:projectId/issue-types/reorder
 func (h *ProjectIssueTypeHandler) Reorder(c *gin.Context) {
 	projectID, err := h.getProjectID(c)

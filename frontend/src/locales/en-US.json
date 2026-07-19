@@ -2574,8 +2574,6 @@
     "workItemTypes": "Work Item Types",
     "saveOrder": "Save Order",
     "configureDesc": "Configure which work item types are available in this project",
-    "copying": "Copying...",
-    "copyFromWorkspace": "Copy from Workspace",
     "noTypes": "No issue types configured for this project yet.",
     "importFromWorkspace": "Import from Workspace",
     "importing": "Importing...",
@@ -2589,7 +2587,7 @@
     "importFailed": "Failed to import",
     "unimportFailed": "Failed to unimport",
     "alreadyImported": "Type is already imported",
-    "copyVsImportHint": "\"Copy\" creates an independent copy that diverges over time; \"Import\" links by reference, so workspace updates sync automatically."
+    "importHint": "Import workspace types to link them by reference. Workspace updates will sync automatically to the project."
   },
   "dashboard": {
     "title": "Dashboards",
