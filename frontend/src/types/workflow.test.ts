@@ -29,16 +29,16 @@ import type {
 
 // ==================== TriggerTypeEnum ====================
 describe('TriggerTypeEnum', () => {
-  it('should have 10 enum values', () => {
+  it('should have 11 enum values', () => {
     const keys = Object.keys(TriggerTypeEnum).filter(k => isNaN(Number(k)))
-    expect(keys).toHaveLength(10)
+    expect(keys).toHaveLength(11)
   })
 })
 
 // ==================== TriggerTypeOptions ====================
 describe('TriggerTypeOptions', () => {
-  it('should have 9 options', () => {
-    expect(TriggerTypeOptions).toHaveLength(9)
+  it('should have 10 options', () => {
+    expect(TriggerTypeOptions).toHaveLength(10)
   })
   it('should each have value/label/icon', () => {
     TriggerTypeOptions.forEach(opt => {

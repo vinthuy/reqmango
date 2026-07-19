@@ -66,7 +66,6 @@ func NotificationNotFound() *AppError {
 }
 func AgentNotFound() *AppError     { return NewError(ErrAgentNotFound, "Agent not found") }
 func DashboardNotFound() *AppError { return NewError(ErrDashboardNotFound, "Dashboard not found") }
-func DashboardNotFound() *AppError { return NewError(ErrDashboardNotFound, "Dashboard not found") }
 
 // IsUniqueViolation reports whether err is a Postgres unique-constraint violation
 // (SQLSTATE 23505). Matches by error code rather than message text, so it also
