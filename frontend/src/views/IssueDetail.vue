@@ -2,6 +2,32 @@
   <div class="issue-detail-page min-h-screen bg-white">
     <IssueDetailHeader :issue :saving :project-identifier="projectIdentifier" :is-watching="isWatching" @back="goBack" @save="saveIssue" @delete="deleteIssue" @toggle-watch="handleToggleWatch" />
 
+    <div class="max-w-6xl mx-auto px-6 pt-4">
+      <ApprovalPendingBanner
+        :approval="activeApproval"
+        :current-user-id="currentUserId"
+        @decide="onDecideApproval"
+        @cancel="onCancelApproval"
+      />
+    </div>
+    <ApprovalSubmitDialog
+      :show="showSubmitDialog"
+      :issue-id="issueId"
+      :transition-id="submitDialogData.transitionId"
+      :from-state-name="submitDialogData.fromStateName"
+      :approve-state-name="submitDialogData.approveStateName"
+      :approver-names="submitDialogData.approverNames"
+      @close="showSubmitDialog = false"
+      @submitted="onApprovalSubmitted"
+    />
+    <ApprovalDecisionDialog
+      :show="showDecisionDialog"
+      :approval-id="decisionDialogData?.approvalId || 0"
+      :decision="decisionDialogData?.decision || 'approved'"
+      @close="showDecisionDialog = false"
+      @decided="onApprovalDecided"
+    />
+
     <div class="max-w-6xl mx-auto px-6 py-6">
       <div class="flex gap-8">
         <!-- Main content: tab buttons + tab panels -->
@@ -82,7 +108,7 @@
           :agent-dispatching="agentDispatching"
           :labels="projectLabels"
           :relation-summary="relationSidebarSummary"
-          @update:state="(id: any) => instantUpdate('state_id', id)"
+          @update:state="(id: any) => handleStateChange(id)"
           @update:priority="(p: any) => instantUpdate('priority', p)"
           @update:assignee="instantUpdateAssignee"
           @update:cycle="handleCycleUpdate"
@@ -122,6 +148,10 @@ import IssueTabAttachments from '@/components/IssueTabAttachments.vue'
 import IssueTabTimeTracking from '@/components/IssueTabTimeTracking.vue'
 import IssueTabActivity from '@/components/IssueTabActivity.vue'
 import IssueGitPanel from '@/components/IssueGitPanel.vue'
+import ApprovalSubmitDialog from '@/components/ApprovalSubmitDialog.vue'
+import ApprovalDecisionDialog from '@/components/ApprovalDecisionDialog.vue'
+import ApprovalPendingBanner from '@/components/ApprovalPendingBanner.vue'
+import approvalApi, { type ApprovalResponse } from '@/api/approval'
 
 // Route params
 const route = useRoute()
@@ -150,6 +180,14 @@ const isWatching = ref(false)
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
+const activeApproval = ref<ApprovalResponse | null>(null)
+const currentUserId = parseInt(localStorage.getItem('user_id') || '0', 10)
+const showSubmitDialog = ref(false)
+const showDecisionDialog = ref(false)
+const submitDialogData = ref<{ transitionId: number; fromStateName: string; approveStateName: string; approverNames: string[] }>({
+  transitionId: 0, fromStateName: '', approveStateName: '', approverNames: []
+})
+const decisionDialogData = ref<{ approvalId: number; decision: 'approved' | 'rejected' } | null>(null)
 
 // Relation summary for sidebar
 const relationSidebarSummary = computed(() => {
@@ -202,6 +240,8 @@ onMounted(async () => {
       loadLabels(),
       loadWatchers(),
     ])
+    // Load active approval if pending
+    await loadActiveApproval()
   } catch (error) {
     console.error('Failed to load issue:', error)
   }
@@ -328,6 +368,114 @@ async function instantUpdate(field: string, value: any) {
   } catch (e: any) {
     console.error('Failed to update field:', field, e)
     toast.error(t('issue.saveFailed'))
+  }
+}
+
+// Load active approval if issue has pending approval
+async function loadActiveApproval() {
+  if (!issue.value) return
+  if (issue.value.approval_status === 'pending' && issue.value.active_approval_id) {
+    try {
+      activeApproval.value = await approvalApi.get(issue.value.active_approval_id)
+    } catch (e) {
+      console.error('Failed to load active approval:', e)
+      activeApproval.value = null
+    }
+  } else {
+    activeApproval.value = null
+  }
+}
+
+// Intercept state change for approval transitions
+async function handleStateChange(newStateId: number) {
+  if (!issue.value) return
+  try {
+    const updated = await issueApi.updateIssue(issueId, { state_id: newStateId })
+    if (issue.value) Object.assign(issue.value, updated)
+    await loadActiveApproval()
+  } catch (e: any) {
+    // Check for approval_required response (HTTP 409)
+    if (e?.response?.status === 409 && e?.response?.data?.message === 'approval_required') {
+      const transitionId = e.response.data.transition_id
+      const sourceStateId = e.response.data.source_state_id
+      const targetStateId = e.response.data.target_state_id
+      // Fetch the transition details to get approver names and approve target state name
+      try {
+        const wfRes = await api.get(`/projects/${issue.value.project_id}/workflows`)
+        const workflows = wfRes.data || []
+        let transition: any = null
+        for (const w of workflows) {
+          const found = (w.transitions || []).find((tr: any) => tr.id === transitionId)
+          if (found) { transition = found; break }
+        }
+        const fromState = states.value.find((s: any) => s.id === sourceStateId)
+        const approveState = states.value.find((s: any) => s.id === (transition?.approve_target_state_id || targetStateId))
+        // Parse approver IDs and resolve names from projectMembers
+        let approverNames: string[] = []
+        if (transition?.approver_ids) {
+          try {
+            const ids: number[] = JSON.parse(transition.approver_ids)
+            approverNames = ids.map(id => {
+              const m = projectMembers.value.find((m: any) => m.user_id === id || m.id === id)
+              return m?.user?.display_name || m?.display_name || `#${id}`
+            })
+          } catch { /* ignore parse errors */ }
+        }
+        submitDialogData.value = {
+          transitionId,
+          fromStateName: fromState?.name || `#${sourceStateId}`,
+          approveStateName: approveState?.name || `#${targetStateId}`,
+          approverNames,
+        }
+        showSubmitDialog.value = true
+      } catch (fetchErr) {
+        console.error('Failed to fetch transition details:', fetchErr)
+        toast.error(t('issue.saveFailed'))
+      }
+    } else {
+      console.error('Failed to update state:', e)
+      toast.error(t('issue.saveFailed'))
+    }
+  }
+}
+
+async function onApprovalSubmitted() {
+  showSubmitDialog.value = false
+  // Reload issue to get updated approval_status
+  try {
+    const updated = await issueApi.getIssue(issueId)
+    issue.value = updated
+    await loadActiveApproval()
+  } catch (e) {
+    console.error('Failed to reload issue:', e)
+  }
+}
+
+function onDecideApproval(approval: ApprovalResponse, decision: 'approved' | 'rejected') {
+  decisionDialogData.value = { approvalId: approval.id, decision }
+  showDecisionDialog.value = true
+}
+
+async function onApprovalDecided() {
+  showDecisionDialog.value = false
+  try {
+    const updated = await issueApi.getIssue(issueId)
+    issue.value = updated
+    await loadActiveApproval()
+  } catch (e) {
+    console.error('Failed to reload issue:', e)
+  }
+}
+
+async function onCancelApproval(approval: ApprovalResponse) {
+  if (!confirm(t('approvals.cancelApproval'))) return
+  try {
+    await approvalApi.cancel(approval.id)
+    const updated = await issueApi.getIssue(issueId)
+    issue.value = updated
+    await loadActiveApproval()
+  } catch (e: any) {
+    alert(e?.response?.data?.message || 'Failed to cancel approval')
   }
 }
 
