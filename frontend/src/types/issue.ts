@@ -48,6 +48,7 @@ export interface IssueCreate extends IssueBase {
   label_ids?: number[]
   cycle_id?: number
   module_ids?: number[]
+  release_id?: number
   estimate_point_id?: number
   type_id?: number
   external_id?: string
@@ -71,6 +72,7 @@ export interface IssueUpdate {
   estimate_point_id?: number
   cycle_id?: number
   module_ids?: number[]
+  release_id?: number
   type_id?: number
   parent_id?: number | null
 }
@@ -107,6 +109,7 @@ export interface IssueResponse extends IssueBase {
   
   estimate_point_id?: number
   module_ids?: number[]
+  release_id?: number
   type_id?: number
   issue_type?: {
     id: number
