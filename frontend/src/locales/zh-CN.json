@@ -1391,7 +1391,22 @@
     "customFields": "自定义字段",
     "noCustomFields": "暂无自定义字段配置",
     "unassigned": "未分配",
-    "noLabel": "无标签"
+    "noLabel": "无标签",
+    "decompose": "分解子项"
+  },
+  "decompose": {
+    "title": "分解子工作项",
+    "childName": "子工作项名称",
+    "childNamePlaceholder": "输入子工作项名称...",
+    "childType": "子工作项类型",
+    "prefillFromParent": "从父项填充",
+    "prefilled": "已从父工作项填充字段",
+    "parentInfo": "父工作项",
+    "createChild": "创建子工作项",
+    "createSuccess": "子工作项创建成功",
+    "createFailed": "创建子工作项失败",
+    "noChildTypes": "当前类型不支持创建子工作项",
+    "hierarchyLimit": "已达到最大层级深度（6级）"
   },
   "issueKanban": {
     "searchPlaceholder": "搜索工作项...（名称 / 编号）",

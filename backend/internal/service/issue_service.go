@@ -1609,10 +1609,12 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 	// Issue Type info
 	if issue.IssueType.ID != 0 {
 		resp.IssueType = &response.IssueTypeLite{
-			ID:    issue.IssueType.ID,
-			Name:  issue.IssueType.Name,
-			Color: issue.IssueType.Color,
-			Icon:  issue.IssueType.Icon,
+			ID:                  issue.IssueType.ID,
+			Name:                issue.IssueType.Name,
+			Color:               issue.IssueType.Color,
+			Icon:                issue.IssueType.Icon,
+			Level:               issue.IssueType.Level,
+			AllowedChildTypeIDs: issue.IssueType.AllowedChildTypeIDs,
 		}
 	}
 
@@ -1640,12 +1642,14 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 				parent.StateGroup = parentIssue.State.Group
 			}
 			if parentIssue.IssueType.ID != 0 {
-				parent.IssueType = &response.IssueTypeLite{
-					ID:    parentIssue.IssueType.ID,
-					Name:  parentIssue.IssueType.Name,
-					Color: parentIssue.IssueType.Color,
-					Icon:  parentIssue.IssueType.Icon,
-				}
+			parent.IssueType = &response.IssueTypeLite{
+				ID:                  parentIssue.IssueType.ID,
+				Name:                parentIssue.IssueType.Name,
+				Color:               parentIssue.IssueType.Color,
+				Icon:                parentIssue.IssueType.Icon,
+				Level:               parentIssue.IssueType.Level,
+				AllowedChildTypeIDs: parentIssue.IssueType.AllowedChildTypeIDs,
+			}
 			}
 			for _, link := range parentIssue.AssigneeLinks {
 				if link.User.ID != 0 {
@@ -1684,10 +1688,12 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 		}
 		if sub.IssueType.ID != 0 {
 			si.IssueType = &response.IssueTypeLite{
-				ID:    sub.IssueType.ID,
-				Name:  sub.IssueType.Name,
-				Color: sub.IssueType.Color,
-				Icon:  sub.IssueType.Icon,
+				ID:                  sub.IssueType.ID,
+				Name:                sub.IssueType.Name,
+				Color:               sub.IssueType.Color,
+				Icon:                sub.IssueType.Icon,
+				Level:               sub.IssueType.Level,
+				AllowedChildTypeIDs: sub.IssueType.AllowedChildTypeIDs,
 			}
 		}
 		for _, link := range sub.AssigneeLinks {
@@ -3106,10 +3112,12 @@ func buildTreeIssueFromModel(issue *model.Issue, countMap map[uint64]int64) *res
 	}
 	if issue.IssueType.ID != 0 {
 		resp.IssueType = &response.IssueTypeLite{
-			ID:    issue.IssueType.ID,
-			Name:  issue.IssueType.Name,
-			Color: issue.IssueType.Color,
-			Icon:  issue.IssueType.Icon,
+			ID:                  issue.IssueType.ID,
+			Name:                issue.IssueType.Name,
+			Color:               issue.IssueType.Color,
+			Icon:                issue.IssueType.Icon,
+			Level:               issue.IssueType.Level,
+			AllowedChildTypeIDs: issue.IssueType.AllowedChildTypeIDs,
 		}
 	}
 

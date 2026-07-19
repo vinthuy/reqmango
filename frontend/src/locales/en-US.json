@@ -1090,7 +1090,22 @@
     "customFields": "Custom Fields",
     "noCustomFields": "No custom fields configured",
     "unassigned": "Unassigned",
-    "noLabel": "No Label"
+    "noLabel": "No Label",
+    "decompose": "Decompose"
+  },
+  "decompose": {
+    "title": "Decompose Child Issue",
+    "childName": "Child Issue Name",
+    "childNamePlaceholder": "Enter child issue name...",
+    "childType": "Child Issue Type",
+    "prefillFromParent": "Fill from parent",
+    "prefilled": "Fields filled from parent issue",
+    "parentInfo": "Parent Issue",
+    "createChild": "Create Child Issue",
+    "createSuccess": "Child issue created successfully",
+    "createFailed": "Failed to create child issue",
+    "noChildTypes": "This type does not support child issues",
+    "hierarchyLimit": "Maximum hierarchy depth (6 levels) reached"
   },
   "issueKanban": {
     "searchPlaceholder": "Search issues... (name / ID)",

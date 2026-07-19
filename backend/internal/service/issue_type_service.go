@@ -21,22 +21,23 @@ func NewIssueTypeService(db *gorm.DB) *IssueTypeService {
 // type via the Plane v3-style Import model (only meaningful in project context).
 func (s *IssueTypeService) buildResponse(t model.IssueType, isImported bool) *response.IssueTypeResponse {
 	return &response.IssueTypeResponse{
-		ID:           t.ID,
-		Name:         t.Name,
-		Color:        t.Color,
-		Icon:         t.Icon,
-		Description:  t.Description,
-		Level:        t.Level,
-		ParentTypeID: t.ParentTypeID,
-		IsDefault:    t.IsDefault,
-		Sequence:     t.Sequence,
-		IsActive:     t.IsActive,
-		ProjectID:    t.ProjectID,
-		WorkspaceID:  t.WorkspaceID,
-		CreatedAt:    t.CreatedAt,
-		UpdatedAt:    t.UpdatedAt,
-		IsInherited:  t.ProjectID == nil,
-		IsImported:   isImported,
+		ID:                  t.ID,
+		Name:                t.Name,
+		Color:               t.Color,
+		Icon:                t.Icon,
+		Description:         t.Description,
+		Level:               t.Level,
+		ParentTypeID:        t.ParentTypeID,
+		AllowedChildTypeIDs: t.AllowedChildTypeIDs,
+		IsDefault:           t.IsDefault,
+		Sequence:            t.Sequence,
+		IsActive:            t.IsActive,
+		ProjectID:           t.ProjectID,
+		WorkspaceID:         t.WorkspaceID,
+		CreatedAt:           t.CreatedAt,
+		UpdatedAt:           t.UpdatedAt,
+		IsInherited:         t.ProjectID == nil,
+		IsImported:          isImported,
 	}
 }
 
@@ -134,6 +135,9 @@ func (s *IssueTypeService) List(workspaceID uint64, projectID *uint64) ([]respon
 	}
 
 	// Project scope: project-private + explicitly imported workspace types.
+	// When neither exists (legacy projects without explicit imports), fall back
+	// to all workspace-level types so the user isn't locked out of features
+	// like decompose that depend on the type list.
 	importedIDs, err := s.listImportedTypeIDs(*projectID)
 	if err != nil {
 		return nil, common.Internal("Failed to load import records")
@@ -143,8 +147,18 @@ func (s *IssueTypeService) List(workspaceID uint64, projectID *uint64) ([]respon
 	query := s.db.Where("workspace_id = ?", workspaceID)
 
 	if len(importedIDs) == 0 {
-		// No imports: only project-private types.
-		query = query.Where("project_id = ?", *projectID)
+		// No imports: try project-private types first.
+		var projCount int64
+		s.db.Model(&model.IssueType{}).
+			Where("workspace_id = ? AND project_id = ?", workspaceID, *projectID).
+			Count(&projCount)
+		if projCount > 0 {
+			query = query.Where("project_id = ?", *projectID)
+		}
+		// else: no project-private types either → return all workspace-level
+		// types (backward-compatible fallback for legacy projects).
+		// query stays as "workspace_id = ?" which naturally fetches workspace-level types
+		// (project_id IS NULL is implicit because there are no project-private types).
 	} else {
 		ids := make([]uint64, 0, len(importedIDs))
 		for id := range importedIDs {

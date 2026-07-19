@@ -90,6 +90,7 @@ export interface IssueResponse extends IssueBase {
   project_id: number
   workspace_id: number
   parent_id?: number
+  depth: number
   state_id: number
   state_name?: string
   state_group?: string
@@ -116,6 +117,8 @@ export interface IssueResponse extends IssueBase {
     name: string
     color: string
     icon: string
+    level?: number
+    allowed_child_type_ids?: number[]
   }
 
   // 时间戳

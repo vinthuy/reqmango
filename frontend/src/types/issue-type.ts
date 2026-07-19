@@ -10,6 +10,7 @@ export interface IssueType {
   description?: string
   level?: number
   parent_type_id?: number
+  allowed_child_type_ids?: number[]
   is_default: boolean
   sequence: number
   is_active: boolean

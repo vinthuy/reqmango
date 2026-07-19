@@ -4,35 +4,35 @@ import "time"
 
 // IssueTypeResponse is the API response for a single issue type.
 type IssueTypeResponse struct {
-	ID           uint64    `json:"id"`
-	Name         string    `json:"name"`
-	Color        string    `json:"color"`
-	Icon         string    `json:"icon"`
-	Description  string    `json:"description"`
-	Level        int       `json:"level"`
-	ParentTypeID *uint64   `json:"parent_type_id"`
-	IsDefault    bool      `json:"is_default"`
-	Sequence     int       `json:"sequence"`
-	IsActive     bool      `json:"is_active"`
-	ProjectID    *uint64   `json:"project_id"`
-	WorkspaceID  uint64    `json:"workspace_id"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	IsInherited  bool      `json:"is_inherited"`
-	// IsImported indicates that the project has explicitly imported this
-	// workspace-level type via the Plane v3-style Import model. Under that
-	// model, custom fields attached to the type are visible in the project
-	// automatically (they "follow" the type), without separate enrollment.
-	// Always false at workspace-level responses (no project context).
-	IsImported   bool      `json:"is_imported"`
+	ID                  uint64    `json:"id"`
+	Name                string    `json:"name"`
+	Color               string    `json:"color"`
+	Icon                string    `json:"icon"`
+	Description         string    `json:"description"`
+	Level               int       `json:"level"`
+	ParentTypeID        *uint64   `json:"parent_type_id"`
+	AllowedChildTypeIDs []uint64  `json:"allowed_child_type_ids,omitempty"`
+	IsDefault           bool      `json:"is_default"`
+	Sequence            int       `json:"sequence"`
+	IsActive            bool      `json:"is_active"`
+	ProjectID           *uint64   `json:"project_id"`
+	WorkspaceID         uint64    `json:"workspace_id"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+	IsInherited         bool      `json:"is_inherited"`
+	IsImported          bool      `json:"is_imported"`
 }
 
 // IssueTypeLite is a minimal issue type reference used in issue responses.
+// It carries hierarchy metadata so clients can determine allowed child types
+// without an extra round-trip.
 type IssueTypeLite struct {
-	ID    uint64 `json:"id"`
-	Name  string `json:"name"`
-	Color string `json:"color"`
-	Icon  string `json:"icon"`
+	ID                  uint64   `json:"id"`
+	Name                string   `json:"name"`
+	Color               string   `json:"color"`
+	Icon                string   `json:"icon"`
+	Level               int      `json:"level"`
+	AllowedChildTypeIDs []uint64 `json:"allowed_child_type_ids,omitempty"`
 }
 
 // IssueTypeFieldResponse represents a custom field linked to an issue type.
