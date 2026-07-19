@@ -1613,8 +1613,14 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 	// Get issue type ID if available for workflow filtering
 	var issueTypeID *uint64
 	var issue model.Issue
-	if err := db.Select("issue_type_id").First(&issue, issueID).Error; err == nil && issue.IssueTypeID != nil {
-		issueTypeID = issue.IssueTypeID
+	if err := db.Select("issue_type_id, approval_status").First(&issue, issueID).Error; err == nil {
+		if issue.IssueTypeID != nil {
+			issueTypeID = issue.IssueTypeID
+		}
+		// Pending-approval guard: block state changes while an approval is pending
+		if issue.ApprovalStatus != nil && *issue.ApprovalStatus == "pending" {
+			return common.BadRequest("issue_pending_approval")
+		}
 	}
 
 	// Get workspace ID from project for workspace-level workflow lookup
@@ -1652,47 +1658,10 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 			return nil // simple allow, no restriction
 		}
 		if transition.RuleType == "approval" {
-			// Check if the user is an authorized approver
-			if transition.ApproverIDs != nil && *transition.ApproverIDs != "" {
-				allowedIDs := strings.Split(*transition.ApproverIDs, ",")
-				uidStr := fmt.Sprintf("%d", userID)
-				for _, id := range allowedIDs {
-					if strings.TrimSpace(id) == uidStr {
-						return nil // user is an approved approver
-					}
-				}
-			}
-			// Check role-based approval using actual RBAC roles
-			if transition.RoleAllowed != "" {
-				var userRoleLevel int
-				// Check workspace member role
-				var member struct {
-					Role int
-				}
-				if err := db.Raw("SELECT role FROM workspace_members WHERE user_id = ? AND workspace_id = (SELECT workspace_id FROM projects WHERE id = ?) LIMIT 1",
-					userID, projectID).Scan(&member).Error; err == nil {
-					userRoleLevel = member.Role
-				}
-				// Check project member role (may override workspace role)
-				var prjMember struct {
-					Role int
-				}
-				if err := db.Raw("SELECT role FROM project_members WHERE user_id = ? AND project_id = ? LIMIT 1",
-					userID, projectID).Scan(&prjMember).Error; err == nil && prjMember.Role > userRoleLevel {
-					userRoleLevel = prjMember.Role
-				}
-				// Get the role level for the allowed role name
-				var allowedRole struct {
-					Level int
-				}
-				if err := db.Raw("SELECT level FROM roles WHERE name = ? AND workspace_id IS NULL LIMIT 1",
-					transition.RoleAllowed).Scan(&allowedRole).Error; err == nil {
-					if userRoleLevel >= allowedRole.Level {
-						return nil
-					}
-				}
-			}
-			return common.BadRequest("Approval required: you are not authorized to approve this transition")
+			// Approval flow: signal to caller that approval is required.
+			// The caller (handler) should return HTTP 409 so the frontend can
+			// open the approval submit dialog.
+			return common.NewApprovalRequiredError(transition.ID, oldStateID, newStateID)
 		}
 		return nil // unknown rule_type, allow
 	}

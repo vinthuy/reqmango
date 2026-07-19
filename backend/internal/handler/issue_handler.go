@@ -267,6 +267,16 @@ func (h *IssueHandler) Update(c *gin.Context) {
 
 	resp, svcErr := h.svc.Update(issueID, &req, user.ID)
 	if svcErr != nil {
+		// Catch approval-required errors and return HTTP 409 with transition info
+		if are, ok := svcErr.(*common.ApprovalRequiredError); ok {
+			c.JSON(http.StatusConflict, gin.H{
+				"message":         "approval_required",
+				"transition_id":   are.TransitionID,
+				"source_state_id": are.SourceStateID,
+				"target_state_id": are.TargetStateID,
+			})
+			return
+		}
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
@@ -471,6 +481,16 @@ func (h *IssueHandler) BulkUpdate(c *gin.Context) {
 
 	results, svcErr := h.svc.BulkUpdate(projectID, &req, user.ID)
 	if svcErr != nil {
+		// Catch approval-required errors and return HTTP 409 with transition info
+		if are, ok := svcErr.(*common.ApprovalRequiredError); ok {
+			c.JSON(http.StatusConflict, gin.H{
+				"message":         "approval_required",
+				"transition_id":   are.TransitionID,
+				"source_state_id": are.SourceStateID,
+				"target_state_id": are.TargetStateID,
+			})
+			return
+		}
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return

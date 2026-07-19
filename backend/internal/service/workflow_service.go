@@ -44,7 +44,7 @@ func (s *WorkflowService) List(pid uint64) ([]response.WorkflowResponse, error) 
 		isInherited := w.ProjectID == nil
 		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IssueTypeIDs: w.IssueTypeIDs, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0), IsInherited: isInherited}
 		for _, t := range w.Transitions {
-			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
+			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, ApproveTargetStateID: t.ApproveTargetStateID, RejectTargetStateID: t.RejectTargetStateID, ApprovalMode: t.ApprovalMode, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
 		}
 	}
 	if res == nil { res = []response.WorkflowResponse{} }; return res, nil
@@ -56,7 +56,7 @@ func (s *WorkflowService) Get(id uint64) (*response.WorkflowResponse, error) {
 	if w.ProjectID != nil { projectID = *w.ProjectID }
 	r := &response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IssueTypeIDs: w.IssueTypeIDs, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
 	for _, t := range w.Transitions {
-		r.Transitions = append(r.Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
+		r.Transitions = append(r.Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, ApproveTargetStateID: t.ApproveTargetStateID, RejectTargetStateID: t.RejectTargetStateID, ApprovalMode: t.ApprovalMode, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
 	}
 	return r, nil
 }
@@ -90,7 +90,7 @@ func (s *WorkflowService) ListWorkspace(wid uint64) ([]response.WorkflowResponse
 		if w.ProjectID != nil { projectID = *w.ProjectID }
 		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IssueTypeIDs: w.IssueTypeIDs, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
 		for _, t := range w.Transitions {
-			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
+			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, ApproveTargetStateID: t.ApproveTargetStateID, RejectTargetStateID: t.RejectTargetStateID, ApprovalMode: t.ApprovalMode, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
 		}
 	}
 	if res == nil { res = []response.WorkflowResponse{} }; return res, nil
@@ -122,11 +122,29 @@ func (s *WorkflowService) AddTransition(wid uint64, req request.TransitionCreate
 		SourceStateID: req.FromStateID, TargetStateID: req.ToStateID,
 		Description: &req.Description, RuleType: req.RuleType,
 		ApproverIDs: req.ApproverIDs, RoleAllowed: req.RoleAllowed,
+		ApproveTargetStateID: req.ApproveTargetStateID,
+		RejectTargetStateID:  req.RejectTargetStateID,
 		ProjectID: projectIDPtr, WorkspaceID: fs.WorkspaceID,
 	}
 	if t.RuleType == "" { t.RuleType = "allow" }
+	if req.ApprovalMode != "" {
+		t.ApprovalMode = req.ApprovalMode
+	} else {
+		t.ApprovalMode = "any"
+	}
 	if err := s.db.Create(&t).Error; err != nil { return nil, common.Internal("Failed to add transition") }
-	return &response.TransitionResponse{ID: t.ID, WorkflowID: wid, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, SourceName: fs.Name, TargetName: ts.Name}, nil
+	// Load approve/reject target state names if set
+	var approveState, rejectState model.State
+	if t.ApproveTargetStateID != nil { s.db.First(&approveState, *t.ApproveTargetStateID) }
+	if t.RejectTargetStateID != nil { s.db.First(&rejectState, *t.RejectTargetStateID) }
+	return &response.TransitionResponse{
+		ID: t.ID, WorkflowID: wid, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID,
+		Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed,
+		ApproveTargetStateID: t.ApproveTargetStateID, ApproveStateName: approveState.Name,
+		RejectTargetStateID:  t.RejectTargetStateID,  RejectStateName:  rejectState.Name,
+		ApprovalMode: t.ApprovalMode,
+		SourceName: fs.Name, TargetName: ts.Name,
+	}, nil
 }
 func (s *WorkflowService) UpdateTransition(id uint64, req request.TransitionUpdate) (*response.TransitionResponse, error) {
 	var t model.StateTransition
@@ -135,8 +153,21 @@ func (s *WorkflowService) UpdateTransition(id uint64, req request.TransitionUpda
 	if req.RuleType != nil { t.RuleType = *req.RuleType }
 	if req.ApproverIDs != nil { t.ApproverIDs = req.ApproverIDs }
 	if req.RoleAllowed != nil { t.RoleAllowed = *req.RoleAllowed }
+	if req.ApproveTargetStateID != nil { t.ApproveTargetStateID = req.ApproveTargetStateID }
+	if req.RejectTargetStateID != nil { t.RejectTargetStateID = req.RejectTargetStateID }
+	if req.ApprovalMode != nil { t.ApprovalMode = *req.ApprovalMode }
 	s.db.Save(&t)
-	return &response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed}, nil
+	// Load approve/reject target state names if set
+	var approveState, rejectState model.State
+	if t.ApproveTargetStateID != nil { s.db.First(&approveState, *t.ApproveTargetStateID) }
+	if t.RejectTargetStateID != nil { s.db.First(&rejectState, *t.RejectTargetStateID) }
+	return &response.TransitionResponse{
+		ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID,
+		Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed,
+		ApproveTargetStateID: t.ApproveTargetStateID, ApproveStateName: approveState.Name,
+		RejectTargetStateID:  t.RejectTargetStateID,  RejectStateName:  rejectState.Name,
+		ApprovalMode: t.ApprovalMode,
+	}, nil
 }
 func (s *WorkflowService) DeleteTransition(id uint64) error { return s.db.Delete(&model.StateTransition{}, id).Error }
 

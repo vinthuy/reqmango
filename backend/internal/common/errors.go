@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -31,13 +32,13 @@ func NewErrorDetail(code ErrorCode, msg, detail string) *AppError {
 	return &AppError{Code: code.HTTPStatus(), ErrorCode: code, Message: msg, Detail: detail}
 }
 
-func NotFound(msg string) *AppError          { return NewError(ErrNotFound, msg) }
-func Conflict(msg string) *AppError          { return NewError(ErrConflict, msg) }
-func Unauthorized(msg string) *AppError      { return NewError(ErrUnauthorized, msg) }
-func Forbidden(msg string) *AppError         { return NewError(ErrForbidden, msg) }
-func Validation(msg string) *AppError        { return NewError(ErrValidation, msg) }
-func Internal(msg string) *AppError          { return NewError(ErrInternal, msg) }
-func BadRequest(msg string) *AppError        { return NewError(ErrBadRequest, msg) }
+func NotFound(msg string) *AppError     { return NewError(ErrNotFound, msg) }
+func Conflict(msg string) *AppError     { return NewError(ErrConflict, msg) }
+func Unauthorized(msg string) *AppError { return NewError(ErrUnauthorized, msg) }
+func Forbidden(msg string) *AppError    { return NewError(ErrForbidden, msg) }
+func Validation(msg string) *AppError   { return NewError(ErrValidation, msg) }
+func Internal(msg string) *AppError     { return NewError(ErrInternal, msg) }
+func BadRequest(msg string) *AppError   { return NewError(ErrBadRequest, msg) }
 
 // ProjectNotFound etc.
 func ProjectNotFound() *AppError    { return NewError(ErrProjectNotFound, "Project not found") }
@@ -55,51 +56,55 @@ func ViewNotFound() *AppError       { return NewError(ErrViewNotFound, "Saved vi
 func CommentNotFound() *AppError    { return NewError(ErrCommentNotFound, "Comment not found") }
 func AttachmentNotFound() *AppError { return NewError(ErrAttachmentNotFound, "Attachment not found") }
 func TimeEntryNotFound() *AppError  { return NewError(ErrTimeEntryNotFound, "Time entry not found") }
-func RecurrenceNotFound() *AppError { return NewError(ErrRecurrenceNotFound, "Recurrence rule not found") }
-func NotificationNotFound() *AppError { return NewError(ErrNotificationNotFound, "Notification not found") }
-func AgentNotFound() *AppError          { return NewError(ErrAgentNotFound, "Agent not found") }
-func DashboardNotFound() *AppError     { return NewError(ErrDashboardNotFound, "Dashboard not found") }
+func RecurrenceNotFound() *AppError {
+	return NewError(ErrRecurrenceNotFound, "Recurrence rule not found")
+}
+func NotificationNotFound() *AppError {
+	return NewError(ErrNotificationNotFound, "Notification not found")
+}
+func AgentNotFound() *AppError     { return NewError(ErrAgentNotFound, "Agent not found") }
+func DashboardNotFound() *AppError { return NewError(ErrDashboardNotFound, "Dashboard not found") }
 
 // ==================== Standard Response Helpers ====================
 
 var localizedErrorCodes = map[ErrorCode]bool{
-	ErrProjectNotFound:    true,
-	ErrIssueNotFound:      true,
-	ErrUserNotFound:       true,
-	ErrWorkspaceNotFound:  true,
-	ErrPageNotFound:       true,
-	ErrCycleNotFound:      true,
-	ErrModuleNotFound:     true,
-	ErrStateNotFound:      true,
-	ErrLabelNotFound:      true,
-	ErrReleaseNotFound:    true,
-	ErrTemplateNotFound:   true,
-	ErrViewNotFound:       true,
-	ErrCommentNotFound:    true,
-	ErrAttachmentNotFound: true,
-	ErrTimeEntryNotFound:  true,
-	ErrRecurrenceNotFound: true,
+	ErrProjectNotFound:      true,
+	ErrIssueNotFound:        true,
+	ErrUserNotFound:         true,
+	ErrWorkspaceNotFound:    true,
+	ErrPageNotFound:         true,
+	ErrCycleNotFound:        true,
+	ErrModuleNotFound:       true,
+	ErrStateNotFound:        true,
+	ErrLabelNotFound:        true,
+	ErrReleaseNotFound:      true,
+	ErrTemplateNotFound:     true,
+	ErrViewNotFound:         true,
+	ErrCommentNotFound:      true,
+	ErrAttachmentNotFound:   true,
+	ErrTimeEntryNotFound:    true,
+	ErrRecurrenceNotFound:   true,
 	ErrNotificationNotFound: true,
-	ErrAgentNotFound:       true,
-	ErrDashboardNotFound:   true,
-	ErrAlreadyExists:       true,
-	ErrAlreadyAssigned:     true,
-	ErrAlreadyLabelled:     true,
-	ErrSelfReference:      true,
-	ErrMaxDepthExceeded:    true,
-	ErrStateTransition:     true,
-	ErrWorkflowViolation:   true,
-	ErrDuplicateEntry:     true,
-	ErrTimerRunning:       true,
-	ErrAIConfigMissing:    true,
-	ErrAIAPIFailure:       true,
-	ErrAITimeout:          true,
-	ErrAIQuotaExceeded:    true,
-	ErrRequiredField:      true,
-	ErrInvalidFormat:      true,
-	ErrInvalidValue:       true,
-	ErrUnauthorized:       true,
-	ErrForbidden:          true,
+	ErrAgentNotFound:        true,
+	ErrDashboardNotFound:    true,
+	ErrAlreadyExists:        true,
+	ErrAlreadyAssigned:      true,
+	ErrAlreadyLabelled:      true,
+	ErrSelfReference:        true,
+	ErrMaxDepthExceeded:     true,
+	ErrStateTransition:      true,
+	ErrWorkflowViolation:    true,
+	ErrDuplicateEntry:       true,
+	ErrTimerRunning:         true,
+	ErrAIConfigMissing:      true,
+	ErrAIAPIFailure:         true,
+	ErrAITimeout:            true,
+	ErrAIQuotaExceeded:      true,
+	ErrRequiredField:        true,
+	ErrInvalidFormat:        true,
+	ErrInvalidValue:         true,
+	ErrUnauthorized:         true,
+	ErrForbidden:            true,
 }
 
 func RespondError(c *gin.Context, err error) {
@@ -114,14 +119,16 @@ func RespondError(c *gin.Context, err error) {
 		return
 	}
 	c.JSON(http.StatusInternalServerError, AppError{
-		Code:  500,
+		Code:      500,
 		ErrorCode: ErrInternal,
 		Message:   "Internal server error",
 	})
 }
 
 func getLang(c *gin.Context) string {
-	if l, exists := c.Get("lang"); exists { return l.(string) }
+	if l, exists := c.Get("lang"); exists {
+		return l.(string)
+	}
 	return "zh"
 }
 
@@ -133,4 +140,25 @@ func RespondOK(c *gin.Context, data interface{}) {
 // RespondCreated writes a 201 response.
 func RespondCreated(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusCreated, data)
+}
+
+// ApprovalRequiredError signals that the requested state change requires approval.
+// The caller should return HTTP 409 with the transition_id so the frontend can
+// open the approval submit dialog.
+type ApprovalRequiredError struct {
+	TransitionID  uint64
+	SourceStateID uint64
+	TargetStateID uint64
+}
+
+func (e *ApprovalRequiredError) Error() string {
+	return fmt.Sprintf("approval_required: transition_id=%d", e.TransitionID)
+}
+
+func NewApprovalRequiredError(transitionID, sourceStateID, targetStateID uint64) *ApprovalRequiredError {
+	return &ApprovalRequiredError{
+		TransitionID:  transitionID,
+		SourceStateID: sourceStateID,
+		TargetStateID: targetStateID,
+	}
 }
