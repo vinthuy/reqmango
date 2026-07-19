@@ -2160,7 +2160,17 @@
     "issueType": "Issue Type",
     "issueTypeDesc": "Bind issue types in this project. The workflow applies only to selected types; empty means universal.",
     "noIssueType": "None (Universal)",
-    "noIssueTypeSelected": "No issue types selected (Universal)"
+    "noIssueTypeSelected": "No issue types selected (Universal)",
+    "approveTargetState": "Approve target state",
+    "rejectTargetState": "Reject target state",
+    "approvalMode": "Approval mode",
+    "approvalModeAny": "Any approver can decide",
+    "approvalModeAll": "All approvers must approve (coming soon)",
+    "approvalFlowHint": "Configure target states after approval and rejection. Empty defaults: approve uses target state, reject uses source state.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approvePath": "Approve path",
+    "rejectPath": "Reject path"
   },
   "language": {
     "switchToEn": "Switch to Chinese",

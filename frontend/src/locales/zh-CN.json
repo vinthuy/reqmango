@@ -2158,7 +2158,17 @@
     "issueType": "关联类型",
     "issueTypeDesc": "绑定项目下的工作项类型，此工作流将仅对所选类型生效；不选则表示通用。",
     "noIssueType": "不关联（通用）",
-    "noIssueTypeSelected": "尚未选择任何工作项类型（表示通用）"
+    "noIssueTypeSelected": "尚未选择任何工作项类型（表示通用）",
+    "approveTargetState": "批准后跳转状态",
+    "rejectTargetState": "拒绝后跳转状态",
+    "approvalMode": "审批模式",
+    "approvalModeAny": "任一审批人决定",
+    "approvalModeAll": "全部审批人决定（即将上线）",
+    "approvalFlowHint": "配置审批通过和拒绝后工作项的目标状态。留空则批准使用目标状态、拒绝使用起始状态。",
+    "approve": "批准",
+    "reject": "拒绝",
+    "approvePath": "批准路径",
+    "rejectPath": "拒绝路径"
   },
   "language": {
     "switchToEn": "切换到中文",
