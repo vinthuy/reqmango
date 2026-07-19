@@ -88,6 +88,7 @@ export enum ActionTypeEnum {
   CLOSE = 'close',
   DISPATCH_AGENT = 'dispatch_agent',
   CALL_WEBHOOK = 'call_webhook',
+  ROLLUP_TO_PARENT = 'rollup_to_parent',
 }
 
 export const ActionTypeOptions = [
@@ -99,6 +100,7 @@ export const ActionTypeOptions = [
   { value: 'set_field', label: '设置字段', icon: '📝' },
   { value: 'dispatch_agent', label: '调度 Agent', icon: '🤖' },
   { value: 'call_webhook', label: '调用 Webhook', icon: '🔗' },
+  { value: 'rollup_to_parent', label: '状态卷积到父级', icon: '⬆️' },
 ]
 
 // ==================== State Transition ====================
@@ -273,6 +275,7 @@ export function getActionDisplayName(actionType: ActionTypeEnum): string {
     [ActionTypeEnum.CLOSE]: '关闭',
     [ActionTypeEnum.DISPATCH_AGENT]: '调度 Agent',
     [ActionTypeEnum.CALL_WEBHOOK]: '调用 Webhook',
+    [ActionTypeEnum.ROLLUP_TO_PARENT]: '状态卷积到父级',
   }
   return names[actionType] || actionType
 }
@@ -332,6 +335,7 @@ export function getActionIcon(actionType: ActionTypeEnum): string {
     [ActionTypeEnum.CLOSE]: 'x-circle',
     [ActionTypeEnum.DISPATCH_AGENT]: 'zap',
     [ActionTypeEnum.CALL_WEBHOOK]: 'link',
+    [ActionTypeEnum.ROLLUP_TO_PARENT]: 'corner-right-up',
   }
   return icons[actionType] || 'zap'
 }

@@ -276,6 +276,7 @@
                   <option value="add_comment">{{ t('automationBuilder.addComment') }}</option>
                   <option value="set_field">{{ t('automationBuilder.setField') }}</option>
                   <option value="call_webhook">{{ t('automationBuilder.callWebhook') }}</option>
+                  <option value="rollup_to_parent">{{ t('automationBuilder.rollupToParent') }}</option>
                 </select>
                 <template v-if="action.type === 'change_state' || action.type === 'set_priority' || action.type === 'assign_to'">
                   <select
@@ -483,6 +484,46 @@
                   @change="updateWebhookValue(index)"
                 />
                 <p class="text-xs text-gray-400">{{ t('automationBuilder.webhookVarsHint') }}</p>
+              </div>
+              <div v-if="action.type === 'rollup_to_parent'" class="mt-3 space-y-2">
+                <p class="text-xs text-gray-500 font-medium">{{ t('automationBuilder.rollupRules') }}</p>
+                <div
+                  v-for="(rule, ri) in (action.value?.rules || [])"
+                  :key="ri"
+                  class="flex items-center gap-2"
+                >
+                  <select
+                    v-model="rule.condition"
+                    class="px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="all">{{ t('automationBuilder.rollupAll') }}</option>
+                    <option value="any">{{ t('automationBuilder.rollupAny') }}</option>
+                  </select>
+                  <span class="text-xs text-gray-400">{{ t('automationBuilder.rollupChildrenAre') }}</span>
+                  <select
+                    v-model="rule.child_state"
+                    class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="" disabled>{{ t('automationBuilder.selectState') }}</option>
+                    <option v-for="s in states" :key="s.id" :value="s.name">{{ s.name }}</option>
+                  </select>
+                  <span class="text-xs text-gray-400">→</span>
+                  <select
+                    v-model="rule.parent_state"
+                    class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="" disabled>{{ t('automationBuilder.rollupSetParentTo') }}</option>
+                    <option v-for="s in states" :key="s.id" :value="s.name">{{ s.name }}</option>
+                  </select>
+                  <button
+                    @click="removeRollupRule(index, ri)"
+                    class="text-gray-400 hover:text-red-500 text-xs"
+                  >✕</button>
+                </div>
+                <button
+                  @click="addRollupRule(index)"
+                  class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                >+ {{ t('automationBuilder.rollupAddRule') }}</button>
               </div>
             </div>
             <div v-if="form.actions.length > 0" class="flex items-center justify-center text-gray-400 text-sm">
@@ -816,6 +857,11 @@ watch(() => form.value.actions, (actions) => {
     if (action.type === 'call_webhook') {
       initWebhookCache(index)
     }
+    if (action.type === 'rollup_to_parent') {
+      if (!action.value || typeof action.value !== 'object' || !Array.isArray((action.value as any).rules)) {
+        action.value = { rules: [] }
+      }
+    }
   })
 }, { deep: true })
 
@@ -833,6 +879,21 @@ function addAction() {
 
 function removeAction(index: number) {
   form.value.actions.splice(index, 1)
+}
+
+function addRollupRule(actionIndex: number) {
+  const action = form.value.actions[actionIndex]
+  if (!action) return
+  if (!action.value || typeof action.value !== 'object' || !Array.isArray((action.value as any).rules)) {
+    action.value = { rules: [] }
+  }
+  ;(action.value as any).rules.push({ condition: 'all', child_state: '', parent_state: '' })
+}
+
+function removeRollupRule(actionIndex: number, ruleIndex: number) {
+  const action = form.value.actions[actionIndex]
+  if (!action || !action.value || !Array.isArray((action.value as any).rules)) return
+  ;(action.value as any).rules.splice(ruleIndex, 1)
 }
 
 async function handleSubmit() {

@@ -384,6 +384,28 @@
             <template v-else-if="action.type === 'dispatch_agent'">
               <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.agentNamePlaceholder')" />
             </template>
+            <template v-else-if="action.type === 'rollup_to_parent'">
+              <div class="space-y-2">
+                <div v-for="(rule, ri) in (action.value?.rules || [])" :key="ri" class="flex items-center gap-1">
+                  <select v-model="rule.condition" class="px-2 py-1.5 border border-gray-200 rounded text-xs">
+                    <option value="all">{{ t('automationBuilder.rollupAll') }}</option>
+                    <option value="any">{{ t('automationBuilder.rollupAny') }}</option>
+                  </select>
+                  <span class="text-xs text-gray-400">{{ t('automationBuilder.rollupChildrenAre') }}</span>
+                  <select v-model="rule.child_state" class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs">
+                    <option value="" disabled>{{ t('automationForm.selectState') }}</option>
+                    <option v-for="s in states" :key="s.id" :value="s.name">{{ s.name }}</option>
+                  </select>
+                  <span class="text-xs text-gray-400">→</span>
+                  <select v-model="rule.parent_state" class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs">
+                    <option value="" disabled>{{ t('automationBuilder.rollupSetParentTo') }}</option>
+                    <option v-for="s in states" :key="s.id" :value="s.name">{{ s.name }}</option>
+                  </select>
+                  <button @click="removeRollupRule(index, ri)" class="text-gray-400 hover:text-red-500 text-xs">✕</button>
+                </div>
+                <button @click="addRollupRule(index)" class="text-xs text-blue-600 hover:text-blue-800">+ {{ t('automationBuilder.rollupAddRule') }}</button>
+              </div>
+            </template>
             <template v-else>
               <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.value')" />
             </template>
@@ -569,10 +591,15 @@ function loadAutomationData() {
         ? (typeof props.automation.actions === 'string' ? JSON.parse(props.automation.actions) : props.automation.actions)
         : [];
       actions.value = Array.isArray(acts) && acts.length > 0 ? acts : [{ type: '', field: '', value: '' }];
-      // 初始化 webhook 缓存
+      // 初始化 webhook 缓存和 rollup 规则
       actions.value.forEach((action, index) => {
         if (action.type === 'call_webhook') {
           initWebhookCache(index);
+        }
+        if (action.type === 'rollup_to_parent') {
+          if (!action.value || typeof action.value !== 'object' || !Array.isArray(action.value.rules)) {
+            action.value = { rules: [] }
+          }
         }
       });
     } catch {
@@ -612,6 +639,21 @@ function removeAction(index: number) {
   delete webhookMethodCache.value[index];
   delete webhookHeadersCache.value[index];
   delete webhookBodyCache.value[index];
+}
+
+function addRollupRule(actionIndex: number) {
+  const action = actions.value[actionIndex]
+  if (!action) return
+  if (!action.value || typeof action.value !== 'object' || !Array.isArray(action.value.rules)) {
+    action.value = { rules: [] }
+  }
+  action.value.rules.push({ condition: 'all', child_state: '', parent_state: '' })
+}
+
+function removeRollupRule(actionIndex: number, ruleIndex: number) {
+  const action = actions.value[actionIndex]
+  if (!action || !action.value || !Array.isArray(action.value.rules)) return
+  action.value.rules.splice(ruleIndex, 1)
 }
 
 // ====== set_field helpers ======

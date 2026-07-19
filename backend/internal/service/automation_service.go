@@ -351,6 +351,7 @@ func (e *DefaultActionExecutor) registerBuiltinActions() {
 	e.RegisterAction("close", handleClose)
 	e.RegisterAction("dispatch_agent", e.handleDispatchAgent)
 	e.RegisterAction("call_webhook", e.handleCallWebhook)
+	e.RegisterAction("rollup_to_parent", e.handleRollupToParent)
 }
 
 func (e *DefaultActionExecutor) RegisterAction(actionType string, handler ActionHandler) {
@@ -725,6 +726,138 @@ func handleClose(action Action, context map[string]interface{}, db *gorm.DB) err
 		"state_id":     closedState.ID,
 		"completed_at": now,
 	}).Error
+}
+
+// handleRollupToParent 状态卷积：将子工作项状态聚合到父工作项
+func (e *DefaultActionExecutor) handleRollupToParent(action Action, context map[string]interface{}, db *gorm.DB) error {
+	issueID, ok := context["issue_id"].(uint64)
+	if !ok {
+		return fmt.Errorf("missing issue_id in context")
+	}
+
+	var issue model.Issue
+	if err := db.First(&issue, issueID).Error; err != nil {
+		return fmt.Errorf("issue %d not found: %w", issueID, err)
+	}
+
+	if issue.ParentID == nil {
+		return nil // root issue, nothing to rollup
+	}
+
+	// Parse rules from action Value
+	configMap, ok := action.Value.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("rollup_to_parent requires config map as value")
+	}
+	rulesRaw, ok := configMap["rules"]
+	if !ok {
+		return fmt.Errorf("rollup_to_parent config missing 'rules' array")
+	}
+	rules, ok := rulesRaw.([]interface{})
+	if !ok || len(rules) == 0 {
+		return fmt.Errorf("rollup_to_parent rules must be a non-empty array")
+	}
+
+	// Get all children of the parent
+	var allChildren []model.Issue
+	if err := db.Where("parent_id = ?", *issue.ParentID).Find(&allChildren).Error; err != nil {
+		return fmt.Errorf("failed to query children: %w", err)
+	}
+	totalCount := len(allChildren)
+
+	// Evaluate rules top-to-bottom, first match wins
+	for _, ruleRaw := range rules {
+		rule, ok := ruleRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		condition, _ := rule["condition"].(string)
+		if condition == "" || rule["child_state"] == nil || rule["parent_state"] == nil {
+			continue
+		}
+
+		childStateID, err := resolveStateID(db, rule["child_state"], issue.ProjectID)
+		if err != nil {
+			log.Printf("[RollupToParent] Failed to resolve child_state: %v", err)
+			continue
+		}
+		parentStateID, err := resolveStateID(db, rule["parent_state"], issue.ProjectID)
+		if err != nil {
+			log.Printf("[RollupToParent] Failed to resolve parent_state: %v", err)
+			continue
+		}
+
+		// Count children in target state
+		matchCount := 0
+		for _, child := range allChildren {
+			if child.StateID == childStateID {
+				matchCount++
+			}
+		}
+
+		var matched bool
+		switch condition {
+		case "all":
+			matched = matchCount == totalCount && totalCount > 0
+		case "any":
+			matched = matchCount > 0
+		default:
+			log.Printf("[RollupToParent] Unknown condition: %s", condition)
+			continue
+		}
+
+		if matched {
+			var parentState model.State
+			if err := db.First(&parentState, parentStateID).Error; err != nil {
+				return fmt.Errorf("parent state %d not found: %w", parentStateID, err)
+			}
+			updateData := map[string]interface{}{"state_id": parentStateID}
+			if parentState.Group == common.StateGroupCompleted {
+				updateData["completed_at"] = time.Now()
+			}
+			if err := db.Model(&model.Issue{}).Where("id = ?", *issue.ParentID).Updates(updateData).Error; err != nil {
+				return fmt.Errorf("failed to update parent state: %w", err)
+			}
+			log.Printf("[RollupToParent] Updated parent %d state to %d (%s) [%s: %d/%d]",
+				*issue.ParentID, parentStateID, parentState.Name, condition, matchCount, totalCount)
+			return nil
+		}
+	}
+
+	return nil
+}
+
+// resolveStateID 将状态引用（名称或ID）解析为 state ID
+func resolveStateID(db *gorm.DB, value interface{}, projectID uint64) (uint64, error) {
+	switch v := value.(type) {
+	case string:
+		var state model.State
+		// 1) Exact match (project-level)
+		if db.Where("project_id = ? AND name = ?", projectID, v).First(&state).Error == nil {
+			return state.ID, nil
+		}
+		// 2) Exact match (workspace-level)
+		if db.Where("project_id IS NULL AND name = ?", v).First(&state).Error == nil {
+			return state.ID, nil
+		}
+		// 3) Fuzzy match: name LIKE '%value%' (project-level)
+		if db.Where("project_id = ? AND name LIKE ?", projectID, "%"+v+"%").First(&state).Error == nil {
+			return state.ID, nil
+		}
+		// 4) Fuzzy match: name LIKE '%value%' (workspace-level)
+		if db.Where("project_id IS NULL AND name LIKE ?", "%"+v+"%").First(&state).Error == nil {
+			return state.ID, nil
+		}
+		return 0, fmt.Errorf("state '%s' not found", v)
+	case float64:
+		return uint64(v), nil
+	default:
+		id, ok := toUint64(v)
+		if !ok {
+			return 0, fmt.Errorf("cannot resolve state from %v", v)
+		}
+		return id, nil
+	}
 }
 
 // ======== 重构后的 AutomationService ========

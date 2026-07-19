@@ -1813,6 +1813,9 @@ func (s *IssueService) runAutomations(issueID uint64, triggerType string, contex
 	context["issue_id"] = issueID
 	context["project_id"] = issue.ProjectID
 	context["state_id"] = issue.StateID
+	if issue.ParentID != nil {
+		context["parent_id"] = *issue.ParentID
+	}
 	context["priority"] = issue.Priority
 	context["title"] = issue.Name
 	context["description"] = issue.DescriptionHTML
