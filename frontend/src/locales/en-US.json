@@ -496,9 +496,11 @@
       "issue_created": "Issue Created",
       "issue_updated": "Issue Updated",
       "state_changed": "State Changed",
+      "issue_state_changed": "State Changed",
       "assignee_changed": "Assignee Changed",
       "comment_added": "Comment Added",
-      "scheduled": "Scheduled"
+      "scheduled": "Scheduled",
+      "issue_state_changed": "State Changed"
     },
     "none": "None",
     "current": "Current",
@@ -1246,6 +1248,7 @@
       "issue_created": "Issue Created",
       "issue_updated": "Issue Updated",
       "state_changed": "State Changed",
+      "issue_state_changed": "State Changed",
       "assignee_changed": "Assignee Changed",
       "comment_added": "Comment Added",
       "scheduled": "Scheduled"
