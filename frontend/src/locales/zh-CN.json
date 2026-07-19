@@ -221,7 +221,11 @@
     "description": "描述",
     "created": "创建",
     "createdIssue": "创建了工作项",
-    "updated": "更新了"
+    "updated": "更新了",
+    "approvalSubmitted": "提交了审批申请",
+    "approvalApproved": "批准了审批",
+    "approvalRejected": "拒绝了审批",
+    "approvalCancelled": "撤销了审批申请"
   },
   "cycle": {
     "create": "创建新周期",

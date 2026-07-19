@@ -221,7 +221,11 @@
     "description": "Description",
     "created": "Created",
     "createdIssue": "Created issue",
-    "updated": "Updated"
+    "updated": "Updated",
+    "approvalSubmitted": "submitted an approval request",
+    "approvalApproved": "approved the request",
+    "approvalRejected": "rejected the request",
+    "approvalCancelled": "cancelled the approval request"
   },
   "cycle": {
     "create": "Create Cycle",

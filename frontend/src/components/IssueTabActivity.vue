@@ -151,6 +151,10 @@ function getActorInitial(activity: Activity): string {
 
 // Activity type colors
 function getActivityColor(activity: Activity): string {
+  if (activity.verb === 'approval_submitted') return '#f59e0b'
+  if (activity.verb === 'approval_approved') return '#10b981'
+  if (activity.verb === 'approval_rejected') return '#ef4444'
+  if (activity.verb === 'approval_cancelled') return '#94a3b8'
   if (activity.verb === 'created') return '#10b981'
   if (activity.verb === 'moved' || activity.verb === 'converted' || activity.verb === 'merged') return '#06b6d4'
   if (activity.verb === 'relation_added') return '#6366f1'
@@ -169,6 +173,10 @@ function getActivityColor(activity: Activity): string {
 }
 
 function getActivityRingColor(activity: Activity): string {
+  if (activity.verb === 'approval_submitted') return 'ring-amber-200'
+  if (activity.verb === 'approval_approved') return 'ring-green-200'
+  if (activity.verb === 'approval_rejected') return 'ring-red-200'
+  if (activity.verb === 'approval_cancelled') return 'ring-gray-200'
   if (activity.verb === 'created') return 'ring-green-200'
   if (activity.verb === 'relation_added' || activity.verb === 'relation_removed') return 'ring-indigo-200'
   if (activity.verb === 'moved' || activity.verb === 'converted' || activity.verb === 'merged') return 'ring-cyan-200'
@@ -199,6 +207,10 @@ function getActivityMessage(activity: Activity): string {
     case 'moved': return t('activity.moved')
     case 'converted': return t('activity.converted')
     case 'merged': return t('activity.merged')
+    case 'approval_submitted': return t('activity.approvalSubmitted')
+    case 'approval_approved': return t('activity.approvalApproved')
+    case 'approval_rejected': return t('activity.approvalRejected')
+    case 'approval_cancelled': return t('activity.approvalCancelled')
     default: return t('activity.updated')
   }
 }
