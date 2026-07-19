@@ -21,6 +21,7 @@ func SeedAll(db *gorm.DB) {
 	SeedDemoData(db)
 	SeedConfigData(db)
 	SeedIssueTypesForAllWorkspaces(db)
+	SeedRelationTypesForAllWorkspaces(db)
 	BackfillIssueTypeIDs(db)
 	SeedSearchTemplates(db)
 
@@ -1377,4 +1378,29 @@ func SeedIssueTypesForAllWorkspaces(db *gorm.DB) {
 		db.Create(&spike)
 	}
 	fmt.Println("Seeded issue types for all workspaces")
+}
+
+// SeedRelationTypesForAllWorkspaces ensures every workspace has default relation
+// types so that issue relations can reference them out of the box.
+func SeedRelationTypesForAllWorkspaces(db *gorm.DB) {
+	var workspaces []model.Workspace
+	db.Find(&workspaces)
+	for _, ws := range workspaces {
+		var count int64
+		db.Model(&model.RelationType{}).Where("workspace_id = ?", ws.ID).Count(&count)
+		if count > 0 {
+			continue
+		}
+		relTypes := []model.RelationType{
+			{Name: "阻塞", InwardName: "被阻塞于", OutwardName: "阻塞", WorkspaceID: ws.ID},
+			{Name: "关联", InwardName: "关联到", OutwardName: "被关联于", WorkspaceID: ws.ID},
+			{Name: "重复", InwardName: "重复于", OutwardName: "被重复于", WorkspaceID: ws.ID},
+			{Name: "父子", InwardName: "子任务", OutwardName: "父任务", WorkspaceID: ws.ID},
+			{Name: "依赖", InwardName: "依赖于", OutwardName: "被依赖于", WorkspaceID: ws.ID},
+		}
+		for _, r := range relTypes {
+			db.Create(&r)
+		}
+	}
+	fmt.Println("Seeded relation types for all workspaces")
 }

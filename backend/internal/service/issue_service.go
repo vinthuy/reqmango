@@ -77,12 +77,44 @@ func validateLabelsBelongToProject(db *gorm.DB, labelIDs []uint64, projectID uin
 	return nil
 }
 
+// validateTypeVisibleInProject checks that the given issue type ID belongs to
+// the workspace and is visible in the project (either project-private or imported).
+func (s *IssueService) validateTypeVisibleInProject(typeID, projectID, workspaceID uint64) error {
+	var t model.IssueType
+	if err := s.db.First(&t, typeID).Error; err != nil {
+		return common.NotFound("Issue type not found")
+	}
+	if t.WorkspaceID != workspaceID {
+		return common.BadRequest("Issue type does not belong to this workspace")
+	}
+	if t.ProjectID != nil {
+		if *t.ProjectID != projectID {
+			return common.BadRequest("Issue type does not belong to this project")
+		}
+		return nil
+	}
+	// Workspace-level type: must be explicitly imported by the project.
+	var imported int64
+	s.db.Model(&model.IssueTypeImport{}).Where("project_id = ? AND workspace_type_id = ?", projectID, typeID).Count(&imported)
+	if imported == 0 {
+		return common.BadRequest("This issue type has not been imported into the project")
+	}
+	return nil
+}
+
 // Create creates a new issue.
 func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, workspaceID, userID uint64) (*response.IssueResponse, error) {
 	// Validate project exists
 	var project model.Project
 	if err := s.db.First(&project, projectID).Error; err != nil {
 		return nil, common.NotFound("Project not found")
+	}
+
+	// Validate issue type is visible in the project
+	if req.TypeID != nil && *req.TypeID > 0 {
+		if err := s.validateTypeVisibleInProject(*req.TypeID, projectID, workspaceID); err != nil {
+			return nil, err
+		}
 	}
 
 	// Get default state if not specified
@@ -749,6 +781,11 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	if req.TypeID != nil && (issue.IssueTypeID == nil || *req.TypeID != *issue.IssueTypeID) {
 		var newType model.IssueType
 		if err := s.db.First(&newType, *req.TypeID).Error; err == nil {
+			// Validate issue type is visible in the project
+			if err := s.validateTypeVisibleInProject(*req.TypeID, issue.ProjectID, issue.WorkspaceID); err != nil {
+				tx.Rollback()
+				return nil, err
+			}
 			// Validate: if issue has children, new type's level must = children's level - 1
 			var childCount int64
 			s.db.Model(&model.Issue{}).Where("parent_id = ?", issueID).Count(&childCount)
