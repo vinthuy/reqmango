@@ -40,6 +40,7 @@ const slug = computed(() => (route.params as any).slug as string || '');
 const loading = ref(false);
 const workspaceId = ref(0);
 const firstProjectId = ref(0);
+const workspaceProjects = ref<any[]>([]);
 const activeSection = ref('types');
 
 // ===== Data =====
@@ -77,6 +78,7 @@ async function loadWorkspace() {
     const ws = await workspaceApi.getBySlug(slug.value);
     workspaceId.value = ws.id;
     const projects = await listProjects(ws.id);
+    workspaceProjects.value = projects;
     firstProjectId.value = projects.length > 0 ? projects[0].id : 0;
     await loadAllData();
   } catch (e) { console.error('Failed to load workspace:', e); }
@@ -369,6 +371,8 @@ onMounted(() => { loadWorkspace(); });
             :project-id="firstProjectId"
             :workspace-id="workspaceId"
             :automation="editingAutomation"
+            :projects="workspaceProjects"
+            :scope-enabled="true"
             @submit="handleSaveAutomation"
             @cancel="showAutomationForm = false"
           />

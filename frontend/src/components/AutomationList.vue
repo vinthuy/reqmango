@@ -72,6 +72,35 @@
               {{ getTriggerLabel(automation.trigger_type) }}
             </span>
 
+            <!-- 项目作用域（仅工作区规则） -->
+            <template v-if="automation.project_id === 0 && automation.scope">
+              <span class="text-gray-400">|</span>
+              <span :class="[
+                'inline-flex items-center px-2 py-1 rounded text-xs font-medium',
+                isAllScope(automation.scope) ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'
+              ]">
+                <span class="mr-1">📂</span>
+                {{ formatScope(automation.scope) }}
+              </span>
+            </template>
+
+            <!-- 定时触发器 -->
+            <template v-if="automation.trigger_type === 'scheduled' && automation.schedule_config">
+              <span class="text-gray-400">|</span>
+              <span class="inline-flex items-center px-2 py-1 rounded bg-cyan-50 text-cyan-700">
+                <span class="mr-1">⏱️</span>
+                {{ formatSchedule(automation.schedule_config) }}
+              </span>
+            </template>
+
+            <!-- 继承标记 -->
+            <template v-if="automation.is_inherited">
+              <span class="text-gray-400">|</span>
+              <span class="inline-flex items-center px-2 py-1 rounded bg-yellow-50 text-yellow-700 text-xs">
+                🔗 来自工作区
+              </span>
+            </template>
+
             <!-- 条件 -->
             <template v-if="getConditions(automation).length > 0">
               <span class="text-gray-400">|</span>
@@ -169,6 +198,36 @@ function getActions(automation: any): any[] {
     const parsed = typeof automation.actions === 'string' ? JSON.parse(automation.actions) : automation.actions;
     return Array.isArray(parsed) ? parsed : [];
   } catch { return []; }
+}
+
+function isAllScope(scope: string): boolean {
+  return scope === 'all' || scope === '';
+}
+
+function formatScope(scope: string): string {
+  if (isAllScope(scope)) return '全部项目';
+  try {
+    const ids = JSON.parse(scope);
+    if (Array.isArray(ids)) {
+      return `${ids.length} 个项目`;
+    }
+  } catch { /* ignore */ }
+  return '指定项目';
+}
+
+function formatSchedule(scheduleConfig: string): string {
+  try {
+    const sc = JSON.parse(scheduleConfig);
+    const freqLabels: Record<string, string> = {
+      hourly: '每小时',
+      daily: '每天',
+      weekly: '每周',
+      monthly: '每月',
+    };
+    const freq = freqLabels[sc.frequency] || sc.frequency;
+    if (sc.frequency === 'hourly') return `${freq} 第${sc.minute ?? 0}分`;
+    return `${freq} ${sc.time || ''}`;
+  } catch { return ''; }
 }
 
 function toggleEnabled(automation: any) {

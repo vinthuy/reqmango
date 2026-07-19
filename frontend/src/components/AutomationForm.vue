@@ -25,6 +25,37 @@
       </div>
     </div>
 
+    <!-- 项目作用域（仅工作区级规则显示） -->
+    <div v-if="scopeEnabled" class="mb-6">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+        <span class="text-xl mr-2">📂</span>
+        {{ t('automationForm.projectScope') }}
+        <span class="text-sm font-normal text-gray-500 ml-2">{{ t('automationForm.projectScopeHint') }}</span>
+      </h3>
+      <div class="space-y-2">
+        <label class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg cursor-pointer">
+          <input type="radio" v-model="form.scope" value="all" class="text-blue-600" />
+          <span class="text-sm text-gray-700">{{ t('automationForm.scopeAllProjects') }}</span>
+        </label>
+        <label class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg cursor-pointer">
+          <input type="radio" v-model="form.scope" value="specific" class="text-blue-600" />
+          <span class="text-sm text-gray-700">{{ t('automationForm.scopeSpecificProjects') }}</span>
+        </label>
+        <div v-if="form.scope === 'specific'" class="pl-8 space-y-1">
+          <label v-for="proj in availableProjects" :key="proj.id" class="flex items-center space-x-2 py-1 cursor-pointer">
+            <input
+              type="checkbox"
+              :value="proj.id"
+              v-model="selectedProjectIds"
+              class="text-blue-600 rounded"
+            />
+            <span class="text-sm text-gray-600">{{ proj.name }}</span>
+          </label>
+          <p v-if="availableProjects.length === 0" class="text-sm text-gray-400 italic">{{ t('automationForm.noProjectsAvailable') }}</p>
+        </div>
+      </div>
+    </div>
+
     <!-- 触发器 -->
     <div class="mb-6">
       <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -34,7 +65,7 @@
       </h3>
       <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
         <button
-          v-for="trigger in triggerOptions"
+          v-for="trigger in sortedTriggerOptions"
           :key="trigger.value"
           @click="form.trigger = trigger.value"
           :class="[
@@ -47,6 +78,53 @@
           <span>{{ trigger.icon }}</span>
           <span class="text-sm">{{ trigger.label }}</span>
         </button>
+      </div>
+    </div>
+
+    <!-- 定时触发器配置（仅当选择 scheduled 时显示） -->
+    <div v-if="form.trigger === 'scheduled'" class="mb-6">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+        <span class="text-xl mr-2">⏱️</span>
+        {{ t('automationForm.scheduleConfig') }}
+      </h3>
+      <div class="p-4 bg-blue-50 rounded-lg space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.scheduleFrequency') }}</label>
+          <select v-model="scheduleForm.frequency" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <option value="hourly">{{ t('automationForm.freqHourly') }}</option>
+            <option value="daily">{{ t('automationForm.freqDaily') }}</option>
+            <option value="weekly">{{ t('automationForm.freqWeekly') }}</option>
+            <option value="monthly">{{ t('automationForm.freqMonthly') }}</option>
+          </select>
+        </div>
+        <div v-if="scheduleForm.frequency === 'hourly'">
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.atMinute') }}</label>
+          <select v-model="scheduleForm.minute" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <option :value="0">{{ t('automationForm.minute00') }}</option>
+            <option :value="15">{{ t('automationForm.minute15') }}</option>
+            <option :value="30">{{ t('automationForm.minute30') }}</option>
+            <option :value="45">{{ t('automationForm.minute45') }}</option>
+          </select>
+        </div>
+        <div v-if="scheduleForm.frequency !== 'hourly'">
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.atTime') }}</label>
+          <input v-model="scheduleForm.time" type="time" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+        </div>
+        <div v-if="scheduleForm.frequency === 'weekly'">
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.onDays') }}</label>
+          <div class="flex flex-wrap gap-2">
+            <label v-for="day in weekDays" :key="day.value" class="flex items-center space-x-1 cursor-pointer">
+              <input type="checkbox" :value="day.value" v-model="scheduleForm.days" class="text-blue-600 rounded" />
+              <span class="text-sm text-gray-600">{{ day.label }}</span>
+            </label>
+          </div>
+        </div>
+        <div v-if="scheduleForm.frequency === 'monthly'">
+          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.onDayOfMonth') }}</label>
+          <select v-model="scheduleForm.day" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <option v-for="d in 28" :key="d" :value="d">{{ t('automationForm.dayNumber', { day: d }) }}</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -192,7 +270,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue';
+import { ref, reactive, watch, onMounted, computed } from 'vue';
 import { useI18n } from '@/composables/useI18n';
 import { useToast } from '@/composables/useToast';
 import api from '@/api';
@@ -205,11 +283,23 @@ const props = defineProps<{
   projectId: number;
   workspaceId: number;
   automation?: any;
+  projects?: any[];      // workspace projects for scope selection
+  scopeEnabled?: boolean; // whether to show the project scope selector
 }>();
 
 const emit = defineEmits(['submit', 'cancel']);
 
 const triggerOptions = TriggerTypeOptions;
+
+// Sort triggers so that "scheduled" appears at the end of the event-based triggers section
+const sortedTriggerOptions = computed(() => {
+  return [...triggerOptions].sort((a, b) => {
+    if (a.value === 'scheduled') return 1;
+    if (b.value === 'scheduled') return -1;
+    return 0;
+  });
+});
+
 const stateGroupOptions = StateGroupOptions;
 const priorityOptions = PriorityOptions;
 const operatorOptions = ConditionOperatorOptions;
@@ -225,7 +315,31 @@ const form = reactive({
   name: '',
   description: '',
   trigger: 'issue.created',
+  scope: 'all',
 });
+
+// Project scope multi-select
+const selectedProjectIds = ref<number[]>([]);
+const availableProjects = computed(() => props.projects || []);
+
+// Schedule config
+const scheduleForm = reactive({
+  frequency: 'daily',
+  time: '09:00',
+  minute: 0,
+  days: [] as string[],
+  day: 1,
+});
+
+const weekDays = [
+  { value: 'mon', label: '周一' },
+  { value: 'tue', label: '周二' },
+  { value: 'wed', label: '周三' },
+  { value: 'thu', label: '周四' },
+  { value: 'fri', label: '周五' },
+  { value: 'sat', label: '周六' },
+  { value: 'sun', label: '周日' },
+];
 
 const conditions = ref<any[]>([]);
 const actions = ref<any[]>([]);
@@ -257,6 +371,39 @@ function loadAutomationData() {
     } catch {
       form.trigger = props.automation.trigger_type || 'issue.created'
     }
+
+    // Load scope
+    if (props.automation.scope) {
+      if (props.automation.scope === 'all') {
+        form.scope = 'all';
+      } else {
+        try {
+          const ids = JSON.parse(props.automation.scope);
+          if (Array.isArray(ids) && ids.length > 0) {
+            form.scope = 'specific';
+            selectedProjectIds.value = ids;
+          } else {
+            form.scope = 'all';
+          }
+        } catch {
+          form.scope = 'all';
+        }
+      }
+    } else {
+      form.scope = 'all';
+    }
+
+    // Load schedule config
+    if (props.automation.schedule_config) {
+      try {
+        const sc = JSON.parse(props.automation.schedule_config);
+        scheduleForm.frequency = sc.frequency || 'daily';
+        scheduleForm.time = sc.time || '09:00';
+        scheduleForm.minute = sc.minute || 0;
+        scheduleForm.days = sc.days || [];
+        scheduleForm.day = sc.day || 1;
+      } catch { /* ignore */ }
+    }
     
     // 解析条件
     try {
@@ -280,6 +427,13 @@ function loadAutomationData() {
     form.name = '';
     form.description = '';
     form.trigger = 'issue.created';
+    form.scope = 'all';
+    selectedProjectIds.value = [];
+    scheduleForm.frequency = 'daily';
+    scheduleForm.time = '09:00';
+    scheduleForm.minute = 0;
+    scheduleForm.days = [];
+    scheduleForm.day = 1;
     conditions.value = [];
     actions.value = [{ type: '', field: '', value: '' }];
   }
@@ -311,6 +465,11 @@ function handleSubmit() {
     return;
   }
 
+  if (form.trigger === 'scheduled' && !scheduleForm.time && scheduleForm.frequency !== 'hourly') {
+    toast.warning(t('automationForm.scheduleTimeRequired'));
+    return;
+  }
+
   const validConditions = conditions.value.filter(c => c.field && (c.operator === 'is_empty' || c.operator === 'is_not_empty' || c.value));
   const validActions = actions.value.filter(a => a.type).map(a => {
     const action: any = { type: a.type };
@@ -319,12 +478,38 @@ function handleSubmit() {
     return action;
   });
 
+  // Build scope
+  let scope = 'all';
+  if (props.scopeEnabled && form.scope === 'specific' && selectedProjectIds.value.length > 0) {
+    scope = JSON.stringify(selectedProjectIds.value);
+  }
+
+  // Build schedule_config
+  let scheduleConfig = '';
+  if (form.trigger === 'scheduled') {
+    const sc: any = { frequency: scheduleForm.frequency };
+    if (scheduleForm.frequency === 'hourly') {
+      sc.minute = scheduleForm.minute;
+    } else {
+      sc.time = scheduleForm.time;
+    }
+    if (scheduleForm.frequency === 'weekly') {
+      sc.days = scheduleForm.days;
+    }
+    if (scheduleForm.frequency === 'monthly') {
+      sc.day = scheduleForm.day;
+    }
+    scheduleConfig = JSON.stringify(sc);
+  }
+
   emit('submit', {
     name: form.name,
     description: form.description,
-    trigger_type: JSON.stringify({ type: form.trigger }),
+    trigger_type: form.trigger === 'scheduled' ? 'scheduled' : JSON.stringify({ type: form.trigger }),
     conditions: JSON.stringify(validConditions),
     actions: JSON.stringify(validActions),
+    scope,
+    schedule_config: scheduleConfig,
   });
 }
 

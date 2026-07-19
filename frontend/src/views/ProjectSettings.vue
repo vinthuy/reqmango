@@ -112,6 +112,10 @@ function getAutomationTriggerLabel(triggerType: string): string {
   return (t as any)(`settings.triggerTypes.${key}`) || triggerType
 }
 
+function isAllScope(scope: string): boolean {
+  return scope === 'all' || scope === ''
+}
+
 // ===== Menu items =====
 const menuItems = computed(() => [
   { id: 'overview', label: t('settings.overview'), icon: '📊' },
@@ -860,8 +864,14 @@ onMounted(async () => {
                 </div>
               </div>
               <div class="mt-4 pt-4 border-t border-gray-100">
-                <div class="flex items-center space-x-2 text-sm">
+                <div class="flex items-center space-x-2 text-sm flex-wrap gap-2">
                   <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-medium">{{ t('settings.trigger') }}: {{ getAutomationTriggerLabel(automation.trigger_type) }}</span>
+                  <span v-if="automation.is_inherited && automation.scope && !isAllScope(automation.scope)" class="px-2 py-1 bg-orange-100 text-orange-700 rounded font-medium text-xs">
+                    📂 限定项目
+                  </span>
+                  <span v-if="automation.trigger_type === 'scheduled' && automation.schedule_config" class="px-2 py-1 bg-cyan-100 text-cyan-700 rounded font-medium text-xs">
+                    ⏱️ 定时
+                  </span>
                 </div>
               </div>
             </div>

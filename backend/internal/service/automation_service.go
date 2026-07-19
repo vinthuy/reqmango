@@ -678,6 +678,7 @@ func (s *AutomationService) registerEventHandlers() {
 		"issue.state_changed",
 		"issue.assigned",
 		"comment.added",
+		"scheduled",
 	}
 
 	for _, triggerType := range triggerTypes {
@@ -741,9 +742,17 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 	var workspaceRules []model.AutomationRule
 	var project model.Project
 	if err := s.db.Select("workspace_id").First(&project, event.ProjectID).Error; err == nil {
+		var candidateRules []model.AutomationRule
 		if err := s.db.Where("workspace_id = ? AND project_id = 0 AND is_enabled = ?",
-			project.WorkspaceID, true).Order("sequence ASC").Find(&workspaceRules).Error; err != nil {
+			project.WorkspaceID, true).Order("sequence ASC").Find(&candidateRules).Error; err != nil {
 			log.Printf("[Automation] Failed to query workspace rules: %v", err)
+		}
+
+		// Filter by project scope
+		for _, wr := range candidateRules {
+			if s.isRuleInProjectScope(wr.Scope, event.ProjectID) {
+				workspaceRules = append(workspaceRules, wr)
+			}
 		}
 	}
 
@@ -939,40 +948,47 @@ func toUint64(v interface{}) (uint64, bool) {
 // ======== Request/Response types ========
 
 type AutomationCreateRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
-	TriggerType string `json:"trigger_type" binding:"required"`
-	Conditions  string `json:"conditions"`
-	Actions     string `json:"actions" binding:"required"`
-	IsEnabled   *bool  `json:"is_enabled"`
-	Sequence    int    `json:"sequence"`
+	Name           string `json:"name" binding:"required"`
+	Description    string `json:"description"`
+	TriggerType    string `json:"trigger_type" binding:"required"`
+	Conditions     string `json:"conditions"`
+	Actions        string `json:"actions" binding:"required"`
+	IsEnabled      *bool  `json:"is_enabled"`
+	Sequence       int    `json:"sequence"`
+	Scope          string `json:"scope"`           // workspace rule project scope: "all" or "[1,2,3]"
+	ScheduleConfig string `json:"schedule_config"` // scheduled trigger config JSON
 }
 
 type AutomationUpdateRequest struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
-	TriggerType *string `json:"trigger_type"`
-	Conditions  *string `json:"conditions"`
-	Actions     *string `json:"actions"`
-	IsEnabled   *bool   `json:"is_enabled"`
-	Sequence    *int    `json:"sequence"`
+	Name           *string `json:"name"`
+	Description    *string `json:"description"`
+	TriggerType    *string `json:"trigger_type"`
+	Conditions     *string `json:"conditions"`
+	Actions        *string `json:"actions"`
+	IsEnabled      *bool   `json:"is_enabled"`
+	Sequence       *int    `json:"sequence"`
+	Scope          *string `json:"scope"`
+	ScheduleConfig *string `json:"schedule_config"`
 }
 
 type AutomationResponse struct {
-	ID             uint64 `json:"id"`
-	Name           string `json:"name"`
-	Description    string `json:"description"`
-	ProjectID      uint64 `json:"project_id"`
-	WorkspaceID    uint64 `json:"workspace_id"`
-	TriggerType    string `json:"trigger_type"`
-	Conditions     string `json:"conditions"`
-	Actions        string `json:"actions"`
-	IsEnabled      bool   `json:"is_enabled"`
-	IsInherited    bool   `json:"is_inherited"`
-	Sequence       int    `json:"sequence"`
-	ExecutionCount int    `json:"execution_count"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ID             uint64  `json:"id"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description"`
+	ProjectID      uint64  `json:"project_id"`
+	WorkspaceID    uint64  `json:"workspace_id"`
+	TriggerType    string  `json:"trigger_type"`
+	Conditions     string  `json:"conditions"`
+	Actions        string  `json:"actions"`
+	IsEnabled      bool    `json:"is_enabled"`
+	IsInherited    bool    `json:"is_inherited"`
+	Sequence       int     `json:"sequence"`
+	ExecutionCount int     `json:"execution_count"`
+	Scope          string  `json:"scope,omitempty"`
+	ScheduleConfig string  `json:"schedule_config,omitempty"`
+	LastTriggeredAt *string `json:"last_triggered_at,omitempty"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
 }
 
 // ======== CRUD 方法（保留原有 API 兼容性）========
@@ -988,9 +1004,17 @@ func (s *AutomationService) List(projectID uint64) ([]AutomationResponse, error)
 		return nil, common.Internal("Failed to list project automation rules")
 	}
 
-	var workspaceRules []model.AutomationRule
-	if err := s.db.Where("workspace_id = ? AND project_id = 0", project.WorkspaceID).Order("created_at DESC").Find(&workspaceRules).Error; err != nil {
+	var candidateWorkspaceRules []model.AutomationRule
+	if err := s.db.Where("workspace_id = ? AND project_id = 0", project.WorkspaceID).Order("created_at DESC").Find(&candidateWorkspaceRules).Error; err != nil {
 		return nil, common.Internal("Failed to list workspace automation rules")
+	}
+
+	// Filter workspace rules by project scope
+	var workspaceRules []model.AutomationRule
+	for _, wr := range candidateWorkspaceRules {
+		if s.isRuleInProjectScope(wr.Scope, projectID) {
+			workspaceRules = append(workspaceRules, wr)
+		}
 	}
 
 	mergedRules := append(projectRules, workspaceRules...)
@@ -1032,18 +1056,26 @@ func (s *AutomationService) Create(projectID uint64, req *AutomationCreateReques
 	}
 
 	rule := model.AutomationRule{
-		Name:        req.Name,
-		Description: req.Description,
-		ProjectID:   projectID,
-		TriggerType: req.TriggerType,
-		Conditions:  req.Conditions,
-		Actions:     req.Actions,
-		IsEnabled:   enabled,
-		Sequence:    req.Sequence,
+		Name:           req.Name,
+		Description:    req.Description,
+		ProjectID:      projectID,
+		TriggerType:    req.TriggerType,
+		Conditions:     req.Conditions,
+		Actions:        req.Actions,
+		IsEnabled:      enabled,
+		Sequence:       req.Sequence,
+		ScheduleConfig: req.ScheduleConfig,
 	}
 
 	if err := s.db.Create(&rule).Error; err != nil {
 		return nil, common.Internal("Failed to create automation rule")
+	}
+
+	// If scheduled, set initial last_triggered_at
+	if req.TriggerType == "scheduled" {
+		now := time.Now()
+		s.db.Model(&rule).Update("last_triggered_at", now)
+		rule.LastTriggeredAt = &now
 	}
 
 	r := s.toResponse(&rule)
@@ -1085,6 +1117,12 @@ func (s *AutomationService) Update(id uint64, req *AutomationUpdateRequest) (*Au
 	}
 	if req.Sequence != nil {
 		rule.Sequence = *req.Sequence
+	}
+	if req.Scope != nil {
+		rule.Scope = *req.Scope
+	}
+	if req.ScheduleConfig != nil {
+		rule.ScheduleConfig = *req.ScheduleConfig
 	}
 
 	if err := s.db.Save(&rule).Error; err != nil {
@@ -1162,19 +1200,33 @@ func (s *AutomationService) CreateWorkspace(workspaceID uint64, req *AutomationC
 		return nil, common.BadRequest("invalid actions JSON: " + err.Error())
 	}
 
+	scope := req.Scope
+	if scope == "" {
+		scope = "all"
+	}
+
 	rule := model.AutomationRule{
-		Name:        req.Name,
-		Description: req.Description,
-		WorkspaceID: workspaceID,
-		TriggerType: req.TriggerType,
-		Conditions:  req.Conditions,
-		Actions:     req.Actions,
-		IsEnabled:   enabled,
-		Sequence:    req.Sequence,
+		Name:           req.Name,
+		Description:    req.Description,
+		WorkspaceID:    workspaceID,
+		TriggerType:    req.TriggerType,
+		Conditions:     req.Conditions,
+		Actions:        req.Actions,
+		IsEnabled:      enabled,
+		Sequence:       req.Sequence,
+		Scope:          scope,
+		ScheduleConfig: req.ScheduleConfig,
 	}
 
 	if err := s.db.Create(&rule).Error; err != nil {
 		return nil, common.Internal("Failed to create workspace automation rule")
+	}
+
+	// If it's a scheduled rule, start tracking from now
+	if req.TriggerType == "scheduled" {
+		now := time.Now()
+		s.db.Model(&rule).Update("last_triggered_at", now)
+		rule.LastTriggeredAt = &now
 	}
 
 	r := s.toResponse(&rule)
@@ -1217,6 +1269,12 @@ func (s *AutomationService) UpdateWorkspace(id uint64, req *AutomationUpdateRequ
 	if req.Sequence != nil {
 		rule.Sequence = *req.Sequence
 	}
+	if req.Scope != nil {
+		rule.Scope = *req.Scope
+	}
+	if req.ScheduleConfig != nil {
+		rule.ScheduleConfig = *req.ScheduleConfig
+	}
 
 	if err := s.db.Save(&rule).Error; err != nil {
 		return nil, common.Internal("Failed to update automation rule")
@@ -1247,7 +1305,7 @@ func (s *AutomationService) toResponse(rule *model.AutomationRule) AutomationRes
 }
 
 func (s *AutomationService) toResponseWithInherited(rule *model.AutomationRule, isInherited bool) AutomationResponse {
-	return AutomationResponse{
+	resp := AutomationResponse{
 		ID:             rule.ID,
 		Name:           rule.Name,
 		Description:    rule.Description,
@@ -1260,9 +1318,16 @@ func (s *AutomationService) toResponseWithInherited(rule *model.AutomationRule, 
 		IsInherited:    isInherited,
 		Sequence:       rule.Sequence,
 		ExecutionCount: rule.ExecutionCount,
+		Scope:          rule.Scope,
+		ScheduleConfig: rule.ScheduleConfig,
 		CreatedAt:      rule.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:      rule.UpdatedAt.Format(time.RFC3339),
 	}
+	if rule.LastTriggeredAt != nil {
+		s := rule.LastTriggeredAt.Format(time.RFC3339)
+		resp.LastTriggeredAt = &s
+	}
+	return resp
 }
 
 func validateJSON(s string) error {
@@ -1271,4 +1336,229 @@ func validateJSON(s string) error {
 	}
 	var js json.RawMessage
 	return json.Unmarshal([]byte(s), &js)
+}
+
+// isRuleInProjectScope checks whether a workspace-level rule's scope includes a given project.
+// scope values:
+//   - "all" or "" → applies to all projects
+//   - JSON array like "[1,2,3]" → only those project IDs
+func (s *AutomationService) isRuleInProjectScope(scope string, projectID uint64) bool {
+	if scope == "" || scope == "all" {
+		return true
+	}
+	var projectIDs []uint64
+	if err := json.Unmarshal([]byte(scope), &projectIDs); err != nil {
+		// If not valid JSON array, fall back to "all"
+		return true
+	}
+	for _, pid := range projectIDs {
+		if pid == projectID {
+			return true
+		}
+	}
+	return false
+}
+
+// ======== Scheduled Trigger Scheduler ========
+
+// StartScheduler starts a background goroutine that checks for scheduled automation
+// rules every minute and triggers them when due.
+func (s *AutomationService) StartScheduler(ctx context.Context) {
+	log.Println("[Automation] Starting scheduled trigger scheduler (interval: 1 min)")
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("[Automation] Scheduler stopped")
+				return
+			case <-ticker.C:
+				s.processScheduledTriggers()
+			}
+		}
+	}()
+}
+
+// processScheduledTriggers finds enabled scheduled rules and triggers those
+// whose schedule matches the current time.
+func (s *AutomationService) processScheduledTriggers() {
+	var rules []model.AutomationRule
+	if err := s.db.Where("trigger_type = ? AND is_enabled = ?", "scheduled", true).Find(&rules).Error; err != nil {
+		log.Printf("[Automation] Failed to query scheduled rules: %v", err)
+		return
+	}
+
+	now := time.Now()
+	for _, rule := range rules {
+		if !s.isScheduleDue(&rule, now) {
+			continue
+		}
+
+		// Determine target projects
+		var targetProjects []uint64
+		if rule.ProjectID > 0 {
+			targetProjects = append(targetProjects, rule.ProjectID)
+		} else {
+			// Workspace-level rule: resolve projects based on scope
+			targetProjects = s.resolveWorkspaceRuleProjects(rule.WorkspaceID, rule.Scope)
+		}
+
+		for _, projectID := range targetProjects {
+			event := Event{
+				Type:      "scheduled",
+				ProjectID: projectID,
+				IssueID:   0, // scheduled events may not have a specific issue
+				Context:   map[string]interface{}{"rule_id": rule.ID, "workspace_id": rule.WorkspaceID},
+				Timestamp: now,
+			}
+			_ = s.PublishEvent(event)
+		}
+
+		// Update last_triggered_at
+		s.db.Model(&rule).Update("last_triggered_at", now)
+	}
+}
+
+// isScheduleDue checks if a scheduled rule should fire now.
+// schedule_config JSON formats supported:
+//   - {"frequency":"hourly", "minute": 0} — at minute 0 of every hour
+//   - {"frequency":"daily", "time":"09:00"} — every day at 9:00
+//   - {"frequency":"weekly", "time":"09:00", "days":["mon","wed","fri"]} — Mon/Wed/Fri at 9:00
+//   - {"frequency":"monthly", "day":1, "time":"09:00"} — 1st of each month at 9:00
+//   - {"frequency":"cron", "cron":"0 9 * * 1"} — standard cron expression
+func (s *AutomationService) isScheduleDue(rule *model.AutomationRule, now time.Time) bool {
+	if rule.ScheduleConfig == "" {
+		return false
+	}
+
+	var config struct {
+		Frequency string   `json:"frequency"`
+		Time      string   `json:"time"`
+		Days      []string `json:"days"`
+		Day       int      `json:"day"`
+		Cron      string   `json:"cron"`
+		Minute    int      `json:"minute"`
+	}
+
+	if err := json.Unmarshal([]byte(rule.ScheduleConfig), &config); err != nil {
+		log.Printf("[Automation] Invalid schedule_config for rule %d: %v", rule.ID, err)
+		return false
+	}
+
+	// Guard: don't fire more than once per window
+	if rule.LastTriggeredAt != nil {
+		switch config.Frequency {
+		case "hourly":
+			if now.Sub(*rule.LastTriggeredAt) < 55*time.Minute {
+				return false
+			}
+		case "daily", "weekly":
+			if now.Sub(*rule.LastTriggeredAt) < 23*time.Hour {
+				return false
+			}
+		case "monthly":
+			if now.Sub(*rule.LastTriggeredAt) < 27*24*time.Hour {
+				return false
+			}
+		default:
+			if now.Sub(*rule.LastTriggeredAt) < 5*time.Minute {
+				return false
+			}
+		}
+	}
+
+	switch config.Frequency {
+	case "hourly":
+		return now.Minute() == config.Minute
+
+	case "daily":
+		if config.Time == "" {
+			return false
+		}
+		return now.Format("15:04") == config.Time
+
+	case "weekly":
+		if config.Time == "" || len(config.Days) == 0 {
+			return false
+		}
+		if now.Format("15:04") != config.Time {
+			return false
+		}
+		currentDay := strings.ToLower(now.Format("Mon"))
+		for _, d := range config.Days {
+			if strings.ToLower(d) == currentDay {
+				return true
+			}
+		}
+		return false
+
+	case "monthly":
+		if config.Time == "" {
+			return false
+		}
+		if config.Day > 0 && now.Day() != config.Day {
+			return false
+		}
+		return now.Format("15:04") == config.Time
+
+	case "cron":
+		if config.Cron == "" {
+			return false
+		}
+		return matchCronExpression(config.Cron, now)
+
+	default:
+		return false
+	}
+}
+
+// matchCronExpression does a basic 5-field cron match.
+// Format: minute hour day-of-month month day-of-week
+func matchCronExpression(cron string, now time.Time) bool {
+	parts := strings.Fields(cron)
+	if len(parts) != 5 {
+		return false
+	}
+
+	current := []int{now.Minute(), now.Hour(), now.Day(), int(now.Month()), int(now.Weekday())}
+	for i, part := range parts {
+		if part == "*" {
+			continue
+		}
+		if val, err := fmt.Sscanf(part, "%d", new(int)); err == nil && val == 1 {
+			// simple single value match handled below
+		}
+		// For simplicity, only support single-value or wildcard matches for now
+		if part != "*" {
+			var val int
+			if _, err := fmt.Sscanf(part, "%d", &val); err != nil {
+				return false
+			}
+			if current[i] != val {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// resolveWorkspaceRuleProjects returns the project IDs that a workspace rule
+// should apply to, based on its scope.
+func (s *AutomationService) resolveWorkspaceRuleProjects(workspaceID uint64, scope string) []uint64 {
+	if scope == "" || scope == "all" {
+		var projects []model.Project
+		s.db.Where("workspace_id = ?", workspaceID).Select("id").Find(&projects)
+		var ids []uint64
+		for _, p := range projects {
+			ids = append(ids, p.ID)
+		}
+		return ids
+	}
+
+	var projectIDs []uint64
+	if err := json.Unmarshal([]byte(scope), &projectIDs); err != nil {
+		return nil
+	}
+	return projectIDs
 }

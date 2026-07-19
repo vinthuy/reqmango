@@ -24,6 +24,7 @@ func SeedAll(db *gorm.DB) {
 	SeedRelationTypesForAllWorkspaces(db)
 	BackfillIssueTypeIDs(db)
 	SeedSearchTemplates(db)
+	SeedAutomationRulesForAllWorkspaces(db)
 
 	fmt.Println("=== Data initialization complete ===")
 }
@@ -1403,4 +1404,76 @@ func SeedRelationTypesForAllWorkspaces(db *gorm.DB) {
 		}
 	}
 	fmt.Println("Seeded relation types for all workspaces")
+}
+
+// SeedAutomationRulesForAllWorkspaces creates built-in automation rules for
+// every workspace that has no automation rules yet. These are sensible defaults
+// inspired by Plane AI's built-in automations.
+func SeedAutomationRulesForAllWorkspaces(db *gorm.DB) {
+	var workspaces []model.Workspace
+	db.Find(&workspaces)
+	for _, ws := range workspaces {
+		var count int64
+		db.Model(&model.AutomationRule{}).Where("workspace_id = ?", ws.ID).Count(&count)
+		if count > 0 {
+			continue // Workspace already has automation rules, skip
+		}
+
+		builtInRules := []model.AutomationRule{
+			{
+				Name:        "高优先级任务自动分配",
+				Description: "当创建 urgent 或 high 优先级任务时，自动分配给工作区管理员",
+				WorkspaceID: ws.ID,
+				TriggerType: "issue.created",
+				Conditions:  `[{"field":"priority","operator":"in","value":["urgent","high"]}]`,
+				Actions:     `[{"type":"assign_to","value":` + fmt.Sprintf("%d", ws.OwnerID) + `}]`,
+				IsEnabled:   true,
+				Sequence:    1,
+				Scope:       "all",
+			},
+			{
+				Name:        "自动归档已完成任务",
+				Description: "状态变更为已完成超过7天的任务自动归档",
+				WorkspaceID: ws.ID,
+				TriggerType: "scheduled",
+				Conditions:  `[]`,
+				Actions:     `[{"type":"comment","value":"Scheduled: 可在此配置自动归档逻辑"}]`,
+				IsEnabled:   false, // disabled by default — needs schedule_config
+				Sequence:    2,
+				Scope:       "all",
+				ScheduleConfig: `{"frequency":"daily","time":"02:00"}`,
+			},
+			{
+				Name:        "Bug自动标记",
+				Description: "当创建 Bug 类型工作项时自动添加 Bug 标签",
+				WorkspaceID: ws.ID,
+				TriggerType: "issue.created",
+				Conditions:  `[{"field":"issue_type","operator":"equals","value":"Bug"}]`,
+				Actions:     `[{"type":"add_label","field":"label_name","value":"Bug"}]`,
+				IsEnabled:   true,
+				Sequence:    3,
+				Scope:       "all",
+			},
+			{
+				Name:        "长期未更新提醒",
+				Description: "每周一检查超过14天未更新的进行中任务，发送提醒",
+				WorkspaceID: ws.ID,
+				TriggerType: "scheduled",
+				Conditions:  `[]`,
+				Actions:     `[{"type":"comment","value":"Scheduled: 可在此配置过期任务提醒逻辑"}]`,
+				IsEnabled:   false,
+				Sequence:    4,
+				Scope:       "all",
+				ScheduleConfig: `{"frequency":"weekly","time":"09:00","days":["mon"]}`,
+			},
+		}
+
+		for _, rule := range builtInRules {
+			if err := db.Create(&rule).Error; err != nil {
+				fmt.Printf("  WARN: failed to seed automation rule '%s' for workspace %d: %v\n",
+					rule.Name, ws.ID, err)
+			}
+		}
+	}
+	fmt.Println("Seeded built-in automation rules for all workspaces")
 }

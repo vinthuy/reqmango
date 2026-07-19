@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"net/http/httputil"
 	"net/url"
 
@@ -63,6 +64,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	automationSvc.SetAgentService(agentClient)     // break circular dependency: automation -> agent -> issue -> automation
 	commentSvc.SetAgentService(agentClient)        // enable @agent-name mention handling in comments
 	commentSvc.SetAutomationService(automationSvc) // enable comment_added automation trigger
+
+	// Start the scheduled automation trigger background scheduler
+	automationSvc.StartScheduler(context.Background())
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
 	roleSvc := service.NewRoleService(db)

@@ -33,6 +33,13 @@ type AutomationRule struct {
 	Conditions  string `gorm:"type:text" json:"conditions"`
 	Actions     string `gorm:"type:text" json:"actions"`
 
+	// Workspace-level rule project scope: "all" = all projects, or JSON array "[1,2,3]"
+	Scope string `gorm:"type:varchar(50);default:'all'" json:"scope"`
+
+	// Scheduled trigger configuration (JSON): {"frequency":"daily","time":"09:00","days":["mon","wed","fri"]}
+	ScheduleConfig  string     `gorm:"type:text" json:"schedule_config,omitempty"`
+	LastTriggeredAt *time.Time `gorm:"" json:"last_triggered_at,omitempty"`
+
 	Project Project `gorm:"foreignKey:ProjectID" json:"-"`
 }
 

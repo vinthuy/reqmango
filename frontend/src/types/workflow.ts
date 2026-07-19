@@ -19,7 +19,10 @@ export enum TriggerTypeEnum {
   CYCLE_ENDED = 'cycle.ended',
   
   // 评论相关
-  COMMENT_ADDED = 'comment.added'
+  COMMENT_ADDED = 'comment.added',
+
+  // 定时触发器
+  SCHEDULED = 'scheduled'
 }
 
 export const TriggerTypeOptions = [
@@ -32,6 +35,7 @@ export const TriggerTypeOptions = [
   { value: 'cycle.started', label: '周期开始时', icon: '▶️' },
   { value: 'cycle.ended', label: '周期结束时', icon: '⏹️' },
   { value: 'comment.added', label: '添加评论时', icon: '💬' },
+  { value: 'scheduled', label: '定时执行', icon: '⏱️' },
 ]
 
 export const StateGroupOptions = [
@@ -166,6 +170,10 @@ export interface AutomationRule {
   last_executed_at?: string
   project_id: number
   workspace_id: number
+  is_inherited?: boolean
+  scope?: string
+  schedule_config?: string
+  last_triggered_at?: string
   is_deleted: boolean
   created_at: string
   updated_at: string
@@ -178,6 +186,8 @@ export interface AutomationRuleCreate {
   trigger_type: string
   conditions?: string
   actions?: string
+  scope?: string
+  schedule_config?: string
 }
 
 export interface AutomationRuleUpdate {
@@ -187,6 +197,8 @@ export interface AutomationRuleUpdate {
   trigger_type?: string
   conditions?: string
   actions?: string
+  scope?: string
+  schedule_config?: string
 }
 
 export interface AutomationRuleLite {
@@ -242,7 +254,8 @@ export function getTriggerDisplayName(triggerType: TriggerTypeEnum): string {
     [TriggerTypeEnum.DUE_DATE_PASSED]: '截止日期过期时',
     [TriggerTypeEnum.CYCLE_STARTED]: '周期开始时',
     [TriggerTypeEnum.CYCLE_ENDED]: '周期结束时',
-    [TriggerTypeEnum.COMMENT_ADDED]: '添加评论时'
+    [TriggerTypeEnum.COMMENT_ADDED]: '添加评论时',
+    [TriggerTypeEnum.SCHEDULED]: '定时执行'
   }
   return names[triggerType] || triggerType
 }
@@ -301,7 +314,8 @@ export function getTriggerIcon(triggerType: TriggerTypeEnum): string {
     [TriggerTypeEnum.DUE_DATE_PASSED]: 'alert-circle',
     [TriggerTypeEnum.CYCLE_STARTED]: 'play',
     [TriggerTypeEnum.CYCLE_ENDED]: 'check-circle',
-    [TriggerTypeEnum.COMMENT_ADDED]: 'message-circle'
+    [TriggerTypeEnum.COMMENT_ADDED]: 'message-circle',
+    [TriggerTypeEnum.SCHEDULED]: 'calendar'
   }
   return icons[triggerType] || 'zap'
 }
