@@ -149,3 +149,84 @@ func (h *ProjectIssueTypeHandler) Reorder(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Issue types reordered"})
 }
+
+// ==================== Plane v3-style Import Model ====================
+
+// ListImportable handles GET /projects/:projectId/issue-types/importable
+// Returns workspace-level types the project has NOT yet imported.
+func (h *ProjectIssueTypeHandler) ListImportable(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
+		return
+	}
+
+	types, svcErr := h.svc.ListImportable(workspaceID, projectID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, types)
+}
+
+// ImportType handles POST /projects/:projectId/issue-types/:typeId/import
+// Records a project's reference to a workspace-level type (Plane v3 Import).
+func (h *ProjectIssueTypeHandler) ImportType(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	typeID, err := strconv.ParseUint(c.Param("typeId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue type ID"})
+		return
+	}
+
+	if svcErr := h.svc.ImportType(projectID, typeID); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "Issue type imported"})
+}
+
+// UnimportType handles DELETE /projects/:projectId/issue-types/:typeId/import
+// Removes a project's reference to a workspace-level type.
+func (h *ProjectIssueTypeHandler) UnimportType(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	typeID, err := strconv.ParseUint(c.Param("typeId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue type ID"})
+		return
+	}
+
+	if svcErr := h.svc.UnimportType(projectID, typeID); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Issue type unimported"})
+}

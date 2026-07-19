@@ -19,6 +19,12 @@ type IssueTypeResponse struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	IsInherited  bool      `json:"is_inherited"`
+	// IsImported indicates that the project has explicitly imported this
+	// workspace-level type via the Plane v3-style Import model. Under that
+	// model, custom fields attached to the type are visible in the project
+	// automatically (they "follow" the type), without separate enrollment.
+	// Always false at workspace-level responses (no project context).
+	IsImported   bool      `json:"is_imported"`
 }
 
 // IssueTypeLite is a minimal issue type reference used in issue responses.

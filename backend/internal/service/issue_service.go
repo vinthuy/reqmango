@@ -2715,7 +2715,9 @@ func (s *IssueService) ConvertType(issueID uint64, req *request.ConvertTypeReque
 
 	tx := s.db.Begin()
 
-	if err := tx.Model(&issue).Updates(map[string]interface{}{
+	// Use Table().Where() to avoid GORM's Model(struct) behavior of
+	// re-applying the struct's non-zero field values over the map values.
+	if err := tx.Table("issues").Where("id = ?", issueID).Updates(map[string]interface{}{
 		"issue_type_id": req.TargetTypeID,
 		"updated_by_id": userID,
 	}).Error; err != nil {

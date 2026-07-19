@@ -18,6 +18,11 @@ export interface IssueType {
   created_at: string
   updated_at: string
   fields?: IssueTypeField[]
+  is_inherited?: boolean
+  // Plane v3-style Import model: true when the project has explicitly imported
+  // this workspace-level type. When imported, attached custom fields are visible
+  // in the project automatically (they "follow" the type).
+  is_imported?: boolean
 }
 
 export interface IssueTypeField {

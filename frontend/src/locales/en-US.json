@@ -775,6 +775,7 @@
   "customField": {
     "customFields": "Custom Fields",
     "managerDescription": "Define custom fields available in the workspace (e.g. priority, version)",
+    "viaTypeImportHint": "Tip: Workspace fields attached to an imported issue type are automatically visible in this project — no separate enrollment required.",
     "newField": "New Field",
     "basicInfo": "Basic Info",
     "fieldName": "Field Name *",
@@ -2575,7 +2576,20 @@
     "configureDesc": "Configure which work item types are available in this project",
     "copying": "Copying...",
     "copyFromWorkspace": "Copy from Workspace",
-    "noTypes": "No issue types configured for this project yet."
+    "noTypes": "No issue types configured for this project yet.",
+    "importFromWorkspace": "Import from Workspace",
+    "importing": "Importing...",
+    "importTitle": "Import Issue Types",
+    "importDesc": "Select workspace types to import. After import, fields attached to the type will be visible in this project automatically — no separate enrollment required.",
+    "noImportable": "All workspace types are already imported",
+    "imported": "Imported",
+    "unimport": "Unimport",
+    "importSuccess": "Issue type imported",
+    "unimportSuccess": "Issue type unimported",
+    "importFailed": "Failed to import",
+    "unimportFailed": "Failed to unimport",
+    "alreadyImported": "Type is already imported",
+    "copyVsImportHint": "\"Copy\" creates an independent copy that diverges over time; \"Import\" links by reference, so workspace updates sync automatically."
   },
   "dashboard": {
     "title": "Dashboards",

@@ -775,6 +775,7 @@
   "customField": {
     "customFields": "自定义字段",
     "managerDescription": "定义工作空间中可用的自定义字段（如优先级、版本号等）",
+    "viaTypeImportHint": "提示：通过工作项类型导入（Import）的工作空间字段会自动在此项目中可见，无需单独启用。",
     "newField": "新建字段",
     "basicInfo": "基本信息",
     "fieldName": "字段名称 *",
@@ -2573,7 +2574,20 @@
     "configureDesc": "配置此项目中可用的工作项类型",
     "copying": "复制中...",
     "copyFromWorkspace": "从工作空间复制",
-    "noTypes": "此项目尚未配置工作项类型。"
+    "noTypes": "此项目尚未配置工作项类型。",
+    "importFromWorkspace": "从工作空间导入",
+    "importing": "导入中...",
+    "importTitle": "导入工作项类型",
+    "importDesc": "选择要导入的工作空间类型。导入后，类型关联的字段将自动在此项目中可见，无需单独启用。",
+    "noImportable": "所有工作空间类型均已导入",
+    "imported": "已导入",
+    "unimport": "取消导入",
+    "importSuccess": "工作项类型已导入",
+    "unimportSuccess": "已取消导入该类型",
+    "importFailed": "导入失败",
+    "unimportFailed": "取消导入失败",
+    "alreadyImported": "该类型已被导入",
+    "copyVsImportHint": "“复制”会创建独立副本并随时间分叉；“导入”则按引用关联，工作空间修改自动同步。"
   },
   "dashboard": {
     "title": "仪表盘",

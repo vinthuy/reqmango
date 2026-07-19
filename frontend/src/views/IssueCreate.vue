@@ -243,6 +243,12 @@ const projectId = computed(() => {
 })
 const workspaceId = ref(0)
 const slug = computed(() => route.params.slug as string || '')
+// Support both route shapes: /workspace/:slug/project/:id/issues/new (slug-based)
+// and /workspaces/:workspaceId/projects/:projectId/issues/new (id-based).
+const workspaceIdParam = computed(() => {
+  const wid = parseInt(route.params.workspaceId as string, 10)
+  return isNaN(wid) ? 0 : wid
+})
 const returnView = computed(() => route.query.view as string || 'list')
 
 // 定义事件
@@ -389,7 +395,10 @@ function handleTemplateChange(templateId: number | null) {
 // 加载数据
 async function loadData() {
   try {
-    if (slug.value) {
+    // Resolve workspaceId: prefer route param (id-based route), fall back to slug lookup.
+    if (workspaceIdParam.value > 0) {
+      workspaceId.value = workspaceIdParam.value
+    } else if (slug.value) {
       try {
         const ws = await workspaceApi.getBySlug(slug.value)
         workspaceId.value = ws.id
@@ -397,16 +406,21 @@ async function loadData() {
         console.error('Failed to load workspace:', e)
       }
     }
-    
+
     // 加载工作项类型 - 如果 API 不可用则使用默认类型
     try {
       const typesRes = await issueTypeApi.getIssueTypes(workspaceId.value, projectId.value)
       issueTypes.value = typesRes
-      
+
       // 设置默认类型
       const defaultType = typesRes.find((t: any) => t.is_default) || typesRes[0]
       if (defaultType) {
         selectedTypeId.value = defaultType.id
+      } else if (typesRes.length === 0) {
+        // API succeeded but returned no types; fall back to type ID 1 so the
+        // form remains usable (e.g. when workspaceId resolution failed).
+        console.warn('No issue types returned, falling back to default type ID 1')
+        selectedTypeId.value = 1
       }
     } catch (e) {
       // API 不可用时使用默认类型 ID = 1
