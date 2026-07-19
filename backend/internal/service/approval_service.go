@@ -315,11 +315,14 @@ func (s *ApprovalService) toResponse(a model.Approval) response.ApprovalResponse
 	var issue model.Issue
 	if err := s.db.First(&issue, a.IssueID).Error; err == nil {
 		resp.IssueTitle = issue.Name
-		resp.IssueKey = fmt.Sprintf("%d", issue.SequenceID)
 	}
+	// Load project (with identifier) to build IssueKey like "CORE-52" and ProjectName
 	var project model.Project
-	if err := s.db.Select("id, name").First(&project, a.ProjectID).Error; err == nil {
+	if err := s.db.Select("id, name, identifier").First(&project, a.ProjectID).Error; err == nil {
 		resp.ProjectName = project.Name
+		if issue.ID != 0 {
+			resp.IssueKey = fmt.Sprintf("%s-%d", project.Identifier, issue.SequenceID)
+		}
 	}
 	var srcState model.State
 	if err := s.db.Select("id, name").First(&srcState, a.SourceStateID).Error; err == nil {

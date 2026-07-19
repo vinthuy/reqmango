@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -171,13 +170,4 @@ func TestApprovalService_Cancel_NotRequester(t *testing.T) {
 	svc := NewApprovalService(db)
 	_, err := svc.Cancel(1, 99)
 	assert.Error(t, err)
-}
-
-// Helper: decode JSON array of uint64
-func parseApproverIDs(t *testing.T, s string) []uint64 {
-	var ids []uint64
-	if err := json.Unmarshal([]byte(s), &ids); err != nil {
-		t.Fatalf("failed to parse approver_ids: %v", err)
-	}
-	return ids
 }
