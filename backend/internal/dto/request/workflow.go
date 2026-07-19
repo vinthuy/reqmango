@@ -1,18 +1,18 @@
 package request
 
 type WorkflowCreate struct {
-	Name         string  `json:"name" binding:"required"`
-	Description  string  `json:"description"`
-	IssueTypeID  *uint64 `json:"issue_type_id"`
-	IssueTypeIDs string  `json:"issue_type_ids"`
+	Name         string    `json:"name" binding:"required"`
+	Description  string    `json:"description"`
+	IssueTypeID  *uint64   `json:"issue_type_id"`
+	IssueTypeIDs []uint64  `json:"issue_type_ids"`
 }
 
 type WorkflowUpdate struct {
-	Name         *string `json:"name"`
-	Description  *string `json:"description"`
-	IssueTypeID  *uint64 `json:"issue_type_id"`
-	IssueTypeIDs *string `json:"issue_type_ids"`
-	IsActive     *bool   `json:"is_active"`
+	Name         *string   `json:"name"`
+	Description  *string   `json:"description"`
+	IssueTypeID  *uint64   `json:"issue_type_id"`
+	IssueTypeIDs *[]uint64 `json:"issue_type_ids"`
+	IsActive     *bool     `json:"is_active"`
 }
 
 type TransitionCreate struct {

@@ -2172,10 +2172,12 @@
     "approve": "批准",
     "reject": "拒绝",
     "approvePath": "批准路径",
-    "rejectPath": "拒绝路径"
+    "rejectPath": "拒绝路径",
+    "transitionAlreadyExists": "该转换已存在，同一个起始状态不能重复添加相同的目标状态。"
   },
   "approvals": {
     "title": "审批",
+    "workflow": "工作流",
     "submitTitle": "提交审批",
     "submitDesc": "申请将工作项从 \"{from}\" 变更为 \"{to}\"",
     "approvers": "审批人",

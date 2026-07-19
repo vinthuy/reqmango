@@ -55,6 +55,14 @@ function toggleIssueType(id: number) {
   }
 }
 
+function selectAllIssueTypes() {
+  selectedIssueTypeIds.value = issueTypes.value.map((it: any) => it.id);
+}
+
+function deselectAllIssueTypes() {
+  selectedIssueTypeIds.value = [];
+}
+
 async function saveIssueTypes() {
   if (!workflowId.value || savingIssueTypes.value) return;
   savingIssueTypes.value = true;
@@ -149,7 +157,34 @@ function getApproverNames(approverIds: string | null | undefined): string {
 }
 
 async function handleSaveTransition() {
-  if (!selectedFromState.value || !newTransitionTo.value || !workflowId.value) return;
+  console.log('handleSaveTransition called:', {
+    selectedFromState: selectedFromState.value,
+    newTransitionTo: newTransitionTo.value,
+    workflowId: workflowId.value,
+    projectId: projectId.value
+  });
+  
+  if (selectedFromState.value === null) {
+    alert(t('workflow.selectFromState'));
+    return;
+  }
+  if (newTransitionTo.value === null) {
+    alert(t('workflow.selectDestState'));
+    return;
+  }
+  if (!workflowId.value) {
+    alert(t('workflow.workflowNotFound'));
+    return;
+  }
+  
+  const existingTransition = transitions.value.find(
+    t => t.from_state_id === selectedFromState.value && t.to_state_id === newTransitionTo.value
+  );
+  if (existingTransition) {
+    alert(t('workflow.transitionAlreadyExists'));
+    return;
+  }
+  
   try {
     const fromState = getStateById(selectedFromState.value);
     const toState = getStateById(newTransitionTo.value);
@@ -158,16 +193,35 @@ async function handleSaveTransition() {
     let approverIds: string | undefined = undefined;
     if (newTransitionType.value === 'approval' && newTransitionApproverIds.value.length > 0) {
       approverIds = JSON.stringify(newTransitionApproverIds.value);
+    } else if (newTransitionType.value === 'approval') {
+      alert(t('workflow.selectAtLeastOneApprover'));
+      return;
     }
 
-    let approveTargetStateId: number | undefined = undefined;
-    let rejectTargetStateId: number | undefined = undefined;
-    let approvalMode: string | undefined = undefined;
+    let approveTargetStateId: number | null = null;
+    let rejectTargetStateId: number | null = null;
+    let approvalMode: string | null = null;
     if (newTransitionType.value === 'approval') {
-      approveTargetStateId = newTransitionApproveTargetId.value || undefined;
-      rejectTargetStateId = newTransitionRejectTargetId.value || undefined;
-      approvalMode = newTransitionApprovalMode.value;
+      approveTargetStateId = newTransitionApproveTargetId.value ?? null;
+      rejectTargetStateId = newTransitionRejectTargetId.value ?? null;
+      approvalMode = newTransitionApprovalMode.value ?? null;
     }
+
+    console.log('Calling addTransition API with:', {
+      projectId: projectId.value,
+      workflowId: workflowId.value,
+      data: {
+        from_state_id: selectedFromState.value,
+        to_state_id: newTransitionTo.value,
+        name: name,
+        description: newTransitionDesc.value,
+        rule_type: newTransitionType.value,
+        approver_ids: approverIds,
+        approve_target_state_id: approveTargetStateId,
+        reject_target_state_id: rejectTargetStateId,
+        approval_mode: approvalMode
+      }
+    });
 
     await workflowApi.addTransition(projectId.value, workflowId.value, {
       from_state_id: selectedFromState.value,
@@ -182,7 +236,10 @@ async function handleSaveTransition() {
     });
     showAddTransitionModal.value = false;
     await loadData();
-  } catch (e) { console.error('Failed to add transition:', e); }
+  } catch (e: any) { 
+    console.error('Failed to add transition:', e);
+    alert(t('workflow.failedToAddTransition') || (e?.response?.data?.message || e?.message || '添加转换失败'));
+  }
 }
 
 async function handleDeleteTransition(transitionId: number) {
@@ -256,6 +313,10 @@ onMounted(loadData);
               </button>
             </div>
             <div class="p-6">
+              <div class="flex items-center space-x-2 mb-3">
+                <button @click="selectAllIssueTypes" class="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100 transition-colors">{{ t('issueList.selectAll') || 'Select All' }}</button>
+                <button @click="deselectAllIssueTypes" class="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100 transition-colors">{{ t('issueList.deselectAll') || 'Deselect All' }}</button>
+              </div>
               <div class="border rounded-lg p-3 max-h-60 overflow-y-auto space-y-1">
                 <label
                   v-for="it in issueTypes"

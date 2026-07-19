@@ -2178,6 +2178,7 @@
   },
   "approvals": {
     "title": "Approvals",
+    "workflow": "Workflow",
     "submitTitle": "Submit Approval",
     "submitDesc": "Request to change work item from \"{from}\" to \"{to}\"",
     "approvers": "Approvers",

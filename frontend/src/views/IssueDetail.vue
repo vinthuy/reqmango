@@ -17,6 +17,7 @@
       :from-state-name="submitDialogData.fromStateName"
       :approve-state-name="submitDialogData.approveStateName"
       :approver-names="submitDialogData.approverNames"
+      :workflow-name="submitDialogData.workflowName"
       @close="showSubmitDialog = false"
       @submitted="onApprovalSubmitted"
     />
@@ -184,7 +185,7 @@ const activeApproval = ref<ApprovalResponse | null>(null)
 const currentUserId = parseInt(localStorage.getItem('user_id') || '0', 10)
 const showSubmitDialog = ref(false)
 const showDecisionDialog = ref(false)
-const submitDialogData = ref<{ transitionId: number; fromStateName: string; approveStateName: string; approverNames: string[] }>({
+const submitDialogData = ref<{ transitionId: number; fromStateName: string; approveStateName: string; approverNames: string[]; workflowName?: string }>({
   transitionId: 0, fromStateName: '', approveStateName: '', approverNames: []
 })
 const decisionDialogData = ref<{ approvalId: number; decision: 'approved' | 'rejected' } | null>(null)
@@ -404,9 +405,14 @@ async function handleStateChange(newStateId: number) {
         const wfRes = await api.get(`/projects/${issue.value.project_id}/workflows`)
         const workflows = wfRes.data || []
         let transition: any = null
+        let workflowName: string | undefined = undefined
         for (const w of workflows) {
           const found = (w.transitions || []).find((tr: any) => tr.id === transitionId)
-          if (found) { transition = found; break }
+          if (found) {
+            transition = found
+            workflowName = w.name
+            break
+          }
         }
         const fromState = states.value.find((s: any) => s.id === sourceStateId)
         const approveState = states.value.find((s: any) => s.id === (transition?.approve_target_state_id || targetStateId))
@@ -426,6 +432,7 @@ async function handleStateChange(newStateId: number) {
           fromStateName: fromState?.name || `#${sourceStateId}`,
           approveStateName: approveState?.name || `#${targetStateId}`,
           approverNames,
+          workflowName,
         }
         showSubmitDialog.value = true
       } catch (fetchErr) {

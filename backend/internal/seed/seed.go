@@ -18,9 +18,9 @@ func SeedAll(db *gorm.DB) {
 	fmt.Println("=== Starting data initialization ===")
 
 	SeedRBACData(db)
+	SeedIssueTypesForAllWorkspaces(db)
 	SeedDemoData(db)
 	SeedConfigData(db)
-	SeedIssueTypesForAllWorkspaces(db)
 	SeedSearchTemplates(db)
 
 	fmt.Println("=== Data initialization complete ===")
@@ -314,7 +314,7 @@ func SeedDemoData(db *gorm.DB) {
 		for i, l := range labelTemplates {
 			projectIDPtr := proj.ID
 			labels[i] = model.Label{
-				Name:        l.name, Color: l.color, ProjectID: &projectIDPtr,
+				Name: l.name, Color: l.color, ProjectID: &projectIDPtr,
 				WorkspaceID: ws.ID,
 			}
 			db.Create(&labels[i])
@@ -384,6 +384,13 @@ func SeedDemoData(db *gorm.DB) {
 		modules := allModules[proj.ID]
 		labels := allLabels[proj.ID]
 
+		var issueTypes []model.IssueType
+		db.Where("workspace_id = ?", ws.ID).Find(&issueTypes)
+		typeByName := make(map[string]model.IssueType)
+		for _, t := range issueTypes {
+			typeByName[t.Name] = t
+		}
+
 		numIssues := 85 + rng.Intn(31) // 85-115, totalling ~1000 across 10 projects
 		stateWeights := []int{15, 20, 25, 15, 20, 5}
 
@@ -433,6 +440,11 @@ func SeedDemoData(db *gorm.DB) {
 				completedAt = &ct
 			}
 
+			var issueTypeID *uint64
+			if it, ok := typeByName[issueTypeTag]; ok {
+				issueTypeID = &it.ID
+			}
+
 			issue := model.Issue{
 				Name:                title,
 				DescriptionHTML:     descHTML,
@@ -446,6 +458,7 @@ func SeedDemoData(db *gorm.DB) {
 				TargetDate:          targetDate,
 				CompletedAt:         completedAt,
 				SortOrder:           float64(rng.Intn(10000)) / 100.0,
+				IssueTypeID:         issueTypeID,
 			}
 
 			if err := db.Create(&issue).Error; err != nil {
@@ -943,7 +956,8 @@ func SeedConfigData(db *gorm.DB) {
 		db.Where("project_id = ? AND is_active = true", proj.ID).Order("sequence").Find(&stList)
 		if len(stList) >= 5 {
 			bid, tid, ipid, rid, dnid := stList[0].ID, stList[1].ID, stList[2].ID, stList[3].ID, stList[4].ID
-			pid := proj.ID; wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: &pid, IsActive: true}
+			pid := proj.ID
+			wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: &pid, IsActive: true}
 			db.Create(&wf)
 			trs := []model.StateTransition{
 				{Name: "Backlog→Todo", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: tid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},

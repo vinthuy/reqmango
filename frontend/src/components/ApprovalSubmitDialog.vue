@@ -6,6 +6,12 @@
         {{ t('approvals.submitDesc', { from: fromStateName, to: approveStateName }) }}
       </p>
       <div class="space-y-3">
+        <div v-if="workflowName">
+          <label class="block text-sm font-medium mb-1">{{ t('approvals.workflow') }}</label>
+          <div class="text-sm text-gray-700 bg-gray-50 rounded px-3 py-2">
+            {{ workflowName }}
+          </div>
+        </div>
         <div>
           <label class="block text-sm font-medium mb-1">{{ t('approvals.approvers') }}</label>
           <div class="text-sm text-gray-700 bg-gray-50 rounded px-3 py-2">
@@ -41,6 +47,7 @@ const props = defineProps<{
   fromStateName: string
   approveStateName: string
   approverNames: string[]
+  workflowName?: string
 }>()
 
 const emit = defineEmits<{ close: []; submitted: [] }>()

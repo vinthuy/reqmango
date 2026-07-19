@@ -9,7 +9,7 @@ type WorkflowResponse struct {
 	ProjectID    uint64                 `json:"project_id"`
 	WorkspaceID  uint64                 `json:"workspace_id"`
 	IssueTypeID  *uint64                `json:"issue_type_id"`
-	IssueTypeIDs string                 `json:"issue_type_ids"`
+	IssueTypeIDs []uint64               `json:"issue_type_ids"`
 	IsActive     bool                   `json:"is_active"`
 	IsInherited  bool                   `json:"is_inherited"`
 	Transitions  []TransitionResponse   `json:"transitions"`

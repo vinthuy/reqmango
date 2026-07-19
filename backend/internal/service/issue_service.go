@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"encoding/csv"
@@ -1634,8 +1634,9 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 	// Include both project-level workflows (project_id = ?) AND workspace-level workflows (workspace_id = ? AND project_id IS NULL)
 	if issueTypeID != nil {
 		// Include workflows bound to this issue type OR workflows with no issue type binding
-		query = query.Where("(project_id = ? AND (issue_type_id = ? OR issue_type_id IS NULL)) OR (workspace_id = ? AND project_id IS NULL AND (issue_type_id = ? OR issue_type_id IS NULL))",
-			projectID, *issueTypeID, workspaceID, *issueTypeID)
+		// Also check issue_type_ids JSON array for multi-type bindings
+		query = query.Where("(project_id = ? AND (issue_type_id = ? OR issue_type_id IS NULL OR issue_type_ids @> ?::jsonb)) OR (workspace_id = ? AND project_id IS NULL AND (issue_type_id = ? OR issue_type_id IS NULL OR issue_type_ids @> ?::jsonb))",
+			projectID, *issueTypeID, fmt.Sprintf(`[%d]`, *issueTypeID), workspaceID, *issueTypeID, fmt.Sprintf(`[%d]`, *issueTypeID))
 	} else {
 		// Only include workflows with no issue type binding
 		query = query.Where("(project_id = ? AND issue_type_id IS NULL) OR (workspace_id = ? AND project_id IS NULL AND issue_type_id IS NULL)",
