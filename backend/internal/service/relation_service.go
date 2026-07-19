@@ -157,7 +157,14 @@ func (s *RelationService) buildRelationResponse(r model.IssueRelation, direction
 		Priority: ri.Priority, TargetDate: ri.TargetDate,
 	}
 	if ri.IssueType.ID != 0 {
-		related.IssueType = &response.IssueTypeLite{ID: ri.IssueType.ID, Name: ri.IssueType.Name, Color: ri.IssueType.Color}
+		related.IssueType = &response.IssueTypeLite{
+			ID:                  ri.IssueType.ID,
+			Name:                ri.IssueType.Name,
+			Color:               ri.IssueType.Color,
+			Icon:                ri.IssueType.Icon,
+			Level:               ri.IssueType.Level,
+			AllowedChildTypeIDs: ri.IssueType.AllowedChildTypeIDs,
+		}
 	}
 	for _, al := range ri.AssigneeLinks {
 		u := al.User
@@ -187,7 +194,14 @@ func (s *RelationService) buildInboundRelationResponse(r model.IssueRelation) re
 		Priority: src.Priority, TargetDate: src.TargetDate,
 	}
 	if src.IssueType.ID != 0 {
-		related.IssueType = &response.IssueTypeLite{ID: src.IssueType.ID, Name: src.IssueType.Name, Color: src.IssueType.Color}
+		related.IssueType = &response.IssueTypeLite{
+			ID:                  src.IssueType.ID,
+			Name:                src.IssueType.Name,
+			Color:               src.IssueType.Color,
+			Icon:                src.IssueType.Icon,
+			Level:               src.IssueType.Level,
+			AllowedChildTypeIDs: src.IssueType.AllowedChildTypeIDs,
+		}
 	}
 	for _, al := range src.AssigneeLinks {
 		u := al.User

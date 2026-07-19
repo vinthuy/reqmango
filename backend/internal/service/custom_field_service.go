@@ -113,7 +113,24 @@ func (s *CustomFieldService) List(workspaceID uint64, projectID *uint64, issueTy
 	query := s.db.Model(&model.CustomField{}).Where("workspace_id = ?", workspaceID)
 
 	if projectID != nil {
-		query = query.Where("project_id = ? OR (project_id IS NULL AND EXISTS (SELECT 1 FROM project_custom_field_enrollments WHERE project_custom_field_enrollments.field_id = custom_fields.id AND project_custom_field_enrollments.project_id = ? AND project_custom_field_enrollments.is_enabled = true))", *projectID, *projectID)
+		// Three-way union (Plane v3-style Import model coexists with legacy flows):
+		//   1. Project-private fields (project_id = ?)
+		//   2. Workspace-level fields explicitly enrolled by the project (legacy)
+		//   3. Workspace-level fields attached to a type the project has imported
+		//      via the Plane v3 Import model (fields "follow" the type)
+		query = query.Where(`project_id = ?
+			OR (project_id IS NULL AND EXISTS (
+				SELECT 1 FROM project_custom_field_enrollments
+				WHERE project_custom_field_enrollments.field_id = custom_fields.id
+				AND project_custom_field_enrollments.project_id = ?
+				AND project_custom_field_enrollments.is_enabled = true
+			))
+			OR (project_id IS NULL AND EXISTS (
+				SELECT 1 FROM issue_type_fields itf
+				JOIN issue_type_imports iti ON iti.workspace_type_id = itf.type_id
+				WHERE itf.field_id = custom_fields.id
+				AND iti.project_id = ?
+			))`, *projectID, *projectID, *projectID)
 	} else {
 		query = query.Where("project_id IS NULL")
 	}

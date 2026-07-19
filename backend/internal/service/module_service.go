@@ -1,6 +1,8 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
@@ -16,12 +18,28 @@ func NewModuleService(db *gorm.DB) *ModuleService {
 	return &ModuleService{db: db}
 }
 
-func (s *ModuleService) buildResponse(m model.Module) *response.ModuleResponse {
+func (s *ModuleService) DB() *gorm.DB {
+	return s.db
+}
+
+func (s *ModuleService) buildResponse(m model.Module, override *model.ModuleInheritanceOverride) *response.ModuleResponse {
 	id := m.ID
+	name := m.Name
+	description := m.Description
+
+	if override != nil && !override.IsExcluded {
+		if override.OverrideName != nil {
+			name = *override.OverrideName
+		}
+		if override.OverrideDescription != nil {
+			description = *override.OverrideDescription
+		}
+	}
+
 	return &response.ModuleResponse{
 		ID:          &id,
-		Name:        m.Name,
-		Description: m.Description,
+		Name:        name,
+		Description: description,
 		ProjectID:   m.ProjectID,
 		WorkspaceID: m.WorkspaceID,
 		ParentID:    m.ParentID,
@@ -31,6 +49,7 @@ func (s *ModuleService) buildResponse(m model.Module) *response.ModuleResponse {
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 		IsInherited: m.ProjectID == nil,
+		HasOverride: override != nil && !override.IsExcluded && (override.OverrideName != nil || override.OverrideDescription != nil),
 	}
 }
 
@@ -46,6 +65,19 @@ func (s *ModuleService) countIssues(moduleID uint64) (total, completed int64, er
 		return total, 0, err
 	}
 	return total, completed, nil
+}
+
+func (s *ModuleService) getOverrides(projectID uint64) (map[uint64]*model.ModuleInheritanceOverride, error) {
+	var overrides []model.ModuleInheritanceOverride
+	if err := s.db.Where("project_id = ?", projectID).Find(&overrides).Error; err != nil {
+		return nil, err
+	}
+
+	result := make(map[uint64]*model.ModuleInheritanceOverride)
+	for i := range overrides {
+		result[overrides[i].WorkspaceModuleID] = &overrides[i]
+	}
+	return result, nil
 }
 
 // ==================== CRUD ====================
@@ -70,10 +102,16 @@ func (s *ModuleService) Create(workspaceID, userID uint64, req request.ModuleCre
 		return nil, common.Internal("Failed to create module")
 	}
 
-	return s.buildResponse(module), nil
+	return s.buildResponse(module, nil), nil
 }
 
 func (s *ModuleService) List(projectID, workspaceID uint64, includeArchived bool) ([]response.ModuleResponse, int64, error) {
+	overrides, err := s.getOverrides(projectID)
+	if err != nil {
+		fmt.Printf("[ModuleService.List ERROR] getOverrides failed: projectID=%d err=%v\n", projectID, err)
+		return nil, 0, common.Internal("Failed to load overrides: " + err.Error())
+	}
+
 	query := s.db.Model(&model.Module{}).Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, workspaceID)
 	if !includeArchived {
 		query = query.Where("is_archived = ?", false)
@@ -81,30 +119,60 @@ func (s *ModuleService) List(projectID, workspaceID uint64, includeArchived bool
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, common.Internal("Failed to count modules")
+		fmt.Printf("[ModuleService.List ERROR] Count failed: projectID=%d workspaceID=%d err=%v\n", projectID, workspaceID, err)
+		return nil, 0, common.Internal("Failed to count modules: " + err.Error())
 	}
 
 	var modules []model.Module
 	if err := query.Order("\"order\", created_at").Find(&modules).Error; err != nil {
-		return nil, 0, common.Internal("Failed to list modules")
+		fmt.Printf("[ModuleService.List ERROR] Find failed: projectID=%d workspaceID=%d err=%v\n", projectID, workspaceID, err)
+		return nil, 0, common.Internal("Failed to list modules: " + err.Error())
 	}
 
-	result := make([]response.ModuleResponse, len(modules))
-	for i, m := range modules {
-		result[i] = *s.buildResponse(m)
+	result := make([]response.ModuleResponse, 0, len(modules))
+	for _, m := range modules {
+		if m.ProjectID == nil {
+			if override, exists := overrides[m.ID]; exists {
+				if override.IsExcluded {
+					continue
+				}
+				result = append(result, *s.buildResponse(m, override))
+			} else {
+				result = append(result, *s.buildResponse(m, nil))
+			}
+		} else {
+			result = append(result, *s.buildResponse(m, nil))
+		}
 	}
 
-	return result, total, nil
+	return result, int64(len(result)), nil
 }
 
 func (s *ModuleService) Search(projectID, workspaceID uint64, query string) ([]response.ModuleResponse, error) {
+	overrides, err := s.getOverrides(projectID)
+	if err != nil {
+		return nil, common.Internal("Failed to load overrides")
+	}
+
 	var modules []model.Module
 	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?)) AND name ILIKE ?", projectID, workspaceID, "%"+query+"%").Order("\"order\", created_at").Find(&modules).Error; err != nil {
 		return nil, common.Internal("Failed to search modules")
 	}
-	result := make([]response.ModuleResponse, len(modules))
-	for i, m := range modules {
-		result[i] = *s.buildResponse(m)
+
+	result := make([]response.ModuleResponse, 0, len(modules))
+	for _, m := range modules {
+		if m.ProjectID == nil {
+			if override, exists := overrides[m.ID]; exists {
+				if override.IsExcluded {
+					continue
+				}
+				result = append(result, *s.buildResponse(m, override))
+			} else {
+				result = append(result, *s.buildResponse(m, nil))
+			}
+		} else {
+			result = append(result, *s.buildResponse(m, nil))
+		}
 	}
 	return result, nil
 }
@@ -116,7 +184,7 @@ func (s *ModuleService) ListWorkspaceModules(workspaceID uint64) ([]response.Mod
 	}
 	result := make([]response.ModuleResponse, len(modules))
 	for i, m := range modules {
-		result[i] = *s.buildResponse(m)
+		result[i] = *s.buildResponse(m, nil)
 	}
 	return result, nil
 }
@@ -135,7 +203,7 @@ func (s *ModuleService) CreateWorkspaceModule(workspaceID, userID uint64, req re
 		return nil, common.Internal("Failed to create workspace module")
 	}
 
-	return s.buildResponse(module), nil
+	return s.buildResponse(module, nil), nil
 }
 
 func (s *ModuleService) GetWorkspaceModule(workspaceID, moduleID uint64) (*response.ModuleResponse, error) {
@@ -143,7 +211,7 @@ func (s *ModuleService) GetWorkspaceModule(workspaceID, moduleID uint64) (*respo
 	if err := s.db.Where("id = ? AND workspace_id = ? AND project_id IS NULL", moduleID, workspaceID).First(&module).Error; err != nil {
 		return nil, common.NotFound("Workspace module not found")
 	}
-	return s.buildResponse(module), nil
+	return s.buildResponse(module, nil), nil
 }
 
 func (s *ModuleService) UpdateWorkspaceModule(moduleID, userID uint64, req request.ModuleUpdate) (*response.ModuleResponse, error) {
@@ -167,7 +235,7 @@ func (s *ModuleService) UpdateWorkspaceModule(moduleID, userID uint64, req reque
 		return nil, common.Internal("Failed to update workspace module")
 	}
 
-	return s.buildResponse(module), nil
+	return s.buildResponse(module, nil), nil
 }
 
 func (s *ModuleService) DeleteWorkspaceModule(workspaceID, moduleID uint64) error {
@@ -185,6 +253,10 @@ func (s *ModuleService) DeleteWorkspaceModule(workspaceID, moduleID uint64) erro
 		tx.Rollback()
 		return common.Internal("Failed to delete module issues")
 	}
+	if err := tx.Where("workspace_module_id = ?", moduleID).Delete(&model.ModuleInheritanceOverride{}).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to delete inheritance overrides")
+	}
 	result := tx.Where("id = ? AND workspace_id = ? AND project_id IS NULL", moduleID, workspaceID).Delete(&model.Module{})
 	if result.RowsAffected == 0 {
 		tx.Rollback()
@@ -198,13 +270,36 @@ func (s *ModuleService) Get(moduleID uint64) (*response.ModuleResponse, error) {
 	if err := s.db.First(&module, moduleID).Error; err != nil {
 		return nil, common.NotFound("Module not found")
 	}
-	return s.buildResponse(module), nil
+
+	return s.buildResponse(module, nil), nil
+}
+
+func (s *ModuleService) GetWithProjectContext(moduleID, projectID uint64) (*response.ModuleResponse, error) {
+	var module model.Module
+	if err := s.db.First(&module, moduleID).Error; err != nil {
+		return nil, common.NotFound("Module not found")
+	}
+
+	if module.ProjectID != nil {
+		return s.buildResponse(module, nil), nil
+	}
+
+	var override model.ModuleInheritanceOverride
+	err := s.db.Where("project_id = ? AND workspace_module_id = ?", projectID, moduleID).First(&override).Error
+	if err == nil && !override.IsExcluded {
+		return s.buildResponse(module, &override), nil
+	}
+	return s.buildResponse(module, nil), nil
 }
 
 func (s *ModuleService) Update(moduleID, userID uint64, req request.ModuleUpdate) (*response.ModuleResponse, error) {
 	var module model.Module
 	if err := s.db.First(&module, moduleID).Error; err != nil {
 		return nil, common.NotFound("Module not found")
+	}
+
+	if module.ProjectID == nil {
+		return nil, common.BadRequest("Cannot update workspace module through this endpoint")
 	}
 
 	if req.Name != nil {
@@ -222,7 +317,7 @@ func (s *ModuleService) Update(moduleID, userID uint64, req request.ModuleUpdate
 		return nil, common.Internal("Failed to update module")
 	}
 
-	return s.buildResponse(module), nil
+	return s.buildResponse(module, nil), nil
 }
 
 func (s *ModuleService) Delete(moduleID uint64) error {
@@ -249,6 +344,52 @@ func (s *ModuleService) Delete(moduleID uint64) error {
 		return common.Internal("Failed to delete module")
 	}
 	return tx.Commit().Error
+}
+
+// ==================== Inheritance Override ====================
+
+func (s *ModuleService) CreateOrUpdateOverride(projectID, workspaceModuleID uint64, req request.ModuleOverrideRequest) (*response.ModuleResponse, error) {
+	var module model.Module
+	if err := s.db.Where("id = ? AND project_id IS NULL", workspaceModuleID).First(&module).Error; err != nil {
+		return nil, common.NotFound("Workspace module not found")
+	}
+
+	var override model.ModuleInheritanceOverride
+	err := s.db.Where("project_id = ? AND workspace_module_id = ?", projectID, workspaceModuleID).First(&override).Error
+
+	if err == gorm.ErrRecordNotFound {
+		override = model.ModuleInheritanceOverride{
+			ProjectID:         projectID,
+			WorkspaceModuleID: workspaceModuleID,
+		}
+	}
+
+	override.IsExcluded = req.IsExcluded
+	override.OverrideName = req.OverrideName
+	override.OverrideDescription = req.OverrideDescription
+
+	if err := s.db.Save(&override).Error; err != nil {
+		return nil, common.Internal("Failed to save override")
+	}
+
+	return s.buildResponse(module, &override), nil
+}
+
+func (s *ModuleService) DeleteOverride(projectID, workspaceModuleID uint64) error {
+	result := s.db.Where("project_id = ? AND workspace_module_id = ?", projectID, workspaceModuleID).Delete(&model.ModuleInheritanceOverride{})
+	if result.RowsAffected == 0 {
+		return common.NotFound("Override not found")
+	}
+	return nil
+}
+
+func (s *ModuleService) GetOverride(projectID, workspaceModuleID uint64) (*model.ModuleInheritanceOverride, error) {
+	var override model.ModuleInheritanceOverride
+	err := s.db.Where("project_id = ? AND workspace_module_id = ?", projectID, workspaceModuleID).First(&override).Error
+	if err != nil {
+		return nil, err
+	}
+	return &override, nil
 }
 
 // ==================== Issue Association ====================
@@ -428,9 +569,14 @@ func (s *ModuleService) GetStatistics(moduleID uint64) (*response.ModuleStatisti
 
 // ==================== Tree ====================
 
-func (s *ModuleService) BuildTree(projectID uint64) ([]*response.ModuleTreeNode, error) {
+func (s *ModuleService) BuildTree(projectID, workspaceID uint64) ([]*response.ModuleTreeNode, error) {
+	overrides, err := s.getOverrides(projectID)
+	if err != nil {
+		return nil, common.Internal("Failed to load overrides")
+	}
+
 	var modules []model.Module
-	if err := s.db.Where("project_id = ? AND is_archived = ?", projectID, false).
+	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?)) AND is_archived = ?", projectID, workspaceID, false).
 		Order("\"order\", created_at").Find(&modules).Error; err != nil {
 		return nil, common.Internal("Failed to load modules")
 	}
@@ -439,14 +585,27 @@ func (s *ModuleService) BuildTree(projectID uint64) ([]*response.ModuleTreeNode,
 	var roots []*response.ModuleTreeNode
 
 	for _, m := range modules {
+		if m.ProjectID == nil {
+			if override, exists := overrides[m.ID]; exists && override.IsExcluded {
+				continue
+			}
+		}
+
 		total, completed, _ := s.countIssues(m.ID)
 		progress := 0
 		if total > 0 {
 			progress = int(float64(completed) / float64(total) * 100)
 		}
 
+		var override *model.ModuleInheritanceOverride
+		if m.ProjectID == nil {
+			if o, exists := overrides[m.ID]; exists {
+				override = o
+			}
+		}
+
 		node := &response.ModuleTreeNode{
-			ModuleResponse:  *s.buildResponse(m),
+			ModuleResponse:  *s.buildResponse(m, override),
 			Children:        nil,
 			TotalIssues:     total,
 			CompletedIssues: completed,

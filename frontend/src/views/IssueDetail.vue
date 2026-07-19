@@ -54,13 +54,9 @@
           <IssueTabDetails
             v-if="activeTab === 'details'"
             v-bind="detailProps"
-            :sub-issues="subIssues"
             @update:title="issueForm.name = $event"
             @update:description="issueForm.description = $event"
             @navigate="navigateToIssue"
-            @add-sub-issue="handleAddSubIssue"
-            @remove-sub-issue="handleRemoveSubIssue"
-            @reorder-sub-issues="handleReorderSubIssues"
           />
           <IssueTabRelations
             v-else-if="activeTab === 'relations'"
@@ -71,7 +67,7 @@
             :slug="(route.params.slug as string)"
             :states
             :parent="issue?.parent"
-            :sub-issues="subIssues"
+            :sub-issues="issue?.sub_issues || []"
             :issue-types="issueTypes"
             @navigate="navigateToIssue"
             @refresh="handleRelationsRefresh"
@@ -104,6 +100,7 @@
           :members="projectMembers"
           :cycles
           :modules
+          :releases
           :custom-fields="customFieldEntries"
           :workspace-id="workspaceId"
           :agent-dispatching="agentDispatching"
@@ -114,6 +111,7 @@
           @update:assignee="instantUpdateAssignee"
           @update:cycle="handleCycleUpdate"
           @update:module="handleModuleUpdate"
+          @update:release="handleReleaseUpdate"
           @update:start-date="(d: any) => instantUpdate('start_date', d + 'T00:00:00Z')"
           @update:target-date="(d: any) => instantUpdate('target_date', d + 'T00:00:00Z')"
           @update:labels="handleLabelsUpdate"
@@ -136,6 +134,7 @@ import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
 import { setIssueCycle, removeIssueCycle } from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
+import { releaseApi } from '@/api/release'
 import projectApi from '@/api/project'
 import api from '@/api'
 import { agentApi } from '@/api/agent'
@@ -173,9 +172,9 @@ const issueForm = ref({ name: '', description: '' })
 const states = ref<any[]>([])
 const cycles = ref<any[]>([])
 const modules = ref<any[]>([])
+const releases = ref<{ id: number; name: string; version: string }[]>([])
 const projectMembers = ref<any[]>([])
 const issueTypes = ref<any[]>([])
-const subIssues = ref<any[]>([])
 const activeTab = ref('details')
 const isWatching = ref(false)
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
@@ -228,13 +227,13 @@ onMounted(async () => {
       name: issueData.name || '',
       description: issueData.description_html || '',
     }
-    subIssues.value = issueData.sub_issues || []
 
     // Load auxiliary data
     await Promise.all([
       loadStates(),
       loadCycles(),
       loadModules(),
+      loadReleases(),
       loadProjectMembers(),
       loadIssueTypes(),
       loadCustomFields(),
@@ -272,6 +271,15 @@ async function loadModules() {
     modules.value = data
   } catch (error) {
     console.error('Failed to load modules:', error)
+  }
+}
+
+async function loadReleases() {
+  try {
+    const data = await releaseApi.list(projectId.value)
+    releases.value = data
+  } catch (error) {
+    console.error('Failed to load releases:', error)
   }
 }
 
@@ -522,6 +530,11 @@ async function handleModuleUpdate(moduleId: number | null) {
   await instantUpdate('module_ids', moduleId ? [moduleId] : [])
 }
 
+// Release update
+async function handleReleaseUpdate(releaseId: number | null) {
+  await instantUpdate('release_id', releaseId ?? 0)
+}
+
 // Navigation
 function goBack() {
   router.back()
@@ -538,37 +551,9 @@ async function handleRelationsRefresh() {
     const data = await issueApi.getIssue(issueId)
     if (issue.value) {
       Object.assign(issue.value, data)
-      subIssues.value = data.sub_issues || []
     }
   } catch (err) {
     console.error('Failed to refresh issue after relations change:', err)
-  }
-}
-
-async function handleAddSubIssue() {
-  router.push({
-    path: `/workspace/${route.params.slug}/project/${projectId.value}/issues/new`,
-    query: { parent_id: issueId },
-  })
-}
-
-async function handleRemoveSubIssue(subIssueId: number) {
-  try {
-    await issueApi.updateIssue(subIssueId, { parent_id: null })
-    await handleRelationsRefresh()
-    toast.success(t('issue.removeParentSuccess'))
-  } catch (error: any) {
-    console.error('Failed to remove sub-issue:', error)
-    toast.error(error?.response?.data?.message || t('issue.removeParentFailed'))
-  }
-}
-
-async function handleReorderSubIssues(issueIds: number[]) {
-  try {
-    await issueApi.reorderSubIssues(issueId, issueIds)
-    await handleRelationsRefresh()
-  } catch (error) {
-    console.error('Failed to reorder sub-issues:', error)
   }
 }
 

@@ -62,7 +62,15 @@ type AutomationRule struct {
 	Conditions  string `gorm:"type:text" json:"conditions"`
 	Actions     string `gorm:"type:text" json:"actions"`
 
-	Project Project `gorm:"foreignKey:ProjectID" json:"-"`
+	// Workspace-level rule project scope: "all" = all projects, or JSON array "[1,2,3]"
+	Scope string `gorm:"type:varchar(50);default:'all'" json:"scope"`
+
+	// Scheduled trigger configuration (JSON): {"frequency":"daily","time":"09:00","days":["mon","wed","fri"]}
+	ScheduleConfig  string     `gorm:"type:text" json:"schedule_config,omitempty"`
+	LastTriggeredAt *time.Time `gorm:"" json:"last_triggered_at,omitempty"`
+
+	// Project is intentionally not constrained by FK (workspace-level rules have project_id=0)
+	Project Project `gorm:"-" json:"-"`
 }
 
 func (AutomationRule) TableName() string { return "automation_rules" }
@@ -83,3 +91,13 @@ type AutomationExecution struct {
 }
 
 func (AutomationExecution) TableName() string { return "automation_executions" }
+
+// AutomationRuleOverride stores per-project overrides for inherited workspace-level automation rules.
+type AutomationRuleOverride struct {
+	BaseModel
+	RuleID    uint64 `gorm:"uniqueIndex:idx_aro_rule_project" json:"rule_id"`
+	ProjectID uint64 `gorm:"uniqueIndex:idx_aro_rule_project" json:"project_id"`
+	IsEnabled *bool  `json:"is_enabled,omitempty"` // nil = no override for this field
+}
+
+func (AutomationRuleOverride) TableName() string { return "automation_rule_overrides" }

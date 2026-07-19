@@ -101,7 +101,7 @@ describe('useModuleStore', () => {
     it('should fetch tree structure', async () => {
       const tree = [makeTreeNode(1, [makeTreeNode(2)])]
       mockApi.getModuleTree.mockResolvedValue(tree)
-      await store.fetchModuleTree(1)
+      await store.fetchModuleTree(1, 1)
       expect(store.moduleTree).toEqual(tree)
       expect(store.moduleTree[0].children).toHaveLength(1)
     })
@@ -115,7 +115,7 @@ describe('useModuleStore', () => {
       mockApi.getModuleTree.mockResolvedValue([])
       const result = await store.createModule(1, { name: 'New', project_id: 1, workspace_id: 1 })
       expect(store.modules).toHaveLength(1)
-      expect(mockApi.getModuleTree).toHaveBeenCalledWith(1)
+      expect(mockApi.getModuleTree).toHaveBeenCalledWith(1, 1)
       expect(result).toEqual(created)
     })
 
@@ -138,7 +138,7 @@ describe('useModuleStore', () => {
       await store.updateModuleAction(1, { name: 'New' })
       expect(store.modules[0].name).toBe('New')
       expect(store.currentModule?.name).toBe('New')
-      expect(mockApi.getModuleTree).toHaveBeenCalledWith(1)
+      expect(mockApi.getModuleTree).toHaveBeenCalledWith(1, 1)
     })
   })
 
@@ -153,7 +153,7 @@ describe('useModuleStore', () => {
       await store.deleteModuleAction(1)
       expect(store.modules).toHaveLength(0)
       expect(store.currentModule).toBeNull()
-      expect(mockApi.getModuleTree).toHaveBeenCalledWith(1)
+      expect(mockApi.getModuleTree).toHaveBeenCalledWith(1, 1)
     })
   })
 

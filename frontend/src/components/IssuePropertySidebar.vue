@@ -112,6 +112,19 @@
       </select>
     </div>
 
+    <!-- Release -->
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">{{ t('issue.release') }}</label>
+      <select
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        :value="issue.release_id ?? ''"
+        @change="emitReleaseUpdate"
+      >
+        <option value=""></option>
+        <option v-for="r in releases" :key="r.id" :value="r.id">{{ r.name }} ({{ r.version }})</option>
+      </select>
+    </div>
+
     <!-- Start Date + Target Date -->
     <div class="grid grid-cols-2 gap-2">
       <div>
@@ -248,6 +261,7 @@ const props = defineProps<{
   members: MemberOption[]
   cycles: CycleOption[]
   modules: ModuleOption[]
+  releases: Array<{ id: number; name: string; version: string }>
   customFields: CustomFieldEntry[]
   workspaceId: number
   agentDispatching?: boolean
@@ -268,6 +282,7 @@ const emit = defineEmits<{
   (e: 'update:assignee', userId: number | null): void
   (e: 'update:cycle', cycleId: number | null): void
   (e: 'update:module', moduleId: number | null): void
+  (e: 'update:release', releaseId: number | null): void
   (e: 'update:startDate', date: string): void
   (e: 'update:targetDate', date: string): void
   (e: 'update:customField', fieldId: number, value: string): void
@@ -306,6 +321,11 @@ function emitCycleUpdate(event: Event) {
 function emitModuleUpdate(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   emit('update:module', value ? Number(value) : null)
+}
+
+function emitReleaseUpdate(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  emit('update:release', value ? Number(value) : null)
 }
 
 function emitStartDateUpdate(event: Event) {

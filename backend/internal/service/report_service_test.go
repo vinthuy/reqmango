@@ -23,7 +23,7 @@ func TestBuildAggregation(t *testing.T) {
 		{"type", "COALESCE(it.name, 'Untyped') as name", "LEFT JOIN issue_types it ON issues.issue_type_id = it.id"},
 		{"label", "COALESCE(l.name, 'No Label') as name", "LEFT JOIN issue_labels il ON issues.id = il.issue_id LEFT JOIN labels l ON il.label_id = l.id"},
 		{"cycle", "COALESCE(c.name, 'No Cycle') as name", "LEFT JOIN issue_cycles ic ON issues.id = ic.issue_id LEFT JOIN cycles c ON ic.cycle_id = c.id"},
-		{"module", "COALESCE(m.name, 'No Module') as name", "LEFT JOIN module_issues mi ON issues.id = mi.issue_id LEFT JOIN modules m ON mi.module_id = m.id"},
+		{"module", "COALESCE(mo.override_name, m.name, 'No Module') as name", "LEFT JOIN module_issues mi ON issues.id = mi.issue_id LEFT JOIN modules m ON mi.module_id = m.id LEFT JOIN module_inheritance_overrides mo ON m.project_id IS NULL AND mo.project_id = issues.project_id AND mo.workspace_module_id = m.id AND mo.is_excluded = false"},
 		{"", "COALESCE(s.name, 'Unknown') as name", "LEFT JOIN states s ON issues.state_id = s.id"},
 		{"unknown", "COALESCE(s.name, 'Unknown') as name", "LEFT JOIN states s ON issues.state_id = s.id"},
 	}

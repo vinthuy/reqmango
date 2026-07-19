@@ -1,11 +1,13 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/reqmango/backend/internal/i18n"
 )
 
@@ -64,6 +66,18 @@ func NotificationNotFound() *AppError {
 }
 func AgentNotFound() *AppError     { return NewError(ErrAgentNotFound, "Agent not found") }
 func DashboardNotFound() *AppError { return NewError(ErrDashboardNotFound, "Dashboard not found") }
+func DashboardNotFound() *AppError { return NewError(ErrDashboardNotFound, "Dashboard not found") }
+
+// IsUniqueViolation reports whether err is a Postgres unique-constraint violation
+// (SQLSTATE 23505). Matches by error code rather than message text, so it also
+// works when the Postgres server locale localizes error messages.
+func IsUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505"
+	}
+	return err != nil && strings.Contains(err.Error(), "duplicate key value violates unique constraint")
+}
 
 // ==================== Standard Response Helpers ====================
 

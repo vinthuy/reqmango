@@ -343,30 +343,28 @@ func (s *ProjectSettingsService) CreateLabel(req *request.LabelCreateRequest, pr
 		color = "#6B7280"
 	}
 
-	projectIDPtr := projectID
 	label := &model.Label{
 		Name:        req.Name,
 		Color:       color,
 		Description: req.Description,
-		ProjectID:   &projectIDPtr,
+		ProjectID:   projectID,
 		WorkspaceID: project.WorkspaceID,
 	}
 
 	if err := s.db.Create(label).Error; err != nil {
+		if common.IsUniqueViolation(err) {
+			return nil, common.Conflict("Label name already exists in this project")
+		}
 		return nil, common.Internal("Failed to create label")
 	}
 
 	return labelToResponse(label), nil
 }
 
-// ListLabels returns all labels for a project including inherited workspace labels.
+// ListLabels returns all labels for a project.
 func (s *ProjectSettingsService) ListLabels(projectID uint64) ([]response.LabelResponse, error) {
-	var project model.Project
-	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
-		return nil, common.Internal("Project not found")
-	}
 	var labels []model.Label
-	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, project.WorkspaceID).Order("created_at ASC").Find(&labels).Error; err != nil {
+	if err := s.db.Where("project_id = ?", projectID).Order("created_at ASC").Find(&labels).Error; err != nil {
 		return nil, common.Internal("Database error")
 	}
 
@@ -379,12 +377,8 @@ func (s *ProjectSettingsService) ListLabels(projectID uint64) ([]response.LabelR
 
 // SearchLabels returns labels matching the query.
 func (s *ProjectSettingsService) SearchLabels(projectID uint64, query string) ([]response.LabelResponse, error) {
-	var project model.Project
-	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
-		return nil, common.Internal("Project not found")
-	}
 	var labels []model.Label
-	if err := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?)) AND name ILIKE ?", projectID, project.WorkspaceID, "%"+query+"%").Order("created_at ASC").Find(&labels).Error; err != nil {
+	if err := s.db.Where("project_id = ? AND name ILIKE ?", projectID, "%"+query+"%").Order("created_at ASC").Find(&labels).Error; err != nil {
 		return nil, common.Internal("Database error")
 	}
 	result := make([]response.LabelResponse, len(labels))
@@ -392,106 +386,6 @@ func (s *ProjectSettingsService) SearchLabels(projectID uint64, query string) ([
 		result[i] = *labelToResponse(&l)
 	}
 	return result, nil
-}
-
-// ListWorkspaceLabels returns workspace-level labels (project_id IS NULL).
-func (s *ProjectSettingsService) ListWorkspaceLabels(workspaceID uint64) ([]response.LabelResponse, error) {
-	var labels []model.Label
-	if err := s.db.Where("workspace_id = ? AND project_id IS NULL", workspaceID).Order("created_at ASC").Find(&labels).Error; err != nil {
-		return nil, common.Internal("Database error")
-	}
-
-	result := make([]response.LabelResponse, len(labels))
-	for i, l := range labels {
-		result[i] = *labelToResponse(&l)
-	}
-	return result, nil
-}
-
-// CreateWorkspaceLabel creates a new workspace-level label.
-func (s *ProjectSettingsService) CreateWorkspaceLabel(req *request.LabelCreateRequest, workspaceID uint64) (*response.LabelResponse, error) {
-	color := req.Color
-	if color == "" {
-		color = "#6B7280"
-	}
-
-	label := &model.Label{
-		Name:        req.Name,
-		Color:       color,
-		Description: req.Description,
-		ProjectID:   nil,
-		WorkspaceID: workspaceID,
-	}
-
-	if err := s.db.Create(label).Error; err != nil {
-		return nil, common.Internal("Failed to create workspace label")
-	}
-
-	return labelToResponse(label), nil
-}
-
-// GetWorkspaceLabel returns a single workspace-level label by ID.
-func (s *ProjectSettingsService) GetWorkspaceLabel(workspaceID, labelID uint64) (*response.LabelResponse, error) {
-	var label model.Label
-	if err := s.db.Where("id = ? AND workspace_id = ? AND project_id IS NULL", labelID, workspaceID).First(&label).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, common.NotFound("Workspace label not found")
-		}
-		return nil, common.Internal("Database error")
-	}
-	return labelToResponse(&label), nil
-}
-
-// UpdateWorkspaceLabel updates a workspace-level label's properties.
-func (s *ProjectSettingsService) UpdateWorkspaceLabel(workspaceID, labelID uint64, req *request.LabelUpdateRequest) (*response.LabelResponse, error) {
-	var label model.Label
-	if err := s.db.Where("id = ? AND workspace_id = ? AND project_id IS NULL", labelID, workspaceID).First(&label).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, common.NotFound("Workspace label not found")
-		}
-		return nil, common.Internal("Database error")
-	}
-
-	updates := map[string]interface{}{}
-	if req.Name != nil {
-		updates["name"] = *req.Name
-	}
-	if req.Color != nil {
-		updates["color"] = *req.Color
-	}
-	if req.Description != nil {
-		updates["description"] = *req.Description
-	}
-
-	if len(updates) > 0 {
-		if err := s.db.Model(&label).Updates(updates).Error; err != nil {
-			return nil, common.Internal("Failed to update workspace label")
-		}
-	}
-
-	return labelToResponse(&label), nil
-}
-
-// DeleteWorkspaceLabel soft-deletes a workspace-level label.
-func (s *ProjectSettingsService) DeleteWorkspaceLabel(workspaceID, labelID uint64) error {
-	tx := s.db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	if err := tx.Where("label_id = ?", labelID).Delete(&model.IssueLabel{}).Error; err != nil {
-		tx.Rollback()
-		return common.Internal("Failed to delete issue labels")
-	}
-
-	result := tx.Where("id = ? AND workspace_id = ? AND project_id IS NULL", labelID, workspaceID).Delete(&model.Label{})
-	if result.RowsAffected == 0 {
-		tx.Rollback()
-		return common.NotFound("Workspace label not found")
-	}
-	return tx.Commit().Error
 }
 
 // GetLabel returns a single label by ID.
@@ -529,6 +423,9 @@ func (s *ProjectSettingsService) UpdateLabel(projectID, labelID uint64, req *req
 
 	if len(updates) > 0 {
 		if err := s.db.Model(&label).Updates(updates).Error; err != nil {
+			if common.IsUniqueViolation(err) {
+				return nil, common.Conflict("Label name already exists in this project")
+			}
 			return nil, common.Internal("Failed to update label")
 		}
 	}
@@ -598,7 +495,6 @@ func labelToResponse(label *model.Label) *response.LabelResponse {
 		UpdatedAt:   label.UpdatedAt,
 		CreatedByID: label.CreatedByID,
 		UpdatedByID: label.UpdatedByID,
-		IsInherited: label.ProjectID == nil,
 	}
 
 	if label.DeletedAt.Valid {

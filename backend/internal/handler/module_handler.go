@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -62,21 +64,32 @@ func (h *ModuleHandler) List(c *gin.Context) {
 		return
 	}
 
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
-		return
+	var workspaceID uint64
+	if wsStr := c.Query("workspace_id"); wsStr != "" {
+		workspaceID, err = strconv.ParseUint(wsStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+			return
+		}
+	} else {
+		var project model.Project
+		if err := h.svc.DB().First(&project, projectID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Project not found"})
+			return
+		}
+		workspaceID = project.WorkspaceID
 	}
 
 	includeArchived := c.DefaultQuery("include_archived", "false") == "true"
 
 	modules, _, svcErr := h.svc.List(projectID, workspaceID, includeArchived)
 	if svcErr != nil {
+		fmt.Printf("[ModuleHandler.List ERROR] projectID=%d workspaceID=%d includeArchived=%v err=%v\n", projectID, workspaceID, includeArchived, svcErr)
 		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message, "detail": appErr.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error", "detail": svcErr.Error()})
 		return
 	}
 
@@ -89,11 +102,23 @@ func (h *ModuleHandler) Search(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
 		return
 	}
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
-		return
+
+	var workspaceID uint64
+	if wsStr := c.Query("workspace_id"); wsStr != "" {
+		workspaceID, err = strconv.ParseUint(wsStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace ID"})
+			return
+		}
+	} else {
+		var project model.Project
+		if err := h.svc.DB().First(&project, projectID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Project not found"})
+			return
+		}
+		workspaceID = project.WorkspaceID
 	}
+
 	query := c.Query("q")
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "query parameter 'q' is required"})
@@ -115,6 +140,26 @@ func (h *ModuleHandler) Get(c *gin.Context) {
 	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+
+	projectIDStr := c.Query("project_id")
+	if projectIDStr != "" {
+		projectID, err := strconv.ParseUint(projectIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+			return
+		}
+		module, svcErr := h.svc.GetWithProjectContext(moduleID, projectID)
+		if svcErr != nil {
+			if appErr, ok := svcErr.(*common.AppError); ok {
+				c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+			return
+		}
+		c.JSON(http.StatusOK, module)
 		return
 	}
 
@@ -193,7 +238,8 @@ func (h *ModuleHandler) AddIssue(c *gin.Context) {
 	}
 	if svcErr := h.svc.AddIssue(moduleID, issueID); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
@@ -214,7 +260,8 @@ func (h *ModuleHandler) RemoveIssue(c *gin.Context) {
 	}
 	if svcErr := h.svc.RemoveIssue(moduleID, issueID); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
@@ -238,7 +285,8 @@ func (h *ModuleHandler) ListIssues(c *gin.Context) {
 	issues, _, svcErr := h.svc.ListIssues(moduleID, stateID, c.Query("priority"), p.Limit, p.Offset)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
@@ -257,7 +305,8 @@ func (h *ModuleHandler) GetProgress(c *gin.Context) {
 	resp, svcErr := h.svc.GetProgress(moduleID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
@@ -274,7 +323,8 @@ func (h *ModuleHandler) GetStatistics(c *gin.Context) {
 	resp, svcErr := h.svc.GetStatistics(moduleID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
@@ -288,15 +338,92 @@ func (h *ModuleHandler) GetTree(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project_id"})
 		return
 	}
-	resp, svcErr := h.svc.BuildTree(projectID)
+
+	var workspaceID uint64
+	if wsStr := c.Query("workspace_id"); wsStr != "" {
+		workspaceID, err = strconv.ParseUint(wsStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
+			return
+		}
+	} else {
+		var project model.Project
+		if err := h.svc.DB().First(&project, projectID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Project not found"})
+			return
+		}
+		workspaceID = project.WorkspaceID
+	}
+
+	resp, svcErr := h.svc.BuildTree(projectID, workspaceID)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
-			c.JSON(appErr.Code, gin.H{"message": appErr.Message}); return
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+// ==================== Inheritance Override ====================
+
+func (h *ModuleHandler) CreateOrUpdateOverride(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+
+	var req request.ModuleOverrideRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request body"})
+		return
+	}
+
+	module, svcErr := h.svc.CreateOrUpdateOverride(projectID, moduleID, req)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, module)
+}
+
+func (h *ModuleHandler) DeleteOverride(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	moduleID, err := strconv.ParseUint(c.Param("moduleId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid module ID"})
+		return
+	}
+
+	if svcErr := h.svc.DeleteOverride(projectID, moduleID); svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Override deleted successfully"})
 }
 
 // ==================== Workspace Modules ====================

@@ -8,7 +8,7 @@ type LabelResponse struct {
 	Name        string     `json:"name"`
 	Color       string     `json:"color"`
 	Description *string    `json:"description"`
-	ProjectID   *uint64    `json:"project_id"`
+	ProjectID   uint64     `json:"project_id"`
 	WorkspaceID uint64     `json:"workspace_id"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
@@ -16,5 +16,4 @@ type LabelResponse struct {
 	UpdatedByID *uint64    `json:"updated_by_id"`
 	DeletedAt   *time.Time `json:"deleted_at"`
 	IsDeleted   bool       `json:"is_deleted"`
-	IsInherited bool       `json:"is_inherited"`
 }

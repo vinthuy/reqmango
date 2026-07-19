@@ -66,7 +66,7 @@ async function loadAll(wsId: number) {
 async function loadProjectData(projectId: number) {
   selectedProjectId.value = projectId
   try { const r = await api.get(`/projects/${projectId}/cycles`); cycles.value = r.data.data || [] } catch(e) { cycles.value = [] }
-  try { const r = await api.get(`/modules?project_id=${projectId}`); modules.value = r.data.data || [] } catch(e) { modules.value = [] }
+  try { const r = await api.get(`/modules?project_id=${projectId}`); modules.value = Array.isArray(r.data) ? r.data : (r.data.data || []) } catch(e) { modules.value = [] }
   try { releases.value = await releaseApi.list(projectId) || [] } catch(e) { releases.value = [] }
   computeTimeline()
 }

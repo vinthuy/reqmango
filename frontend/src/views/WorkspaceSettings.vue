@@ -40,6 +40,7 @@ const slug = computed(() => (route.params as any).slug as string || '');
 const loading = ref(false);
 const workspaceId = ref(0);
 const firstProjectId = ref(0);
+const workspaceProjects = ref<any[]>([]);
 const activeSection = ref('types');
 
 // ===== Data =====
@@ -54,15 +55,11 @@ const pluginCount = ref(0);
 const roleCount = ref(0);
 const integrationCount = ref(0);
 const workspaceStates = ref<any[]>([]);
-const workspaceLabels = ref<any[]>([]);
-const workspaceModules = ref<any[]>([]);
 
 const navItems = computed(() => [
   { id: 'members', label: t('settings.members'), icon: '👥', count: memberCount.value },
   { id: 'types', label: t('settings.workItemTypes'), icon: '📋', count: issueTypes.value.length },
   { id: 'states', label: t('settings.states'), icon: '🔄', count: workspaceStates.value.length },
-  { id: 'labels', label: t('settings.labels'), icon: '🏷️', count: workspaceLabels.value.length },
-  { id: 'modules', label: t('settings.modules'), icon: '📦', count: workspaceModules.value.length },
   { id: 'templates', label: t('settings.templates'), icon: '📦', count: templateCount.value },
   { id: 'ai', label: t('settings.ai'), icon: '🤖', count: 0 },
   { id: 'fields', label: t('settings.fields'), icon: '📝', count: customFields.value.length },
@@ -81,6 +78,7 @@ async function loadWorkspace() {
     const ws = await workspaceApi.getBySlug(slug.value);
     workspaceId.value = ws.id;
     const projects = await listProjects(ws.id);
+    workspaceProjects.value = projects;
     firstProjectId.value = projects.length > 0 ? projects[0].id : 0;
     await loadAllData();
   } catch (e) { console.error('Failed to load workspace:', e); }
@@ -105,8 +103,6 @@ async function loadAllData() {
       githubApi.list(wid),
       slackApi.list(wid),
       api.get(`/workspaces/${wid}/settings/states`).then(r => r.data),
-      api.get(`/workspaces/${wid}/settings/labels`).then(r => r.data),
-      api.get(`/workspaces/${wid}/modules`).then(r => r.data),
     ]);
     issueTypes.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value) ? results[0].value : []) : [];
     customFields.value = results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : []) : [];
@@ -124,8 +120,6 @@ async function loadAllData() {
     const slack = results[11].status === 'fulfilled' ? (Array.isArray(results[11].value) ? results[11].value : []) : [];
     integrationCount.value = mcp.length + github.length + slack.length;
     workspaceStates.value = results[12].status === 'fulfilled' ? (Array.isArray(results[12].value) ? results[12].value : []) : [];
-    workspaceLabels.value = results[13].status === 'fulfilled' ? (Array.isArray(results[13].value) ? results[13].value : []) : [];
-    workspaceModules.value = results[14].status === 'fulfilled' ? (Array.isArray(results[14].value) ? results[14].value : []) : [];
   } catch (e) { console.error('Failed to load data:', e); }
   finally { loading.value = false; }
 }
@@ -236,84 +230,6 @@ async function wsHandleDeleteState(_groupId: string, state: any) {
   catch (e: any) { console.error('Failed to delete state:', e); toast.error(e?.response?.data?.message || 'Failed to delete state'); }
 }
 
-// ===== Workspace Labels handlers =====
-const wsShowLabelModal = ref(false);
-const wsEditingLabel = ref<any>(null);
-const wsNewLabelForm = ref({ name: '', color: '#3B82F6' });
-
-function wsHandleAddLabel() {
-  wsEditingLabel.value = null;
-  wsNewLabelForm.value = { name: '', color: '#3B82F6' };
-  wsShowLabelModal.value = true;
-}
-function wsHandleEditLabel(label: any) {
-  wsEditingLabel.value = { ...label };
-  wsNewLabelForm.value = { name: label.name, color: label.color };
-  wsShowLabelModal.value = true;
-}
-async function wsHandleSaveLabel() {
-  if (!wsNewLabelForm.value.name || !workspaceId.value) return;
-  try {
-    const wid = workspaceId.value;
-    if (wsEditingLabel.value) {
-      await api.put(`/workspaces/${wid}/settings/labels/${wsEditingLabel.value.id}`, {
-        name: wsNewLabelForm.value.name, color: wsNewLabelForm.value.color
-      });
-    } else {
-      await api.post(`/workspaces/${wid}/settings/labels`, {
-        name: wsNewLabelForm.value.name, color: wsNewLabelForm.value.color
-      });
-    }
-    wsShowLabelModal.value = false;
-    await loadAllData();
-  } catch (e: any) { console.error('Failed to save label:', e); toast.error(e?.response?.data?.message || 'Failed to save label'); }
-}
-async function wsHandleDeleteLabel(label: any) {
-  if (!workspaceId.value) return;
-  if (!(await confirm({ title: t('settings.deleteLabel'), message: t('settings.confirmDeleteLabel', { 0: label.name }), danger: true, confirmText: t('common.delete') }))) return;
-  try { await api.delete(`/workspaces/${workspaceId.value}/settings/labels/${label.id}`); await loadAllData(); }
-  catch (e: any) { console.error('Failed to delete label:', e); toast.error(e?.response?.data?.message || 'Failed to delete label'); }
-}
-
-// ===== Workspace Modules handlers =====
-const wsShowModuleModal = ref(false);
-const wsEditingModule = ref<any>(null);
-const wsNewModuleForm = ref({ name: '', description: '', parentId: null as number | null });
-
-function wsHandleAddModule() {
-  wsEditingModule.value = null;
-  wsNewModuleForm.value = { name: '', description: '', parentId: null };
-  wsShowModuleModal.value = true;
-}
-function wsHandleEditModule(module: any) {
-  wsEditingModule.value = { ...module };
-  wsNewModuleForm.value = { name: module.name, description: module.description || '', parentId: module.parent_id || null };
-  wsShowModuleModal.value = true;
-}
-async function wsHandleSaveModule() {
-  if (!wsNewModuleForm.value.name || !workspaceId.value) return;
-  try {
-    const wid = workspaceId.value;
-    if (wsEditingModule.value) {
-      await api.put(`/workspaces/${wid}/modules/${wsEditingModule.value.id}`, {
-        name: wsNewModuleForm.value.name, description: wsNewModuleForm.value.description, parent_id: wsNewModuleForm.value.parentId
-      });
-    } else {
-      await api.post(`/workspaces/${wid}/modules`, {
-        name: wsNewModuleForm.value.name, description: wsNewModuleForm.value.description, parent_id: wsNewModuleForm.value.parentId
-      });
-    }
-    wsShowModuleModal.value = false;
-    await loadAllData();
-  } catch (e: any) { console.error('Failed to save module:', e); toast.error(e?.response?.data?.message || 'Failed to save module'); }
-}
-async function wsHandleDeleteModule(module: any) {
-  if (!workspaceId.value) return;
-  if (!(await confirm({ title: t('settings.delete'), message: t('settings.confirmDelete', { 0: module.name }), danger: true, confirmText: t('common.delete') }))) return;
-  try { await api.delete(`/workspaces/${workspaceId.value}/modules/${module.id}`); await loadAllData(); }
-  catch (e: any) { console.error('Failed to delete module:', e); toast.error(e?.response?.data?.message || 'Failed to delete module'); }
-}
-
 onMounted(() => { loadWorkspace(); });
 </script>
 
@@ -384,47 +300,6 @@ onMounted(() => { loadWorkspace(); });
         </div>
       </div>
 
-      <!-- Workspace Labels Section -->
-      <div v-if="!loading && activeSection === 'labels'" class="p-6 space-y-6">
-        <div class="flex items-center justify-between">
-          <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.labels') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.workspaceLabelsDesc') }}</p></div>
-          <button @click="wsHandleAddLabel" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.addLabel') }}</button>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-6">
-          <div class="flex flex-wrap gap-3">
-            <div v-for="label in workspaceLabels" :key="label.id" @click="wsHandleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
-              <div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: label.color }"></div>
-              <span class="text-sm font-medium" :style="{ color: label.color }">{{ label.name }}</span>
-              <button @click.stop="wsHandleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
-            </div>
-            <div v-if="workspaceLabels.length === 0" class="w-full text-center text-gray-400 py-8">{{ t('settings.noLabels') }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Workspace Modules Section -->
-      <div v-if="!loading && activeSection === 'modules'" class="p-6 space-y-6">
-        <div class="flex items-center justify-between">
-          <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.modules') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.workspaceModulesDesc') }}</p></div>
-          <button @click="wsHandleAddModule" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.addModule') }}</button>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200">
-          <div class="divide-y divide-gray-100">
-            <div v-for="module in workspaceModules" :key="module.id" class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
-              <div>
-                <span class="text-sm text-gray-800 font-medium">{{ module.name }}</span>
-                <span v-if="module.description" class="text-xs text-gray-500 ml-2">{{ module.description }}</span>
-              </div>
-              <div class="flex items-center space-x-2">
-                <button @click.stop="wsHandleEditModule(module)" class="p-1 text-gray-400 hover:text-gray-600">✏️</button>
-                <button @click.stop="wsHandleDeleteModule(module)" class="p-1 text-gray-400 hover:text-red-500">🗑️</button>
-              </div>
-            </div>
-            <div v-if="workspaceModules.length === 0" class="px-4 py-8 text-center text-gray-400 text-sm">{{ t('settings.noModules') }}</div>
-          </div>
-        </div>
-      </div>
-
       <!-- Templates Section -->
       <div v-if="!loading && activeSection === 'templates'" class="p-6">
         <ProjectTemplateManager :workspace-id="workspaceId" />
@@ -486,7 +361,7 @@ onMounted(() => { loadWorkspace(); });
 
     <!-- Automation Form Modal -->
     <div v-if="showAutomationForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAutomationForm = false">
-      <div class="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="bg-white rounded-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-gray-900">{{ editingAutomation ? t('settings.editAutomation') : t('settings.createAutomation') }}</h3>
           <button @click="showAutomationForm = false" class="text-gray-400 hover:text-gray-600">✕</button>
@@ -496,6 +371,8 @@ onMounted(() => { loadWorkspace(); });
             :project-id="firstProjectId"
             :workspace-id="workspaceId"
             :automation="editingAutomation"
+            :projects="workspaceProjects"
+            :scope-enabled="true"
             @submit="handleSaveAutomation"
             @cancel="showAutomationForm = false"
           />
@@ -526,43 +403,6 @@ onMounted(() => { loadWorkspace(); });
         <div class="flex justify-end space-x-3 mt-6">
           <button @click="wsShowStateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
           <button @click="wsHandleSaveState" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ wsEditingState ? t('settings.update') : t('settings.create') }}</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Workspace Label Modal -->
-    <div v-if="wsShowLabelModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="wsShowLabelModal = false">
-      <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ wsEditingLabel ? t('settings.editLabel') : t('settings.addLabel') }}</h3>
-        <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="wsNewLabelForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.color') }}</label><input v-model="wsNewLabelForm.color" type="color" class="w-full h-12 border border-gray-300 rounded-lg cursor-pointer" /></div>
-          <div class="mt-2"><div class="inline-flex items-center px-4 py-2 rounded-full" :style="{ backgroundColor: wsNewLabelForm.color + '20' }"><div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: wsNewLabelForm.color }"></div><span class="text-sm font-medium" :style="{ color: wsNewLabelForm.color }">{{ wsNewLabelForm.name || t('settings.preview') }}</span></div></div>
-        </div>
-        <div class="flex justify-end space-x-3 mt-6">
-          <button @click="wsShowLabelModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
-          <button @click="wsHandleSaveLabel" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ wsEditingLabel ? t('settings.update') : t('settings.create') }}</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Workspace Module Modal -->
-    <div v-if="wsShowModuleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="wsShowModuleModal = false">
-      <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ wsEditingModule ? t('settings.editModule') : t('settings.addModule') }}</h3>
-        <div class="space-y-4">
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="wsNewModuleForm.name" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.descriptionOptional') }}</label><textarea v-model="wsNewModuleForm.description" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></textarea></div>
-          <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.parentModule') }}</label>
-            <select v-model="wsNewModuleForm.parentId" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-              <option :value="null">{{ t('settings.none') }}</option>
-              <option v-for="m in workspaceModules.filter((mod: any) => mod.id !== wsEditingModule?.id)" :key="m.id" :value="m.id">{{ m.name }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="flex justify-end space-x-3 mt-6">
-          <button @click="wsShowModuleModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
-          <button @click="wsHandleSaveModule" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ wsEditingModule ? t('settings.update') : t('settings.create') }}</button>
         </div>
       </div>
     </div>

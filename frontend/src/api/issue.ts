@@ -86,7 +86,7 @@ export async function listIssues(
     if (filters.offset) params.append('offset', filters.offset.toString())
   }
   
-  const response = await api.get(`/issues/?${params.toString()}`)
+  const response = await api.get(`/issues?${params.toString()}`)
   const total = parseInt(response.headers['x-total-count'] || '0', 10)
   return { items: response.data || [], total }
 }

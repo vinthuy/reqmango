@@ -10,6 +10,7 @@ export interface IssueType {
   description?: string
   level?: number
   parent_type_id?: number
+  allowed_child_type_ids?: number[]
   is_default: boolean
   sequence: number
   is_active: boolean
@@ -18,6 +19,8 @@ export interface IssueType {
   created_at: string
   updated_at: string
   fields?: IssueTypeField[]
+  is_inherited?: boolean  // true = structurally a workspace-level type (project_id IS NULL)
+  is_imported?: boolean  // true = project has explicitly imported this workspace type (Plane v3 Import model)
 }
 
 export interface IssueTypeField {

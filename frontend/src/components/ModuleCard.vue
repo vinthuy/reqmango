@@ -3,7 +3,6 @@
     class="module-card bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all"
     @click="$emit('click')"
   >
-    <!-- 头部：标题 -->
     <div class="flex items-start justify-between mb-3">
       <div class="flex items-center space-x-2">
         <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -11,15 +10,14 @@
         </svg>
         <h3 class="text-base font-semibold text-gray-900">{{ module.name }}</h3>
         <span v-if="module.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️</span>
+        <span v-if="module.has_override" class="px-2 py-0.5 bg-amber-100 text-amber-600 rounded text-xs font-medium">✏️</span>
       </div>
     </div>
 
-    <!-- 描述 -->
     <p v-if="module.description" class="text-sm text-gray-500 mb-3 line-clamp-2">
       {{ module.description }}
     </p>
 
-    <!-- Footer -->
     <div class="flex items-center justify-between pt-3 border-t border-gray-100 text-xs text-gray-400">
       <span v-if="module.parent_id">{{ t('moduleCard.submodule') }}</span>
       <span v-else>{{ t('moduleCard.topLevel') }}</span>
@@ -35,7 +33,7 @@
 
         <div
           v-if="showMenu"
-          class="absolute right-0 mt-1 w-28 bg-white border border-gray-200 rounded-md shadow-lg z-10"
+          class="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10"
         >
           <button
             @click="$emit('click'); showMenu = false"
@@ -43,6 +41,27 @@
           >
             {{ t('moduleCard.viewDetails') }}
           </button>
+          <template v-if="module.is_inherited">
+            <button
+              @click="$emit('override', module); showMenu = false"
+              class="w-full px-3 py-2 text-left text-sm text-indigo-600 hover:bg-indigo-50"
+            >
+              {{ module.has_override ? t('moduleCard.editOverride') : t('moduleCard.override') }}
+            </button>
+            <button
+              @click="$emit('exclude', module); showMenu = false"
+              class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+            >
+              {{ t('moduleCard.exclude') }}
+            </button>
+            <button
+              v-if="module.has_override"
+              @click="$emit('reset-override', module); showMenu = false"
+              class="w-full px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-50"
+            >
+              {{ t('moduleCard.resetOverride') }}
+            </button>
+          </template>
           <button
             v-if="!module.is_inherited"
             @click="$emit('delete', module); showMenu = false"
@@ -63,18 +82,18 @@ import type { ModuleResponse } from '@/types/module'
 
 const { t } = useI18n()
 
-// Props
 defineProps<{
   module: ModuleResponse
 }>()
 
-// Emits
 defineEmits<{
   (e: 'click'): void
   (e: 'delete', module: ModuleResponse): void
+  (e: 'exclude', module: ModuleResponse): void
+  (e: 'override', module: ModuleResponse): void
+  (e: 'reset-override', module: ModuleResponse): void
 }>()
 
-// State
 const showMenu = ref(false)
 </script>
 

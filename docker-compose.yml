@@ -29,6 +29,11 @@
       ACCESS_TOKEN_EXPIRE_MINUTES: "${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}"
       PORT: "8000"
       DEBUG: "${DEBUG:-false}"
+      AI_API_KEY: ${AI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-deepseek-chat}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.deepseek.com/v1}
+      AI_PROVIDER: ${AI_PROVIDER:-deepseek}
     depends_on:
       db:
         condition: service_healthy

@@ -19,7 +19,10 @@ export enum TriggerTypeEnum {
   CYCLE_ENDED = 'cycle.ended',
   
   // 评论相关
-  COMMENT_ADDED = 'comment.added'
+  COMMENT_ADDED = 'comment.added',
+
+  // 定时触发器
+  SCHEDULED = 'scheduled'
 }
 
 export const TriggerTypeOptions = [
@@ -32,6 +35,7 @@ export const TriggerTypeOptions = [
   { value: 'cycle.started', label: '周期开始时', icon: '▶️' },
   { value: 'cycle.ended', label: '周期结束时', icon: '⏹️' },
   { value: 'comment.added', label: '添加评论时', icon: '💬' },
+  { value: 'scheduled', label: '定时执行', icon: '⏱️' },
 ]
 
 export const StateGroupOptions = [
@@ -78,13 +82,13 @@ export enum ActionTypeEnum {
   SET_PRIORITY = 'set_priority',
   ASSIGN_TO = 'assign_to',
   UNASSIGN = 'unassign',
-  ADD_LABEL = 'add_label',
-  REMOVE_LABEL = 'remove_label',
   ADD_COMMENT = 'add_comment',
   SET_FIELD = 'set_field',
   ARCHIVE = 'archive',
   CLOSE = 'close',
   DISPATCH_AGENT = 'dispatch_agent',
+  CALL_WEBHOOK = 'call_webhook',
+  ROLLUP_TO_PARENT = 'rollup_to_parent',
 }
 
 export const ActionTypeOptions = [
@@ -92,11 +96,11 @@ export const ActionTypeOptions = [
   { value: 'set_priority', label: '设置优先级', icon: '⚡' },
   { value: 'assign_to', label: '分配给', icon: '👤' },
   { value: 'unassign', label: '取消分配', icon: '👥' },
-  { value: 'add_label', label: '添加标签', icon: '🏷️' },
-  { value: 'remove_label', label: '移除标签', icon: '❌' },
   { value: 'add_comment', label: '添加评论', icon: '💬' },
   { value: 'set_field', label: '设置字段', icon: '📝' },
   { value: 'dispatch_agent', label: '调度 Agent', icon: '🤖' },
+  { value: 'call_webhook', label: '调用 Webhook', icon: '🔗' },
+  { value: 'rollup_to_parent', label: '状态卷积到父级', icon: '⬆️' },
 ]
 
 // ==================== State Transition ====================
@@ -166,6 +170,10 @@ export interface AutomationRule {
   last_executed_at?: string
   project_id: number
   workspace_id: number
+  is_inherited?: boolean
+  scope?: string
+  schedule_config?: string
+  last_triggered_at?: string
   is_deleted: boolean
   created_at: string
   updated_at: string
@@ -178,6 +186,8 @@ export interface AutomationRuleCreate {
   trigger_type: string
   conditions?: string
   actions?: string
+  scope?: string
+  schedule_config?: string
 }
 
 export interface AutomationRuleUpdate {
@@ -187,6 +197,8 @@ export interface AutomationRuleUpdate {
   trigger_type?: string
   conditions?: string
   actions?: string
+  scope?: string
+  schedule_config?: string
 }
 
 export interface AutomationRuleLite {
@@ -242,7 +254,8 @@ export function getTriggerDisplayName(triggerType: TriggerTypeEnum): string {
     [TriggerTypeEnum.DUE_DATE_PASSED]: '截止日期过期时',
     [TriggerTypeEnum.CYCLE_STARTED]: '周期开始时',
     [TriggerTypeEnum.CYCLE_ENDED]: '周期结束时',
-    [TriggerTypeEnum.COMMENT_ADDED]: '添加评论时'
+    [TriggerTypeEnum.COMMENT_ADDED]: '添加评论时',
+    [TriggerTypeEnum.SCHEDULED]: '定时执行'
   }
   return names[triggerType] || triggerType
 }
@@ -256,13 +269,13 @@ export function getActionDisplayName(actionType: ActionTypeEnum): string {
     [ActionTypeEnum.SET_PRIORITY]: '设置优先级',
     [ActionTypeEnum.ASSIGN_TO]: '分配工作项',
     [ActionTypeEnum.UNASSIGN]: '取消分配',
-    [ActionTypeEnum.ADD_LABEL]: '添加标签',
-    [ActionTypeEnum.REMOVE_LABEL]: '移除标签',
     [ActionTypeEnum.ADD_COMMENT]: '添加评论',
     [ActionTypeEnum.SET_FIELD]: '设置字段',
     [ActionTypeEnum.ARCHIVE]: '归档',
     [ActionTypeEnum.CLOSE]: '关闭',
     [ActionTypeEnum.DISPATCH_AGENT]: '调度 Agent',
+    [ActionTypeEnum.CALL_WEBHOOK]: '调用 Webhook',
+    [ActionTypeEnum.ROLLUP_TO_PARENT]: '状态卷积到父级',
   }
   return names[actionType] || actionType
 }
@@ -301,7 +314,8 @@ export function getTriggerIcon(triggerType: TriggerTypeEnum): string {
     [TriggerTypeEnum.DUE_DATE_PASSED]: 'alert-circle',
     [TriggerTypeEnum.CYCLE_STARTED]: 'play',
     [TriggerTypeEnum.CYCLE_ENDED]: 'check-circle',
-    [TriggerTypeEnum.COMMENT_ADDED]: 'message-circle'
+    [TriggerTypeEnum.COMMENT_ADDED]: 'message-circle',
+    [TriggerTypeEnum.SCHEDULED]: 'calendar'
   }
   return icons[triggerType] || 'zap'
 }
@@ -315,13 +329,13 @@ export function getActionIcon(actionType: ActionTypeEnum): string {
     [ActionTypeEnum.SET_PRIORITY]: 'flag',
     [ActionTypeEnum.ASSIGN_TO]: 'user-plus',
     [ActionTypeEnum.UNASSIGN]: 'user-minus',
-    [ActionTypeEnum.ADD_LABEL]: 'tag',
-    [ActionTypeEnum.REMOVE_LABEL]: 'x-circle',
     [ActionTypeEnum.ADD_COMMENT]: 'message-circle',
     [ActionTypeEnum.SET_FIELD]: 'edit-2',
     [ActionTypeEnum.ARCHIVE]: 'archive',
     [ActionTypeEnum.CLOSE]: 'x-circle',
     [ActionTypeEnum.DISPATCH_AGENT]: 'zap',
+    [ActionTypeEnum.CALL_WEBHOOK]: 'link',
+    [ActionTypeEnum.ROLLUP_TO_PARENT]: 'corner-right-up',
   }
   return icons[actionType] || 'zap'
 }

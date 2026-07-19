@@ -1,10 +1,14 @@
 package router
 
 import (
-	"net/http/httputil"
-	"net/url"
+	"context"
 
 	"github.com/gin-gonic/gin"
+	aihandler "github.com/reqmango/backend/internal/ai/handler"
+	"github.com/reqmango/backend/internal/ai/llm"
+	"github.com/reqmango/backend/internal/ai/registry"
+	aiservice "github.com/reqmango/backend/internal/ai/service"
+	"github.com/reqmango/backend/internal/client"
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/handler"
 	"github.com/reqmango/backend/internal/middleware"
@@ -60,12 +64,27 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	metricH := handler.NewMetricHandler(metricSvc)
 	dashboardSvc := service.NewDashboardService(db)
 	dashboardH := handler.NewDashboardHandler(dashboardSvc)
-	llmClient := service.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
-	aiSvc := service.NewAIService(db, llmClient, issueSvc, projectSvc)
-	agentSvc := service.NewAgentService(db, llmClient, issueSvc, aiSvc)
-	automationSvc.SetAgentService(agentSvc)        // break circular dependency: automation -> agent -> issue -> automation
-	commentSvc.SetAgentService(agentSvc)           // enable @agent-name mention handling in comments
+	// --- AI Module (merged from agent-service) ---
+	// Initialize LLM client
+	llmClient := llm.NewLLMClient(cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
+
+	// Initialize AI services
+	aiSvc := aiservice.NewAIService(db, llmClient)
+	agentSvc := aiservice.NewAgentService(db, llmClient, aiSvc)
+	loopSvc := aiservice.NewLoopService(db, agentSvc)
+
+	// Seed agent registry
+	reg := registry.NewRegistry(db)
+	reg.SeedDefaults(nil)
+
+	// AgentClient adapter (now calls local AgentService instead of HTTP proxy)
+	agentClient := client.NewAgentClient(agentSvc)
+	automationSvc.SetAgentService(agentClient)     // break circular dependency: automation -> agent -> issue -> automation
+	commentSvc.SetAgentService(agentClient)        // enable @agent-name mention handling in comments
 	commentSvc.SetAutomationService(automationSvc) // enable comment_added automation trigger
+
+	// Start the scheduled automation trigger background scheduler
+	automationSvc.StartScheduler(context.Background())
 	mcpSvc := service.NewMCPService(db)
 	githubSvc := service.NewGitHubService(db)
 	roleSvc := service.NewRoleService(db)
@@ -102,9 +121,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	webhookH := handler.NewWebhookHandler(webhookSvc)
 	timeTrackH := handler.NewTimeTrackHandler(timeTrackSvc)
 	recurrenceH := handler.NewRecurrenceHandler(recurrenceSvc)
-	aiH := handler.NewAIHandler(aiSvc, db)
 	pageTabH := handler.NewProjectPageTabHandler(pageTabSvc)
-	agentH := handler.NewAgentHandler(agentSvc)
 	mcpH := handler.NewMCPHandler(mcpSvc)
 	githubH := handler.NewGitHubHandler(githubSvc)
 	slackH := handler.NewSlackHandler(slackSvc)
@@ -114,6 +131,13 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	automationH := handler.NewAutomationHandler(automationSvc, db)
 	gitIntegrationH := handler.NewGitIntegrationHandler(gitSvc)
 	gitWebhookH := handler.NewGitWebhookHandler(gitSvc)
+
+	// AI handlers
+	aiH := aihandler.NewAIHandler(aiSvc, db, cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
+	agentH := aihandler.NewAgentHandler(agentSvc)
+	loopH := aihandler.NewAgentLoopHandler(loopSvc)
+	pipelineH := aihandler.NewAgentPipelineHandler(db, reg)
+	sessionH := aihandler.NewAgentSessionHandler(db)
 
 	// JWT middleware
 	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
@@ -129,7 +153,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	sseH := handler.NewSSEHandler()
 	v1SSE := r.Group("/api/v1")
 	v1SSE.GET("/sse", authMiddleware, sseH.Connect)
-
 	// ==================== API v1 ====================
 	v1 := r.Group("/api/v1")
 	{
@@ -162,15 +185,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/members", workspaceH.AddMember)
 			workspaces.PATCH("/:wsParam/members/:userId", workspaceH.UpdateMember)
 			workspaces.DELETE("/:wsParam/members/:userId", workspaceH.RemoveMember)
+			// AI Config
 			workspaces.GET("/:wsParam/ai-config", aiH.GetAIConfig)
 			workspaces.PUT("/:wsParam/ai-config", aiH.UpdateAIConfig)
+			workspaces.POST("/:wsParam/ai-config/test", aiH.TestAIConfig)
 
 			// Initiatives
 			workspaces.POST("/:wsParam/initiatives", initiativeH.Create)
 			workspaces.GET("/:wsParam/initiatives", initiativeH.List)
 			workspaces.GET("/:wsParam/initiatives/search", initiativeH.Search)
 
-			// AI Agents
+			// Agent routes
 			workspaces.GET("/:wsParam/agents", agentH.List)
 			workspaces.POST("/:wsParam/agents", agentH.Create)
 			workspaces.GET("/:wsParam/agents/activity", agentH.ListWorkspaceActivity)
@@ -184,12 +209,29 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/agents/:id/auto-assign", agentH.AutoAssign)
 
 			// Agent Loops
-			// Agent Service Reverse Proxy — forwards to agent-service:8001
-			agentProxy := reverseProxy(cfg.AgentServiceURL)
-			workspaces.Any("/:wsParam/loops/*path", agentProxy)
-			workspaces.Any("/:wsParam/pipelines/*path", agentProxy)
-			workspaces.Any("/:wsParam/agent-sessions/*path", agentProxy)
-			workspaces.Any("/:wsParam/agents/registry/*path", agentProxy)
+			workspaces.GET("/:wsParam/loops", loopH.List)
+			workspaces.POST("/:wsParam/loops", loopH.Create)
+			workspaces.GET("/:wsParam/loops/:id", loopH.Get)
+			workspaces.PUT("/:wsParam/loops/:id", loopH.Update)
+			workspaces.DELETE("/:wsParam/loops/:id", loopH.Delete)
+			workspaces.POST("/:wsParam/loops/:id/start", loopH.Start)
+			workspaces.POST("/:wsParam/loops/runs/:runId/stop", loopH.Stop)
+			workspaces.GET("/:wsParam/loops/:id/runs", loopH.GetRuns)
+			workspaces.GET("/:wsParam/loops/runs/:runId", loopH.GetRun)
+
+			// Agent Pipelines
+			workspaces.GET("/:wsParam/pipelines", pipelineH.List)
+			workspaces.POST("/:wsParam/pipelines", pipelineH.Create)
+			workspaces.GET("/:wsParam/pipelines/:id", pipelineH.Get)
+			workspaces.PUT("/:wsParam/pipelines/:id", pipelineH.Update)
+			workspaces.DELETE("/:wsParam/pipelines/:id", pipelineH.Delete)
+			workspaces.POST("/:wsParam/pipelines/:id/run", pipelineH.Run)
+			workspaces.GET("/:wsParam/pipelines/:id/runs", pipelineH.GetRuns)
+			workspaces.GET("/:wsParam/pipelines/runs/:runId", pipelineH.GetRun)
+
+			// Agent Sessions
+			workspaces.GET("/:wsParam/agent-sessions", sessionH.List)
+			workspaces.GET("/:wsParam/agent-sessions/:sessionId", sessionH.Get)
 
 			// MCP Server
 			workspaces.GET("/:wsParam/mcp", mcpH.List)
@@ -277,13 +319,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/settings/states/:stateId", settingsH.GetWorkspaceState)
 			workspaces.PUT("/:wsParam/settings/states/:stateId", settingsH.UpdateWorkspaceState)
 			workspaces.DELETE("/:wsParam/settings/states/:stateId", settingsH.DeleteWorkspaceState)
-
-			// Workspace-level Settings: Labels
-			workspaces.GET("/:wsParam/settings/labels", settingsH.ListWorkspaceLabels)
-			workspaces.POST("/:wsParam/settings/labels", settingsH.CreateWorkspaceLabel)
-			workspaces.GET("/:wsParam/settings/labels/:labelId", settingsH.GetWorkspaceLabel)
-			workspaces.PUT("/:wsParam/settings/labels/:labelId", settingsH.UpdateWorkspaceLabel)
-			workspaces.DELETE("/:wsParam/settings/labels/:labelId", settingsH.DeleteWorkspaceLabel)
 
 			// Workspace-level Modules
 			workspaces.GET("/:wsParam/modules", moduleH.ListWorkspaceModules)
@@ -402,8 +437,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			{
 				projTypes.GET("", projectIssueTypeH.ListProjectTypes)
 				projTypes.POST("", projectIssueTypeH.CreateProjectType)
-				projTypes.POST("/copy-from-workspace", projectIssueTypeH.CopyFromWorkspace)
 				projTypes.PATCH("/reorder", projectIssueTypeH.Reorder)
+
+				// Plane v3-style Import model (project references workspace type by link)
+				projTypes.GET("/importable", projectIssueTypeH.ListImportable)
+				projTypes.POST("/:typeId/import", projectIssueTypeH.ImportType)
+				projTypes.DELETE("/:typeId/import", projectIssueTypeH.UnimportType)
 			}
 
 			// ---- Saved Views ----
@@ -470,6 +509,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 				releases.DELETE("/:releaseId/issues", releaseH.RemoveIssues)
 				releases.GET("/:releaseId/progress", releaseH.GetProgress)
 			}
+
+			// ---- Milestones (alias for releases) ----
+			projects.GET("/:projectId/milestones", authMiddleware, releaseH.ListMilestones)
 
 			// ---- Estimates ----
 			estimates := projects.Group("/:projectId/estimate-points", authMiddleware)
@@ -646,8 +688,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			modules.GET("/:moduleId/statistics", moduleH.GetStatistics)
 
 			// Tree
-			modules.GET("/tree", moduleH.GetTree) // ?project_id=
+			modules.GET("/tree", moduleH.GetTree) // ?project_id=&workspace_id=
 		}
+
+		// ---- Module Inheritance Overrides (protected) ----
+		projects.POST("/:projectId/modules/:moduleId/override", moduleH.CreateOrUpdateOverride)
+		projects.DELETE("/:projectId/modules/:moduleId/override", moduleH.DeleteOverride)
 		// ---- Cycles (protected) ----
 		cycles := v1.Group("/cycles", authMiddleware)
 		{
@@ -781,19 +827,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		{
 			rqlGroup.POST("/search", rqlHandler.Search)
 		}
-		// ---- AI (protected) ----
-		aiGroup := projects.Group("/:projectId/ai", authMiddleware)
-		{
-			aiGroup.POST("/chat", aiH.Chat)
-			aiGroup.POST("/search", aiH.Search)
-			aiGroup.POST("/create", aiH.CreatePreview)
-			aiGroup.POST("/analyze", aiH.Analyze)
-			aiGroup.POST("/suggest-labels", aiH.SuggestLabels)
-			aiGroup.POST("/sprint-plan", aiH.SprintPlan)
-			aiGroup.POST("/chart", aiH.Chart)
-		}
+		// ---- AI ----
+		projects.POST("/:projectId/ai/chat", aiH.Chat)
+		projects.POST("/:projectId/ai/search", aiH.Search)
+		projects.POST("/:projectId/ai/analyze", aiH.Analyze)
+		projects.POST("/:projectId/ai/create", aiH.CreatePreview)
+		projects.POST("/:projectId/ai/chart", aiH.Chart)
+		projects.POST("/:projectId/ai/sprint-plan", aiH.SprintPlan)
+		projects.POST("/:projectId/ai/suggest-labels", aiH.SuggestLabels)
 
-		// Agent project-level convenience routes
+		// Agent routes (project-level)
 		projects.POST("/:projectId/agent/auto-triage", agentH.AutoTriageProject)
 		projects.POST("/:projectId/agent/auto-assign", agentH.AutoAssignProject)
 
@@ -826,16 +869,4 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	}
 }
 
-// reverseProxy creates a Gin handler that proxies requests to the agent service.
-func reverseProxy(targetURL string) gin.HandlerFunc {
-	target, _ := url.Parse(targetURL)
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	return func(c *gin.Context) {
-		// Preserve the original path including /api/v1/workspaces/:wsParam/... prefix
-		c.Request.URL.Host = target.Host
-		c.Request.URL.Scheme = target.Scheme
-		c.Request.URL.Path = c.Request.URL.Path
-		c.Request.Header.Set("X-Forwarded-Host", c.Request.Host)
-		proxy.ServeHTTP(c.Writer, c.Request)
-	}
-}
+
