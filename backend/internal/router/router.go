@@ -267,6 +267,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
 			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
 
+			// Workspace-level Approvals
+			workspaces.GET("/:wsParam/approvals", approvalH.ListByWorkspace)
+			workspaces.GET("/:wsParam/approvals/count", approvalH.CountPending)
+
 			// Workspace-level Settings: States
 			workspaces.GET("/:wsParam/settings/states", settingsH.ListWorkspaceStates)
 			workspaces.POST("/:wsParam/settings/states", settingsH.CreateWorkspaceState)
