@@ -14,10 +14,10 @@ type State struct {
 	WorkspaceID uint64  `gorm:"not null" json:"workspace_id"`
 
 	// Relationships
-	Project            Project           `gorm:"foreignKey:ProjectID" json:"-"`
-	Issues             []Issue           `gorm:"foreignKey:StateID" json:"-"`
-	SourceTransitions  []StateTransition `gorm:"foreignKey:SourceStateID" json:"-"`
-	TargetTransitions  []StateTransition `gorm:"foreignKey:TargetStateID" json:"-"`
+	Project           Project           `gorm:"foreignKey:ProjectID" json:"-"`
+	Issues            []Issue           `gorm:"foreignKey:StateID" json:"-"`
+	SourceTransitions []StateTransition `gorm:"foreignKey:SourceStateID" json:"-"`
+	TargetTransitions []StateTransition `gorm:"foreignKey:TargetStateID" json:"-"`
 }
 
 func (State) TableName() string {
@@ -28,18 +28,21 @@ func (State) TableName() string {
 type StateTransition struct {
 	BaseModel
 
-	Name          string  `gorm:"size:255;not null" json:"name"`
-	Description   *string `gorm:"size:500" json:"description"`
-	WorkflowID    uint64  `gorm:"not null;index" json:"workflow_id"`
-	SourceStateID uint64  `gorm:"not null" json:"source_state_id"`
-	TargetStateID uint64  `gorm:"not null" json:"target_state_id"`
-	IssueTypeID   *uint64 `json:"issue_type_id"`
-	IsAuto        bool    `gorm:"default:false" json:"is_auto"`
-	RuleType      string  `gorm:"default:'allow'" json:"rule_type"`
-	ApproverIDs   *string `gorm:"type:text" json:"approver_ids"`
-	RoleAllowed   string  `gorm:"size:50" json:"role_allowed"`
-	ProjectID     *uint64 `json:"project_id"`
-	WorkspaceID   uint64  `gorm:"not null" json:"workspace_id"`
+	Name                 string  `gorm:"size:255;not null" json:"name"`
+	Description          *string `gorm:"size:500" json:"description"`
+	WorkflowID           uint64  `gorm:"not null;index" json:"workflow_id"`
+	SourceStateID        uint64  `gorm:"not null" json:"source_state_id"`
+	TargetStateID        uint64  `gorm:"not null" json:"target_state_id"`
+	IssueTypeID          *uint64 `json:"issue_type_id"`
+	IsAuto               bool    `gorm:"default:false" json:"is_auto"`
+	RuleType             string  `gorm:"default:'allow'" json:"rule_type"`
+	ApproverIDs          *string `gorm:"type:text" json:"approver_ids"`
+	RoleAllowed          string  `gorm:"size:50" json:"role_allowed"`
+	ApproveTargetStateID *uint64 `json:"approve_target_state_id"`
+	RejectTargetStateID  *uint64 `json:"reject_target_state_id"`
+	ApprovalMode         string  `gorm:"type:varchar(20);default:'any'" json:"approval_mode"`
+	ProjectID            *uint64 `json:"project_id"`
+	WorkspaceID          uint64  `gorm:"not null" json:"workspace_id"`
 
 	Workflow    Workflow `gorm:"foreignKey:WorkflowID" json:"-"`
 	SourceState State    `gorm:"foreignKey:SourceStateID" json:"-"`

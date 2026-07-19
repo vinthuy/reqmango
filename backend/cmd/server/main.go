@@ -102,6 +102,8 @@ func main() {
 		&model.PluginEventLog{},
 		&model.GitIntegration{},
 		&model.GitIssueLink{},
+		&model.Approval{},
+		&model.ApprovalRecord{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
