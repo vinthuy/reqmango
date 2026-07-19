@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useAuthStore } from '@/stores/auth'
 import approvalApi, { type ApprovalResponse } from '@/api/approval'
+import ApprovalDecisionDialog from '@/components/ApprovalDecisionDialog.vue'
 
 const props = defineProps<{
   workspaceId: number
@@ -9,11 +11,15 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const authStore = useAuthStore()
 
 const pendingCount = ref(0)
 const approvals = ref<ApprovalResponse[]>([])
 const isOpen = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | undefined
+
+const showDecisionDialog = ref(false)
+const decisionData = ref<{ approvalId: number; decision: 'approved' | 'rejected' } | null>(null)
 
 async function loadCount() {
   if (props.workspaceId <= 0) return
@@ -55,6 +61,28 @@ function onDocClick(e: MouseEvent) {
 function formatDate(s: string): string {
   const d = new Date(s)
   return d.toLocaleDateString() + ' ' + d.toLocaleTimeString().slice(0, 5)
+}
+
+function canDecide(a: ApprovalResponse): boolean {
+  return a.status === 'pending' && a.approver_ids.includes(authStore.user?.id || 0)
+}
+
+function decide(a: ApprovalResponse, decision: 'approved' | 'rejected', event: MouseEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  decisionData.value = { approvalId: a.id, decision }
+  showDecisionDialog.value = true
+}
+
+async function onDecided() {
+  showDecisionDialog.value = false
+  decisionData.value = null
+  await refresh()
+}
+
+function onCloseDialog() {
+  showDecisionDialog.value = false
+  decisionData.value = null
 }
 
 onMounted(() => {
@@ -125,12 +153,32 @@ onUnmounted(() => {
             class="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 transition-colors"
             @click="isOpen = false"
           >
-            <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-              {{ a.issue_key }}: {{ a.issue_title }}
-            </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-              {{ a.requester_name }} · {{ formatDate(a.created_at) }}
-            </p>
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  {{ a.issue_key }}: {{ a.issue_title }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                  {{ a.requester_name }} · {{ formatDate(a.created_at) }}
+                </p>
+              </div>
+              <div v-if="canDecide(a)" class="flex items-center gap-1 shrink-0">
+                <button
+                  @click="decide(a, 'approved', $event)"
+                  class="px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded"
+                  :title="t('approvals.approve')"
+                >
+                  {{ t('approvals.approve') }}
+                </button>
+                <button
+                  @click="decide(a, 'rejected', $event)"
+                  class="px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded"
+                  :title="t('approvals.reject')"
+                >
+                  {{ t('approvals.reject') }}
+                </button>
+              </div>
+            </div>
           </router-link>
         </div>
       </div>
@@ -146,5 +194,14 @@ onUnmounted(() => {
         </router-link>
       </div>
     </div>
+
+    <ApprovalDecisionDialog
+      v-if="decisionData"
+      :show="showDecisionDialog"
+      :approval-id="decisionData.approvalId"
+      :decision="decisionData.decision"
+      @close="onCloseDialog"
+      @decided="onDecided"
+    />
   </div>
 </template>

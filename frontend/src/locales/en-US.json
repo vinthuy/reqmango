@@ -2197,6 +2197,8 @@
     "rejected": "Rejected",
     "cancelled": "Cancelled",
     "pendingBanner": "This work item is pending approval",
+    "pendingLockHint": "This work item is in an approval process. Please wait for the approval to complete before making changes.",
+    "stateDisabledHint": "This work item is in an approval process and cannot change state.",
     "requestedBy": "Requested by: {name}",
     "submittedAt": "Submitted: {time}",
     "cancelApproval": "Cancel Request",

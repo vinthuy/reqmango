@@ -270,10 +270,14 @@ func (h *IssueHandler) Update(c *gin.Context) {
 		// Catch approval-required errors and return HTTP 409 with transition info
 		if are, ok := svcErr.(*common.ApprovalRequiredError); ok {
 			c.JSON(http.StatusConflict, gin.H{
-				"message":         "approval_required",
-				"transition_id":   are.TransitionID,
-				"source_state_id": are.SourceStateID,
-				"target_state_id": are.TargetStateID,
+				"message":           "approval_required",
+				"transition_id":     are.TransitionID,
+				"workflow_id":       are.WorkflowID,
+				"workflow_name":     are.WorkflowName,
+				"source_state_id":   are.SourceStateID,
+				"target_state_id":   are.TargetStateID,
+				"source_state_name": are.SourceStateName,
+				"target_state_name": are.TargetStateName,
 			})
 			return
 		}
@@ -484,10 +488,14 @@ func (h *IssueHandler) BulkUpdate(c *gin.Context) {
 		// Catch approval-required errors and return HTTP 409 with transition info
 		if are, ok := svcErr.(*common.ApprovalRequiredError); ok {
 			c.JSON(http.StatusConflict, gin.H{
-				"message":         "approval_required",
-				"transition_id":   are.TransitionID,
-				"source_state_id": are.SourceStateID,
-				"target_state_id": are.TargetStateID,
+				"message":           "approval_required",
+				"transition_id":     are.TransitionID,
+				"workflow_id":       are.WorkflowID,
+				"workflow_name":     are.WorkflowName,
+				"source_state_id":   are.SourceStateID,
+				"target_state_id":   are.TargetStateID,
+				"source_state_name": are.SourceStateName,
+				"target_state_name": are.TargetStateName,
 			})
 			return
 		}

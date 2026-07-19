@@ -2,6 +2,11 @@
   <div class="bg-white rounded-lg border border-gray-200 p-4 w-[240px] space-y-4">
     <h3 class="text-sm font-semibold text-gray-700 mb-3">{{ t('issue.properties') }}</h3>
 
+    <div v-if="isLocked" class="mb-1 px-3 py-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+      <div class="font-medium">{{ t('approvals.pending') }}</div>
+      <div class="text-amber-700/80 mt-0.5">{{ t('approvals.pendingLockHint') }}</div>
+    </div>
+
     <!-- Relations summary -->
     <div v-if="relationSummary && relationSummary.total > 0" class="pb-3 border-b border-gray-100">
       <div class="flex items-center gap-2 mb-2">
@@ -25,7 +30,21 @@
     <!-- State -->
     <div>
       <label class="block text-xs text-gray-500 mb-1">{{ t('issue.state') }}</label>
+      <div v-if="issue.approval_status === 'pending'" class="flex items-center gap-2">
+        <div class="relative flex-1" :title="t('approvals.stateDisabledHint') || '该工作项正在审批流程中，请等待审批完成后再进行状态变更'">
+          <select
+            class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm bg-gray-100 cursor-not-allowed"
+            :value="issue.state_id"
+            disabled
+          >
+            <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+          <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 cursor-help text-xs" title="该工作项正在审批流程中，请等待审批完成后再进行状态变更">?</span>
+        </div>
+        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium whitespace-nowrap">审批中</span>
+      </div>
       <select
+        v-else
         class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
         :value="issue.state_id"
         @change="emitStateUpdate"
@@ -38,8 +57,9 @@
     <div>
       <label class="block text-xs text-gray-500 mb-1">{{ t('issue.priority') }}</label>
       <select
-        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         :value="issue.priority"
+        :disabled="isLocked"
         @change="emitPriorityUpdate"
       >
         <option value="urgent">{{ t('issue.priorityUrgent') }}</option>
@@ -54,8 +74,9 @@
     <div>
       <label class="block text-xs text-gray-500 mb-1">{{ t('issue.assignee') }}</label>
       <select
-        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         :value="issue.assignees?.[0]?.id ?? ''"
+        :disabled="isLocked"
         @change="emitAssigneeUpdate"
       >
         <option value=""></option>
@@ -67,8 +88,9 @@
     <div>
       <label class="block text-xs text-gray-500 mb-1">{{ t('issue.cycle') }}</label>
       <select
-        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         :value="issue.cycle_id ?? ''"
+        :disabled="isLocked"
         @change="emitCycleUpdate"
       >
         <option value=""></option>
@@ -80,8 +102,9 @@
     <div>
       <label class="block text-xs text-gray-500 mb-1">{{ t('issue.module') }}</label>
       <select
-        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         :value="issue.module_ids?.[0] ?? ''"
+        :disabled="isLocked"
         @change="emitModuleUpdate"
       >
         <option value=""></option>
@@ -95,8 +118,9 @@
         <label class="block text-xs text-gray-500 mb-1">{{ t('issue.startDate') }}</label>
         <input
           type="date"
-          class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+          class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
           :value="issue.start_date?.split('T')[0] ?? ''"
+          :disabled="isLocked"
           @input="emitStartDateUpdate"
         />
       </div>
@@ -104,15 +128,16 @@
         <label class="block text-xs text-gray-500 mb-1">{{ t('issue.targetDate') }}</label>
         <input
           type="date"
-          class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+          class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
           :value="issue.target_date?.split('T')[0] ?? ''"
+          :disabled="isLocked"
           @input="emitTargetDateUpdate"
         />
       </div>
     </div>
 
     <!-- Labels -->
-    <div class="pt-3 border-t border-gray-100">
+    <div class="pt-3 border-t border-gray-100" :class="{ 'pointer-events-none opacity-60': isLocked }">
       <label class="block text-xs text-gray-500 mb-1">{{ t('issue.labels') }}</label>
       <LabelSelector
         :labels="labels"
@@ -122,7 +147,7 @@
     </div>
 
     <!-- AI Agent -->
-    <div class="pt-3 border-t border-gray-100">
+    <div class="pt-3 border-t border-gray-100" :class="{ 'pointer-events-none opacity-60': isLocked }">
       <label class="block text-xs text-gray-500 mb-1">{{ t('agent.title') }}</label>
       <AgentSelector v-model="localAgentId" :workspace-id="workspaceId" />
       <button
@@ -136,42 +161,47 @@
     </div>
 
     <!-- Custom Fields -->
-    <div v-for="cf in customFields" :key="cf.field.id">
+    <div v-for="cf in customFields" :key="cf.field.id" :class="{ 'pointer-events-none opacity-60': isLocked && cf.field.field_type !== 'boolean' }">
       <label class="block text-xs text-gray-500 mb-1">{{ cf.field.name }}</label>
       <input
         v-if="cf.field.field_type === 'text' || cf.field.field_type === 'url'"
         type="text"
-        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         :value="cf.value ?? ''"
+        :disabled="isLocked"
         @input="(e: Event) => emitCustomFieldUpdate(cf.field.id, (e.target as HTMLInputElement).value)"
       />
       <input
         v-else-if="cf.field.field_type === 'number'"
         type="number"
-        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         :value="cf.value ?? ''"
+        :disabled="isLocked"
         @input="(e: Event) => emitCustomFieldUpdate(cf.field.id, (e.target as HTMLInputElement).value)"
       />
       <input
         v-else-if="cf.field.field_type === 'date'"
         type="date"
-        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         :value="cf.value ?? ''"
+        :disabled="isLocked"
         @input="(e: Event) => emitCustomFieldUpdate(cf.field.id, (e.target as HTMLInputElement).value)"
       />
-      <label v-else-if="cf.field.field_type === 'boolean'" class="flex items-center gap-2 cursor-pointer">
+      <label v-else-if="cf.field.field_type === 'boolean'" class="flex items-center gap-2" :class="isLocked ? 'cursor-not-allowed' : 'cursor-pointer'">
         <input
           type="checkbox"
-          class="w-4 h-4 rounded border-gray-300 text-indigo-600"
+          class="w-4 h-4 rounded border-gray-300 text-indigo-600 disabled:opacity-50"
           :checked="cf.value === 'true'"
+          :disabled="isLocked"
           @change="(e: Event) => emitCustomFieldUpdate(cf.field.id, (e.target as HTMLInputElement).checked ? 'true' : 'false')"
         />
         <span class="text-sm text-gray-700">{{ cf.value === 'true' ? t('customField.yes') : t('customField.no') }}</span>
       </label>
       <select
         v-else-if="cf.field.field_type === 'dropdown'"
-        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         :value="cf.value ?? ''"
+        :disabled="isLocked"
         @change="(e: Event) => emitCustomFieldUpdate(cf.field.id, (e.target as HTMLSelectElement).value)"
       >
         <option value=""></option>
@@ -179,8 +209,9 @@
       </select>
       <select
         v-else-if="cf.field.field_type === 'member'"
-        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
         :value="cf.value ? JSON.parse(cf.value)[0] ?? '' : ''"
+        :disabled="isLocked"
         @change="(e: Event) => emitCustomFieldUpdate(cf.field.id, JSON.stringify([Number((e.target as HTMLSelectElement).value)]))"
       >
         <option value=""></option>
@@ -192,7 +223,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import AgentSelector from '@/components/AgentSelector.vue'
 import LabelSelector from '@/components/LabelSelector.vue'
@@ -228,6 +259,8 @@ const props = defineProps<{
     byType: Record<string, { outbound: number; inbound: number }>
   } | null
 }>()
+
+const isLocked = computed(() => props.issue?.approval_status === 'pending')
 
 const emit = defineEmits<{
   (e: 'update:state', stateId: number): void

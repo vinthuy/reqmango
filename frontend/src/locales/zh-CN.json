@@ -2196,6 +2196,8 @@
     "rejected": "已拒绝",
     "cancelled": "已取消",
     "pendingBanner": "此工作项正在等待审批",
+    "pendingLockHint": "该工作项正在审批流程中，请等待审批完成后再进行操作。",
+    "stateDisabledHint": "该工作项正在审批流程中，无法进行状态变更。",
     "requestedBy": "申请人：{name}",
     "submittedAt": "提交时间：{time}",
     "cancelApproval": "撤销申请",

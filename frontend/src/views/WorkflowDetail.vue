@@ -32,14 +32,13 @@ const newTransitionType = ref('allow');
 const newTransitionName = ref('');
 const newTransitionDesc = ref('');
 const newTransitionApproverIds = ref<number[]>([]);
-const newTransitionApproveTargetId = ref<number | null>(null);
 const newTransitionRejectTargetId = ref<number | null>(null);
-const newTransitionApprovalMode = ref('any');
 
 const loading = ref(true);
 
-function parseIssueTypeIds(ids: string | null | undefined): number[] {
+function parseIssueTypeIds(ids: any): number[] {
   if (!ids) return [];
+  if (Array.isArray(ids)) return ids;
   try {
     const parsed = JSON.parse(ids);
     return Array.isArray(parsed) ? parsed : [];
@@ -68,8 +67,9 @@ async function saveIssueTypes() {
   savingIssueTypes.value = true;
   try {
     await workflowApi.updateWorkflow(projectId.value, workflowId.value, {
-      issue_type_ids: JSON.stringify(selectedIssueTypeIds.value)
+      issue_type_ids: selectedIssueTypeIds.value
     });
+    await loadData();
   } catch (e) {
     console.error('Failed to save issue types:', e);
   } finally {
@@ -138,9 +138,7 @@ function handleAddTransition(stateId: number) {
   newTransitionName.value = '';
   newTransitionDesc.value = '';
   newTransitionApproverIds.value = [];
-  newTransitionApproveTargetId.value = null;
-  newTransitionRejectTargetId.value = null;
-  newTransitionApprovalMode.value = 'any';
+  newTransitionRejectTargetId.value = stateId;
   showAddTransitionModal.value = true;
 }
 
@@ -198,13 +196,9 @@ async function handleSaveTransition() {
       return;
     }
 
-    let approveTargetStateId: number | null = null;
     let rejectTargetStateId: number | null = null;
-    let approvalMode: string | null = null;
     if (newTransitionType.value === 'approval') {
-      approveTargetStateId = newTransitionApproveTargetId.value ?? null;
       rejectTargetStateId = newTransitionRejectTargetId.value ?? null;
-      approvalMode = newTransitionApprovalMode.value ?? null;
     }
 
     console.log('Calling addTransition API with:', {
@@ -217,9 +211,7 @@ async function handleSaveTransition() {
         description: newTransitionDesc.value,
         rule_type: newTransitionType.value,
         approver_ids: approverIds,
-        approve_target_state_id: approveTargetStateId,
-        reject_target_state_id: rejectTargetStateId,
-        approval_mode: approvalMode
+        reject_target_state_id: rejectTargetStateId
       }
     });
 
@@ -230,9 +222,7 @@ async function handleSaveTransition() {
       description: newTransitionDesc.value,
       rule_type: newTransitionType.value,
       approver_ids: approverIds,
-      approve_target_state_id: approveTargetStateId,
-      reject_target_state_id: rejectTargetStateId,
-      approval_mode: approvalMode
+      reject_target_state_id: rejectTargetStateId
     });
     showAddTransitionModal.value = false;
     await loadData();
@@ -261,6 +251,14 @@ function toggleApprover(userId: number) {
   } else {
     newTransitionApproverIds.value.push(userId);
   }
+}
+
+function selectAllApprovers() {
+  newTransitionApproverIds.value = members.value.map((m: any) => m.user_id || m.id);
+}
+
+function deselectAllApprovers() {
+  newTransitionApproverIds.value = [];
 }
 
 function goBack() {
@@ -396,7 +394,7 @@ onMounted(loadData);
                               <div class="flex items-center space-x-1 text-xs">
                                 <span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-medium">✓ {{ t('workflow.approve') }}</span>
                                 <span class="text-gray-700">→</span>
-                                <span class="font-medium text-green-800">{{ tr.approve_target_state_name || getStateName(tr.approve_target_state_id) || getStateName(tr.to_state_id) }}</span>
+                                <span class="font-medium text-green-800">{{ getStateName(tr.to_state_id) }}</span>
                               </div>
                               <div class="flex items-center space-x-1 text-xs">
                                 <span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">✗ {{ t('workflow.reject') }}</span>
@@ -469,7 +467,13 @@ onMounted(loadData);
             <input v-model="newTransitionDesc" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg" :placeholder="t('settings.descriptionOptional')" />
           </div>
           <div v-if="newTransitionType === 'approval'" class="p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <label class="block text-sm font-medium text-amber-800 mb-2">{{ t('workflow.approvers') }}</label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-medium text-amber-800">{{ t('workflow.approvers') }}</label>
+              <div class="flex space-x-2">
+                <button @click="selectAllApprovers" class="text-xs px-2 py-1 rounded border border-amber-300 bg-white hover:bg-amber-100 transition-colors">{{ t('issueList.selectAll') || '全选' }}</button>
+                <button @click="deselectAllApprovers" class="text-xs px-2 py-1 rounded border border-amber-300 bg-white hover:bg-amber-100 transition-colors">{{ t('issueList.deselectAll') || '取消全选' }}</button>
+              </div>
+            </div>
             <p class="text-xs text-amber-600 mb-3">{{ t('workflow.selectApprovers') }}</p>
             <div class="space-y-2 max-h-48 overflow-y-auto">
               <label v-for="m in members" :key="m.user_id || m.id" class="flex items-center space-x-3 p-2 rounded hover:bg-amber-100 cursor-pointer">
@@ -488,25 +492,12 @@ onMounted(loadData);
             <p class="text-xs text-amber-700 mb-3">{{ t('workflow.approvalFlowHint') }}</p>
             <div class="space-y-3">
               <div>
-                <label class="block text-sm font-medium text-amber-800 mb-1">{{ t('workflow.approveTargetState') }}</label>
-                <select v-model="newTransitionApproveTargetId" class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500">
-                  <option :value="null">{{ t('workflow.toState') }} ({{ t('workflow.approve') }})</option>
-                  <option v-for="s in availableToStates" :key="s.id" :value="s.id">{{ s.name }}</option>
-                </select>
-              </div>
-              <div>
                 <label class="block text-sm font-medium text-amber-800 mb-1">{{ t('workflow.rejectTargetState') }}</label>
                 <select v-model="newTransitionRejectTargetId" class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500">
                   <option :value="null">{{ t('workflow.fromState') }} ({{ t('workflow.reject') }})</option>
                   <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
                 </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-amber-800 mb-1">{{ t('workflow.approvalMode') }}</label>
-                <select v-model="newTransitionApprovalMode" class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500">
-                  <option value="any">{{ t('workflow.approvalModeAny') }}</option>
-                  <option value="all" disabled>{{ t('workflow.approvalModeAll') }}</option>
-                </select>
+                <p class="text-xs text-amber-600 mt-1">✓ {{ t('workflow.approve') }} → {{ getStateName(newTransitionTo!) || t('workflow.toState') }}</p>
               </div>
             </div>
           </div>

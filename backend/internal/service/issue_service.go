@@ -1,4 +1,4 @@
-﻿package service
+package service
 
 import (
 	"encoding/csv"
@@ -1619,7 +1619,7 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 		}
 		// Pending-approval guard: block state changes while an approval is pending
 		if issue.ApprovalStatus != nil && *issue.ApprovalStatus == "pending" {
-			return common.BadRequest("issue_pending_approval")
+			return common.BadRequest("该工作项正在审批流程中，请等待审批完成后再进行状态变更")
 		}
 	}
 
@@ -1647,6 +1647,9 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 	if len(workflows) == 0 {
 		return nil // no workflows configured = allow all transitions
 	}
+	var approvalTransition *model.StateTransition
+	var approvalWorkflow *model.Workflow
+
 	for _, wf := range workflows {
 		var transition model.StateTransition
 		err := db.Where("workflow_id = ? AND source_state_id = ? AND target_state_id = ?",
@@ -1655,23 +1658,26 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 			continue // not found in this workflow, try next
 		}
 		// Transition found — check rule_type
-		if transition.RuleType == "allow" {
+		if transition.RuleType == "approval" {
+			// Record approval requirement, but continue checking all workflows
+			approvalTransition = &transition
+			approvalWorkflow = &wf
+		}
+		if transition.RuleType == "allow" && approvalTransition == nil {
+			// Only allow if no approval required by any workflow
 			return nil // simple allow, no restriction
 		}
-		if transition.RuleType == "approval" {
-			// Approval flow: signal to caller that approval is required.
-			// The caller (handler) should return HTTP 409 so the frontend can
-			// open the approval submit dialog.
-			return common.NewApprovalRequiredError(transition.ID, oldStateID, newStateID)
-		}
-		return nil // unknown rule_type, allow
 	}
-	var oldSt, newSt model.State
-	db.First(&oldSt, oldStateID)
-	db.First(&newSt, newStateID)
-	return common.BadRequest(fmt.Sprintf(
-		"Workflow rejected: transition from '%s' to '%s' is not allowed",
-		oldSt.Name, newSt.Name))
+
+	// If any workflow requires approval, return approval required
+	if approvalTransition != nil && approvalWorkflow != nil {
+		var srcState, tgtState model.State
+		db.Select("id, name").First(&srcState, oldStateID)
+		db.Select("id, name").First(&tgtState, newStateID)
+		return common.NewApprovalRequiredError(approvalTransition.ID, approvalWorkflow.ID, approvalWorkflow.Name, srcState.Name, tgtState.Name, oldStateID, newStateID)
+	}
+
+	return nil // no matching transition found in any workflow, allow by default
 }
 
 // runAutomations executes automation rules for a given trigger type on an issue.

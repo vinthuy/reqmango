@@ -390,6 +390,10 @@ async function loadActiveApproval() {
 // Intercept state change for approval transitions
 async function handleStateChange(newStateId: number) {
   if (!issue.value) return
+  if (issue.value.approval_status === 'pending') {
+    toast.error(t('approvals.stateDisabledHint'))
+    return
+  }
   try {
     const updated = await issueApi.updateIssue(issueId, { state_id: newStateId })
     if (issue.value) Object.assign(issue.value, updated)
@@ -400,22 +404,21 @@ async function handleStateChange(newStateId: number) {
       const transitionId = e.response.data.transition_id
       const sourceStateId = e.response.data.source_state_id
       const targetStateId = e.response.data.target_state_id
-      // Fetch the transition details to get approver names and approve target state name
+      const workflowName = e.response.data.workflow_name
+      const sourceStateName = e.response.data.source_state_name
+      const targetStateName = e.response.data.target_state_name
+      // Fetch the transition details to get approver names
       try {
         const wfRes = await api.get(`/projects/${issue.value.project_id}/workflows`)
         const workflows = wfRes.data || []
         let transition: any = null
-        let workflowName: string | undefined = undefined
         for (const w of workflows) {
           const found = (w.transitions || []).find((tr: any) => tr.id === transitionId)
           if (found) {
             transition = found
-            workflowName = w.name
             break
           }
         }
-        const fromState = states.value.find((s: any) => s.id === sourceStateId)
-        const approveState = states.value.find((s: any) => s.id === (transition?.approve_target_state_id || targetStateId))
         // Parse approver IDs and resolve names from projectMembers
         let approverNames: string[] = []
         if (transition?.approver_ids) {
@@ -429,8 +432,8 @@ async function handleStateChange(newStateId: number) {
         }
         submitDialogData.value = {
           transitionId,
-          fromStateName: fromState?.name || `#${sourceStateId}`,
-          approveStateName: approveState?.name || `#${targetStateId}`,
+          fromStateName: sourceStateName || `#${sourceStateId}`,
+          approveStateName: targetStateName || `#${targetStateId}`,
           approverNames,
           workflowName,
         }

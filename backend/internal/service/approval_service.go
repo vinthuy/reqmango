@@ -49,10 +49,10 @@ func (s *ApprovalService) Create(issueID, requesterID, transitionID uint64, requ
 	}
 
 	// 4. Resolve approve/reject target states
+	// Approve: go to target_state_id (main target state)
 	approveTargetID := transition.TargetStateID
-	if transition.ApproveTargetStateID != nil {
-		approveTargetID = *transition.ApproveTargetStateID
-	}
+	
+	// Reject: go to reject_target_state_id if specified, otherwise stay at source_state_id
 	rejectTargetID := transition.SourceStateID
 	if transition.RejectTargetStateID != nil {
 		rejectTargetID = *transition.RejectTargetStateID
