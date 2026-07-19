@@ -1,96 +1,119 @@
 <template>
-  <div class="automation-form">
+  <div class="automation-form max-w-3xl mx-auto">
     <!-- 基本信息 -->
-    <div class="mb-6">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ t('automationForm.basicInfo') }}</h3>
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.ruleName') }}</label>
-          <input
-            v-model="form.name"
-            type="text"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            :placeholder="t('automationForm.namePlaceholder')"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.descriptionLabel') }}</label>
-          <input
-            v-model="form.description"
-            type="text"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            :placeholder="t('automationForm.descPlaceholder')"
-          />
-        </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          {{ t('automationForm.ruleName') }} <span class="text-red-500">*</span>
+        </label>
+        <input
+          v-model="form.name"
+          type="text"
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          :placeholder="t('automationForm.namePlaceholder')"
+        />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          {{ t('automationForm.descriptionLabel') }}
+        </label>
+        <textarea
+          v-model="form.description"
+          rows="2"
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+          :placeholder="t('automationForm.descPlaceholder')"
+        />
       </div>
     </div>
 
     <!-- 项目作用域（仅工作区级规则显示） -->
-    <div v-if="scopeEnabled" class="mb-6">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-        <span class="text-xl mr-2">📂</span>
-        {{ t('automationForm.projectScope') }}
-        <span class="text-sm font-normal text-gray-500 ml-2">{{ t('automationForm.projectScopeHint') }}</span>
-      </h3>
-      <div class="space-y-2">
-        <label class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg cursor-pointer">
-          <input type="radio" v-model="form.scope" value="all" class="text-blue-600" />
-          <span class="text-sm text-gray-700">{{ t('automationForm.scopeAllProjects') }}</span>
-        </label>
-        <label class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg cursor-pointer">
-          <input type="radio" v-model="form.scope" value="specific" class="text-blue-600" />
-          <span class="text-sm text-gray-700">{{ t('automationForm.scopeSpecificProjects') }}</span>
-        </label>
-        <div v-if="form.scope === 'specific'" class="pl-8 space-y-1">
-          <label v-for="proj in availableProjects" :key="proj.id" class="flex items-center space-x-2 py-1 cursor-pointer">
-            <input
-              type="checkbox"
-              :value="proj.id"
-              v-model="selectedProjectIds"
-              class="text-blue-600 rounded"
-            />
-            <span class="text-sm text-gray-600">{{ proj.name }}</span>
+    <div v-if="scopeEnabled" class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div class="px-5 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+            <span class="text-xl">📂</span>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-900">{{ t('automationForm.projectScope') }}</h4>
+            <p class="text-sm text-gray-500">{{ t('automationForm.projectScopeHint') }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="p-5">
+        <div class="space-y-2">
+          <label class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <input type="radio" v-model="form.scope" value="all" class="text-indigo-600" />
+            <span class="text-sm text-gray-700">{{ t('automationForm.scopeAllProjects') }}</span>
           </label>
-          <p v-if="availableProjects.length === 0" class="text-sm text-gray-400 italic">{{ t('automationForm.noProjectsAvailable') }}</p>
+          <label class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <input type="radio" v-model="form.scope" value="specific" class="text-indigo-600" />
+            <span class="text-sm text-gray-700">{{ t('automationForm.scopeSpecificProjects') }}</span>
+          </label>
+          <div v-if="form.scope === 'specific'" class="pl-8 space-y-1">
+            <label v-for="proj in availableProjects" :key="proj.id" class="flex items-center space-x-2 py-1 cursor-pointer">
+              <input
+                type="checkbox"
+                :value="proj.id"
+                v-model="selectedProjectIds"
+                class="text-indigo-600 rounded"
+              />
+              <span class="text-sm text-gray-600">{{ proj.name }}</span>
+            </label>
+            <p v-if="availableProjects.length === 0" class="text-sm text-gray-400 italic">{{ t('automationForm.noProjectsAvailable') }}</p>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- 触发器 -->
-    <div class="mb-6">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-        <span class="text-xl mr-2">⚡</span>
-        {{ t('automationForm.trigger') }}
-        <span class="text-sm font-normal text-gray-500 ml-2">{{ t('automationForm.triggerHint') }}</span>
-      </h3>
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-        <button
-          v-for="trigger in sortedTriggerOptions"
-          :key="trigger.value"
-          @click="form.trigger = trigger.value"
-          :class="[
-            'flex items-center space-x-2 px-4 py-3 rounded-lg border transition-all',
-            form.trigger === trigger.value 
-              ? 'border-blue-500 bg-blue-50 text-blue-700' 
-              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-          ]"
-        >
-          <span>{{ trigger.icon }}</span>
-          <span class="text-sm">{{ trigger.label }}</span>
-        </button>
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div class="px-5 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-200">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+            <span class="text-xl">⚡</span>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-900">{{ t('automationForm.trigger') }}</h4>
+            <p class="text-sm text-gray-500">{{ t('automationForm.triggerHint') }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="p-5">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <button
+            v-for="trigger in sortedTriggerOptions"
+            :key="trigger.value"
+            @click="form.trigger = trigger.value"
+            :class="[
+              'flex flex-col items-center p-4 border rounded-lg transition-all',
+              form.trigger === trigger.value
+                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+            ]"
+          >
+            <span class="text-2xl mb-2">{{ trigger.icon }}</span>
+            <span class="text-sm font-medium">{{ trigger.label }}</span>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- 定时触发器配置（仅当选择 scheduled 时显示） -->
-    <div v-if="form.trigger === 'scheduled'" class="mb-6">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-        <span class="text-xl mr-2">⏱️</span>
-        {{ t('automationForm.scheduleConfig') }}
-      </h3>
-      <div class="p-4 bg-blue-50 rounded-lg space-y-3">
+    <div v-if="form.trigger === 'scheduled'" class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div class="px-5 py-4 bg-gradient-to-r from-sky-50 to-blue-50 border-b border-gray-200">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-sky-100 flex items-center justify-center">
+            <span class="text-xl">⏱️</span>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-900">{{ t('automationForm.scheduleConfig') }}</h4>
+          </div>
+        </div>
+      </div>
+      <div class="p-5 space-y-3">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.scheduleFrequency') }}</label>
-          <select v-model="scheduleForm.frequency" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+          <select v-model="scheduleForm.frequency" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
             <option value="hourly">{{ t('automationForm.freqHourly') }}</option>
             <option value="daily">{{ t('automationForm.freqDaily') }}</option>
             <option value="weekly">{{ t('automationForm.freqWeekly') }}</option>
@@ -99,7 +122,7 @@
         </div>
         <div v-if="scheduleForm.frequency === 'hourly'">
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.atMinute') }}</label>
-          <select v-model="scheduleForm.minute" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+          <select v-model="scheduleForm.minute" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
             <option :value="0">{{ t('automationForm.minute00') }}</option>
             <option :value="15">{{ t('automationForm.minute15') }}</option>
             <option :value="30">{{ t('automationForm.minute30') }}</option>
@@ -108,20 +131,20 @@
         </div>
         <div v-if="scheduleForm.frequency !== 'hourly'">
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.atTime') }}</label>
-          <input v-model="scheduleForm.time" type="time" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          <input v-model="scheduleForm.time" type="time" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
         </div>
         <div v-if="scheduleForm.frequency === 'weekly'">
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.onDays') }}</label>
           <div class="flex flex-wrap gap-2">
             <label v-for="day in weekDays" :key="day.value" class="flex items-center space-x-1 cursor-pointer">
-              <input type="checkbox" :value="day.value" v-model="scheduleForm.days" class="text-blue-600 rounded" />
+              <input type="checkbox" :value="day.value" v-model="scheduleForm.days" class="text-indigo-600 rounded" />
               <span class="text-sm text-gray-600">{{ day.label }}</span>
             </label>
           </div>
         </div>
         <div v-if="scheduleForm.frequency === 'monthly'">
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('automationForm.onDayOfMonth') }}</label>
-          <select v-model="scheduleForm.day" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+          <select v-model="scheduleForm.day" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
             <option v-for="d in 28" :key="d" :value="d">{{ t('automationForm.dayNumber', { day: d }) }}</option>
           </select>
         </div>
@@ -129,299 +152,242 @@
     </div>
 
     <!-- 条件 -->
-    <div class="mb-6">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-        <span class="text-xl mr-2">🎯</span>
-        {{ t('automationForm.condition') }}
-        <span class="text-sm font-normal text-gray-500 ml-2">{{ t('automationForm.conditionHint') }}</span>
-      </h3>
-      
-      <div v-if="conditions.length === 0" class="text-center py-8 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-        <p>{{ t('automationForm.noConditions') }}</p>
-        <button @click="addCondition" class="mt-2 text-blue-600 hover:text-blue-700 text-sm">+ {{ t('automationForm.addCondition') }}</button>
-      </div>
-
-      <div v-else class="space-y-3">
-        <div v-for="(cond, index) in conditions" :key="index" class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
-          <!-- 字段选择 -->
-          <select v-model="cond.field" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-            <option value="">{{ t('automationForm.selectField') }}</option>
-            <option value="state_group">{{ t('automationForm.stateGroup') }}</option>
-            <option value="priority">{{ t('automationForm.priority') }}</option>
-            <option value="assignee">{{ t('automationForm.assignee') }}</option>
-            <option value="labels">{{ t('automationForm.labels') }}</option>
-            <option value="issue_type">{{ t('automationForm.issueType') }}</option>
-          </select>
-          
-          <!-- 操作符选择 -->
-          <select v-model="cond.operator" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-            <option v-for="op in operatorOptions" :key="op.value" :value="op.value">{{ op.label }}</option>
-          </select>
-          
-          <!-- 值选择 -->
-          <template v-if="cond.operator !== 'is_empty' && cond.operator !== 'is_not_empty'">
-            <select v-if="cond.field === 'state_group'" v-model="cond.value" class="px-3 py-2 border border-gray-300 rounded-lg text-sm flex-1">
-              <option value="">{{ t('automationForm.selectState') }}</option>
-              <option v-for="s in stateGroupOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
-            </select>
-            <select v-else-if="cond.field === 'priority'" v-model="cond.value" class="px-3 py-2 border border-gray-300 rounded-lg text-sm flex-1">
-              <option value="">{{ t('automationForm.selectPriority') }}</option>
-              <option v-for="p in priorityOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
-            </select>
-            <input v-else v-model="cond.value" type="text" class="px-3 py-2 border border-gray-300 rounded-lg text-sm flex-1" :placeholder="t('automationForm.value')" />
-          </template>
-          
-          <span v-else class="flex-1 text-sm text-gray-500 text-center">{{ cond.operator === 'is_empty' ? t('automationForm.isEmpty') : t('automationForm.isNotEmpty') }}</span>
-          
-          <button @click="removeCondition(index)" class="text-gray-400 hover:text-red-500 p-1">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div class="px-5 py-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+              <span class="text-xl">📋</span>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-900">{{ t('automationForm.condition') }}</h4>
+              <p class="text-sm text-gray-500">{{ t('automationForm.conditionHint') }}</p>
+            </div>
+          </div>
+          <button
+            @click="addCondition"
+            class="flex items-center space-x-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors text-sm font-medium"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            <span>{{ t('automationForm.addCondition') }}</span>
           </button>
         </div>
-        <button @click="addCondition" class="text-blue-600 hover:text-blue-700 text-sm flex items-center">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          {{ t('automationForm.addCondition') }}
-        </button>
+      </div>
+      <div class="p-5">
+        <div v-if="conditions.length === 0" class="text-center py-8 text-gray-500">
+          <span class="text-4xl block mb-2">🎯</span>
+          <p class="text-sm">{{ t('automationForm.noConditions') }}</p>
+        </div>
+        <div v-else class="space-y-3">
+          <div v-for="(cond, index) in conditions" :key="index" class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg group">
+            <span class="text-gray-400 text-sm font-medium shrink-0">IF</span>
+            <!-- 字段选择 -->
+            <select v-model="cond.field" class="flex-1 min-w-[100px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <option value="" disabled>{{ t('automationForm.selectField') }}</option>
+              <option value="state_group">{{ t('automationForm.stateGroup') }}</option>
+              <option value="priority">{{ t('automationForm.priority') }}</option>
+              <option value="assignee">{{ t('automationForm.assignee') }}</option>
+              <option value="labels">{{ t('automationForm.labels') }}</option>
+              <option value="issue_type">{{ t('automationForm.issueType') }}</option>
+            </select>
+            <!-- 操作符选择 -->
+            <select v-model="cond.operator" class="min-w-[90px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <option v-for="op in operatorOptions" :key="op.value" :value="op.value">{{ op.label }}</option>
+            </select>
+            <!-- 值选择 -->
+            <template v-if="cond.operator !== 'is_empty' && cond.operator !== 'is_not_empty'">
+              <select v-if="cond.field === 'state_group'" v-model="cond.value" class="flex-1 min-w-[100px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <option value="" disabled>{{ t('automationForm.selectState') }}</option>
+                <option v-for="s in stateGroupOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
+              </select>
+              <select v-else-if="cond.field === 'priority'" v-model="cond.value" class="flex-1 min-w-[100px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <option value="" disabled>{{ t('automationForm.selectPriority') }}</option>
+                <option v-for="p in priorityOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
+              </select>
+              <input v-else v-model="cond.value" type="text" class="flex-1 min-w-[100px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('automationForm.value')" />
+            </template>
+            <span v-else class="flex-1 text-sm text-gray-500 text-center">{{ cond.operator === 'is_empty' ? t('automationForm.isEmpty') : t('automationForm.isNotEmpty') }}</span>
+            <button @click="removeCondition(index)" class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div v-if="conditions.length > 0" class="flex items-center justify-center text-gray-400 text-sm">
+            <span>AND</span>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- 动作 -->
-    <div class="mb-6">
-      <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-        <span class="text-xl mr-2">🎬</span>
-        {{ t('automationForm.action') }}
-        <span class="text-sm font-normal text-gray-500 ml-2">{{ t('automationForm.actionHint') }}</span>
-      </h3>
-      
-      <div v-if="actions.length === 0" class="text-center py-8 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-        <p>{{ t('automationForm.noActions') }}</p>
-      </div>
-
-      <div v-else class="space-y-3">
-        <div v-for="(action, index) in actions" :key="index" class="p-4 bg-gray-50 rounded-lg">
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-medium text-gray-700">{{ t('automationForm.actionLabel') }} {{ index + 1 }}</span>
-            <button @click="removeAction(index)" class="text-gray-400 hover:text-red-500 p-1">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div class="px-5 py-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <span class="text-xl">🎬</span>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-900">{{ t('automationForm.action') }}</h4>
+              <p class="text-sm text-gray-500">{{ t('automationForm.actionHint') }}</p>
+            </div>
           </div>
-          
-          <!-- 动作类型 -->
-          <select v-model="action.type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-3">
-            <option value="">{{ t('automationForm.selectAction') }}</option>
-            <option v-for="a in actionOptions" :key="a.value" :value="a.value">{{ a.icon }} {{ a.label }}</option>
-          </select>
-          
-          <!-- 动作参数 -->
-          <div class="pl-4 border-l-2 border-blue-200">
-            <template v-if="action.type === 'change_state'">
-              <select v-model="action.value" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                <option value="">{{ t('automationForm.selectState') }}</option>
-                <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
+          <button
+            @click="addAction"
+            class="flex items-center space-x-1 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors text-sm font-medium"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            <span>{{ t('automationForm.addAction') }}</span>
+          </button>
+        </div>
+      </div>
+      <div class="p-5">
+        <div v-if="actions.length === 0 || !actions.some(a => a.type)" class="text-center py-8 text-gray-500">
+          <span class="text-4xl block mb-2">✨</span>
+          <p class="text-sm">{{ t('automationForm.noActions') }}</p>
+        </div>
+
+        <div v-else class="space-y-3">
+          <div v-for="(action, index) in actions" :key="index" class="p-3 bg-gray-50 rounded-lg group">
+            <div class="flex items-center space-x-2 mb-3">
+              <span class="text-gray-400 text-sm font-medium shrink-0">DO</span>
+              <!-- 动作类型 -->
+              <select v-model="action.type" class="flex-1 min-w-[120px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <option value="" disabled>{{ t('automationForm.selectAction') }}</option>
+                <option v-for="a in actionOptions" :key="a.value" :value="a.value">{{ a.icon }} {{ a.label }}</option>
               </select>
-            </template>
-            <template v-else-if="action.type === 'set_priority'">
-              <select v-model="action.value" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                <option value="">{{ t('automationForm.selectPriority') }}</option>
-                <option v-for="p in priorityOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
-              </select>
-            </template>
-            <template v-else-if="action.type === 'assign_to'">
-              <select v-model="action.value" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                <option value="">{{ t('automationForm.selectPerson') }}</option>
-                <option v-for="m in members" :key="m.user_id || m.id" :value="m.user_id || m.id">
-                  {{ m.user?.display_name || m.display_name || 'Unknown' }}
-                </option>
-              </select>
-            </template>
-            <template v-else-if="action.type === 'add_comment'">
-              <textarea v-model="action.value" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.commentPlaceholder')"></textarea>
-            </template>
-            <template v-else-if="action.type === 'set_field'">
-              <select
-                v-model="action.field"
-                @change="onSetFieldChange(index)"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
-              >
-                <option value="">{{ t('automationForm.selectField') }}</option>
-                <optgroup :label="t('automationForm.systemFieldGroup')">
-                  <option value="state_id">{{ t('automationForm.state') }}</option>
-                  <option value="priority">{{ t('automationForm.priority') }}</option>
-                  <option value="target_date">{{ t('automationForm.dueDate') }}</option>
-                  <option value="start_date">{{ t('automationForm.startDate') }}</option>
-                </optgroup>
-                <optgroup :label="t('automationForm.customFieldGroup')">
-                  <option v-for="field in customFields" :key="field.id" :value="'custom_' + field.id">
-                    {{ field.name }}
-                  </option>
-                </optgroup>
-              </select>
-              <!-- Dynamic value input based on field type -->
-              <template v-if="action.field">
-                <select
-                  v-if="action.field === 'state_id'"
-                  v-model="action.value"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value="">{{ t('automationForm.selectState') }}</option>
+              <button @click="removeAction(index)" class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            
+            <!-- 动作参数 -->
+            <div class="pl-6 ml-1 border-l-2 border-gray-200 space-y-2">
+              <template v-if="action.type === 'change_state'">
+                <select v-model="action.value" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                  <option value="" disabled>{{ t('automationForm.selectState') }}</option>
                   <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
                 </select>
-                <select
-                  v-else-if="action.field === 'priority'"
-                  v-model="action.value"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value="">{{ t('automationForm.selectPriority') }}</option>
+              </template>
+              <template v-else-if="action.type === 'set_priority'">
+                <select v-model="action.value" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                  <option value="" disabled>{{ t('automationForm.selectPriority') }}</option>
                   <option v-for="p in priorityOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
                 </select>
-                <input
-                  v-else-if="action.field === 'target_date' || action.field === 'start_date'"
-                  v-model="action.value"
-                  type="date"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <select
-                  v-else-if="getCustomFieldType(action.field) === 'dropdown'"
-                  v-model="action.value"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value="">{{ t('automationForm.selectValue') }}</option>
-                  <option v-for="opt in getCustomFieldOptions(action.field)" :key="opt.id" :value="opt.value">{{ opt.value }}</option>
-                </select>
-                <input
-                  v-else-if="getCustomFieldType(action.field) === 'number'"
-                  v-model.number="action.value"
-                  type="number"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  :placeholder="t('automationForm.numberValue')"
-                />
-                <select
-                  v-else-if="getCustomFieldType(action.field) === 'boolean'"
-                  v-model="action.value"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value="">{{ t('automationForm.selectValue') }}</option>
-                  <option value="true">True</option>
-                  <option value="false">False</option>
-                </select>
-                <input
-                  v-else-if="getCustomFieldType(action.field) === 'date'"
-                  v-model="action.value"
-                  type="date"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <select
-                  v-else-if="getCustomFieldType(action.field) === 'member'"
-                  v-model="action.value"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value="">{{ t('automationForm.selectPerson') }}</option>
+              </template>
+              <template v-else-if="action.type === 'assign_to'">
+                <select v-model="action.value" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                  <option value="" disabled>{{ t('automationForm.selectPerson') }}</option>
                   <option v-for="m in members" :key="m.user_id || m.id" :value="m.user_id || m.id">
                     {{ m.user?.display_name || m.display_name || 'Unknown' }}
                   </option>
                 </select>
-                <!-- Custom field: text (textarea for better UX) -->
-                <textarea
-                  v-else-if="getCustomFieldType(action.field) === 'text'"
-                  v-model="action.value"
-                  rows="3"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
-                  :placeholder="t('automationForm.value')"
-                />
-                <!-- Custom field: url -->
-                <input
-                  v-else-if="getCustomFieldType(action.field) === 'url'"
-                  v-model="action.value"
-                  type="url"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  placeholder="https://..."
-                />
-                <!-- Default: text input -->
-                <input
-                  v-else
-                  v-model="action.value"
-                  type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  :placeholder="t('automationForm.value')"
-                />
               </template>
-            </template>
-            <template v-else-if="action.type === 'call_webhook'">
-              <input
-                v-model="action.field"
-                type="url"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
-                :placeholder="t('automationForm.webhookUrl')"
-              />
-              <div class="grid grid-cols-2 gap-2 mb-2">
+              <template v-else-if="action.type === 'add_comment'">
+                <textarea v-model="action.value" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none" :placeholder="t('automationForm.commentPlaceholder')" />
+              </template>
+              <template v-else-if="action.type === 'set_field'">
                 <select
-                  v-model="webhookMethodCache[index]"
-                  @change="updateWebhookValue(index)"
-                  class="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  v-model="action.field"
+                  @change="onSetFieldChange(index)"
+                  class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-2"
                 >
-                  <option value="POST">POST</option>
-                  <option value="GET">GET</option>
-                  <option value="PUT">PUT</option>
-                  <option value="PATCH">PATCH</option>
-                  <option value="DELETE">DELETE</option>
+                  <option value="" disabled>{{ t('automationForm.selectField') }}</option>
+                  <optgroup :label="t('automationForm.systemFieldGroup')">
+                    <option value="state_id">{{ t('automationForm.state') }}</option>
+                    <option value="priority">{{ t('automationForm.priority') }}</option>
+                    <option value="target_date">{{ t('automationForm.dueDate') }}</option>
+                    <option value="start_date">{{ t('automationForm.startDate') }}</option>
+                  </optgroup>
+                  <optgroup :label="t('automationForm.customFieldGroup')">
+                    <option v-for="field in customFields" :key="field.id" :value="'custom_' + field.id">{{ field.name }}</option>
+                  </optgroup>
                 </select>
-                <input
-                  v-model="webhookHeadersCache[index]"
-                  type="text"
-                  class="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  :placeholder="t('automationForm.webhookHeaders')"
-                  @change="updateWebhookValue(index)"
-                />
-              </div>
-              <textarea
-                v-model="webhookBodyCache[index]"
-                rows="2"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-1 font-mono"
-                :placeholder="t('automationForm.webhookBody')"
-                @change="updateWebhookValue(index)"
-              ></textarea>
-              <p class="text-xs text-gray-400">{{ t('automationForm.webhookVarsHint') }}</p>
-            </template>
-            <template v-else-if="action.type === 'dispatch_agent'">
-              <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.agentNamePlaceholder')" />
-            </template>
-            <template v-else-if="action.type === 'rollup_to_parent'">
-              <div class="space-y-2">
-                <div v-for="(rule, ri) in (action.value?.rules || [])" :key="ri" class="flex items-center gap-1">
-                  <select v-model="rule.condition" class="px-2 py-1.5 border border-gray-200 rounded text-xs">
-                    <option value="all">{{ t('automationBuilder.rollupAll') }}</option>
-                    <option value="any">{{ t('automationBuilder.rollupAny') }}</option>
-                  </select>
-                  <span class="text-xs text-gray-400">{{ t('automationBuilder.rollupChildrenAre') }}</span>
-                  <select v-model="rule.child_state" class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs">
+                <template v-if="action.field">
+                  <select v-if="action.field === 'state_id'" v-model="action.value" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                     <option value="" disabled>{{ t('automationForm.selectState') }}</option>
-                    <option v-for="s in states" :key="s.id" :value="s.name">{{ s.name }}</option>
+                    <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
                   </select>
-                  <span class="text-xs text-gray-400">→</span>
-                  <select v-model="rule.parent_state" class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs">
-                    <option value="" disabled>{{ t('automationBuilder.rollupSetParentTo') }}</option>
-                    <option v-for="s in states" :key="s.id" :value="s.name">{{ s.name }}</option>
+                  <select v-else-if="action.field === 'priority'" v-model="action.value" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="" disabled>{{ t('automationForm.selectPriority') }}</option>
+                    <option v-for="p in priorityOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
                   </select>
-                  <button @click="removeRollupRule(index, ri)" class="text-gray-400 hover:text-red-500 text-xs">✕</button>
+                  <input v-else-if="action.field === 'target_date' || action.field === 'start_date'" v-model="action.value" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                  <select v-else-if="getCustomFieldType(action.field) === 'dropdown'" v-model="action.value" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="" disabled>{{ t('automationForm.selectValue') }}</option>
+                    <option v-for="opt in getCustomFieldOptions(action.field)" :key="opt.id" :value="opt.value">{{ opt.value }}</option>
+                  </select>
+                  <input v-else-if="getCustomFieldType(action.field) === 'number'" v-model.number="action.value" type="number" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('automationForm.numberValue')" />
+                  <select v-else-if="getCustomFieldType(action.field) === 'boolean'" v-model="action.value" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="" disabled>{{ t('automationForm.selectValue') }}</option>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                  </select>
+                  <input v-else-if="getCustomFieldType(action.field) === 'date'" v-model="action.value" type="date" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+                  <select v-else-if="getCustomFieldType(action.field) === 'member'" v-model="action.value" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="" disabled>{{ t('automationForm.selectPerson') }}</option>
+                    <option v-for="m in members" :key="m.user_id || m.id" :value="m.user_id || m.id">{{ m.user?.display_name || m.display_name || 'Unknown' }}</option>
+                  </select>
+                  <textarea v-else-if="getCustomFieldType(action.field) === 'text'" v-model="action.value" rows="3" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none" :placeholder="t('automationForm.value')" />
+                  <input v-else-if="getCustomFieldType(action.field) === 'url'" v-model="action.value" type="url" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="https://..." />
+                  <input v-else v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('automationForm.value')" />
+                </template>
+              </template>
+              <template v-else-if="action.type === 'call_webhook'">
+                <input v-model="action.field" type="url" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-2" :placeholder="t('automationForm.webhookUrl')" />
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                  <select v-model="webhookMethodCache[index]" @change="updateWebhookValue(index)" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="POST">POST</option>
+                    <option value="GET">GET</option>
+                    <option value="PUT">PUT</option>
+                    <option value="PATCH">PATCH</option>
+                    <option value="DELETE">DELETE</option>
+                  </select>
+                  <input v-model="webhookHeadersCache[index]" type="text" class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('automationForm.webhookHeaders')" @change="updateWebhookValue(index)" />
                 </div>
-                <button @click="addRollupRule(index)" class="text-xs text-blue-600 hover:text-blue-800">+ {{ t('automationBuilder.rollupAddRule') }}</button>
-              </div>
-            </template>
-            <template v-else>
-              <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.value')" />
-            </template>
+                <textarea v-model="webhookBodyCache[index]" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-1 font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('automationForm.webhookBody')" @change="updateWebhookValue(index)" />
+                <p class="text-xs text-gray-400">{{ t('automationForm.webhookVarsHint') }}</p>
+              </template>
+              <template v-else-if="action.type === 'dispatch_agent'">
+                <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('automationForm.agentNamePlaceholder')" />
+              </template>
+              <template v-else-if="action.type === 'rollup_to_parent'">
+                <div class="space-y-2">
+                  <div v-for="(rule, ri) in (action.value?.rules || [])" :key="ri" class="flex items-center gap-1 group">
+                    <select v-model="rule.condition" class="px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-2 focus:ring-indigo-500">
+                      <option value="all">{{ t('automationBuilder.rollupAll') }}</option>
+                      <option value="any">{{ t('automationBuilder.rollupAny') }}</option>
+                    </select>
+                    <span class="text-xs text-gray-400">{{ t('automationBuilder.rollupChildrenAre') }}</span>
+                    <select v-model="rule.child_state" class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-2 focus:ring-indigo-500">
+                      <option value="" disabled>{{ t('automationForm.selectState') }}</option>
+                      <option v-for="s in states" :key="s.id" :value="s.name">{{ s.name }}</option>
+                    </select>
+                    <span class="text-xs text-gray-400">→</span>
+                    <select v-model="rule.parent_state" class="flex-1 px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-2 focus:ring-indigo-500">
+                      <option value="" disabled>{{ t('automationBuilder.rollupSetParentTo') }}</option>
+                      <option v-for="s in states" :key="s.id" :value="s.name">{{ s.name }}</option>
+                    </select>
+                    <button @click="removeRollupRule(index, ri)" class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 text-xs transition-all">✕</button>
+                  </div>
+                  <button @click="addRollupRule(index)" class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center">
+                    <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    {{ t('automationBuilder.rollupAddRule') }}
+                  </button>
+                </div>
+              </template>
+              <template v-else>
+                <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent" :placeholder="t('automationForm.value')" />
+              </template>
+            </div>
           </div>
         </div>
-        <button @click="addAction" class="text-blue-600 hover:text-blue-700 text-sm flex items-center">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          {{ t('automationForm.addAction') }}
-        </button>
       </div>
     </div>
 
     <!-- 操作按钮 -->
-    <div class="flex justify-end space-x-3 pt-4 border-t">
-      <button @click="$emit('cancel')" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('common.cancel') }}</button>
-      <button @click="handleSubmit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{{ t('common.save') }}</button>
+    <div class="flex justify-end space-x-3 pt-5 border-t border-gray-200">
+      <button @click="$emit('cancel')" class="px-5 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors">{{ t('common.cancel') }}</button>
+      <button @click="handleSubmit" class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors">{{ t('common.save') }}</button>
     </div>
   </div>
 </template>
@@ -794,5 +760,6 @@ onMounted(() => {
 .automation-form {
   max-height: 80vh;
   overflow-y: auto;
+  padding: 0.5rem;
 }
 </style>

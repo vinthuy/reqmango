@@ -361,7 +361,7 @@ onMounted(() => { loadWorkspace(); });
 
     <!-- Automation Form Modal -->
     <div v-if="showAutomationForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAutomationForm = false">
-      <div class="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="bg-white rounded-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-gray-900">{{ editingAutomation ? t('settings.editAutomation') : t('settings.createAutomation') }}</h3>
           <button @click="showAutomationForm = false" class="text-gray-400 hover:text-gray-600">✕</button>
