@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import NotificationCenter from '@/components/NotificationCenter.vue'
+import ApprovalBadge from '@/components/ApprovalBadge.vue'
 import { workspaceApi } from '@/api/workspace'
 import { useI18n } from '@/composables/useI18n'
 import { useDarkMode } from '@/composables/useDarkMode'
@@ -183,6 +184,11 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       :title="isDark ? t('app.lightMode') : t('app.darkMode')">
       <span class="text-sm">{{ isDark ? '☀️' : '🌙' }}</span>
     </button>
+
+    <!-- Approval Badge (workspace context only) -->
+    <ApprovalBadge v-if="isWorkspaceContext && currentWorkspace"
+      :workspace-id="currentWorkspace.id"
+      :slug="workspaceSlug" />
 
     <!-- Notification Center -->
     <NotificationCenter />
