@@ -801,11 +801,14 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	// Handle release
 	if req.ReleaseID != nil {
-		tx.Where("issue_id = ?", issueID).Delete(&model.ReleaseIssue{})
+		result := tx.Where("issue_id = ?", issueID).Delete(&model.ReleaseIssue{})
 		if *req.ReleaseID > 0 {
 			tx.Create(&model.ReleaseIssue{ReleaseID: *req.ReleaseID, IssueID: issueID})
 		}
-		hasChanges = true
+		if result.RowsAffected > 0 || *req.ReleaseID > 0 {
+			s.createActivity(tx, issueID, "updated", strPtr("release"), nil, nil, nil, &userID)
+			hasChanges = true
+		}
 	}
 
 	// Handle issue type
