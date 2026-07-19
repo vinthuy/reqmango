@@ -177,16 +177,23 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		if req.TypeID != nil && *req.TypeID > 0 {
 			var childType model.IssueType
 			if s.db.First(&childType, *req.TypeID).Error == nil {
-				if parent.IssueType.ID != 0 && childType.Level > 0 {
-					if childType.Level != parent.IssueType.Level+1 {
-						return nil, common.BadRequest("Invalid hierarchy: child type level must be parent type level + 1")
+				// Root type check: types without parent_type_id and level 0 cannot have parents
+				if childType.ParentTypeID == nil && childType.Level == 0 {
+					return nil, common.BadRequest("Invalid hierarchy: root-level type cannot have a parent")
+				}
+				// Level check: child must be deeper than parent
+				if parent.IssueType.ID != 0 && parent.IssueType.Level > 0 {
+					if childType.Level <= parent.IssueType.Level {
+						return nil, common.BadRequest("Invalid hierarchy: child type level must be greater than parent type level")
 					}
 				}
+				// ParentTypeID check: only enforce when childType explicitly defines a parent type
 				if childType.ParentTypeID != nil && parent.IssueTypeID != nil {
 					if *childType.ParentTypeID != *parent.IssueTypeID {
 						return nil, common.BadRequest("Invalid hierarchy: parent type does not allow this child type")
 					}
 				}
+				// AllowedChildTypeIDs whitelist check
 				if parent.IssueType.ID != 0 && len(parent.IssueType.AllowedChildTypeIDs) > 0 {
 					allowed := false
 					for _, allowedID := range parent.IssueType.AllowedChildTypeIDs {
@@ -278,6 +285,11 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	// Add modules
 	for _, moduleID := range req.ModuleIDs {
 		tx.Create(&model.ModuleIssue{IssueID: issue.ID, ModuleID: moduleID})
+	}
+
+	// Add release
+	if req.ReleaseID != nil && *req.ReleaseID > 0 {
+		tx.Create(&model.ReleaseIssue{ReleaseID: *req.ReleaseID, IssueID: issue.ID})
 	}
 
 	// Save custom field values
@@ -787,6 +799,15 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		hasChanges = true
 	}
 
+	// Handle release
+	if req.ReleaseID != nil {
+		tx.Where("issue_id = ?", issueID).Delete(&model.ReleaseIssue{})
+		if *req.ReleaseID > 0 {
+			tx.Create(&model.ReleaseIssue{ReleaseID: *req.ReleaseID, IssueID: issueID})
+		}
+		hasChanges = true
+	}
+
 	// Handle issue type
 	if req.TypeID != nil && (issue.IssueTypeID == nil || *req.TypeID != *issue.IssueTypeID) {
 		var newType model.IssueType
@@ -796,24 +817,31 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 				tx.Rollback()
 				return nil, err
 			}
-			// Validate: if issue has children, new type's level must = children's level - 1
+			// Validate: if issue has children, new type must be a higher level than children
 			var childCount int64
 			s.db.Model(&model.Issue{}).Where("parent_id = ?", issueID).Count(&childCount)
 			if childCount > 0 {
 				var childLevel int
 				s.db.Model(&model.Issue{}).Select("COALESCE(MAX(depth),0)").Where("parent_id = ?", issueID).Scan(&childLevel)
-				if newType.Level != childLevel-1 && childLevel > 0 {
+				if newType.Level >= childLevel && childLevel > 0 {
 					tx.Rollback()
-					return nil, common.BadRequest("Type change blocked: children require parent type one level above")
+					return nil, common.BadRequest("Type change blocked: children require parent type at a higher level")
 				}
 			}
-			// Validate: if issue has parent, new type must be parent's level + 1
+			// Validate: if issue has parent, new type must be deeper than parent
 			if issue.ParentID != nil {
 				var parent model.Issue
 				if s.db.Preload("IssueType").First(&parent, *issue.ParentID).Error == nil && parent.IssueType.ID != 0 {
-					if newType.Level != parent.IssueType.Level+1 {
+					if newType.Level <= parent.IssueType.Level {
 						tx.Rollback()
-						return nil, common.BadRequest("Type change blocked: must be one level below parent")
+						return nil, common.BadRequest("Type change blocked: must be deeper than parent type")
+					}
+					// Also check ParentTypeID if explicitly set
+					if newType.ParentTypeID != nil && parent.IssueTypeID != nil {
+						if *newType.ParentTypeID != *parent.IssueTypeID {
+							tx.Rollback()
+							return nil, common.BadRequest("Type change blocked: parent type does not allow this child type")
+						}
 					}
 				}
 			}
@@ -852,6 +880,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	if req.ParentID != nil {
 		if *req.ParentID == 0 {
 			issue.ParentID = nil
+			issue.Depth = 0
 		} else {
 			if *req.ParentID == issueID {
 				tx.Rollback()
@@ -862,11 +891,55 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 				return nil, common.BadRequest("Cannot create circular reference in issue hierarchy")
 			}
 			var parent model.Issue
-			if err := s.db.First(&parent, *req.ParentID).Error; err != nil {
+			if err := tx.Preload("IssueType").First(&parent, *req.ParentID).Error; err != nil {
 				tx.Rollback()
 				return nil, common.NotFound("Parent issue not found")
 			}
+			if parent.Depth >= 5 {
+				tx.Rollback()
+				return nil, common.BadRequest("Maximum hierarchy depth (6 levels) exceeded")
+			}
 			issue.ParentID = req.ParentID
+			issue.Depth = parent.Depth + 1
+			// Validate type hierarchy
+			var childType model.IssueType
+			if issue.IssueTypeID != nil {
+				if err := tx.First(&childType, *issue.IssueTypeID).Error; err == nil {
+					// Root type check: types without parent_type_id and level 0 cannot have parents
+					if childType.ParentTypeID == nil && childType.Level == 0 {
+						tx.Rollback()
+						return nil, common.BadRequest("Invalid hierarchy: root-level type cannot have a parent")
+					}
+					// Level check: child must be deeper than parent
+					if parent.IssueType.ID != 0 && parent.IssueType.Level > 0 {
+						if childType.Level <= parent.IssueType.Level {
+							tx.Rollback()
+							return nil, common.BadRequest("Invalid hierarchy: child type level must be greater than parent type level")
+						}
+					}
+					// ParentTypeID check: only enforce when childType explicitly defines a parent type
+					if childType.ParentTypeID != nil && parent.IssueTypeID != nil {
+						if *childType.ParentTypeID != *parent.IssueTypeID {
+							tx.Rollback()
+							return nil, common.BadRequest("Invalid hierarchy: parent type does not allow this child type")
+						}
+					}
+					// AllowedChildTypeIDs whitelist check
+					if parent.IssueType.ID != 0 && len(parent.IssueType.AllowedChildTypeIDs) > 0 {
+						allowed := false
+						for _, allowedID := range parent.IssueType.AllowedChildTypeIDs {
+							if allowedID == childType.ID {
+								allowed = true
+								break
+							}
+						}
+						if !allowed {
+							tx.Rollback()
+							return nil, common.BadRequest("Invalid hierarchy: this child type is not allowed under the parent type")
+						}
+					}
+				}
+			}
 		}
 		tx.Save(&issue)
 		s.createActivity(tx, issueID, "updated", strPtr("parent"), nil, nil, nil, &userID)
@@ -1667,6 +1740,13 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 		if link.ModuleID != 0 {
 			resp.ModuleIDs = append(resp.ModuleIDs, link.ModuleID)
 		}
+	}
+
+	// Release
+	var releaseLink model.ReleaseIssue
+	if err := s.db.Where("issue_id = ?", issue.ID).First(&releaseLink).Error; err == nil {
+		releaseID := releaseLink.ReleaseID
+		resp.ReleaseID = &releaseID
 	}
 
 	// Sub-issues count

@@ -145,6 +145,16 @@
         </div>
 
         <div class="property-group">
+          <label class="property-label">{{ t('issue.release') }}</label>
+          <select v-model="formData.release_id" class="property-select">
+            <option value="">{{ t('issue.releasePlaceholder') }}</option>
+            <option v-for="release in releases" :key="release.id" :value="release.id">
+              {{ release.name }} ({{ release.version }})
+            </option>
+          </select>
+        </div>
+
+        <div class="property-group">
           <label class="property-label">{{ t('issue.startDate') }}</label>
           <input v-model="formData.start_date" type="date" class="property-input" />
         </div>
@@ -152,50 +162,6 @@
         <div class="property-group">
           <label class="property-label">{{ t('issue.targetDate') }}</label>
           <input v-model="formData.target_date" type="date" class="property-input" />
-        </div>
-
-        <div class="property-group">
-          <label class="property-label">{{ t('issue.parentIssue') }}</label>
-          <div class="relative">
-            <div v-if="selectedParent" class="flex items-center justify-between p-2 bg-gray-50 rounded-md mb-1">
-              <span class="text-sm text-gray-700">#{{ selectedParent.sequence_id }} {{ selectedParent.name }}</span>
-              <button @click="selectedParent = null; formData.parent_id = ''" class="text-gray-400 hover:text-red-500">&times;</button>
-            </div>
-            <div v-else class="relative">
-              <input
-                v-model="parentSearch"
-                @input="searchParents"
-                @focus="onParentSearchFocus"
-                type="text"
-                :placeholder="t('issue.parentSearchPlaceholder')"
-                class="w-full px-3 py-2 pr-8 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 text-sm"
-              />
-              <button v-if="parentSearch" @click="clearParentSearch" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <svg v-if="parentSearching" class="absolute right-2 top-1/2 -translate-y-1/2 animate-spin w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-            </div>
-            <div v-if="parentResults.length > 0 && !selectedParent" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-              <div
-                v-for="p in parentResults"
-                :key="p.id"
-                @click="selectParent(p)"
-                class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-50 last:border-b-0"
-              >
-                <span class="font-medium text-blue-600">#{{ p.sequence_id }}</span>
-                <span class="mx-2 text-gray-300">|</span>
-                <span class="text-gray-700">{{ p.name }}</span>
-              </div>
-            </div>
-            <div v-if="parentSearch && !parentSearching && parentResults.length === 0 && !selectedParent" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-3 text-center text-sm text-gray-400">
-              {{ t('issue.noParentFound') }}
-            </div>
-          </div>
         </div>
 
         <div class="property-group">
@@ -242,6 +208,7 @@ import * as issueApi from '@/api/issue'
 import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
+import { releaseApi } from '@/api/release'
 import projectApi from '@/api/project'
 import { workspaceApi } from '@/api/workspace'
 
@@ -278,6 +245,7 @@ const linkedFields = ref<any[]>([])
 const states = ref<State[]>([])
 const cycles = ref<CycleResponse[]>([])
 const modules = ref<ModuleResponse[]>([])
+const releases = ref<{ id: number; name: string; version: string }[]>([])
 const projectMembers = ref<User[]>([])
 const selectedTypeId = ref<number | null>(null)
 const customFieldValues = ref<Record<number, IssueCustomFieldValueUpdate>>({})
@@ -295,16 +263,11 @@ const formData = ref({
   assignee_id: '' as number | string,
   cycle_id: '' as number | string,
   module_id: '' as number | string,
+  release_id: '' as number | string,
   start_date: '',
-  target_date: '',
-  parent_id: '' as number | string
+  target_date: ''
 })
 const selectedLabelIds = ref<number[]>([])
-const parentSearch = ref('')
-const parentResults = ref<any[]>([])
-const selectedParent = ref<any>(null)
-const parentSearching = ref(false)
-let parentSearchTimer: any = null
 
 // 计算属性
 const canSubmit = computed(() => {
@@ -473,6 +436,14 @@ async function loadData() {
       console.error('Failed to load modules:', e)
     }
 
+    // 加载发布版本
+    try {
+      const releasesRes = await releaseApi.list(projectId.value)
+      releases.value = releasesRes
+    } catch (e) {
+      console.error('Failed to load releases:', e)
+    }
+
     // 加载项目成员
     try {
       const membersRes = await projectApi.listProjectMembers(projectId.value)
@@ -490,46 +461,6 @@ async function loadData() {
   } catch (error) {
     console.error('Failed to load data:', error)
   }
-}
-
-// 搜索父工作项
-async function searchParents() {
-  if (parentSearchTimer) clearTimeout(parentSearchTimer)
-  if (!parentSearch.value.trim()) {
-    parentResults.value = []
-    parentSearching.value = false
-    return
-  }
-  parentSearching.value = true
-  parentSearchTimer = setTimeout(async () => {
-    try {
-      const result: any = await issueApi.searchIssues(workspaceId.value, parentSearch.value, projectId.value)
-      parentResults.value = (Array.isArray(result) ? result : (result.items || [])).slice(0, 10)
-    } catch (e) {
-      console.error('Parent search failed:', e)
-      parentResults.value = []
-    } finally {
-      parentSearching.value = false
-    }
-  }, 300)
-}
-
-function clearParentSearch() {
-  parentSearch.value = ''
-  parentResults.value = []
-  parentSearching.value = false
-}
-
-function onParentSearchFocus() {
-  if (parentSearch.value.trim()) {
-    searchParents()
-  }
-}
-
-function selectParent(p: any) {
-  selectedParent.value = p
-  parentResults.value = []
-  parentSearch.value = ''
 }
 
 // 加载类型的关联字段
@@ -637,9 +568,14 @@ async function submitForm() {
       }
     }
 
-    // Add parent if selected
-    if (selectedParent.value) {
-      data.parent_id = selectedParent.value.id
+    // Add release if selected
+    if (formData.value.release_id) {
+      const releaseId = typeof formData.value.release_id === 'string'
+        ? parseInt(formData.value.release_id)
+        : formData.value.release_id
+      if (releaseId > 0) {
+        data.release_id = releaseId
+      }
     }
 
     // Add custom field values
@@ -702,17 +638,8 @@ watch(selectedTypeId, (newTypeId) => {
 
 onMounted(async () => {
   await loadData()
-  // Auto-populate parent from query param (e.g. ?parent_id=X from IssueDetail)
-  const parentId = route.query.parent_id
-  if (parentId) {
-    try {
-      const parent = await issueApi.getIssue(Number(parentId))
-      if (parent) selectParent(parent)
-    } catch (e) {
-      console.error('Failed to load parent issue:', e)
-    }
-  }
 })
+
 </script>
 
 <style scoped>

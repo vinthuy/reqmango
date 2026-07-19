@@ -115,6 +115,8 @@
     "cyclePlaceholder": "选择周期",
     "module": "模块",
     "modulePlaceholder": "选择模块",
+    "release": "发布版本",
+    "releasePlaceholder": "选择发布版本",
     "startDate": "开始日期",
     "endDate": "结束日期",
     "targetDate": "截止日期",

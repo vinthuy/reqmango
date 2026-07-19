@@ -36,6 +36,7 @@ type IssueResponse struct {
 	EstimatePointID   *uint64       `json:"estimate_point_id"`
 	CycleID           *uint64       `json:"cycle_id"`
 	ModuleIDs         []uint64      `json:"module_ids"`
+	ReleaseID         *uint64       `json:"release_id"`
 	ExternalID        *string       `json:"external_id"`
 	ExternalSource    *string       `json:"external_source"`
 	CoverImageURL     *string       `json:"cover_image_url"`

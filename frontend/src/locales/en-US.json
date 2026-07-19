@@ -115,6 +115,8 @@
     "cyclePlaceholder": "Select cycle",
     "module": "Module",
     "modulePlaceholder": "Select module",
+    "release": "Release",
+    "releasePlaceholder": "Select release",
     "startDate": "Start Date",
     "endDate": "End Date",
     "targetDate": "Target Date",

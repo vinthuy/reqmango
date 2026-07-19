@@ -22,12 +22,63 @@ func SeedAll(db *gorm.DB) {
 	SeedConfigData(db)
 	SeedIssueTypesForAllWorkspaces(db)
 	SeedRelationTypesForAllWorkspaces(db)
+	SeedReleasesForAllProjects(db)
 	BackfillIssueTypeIDs(db)
+	FixIssueTypeHierarchy(db)
 	SeedSearchTemplates(db)
 	SeedAutomationRulesForAllWorkspaces(db)
 	SeedWebhookDemoExecutionLogs(db)
 
 	fmt.Println("=== Data initialization complete ===")
+}
+
+// SeedReleasesForAllProjects creates default releases for every project that has none.
+func SeedReleasesForAllProjects(db *gorm.DB) {
+	var projects []model.Project
+	if db.Find(&projects).Error != nil {
+		return
+	}
+	created := 0
+	for _, proj := range projects {
+		var count int64
+		db.Model(&model.Release{}).Where("project_id = ?", proj.ID).Count(&count)
+		if count > 0 {
+			continue
+		}
+		releaseDefs := []struct {
+			name, version, description, status string
+		}{
+			{"v1.0.0", "v1.0.0", "首个正式版本发布", "released"},
+			{"v1.1.0", "v1.1.0", "功能增强与Bug修复版本", "in_progress"},
+			{"v2.0.0", "v2.0.0", "重大架构升级版本", "planned"},
+		}
+		for _, rd := range releaseDefs {
+			db.Create(&model.Release{
+				Name:        rd.name,
+				Version:     rd.version,
+				Description: rd.description,
+				Status:      rd.status,
+				ProjectID:   proj.ID,
+			})
+			created++
+		}
+	}
+	if created > 0 {
+		fmt.Printf("Seeded %d releases across %d projects\n", created, len(projects))
+	}
+}
+
+// FixIssueTypeHierarchy clears ParentTypeID on Bug/Task issue types so they can
+// be children of any lower-level type (not just Feature). This runs as a migration
+// for existing databases that were seeded with the old strict hierarchy.
+func FixIssueTypeHierarchy(db *gorm.DB) {
+	if err := db.Model(&model.IssueType{}).
+		Where("level = ? AND name IN ?", 2, []string{"Bug", "Task"}).
+		Update("parent_type_id", nil).Error; err != nil {
+		fmt.Printf("  WARN: failed to fix issue type hierarchy: %v\n", err)
+	} else {
+		fmt.Println("Fixed IssueType hierarchy: Bug/Task can now be children of any lower-level type")
+	}
 }
 
 // BackfillIssueTypeIDs assigns issue_type_id to existing issues that lack one,
@@ -381,14 +432,10 @@ func SeedDemoData(db *gorm.DB) {
 				{"Spike", "#06B6D4", "zap", "技术调研/探索", 1, false, 6},
 			}
 			var epicID uint64
-			var featureID uint64
 			for _, td := range typeDefs {
 				if existing, ok := typeMap[td.name]; ok {
 					if td.name == "Epic" {
 						epicID = existing.ID
-					}
-					if td.name == "Feature" {
-						featureID = existing.ID
 					}
 					continue
 				}
@@ -402,17 +449,10 @@ func SeedDemoData(db *gorm.DB) {
 					Sequence:    td.sequence,
 					WorkspaceID: ws.ID,
 				}
-				if td.name == "Feature" || td.name == "Bug" || td.name == "Task" {
-					if epicID != 0 {
-						parentID := epicID
-						if td.name == "Bug" || td.name == "Task" {
-							if featureID != 0 {
-								parentID = featureID
-							}
-						}
-						it.ParentTypeID = &parentID
-					}
-				} else if td.name == "Story" || td.name == "Spike" {
+				// Only Feature/Story/Spike (Level 1) point to Epic as their parent type.
+				// Bug/Task (Level 2) have no fixed ParentTypeID — they can be children
+				// of any type with a lower Level (Epic, Feature, Story, Spike).
+				if td.level == 1 {
 					if epicID != 0 {
 						it.ParentTypeID = &epicID
 					}
@@ -424,9 +464,6 @@ func SeedDemoData(db *gorm.DB) {
 				typeMap[td.name] = it
 				if td.name == "Epic" {
 					epicID = it.ID
-				}
-				if td.name == "Feature" {
-					featureID = it.ID
 				}
 			}
 			allIssueTypes[ws.ID] = typeMap
@@ -1044,15 +1081,16 @@ func SeedConfigData(db *gorm.DB) {
 		db.Create(&epic)
 		feature := model.IssueType{Name: "Feature", Color: "#6366F1", Icon: "star", Description: "功能特性", Level: 1, ParentTypeID: &epic.ID, Sequence: 2, WorkspaceID: ws.ID}
 		db.Create(&feature)
-		bug := model.IssueType{Name: "Bug", Color: "#EF4444", Icon: "bug", Description: "缺陷/问题", Level: 2, ParentTypeID: &feature.ID, Sequence: 3, WorkspaceID: ws.ID}
+		// Bug/Task (Level 2) have no fixed ParentTypeID — can be children of any lower-level type
+		bug := model.IssueType{Name: "Bug", Color: "#EF4444", Icon: "bug", Description: "缺陷/问题", Level: 2, Sequence: 3, WorkspaceID: ws.ID}
 		db.Create(&bug)
-		task := model.IssueType{Name: "Task", Color: "#10B981", Icon: "check-circle", Description: "开发任务", Level: 2, ParentTypeID: &feature.ID, Sequence: 4, WorkspaceID: ws.ID}
+		task := model.IssueType{Name: "Task", Color: "#10B981", Icon: "check-circle", Description: "开发任务", Level: 2, Sequence: 4, WorkspaceID: ws.ID}
 		db.Create(&task)
 		story := model.IssueType{Name: "Story", Color: "#F59E0B", Icon: "bookmark", Description: "用户故事", Level: 1, ParentTypeID: &epic.ID, Sequence: 5, WorkspaceID: ws.ID}
 		db.Create(&story)
 		spike := model.IssueType{Name: "Spike", Color: "#06B6D4", Icon: "zap", Description: "技术调研/探索", Level: 1, ParentTypeID: &epic.ID, Sequence: 6, WorkspaceID: ws.ID}
 		db.Create(&spike)
-		fmt.Printf("  Created 6 issue types (Epic → Feature/Story/Spike → Bug/Task)\n")
+		fmt.Printf("  Created 6 issue types (Epic/L0 → Feature/Story/Spike/L1 → Bug/Task/L2)\n")
 	}
 
 	// Custom Fields
@@ -1110,6 +1148,29 @@ func SeedConfigData(db *gorm.DB) {
 			db.Create(&model.Label{Name: l.name, Color: l.color, ProjectID: proj.ID, WorkspaceID: ws.ID})
 		}
 		fmt.Printf("  Created %d labels\n", len(labelDefs))
+	}
+
+	// Releases (if not already created)
+	var releaseCount int64
+	db.Model(&model.Release{}).Where("project_id = ?", proj.ID).Count(&releaseCount)
+	if releaseCount == 0 {
+		releaseDefs := []struct {
+			name, version, description, status string
+		}{
+			{"v1.0.0", "v1.0.0", "首个正式版本发布", "released"},
+			{"v1.1.0", "v1.1.0", "功能增强与Bug修复版本", "in_progress"},
+			{"v2.0.0", "v2.0.0", "重大架构升级版本", "planned"},
+		}
+		for _, rd := range releaseDefs {
+			db.Create(&model.Release{
+				Name:        rd.name,
+				Version:     rd.version,
+				Description: rd.description,
+				Status:      rd.status,
+				ProjectID:   proj.ID,
+			})
+		}
+		fmt.Printf("  Created %d releases\n", len(releaseDefs))
 	}
 
 	// Workflow
@@ -1370,9 +1431,10 @@ func SeedIssueTypesForAllWorkspaces(db *gorm.DB) {
 		db.Create(&epic)
 		feature := model.IssueType{Name: "Feature", Color: "#6366F1", Icon: "star", Description: "功能特性", Level: 1, ParentTypeID: &epic.ID, Sequence: 2, WorkspaceID: ws.ID}
 		db.Create(&feature)
-		bug := model.IssueType{Name: "Bug", Color: "#EF4444", Icon: "bug", Description: "缺陷/问题", Level: 2, ParentTypeID: &feature.ID, Sequence: 3, WorkspaceID: ws.ID}
+		// Bug/Task (Level 2) have no fixed ParentTypeID — can be children of any lower-level type
+		bug := model.IssueType{Name: "Bug", Color: "#EF4444", Icon: "bug", Description: "缺陷/问题", Level: 2, Sequence: 3, WorkspaceID: ws.ID}
 		db.Create(&bug)
-		task := model.IssueType{Name: "Task", Color: "#10B981", Icon: "check-circle", Description: "开发任务", Level: 2, ParentTypeID: &feature.ID, Sequence: 4, WorkspaceID: ws.ID}
+		task := model.IssueType{Name: "Task", Color: "#10B981", Icon: "check-circle", Description: "开发任务", Level: 2, Sequence: 4, WorkspaceID: ws.ID}
 		db.Create(&task)
 		story := model.IssueType{Name: "Story", Color: "#F59E0B", Icon: "bookmark", Description: "用户故事", Level: 1, ParentTypeID: &epic.ID, Sequence: 5, WorkspaceID: ws.ID}
 		db.Create(&story)
