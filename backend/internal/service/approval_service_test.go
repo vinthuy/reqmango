@@ -54,7 +54,7 @@ func TestApprovalService_Create_Success(t *testing.T) {
 	// Mock: COMMIT
 	mock.ExpectCommit()
 
-	svc := NewApprovalService(db)
+	svc := NewApprovalService(db, nil)
 	approval, err := svc.Create(1, 1, 100, "please review")
 	assert.NoError(t, err)
 	assert.NotNil(t, approval)
@@ -73,7 +73,7 @@ func TestApprovalService_Create_DuplicatePending(t *testing.T) {
 		WithArgs(uint64(1), "pending").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
-	svc := NewApprovalService(db)
+	svc := NewApprovalService(db, nil)
 	_, err := svc.Create(1, 1, 100, "please review")
 	assert.Error(t, err)
 }
@@ -107,7 +107,7 @@ func TestApprovalService_Decide_Approve(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "status", "approver_ids", "approve_target_state_id", "reject_target_state_id", "issue_id", "requester_id"}).
 			AddRow(1, "approved", approverIDs, 20, 10, 100, 5))
 
-	svc := NewApprovalService(db)
+	svc := NewApprovalService(db, nil)
 	approval, err := svc.Decide(1, 2, "approved", "looks good")
 	assert.NoError(t, err)
 	assert.Equal(t, "approved", approval.Status)
@@ -127,7 +127,7 @@ func TestApprovalService_Decide_NotInApprovers(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "status", "approver_ids", "approve_target_state_id", "reject_target_state_id", "issue_id", "requester_id"}).
 			AddRow(1, "pending", approverIDs, 20, 10, 100, 5))
 
-	svc := NewApprovalService(db)
+	svc := NewApprovalService(db, nil)
 	_, err := svc.Decide(1, 99, "approved", "")
 	assert.Error(t, err)
 }
@@ -152,7 +152,7 @@ func TestApprovalService_Cancel_Success(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "status", "requester_id", "issue_id"}).
 			AddRow(1, "cancelled", 5, 100))
 
-	svc := NewApprovalService(db)
+	svc := NewApprovalService(db, nil)
 	approval, err := svc.Cancel(1, 5)
 	assert.NoError(t, err)
 	assert.Equal(t, "cancelled", approval.Status)
@@ -167,7 +167,7 @@ func TestApprovalService_Cancel_NotRequester(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "status", "requester_id", "issue_id"}).
 			AddRow(1, "pending", 5, 100))
 
-	svc := NewApprovalService(db)
+	svc := NewApprovalService(db, nil)
 	_, err := svc.Cancel(1, 99)
 	assert.Error(t, err)
 }

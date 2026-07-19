@@ -33,7 +33,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	typeTemplateSvc := service.NewTypeTemplateService(db)
 	relationSvc := service.NewRelationService(db)
 	workflowSvc := service.NewWorkflowService(db)
-	approvalSvc := service.NewApprovalService(db)
+	approvalSvc := service.NewApprovalService(db, notificationSvc)
 	approvalH := handler.NewApprovalHandler(approvalSvc)
 	commentSvc := service.NewCommentService(db, notificationSvc)
 	savedViewSvc := service.NewSavedViewService(db)

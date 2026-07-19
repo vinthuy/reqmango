@@ -14,11 +14,12 @@ import (
 )
 
 type ApprovalService struct {
-	db *gorm.DB
+	db       *gorm.DB
+	notifier *NotificationService
 }
 
-func NewApprovalService(db *gorm.DB) *ApprovalService {
-	return &ApprovalService{db: db}
+func NewApprovalService(db *gorm.DB, notifier *NotificationService) *ApprovalService {
+	return &ApprovalService{db: db, notifier: notifier}
 }
 
 // Create submits a new approval request.
@@ -95,8 +96,18 @@ func (s *ApprovalService) Create(issueID, requesterID, transitionID uint64, requ
 		return nil, common.Internal("Failed to create approval")
 	}
 
-	// 7. TODO: send notifications to approvers (Phase 8)
-	// 8. TODO: add issue activity (Phase 8)
+	// 7. Notify approvers (best-effort)
+	if s.notifier != nil {
+		approverIDs := parseUint64Array(approverIDsJSON)
+		if len(approverIDs) > 0 {
+			title := "Approval request"
+			message := fmt.Sprintf("Issue #%d requires your approval", issueID)
+			_ = s.notifier.TriggerNotificationsBulk(s.db, "approval_requested", title, message, approverIDs, &approval.RequesterID, &approval.ProjectID, &approval.IssueID)
+		}
+	}
+
+	// 8. Record issue activity (best-effort)
+	s.recordActivity(issueID, requesterID, "approval_submitted", nil, nil, nil, strPtrOrNil(approverIDsJSON))
 
 	return &approval, nil
 }
@@ -223,8 +234,16 @@ func (s *ApprovalService) Decide(approvalID, approverID uint64, decision, note s
 	// Reload
 	s.db.First(&approval, approvalID)
 
-	// TODO: send notification to requester (Phase 8)
-	// TODO: add issue activity (Phase 8)
+	// Notify requester (best-effort)
+	if s.notifier != nil && approval.RequesterID != 0 {
+		title := "Approval " + decision
+		message := fmt.Sprintf("Your approval request on issue #%d has been %s", approval.IssueID, decision)
+		actorID := approverID
+		_ = s.notifier.TriggerNotification(s.db, "approval_decided", title, message, approval.RequesterID, &actorID, &approval.ProjectID, &approval.IssueID)
+	}
+
+	// Record issue activity (best-effort)
+	s.recordActivity(approval.IssueID, approverID, "approval_"+decision, strPtr("state"), strPtr(fmt.Sprintf("%d", approval.SourceStateID)), strPtr(fmt.Sprintf("%d", targetStateID)), strPtrOrNil(note))
 
 	return &approval, nil
 }
@@ -261,7 +280,10 @@ func (s *ApprovalService) Cancel(approvalID, userID uint64) (*model.Approval, er
 	}
 
 	s.db.First(&approval, approvalID)
-	// TODO: add issue activity (Phase 8)
+
+	// Record issue activity (best-effort)
+	s.recordActivity(approval.IssueID, userID, "approval_cancelled", nil, nil, nil, nil)
+
 	return &approval, nil
 }
 
@@ -396,4 +418,25 @@ func containsUint64(arr []uint64, v uint64) bool {
 		}
 	}
 	return false
+}
+
+// recordActivity creates an IssueActivity record (best-effort, ignores errors).
+func (s *ApprovalService) recordActivity(issueID, actorID uint64, verb string, field, oldValue, newValue, comment *string) {
+	activity := &model.IssueActivity{
+		IssueID:  &issueID,
+		Verb:     verb,
+		Field:    field,
+		OldValue: oldValue,
+		NewValue: newValue,
+		Comment:  comment,
+		ActorID:  &actorID,
+	}
+	s.db.Create(activity)
+}
+
+func strPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
