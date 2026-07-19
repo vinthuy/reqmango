@@ -497,7 +497,8 @@
       "issue_updated": "工作项更新",
       "state_changed": "状态变更",
       "assignee_changed": "负责人变更",
-      "comment_added": "评论添加"
+      "comment_added": "评论添加",
+      "scheduled": "定时计划"
     },
     "none": "无",
     "current": "当前",
@@ -1134,7 +1135,8 @@
       "issue_updated": "问题更新",
       "state_changed": "状态变更",
       "assignee_changed": "负责人变更",
-      "comment_added": "评论添加"
+      "comment_added": "评论添加",
+      "scheduled": "定时计划"
     }
   },
   "automationForm": {
@@ -1193,7 +1195,18 @@
     "onDays": "执行日期",
     "onDayOfMonth": "每月几号",
     "dayNumber": "第{day}天",
-    "fieldName": "字段名称"
+    "fieldName": "字段名称",
+    "systemFieldGroup": "系统字段",
+    "customFieldGroup": "自定义字段",
+    "selectValue": "选择值",
+    "numberValue": "数值",
+    "dueDate": "截止日期",
+    "startDate": "开始日期",
+    "state": "状态",
+    "webhookUrl": "Webhook URL",
+    "webhookHeaders": "自定义 Headers (每行 Key: Value)",
+    "webhookBody": "请求 Body (JSON)",
+    "webhookVarsHint": "可用变量: {{issue_id}}, {{project_id}}, {{workspace_id}}, {{event_type}}"
   },
   "automationBuilder": {
     "title": "标题",
@@ -1234,22 +1247,25 @@
     "setPriority": "设置优先级",
     "assignTo": "分配给",
     "unassign": "取消分配",
-    "addLabel": "添加标签",
-    "removeLabel": "移除标签",
     "addComment": "添加评论",
     "setField": "设置字段",
+    "callWebhook": "调用 Webhook",
     "urgent": "紧急",
     "high": "高",
     "medium": "中",
     "low": "低",
-    "labelName": "标签名称",
     "commentText": "评论内容",
     "fieldName": "字段名称",
     "fieldValue": "字段值",
     "systemFields": "系统字段",
     "customFields": "自定义字段",
     "selectValue": "选择值",
-    "numberValue": "数值"
+    "selectMember": "选择成员",
+    "numberValue": "数值",
+    "webhookUrl": "Webhook URL",
+    "webhookHeaders": "自定义 Headers (每行 Key: Value)",
+    "webhookBody": "请求 Body (JSON)",
+    "webhookVarsHint": "可用变量: {{issue_id}}, {{project_id}}, {{workspace_id}}, {{event_type}}"
   },
   "automationHistory": {
     "title": "自动化执行记录",
@@ -1270,7 +1286,8 @@
     "actionSetPriority": "设置优先级",
     "actionAssign": "分配给",
     "actionAddComment": "添加评论",
-    "actionAddLabel": "添加标签"
+    "actionSetField": "设置字段",
+    "actionCallWebhook": "调用 Webhook"
   },
   "automationExecutionLog": {
     "title": "自动化执行日志",

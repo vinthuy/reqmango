@@ -233,18 +233,153 @@
                 </option>
               </select>
             </template>
-            <template v-else-if="action.type === 'add_label' || action.type === 'remove_label'">
-              <select v-model="action.value" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                <option value="">{{ t('automationForm.selectLabel') }}</option>
-                <option v-for="l in labels" :key="l.id" :value="l.id">{{ l.name }}</option>
-              </select>
-            </template>
             <template v-else-if="action.type === 'add_comment'">
               <textarea v-model="action.value" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.commentPlaceholder')"></textarea>
             </template>
             <template v-else-if="action.type === 'set_field'">
-              <input v-model="action.field" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2" :placeholder="t('automationForm.fieldName')" />
-              <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.value')" />
+              <select
+                v-model="action.field"
+                @change="onSetFieldChange(index)"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
+              >
+                <option value="">{{ t('automationForm.selectField') }}</option>
+                <optgroup :label="t('automationForm.systemFieldGroup')">
+                  <option value="state_id">{{ t('automationForm.state') }}</option>
+                  <option value="priority">{{ t('automationForm.priority') }}</option>
+                  <option value="target_date">{{ t('automationForm.dueDate') }}</option>
+                  <option value="start_date">{{ t('automationForm.startDate') }}</option>
+                </optgroup>
+                <optgroup :label="t('automationForm.customFieldGroup')">
+                  <option v-for="field in customFields" :key="field.id" :value="'custom_' + field.id">
+                    {{ field.name }}
+                  </option>
+                </optgroup>
+              </select>
+              <!-- Dynamic value input based on field type -->
+              <template v-if="action.field">
+                <select
+                  v-if="action.field === 'state_id'"
+                  v-model="action.value"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="">{{ t('automationForm.selectState') }}</option>
+                  <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+                <select
+                  v-else-if="action.field === 'priority'"
+                  v-model="action.value"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="">{{ t('automationForm.selectPriority') }}</option>
+                  <option v-for="p in priorityOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
+                </select>
+                <input
+                  v-else-if="action.field === 'target_date' || action.field === 'start_date'"
+                  v-model="action.value"
+                  type="date"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+                <select
+                  v-else-if="getCustomFieldType(action.field) === 'dropdown'"
+                  v-model="action.value"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="">{{ t('automationForm.selectValue') }}</option>
+                  <option v-for="opt in getCustomFieldOptions(action.field)" :key="opt.id" :value="opt.value">{{ opt.value }}</option>
+                </select>
+                <input
+                  v-else-if="getCustomFieldType(action.field) === 'number'"
+                  v-model.number="action.value"
+                  type="number"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  :placeholder="t('automationForm.numberValue')"
+                />
+                <select
+                  v-else-if="getCustomFieldType(action.field) === 'boolean'"
+                  v-model="action.value"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="">{{ t('automationForm.selectValue') }}</option>
+                  <option value="true">True</option>
+                  <option value="false">False</option>
+                </select>
+                <input
+                  v-else-if="getCustomFieldType(action.field) === 'date'"
+                  v-model="action.value"
+                  type="date"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+                <select
+                  v-else-if="getCustomFieldType(action.field) === 'member'"
+                  v-model="action.value"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="">{{ t('automationForm.selectPerson') }}</option>
+                  <option v-for="m in members" :key="m.user_id || m.id" :value="m.user_id || m.id">
+                    {{ m.user?.display_name || m.display_name || 'Unknown' }}
+                  </option>
+                </select>
+                <!-- Custom field: text (textarea for better UX) -->
+                <textarea
+                  v-else-if="getCustomFieldType(action.field) === 'text'"
+                  v-model="action.value"
+                  rows="3"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
+                  :placeholder="t('automationForm.value')"
+                />
+                <!-- Custom field: url -->
+                <input
+                  v-else-if="getCustomFieldType(action.field) === 'url'"
+                  v-model="action.value"
+                  type="url"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  placeholder="https://..."
+                />
+                <!-- Default: text input -->
+                <input
+                  v-else
+                  v-model="action.value"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  :placeholder="t('automationForm.value')"
+                />
+              </template>
+            </template>
+            <template v-else-if="action.type === 'call_webhook'">
+              <input
+                v-model="action.field"
+                type="url"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2"
+                :placeholder="t('automationForm.webhookUrl')"
+              />
+              <div class="grid grid-cols-2 gap-2 mb-2">
+                <select
+                  v-model="webhookMethodCache[index]"
+                  @change="updateWebhookValue(index)"
+                  class="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="POST">POST</option>
+                  <option value="GET">GET</option>
+                  <option value="PUT">PUT</option>
+                  <option value="PATCH">PATCH</option>
+                  <option value="DELETE">DELETE</option>
+                </select>
+                <input
+                  v-model="webhookHeadersCache[index]"
+                  type="text"
+                  class="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  :placeholder="t('automationForm.webhookHeaders')"
+                  @change="updateWebhookValue(index)"
+                />
+              </div>
+              <textarea
+                v-model="webhookBodyCache[index]"
+                rows="2"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-1 font-mono"
+                :placeholder="t('automationForm.webhookBody')"
+                @change="updateWebhookValue(index)"
+              ></textarea>
+              <p class="text-xs text-gray-400">{{ t('automationForm.webhookVarsHint') }}</p>
             </template>
             <template v-else-if="action.type === 'dispatch_agent'">
               <input v-model="action.value" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" :placeholder="t('automationForm.agentNamePlaceholder')" />
@@ -275,6 +410,8 @@ import { useI18n } from '@/composables/useI18n';
 import { useToast } from '@/composables/useToast';
 import api from '@/api';
 import { TriggerTypeOptions, StateGroupOptions, PriorityOptions, ConditionOperatorOptions, ActionTypeOptions } from '@/types/workflow';
+import type { CustomField } from '@/types/custom-field';
+import { customFieldApi } from '@/api/custom-field';
 
 const { t } = useI18n();
 const toast = useToast();
@@ -308,6 +445,12 @@ const actionOptions = ActionTypeOptions;
 const states = ref<any[]>([]);
 const labels = ref<any[]>([]);
 const members = ref<any[]>([]);
+const customFields = ref<CustomField[]>([]);
+
+// Webhook action caches
+const webhookMethodCache = ref<Record<number, string>>({});
+const webhookHeadersCache = ref<Record<number, string>>({});
+const webhookBodyCache = ref<Record<number, string>>({});
 
 const isEditing = ref(false);
 
@@ -354,6 +497,13 @@ async function loadData() {
     states.value = Array.isArray(statesRes) ? statesRes : (statesRes?.data || []);
     labels.value = Array.isArray(labelsRes) ? labelsRes : (labelsRes?.data || []);
     members.value = Array.isArray(membersRes) ? membersRes : (membersRes?.data || []);
+    // 加载自定义字段
+    try {
+      const fields = await customFieldApi.listCustomFields(props.workspaceId, props.projectId);
+      customFields.value = fields.filter((f: CustomField) => f.is_active);
+    } catch (e) {
+      console.error('Failed to load custom fields:', e);
+    }
   } catch (e) {
     console.error('Failed to load data:', e);
   }
@@ -419,6 +569,12 @@ function loadAutomationData() {
         ? (typeof props.automation.actions === 'string' ? JSON.parse(props.automation.actions) : props.automation.actions)
         : [];
       actions.value = Array.isArray(acts) && acts.length > 0 ? acts : [{ type: '', field: '', value: '' }];
+      // 初始化 webhook 缓存
+      actions.value.forEach((action, index) => {
+        if (action.type === 'call_webhook') {
+          initWebhookCache(index);
+        }
+      });
     } catch {
       actions.value = [{ type: '', field: '', value: '' }];
     }
@@ -453,6 +609,77 @@ function addAction() {
 
 function removeAction(index: number) {
   actions.value.splice(index, 1);
+  delete webhookMethodCache.value[index];
+  delete webhookHeadersCache.value[index];
+  delete webhookBodyCache.value[index];
+}
+
+// ====== set_field helpers ======
+
+function getCustomFieldType(field: string): string {
+  if (field.startsWith('custom_')) {
+    const fieldId = parseInt(field.replace('custom_', ''))
+    const customField = customFields.value.find(f => f.id === fieldId)
+    return customField?.field_type || 'text'
+  }
+  return ''
+}
+
+function getCustomFieldOptions(field: string): Array<{ id: number; value: string }> {
+  if (field.startsWith('custom_')) {
+    const fieldId = parseInt(field.replace('custom_', ''))
+    const customField = customFields.value.find(f => f.id === fieldId)
+    return (customField as any)?.options?.map((o: any) => ({ id: o.id, value: o.value })) || []
+  }
+  return []
+}
+
+function onSetFieldChange(index: number) {
+  const action = actions.value[index]
+  if (!action) return
+  action.field = action.field || ''
+  action.value = ''
+}
+
+// ====== webhook action helpers ======
+
+function initWebhookCache(index: number) {
+  const action = actions.value[index]
+  if (!action) return
+  if (action.type === 'call_webhook') {
+    let cached: { method: string; headers: string; body: string } = { method: 'POST', headers: '', body: '' }
+    if (typeof action.value === 'object' && action.value !== null) {
+      cached = {
+        method: (action.value as any).method || 'POST',
+        headers: (action.value as any).headers
+          ? Object.entries((action.value as any).headers).map(([k, v]) => `${k}: ${v}`).join('\n')
+          : '',
+        body: (action.value as any).body || '',
+      }
+    }
+    webhookMethodCache.value[index] = cached.method
+    webhookHeadersCache.value[index] = cached.headers
+    webhookBodyCache.value[index] = cached.body
+  }
+}
+
+function updateWebhookValue(index: number) {
+  const action = actions.value[index]
+  if (!action || action.type !== 'call_webhook') return
+
+  const method = webhookMethodCache.value[index] || 'POST'
+  const body = webhookBodyCache.value[index] || ''
+
+  const headers: Record<string, string> = {}
+  const headerLines = (webhookHeadersCache.value[index] || '').split('\n').filter(l => l.trim())
+  for (const line of headerLines) {
+    const colonIdx = line.indexOf(':')
+    if (colonIdx > 0) {
+      headers[line.substring(0, colonIdx).trim()] = line.substring(colonIdx + 1).trim()
+    }
+  }
+
+  action.value = { method, headers, body }
 }
 
 function handleSubmit() {

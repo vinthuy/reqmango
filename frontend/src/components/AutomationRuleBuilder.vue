@@ -273,10 +273,9 @@
                   <option value="set_priority">{{ t('automationBuilder.setPriority') }}</option>
                   <option value="assign_to">{{ t('automationBuilder.assignTo') }}</option>
                   <option value="unassign">{{ t('automationBuilder.unassign') }}</option>
-                  <option value="add_label">{{ t('automationBuilder.addLabel') }}</option>
-                  <option value="remove_label">{{ t('automationBuilder.removeLabel') }}</option>
                   <option value="add_comment">{{ t('automationBuilder.addComment') }}</option>
                   <option value="set_field">{{ t('automationBuilder.setField') }}</option>
+                  <option value="call_webhook">{{ t('automationBuilder.callWebhook') }}</option>
                 </select>
                 <template v-if="action.type === 'change_state' || action.type === 'set_priority' || action.type === 'assign_to'">
                   <select
@@ -311,16 +310,9 @@
                     </option>
                   </select>
                 </template>
-                <input
-                  v-else-if="action.type === 'add_label' || action.type === 'remove_label'"
-                  v-model="action.value"
-                  type="text"
-                  class="flex-1 min-w-[150px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  :placeholder="t('automationBuilder.labelName')"
-                />
                 <button
                   @click="removeAction(index)"
-                  class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all"
+                  class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all shrink-0"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -335,19 +327,162 @@
                   :placeholder="t('automationBuilder.commentText')"
                 />
               </div>
-              <div v-if="action.type === 'set_field'" class="mt-3 grid grid-cols-2 gap-3">
+              <div v-if="action.type === 'set_field'" class="mt-3 space-y-2">
+                <select
+                  v-model="action.field"
+                  @change="onSetFieldChange(index)"
+                  class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="" disabled>{{ t('automationBuilder.selectField') }}</option>
+                  <optgroup :label="t('automationBuilder.systemFields')">
+                    <option value="state_id">{{ t('automationBuilder.state') }}</option>
+                    <option value="priority">{{ t('automationBuilder.priority') }}</option>
+                    <option value="target_date">{{ t('automationBuilder.dueDate') }}</option>
+                    <option value="start_date">{{ t('automationBuilder.startDate') }}</option>
+                  </optgroup>
+                  <optgroup :label="t('automationBuilder.customFields')">
+                    <option v-for="field in customFields" :key="field.id" :value="'custom_' + field.id">
+                      {{ field.name }}
+                    </option>
+                  </optgroup>
+                </select>
+                <!-- Dynamic value input based on field type -->
+                <template v-if="action.field">
+                  <select
+                    v-if="action.field === 'state_id'"
+                    v-model="action.value"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="" disabled>{{ t('automationBuilder.selectState') }}</option>
+                    <option v-for="state in states" :key="state.id" :value="state.id">
+                      {{ state.name }}
+                    </option>
+                  </select>
+                  <select
+                    v-else-if="action.field === 'priority'"
+                    v-model="action.value"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="" disabled>{{ t('automationBuilder.selectPriority') }}</option>
+                    <option value="urgent">{{ t('automationBuilder.urgent') }}</option>
+                    <option value="high">{{ t('automationBuilder.high') }}</option>
+                    <option value="medium">{{ t('automationBuilder.medium') }}</option>
+                    <option value="low">{{ t('automationBuilder.low') }}</option>
+                  </select>
+                  <input
+                    v-else-if="action.field === 'target_date' || action.field === 'start_date'"
+                    v-model="action.value"
+                    type="date"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  <!-- Custom field: dropdown -->
+                  <select
+                    v-else-if="getCustomFieldType(action.field) === 'dropdown'"
+                    v-model="action.value"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="" disabled>{{ t('automationBuilder.selectValue') }}</option>
+                    <option v-for="opt in getCustomFieldOptions(action.field)" :key="opt.id" :value="opt.value">
+                      {{ opt.value }}
+                    </option>
+                  </select>
+                  <!-- Custom field: number -->
+                  <input
+                    v-else-if="getCustomFieldType(action.field) === 'number'"
+                    v-model.number="action.value"
+                    type="number"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    :placeholder="t('automationBuilder.numberValue')"
+                  />
+                  <!-- Custom field: boolean -->
+                  <select
+                    v-else-if="getCustomFieldType(action.field) === 'boolean'"
+                    v-model="action.value"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="" disabled>{{ t('automationBuilder.selectValue') }}</option>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                  </select>
+                  <!-- Custom field: date -->
+                  <input
+                    v-else-if="getCustomFieldType(action.field) === 'date'"
+                    v-model="action.value"
+                    type="date"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  <!-- Custom field: member -->
+                  <select
+                    v-else-if="getCustomFieldType(action.field) === 'member'"
+                    v-model="action.value"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="" disabled>{{ t('automationBuilder.selectMember') }}</option>
+                    <option v-for="member in members" :key="member.user_id" :value="member.user_id">
+                      {{ member.user?.display_name || member.display_name || `User #${member.user_id}` }}
+                    </option>
+                  </select>
+                  <!-- Custom field: text (textarea for better UX) -->
+                  <textarea
+                    v-else-if="getCustomFieldType(action.field) === 'text'"
+                    v-model="action.value"
+                    rows="3"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                    :placeholder="t('automationBuilder.fieldValue')"
+                  />
+                  <!-- Custom field: url -->
+                  <input
+                    v-else-if="getCustomFieldType(action.field) === 'url'"
+                    v-model="action.value"
+                    type="url"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="https://..."
+                  />
+                  <!-- Default: text input -->
+                  <input
+                    v-else
+                    v-model="action.value"
+                    type="text"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    :placeholder="t('automationBuilder.fieldValue')"
+                  />
+                </template>
+              </div>
+              <div v-if="action.type === 'call_webhook'" class="mt-3 space-y-2">
                 <input
                   v-model="action.field"
-                  type="text"
-                  class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  :placeholder="t('automationBuilder.fieldName')"
+                  type="url"
+                  class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  :placeholder="t('automationBuilder.webhookUrl')"
                 />
-                <input
-                  v-model="action.value"
-                  type="text"
-                  class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  :placeholder="t('automationBuilder.fieldValue')"
+                <div class="grid grid-cols-2 gap-2">
+                  <select
+                    v-model="webhookMethodCache[index]"
+                    @change="updateWebhookValue(index)"
+                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="POST">POST</option>
+                    <option value="GET">GET</option>
+                    <option value="PUT">PUT</option>
+                    <option value="PATCH">PATCH</option>
+                    <option value="DELETE">DELETE</option>
+                  </select>
+                  <input
+                    v-model="webhookHeadersCache[index]"
+                    type="text"
+                    class="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    :placeholder="t('automationBuilder.webhookHeaders')"
+                    @change="updateWebhookValue(index)"
+                  />
+                </div>
+                <textarea
+                  v-model="webhookBodyCache[index]"
+                  rows="3"
+                  class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none font-mono"
+                  :placeholder="t('automationBuilder.webhookBody')"
+                  @change="updateWebhookValue(index)"
                 />
+                <p class="text-xs text-gray-400">{{ t('automationBuilder.webhookVarsHint') }}</p>
               </div>
             </div>
             <div v-if="form.actions.length > 0" class="flex items-center justify-center text-gray-400 text-sm">
@@ -429,10 +564,9 @@ const isValid = computed(() => {
       if (a.type === 'change_state' && !a.value) return false
       if (a.type === 'set_priority' && !a.value) return false
       if (a.type === 'assign_to' && !a.value) return false
-      if (a.type === 'add_label' && !a.value) return false
-      if (a.type === 'remove_label' && !a.value) return false
       if (a.type === 'add_comment' && !a.value) return false
-      if (a.type === 'set_field' && (!a.field || !a.value)) return false
+      if (a.type === 'set_field' && (!a.field || a.value === '' || a.value == null)) return false
+      if (a.type === 'call_webhook' && !a.field) return false
       return true
     })
 })
@@ -596,6 +730,94 @@ function getDropdownOptions(field: string): Array<{ id: number; value: string }>
   }
   return []
 }
+
+// ====== set_field helpers ======
+
+function getCustomFieldType(field: string): string {
+  if (field.startsWith('custom_')) {
+    const fieldId = parseInt(field.replace('custom_', ''))
+    const customField = customFields.value.find(f => f.id === fieldId)
+    return customField?.field_type || 'text'
+  }
+  return ''
+}
+
+function getCustomFieldOptions(field: string): Array<{ id: number; value: string }> {
+  if (field.startsWith('custom_')) {
+    const fieldId = parseInt(field.replace('custom_', ''))
+    const customField = customFields.value.find(f => f.id === fieldId)
+    return (customField as any)?.options?.map((o: any) => ({ id: o.id, value: o.value })) || []
+  }
+  return []
+}
+
+function onSetFieldChange(index: number) {
+  const action = form.value.actions[index]
+  if (!action) return
+  action.field = action.field || ''
+  action.value = ''
+}
+
+// ====== webhook action helpers ======
+
+type WebhookCache = {
+  method: string
+  headers: string
+  body: string
+}
+
+const webhookMethodCache = ref<Record<number, string>>({})
+const webhookHeadersCache = ref<Record<number, string>>({})
+const webhookBodyCache = ref<Record<number, string>>({})
+
+function initWebhookCache(index: number) {
+  const action = form.value.actions[index]
+  if (!action) return
+  if (action.type === 'call_webhook') {
+    let cached: WebhookCache = { method: 'POST', headers: '', body: '' }
+    if (typeof action.value === 'object' && action.value !== null) {
+      cached = {
+        method: (action.value as any).method || 'POST',
+        headers: (action.value as any).headers
+          ? Object.entries((action.value as any).headers).map(([k, v]) => `${k}: ${v}`).join('\n')
+          : '',
+        body: (action.value as any).body || '',
+      }
+    }
+    webhookMethodCache.value[index] = cached.method
+    webhookHeadersCache.value[index] = cached.headers
+    webhookBodyCache.value[index] = cached.body
+  }
+}
+
+function updateWebhookValue(index: number) {
+  const action = form.value.actions[index]
+  if (!action || action.type !== 'call_webhook') return
+
+  const method = webhookMethodCache.value[index] || 'POST'
+  const body = webhookBodyCache.value[index] || ''
+
+  // Parse headers from text format "Key: Value" per line
+  const headers: Record<string, string> = {}
+  const headerLines = (webhookHeadersCache.value[index] || '').split('\n').filter(l => l.trim())
+  for (const line of headerLines) {
+    const colonIdx = line.indexOf(':')
+    if (colonIdx > 0) {
+      headers[line.substring(0, colonIdx).trim()] = line.substring(colonIdx + 1).trim()
+    }
+  }
+
+  action.value = { method, headers, body }
+}
+
+// Watch for action changes to init webhook caches
+watch(() => form.value.actions, (actions) => {
+  actions.forEach((action, index) => {
+    if (action.type === 'call_webhook') {
+      initWebhookCache(index)
+    }
+  })
+}, { deep: true })
 
 onMounted(() => {
   loadCustomFields()

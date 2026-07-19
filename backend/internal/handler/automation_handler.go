@@ -92,13 +92,19 @@ func (h *AutomationHandler) Update(c *gin.Context) {
 		return
 	}
 
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
 	var req service.AutomationUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
-	rule, svcErr := h.svc.Update(id, &req)
+	rule, svcErr := h.svc.Update(id, projectID, &req)
 	if appError(c, svcErr) {
 		return
 	}

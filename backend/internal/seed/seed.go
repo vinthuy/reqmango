@@ -25,6 +25,7 @@ func SeedAll(db *gorm.DB) {
 	BackfillIssueTypeIDs(db)
 	SeedSearchTemplates(db)
 	SeedAutomationRulesForAllWorkspaces(db)
+	SeedWebhookDemoExecutionLogs(db)
 
 	fmt.Println("=== Data initialization complete ===")
 }
@@ -1444,12 +1445,12 @@ func SeedAutomationRulesForAllWorkspaces(db *gorm.DB) {
 				ScheduleConfig: `{"frequency":"daily","time":"02:00"}`,
 			},
 			{
-				Name:        "Bug自动标记",
-				Description: "当创建 Bug 类型工作项时自动添加 Bug 标签",
-				WorkspaceID: ws.ID,
-				TriggerType: "issue.created",
-				Conditions:  `[{"field":"issue_type","operator":"equals","value":"Bug"}]`,
-				Actions:     `[{"type":"add_label","field":"label_name","value":"Bug"}]`,
+			Name:        "Bug自动评论",
+			Description: "当创建 Bug 类型工作项时自动添加评论提醒",
+			WorkspaceID: ws.ID,
+			TriggerType: "issue.created",
+			Conditions:  `[{"field":"issue_type","operator":"equals","value":"Bug"}]`,
+			Actions:     `[{"type":"add_comment","value":"[自动化] Bug 已创建，请及时处理"}]`,
 				IsEnabled:   true,
 				Sequence:    3,
 				Scope:       "all",
@@ -1466,6 +1467,17 @@ func SeedAutomationRulesForAllWorkspaces(db *gorm.DB) {
 				Scope:       "all",
 				ScheduleConfig: `{"frequency":"weekly","time":"09:00","days":["mon"]}`,
 			},
+			{
+				Name:        "Webhook通知示例",
+				Description: "当创建新工作项时，通过Webhook通知外部系统",
+				WorkspaceID: ws.ID,
+				TriggerType: "issue.created",
+				Conditions:  `[]`,
+				Actions:     `[{"type":"call_webhook","field":"https://httpbin.org/post","value":{"method":"POST","headers":{"Content-Type":"application/json"},"body":"{\"event\":\"issue_created\",\"issue_id\":{{issue_id}},\"workspace_id\":{{workspace_id}},\"trigger\":\"{{trigger_type}}\"}"}}]`,
+				IsEnabled:   true,
+				Sequence:    5,
+				Scope:       "all",
+			},
 		}
 
 		for _, rule := range builtInRules {
@@ -1476,4 +1488,69 @@ func SeedAutomationRulesForAllWorkspaces(db *gorm.DB) {
 		}
 	}
 	fmt.Println("Seeded built-in automation rules for all workspaces")
+}
+
+// SeedWebhookDemoExecutionLogs inserts demo execution logs for webhook
+// automation rules so users can see what the execution log looks like.
+func SeedWebhookDemoExecutionLogs(db *gorm.DB) {
+	var rules []model.AutomationRule
+	db.Where("actions LIKE ?", "%call_webhook%").Find(&rules)
+	if len(rules) == 0 {
+		fmt.Println("No webhook automation rules found, skipping execution log seed")
+		return
+	}
+
+	for _, rule := range rules {
+		// Find an issue in the same workspace
+		var issue model.Issue
+		if err := db.Where("workspace_id = ?", rule.WorkspaceID).First(&issue).Error; err != nil {
+			fmt.Printf("  WARN: no issue found for workspace %d, skipping execution log seed for rule '%s'\n",
+				rule.WorkspaceID, rule.Name)
+			continue
+		}
+
+		// Check if execution log already exists for this rule
+		var count int64
+		db.Model(&model.AutomationExecution{}).Where("rule_id = ?", rule.ID).Count(&count)
+		if count > 0 {
+			continue
+		}
+
+		contextJSON := fmt.Sprintf(`{"event_type":"issue.created","trigger_type":"issue.created","project_id":%d,"workspace_id":%d}`,
+			issue.ProjectID, rule.WorkspaceID)
+		actionsTaken := `[{"type":"call_webhook","field":"https://httpbin.org/post","status":"success","response_code":200}]`
+
+		exec := model.AutomationExecution{
+			RuleID:       rule.ID,
+			IssueID:      issue.ID,
+			TriggerType:  "issue.created",
+			ContextJSON:  contextJSON,
+			ActionsTaken: actionsTaken,
+			Status:       "success",
+			Duration:     320, // ms
+			ExecutedAt:   time.Now().Add(-1 * time.Hour),
+		}
+		if err := db.Create(&exec).Error; err != nil {
+			fmt.Printf("  WARN: failed to seed execution log for rule '%s': %v\n", rule.Name, err)
+		} else {
+			fmt.Printf("  Seeded demo execution log for rule '%s' (rule_id=%d, issue_id=%d)\n",
+				rule.Name, rule.ID, issue.ID)
+		}
+
+		// Also create a second execution log (a "failed" one for demo variety)
+		failExec := model.AutomationExecution{
+			RuleID:       rule.ID,
+			IssueID:      issue.ID,
+			TriggerType:  "issue.created",
+			ContextJSON:  contextJSON,
+			ActionsTaken: `[{"type":"call_webhook","field":"https://httpbin.org/post","status":"failed"}]`,
+			Status:       "failed",
+			Error:        "context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
+			Duration:     15000, // ms - timed out
+			ExecutedAt:   time.Now().Add(-30 * time.Minute),
+		}
+		if err := db.Create(&failExec).Error; err != nil {
+			fmt.Printf("  WARN: failed to seed fail execution log for rule '%s': %v\n", rule.Name, err)
+		}
+	}
 }

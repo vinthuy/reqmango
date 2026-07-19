@@ -33,6 +33,16 @@ func main() {
 	// GORM AutoMigrate does not tighten nullability on existing columns; enforce explicitly
 	db.Exec(`ALTER TABLE labels ALTER COLUMN project_id SET NOT NULL`)
 
+	// Drop old foreign key constraint on automation_rules BEFORE AutoMigrate
+	// (workspace rules have project_id=0, GORM may validate FK during migration)
+	db.Exec(`DO $$ BEGIN
+		IF EXISTS (SELECT 1 FROM information_schema.table_constraints
+			WHERE table_name = 'automation_rules' AND constraint_name = 'fk_automation_rules_project') THEN
+			ALTER TABLE automation_rules DROP CONSTRAINT fk_automation_rules_project;
+		END IF;
+	END $$`)
+	fmt.Println("Automation rules FK cleanup completed")
+
 	if err := db.AutoMigrate(
 		&model.User{},
 		&model.Workspace{},
@@ -106,6 +116,7 @@ func main() {
 		&model.PluginEventLog{},
 		&model.GitIntegration{},
 		&model.GitIssueLink{},
+		&model.AutomationRuleOverride{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

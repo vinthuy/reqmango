@@ -497,7 +497,8 @@
       "issue_updated": "Issue Updated",
       "state_changed": "State Changed",
       "assignee_changed": "Assignee Changed",
-      "comment_added": "Comment Added"
+      "comment_added": "Comment Added",
+      "scheduled": "Scheduled"
     },
     "none": "None",
     "current": "Current",
@@ -1246,7 +1247,8 @@
       "issue_updated": "Issue Updated",
       "state_changed": "State Changed",
       "assignee_changed": "Assignee Changed",
-      "comment_added": "Comment Added"
+      "comment_added": "Comment Added",
+      "scheduled": "Scheduled"
     }
   },
   "automationForm": {
@@ -1305,7 +1307,18 @@
     "onDays": "On Days",
     "onDayOfMonth": "On Day of Month",
     "dayNumber": "Day {day}",
-    "fieldName": "Field Name"
+    "fieldName": "Field Name",
+    "systemFieldGroup": "System Fields",
+    "customFieldGroup": "Custom Fields",
+    "selectValue": "Select Value",
+    "numberValue": "Number Value",
+    "dueDate": "Due Date",
+    "startDate": "Start Date",
+    "state": "State",
+    "webhookUrl": "Webhook URL",
+    "webhookHeaders": "Custom Headers (Key: Value per line)",
+    "webhookBody": "Request Body (JSON)",
+    "webhookVarsHint": "Available vars: {{issue_id}}, {{project_id}}, {{workspace_id}}, {{event_type}}"
   },
   "automationBuilder": {
     "title": "Title",
@@ -1346,22 +1359,25 @@
     "setPriority": "Set Priority",
     "assignTo": "Assign To",
     "unassign": "Unassign",
-    "addLabel": "Add Label",
-    "removeLabel": "Remove Label",
     "addComment": "Add Comment",
     "setField": "Set Field",
+    "callWebhook": "Call Webhook",
     "urgent": "Urgent",
     "high": "High",
     "medium": "Medium",
     "low": "Low",
-    "labelName": "Label Name",
     "commentText": "Comment Text",
     "fieldName": "Field Name",
     "fieldValue": "Field Value",
     "systemFields": "System Fields",
     "customFields": "Custom Fields",
     "selectValue": "Select Value",
-    "numberValue": "Number Value"
+    "selectMember": "Select Member",
+    "numberValue": "Number Value",
+    "webhookUrl": "Webhook URL",
+    "webhookHeaders": "Custom Headers (Key: Value per line)",
+    "webhookBody": "Request Body (JSON)",
+    "webhookVarsHint": "Available vars: {{issue_id}}, {{project_id}}, {{workspace_id}}, {{event_type}}"
   },
   "automationHistory": {
     "title": "Automation Execution History",
@@ -1382,7 +1398,8 @@
     "actionSetPriority": "Set Priority",
     "actionAssign": "Assign To",
     "actionAddComment": "Add Comment",
-    "actionAddLabel": "Add Label",
+    "actionSetField": "Set Field",
+    "actionCallWebhook": "Call Webhook",
     "actionRemoveLabel": "Remove Label",
     "actionSetField": "Set Field"
   },

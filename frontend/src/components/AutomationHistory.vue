@@ -100,7 +100,8 @@ function parseActions(actionsJson: string) {
         'set_priority': t('automationHistory.actionSetPriority'),
         'assign_to': t('automationHistory.actionAssign'),
         'add_comment': t('automationHistory.actionAddComment'),
-        'add_label': t('automationHistory.actionAddLabel'),
+        'set_field': t('automationHistory.actionSetField'),
+        'call_webhook': t('automationHistory.actionCallWebhook'),
       }
       return actionLabels[a.type] || a.type
     }).join(', ')

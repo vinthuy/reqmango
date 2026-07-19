@@ -1,11 +1,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -338,8 +342,6 @@ func NewDefaultActionExecutor(db *gorm.DB, agentClient *client.AgentClient) *Def
 
 func (e *DefaultActionExecutor) registerBuiltinActions() {
 	e.RegisterAction("set_field", e.handleSetField)
-	e.RegisterAction("add_label", e.handleAddLabel)
-	e.RegisterAction("remove_label", e.handleRemoveLabel)
 	e.RegisterAction("add_comment", e.handleAddComment)
 	e.RegisterAction("assign_to", e.handleAssignTo)
 	e.RegisterAction("unassign", e.handleUnassign)
@@ -348,6 +350,7 @@ func (e *DefaultActionExecutor) registerBuiltinActions() {
 	e.RegisterAction("archive", e.handleArchive)
 	e.RegisterAction("close", handleClose)
 	e.RegisterAction("dispatch_agent", e.handleDispatchAgent)
+	e.RegisterAction("call_webhook", e.handleCallWebhook)
 }
 
 func (e *DefaultActionExecutor) RegisterAction(actionType string, handler ActionHandler) {
@@ -385,10 +388,41 @@ func (e *DefaultActionExecutor) handleSetField(action Action, context map[string
 	field := action.Field
 	value := action.Value
 
-	// 验证字段是否允许修改
+	// 自定义字段：custom_{field_id}
+	if strings.HasPrefix(field, "custom_") {
+		fieldIDStr := strings.TrimPrefix(field, "custom_")
+		fieldID, err := strconv.ParseUint(fieldIDStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid custom field id: %s", fieldIDStr)
+		}
+
+		// 验证自定义字段存在
+		var cf model.CustomField
+		if err := db.First(&cf, fieldID).Error; err != nil {
+			return fmt.Errorf("custom field %d not found: %w", fieldID, err)
+		}
+
+		strValue := fmt.Sprintf("%v", value)
+
+		// Upsert: 如果已存在则更新，否则创建
+		var existing model.IssueCustomFieldValue
+		err = db.Where("issue_id = ? AND field_id = ?", issueID, fieldID).First(&existing).Error
+		if err == nil {
+			return db.Model(&existing).Update("value", strValue).Error
+		}
+		return db.Create(&model.IssueCustomFieldValue{
+			IssueID: issueID,
+			FieldID: fieldID,
+			Value:   strValue,
+		}).Error
+	}
+
+	// 系统字段
 	allowedFields := map[string]bool{
-		"priority": true,
-		"state_id": true,
+		"priority":    true,
+		"state_id":    true,
+		"target_date": true,
+		"start_date":  true,
 	}
 
 	if !allowedFields[field] {
@@ -396,54 +430,6 @@ func (e *DefaultActionExecutor) handleSetField(action Action, context map[string
 	}
 
 	return db.Model(&model.Issue{}).Where("id = ?", issueID).Update(field, value).Error
-}
-
-func (e *DefaultActionExecutor) handleAddLabel(action Action, context map[string]interface{}, db *gorm.DB) error {
-	issueID, ok := context["issue_id"].(uint64)
-	if !ok {
-		return fmt.Errorf("missing issue_id in context")
-	}
-
-	labelID, ok := toUint64(action.Value)
-	if !ok {
-		return fmt.Errorf("invalid label_id: %v", action.Value)
-	}
-
-	// 检查是否已存在
-	var count int64
-	db.Model(&model.IssueLabel{}).Where("issue_id = ? AND label_id = ?", issueID, labelID).Count(&count)
-	if count > 0 {
-		return nil // 已存在，跳过
-	}
-
-	// 验证 issue 和 label 属于同一个项目
-	var issue model.Issue
-	if err := db.First(&issue, issueID).Error; err != nil {
-		return fmt.Errorf("issue not found: %w", err)
-	}
-	var label model.Label
-	if err := db.First(&label, labelID).Error; err != nil {
-		return fmt.Errorf("label not found: %w", err)
-	}
-	if label.ProjectID != issue.ProjectID {
-		return fmt.Errorf("label %d does not belong to project %d", labelID, issue.ProjectID)
-	}
-
-	return db.Create(&model.IssueLabel{IssueID: issueID, LabelID: labelID}).Error
-}
-
-func (e *DefaultActionExecutor) handleRemoveLabel(action Action, context map[string]interface{}, db *gorm.DB) error {
-	issueID, ok := context["issue_id"].(uint64)
-	if !ok {
-		return fmt.Errorf("missing issue_id in context")
-	}
-
-	labelID, ok := toUint64(action.Value)
-	if !ok {
-		return fmt.Errorf("invalid label_id: %v", action.Value)
-	}
-
-	return db.Where("issue_id = ? AND label_id = ?", issueID, labelID).Delete(&model.IssueLabel{}).Error
 }
 
 func (e *DefaultActionExecutor) handleAddComment(action Action, context map[string]interface{}, db *gorm.DB) error {
@@ -618,6 +604,110 @@ func (e *DefaultActionExecutor) handleDispatchAgent(action Action, context map[s
 	return nil
 }
 
+// handleCallWebhook 调用外部 Webhook
+// action.Field = URL (必填)
+// action.Value = { method: "POST", headers: {"Content-Type": "application/json"}, body: "..." } 或纯字符串作为 body
+func (e *DefaultActionExecutor) handleCallWebhook(action Action, ctxData map[string]interface{}, db *gorm.DB) error {
+	url := action.Field
+	if url == "" {
+		// 尝试从 value map 中获取
+		if vMap, ok := action.Value.(map[string]interface{}); ok {
+			if u, ok := vMap["url"].(string); ok {
+				url = u
+			}
+		}
+	}
+	if url == "" {
+		return fmt.Errorf("webhook URL is required")
+	}
+
+	method := "POST"
+	var headers map[string]string
+	var bodyStr string
+
+	if vMap, ok := action.Value.(map[string]interface{}); ok {
+		if m, ok := vMap["method"].(string); ok && m != "" {
+			method = strings.ToUpper(m)
+		}
+		if h, ok := vMap["headers"].(map[string]interface{}); ok {
+			headers = make(map[string]string)
+			for k, v := range h {
+				headers[k] = fmt.Sprintf("%v", v)
+			}
+		}
+		if b, ok := vMap["body"].(string); ok {
+			bodyStr = b
+		}
+	} else if vStr, ok := action.Value.(string); ok {
+		bodyStr = vStr
+	}
+
+	// 模板变量替换
+	bodyStr = renderWebhookTemplate(bodyStr, ctxData)
+
+	// 默认 headers
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	if _, ok := headers["Content-Type"]; !ok {
+		headers["Content-Type"] = "application/json"
+	}
+
+	// 构建请求
+	var reqBody io.Reader
+	if bodyStr != "" {
+		reqBody = bytes.NewBufferString(bodyStr)
+	}
+
+	httpCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(httpCtx, method, url, reqBody)
+	if err != nil {
+		return fmt.Errorf("webhook request build failed: %w", err)
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[Webhook] Call failed: url=%s method=%s err=%v", url, method, err)
+		return fmt.Errorf("webhook call failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	log.Printf("[Webhook] Called: url=%s method=%s status=%d response=%s", url, method, resp.StatusCode, string(respBody))
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("webhook returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}
+
+// renderWebhookTemplate 替换 webhook body 中的模板变量
+func renderWebhookTemplate(body string, ctxData map[string]interface{}) string {
+	if body == "" {
+		return body
+	}
+	result := body
+	replacements := map[string]string{
+		"{{issue_id}}":     fmt.Sprintf("%v", ctxData["issue_id"]),
+		"{{project_id}}":   fmt.Sprintf("%v", ctxData["project_id"]),
+		"{{workspace_id}}": fmt.Sprintf("%v", ctxData["workspace_id"]),
+		"{{event_type}}":   fmt.Sprintf("%v", ctxData["event_type"]),
+		"{{trigger_type}}": fmt.Sprintf("%v", ctxData["trigger_type"]),
+	}
+	for k, v := range replacements {
+		result = strings.ReplaceAll(result, k, v)
+	}
+	return result
+}
+
 func handleClose(action Action, context map[string]interface{}, db *gorm.DB) error {
 	issueID, ok := context["issue_id"].(uint64)
 	if !ok {
@@ -748,11 +838,30 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 			log.Printf("[Automation] Failed to query workspace rules: %v", err)
 		}
 
-		// Filter by project scope
+		// Load project overrides for workspace rules
+		var ruleIDs []uint64
 		for _, wr := range candidateRules {
-			if s.isRuleInProjectScope(wr.Scope, event.ProjectID) {
-				workspaceRules = append(workspaceRules, wr)
+			ruleIDs = append(ruleIDs, wr.ID)
+		}
+		var overrides []model.AutomationRuleOverride
+		s.db.Where("rule_id IN ? AND project_id = ?", ruleIDs, event.ProjectID).Find(&overrides)
+		overrideMap := make(map[uint64]bool)
+		for _, ov := range overrides {
+			if ov.IsEnabled != nil {
+				overrideMap[ov.RuleID] = *ov.IsEnabled
 			}
+		}
+
+		// Filter by project scope and apply overrides
+		for _, wr := range candidateRules {
+			if !s.isRuleInProjectScope(wr.Scope, event.ProjectID) {
+				continue
+			}
+			// Check if project has overridden is_enabled
+			if ovEnabled, exists := overrideMap[wr.ID]; exists {
+				wr.IsEnabled = ovEnabled
+			}
+			workspaceRules = append(workspaceRules, wr)
 		}
 	}
 
@@ -1019,9 +1128,29 @@ func (s *AutomationService) List(projectID uint64) ([]AutomationResponse, error)
 
 	mergedRules := append(projectRules, workspaceRules...)
 
+	// Load project-level overrides for inherited workspace rules
+	overrideMap := make(map[uint64]*model.AutomationRuleOverride)
+	if len(workspaceRules) > 0 {
+		var ruleIDs []uint64
+		for _, wr := range workspaceRules {
+			ruleIDs = append(ruleIDs, wr.ID)
+		}
+		var overrides []model.AutomationRuleOverride
+		s.db.Where("rule_id IN ? AND project_id = ?", ruleIDs, projectID).Find(&overrides)
+		for i := range overrides {
+			overrideMap[overrides[i].RuleID] = &overrides[i]
+		}
+	}
+
 	res := make([]AutomationResponse, len(mergedRules))
 	for i, r := range mergedRules {
 		isInherited := r.ProjectID == 0
+		// Apply override: if project has overridden is_enabled for this inherited rule
+		if isInherited {
+			if ov, ok := overrideMap[r.ID]; ok && ov.IsEnabled != nil {
+				r.IsEnabled = *ov.IsEnabled
+			}
+		}
 		res[i] = s.toResponseWithInherited(&r, isInherited)
 	}
 	if res == nil {
@@ -1082,13 +1211,38 @@ func (s *AutomationService) Create(projectID uint64, req *AutomationCreateReques
 	return &r, nil
 }
 
-func (s *AutomationService) Update(id uint64, req *AutomationUpdateRequest) (*AutomationResponse, error) {
+func (s *AutomationService) Update(id uint64, projectID uint64, req *AutomationUpdateRequest) (*AutomationResponse, error) {
 	var rule model.AutomationRule
 	if err := s.db.First(&rule, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, common.NotFound("Automation rule not found")
 		}
 		return nil, common.Internal("Failed to get automation rule")
+	}
+
+	// If this is an inherited workspace rule and request is from project context,
+	// create/update a per-project override instead of modifying the rule directly.
+	if rule.ProjectID == 0 && projectID > 0 {
+		// Only is_enabled override is supported from project context
+		if req.IsEnabled != nil {
+			var ov model.AutomationRuleOverride
+			err := s.db.Where("rule_id = ? AND project_id = ?", rule.ID, projectID).First(&ov).Error
+			if err == gorm.ErrRecordNotFound {
+				ov = model.AutomationRuleOverride{RuleID: rule.ID, ProjectID: projectID}
+			} else if err != nil {
+				return nil, common.Internal("Failed to check override")
+			}
+			ov.IsEnabled = req.IsEnabled
+			if err := s.db.Save(&ov).Error; err != nil {
+				return nil, common.Internal("Failed to save override")
+			}
+			// Apply the override to the response
+			rule.IsEnabled = *req.IsEnabled
+			r := s.toResponseWithInherited(&rule, true)
+			return &r, nil
+		}
+		// Other fields cannot be overridden from project context
+		return nil, common.BadRequest("Cannot modify inherited workspace rule from project context")
 	}
 
 	if req.Name != nil {

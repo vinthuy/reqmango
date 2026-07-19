@@ -856,11 +856,10 @@ onMounted(async () => {
                   <span :class="['px-3 py-1 rounded-full text-xs font-medium', automation.is_enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500']">
                     {{ automation.is_enabled ? t('settings.enabled') : t('settings.disabled') }}
                   </span>
-                  <button v-if="!automation.is_inherited" @click="handleViewAutomationLog(automation)" class="text-gray-400 hover:text-purple-500 text-sm" :title="t('automation.viewHistory')">📊</button>
-                  <button v-if="!automation.is_inherited" @click="handleToggleAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm">{{ automation.is_enabled ? '⏸️' : '▶️' }}</button>
+                  <button @click="handleViewAutomationLog(automation)" class="text-gray-400 hover:text-purple-500 text-sm" :title="t('automation.viewHistory')">📊</button>
+                  <button @click="handleToggleAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm" :title="automation.is_enabled ? t('settings.disable') : t('settings.enable')">{{ automation.is_enabled ? '⏸️' : '▶️' }}</button>
                   <button v-if="!automation.is_inherited" @click="handleEditAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm">✏️</button>
                   <button v-if="!automation.is_inherited" @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
-                  <button v-if="!automation.is_inherited" @click="handleViewAutomationLog(automation)" class="text-gray-400 hover:text-purple-500 text-sm ml-2" :title="t('automation.viewHistory')">📊</button>
                 </div>
               </div>
               <div class="mt-4 pt-4 border-t border-gray-100">
