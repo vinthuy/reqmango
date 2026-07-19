@@ -8,6 +8,7 @@ import (
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
+	airegistry "github.com/reqmango/backend/internal/ai/registry"
 	"github.com/reqmango/backend/internal/router"
 	"github.com/reqmango/backend/internal/seed"
 	searchtemplate "github.com/reqmango/backend/internal/service"
@@ -117,6 +118,19 @@ func main() {
 		&model.GitIntegration{},
 		&model.GitIssueLink{},
 		&model.AutomationRuleOverride{},
+		// AI models (merged from agent-service)
+		&model.AIConfig{},
+		&model.AIThread{},
+		&model.AIMessage{},
+		&model.Agent{},
+		&model.AgentActivity{},
+		&airegistry.AgentEntry{},
+		&model.Loop{},
+		&model.LoopRun{},
+		&model.LoopIteration{},
+		&model.Pipeline{},
+		&model.PipelineRun{},
+		&model.AgentSession{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

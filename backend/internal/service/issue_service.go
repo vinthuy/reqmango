@@ -270,6 +270,16 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		tx.Create(&model.IssueLabel{IssueID: issue.ID, LabelID: labelID})
 	}
 
+	// Add cycle
+	if req.CycleID != nil && *req.CycleID > 0 {
+		tx.Create(&model.IssueCycle{IssueID: issue.ID, CycleID: *req.CycleID})
+	}
+
+	// Add modules
+	for _, moduleID := range req.ModuleIDs {
+		tx.Create(&model.ModuleIssue{IssueID: issue.ID, ModuleID: moduleID})
+	}
+
 	// Save custom field values
 	for fieldID, value := range req.CustomFieldValues {
 		var stringValue string
