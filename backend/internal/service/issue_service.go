@@ -181,10 +181,10 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 				if childType.ParentTypeID == nil && childType.Level == 0 {
 					return nil, common.BadRequest("Invalid hierarchy: root-level type cannot have a parent")
 				}
-				// Level check: child must be deeper than parent
+				// Level check: child must be at least as deep as parent
 				if parent.IssueType.ID != 0 && parent.IssueType.Level > 0 {
-					if childType.Level <= parent.IssueType.Level {
-						return nil, common.BadRequest("Invalid hierarchy: child type level must be greater than parent type level")
+					if childType.Level < parent.IssueType.Level {
+						return nil, common.BadRequest("Invalid hierarchy: child type level must not be shallower than parent type level")
 					}
 				}
 				// ParentTypeID check: only enforce when childType explicitly defines a parent type
@@ -913,11 +913,11 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 						tx.Rollback()
 						return nil, common.BadRequest("Invalid hierarchy: root-level type cannot have a parent")
 					}
-					// Level check: child must be deeper than parent
+					// Level check: child must be at least as deep as parent
 					if parent.IssueType.ID != 0 && parent.IssueType.Level > 0 {
-						if childType.Level <= parent.IssueType.Level {
+						if childType.Level < parent.IssueType.Level {
 							tx.Rollback()
-							return nil, common.BadRequest("Invalid hierarchy: child type level must be greater than parent type level")
+							return nil, common.BadRequest("Invalid hierarchy: child type level must not be shallower than parent type level")
 						}
 					}
 					// ParentTypeID check: only enforce when childType explicitly defines a parent type
@@ -2481,12 +2481,15 @@ func (s *IssueService) validateMandatoryCustomFields(projectID, workspaceID, iss
 		return common.Internal("Failed to fetch mandatory custom fields")
 	}
 
+	// If the client didn't send any custom field values (nil map),
+	// skip validation — this happens in quick-create / AI / tree flows
+	// where the client doesn't know about custom fields.
+	if cfValues == nil {
+		return nil
+	}
+
 	var missingFields []string
 	for _, rf := range requiredFields {
-		if cfValues == nil {
-			missingFields = append(missingFields, rf.Name)
-			continue
-		}
 		if val, exists := cfValues[rf.FieldID]; !exists || val == nil || val == "" {
 			missingFields = append(missingFields, rf.Name)
 		}

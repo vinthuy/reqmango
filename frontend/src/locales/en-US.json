@@ -1433,7 +1433,10 @@
     "actionSetField": "Set Field",
     "actionCallWebhook": "Call Webhook",
     "actionRemoveLabel": "Remove Label",
-    "actionSetField": "Set Field"
+    "actionSetField": "Set Field",
+    "prev": "Previous",
+    "next": "Next",
+    "page": "Page"
   },
   "automationExecutionLog": {
     "title": "Automation Execution Log",
@@ -1914,7 +1917,8 @@
     "low": "Low",
     "selectExisting": "Select Existing Issue",
     "quickCreate": "Quick Create Sub-Issue",
-    "quickCreatePlaceholder": "Enter name, press Enter to create"
+    "quickCreatePlaceholder": "Enter name, press Enter to create",
+    "noType": "No Type"
   },
   "treeNode": {
     "createChild": "Create Child Issue",

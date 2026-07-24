@@ -1108,12 +1108,20 @@ func (s *AutomationService) PublishEvent(event Event) error {
 }
 
 // GetExecutionHistory 获取自动化执行历史（新增 API）
-func (s *AutomationService) GetExecutionHistory(issueID uint64, limit int) ([]model.AutomationExecution, error) {
+func (s *AutomationService) GetExecutionHistory(issueID uint64, limit int, offset int) ([]model.AutomationExecution, int64, error) {
 	var executions []model.AutomationExecution
-	if err := s.db.Where("issue_id = ?", issueID).Order("executed_at DESC").Limit(limit).Find(&executions).Error; err != nil {
-		return nil, common.Internal("Failed to get execution history")
+	var total int64
+
+	query := s.db.Model(&model.AutomationExecution{}).Where("issue_id = ?", issueID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, common.Internal("Failed to count execution history")
 	}
-	return executions, nil
+
+	if err := query.Order("executed_at DESC").Offset(offset).Limit(limit).Find(&executions).Error; err != nil {
+		return nil, 0, common.Internal("Failed to get execution history")
+	}
+	return executions, total, nil
 }
 
 // GetRuleExecutionHistory 获取指定规则的执行历史

@@ -69,6 +69,7 @@
             :parent="issue?.parent"
             :sub-issues="issue?.sub_issues || []"
             :issue-types="issueTypes"
+            :current-issue-type="issue?.issue_type"
             @navigate="navigateToIssue"
             @refresh="handleRelationsRefresh"
           />

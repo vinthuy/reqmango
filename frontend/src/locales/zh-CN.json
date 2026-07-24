@@ -1304,7 +1304,10 @@
     "actionAssign": "分配给",
     "actionAddComment": "添加评论",
     "actionSetField": "设置字段",
-    "actionCallWebhook": "调用 Webhook"
+    "actionCallWebhook": "调用 Webhook",
+    "prev": "上一页",
+    "next": "下一页",
+    "page": "第"
   },
   "automationExecutionLog": {
     "title": "自动化执行日志",
@@ -1912,7 +1915,8 @@
     "low": "低",
     "selectExisting": "选择已有工作项",
     "quickCreate": "快速创建子工作项",
-    "quickCreatePlaceholder": "输入名称，按回车创建"
+    "quickCreatePlaceholder": "输入名称，按回车创建",
+    "noType": "无类型"
   },
   "treeNode": {
     "createChild": "创建子工作项",
