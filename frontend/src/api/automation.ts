@@ -86,10 +86,11 @@ export const automationApi = {
     return res.data
   },
 
-  getExecutionHistory: async (issueId: number, limit?: number): Promise<AutomationExecution[]> => {
-    const params = new URLSearchParams()
-    if (limit) params.append('limit', limit.toString())
-    const res = await api.get(`/issues/${issueId}/automation-history?${params.toString()}`)
+  getExecutionHistory: async (issueId: number, params?: { limit?: number; offset?: number }): Promise<AutomationExecutionResponse> => {
+    const query = new URLSearchParams()
+    if (params?.limit) query.append('limit', params.limit.toString())
+    if (params?.offset) query.append('offset', params.offset.toString())
+    const res = await api.get(`/issues/${issueId}/automation-history?${query.toString()}`)
     return res.data
   },
 

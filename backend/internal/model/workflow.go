@@ -1,6 +1,11 @@
 package model
 
-import "time"
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+	"time"
+)
 
 // Workflow defines a state transition rule set scoped to an issue type.
 type Workflow struct {
@@ -10,7 +15,7 @@ type Workflow struct {
 	ProjectID    *uint64 `gorm:"index" json:"project_id"`
 	WorkspaceID  uint64  `gorm:"index" json:"workspace_id"`
 	IssueTypeID  *uint64 `gorm:"index" json:"issue_type_id"`
-	IssueTypeIDs string  `gorm:"type:text" json:"issue_type_ids"`
+	IssueTypeIDs JSONBInt64Array `gorm:"type:jsonb" json:"issue_type_ids"`
 	IsActive     bool    `gorm:"default:true" json:"is_active"`
 
 	Transitions []StateTransition `gorm:"foreignKey:WorkflowID" json:"-"`
@@ -18,6 +23,29 @@ type Workflow struct {
 }
 
 func (Workflow) TableName() string { return "workflows" }
+
+type JSONBInt64Array []uint64
+
+func (j JSONBInt64Array) Value() (driver.Value, error) {
+	return json.Marshal(j)
+}
+
+func (j *JSONBInt64Array) Scan(value interface{}) error {
+	if value == nil {
+		*j = nil
+		return nil
+	}
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return fmt.Errorf("unsupported scan type %T for JSONBInt64Array", value)
+	}
+	return json.Unmarshal(bytes, j)
+}
 
 // AutomationRule defines an automated trigger→condition→action rule.
 type AutomationRule struct {

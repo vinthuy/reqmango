@@ -37,6 +37,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	typeTemplateSvc := service.NewTypeTemplateService(db)
 	relationSvc := service.NewRelationService(db)
 	workflowSvc := service.NewWorkflowService(db)
+	approvalSvc := service.NewApprovalService(db, notificationSvc)
+	approvalH := handler.NewApprovalHandler(approvalSvc)
 	commentSvc := service.NewCommentService(db, notificationSvc)
 	savedViewSvc := service.NewSavedViewService(db)
 	searchTemplateSvc := service.NewSearchTemplateService(db)
@@ -307,6 +309,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
 			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
 
+			// Workspace-level Approvals
+			workspaces.GET("/:wsParam/approvals", approvalH.ListByWorkspace)
+			workspaces.GET("/:wsParam/approvals/count", approvalH.CountPending)
+
 			// Workspace-level Settings: States
 			workspaces.GET("/:wsParam/settings/states", settingsH.ListWorkspaceStates)
 			workspaces.POST("/:wsParam/settings/states", settingsH.CreateWorkspaceState)
@@ -344,6 +350,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.DELETE("/:projectId", projectH.Delete)
 			projects.POST("/:projectId/archive", projectH.Archive)
 			projects.POST("/:projectId/restore", projectH.Restore)
+			projects.GET("/:projectId/approvals", approvalH.ListByProject)
 			projects.GET("/:projectId/members", projectH.ListMembers)            // ?only_active=
 			projects.POST("/:projectId/members", projectH.AddMember)             // ?user_id=&role=
 			projects.PATCH("/:projectId/members/:userId", projectH.UpdateMember) // ?role=
@@ -647,6 +654,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.GET("/:issueId/attachments/:attachmentId", attachmentH.Get)
 			issues.GET("/:issueId/attachments/:attachmentId/download", attachmentH.Download)
 			issues.DELETE("/:issueId/attachments/:attachmentId", middleware.RequirePermission(db, "issue:edit", "project"), attachmentH.Delete)
+
+			// Approvals
+			issues.POST("/:issueId/approvals", approvalH.Create)
+		}
+
+		// ---- Approval routes (top-level) ----
+		approval := v1.Group("/approvals", authMiddleware)
+		{
+			approval.GET("/:id", approvalH.Get)
+			approval.POST("/:id/decide", approvalH.Decide)
+			approval.POST("/:id/cancel", approvalH.Cancel)
 		}
 
 		// ---- Modules (protected) ----

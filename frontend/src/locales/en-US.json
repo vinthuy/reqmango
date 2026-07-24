@@ -224,7 +224,11 @@
     "description": "Description",
     "created": "Created",
     "createdIssue": "Created issue",
-    "updated": "Updated"
+    "updated": "Updated",
+    "approvalSubmitted": "submitted an approval request",
+    "approvalApproved": "approved the request",
+    "approvalRejected": "rejected the request",
+    "approvalCancelled": "cancelled the approval request"
   },
   "cycle": {
     "create": "Create Cycle",
@@ -1429,7 +1433,10 @@
     "actionSetField": "Set Field",
     "actionCallWebhook": "Call Webhook",
     "actionRemoveLabel": "Remove Label",
-    "actionSetField": "Set Field"
+    "actionSetField": "Set Field",
+    "prev": "Previous",
+    "next": "Next",
+    "page": "Page"
   },
   "automationExecutionLog": {
     "title": "Automation Execution Log",
@@ -1910,7 +1917,8 @@
     "low": "Low",
     "selectExisting": "Select Existing Issue",
     "quickCreate": "Quick Create Sub-Issue",
-    "quickCreatePlaceholder": "Enter name, press Enter to create"
+    "quickCreatePlaceholder": "Enter name, press Enter to create",
+    "noType": "No Type"
   },
   "treeNode": {
     "createChild": "Create Child Issue",
@@ -2246,7 +2254,53 @@
     "issueType": "Issue Type",
     "issueTypeDesc": "Bind issue types in this project. The workflow applies only to selected types; empty means universal.",
     "noIssueType": "None (Universal)",
-    "noIssueTypeSelected": "No issue types selected (Universal)"
+    "noIssueTypeSelected": "No issue types selected (Universal)",
+    "approveTargetState": "Approve target state",
+    "rejectTargetState": "Reject target state",
+    "approvalMode": "Approval mode",
+    "approvalModeAny": "Any approver can decide",
+    "approvalModeAll": "All approvers must approve (coming soon)",
+    "approvalFlowHint": "Configure target states after approval and rejection. Empty defaults: approve uses target state, reject uses source state.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approvePath": "Approve path",
+    "rejectPath": "Reject path"
+  },
+  "approvals": {
+    "title": "Approvals",
+    "workflow": "Workflow",
+    "submitTitle": "Submit Approval",
+    "submitDesc": "Request to change work item from \"{from}\" to \"{to}\"",
+    "approvers": "Approvers",
+    "requestNote": "Request Note",
+    "requestNotePlaceholder": "Enter request note (optional)",
+    "submit": "Submit",
+    "approveTitle": "Approve Request",
+    "rejectTitle": "Reject Request",
+    "decisionDesc": "Enter decision note (optional)",
+    "decisionNote": "Decision Note",
+    "decisionNotePlaceholder": "Enter decision note",
+    "approve": "Approve",
+    "reject": "Reject",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+    "pendingBanner": "This work item is pending approval",
+    "pendingLockHint": "This work item is in an approval process. Please wait for the approval to complete before making changes.",
+    "stateDisabledHint": "This work item is in an approval process and cannot change state.",
+    "requestedBy": "Requested by: {name}",
+    "submittedAt": "Submitted: {time}",
+    "cancelApproval": "Cancel Request",
+    "viewAll": "View All",
+    "listTitle": "Approval Center",
+    "issue": "Issue",
+    "project": "Project",
+    "requester": "Requester",
+    "submittedTime": "Submitted",
+    "status": "Status",
+    "action": "Action",
+    "noApprovals": "No approvals"
   },
   "language": {
     "switchToEn": "Switch to Chinese",

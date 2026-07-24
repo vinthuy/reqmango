@@ -58,6 +58,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/workspace/:slug/approvals',
+      name: 'ApprovalList',
+      component: () => import('@/views/ApprovalList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/workspace/:slug/analytics',
       name: 'WorkspaceAnalytics',
       component: () => import('@/views/WorkspaceAnalytics.vue'),

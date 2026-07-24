@@ -119,18 +119,25 @@ func (h *AutomationHandler) GetExecutionHistory(c *gin.Context) {
 		return
 	}
 
-	limit := 10
+	limit := 20
 	if l := c.Query("limit"); l != "" {
 		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
 			limit = parsed
 		}
 	}
 
-	history, svcErr := h.svc.GetExecutionHistory(issueID, limit)
+	offset := 0
+	if o := c.Query("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	history, total, svcErr := h.svc.GetExecutionHistory(issueID, limit, offset)
 	if appError(c, svcErr) {
 		return
 	}
-	c.JSON(http.StatusOK, history)
+	c.JSON(http.StatusOK, gin.H{"data": history, "total": total, "limit": limit, "offset": offset})
 }
 
 // GetRuleExecutionHistory handles GET /automations/:ruleId/execution-history

@@ -181,10 +181,10 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 				if childType.ParentTypeID == nil && childType.Level == 0 {
 					return nil, common.BadRequest("Invalid hierarchy: root-level type cannot have a parent")
 				}
-				// Level check: child must be deeper than parent
+				// Level check: child must be at least as deep as parent
 				if parent.IssueType.ID != 0 && parent.IssueType.Level > 0 {
-					if childType.Level <= parent.IssueType.Level {
-						return nil, common.BadRequest("Invalid hierarchy: child type level must be greater than parent type level")
+					if childType.Level < parent.IssueType.Level {
+						return nil, common.BadRequest("Invalid hierarchy: child type level must not be shallower than parent type level")
 					}
 				}
 				// ParentTypeID check: only enforce when childType explicitly defines a parent type
@@ -913,11 +913,11 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 						tx.Rollback()
 						return nil, common.BadRequest("Invalid hierarchy: root-level type cannot have a parent")
 					}
-					// Level check: child must be deeper than parent
+					// Level check: child must be at least as deep as parent
 					if parent.IssueType.ID != 0 && parent.IssueType.Level > 0 {
-						if childType.Level <= parent.IssueType.Level {
+						if childType.Level < parent.IssueType.Level {
 							tx.Rollback()
-							return nil, common.BadRequest("Invalid hierarchy: child type level must be greater than parent type level")
+							return nil, common.BadRequest("Invalid hierarchy: child type level must not be shallower than parent type level")
 						}
 					}
 					// ParentTypeID check: only enforce when childType explicitly defines a parent type
@@ -1796,8 +1796,14 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 	// Get issue type ID if available for workflow filtering
 	var issueTypeID *uint64
 	var issue model.Issue
-	if err := db.Select("issue_type_id").First(&issue, issueID).Error; err == nil && issue.IssueTypeID != nil {
-		issueTypeID = issue.IssueTypeID
+	if err := db.Select("issue_type_id, approval_status").First(&issue, issueID).Error; err == nil {
+		if issue.IssueTypeID != nil {
+			issueTypeID = issue.IssueTypeID
+		}
+		// Pending-approval guard: block state changes while an approval is pending
+		if issue.ApprovalStatus != nil && *issue.ApprovalStatus == "pending" {
+			return common.BadRequest("该工作项正在审批流程中，请等待审批完成后再进行状态变更")
+		}
 	}
 
 	// Get workspace ID from project for workspace-level workflow lookup
@@ -1811,8 +1817,9 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 	// Include both project-level workflows (project_id = ?) AND workspace-level workflows (workspace_id = ? AND project_id IS NULL)
 	if issueTypeID != nil {
 		// Include workflows bound to this issue type OR workflows with no issue type binding
-		query = query.Where("(project_id = ? AND (issue_type_id = ? OR issue_type_id IS NULL)) OR (workspace_id = ? AND project_id IS NULL AND (issue_type_id = ? OR issue_type_id IS NULL))",
-			projectID, *issueTypeID, workspaceID, *issueTypeID)
+		// Also check issue_type_ids JSON array for multi-type bindings
+		query = query.Where("(project_id = ? AND (issue_type_id = ? OR issue_type_id IS NULL OR issue_type_ids @> ?::jsonb)) OR (workspace_id = ? AND project_id IS NULL AND (issue_type_id = ? OR issue_type_id IS NULL OR issue_type_ids @> ?::jsonb))",
+			projectID, *issueTypeID, fmt.Sprintf(`[%d]`, *issueTypeID), workspaceID, *issueTypeID, fmt.Sprintf(`[%d]`, *issueTypeID))
 	} else {
 		// Only include workflows with no issue type binding
 		query = query.Where("(project_id = ? AND issue_type_id IS NULL) OR (workspace_id = ? AND project_id IS NULL AND issue_type_id IS NULL)",
@@ -1823,6 +1830,9 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 	if len(workflows) == 0 {
 		return nil // no workflows configured = allow all transitions
 	}
+	var approvalTransition *model.StateTransition
+	var approvalWorkflow *model.Workflow
+
 	for _, wf := range workflows {
 		var transition model.StateTransition
 		err := db.Where("workflow_id = ? AND source_state_id = ? AND target_state_id = ?",
@@ -1831,60 +1841,26 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 			continue // not found in this workflow, try next
 		}
 		// Transition found — check rule_type
-		if transition.RuleType == "allow" {
+		if transition.RuleType == "approval" {
+			// Record approval requirement, but continue checking all workflows
+			approvalTransition = &transition
+			approvalWorkflow = &wf
+		}
+		if transition.RuleType == "allow" && approvalTransition == nil {
+			// Only allow if no approval required by any workflow
 			return nil // simple allow, no restriction
 		}
-		if transition.RuleType == "approval" {
-			// Check if the user is an authorized approver
-			if transition.ApproverIDs != nil && *transition.ApproverIDs != "" {
-				allowedIDs := strings.Split(*transition.ApproverIDs, ",")
-				uidStr := fmt.Sprintf("%d", userID)
-				for _, id := range allowedIDs {
-					if strings.TrimSpace(id) == uidStr {
-						return nil // user is an approved approver
-					}
-				}
-			}
-			// Check role-based approval using actual RBAC roles
-			if transition.RoleAllowed != "" {
-				var userRoleLevel int
-				// Check workspace member role
-				var member struct {
-					Role int
-				}
-				if err := db.Raw("SELECT role FROM workspace_members WHERE user_id = ? AND workspace_id = (SELECT workspace_id FROM projects WHERE id = ?) LIMIT 1",
-					userID, projectID).Scan(&member).Error; err == nil {
-					userRoleLevel = member.Role
-				}
-				// Check project member role (may override workspace role)
-				var prjMember struct {
-					Role int
-				}
-				if err := db.Raw("SELECT role FROM project_members WHERE user_id = ? AND project_id = ? LIMIT 1",
-					userID, projectID).Scan(&prjMember).Error; err == nil && prjMember.Role > userRoleLevel {
-					userRoleLevel = prjMember.Role
-				}
-				// Get the role level for the allowed role name
-				var allowedRole struct {
-					Level int
-				}
-				if err := db.Raw("SELECT level FROM roles WHERE name = ? AND workspace_id IS NULL LIMIT 1",
-					transition.RoleAllowed).Scan(&allowedRole).Error; err == nil {
-					if userRoleLevel >= allowedRole.Level {
-						return nil
-					}
-				}
-			}
-			return common.BadRequest("Approval required: you are not authorized to approve this transition")
-		}
-		return nil // unknown rule_type, allow
 	}
-	var oldSt, newSt model.State
-	db.First(&oldSt, oldStateID)
-	db.First(&newSt, newStateID)
-	return common.BadRequest(fmt.Sprintf(
-		"Workflow rejected: transition from '%s' to '%s' is not allowed",
-		oldSt.Name, newSt.Name))
+
+	// If any workflow requires approval, return approval required
+	if approvalTransition != nil && approvalWorkflow != nil {
+		var srcState, tgtState model.State
+		db.Select("id, name").First(&srcState, oldStateID)
+		db.Select("id, name").First(&tgtState, newStateID)
+		return common.NewApprovalRequiredError(approvalTransition.ID, approvalWorkflow.ID, approvalWorkflow.Name, srcState.Name, tgtState.Name, oldStateID, newStateID)
+	}
+
+	return nil // no matching transition found in any workflow, allow by default
 }
 
 // runAutomations executes automation rules for a given trigger type on an issue.
@@ -2505,12 +2481,15 @@ func (s *IssueService) validateMandatoryCustomFields(projectID, workspaceID, iss
 		return common.Internal("Failed to fetch mandatory custom fields")
 	}
 
+	// If the client didn't send any custom field values (nil map),
+	// skip validation — this happens in quick-create / AI / tree flows
+	// where the client doesn't know about custom fields.
+	if cfValues == nil {
+		return nil
+	}
+
 	var missingFields []string
 	for _, rf := range requiredFields {
-		if cfValues == nil {
-			missingFields = append(missingFields, rf.Name)
-			continue
-		}
 		if val, exists := cfValues[rf.FieldID]; !exists || val == nil || val == "" {
 			missingFields = append(missingFields, rf.Name)
 		}

@@ -1,15 +1,15 @@
 <template>
   <div class="automation-history">
     <h4 class="text-sm font-semibold text-gray-700 mb-3">{{ t('automationHistory.title') }}</h4>
-    
+
     <div v-if="loading" class="text-center py-4">
       <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></span>
     </div>
-    
+
     <div v-else-if="history.length === 0" class="text-center py-4 text-gray-400 text-sm">
       {{ t('automationHistory.noHistory') }}
     </div>
-    
+
     <div v-else class="space-y-2">
       <div
         v-for="item in history"
@@ -39,12 +39,30 @@
           {{ t('automationHistory.duration') }}: {{ item.duration }}ms
         </div>
       </div>
+
+      <div v-if="total > limit" class="flex items-center justify-center space-x-2 pt-2">
+        <button
+          @click="prevPage"
+          :disabled="currentPage === 1"
+          class="px-3 py-1 border border-gray-200 rounded text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ t('automationHistory.prev') }}
+        </button>
+        <span class="text-xs text-gray-600">{{ t('automationHistory.page') }} {{ currentPage }} / {{ totalPages }}</span>
+        <button
+          @click="nextPage"
+          :disabled="currentPage >= totalPages"
+          class="px-3 py-1 border border-gray-200 rounded text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ t('automationHistory.next') }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { automationApi, type AutomationExecution } from '@/api/automation'
 
@@ -56,15 +74,43 @@ const props = defineProps<{
 
 const loading = ref(false)
 const history = ref<AutomationExecution[]>([])
+const total = ref(0)
+const limit = 20
+const currentPage = ref(1)
+
+const totalPages = computed(() => Math.ceil(total.value / limit))
+
+function getOffset() {
+  return (currentPage.value - 1) * limit
+}
 
 async function loadHistory() {
   loading.value = true
   try {
-    history.value = await automationApi.getExecutionHistory(props.issueId, 20)
+    const res = await automationApi.getExecutionHistory(props.issueId, {
+      limit,
+      offset: getOffset(),
+    })
+    history.value = res.data
+    total.value = res.total
   } catch (e) {
     console.error('Failed to load automation history:', e)
   } finally {
     loading.value = false
+  }
+}
+
+function prevPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--
+    loadHistory()
+  }
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    loadHistory()
   }
 }
 

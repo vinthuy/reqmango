@@ -224,7 +224,11 @@
     "description": "描述",
     "created": "创建",
     "createdIssue": "创建了工作项",
-    "updated": "更新了"
+    "updated": "更新了",
+    "approvalSubmitted": "提交了审批申请",
+    "approvalApproved": "批准了审批",
+    "approvalRejected": "拒绝了审批",
+    "approvalCancelled": "撤销了审批申请"
   },
   "cycle": {
     "create": "创建新周期",
@@ -1300,7 +1304,10 @@
     "actionAssign": "分配给",
     "actionAddComment": "添加评论",
     "actionSetField": "设置字段",
-    "actionCallWebhook": "调用 Webhook"
+    "actionCallWebhook": "调用 Webhook",
+    "prev": "上一页",
+    "next": "下一页",
+    "page": "第"
   },
   "automationExecutionLog": {
     "title": "自动化执行日志",
@@ -1908,7 +1915,8 @@
     "low": "低",
     "selectExisting": "选择已有工作项",
     "quickCreate": "快速创建子工作项",
-    "quickCreatePlaceholder": "输入名称，按回车创建"
+    "quickCreatePlaceholder": "输入名称，按回车创建",
+    "noType": "无类型"
   },
   "treeNode": {
     "createChild": "创建子工作项",
@@ -2244,7 +2252,54 @@
     "issueType": "关联类型",
     "issueTypeDesc": "绑定项目下的工作项类型，此工作流将仅对所选类型生效；不选则表示通用。",
     "noIssueType": "不关联（通用）",
-    "noIssueTypeSelected": "尚未选择任何工作项类型（表示通用）"
+    "noIssueTypeSelected": "尚未选择任何工作项类型（表示通用）",
+    "approveTargetState": "批准后跳转状态",
+    "rejectTargetState": "拒绝后跳转状态",
+    "approvalMode": "审批模式",
+    "approvalModeAny": "任一审批人决定",
+    "approvalModeAll": "全部审批人决定（即将上线）",
+    "approvalFlowHint": "配置审批通过和拒绝后工作项的目标状态。留空则批准使用目标状态、拒绝使用起始状态。",
+    "approve": "批准",
+    "reject": "拒绝",
+    "approvePath": "批准路径",
+    "rejectPath": "拒绝路径",
+    "transitionAlreadyExists": "该转换已存在，同一个起始状态不能重复添加相同的目标状态。"
+  },
+  "approvals": {
+    "title": "审批",
+    "workflow": "工作流",
+    "submitTitle": "提交审批",
+    "submitDesc": "申请将工作项从 \"{from}\" 变更为 \"{to}\"",
+    "approvers": "审批人",
+    "requestNote": "申请说明",
+    "requestNotePlaceholder": "请输入申请说明（可选）",
+    "submit": "提交",
+    "approveTitle": "批准审批",
+    "rejectTitle": "拒绝审批",
+    "decisionDesc": "请输入审批备注（可选）",
+    "decisionNote": "审批备注",
+    "decisionNotePlaceholder": "请输入审批备注",
+    "approve": "批准",
+    "reject": "拒绝",
+    "pending": "待审批",
+    "approved": "已批准",
+    "rejected": "已拒绝",
+    "cancelled": "已取消",
+    "pendingBanner": "此工作项正在等待审批",
+    "pendingLockHint": "该工作项正在审批流程中，请等待审批完成后再进行操作。",
+    "stateDisabledHint": "该工作项正在审批流程中，无法进行状态变更。",
+    "requestedBy": "申请人：{name}",
+    "submittedAt": "提交时间：{time}",
+    "cancelApproval": "撤销申请",
+    "viewAll": "查看全部",
+    "listTitle": "审批中心",
+    "issue": "工作项",
+    "project": "项目",
+    "requester": "申请人",
+    "submittedTime": "提交时间",
+    "status": "状态",
+    "action": "操作",
+    "noApprovals": "暂无审批记录"
   },
   "language": {
     "switchToEn": "切换到中文",

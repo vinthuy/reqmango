@@ -40,18 +40,56 @@
       </div>
     </div>
 
-    <!-- Quick-create inline input -->
+    <!-- Quick-create inline bar -->
     <div v-if="quickCreating" class="px-3 py-2 border-b border-green-100 bg-white">
-      <input
-        ref="quickInput"
-        v-model="quickName"
-        type="text"
-        class="w-full px-2 py-1.5 border border-green-300 rounded text-xs focus:outline-none focus:border-green-500"
-        :placeholder="t('subIssue.quickCreatePlaceholder')"
-        @keydown.enter="submitQuickCreate"
-        @keydown.escape="cancelQuickCreate"
-        @blur="cancelQuickCreate"
-      />
+      <div class="flex items-center gap-2">
+        <!-- Type selector -->
+        <div class="relative shrink-0">
+          <button
+            class="flex items-center gap-1 px-2 py-1.5 border rounded text-[10px] font-medium hover:bg-gray-50 transition-colors"
+            :class="selectedTypeId ? 'border-green-300' : 'border-gray-300 text-gray-400'"
+            :style="selectedType ? { backgroundColor: selectedType.color + '15', borderColor: selectedType.color + '40', color: selectedType.color } : {}"
+            @click.stop="showTypeDropdown = !showTypeDropdown"
+            @blur="cancelTypeDropdown"
+          >
+            <span
+              v-if="selectedType"
+              class="w-1.5 h-1.5 rounded-full shrink-0"
+              :style="{ backgroundColor: selectedType.color }"
+            ></span>
+            {{ selectedType ? selectedType.name : t('subIssue.noType') }}
+            <svg class="w-2.5 h-2.5 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </button>
+          <div
+            v-if="showTypeDropdown"
+            class="absolute left-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 max-h-48 overflow-y-auto"
+          >
+            <button
+              class="w-full text-left px-2 py-1.5 text-[10px] text-gray-400 hover:bg-gray-50"
+              @click="selectType(0)"
+            >{{ t('subIssue.noType') }}</button>
+            <button
+              v-for="it in allowedIssueTypes"
+              :key="it.id"
+              class="w-full text-left px-2 py-1.5 text-[10px] hover:bg-gray-50 flex items-center gap-1.5"
+              @click="selectType(it.id)"
+            >
+              <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: it.color }"></span>
+              <span class="text-gray-700">{{ it.name }}</span>
+            </button>
+          </div>
+        </div>
+        <!-- Name input -->
+        <input
+          ref="quickInput"
+          v-model="quickName"
+          type="text"
+          class="flex-1 px-2 py-1.5 border border-green-300 rounded text-xs focus:outline-none focus:border-green-500 min-w-0"
+          :placeholder="t('subIssue.quickCreatePlaceholder')"
+          @keydown.enter="submitQuickCreate"
+          @keydown.escape="cancelQuickCreate"
+        />
+      </div>
     </div>
 
     <!-- Empty state -->
@@ -91,9 +129,11 @@
             <!-- Type badge -->
             <td class="px-2 py-2">
               <span
+                v-if="issue.issue_type"
                 class="px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap"
-                :style="{ backgroundColor: issue.issue_type?.color + '20', color: issue.issue_type?.color }"
-              >{{ issue.issue_type?.name || '—' }}</span>
+                :style="{ backgroundColor: (issue.issue_type.color || '#e5e7eb') + '20', color: issue.issue_type.color || '#6b7280' }"
+              >{{ issue.issue_type.name }}</span>
+              <span v-else class="text-gray-300">—</span>
             </td>
             <!-- ID -->
             <td class="px-2 py-2 font-mono text-gray-400">#{{ issue.sequence_id }}</td>
@@ -150,6 +190,7 @@ interface IssueType {
   id: number
   name: string
   color: string
+  level?: number
 }
 
 interface Assignee {
@@ -172,14 +213,25 @@ interface SubIssue {
 
 const props = defineProps<{
   subIssues: SubIssue[]
+  issueTypes?: IssueType[]
+  parentIssueType?: { id: number; level: number } | null
 }>()
+
+// Filter types to only those compatible with the parent issue's type level.
+// Child type level must be >= parent type level (cannot be shallower).
+const allowedIssueTypes = computed(() => {
+  if (!props.issueTypes) return []
+  const parentLevel = props.parentIssueType?.level ?? -1
+  if (parentLevel < 0) return props.issueTypes
+  return props.issueTypes.filter(t => t.level >= parentLevel)
+})
 
 const emit = defineEmits<{
   add: []
   toggle: [issueId: number]
   navigate: [issueId: number]
   'add-existing': []
-  'quick-create': [name: string]
+  'quick-create': [name: string, typeId?: number]
 }>()
 
 const completedCount = computed(() => props.subIssues.filter((s) => s.state_group === 'done').length)
@@ -188,6 +240,13 @@ const showMenu = ref(false)
 const quickCreating = ref(false)
 const quickName = ref('')
 const quickInput = ref<HTMLInputElement | null>(null)
+const showTypeDropdown = ref(false)
+const selectedTypeId = ref<number>(0)
+
+const selectedType = computed(() => {
+  if (!selectedTypeId.value) return null
+  return allowedIssueTypes.value.find(t => t.id === selectedTypeId.value) || null
+})
 
 function selectExisting() {
   showMenu.value = false
@@ -198,8 +257,19 @@ async function startQuickCreate() {
   showMenu.value = false
   quickCreating.value = true
   quickName.value = ''
+  showTypeDropdown.value = false
   await nextTick()
   quickInput.value?.focus()
+}
+
+function selectType(typeId: number) {
+  selectedTypeId.value = typeId
+  showTypeDropdown.value = false
+  quickInput.value?.focus()
+}
+
+function cancelTypeDropdown() {
+  setTimeout(() => { showTypeDropdown.value = false }, 150)
 }
 
 function submitQuickCreate() {
@@ -207,7 +277,7 @@ function submitQuickCreate() {
   if (!name) return
   quickCreating.value = false
   quickName.value = ''
-  emit('quick-create', name)
+  emit('quick-create', name, selectedTypeId.value || undefined)
 }
 
 function cancelQuickCreate() {

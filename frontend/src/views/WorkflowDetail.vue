@@ -32,11 +32,13 @@ const newTransitionType = ref('allow');
 const newTransitionName = ref('');
 const newTransitionDesc = ref('');
 const newTransitionApproverIds = ref<number[]>([]);
+const newTransitionRejectTargetId = ref<number | null>(null);
 
 const loading = ref(true);
 
-function parseIssueTypeIds(ids: string | null | undefined): number[] {
+function parseIssueTypeIds(ids: any): number[] {
   if (!ids) return [];
+  if (Array.isArray(ids)) return ids;
   try {
     const parsed = JSON.parse(ids);
     return Array.isArray(parsed) ? parsed : [];
@@ -52,13 +54,22 @@ function toggleIssueType(id: number) {
   }
 }
 
+function selectAllIssueTypes() {
+  selectedIssueTypeIds.value = issueTypes.value.map((it: any) => it.id);
+}
+
+function deselectAllIssueTypes() {
+  selectedIssueTypeIds.value = [];
+}
+
 async function saveIssueTypes() {
   if (!workflowId.value || savingIssueTypes.value) return;
   savingIssueTypes.value = true;
   try {
     await workflowApi.updateWorkflow(projectId.value, workflowId.value, {
-      issue_type_ids: JSON.stringify(selectedIssueTypeIds.value)
+      issue_type_ids: selectedIssueTypeIds.value
     });
+    await loadData();
   } catch (e) {
     console.error('Failed to save issue types:', e);
   } finally {
@@ -127,6 +138,7 @@ function handleAddTransition(stateId: number) {
   newTransitionName.value = '';
   newTransitionDesc.value = '';
   newTransitionApproverIds.value = [];
+  newTransitionRejectTargetId.value = stateId;
   showAddTransitionModal.value = true;
 }
 
@@ -143,16 +155,65 @@ function getApproverNames(approverIds: string | null | undefined): string {
 }
 
 async function handleSaveTransition() {
-  if (!selectedFromState.value || !newTransitionTo.value || !workflowId.value) return;
+  console.log('handleSaveTransition called:', {
+    selectedFromState: selectedFromState.value,
+    newTransitionTo: newTransitionTo.value,
+    workflowId: workflowId.value,
+    projectId: projectId.value
+  });
+  
+  if (selectedFromState.value === null) {
+    alert(t('workflow.selectFromState'));
+    return;
+  }
+  if (newTransitionTo.value === null) {
+    alert(t('workflow.selectDestState'));
+    return;
+  }
+  if (!workflowId.value) {
+    alert(t('workflow.workflowNotFound'));
+    return;
+  }
+  
+  const existingTransition = transitions.value.find(
+    t => t.from_state_id === selectedFromState.value && t.to_state_id === newTransitionTo.value
+  );
+  if (existingTransition) {
+    alert(t('workflow.transitionAlreadyExists'));
+    return;
+  }
+  
   try {
     const fromState = getStateById(selectedFromState.value);
     const toState = getStateById(newTransitionTo.value);
     const name = newTransitionName.value || `${fromState?.name || ''}→${toState?.name || ''}`;
-    
+
     let approverIds: string | undefined = undefined;
     if (newTransitionType.value === 'approval' && newTransitionApproverIds.value.length > 0) {
       approverIds = JSON.stringify(newTransitionApproverIds.value);
+    } else if (newTransitionType.value === 'approval') {
+      alert(t('workflow.selectAtLeastOneApprover'));
+      return;
     }
+
+    let rejectTargetStateId: number | null = null;
+    if (newTransitionType.value === 'approval') {
+      rejectTargetStateId = newTransitionRejectTargetId.value ?? null;
+    }
+
+    console.log('Calling addTransition API with:', {
+      projectId: projectId.value,
+      workflowId: workflowId.value,
+      data: {
+        from_state_id: selectedFromState.value,
+        to_state_id: newTransitionTo.value,
+        name: name,
+        description: newTransitionDesc.value,
+        rule_type: newTransitionType.value,
+        approver_ids: approverIds,
+        reject_target_state_id: rejectTargetStateId
+      }
+    });
 
     await workflowApi.addTransition(projectId.value, workflowId.value, {
       from_state_id: selectedFromState.value,
@@ -160,11 +221,15 @@ async function handleSaveTransition() {
       name: name,
       description: newTransitionDesc.value,
       rule_type: newTransitionType.value,
-      approver_ids: approverIds
+      approver_ids: approverIds,
+      reject_target_state_id: rejectTargetStateId
     });
     showAddTransitionModal.value = false;
     await loadData();
-  } catch (e) { console.error('Failed to add transition:', e); }
+  } catch (e: any) { 
+    console.error('Failed to add transition:', e);
+    alert(t('workflow.failedToAddTransition') || (e?.response?.data?.message || e?.message || '添加转换失败'));
+  }
 }
 
 async function handleDeleteTransition(transitionId: number) {
@@ -186,6 +251,14 @@ function toggleApprover(userId: number) {
   } else {
     newTransitionApproverIds.value.push(userId);
   }
+}
+
+function selectAllApprovers() {
+  newTransitionApproverIds.value = members.value.map((m: any) => m.user_id || m.id);
+}
+
+function deselectAllApprovers() {
+  newTransitionApproverIds.value = [];
 }
 
 function goBack() {
@@ -238,6 +311,10 @@ onMounted(loadData);
               </button>
             </div>
             <div class="p-6">
+              <div class="flex items-center space-x-2 mb-3">
+                <button @click="selectAllIssueTypes" class="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100 transition-colors">{{ t('issueList.selectAll') || 'Select All' }}</button>
+                <button @click="deselectAllIssueTypes" class="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100 transition-colors">{{ t('issueList.deselectAll') || 'Deselect All' }}</button>
+              </div>
               <div class="border rounded-lg p-3 max-h-60 overflow-y-auto space-y-1">
                 <label
                   v-for="it in issueTypes"
@@ -308,15 +385,32 @@ onMounted(loadData);
                       <button @click="handleAddTransition(state.id)" class="text-blue-600 hover:text-blue-700 text-sm">+ {{ t('workflow.addTransition') }}</button>
                     </div>
                     <div class="space-y-2">
-                      <div v-for="t in getTransitionsFromState(state.id)" :key="t.id" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div class="flex items-center space-x-3">
-                          <span :class="['px-2 py-1 rounded text-xs font-medium', t.rule_type === 'approval' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700']">{{ t.rule_type || 'allow' }}</span>
-                          <span class="text-gray-700">→</span>
-                          <span class="font-medium text-gray-800">{{ getStateName(t.to_state_id) }}</span>
-                          <span v-if="t.description" class="text-xs text-gray-400">{{ t.description }}</span>
-                          <span v-if="t.rule_type === 'approval' && t.approver_ids" class="text-xs text-gray-500 ml-2">👤 {{ getApproverNames(t.approver_ids) }}</span>
+                      <div v-for="tr in getTransitionsFromState(state.id)" :key="tr.id" class="p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center space-x-3 flex-wrap">
+                            <span :class="['px-2 py-1 rounded text-xs font-medium', tr.rule_type === 'approval' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700']">{{ tr.rule_type || 'allow' }}</span>
+                            <template v-if="tr.rule_type === 'approval'">
+                              <span class="text-gray-700 text-sm">{{ getStateName(tr.from_state_id) }}</span>
+                              <div class="flex items-center space-x-1 text-xs">
+                                <span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-medium">✓ {{ t('workflow.approve') }}</span>
+                                <span class="text-gray-700">→</span>
+                                <span class="font-medium text-green-800">{{ getStateName(tr.to_state_id) }}</span>
+                              </div>
+                              <div class="flex items-center space-x-1 text-xs">
+                                <span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">✗ {{ t('workflow.reject') }}</span>
+                                <span class="text-gray-700">→</span>
+                                <span class="font-medium text-red-800">{{ tr.reject_target_state_name || getStateName(tr.reject_target_state_id) || getStateName(tr.from_state_id) }}</span>
+                              </div>
+                              <span v-if="tr.approver_ids" class="text-xs text-gray-500 ml-2">👤 {{ getApproverNames(tr.approver_ids) }}</span>
+                            </template>
+                            <template v-else>
+                              <span class="text-gray-700">→</span>
+                              <span class="font-medium text-gray-800">{{ getStateName(tr.to_state_id) }}</span>
+                            </template>
+                            <span v-if="tr.description" class="text-xs text-gray-400">{{ tr.description }}</span>
+                          </div>
+                          <button @click="handleDeleteTransition(tr.id)" class="text-gray-400 hover:text-red-500">✕</button>
                         </div>
-                        <button @click="handleDeleteTransition(t.id)" class="text-gray-400 hover:text-red-500">✕</button>
                       </div>
                       <div v-if="getTransitionsFromState(state.id).length === 0" class="text-center py-4 text-gray-400 text-sm">{{ t('workflow.noTransitionsDefined') }}</div>
                     </div>
@@ -373,7 +467,13 @@ onMounted(loadData);
             <input v-model="newTransitionDesc" type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg" :placeholder="t('settings.descriptionOptional')" />
           </div>
           <div v-if="newTransitionType === 'approval'" class="p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <label class="block text-sm font-medium text-amber-800 mb-2">{{ t('workflow.approvers') }}</label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-medium text-amber-800">{{ t('workflow.approvers') }}</label>
+              <div class="flex space-x-2">
+                <button @click="selectAllApprovers" class="text-xs px-2 py-1 rounded border border-amber-300 bg-white hover:bg-amber-100 transition-colors">{{ t('issueList.selectAll') || '全选' }}</button>
+                <button @click="deselectAllApprovers" class="text-xs px-2 py-1 rounded border border-amber-300 bg-white hover:bg-amber-100 transition-colors">{{ t('issueList.deselectAll') || '取消全选' }}</button>
+              </div>
+            </div>
             <p class="text-xs text-amber-600 mb-3">{{ t('workflow.selectApprovers') }}</p>
             <div class="space-y-2 max-h-48 overflow-y-auto">
               <label v-for="m in members" :key="m.user_id || m.id" class="flex items-center space-x-3 p-2 rounded hover:bg-amber-100 cursor-pointer">
@@ -386,6 +486,19 @@ onMounted(loadData);
                 </div>
               </label>
               <div v-if="members.length === 0" class="text-center py-4 text-gray-400 text-sm">{{ t('workflow.noMembersFound') }}</div>
+            </div>
+          </div>
+          <div v-if="newTransitionType === 'approval'" class="p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <p class="text-xs text-amber-700 mb-3">{{ t('workflow.approvalFlowHint') }}</p>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium text-amber-800 mb-1">{{ t('workflow.rejectTargetState') }}</label>
+                <select v-model="newTransitionRejectTargetId" class="w-full px-3 py-2 border border-amber-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500">
+                  <option :value="null">{{ t('workflow.fromState') }} ({{ t('workflow.reject') }})</option>
+                  <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+                <p class="text-xs text-amber-600 mt-1">✓ {{ t('workflow.approve') }} → {{ getStateName(newTransitionTo!) || t('workflow.toState') }}</p>
+              </div>
             </div>
           </div>
         </div>

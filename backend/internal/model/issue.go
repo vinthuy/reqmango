@@ -19,31 +19,33 @@ type Issue struct {
 	IsDraft             bool       `gorm:"default:false" json:"is_draft"`
 	ArchivedAt          *time.Time `json:"archived_at"`
 
-	ProjectID      uint64  `gorm:"not null;index" json:"project_id"`
-	WorkspaceID    uint64  `gorm:"not null" json:"workspace_id"`
-	ParentID       *uint64 `json:"parent_id"`
-	Depth          int     `gorm:"default:0" json:"depth"`     // hierarchy depth: 0=root, max 5
-	IssueTypeID    *uint64 `json:"issue_type_id"`
-	StateID        uint64 `gorm:"not null;index" json:"state_id"`
-	ExternalID     *string `gorm:"size:255" json:"external_id"`
-	ExternalSource *string `gorm:"size:255" json:"external_source"`
-	CoverImageURL  *string `gorm:"size:500" json:"cover_image_url"`
-	IntakeSource   *string `gorm:"size:50" json:"intake_source"`  // "form" | "email" | "api"
-	IntakeStatus   *string `gorm:"size:30" json:"intake_status"`  // "pending" | "accepted" | "rejected"
+	ProjectID        uint64  `gorm:"not null;index" json:"project_id"`
+	WorkspaceID      uint64  `gorm:"not null" json:"workspace_id"`
+	ParentID         *uint64 `json:"parent_id"`
+	Depth            int     `gorm:"default:0" json:"depth"` // hierarchy depth: 0=root, max 5
+	IssueTypeID      *uint64 `json:"issue_type_id"`
+	StateID          uint64  `gorm:"not null;index" json:"state_id"`
+	ApprovalStatus   *string `gorm:"type:varchar(20);index" json:"approval_status"`
+	ActiveApprovalID *uint64 `gorm:"index" json:"active_approval_id"`
+	ExternalID       *string `gorm:"size:255" json:"external_id"`
+	ExternalSource   *string `gorm:"size:255" json:"external_source"`
+	CoverImageURL    *string `gorm:"size:500" json:"cover_image_url"`
+	IntakeSource     *string `gorm:"size:50" json:"intake_source"` // "form" | "email" | "api"
+	IntakeStatus     *string `gorm:"size:30" json:"intake_status"` // "pending" | "accepted" | "rejected"
 
 	// Relationships
-	Project        Project         `gorm:"foreignKey:ProjectID" json:"-"`
-	State          State           `gorm:"foreignKey:StateID" json:"-"`
-	IssueType      IssueType       `gorm:"foreignKey:IssueTypeID" json:"-"`
-	Parent         *Issue          `gorm:"foreignKey:ParentID" json:"-"`
-	SubIssues      []Issue         `gorm:"foreignKey:ParentID" json:"-"`
-	AssigneeLinks  []IssueAssignee `gorm:"foreignKey:IssueID" json:"-"`
-	LabelLinks     []IssueLabel    `gorm:"foreignKey:IssueID" json:"-"`
-	CycleLink      *IssueCycle     `gorm:"foreignKey:IssueID" json:"-"`
-	ModuleLinks    []ModuleIssue   `gorm:"foreignKey:IssueID" json:"-"`
-	Activities     []IssueActivity `gorm:"foreignKey:IssueID" json:"-"`
-	PageLinks      []IssuePage     `gorm:"foreignKey:IssueID" json:"-"`
-	Pages          []Page          `gorm:"many2many:issue_pages;" json:"pages"`
+	Project       Project         `gorm:"foreignKey:ProjectID" json:"-"`
+	State         State           `gorm:"foreignKey:StateID" json:"-"`
+	IssueType     IssueType       `gorm:"foreignKey:IssueTypeID" json:"-"`
+	Parent        *Issue          `gorm:"foreignKey:ParentID" json:"-"`
+	SubIssues     []Issue         `gorm:"foreignKey:ParentID" json:"-"`
+	AssigneeLinks []IssueAssignee `gorm:"foreignKey:IssueID" json:"-"`
+	LabelLinks    []IssueLabel    `gorm:"foreignKey:IssueID" json:"-"`
+	CycleLink     *IssueCycle     `gorm:"foreignKey:IssueID" json:"-"`
+	ModuleLinks   []ModuleIssue   `gorm:"foreignKey:IssueID" json:"-"`
+	Activities    []IssueActivity `gorm:"foreignKey:IssueID" json:"-"`
+	PageLinks     []IssuePage     `gorm:"foreignKey:IssueID" json:"-"`
+	Pages         []Page          `gorm:"many2many:issue_pages;" json:"pages"`
 }
 
 func (Issue) TableName() string {

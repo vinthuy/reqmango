@@ -1,5 +1,25 @@
 <template>
   <div class="space-y-4">
+    <!-- Sub-issues card -->
+    <RelationSubIssuesCard
+      :sub-issues="subIssues"
+      :issue-types="issueTypes"
+      :parent-issue-type="currentIssueType"
+      @navigate="(id: number) => emit('navigate', id)"
+      @add-existing="openSubIssuePicker"
+      @quick-create="handleQuickCreateSubIssue"
+      @toggle="handleToggleSubIssue"
+    />
+
+    <!-- Parent issue link -->
+    <div v-if="parent" class="flex items-center gap-2 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg px-3 py-2">
+      <span class="text-gray-400">{{ t('issue.parentIssue') }}:</span>
+      <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: stateColor(parent.state_group || '') }"></span>
+      <span class="font-medium text-gray-700 cursor-pointer hover:text-indigo-600" @click="emit('navigate', parent.id)">
+        #{{ parent.sequence_id }} {{ parent.name }}
+      </span>
+    </div>
+
     <!-- Global add-relation button -->
     <div class="flex items-center justify-between">
       <span class="text-sm font-semibold text-gray-700">
@@ -170,8 +190,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import { listIssueRelations, createIssueRelation, deleteIssueRelation, listRelationTypes } from '@/api/relation'
+import { createIssue, updateIssue } from '@/api/issue'
 import IssuePickerDialog from './IssuePickerDialog.vue'
+import RelationSubIssuesCard from './RelationSubIssuesCard.vue'
 import { stateColor, priorityColor } from '@/composables/useRelationHelpers'
+import { IssuePriority } from '@/types/issue'
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
 
@@ -225,6 +248,7 @@ const props = defineProps<{
   parent: any | null
   subIssues: any[]
   issueTypes: IssueType[]
+  currentIssueType?: { id: number; level: number } | null
 }>()
 
 const emit = defineEmits<{
@@ -238,6 +262,7 @@ const relationTypes = ref<Array<{ id: number; name: string; inward_name: string;
 // Picker state
 const pickerVisible = ref(false)
 const pickerTitle = ref('')
+const pickerMode = ref<'relation' | 'subissue'>('relation')
 const pendingRelationTypeId = ref(0)
 
 // Type menu
@@ -329,12 +354,66 @@ function openRelationPickerForType(relationTypeId: number) {
   const rt = relationTypes.value.find(t => t.id === relationTypeId)
   pickerTitle.value = rt ? `${t('issue.addRelation')} - ${rt.outward_name || rt.name}` : t('issue.addRelation')
   pendingRelationTypeId.value = relationTypeId
+  pickerMode.value = 'relation'
+  pickerVisible.value = true
+}
+
+function openSubIssuePicker() {
+  pickerTitle.value = t('subIssue.selectExisting')
+  pickerMode.value = 'subissue'
   pickerVisible.value = true
 }
 
 async function onPickerSelect(selectedId: number) {
   pickerVisible.value = false
-  await addRelation(selectedId, pendingRelationTypeId.value)
+  if (pickerMode.value === 'subissue') {
+    await addSubIssue(selectedId)
+  } else {
+    await addRelation(selectedId, pendingRelationTypeId.value)
+  }
+}
+
+async function addSubIssue(childId: number) {
+  try {
+    await updateIssue(childId, { parent_id: props.issueId })
+    emit('refresh')
+  } catch (err) {
+    console.error('Failed to set parent issue:', err)
+    toast.error(t('issue.saveFailed'))
+  }
+}
+
+async function handleQuickCreateSubIssue(name: string, typeId?: number) {
+  try {
+    await createIssue(props.projectId, props.workspaceId, {
+      name,
+      parent_id: props.issueId,
+      priority: IssuePriority.NONE,
+      ...(typeId ? { type_id: typeId } : {}),
+    })
+    emit('refresh')
+  } catch (err) {
+    console.error('Failed to create sub-issue:', err)
+    toast.error(t('issue.saveFailed'))
+  }
+}
+
+async function handleToggleSubIssue(subIssueId: number) {
+  const sub = props.subIssues.find((s: any) => s.id === subIssueId)
+  if (!sub) return
+  try {
+    const doneGroups = ['done', 'cancelled', 'completed']
+    const isDone = doneGroups.includes(sub.state_group)
+    const targetGroup = isDone ? 'started' : 'done'
+    const targetState = props.states.find((s) => s.group === targetGroup) || props.states[0]
+    if (targetState) {
+      await updateIssue(subIssueId, { state_id: targetState.id })
+      emit('refresh')
+    }
+  } catch (err) {
+    console.error('Failed to toggle sub-issue:', err)
+    toast.error(t('issue.saveFailed'))
+  }
 }
 
 async function addRelation(relatedIssueId: number, relationTypeId: number) {

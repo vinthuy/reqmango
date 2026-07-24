@@ -117,6 +117,8 @@ func main() {
 		&model.PluginEventLog{},
 		&model.GitIntegration{},
 		&model.GitIssueLink{},
+		&model.Approval{},
+		&model.ApprovalRecord{},
 		&model.AutomationRuleOverride{},
 		// AI models (merged from agent-service)
 		&model.AIConfig{},

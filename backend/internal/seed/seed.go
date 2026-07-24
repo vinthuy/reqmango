@@ -18,9 +18,9 @@ func SeedAll(db *gorm.DB) {
 	fmt.Println("=== Starting data initialization ===")
 
 	SeedRBACData(db)
+	SeedIssueTypesForAllWorkspaces(db)
 	SeedDemoData(db)
 	SeedConfigData(db)
-	SeedIssueTypesForAllWorkspaces(db)
 	SeedRelationTypesForAllWorkspaces(db)
 	SeedReleasesForAllProjects(db)
 	BackfillIssueTypeIDs(db)
@@ -591,6 +591,13 @@ func SeedDemoData(db *gorm.DB) {
 		modules := allModules[proj.ID]
 		labels := allLabels[proj.ID]
 
+		var issueTypes []model.IssueType
+		db.Where("workspace_id = ?", ws.ID).Find(&issueTypes)
+		typeByName := make(map[string]model.IssueType)
+		for _, t := range issueTypes {
+			typeByName[t.Name] = t
+		}
+
 		numIssues := 85 + rng.Intn(31) // 85-115, totalling ~1000 across 10 projects
 		stateWeights := []int{15, 20, 25, 15, 20, 5}
 
@@ -640,6 +647,11 @@ func SeedDemoData(db *gorm.DB) {
 				completedAt = &ct
 			}
 
+			var issueTypeID *uint64
+			if it, ok := typeByName[issueTypeTag]; ok {
+				issueTypeID = &it.ID
+			}
+
 			issue := model.Issue{
 				Name:                title,
 				DescriptionHTML:     descHTML,
@@ -653,6 +665,7 @@ func SeedDemoData(db *gorm.DB) {
 				TargetDate:          targetDate,
 				CompletedAt:         completedAt,
 				SortOrder:           float64(rng.Intn(10000)) / 100.0,
+				IssueTypeID:         issueTypeID,
 			}
 
 			// Assign IssueTypeID based on issueTypeTag
