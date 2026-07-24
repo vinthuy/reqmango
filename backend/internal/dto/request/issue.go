@@ -14,6 +14,9 @@ type IssueCreateRequest struct {
 	ParentID          *uint64                `json:"parent_id"`
 	EstimatePointID   *uint64                `json:"estimate_point_id"`
 	TypeID            *uint64                `json:"type_id"`
+	CycleID           *uint64                `json:"cycle_id"`
+	ModuleIDs         []uint64               `json:"module_ids"`
+	ReleaseID         *uint64                `json:"release_id"`
 	ExternalID        *string                `json:"external_id"`
 	ExternalSource    *string                `json:"external_source"`
 	CoverImageURL     *string                `json:"cover_image_url"`
@@ -35,6 +38,7 @@ type IssueUpdateRequest struct {
 	EstimatePointID *uint64  `json:"estimate_point_id"`
 	CycleID         *uint64  `json:"cycle_id"`
 	ModuleIDs       []uint64 `json:"module_ids"`
+	ReleaseID       *uint64  `json:"release_id"`
 	ParentID        *uint64  `json:"parent_id"`
 	TypeID          *uint64  `json:"type_id"`
 	CoverImageURL   *string  `json:"cover_image_url"`

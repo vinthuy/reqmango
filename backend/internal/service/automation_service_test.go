@@ -8,7 +8,7 @@ import (
 )
 
 func TestEvaluateConditions(t *testing.T) {
-	evaluator := NewDefaultConditionEvaluator()
+	evaluator := NewDefaultConditionEvaluator(nil)
 
 	tests := []struct {
 		name       string

@@ -62,7 +62,7 @@ describe('useAI - public API', () => {
           onEvent({ type: 'text', content: 'Hello ' })
           onEvent({ type: 'text', content: 'World!' })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -84,7 +84,7 @@ describe('useAI - public API', () => {
         (_pid: number, _wid: number, _req: any, onEvent: (e: StreamEvent) => void, onDone: () => void) => {
           onEvent({ type: 'tool_call', tool_call: toolCall })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -101,7 +101,7 @@ describe('useAI - public API', () => {
           onEvent({ type: 'tool_call', tool_call: { id: 't2', name: 'search', input: {} } })
           onEvent({ type: 'tool_result', tool_result: { content: JSON.stringify(items) } })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -118,7 +118,7 @@ describe('useAI - public API', () => {
           onEvent({ type: 'tool_call', tool_call: { id: 't3', name: 'get_config', input: {} } })
           onEvent({ type: 'tool_result', tool_result: { content: JSON.stringify({ api_url: 'https://api.example.com', timeout: 30 }) } })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -134,7 +134,7 @@ describe('useAI - public API', () => {
           onEvent({ type: 'tool_call', tool_call: { id: 't5', name: 'empty_tool', input: {} } })
           onEvent({ type: 'tool_result', tool_result: { content: '' } })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -150,7 +150,7 @@ describe('useAI - public API', () => {
       mockChatWithAI.mockImplementation(
         (_pid: number, _wid: number, _req: any, onEvent: (e: StreamEvent) => void) => {
           onEvent({ type: 'error', error: 'AI service unavailable' })
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -163,7 +163,7 @@ describe('useAI - public API', () => {
       mockChatWithAI.mockImplementation(
         (_pid: number, _wid: number, _req: any, _onEvent: (e: StreamEvent) => void, _onDone: () => void, onError: (err: string) => void) => {
           onError('Internal server error')
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -180,7 +180,7 @@ describe('useAI - public API', () => {
           onEvent({ type: 'tool_call', tool_call: { id: 't6', name: 'bad_tool', input: {} } })
           onEvent({ type: 'tool_result', tool_result: { content: 'not-json' } })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -196,7 +196,7 @@ describe('useAI - public API', () => {
           onEvent({ type: 'tool_call', tool_call: { id: 't7', name: 'null_tool', input: {} } })
           onEvent({ type: 'tool_result', tool_result: { content: 'null' } })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -213,7 +213,7 @@ describe('useAI - public API', () => {
           onEvent({ type: 'tool_call', tool_call: { id: 't8', name: 'list_all', input: {} } })
           onEvent({ type: 'tool_result', tool_result: { content: JSON.stringify(items) } })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -229,7 +229,7 @@ describe('useAI - public API', () => {
           onEvent({ type: 'tool_call', tool_call: { id: 't9', name: 'empty_result', input: {} } })
           onEvent({ type: 'tool_result', tool_result: { content: '[]' } })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 
@@ -244,7 +244,7 @@ describe('useAI - public API', () => {
         (_pid: number, _wid: number, _req: any, onEvent: (e: StreamEvent) => void, onDone: () => void) => {
           onEvent({ type: 'tool_result', tool_result: { content: JSON.stringify([{ id: 1 }]) } })
           onDone()
-          return {} as AbortController
+          return { abort: vi.fn() }
         }
       )
 

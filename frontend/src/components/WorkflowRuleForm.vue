@@ -192,8 +192,6 @@
                 <option value="set_priority">{{ t('workflowRule.setPriority') }}</option>
                 <option value="assign_to">{{ t('workflowRule.assignIssue') }}</option>
                 <option value="unassign">{{ t('workflowRule.unassign') }}</option>
-                <option value="add_label">{{ t('workflowRule.addLabel') }}</option>
-                <option value="remove_label">{{ t('workflowRule.removeLabel') }}</option>
                 <option value="add_comment">{{ t('workflowRule.createNotification') }}</option>
                 <option value="set_field">{{ t('workflowRule.updateIssue') }}</option>
                 <option value="dispatch_agent">{{ t('agent.dispatchAgent') }}</option>

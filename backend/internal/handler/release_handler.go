@@ -173,6 +173,27 @@ func (h *ReleaseHandler) GetProgress(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, progress)
 }
 
+func (h *ReleaseHandler) ListMilestones(ctx *gin.Context) {
+	projectID, _ := strconv.ParseUint(ctx.Param("projectId"), 10, 64)
+
+	releases, err := h.service.List(projectID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	type Milestone struct {
+		ID   uint64 `json:"id"`
+		Name string `json:"name"`
+	}
+	milestones := make([]Milestone, len(releases))
+	for i, r := range releases {
+		milestones[i] = Milestone{ID: r.ID, Name: r.Name}
+	}
+
+	ctx.JSON(http.StatusOK, milestones)
+}
+
 func formatReleaseDate(t *time.Time) *string {
 	if t == nil {
 		return nil

@@ -148,13 +148,21 @@ async function testConnection() {
   testing.value = true
   testResult.value = null
   try {
-    await api.post(`/projects/1/ai/chat?workspace_id=${props.workspaceId}`, {
-      message: 'hi, respond with just "OK"', mode: 'ask',
-    })
-    testResult.value = { ok: true, msg: t('ai.connectionSuccess') }
+    // Use the dedicated test endpoint which makes a real sync API call
+    const payload: any = {
+      provider: form.provider,
+      model: form.model,
+    }
+    if (form.api_key) payload.api_key = form.api_key
+    const res = await api.post(`/workspaces/${props.workspaceId}/ai-config/test`, payload)
+    if (res.data.ok) {
+      testResult.value = { ok: true, msg: t('ai.connectionSuccess') }
+    } else {
+      testResult.value = { ok: false, msg: t('ai.connectionFailed') + ': ' + (res.data.message || '').substring(0, 200) }
+    }
   } catch (e: any) {
     const msg = e.response?.data?.message || e.message || t('common.unknown')
-    testResult.value = { ok: false, msg: t('ai.connectionFailed') + ': ' + msg.substring(0, 150) }
+    testResult.value = { ok: false, msg: t('ai.connectionFailed') + ': ' + msg.substring(0, 200) }
   } finally { testing.value = false }
 }
 </script>

@@ -31,7 +31,7 @@ export interface ModuleResponse {
   id: number
   name: string
   description: string
-  project_id: number
+  project_id: number | null
   workspace_id: number
   parent_id: number | null
   order: number
@@ -40,6 +40,13 @@ export interface ModuleResponse {
   created_at: string
   updated_at: string
   is_inherited?: boolean
+  has_override?: boolean
+}
+
+export interface ModuleOverrideRequest {
+  is_excluded: boolean
+  override_name?: string | null
+  override_description?: string | null
 }
 
 // ==================== Module Lite ====================
@@ -78,7 +85,7 @@ export interface ModuleTreeNode {
   id: number
   name: string
   description: string
-  project_id: number
+  project_id: number | null
   workspace_id: number
   parent_id: number | null
   order: number
@@ -91,4 +98,5 @@ export interface ModuleTreeNode {
   completed_issues: number
   progress: number
   is_inherited?: boolean
+  has_override?: boolean
 }

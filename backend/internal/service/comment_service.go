@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/reqmango/backend/internal/client"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
@@ -12,7 +13,7 @@ import (
 type CommentService struct {
 	db              *gorm.DB
 	notificationSvc *NotificationService
-	agentSvc        *AgentService
+	agentClient     *client.AgentClient
 	automationSvc   *AutomationService
 }
 
@@ -20,9 +21,9 @@ func NewCommentService(db *gorm.DB, notificationSvc *NotificationService) *Comme
 	return &CommentService{db: db, notificationSvc: notificationSvc}
 }
 
-// SetAgentService sets the agent service for @agent-name mention handling.
-func (s *CommentService) SetAgentService(agentSvc *AgentService) {
-	s.agentSvc = agentSvc
+// SetAgentService sets the agent client for @agent-name mention handling.
+func (s *CommentService) SetAgentService(agentClient *client.AgentClient) {
+	s.agentClient = agentClient
 }
 
 // SetAutomationService sets the automation service for comment_added triggers.
@@ -82,12 +83,12 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 				s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_mentioned", title, msg, mentionIDs, &authorID, &projectIDPtr, &issueIDPtr)
 			}
 
-			if s.agentSvc != nil {
+			if s.agentClient != nil {
 				var agents []model.Agent
 				s.db.Where("workspace_id = ? AND name IN ? AND status = 'active'", issue.Project.WorkspaceID, mentioned).Find(&agents)
 				for _, agent := range agents {
 					go func(a model.Agent) {
-						s.agentSvc.HandleMention(a.ID, issue.Project.WorkspaceID, authorID, body, issue.Name, &issueID)
+						s.agentClient.HandleMention(a.WorkspaceID, a.ID, c.ID, authorID, body, issue.Name, &issueID)
 					}(agent)
 				}
 			}
@@ -204,12 +205,12 @@ func (s *CommentService) Update(id, userID uint64, body string) (*model.Comment,
 					s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_mentioned", title, msg, mentionIDs, &userID, &projectIDPtr, &issueIDPtr)
 				}
 
-				if s.agentSvc != nil {
+				if s.agentClient != nil {
 					var agents []model.Agent
 					s.db.Where("workspace_id = ? AND name IN ? AND status = 'active'", issue.Project.WorkspaceID, mentioned).Find(&agents)
 					for _, agent := range agents {
 						go func(a model.Agent) {
-							s.agentSvc.HandleMention(a.ID, issue.Project.WorkspaceID, userID, body, issue.Name, &c.IssueID)
+							s.agentClient.HandleMention(a.WorkspaceID, a.ID, c.ID, userID, body, issue.Name, &c.IssueID)
 						}(agent)
 					}
 				}

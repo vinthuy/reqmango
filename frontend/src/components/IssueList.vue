@@ -206,7 +206,10 @@
                 <span v-else-if="col.key.startsWith('cf_')" class="text-xs text-gray-600 whitespace-nowrap">{{ getCFValue(issue.id, col.key) }}</span>
               </td>
               <td class="px-3 py-2.5" @click.stop>
-                <button @click="$emit('select', issue)" class="text-xs text-blue-500 hover:text-blue-700 font-medium">{{ t('issueList.view') }}</button>
+                <div class="flex items-center gap-1.5">
+                  <button @click="handleDecompose(issue)" :disabled="decomposeLoading" class="text-xs text-indigo-500 hover:text-indigo-700 font-medium" :title="t('issueList.decompose')">{{ t('issueList.decompose') }}</button>
+                  <button @click="$emit('select', issue)" class="text-xs text-blue-500 hover:text-blue-700 font-medium">{{ t('issueList.view') }}</button>
+                </div>
               </td>
             </tr>
           </template>
@@ -253,7 +256,10 @@
                   <span v-else-if="col.key.startsWith('cf_')" class="text-xs text-gray-600 whitespace-nowrap">{{ getCFValue(issue.id, col.key) }}</span>
                 </td>
                 <td class="px-3 py-2.5" @click.stop>
-                  <button @click="$emit('select', issue)" class="text-xs text-blue-500 hover:text-blue-700 font-medium">{{ t('issueList.view') }}</button>
+                  <div class="flex items-center gap-1.5">
+                    <button @click="handleDecompose(issue)" :disabled="decomposeLoading" class="text-xs text-indigo-500 hover:text-indigo-700 font-medium" :title="t('issueList.decompose')">{{ t('issueList.decompose') }}</button>
+                    <button @click="$emit('select', issue)" class="text-xs text-blue-500 hover:text-blue-700 font-medium">{{ t('issueList.view') }}</button>
+                  </div>
                 </td>
               </tr>
             </template>
@@ -343,6 +349,16 @@
       @close="showImportModal = false"
       @success="onImportSuccess"
     />
+
+    <DecomposeIssueModal
+      :visible="showDecomposeModal"
+      :parent-issue="decomposeIssue"
+      :issue-types="issueTypes"
+      :project-id="projectId"
+      :workspace-id="workspaceId"
+      @close="showDecomposeModal = false; decomposeIssue = null"
+      @created="onDecomposeCreated"
+    />
   </div>
 </template>
 
@@ -359,8 +375,10 @@ import UserSelect from '@/components/UserSelect.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import QuickCreateInput from '@/components/QuickCreateInput.vue'
 import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
+import DecomposeIssueModal from '@/components/DecomposeIssueModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
 import { highlightSearchTerm } from '@/utils/highlight'
+import type { IssueResponse } from '@/types/issue'
 
 const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string; searchTerm?: string; columns?: string[] }>()
 const router = useRouter()
@@ -501,6 +519,11 @@ const selectedIds = ref(new Set<number>())
 const showImportModal = ref(false)
 const showQuickCreate = ref(false)
 
+// ── Decompose ──
+const showDecomposeModal = ref(false)
+const decomposeIssue = ref<IssueResponse | null>(null)
+const decomposeLoading = ref(false)
+
 // ── Batch Operations ──
 const showBatchState = ref(false)
 const showBatchPriority = ref(false)
@@ -634,6 +657,27 @@ function formatDate(d: string | null | undefined) { if (!d) return '-'; return n
 // ── Actions ──
 function goToCreate() { router.push(`/workspaces/${props.workspaceId}/projects/${props.projectId}/issues/new`) }
 
+async function handleDecompose(issue: any) {
+  decomposeLoading.value = true
+  try {
+    // Fetch full issue details (need depth, description, etc.)
+    const full = await issueApi.getIssue(issue.id)
+    decomposeIssue.value = full as IssueResponse
+    showDecomposeModal.value = true
+  } catch (e) {
+    console.error('Failed to load issue for decompose:', e)
+    toast.error(t('issueList.loadFailed'))
+  } finally {
+    decomposeLoading.value = false
+  }
+}
+
+function onDecomposeCreated(_issue: IssueResponse) {
+  showDecomposeModal.value = false
+  decomposeIssue.value = null
+  loadIssues()
+}
+
 async function handleExport() {
   try {
     await issueApi.exportIssues(props.projectId, 'csv')
@@ -752,7 +796,12 @@ async function loadCustomFields() {
 }
 const issueTypes = ref<any[]>([])
 async function loadIssueTypes() {
-  try { issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId) } catch (e) { /* */ }
+  try {
+    issueTypes.value = await issueTypeApi.getIssueTypes(props.workspaceId, props.projectId)
+    console.log('[IssueList] loaded issueTypes:', issueTypes.value.length, issueTypes.value.map(t => ({ id: t.id, name: t.name, level: t.level })))
+  } catch (e) {
+    console.error('[IssueList] Failed to load issueTypes:', e)
+  }
 }
 
 // Custom field value cache

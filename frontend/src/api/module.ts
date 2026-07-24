@@ -32,7 +32,7 @@ export async function createModule(
  */
 export async function listModules(
   projectId: number,
-  workspaceId: number,
+  workspaceId?: number,
   options?: {
     parent_id?: number
     include_archived?: boolean
@@ -42,7 +42,9 @@ export async function listModules(
 ): Promise<ModuleResponse[]> {
   const params = new URLSearchParams()
   params.append('project_id', projectId.toString())
-  params.append('workspace_id', workspaceId.toString())
+  if (workspaceId) {
+    params.append('workspace_id', workspaceId.toString())
+  }
   
   if (options?.parent_id) params.append('parent_id', options.parent_id.toString())
   if (options?.include_archived) params.append('include_archived', 'true')
@@ -149,9 +151,44 @@ export async function getModuleStatistics(moduleId: number): Promise<ModuleStati
 /**
  * 获取模块树形结构
  */
-export async function getModuleTree(projectId: number): Promise<ModuleTreeNode[]> {
-  const response = await api.get(`/modules/tree?project_id=${projectId}`)
+export async function getModuleTree(projectId: number, workspaceId?: number): Promise<ModuleTreeNode[]> {
+  let url = `/modules/tree?project_id=${projectId}`
+  if (workspaceId) {
+    url += `&workspace_id=${workspaceId}`
+  }
+  const response = await api.get(url)
   return response.data
+}
+
+// ==================== Module Inheritance Overrides ====================
+
+/**
+ * 创建或更新模块继承覆盖
+ */
+export async function createOrUpdateModuleOverride(
+  projectId: number,
+  moduleId: number,
+  data: {
+    is_excluded: boolean
+    override_name?: string | null
+    override_description?: string | null
+  }
+): Promise<ModuleResponse> {
+  const response = await api.post(
+    `/projects/${projectId}/modules/${moduleId}/override`,
+    data
+  )
+  return response.data
+}
+
+/**
+ * 删除模块继承覆盖
+ */
+export async function deleteModuleOverride(
+  projectId: number,
+  moduleId: number
+): Promise<void> {
+  await api.delete(`/projects/${projectId}/modules/${moduleId}/override`)
 }
 
 // ==================== Export all ====================
@@ -174,7 +211,11 @@ export const moduleApi = {
   getModuleStatistics,
   
   // Tree
-  getModuleTree
+  getModuleTree,
+  
+  // Inheritance
+  createOrUpdateModuleOverride,
+  deleteModuleOverride
 }
 
 export default moduleApi

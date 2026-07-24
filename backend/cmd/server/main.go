@@ -8,6 +8,7 @@ import (
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
+	airegistry "github.com/reqmango/backend/internal/ai/registry"
 	"github.com/reqmango/backend/internal/router"
 	"github.com/reqmango/backend/internal/seed"
 	searchtemplate "github.com/reqmango/backend/internal/service"
@@ -27,6 +28,22 @@ func main() {
 	}
 	fmt.Println("Database connected")
 
+	// Purge legacy workspace-level labels so project_id can become NOT NULL (project-only labels, aligned with Plane)
+	db.Exec(`DELETE FROM issue_labels WHERE label_id IN (SELECT id FROM labels WHERE project_id IS NULL)`)
+	db.Exec(`DELETE FROM labels WHERE project_id IS NULL`)
+	// GORM AutoMigrate does not tighten nullability on existing columns; enforce explicitly
+	db.Exec(`ALTER TABLE labels ALTER COLUMN project_id SET NOT NULL`)
+
+	// Drop old foreign key constraint on automation_rules BEFORE AutoMigrate
+	// (workspace rules have project_id=0, GORM may validate FK during migration)
+	db.Exec(`DO $$ BEGIN
+		IF EXISTS (SELECT 1 FROM information_schema.table_constraints
+			WHERE table_name = 'automation_rules' AND constraint_name = 'fk_automation_rules_project') THEN
+			ALTER TABLE automation_rules DROP CONSTRAINT fk_automation_rules_project;
+		END IF;
+	END $$`)
+	fmt.Println("Automation rules FK cleanup completed")
+
 	if err := db.AutoMigrate(
 		&model.User{},
 		&model.Workspace{},
@@ -41,11 +58,14 @@ func main() {
 		&model.IssueLabel{},
 		&model.IssueCycle{},
 		&model.IssueActivity{},
+		&model.IssueWatcher{},
 		&model.Cycle{},
 		&model.Module{},
 		&model.ModuleIssue{},
+		&model.ModuleInheritanceOverride{},
 		&model.IssueType{},
 		&model.IssueTypeField{},
+		&model.IssueTypeImport{},
 		&model.CustomField{},
 		&model.CustomFieldOption{},
 		&model.IssueCustomFieldValue{},
@@ -72,9 +92,6 @@ func main() {
 		&model.ProjectEstimateSettings{},
 		&model.IssuePage{},
 		&model.Attachment{},
-		&model.AIConfig{},
-		&model.AIThread{},
-		&model.AIMessage{},
 		&model.ConditionalField{},
 		&model.TimeTrack{},
 		&model.RecurrenceRule{},
@@ -83,8 +100,6 @@ func main() {
 		&model.InitiativeProject{},
 		&model.ProjectUpdate{},
 		&model.ProjectPageTab{},
-		&model.Agent{},
-		&model.AgentActivity{},
 		&model.MCPConfig{},
 		&model.GitHubConnection{},
 		&model.SlackConnection{},
@@ -102,6 +117,20 @@ func main() {
 		&model.PluginEventLog{},
 		&model.GitIntegration{},
 		&model.GitIssueLink{},
+		&model.AutomationRuleOverride{},
+		// AI models (merged from agent-service)
+		&model.AIConfig{},
+		&model.AIThread{},
+		&model.AIMessage{},
+		&model.Agent{},
+		&model.AgentActivity{},
+		&airegistry.AgentEntry{},
+		&model.Loop{},
+		&model.LoopRun{},
+		&model.LoopIteration{},
+		&model.Pipeline{},
+		&model.PipelineRun{},
+		&model.AgentSession{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
@@ -129,6 +158,7 @@ func main() {
 		ON CONFLICT (project_id, field_id) DO NOTHING`)
 	fmt.Println("Custom field enrollment migration completed")
 
+
 	// Seed default agents in registry
 
 	// Create full-text search index for issues
@@ -137,6 +167,10 @@ func main() {
 		USING gin(to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description_stripped, '')))
 	`)
 	fmt.Println("Full-text search index created")
+
+	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_labels_project_name ON labels (project_id, name) WHERE deleted_at IS NULL`).Error; err != nil {
+		log.Printf("WARNING: failed to create labels unique index: %v", err)
+	}
 
 	seed.SeedAll(db)
 

@@ -53,12 +53,68 @@ func (s *IssueService) DB() *gorm.DB {
 	return s.db
 }
 
+// validateLabelsBelongToProject returns 400 if any label ID does not belong to the project.
+func validateLabelsBelongToProject(db *gorm.DB, labelIDs []uint64, projectID uint64) error {
+	if len(labelIDs) == 0 {
+		return nil
+	}
+	// Deduplicate to handle potential duplicates in the input
+	uniqueIDs := make([]uint64, 0, len(labelIDs))
+	seen := make(map[uint64]struct{}, len(labelIDs))
+	for _, id := range labelIDs {
+		if _, ok := seen[id]; !ok {
+			uniqueIDs = append(uniqueIDs, id)
+			seen[id] = struct{}{}
+		}
+	}
+	var count int64
+	if err := db.Model(&model.Label{}).Where("id IN ? AND project_id = ?", uniqueIDs, projectID).Count(&count).Error; err != nil {
+		return common.Internal("Failed to validate labels")
+	}
+	if count != int64(len(uniqueIDs)) {
+		return common.BadRequest("Label does not belong to this project")
+	}
+	return nil
+}
+
+// validateTypeVisibleInProject checks that the given issue type ID belongs to
+// the workspace and is visible in the project (either project-private or imported).
+func (s *IssueService) validateTypeVisibleInProject(typeID, projectID, workspaceID uint64) error {
+	var t model.IssueType
+	if err := s.db.First(&t, typeID).Error; err != nil {
+		return common.NotFound("Issue type not found")
+	}
+	if t.WorkspaceID != workspaceID {
+		return common.BadRequest("Issue type does not belong to this workspace")
+	}
+	if t.ProjectID != nil {
+		if *t.ProjectID != projectID {
+			return common.BadRequest("Issue type does not belong to this project")
+		}
+		return nil
+	}
+	// Workspace-level type: must be explicitly imported by the project.
+	var imported int64
+	s.db.Model(&model.IssueTypeImport{}).Where("project_id = ? AND workspace_type_id = ?", projectID, typeID).Count(&imported)
+	if imported == 0 {
+		return common.BadRequest("This issue type has not been imported into the project")
+	}
+	return nil
+}
+
 // Create creates a new issue.
 func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, workspaceID, userID uint64) (*response.IssueResponse, error) {
 	// Validate project exists
 	var project model.Project
 	if err := s.db.First(&project, projectID).Error; err != nil {
 		return nil, common.NotFound("Project not found")
+	}
+
+	// Validate issue type is visible in the project
+	if req.TypeID != nil && *req.TypeID > 0 {
+		if err := s.validateTypeVisibleInProject(*req.TypeID, projectID, workspaceID); err != nil {
+			return nil, err
+		}
 	}
 
 	// Get default state if not specified
@@ -121,16 +177,23 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		if req.TypeID != nil && *req.TypeID > 0 {
 			var childType model.IssueType
 			if s.db.First(&childType, *req.TypeID).Error == nil {
-				if parent.IssueType.ID != 0 && childType.Level > 0 {
-					if childType.Level != parent.IssueType.Level+1 {
-						return nil, common.BadRequest("Invalid hierarchy: child type level must be parent type level + 1")
+				// Root type check: types without parent_type_id and level 0 cannot have parents
+				if childType.ParentTypeID == nil && childType.Level == 0 {
+					return nil, common.BadRequest("Invalid hierarchy: root-level type cannot have a parent")
+				}
+				// Level check: child must be deeper than parent
+				if parent.IssueType.ID != 0 && parent.IssueType.Level > 0 {
+					if childType.Level <= parent.IssueType.Level {
+						return nil, common.BadRequest("Invalid hierarchy: child type level must be greater than parent type level")
 					}
 				}
+				// ParentTypeID check: only enforce when childType explicitly defines a parent type
 				if childType.ParentTypeID != nil && parent.IssueTypeID != nil {
 					if *childType.ParentTypeID != *parent.IssueTypeID {
 						return nil, common.BadRequest("Invalid hierarchy: parent type does not allow this child type")
 					}
 				}
+				// AllowedChildTypeIDs whitelist check
 				if parent.IssueType.ID != 0 && len(parent.IssueType.AllowedChildTypeIDs) > 0 {
 					allowed := false
 					for _, allowedID := range parent.IssueType.AllowedChildTypeIDs {
@@ -183,6 +246,11 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		}
 	}
 
+	// Validate labels belong to this project
+	if err := validateLabelsBelongToProject(s.db, req.LabelIDs, projectID); err != nil {
+		return nil, err
+	}
+
 	tx := s.db.Begin()
 
 	// Auto-increment sequence_id (inside transaction to prevent race conditions)
@@ -207,6 +275,21 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	// Add labels
 	for _, labelID := range req.LabelIDs {
 		tx.Create(&model.IssueLabel{IssueID: issue.ID, LabelID: labelID})
+	}
+
+	// Add cycle
+	if req.CycleID != nil && *req.CycleID > 0 {
+		tx.Create(&model.IssueCycle{IssueID: issue.ID, CycleID: *req.CycleID})
+	}
+
+	// Add modules
+	for _, moduleID := range req.ModuleIDs {
+		tx.Create(&model.ModuleIssue{IssueID: issue.ID, ModuleID: moduleID})
+	}
+
+	// Add release
+	if req.ReleaseID != nil && *req.ReleaseID > 0 {
+		tx.Create(&model.ReleaseIssue{ReleaseID: *req.ReleaseID, IssueID: issue.ID})
 	}
 
 	// Save custom field values
@@ -685,6 +768,11 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	// Handle labels
 	if req.LabelIDs != nil {
+		// Validate labels belong to this issue's project
+		if err := validateLabelsBelongToProject(tx, req.LabelIDs, issue.ProjectID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
 		tx.Where("issue_id = ?", issueID).Delete(&model.IssueLabel{})
 		for _, lid := range req.LabelIDs {
 			tx.Create(&model.IssueLabel{IssueID: issueID, LabelID: lid})
@@ -711,28 +799,52 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 		hasChanges = true
 	}
 
+	// Handle release
+	if req.ReleaseID != nil {
+		result := tx.Where("issue_id = ?", issueID).Delete(&model.ReleaseIssue{})
+		if *req.ReleaseID > 0 {
+			tx.Create(&model.ReleaseIssue{ReleaseID: *req.ReleaseID, IssueID: issueID})
+		}
+		if result.RowsAffected > 0 || *req.ReleaseID > 0 {
+			s.createActivity(tx, issueID, "updated", strPtr("release"), nil, nil, nil, &userID)
+			hasChanges = true
+		}
+	}
+
 	// Handle issue type
 	if req.TypeID != nil && (issue.IssueTypeID == nil || *req.TypeID != *issue.IssueTypeID) {
 		var newType model.IssueType
 		if err := s.db.First(&newType, *req.TypeID).Error; err == nil {
-			// Validate: if issue has children, new type's level must = children's level - 1
+			// Validate issue type is visible in the project
+			if err := s.validateTypeVisibleInProject(*req.TypeID, issue.ProjectID, issue.WorkspaceID); err != nil {
+				tx.Rollback()
+				return nil, err
+			}
+			// Validate: if issue has children, new type must be a higher level than children
 			var childCount int64
 			s.db.Model(&model.Issue{}).Where("parent_id = ?", issueID).Count(&childCount)
 			if childCount > 0 {
 				var childLevel int
 				s.db.Model(&model.Issue{}).Select("COALESCE(MAX(depth),0)").Where("parent_id = ?", issueID).Scan(&childLevel)
-				if newType.Level != childLevel-1 && childLevel > 0 {
+				if newType.Level >= childLevel && childLevel > 0 {
 					tx.Rollback()
-					return nil, common.BadRequest("Type change blocked: children require parent type one level above")
+					return nil, common.BadRequest("Type change blocked: children require parent type at a higher level")
 				}
 			}
-			// Validate: if issue has parent, new type must be parent's level + 1
+			// Validate: if issue has parent, new type must be deeper than parent
 			if issue.ParentID != nil {
 				var parent model.Issue
 				if s.db.Preload("IssueType").First(&parent, *issue.ParentID).Error == nil && parent.IssueType.ID != 0 {
-					if newType.Level != parent.IssueType.Level+1 {
+					if newType.Level <= parent.IssueType.Level {
 						tx.Rollback()
-						return nil, common.BadRequest("Type change blocked: must be one level below parent")
+						return nil, common.BadRequest("Type change blocked: must be deeper than parent type")
+					}
+					// Also check ParentTypeID if explicitly set
+					if newType.ParentTypeID != nil && parent.IssueTypeID != nil {
+						if *newType.ParentTypeID != *parent.IssueTypeID {
+							tx.Rollback()
+							return nil, common.BadRequest("Type change blocked: parent type does not allow this child type")
+						}
 					}
 				}
 			}
@@ -771,6 +883,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	if req.ParentID != nil {
 		if *req.ParentID == 0 {
 			issue.ParentID = nil
+			issue.Depth = 0
 		} else {
 			if *req.ParentID == issueID {
 				tx.Rollback()
@@ -781,11 +894,55 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 				return nil, common.BadRequest("Cannot create circular reference in issue hierarchy")
 			}
 			var parent model.Issue
-			if err := s.db.First(&parent, *req.ParentID).Error; err != nil {
+			if err := tx.Preload("IssueType").First(&parent, *req.ParentID).Error; err != nil {
 				tx.Rollback()
 				return nil, common.NotFound("Parent issue not found")
 			}
+			if parent.Depth >= 5 {
+				tx.Rollback()
+				return nil, common.BadRequest("Maximum hierarchy depth (6 levels) exceeded")
+			}
 			issue.ParentID = req.ParentID
+			issue.Depth = parent.Depth + 1
+			// Validate type hierarchy
+			var childType model.IssueType
+			if issue.IssueTypeID != nil {
+				if err := tx.First(&childType, *issue.IssueTypeID).Error; err == nil {
+					// Root type check: types without parent_type_id and level 0 cannot have parents
+					if childType.ParentTypeID == nil && childType.Level == 0 {
+						tx.Rollback()
+						return nil, common.BadRequest("Invalid hierarchy: root-level type cannot have a parent")
+					}
+					// Level check: child must be deeper than parent
+					if parent.IssueType.ID != 0 && parent.IssueType.Level > 0 {
+						if childType.Level <= parent.IssueType.Level {
+							tx.Rollback()
+							return nil, common.BadRequest("Invalid hierarchy: child type level must be greater than parent type level")
+						}
+					}
+					// ParentTypeID check: only enforce when childType explicitly defines a parent type
+					if childType.ParentTypeID != nil && parent.IssueTypeID != nil {
+						if *childType.ParentTypeID != *parent.IssueTypeID {
+							tx.Rollback()
+							return nil, common.BadRequest("Invalid hierarchy: parent type does not allow this child type")
+						}
+					}
+					// AllowedChildTypeIDs whitelist check
+					if parent.IssueType.ID != 0 && len(parent.IssueType.AllowedChildTypeIDs) > 0 {
+						allowed := false
+						for _, allowedID := range parent.IssueType.AllowedChildTypeIDs {
+							if allowedID == childType.ID {
+								allowed = true
+								break
+							}
+						}
+						if !allowed {
+							tx.Rollback()
+							return nil, common.BadRequest("Invalid hierarchy: this child type is not allowed under the parent type")
+						}
+					}
+				}
+			}
 		}
 		tx.Save(&issue)
 		s.createActivity(tx, issueID, "updated", strPtr("parent"), nil, nil, nil, &userID)
@@ -988,6 +1145,14 @@ func (s *IssueService) AddLabel(issueID, labelID, actorID uint64) error {
 	var issue model.Issue
 	if err := s.db.First(&issue, issueID).Error; err != nil {
 		return common.NotFound("Issue not found")
+	}
+
+	var label model.Label
+	if err := s.db.First(&label, labelID).Error; err != nil {
+		return common.NotFound("Label not found")
+	}
+	if label.ProjectID != issue.ProjectID {
+		return common.BadRequest("Label does not belong to this project")
 	}
 
 	var count int64
@@ -1274,6 +1439,11 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 	}
 
 	if req.LabelIDs != nil {
+		// Validate labels belong to this project
+		if err := validateLabelsBelongToProject(tx, req.LabelIDs, projectID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
 		tx.Where("issue_id IN ?", req.IssueIDs).Delete(&model.IssueLabel{})
 		for _, issueID := range req.IssueIDs {
 			for _, lid := range req.LabelIDs {
@@ -1439,10 +1609,12 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 	// Issue Type info
 	if issue.IssueType.ID != 0 {
 		resp.IssueType = &response.IssueTypeLite{
-			ID:    issue.IssueType.ID,
-			Name:  issue.IssueType.Name,
-			Color: issue.IssueType.Color,
-			Icon:  issue.IssueType.Icon,
+			ID:                  issue.IssueType.ID,
+			Name:                issue.IssueType.Name,
+			Color:               issue.IssueType.Color,
+			Icon:                issue.IssueType.Icon,
+			Level:               issue.IssueType.Level,
+			AllowedChildTypeIDs: issue.IssueType.AllowedChildTypeIDs,
 		}
 	}
 
@@ -1470,12 +1642,14 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 				parent.StateGroup = parentIssue.State.Group
 			}
 			if parentIssue.IssueType.ID != 0 {
-				parent.IssueType = &response.IssueTypeLite{
-					ID:    parentIssue.IssueType.ID,
-					Name:  parentIssue.IssueType.Name,
-					Color: parentIssue.IssueType.Color,
-					Icon:  parentIssue.IssueType.Icon,
-				}
+			parent.IssueType = &response.IssueTypeLite{
+				ID:                  parentIssue.IssueType.ID,
+				Name:                parentIssue.IssueType.Name,
+				Color:               parentIssue.IssueType.Color,
+				Icon:                parentIssue.IssueType.Icon,
+				Level:               parentIssue.IssueType.Level,
+				AllowedChildTypeIDs: parentIssue.IssueType.AllowedChildTypeIDs,
+			}
 			}
 			for _, link := range parentIssue.AssigneeLinks {
 				if link.User.ID != 0 {
@@ -1514,10 +1688,12 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 		}
 		if sub.IssueType.ID != 0 {
 			si.IssueType = &response.IssueTypeLite{
-				ID:    sub.IssueType.ID,
-				Name:  sub.IssueType.Name,
-				Color: sub.IssueType.Color,
-				Icon:  sub.IssueType.Icon,
+				ID:                  sub.IssueType.ID,
+				Name:                sub.IssueType.Name,
+				Color:               sub.IssueType.Color,
+				Icon:                sub.IssueType.Icon,
+				Level:               sub.IssueType.Level,
+				AllowedChildTypeIDs: sub.IssueType.AllowedChildTypeIDs,
 			}
 		}
 		for _, link := range sub.AssigneeLinks {
@@ -1573,6 +1749,13 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 		if link.ModuleID != 0 {
 			resp.ModuleIDs = append(resp.ModuleIDs, link.ModuleID)
 		}
+	}
+
+	// Release
+	var releaseLink model.ReleaseIssue
+	if err := s.db.Where("issue_id = ?", issue.ID).First(&releaseLink).Error; err == nil {
+		releaseID := releaseLink.ReleaseID
+		resp.ReleaseID = &releaseID
 	}
 
 	// Sub-issues count
@@ -1729,6 +1912,9 @@ func (s *IssueService) runAutomations(issueID uint64, triggerType string, contex
 	context["issue_id"] = issueID
 	context["project_id"] = issue.ProjectID
 	context["state_id"] = issue.StateID
+	if issue.ParentID != nil {
+		context["parent_id"] = *issue.ParentID
+	}
 	context["priority"] = issue.Priority
 	context["title"] = issue.Name
 	context["description"] = issue.DescriptionHTML
@@ -2460,8 +2646,23 @@ func (s *IssueService) BulkCopy(req *request.BulkCopyRequest, userID uint64) (*r
 			tx.Create(&model.IssueAssignee{IssueID: copiedIssue.ID, UserID: assignee.UserID})
 		}
 
-		for _, label := range issue.LabelLinks {
-			tx.Create(&model.IssueLabel{IssueID: copiedIssue.ID, LabelID: label.LabelID})
+		// Only copy labels belonging to the target project
+		if len(issue.LabelLinks) > 0 {
+			ids := make([]uint64, len(issue.LabelLinks))
+			for i, l := range issue.LabelLinks {
+				ids[i] = l.LabelID
+			}
+			var validIDs []uint64
+			tx.Model(&model.Label{}).Where("id IN ? AND project_id = ?", ids, req.TargetProjectID).Pluck("id", &validIDs)
+			validSet := make(map[uint64]bool, len(validIDs))
+			for _, id := range validIDs {
+				validSet[id] = true
+			}
+			for _, label := range issue.LabelLinks {
+				if validSet[label.LabelID] {
+					tx.Create(&model.IssueLabel{IssueID: copiedIssue.ID, LabelID: label.LabelID})
+				}
+			}
 		}
 
 		if req.IncludeSubtasks {
@@ -2524,8 +2725,23 @@ func (s *IssueService) copySubtasks(tx *gorm.DB, sourceParentID, targetParentID,
 			tx.Create(&model.IssueAssignee{IssueID: copiedSubtask.ID, UserID: assignee.UserID})
 		}
 
-		for _, label := range subtask.LabelLinks {
-			tx.Create(&model.IssueLabel{IssueID: copiedSubtask.ID, LabelID: label.LabelID})
+		// Only copy labels belonging to the target project
+		if len(subtask.LabelLinks) > 0 {
+			ids := make([]uint64, len(subtask.LabelLinks))
+			for i, l := range subtask.LabelLinks {
+				ids[i] = l.LabelID
+			}
+			var validIDs []uint64
+			tx.Model(&model.Label{}).Where("id IN ? AND project_id = ?", ids, targetProjectID).Pluck("id", &validIDs)
+			validSet := make(map[uint64]bool, len(validIDs))
+			for _, id := range validIDs {
+				validSet[id] = true
+			}
+			for _, label := range subtask.LabelLinks {
+				if validSet[label.LabelID] {
+					tx.Create(&model.IssueLabel{IssueID: copiedSubtask.ID, LabelID: label.LabelID})
+				}
+			}
 		}
 
 		s.copySubtasks(tx, subtask.ID, copiedSubtask.ID, targetProjectID, workspaceID)
@@ -2569,6 +2785,11 @@ func (s *IssueService) BulkMove(req *request.BulkMoveRequest, userID uint64) (*r
 			s.moveSubtasks(tx, issue.ID, req.TargetProjectID, targetProject.WorkspaceID)
 		}
 
+		// When moving to a different project, delete stale label links
+		if sourceProjectID != req.TargetProjectID {
+			tx.Exec("DELETE FROM issue_labels WHERE issue_id = ? AND label_id IN (SELECT id FROM labels WHERE project_id <> ?)", issue.ID, req.TargetProjectID)
+		}
+
 		resp, _ := s.buildResponse(issue.ID)
 		if resp != nil {
 			results = append(results, *resp)
@@ -2603,6 +2824,9 @@ func (s *IssueService) moveSubtasks(tx *gorm.DB, parentID, targetProjectID, work
 			"workspace_id": workspaceID,
 		})
 
+		// Delete stale label links that don't belong to the target project
+		tx.Exec("DELETE FROM issue_labels WHERE issue_id = ? AND label_id IN (SELECT id FROM labels WHERE project_id <> ?)", subtask.ID, targetProjectID)
+
 		s.moveSubtasks(tx, subtask.ID, targetProjectID, workspaceID)
 	}
 }
@@ -2630,7 +2854,9 @@ func (s *IssueService) ConvertType(issueID uint64, req *request.ConvertTypeReque
 
 	tx := s.db.Begin()
 
-	if err := tx.Model(&issue).Updates(map[string]interface{}{
+	// Use Table().Where() to avoid GORM's Model(struct) behavior of
+	// re-applying the struct's non-zero field values over the map values.
+	if err := tx.Table("issues").Where("id = ?", issueID).Updates(map[string]interface{}{
 		"issue_type_id": req.TargetTypeID,
 		"updated_by_id": userID,
 	}).Error; err != nil {
@@ -2886,10 +3112,12 @@ func buildTreeIssueFromModel(issue *model.Issue, countMap map[uint64]int64) *res
 	}
 	if issue.IssueType.ID != 0 {
 		resp.IssueType = &response.IssueTypeLite{
-			ID:    issue.IssueType.ID,
-			Name:  issue.IssueType.Name,
-			Color: issue.IssueType.Color,
-			Icon:  issue.IssueType.Icon,
+			ID:                  issue.IssueType.ID,
+			Name:                issue.IssueType.Name,
+			Color:               issue.IssueType.Color,
+			Icon:                issue.IssueType.Icon,
+			Level:               issue.IssueType.Level,
+			AllowedChildTypeIDs: issue.IssueType.AllowedChildTypeIDs,
 		}
 	}
 
@@ -2931,8 +3159,26 @@ func (s *IssueService) MergeDuplicates(req *request.MergeDuplicatesRequest, user
 	tx := s.db.Begin()
 
 	if req.KeepSourceLabels {
+		// Determine which source label IDs belong to the target issue's project
+		validLabelIDs := make(map[uint64]bool)
+		var allSourceLabelIDs []uint64
 		for _, source := range sourceIssues {
 			for _, labelLink := range source.LabelLinks {
+				allSourceLabelIDs = append(allSourceLabelIDs, labelLink.LabelID)
+			}
+		}
+		if len(allSourceLabelIDs) > 0 {
+			var valid []uint64
+			tx.Model(&model.Label{}).Where("id IN ? AND project_id = ?", allSourceLabelIDs, targetIssue.ProjectID).Pluck("id", &valid)
+			for _, id := range valid {
+				validLabelIDs[id] = true
+			}
+		}
+		for _, source := range sourceIssues {
+			for _, labelLink := range source.LabelLinks {
+				if !validLabelIDs[labelLink.LabelID] {
+					continue
+				}
 				var exists bool
 				tx.Model(&targetIssue).Where("issue_id = ? AND label_id = ?", targetIssue.ID, labelLink.LabelID).
 					First(&model.IssueLabel{}).Scan(&exists)

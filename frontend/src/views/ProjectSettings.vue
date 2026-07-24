@@ -11,11 +11,8 @@ import type { Workspace } from '@/types'
 import type { ProjectResponse, ProjectUpdate, ProjectSubscriber } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
 import ProjectMemberList from '@/components/ProjectMemberList.vue'
-import ModuleList from '@/components/ModuleList.vue'
-import CycleList from '@/components/CycleList.vue'
 import CustomFieldList from '@/components/CustomFieldList.vue'
 import CustomFieldForm from '@/components/CustomFieldForm.vue'
-import EstimatePointManager from '@/components/EstimatePointManager.vue'
 import ProjectIssueTypeManager from '@/components/ProjectIssueTypeManager.vue'
 import WorkItemTemplateManager from '@/components/WorkItemTemplateManager.vue'
 import ReleaseList from '@/components/ReleaseList.vue'
@@ -115,6 +112,10 @@ function getAutomationTriggerLabel(triggerType: string): string {
   return (t as any)(`settings.triggerTypes.${key}`) || triggerType
 }
 
+function isAllScope(scope: string): boolean {
+  return scope === 'all' || scope === ''
+}
+
 // ===== Menu items =====
 const menuItems = computed(() => [
   { id: 'overview', label: t('settings.overview'), icon: '📊' },
@@ -123,14 +124,11 @@ const menuItems = computed(() => [
   { id: 'labels', label: t('settings.labels'), icon: '🏷️' },
   { id: 'issue-types', label: t('settings.issueTypes'), icon: '📐' },
   { id: 'templates', label: t('settings.templates'), icon: '📋' },
-  { id: 'modules', label: t('settings.modules'), icon: '📦' },
-  { id: 'cycles', label: t('settings.cycles'), icon: '🔄' },
   { id: 'releases', label: t('settings.releases'), icon: '🚀' },
   { id: 'webhooks', label: t('settings.webhooks'), icon: '🔌' },
   { id: 'git-integration', label: t('gitIntegration.title'), icon: '🌿' },
   { id: 'relations', label: t('settings.relations'), icon: '🔗' },
   { id: 'custom-fields', label: t('settings.customFields'), icon: '🔧' },
-  { id: 'estimate-points', label: t('settings.estimatePoints'), icon: '📏' },
   { id: 'workflows', label: t('settings.workflows'), icon: '⚙️' },
   { id: 'automations', label: t('settings.automations'), icon: '🤖' },
   { id: 'delete', label: t('settings.deleteProject'), icon: '🗑️' },
@@ -330,7 +328,7 @@ async function handleSaveLabel() {
         name: newLabelForm.value.name, color: newLabelForm.value.color
       })
     } else {
-      await api.post(`/projects/${projectId.value}/settings/labels?workspace_id=${workspaceId.value}`, {
+      await api.post(`/projects/${projectId.value}/settings/labels`, {
         name: newLabelForm.value.name, color: newLabelForm.value.color
       })
     }
@@ -755,11 +753,10 @@ onMounted(async () => {
           </div>
           <div class="bg-white rounded-xl border border-gray-200 p-6">
             <div class="flex flex-wrap gap-3">
-              <div v-for="label in labels" :key="label.id" @click="label.is_inherited ? {} : handleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
+              <div v-for="label in labels" :key="label.id" @click="handleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
                 <div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: label.color }"></div>
                 <span class="text-sm font-medium" :style="{ color: label.color }">{{ label.name }}</span>
-                <span v-if="label.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium ml-1">⚙️</span>
-                <button v-if="!label.is_inherited" @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
+                <button @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
               </div>
               <div v-if="labels.length === 0" class="w-full text-center text-gray-400 py-8">{{ t('settings.noLabels') }}</div>
             </div>
@@ -774,16 +771,6 @@ onMounted(async () => {
         <!-- Templates -->
         <div v-if="!loading && activeSection === 'templates'" class="bg-white rounded-lg border border-gray-200 p-4">
           <WorkItemTemplateManager :project-id="projectId" :workspace-id="workspaceId" />
-        </div>
-
-        <!-- Modules -->
-        <div v-if="!loading && activeSection === 'modules'" class="bg-white rounded-lg border border-gray-200">
-          <ModuleList :project-id="projectId" :workspace-id="workspaceId" />
-        </div>
-
-        <!-- Cycles -->
-        <div v-if="!loading && activeSection === 'cycles'" class="bg-white rounded-lg border border-gray-200">
-          <CycleList :project-id="projectId" :workspace-id="workspaceId" />
         </div>
 
         <!-- Releases -->
@@ -837,11 +824,6 @@ onMounted(async () => {
         <!-- Custom Fields -->
         <div v-if="!loading && activeSection === 'custom-fields'" class="bg-white rounded-lg border border-gray-200">
           <CustomFieldList :project-id="projectId" :workspace-id="workspaceId" @create="handleCreateField" @edit="handleEditField" />
-        </div>
-
-        <!-- Estimate Points -->
-        <div v-if="!loading && activeSection === 'estimate-points'" class="bg-white rounded-lg border border-gray-200">
-          <EstimatePointManager :project-id="projectId" />
         </div>
 
         <!-- Workflows -->
@@ -916,15 +898,21 @@ onMounted(async () => {
                   <span :class="['px-3 py-1 rounded-full text-xs font-medium', automation.is_enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500']">
                     {{ automation.is_enabled ? t('settings.enabled') : t('settings.disabled') }}
                   </span>
-                  <button v-if="!automation.is_inherited" @click="handleToggleAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm">{{ automation.is_enabled ? '⏸️' : '▶️' }}</button>
+                  <button @click="handleViewAutomationLog(automation)" class="text-gray-400 hover:text-purple-500 text-sm" :title="t('automation.viewHistory')">📊</button>
+                  <button @click="handleToggleAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm" :title="automation.is_enabled ? t('settings.disable') : t('settings.enable')">{{ automation.is_enabled ? '⏸️' : '▶️' }}</button>
                   <button v-if="!automation.is_inherited" @click="handleEditAutomation(automation)" class="text-gray-400 hover:text-indigo-500 text-sm">✏️</button>
                   <button v-if="!automation.is_inherited" @click="handleDeleteAutomation(automation)" class="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
-                  <button v-if="!automation.is_inherited" @click="handleViewAutomationLog(automation)" class="text-gray-400 hover:text-purple-500 text-sm ml-2" :title="t('automation.viewHistory')">📊</button>
                 </div>
               </div>
               <div class="mt-4 pt-4 border-t border-gray-100">
-                <div class="flex items-center space-x-2 text-sm">
+                <div class="flex items-center space-x-2 text-sm flex-wrap gap-2">
                   <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-medium">{{ t('settings.trigger') }}: {{ getAutomationTriggerLabel(automation.trigger_type) }}</span>
+                  <span v-if="automation.is_inherited && automation.scope && !isAllScope(automation.scope)" class="px-2 py-1 bg-orange-100 text-orange-700 rounded font-medium text-xs">
+                    📂 限定项目
+                  </span>
+                  <span v-if="automation.trigger_type === 'scheduled' && automation.schedule_config" class="px-2 py-1 bg-cyan-100 text-cyan-700 rounded font-medium text-xs">
+                    ⏱️ 定时
+                  </span>
                 </div>
               </div>
             </div>

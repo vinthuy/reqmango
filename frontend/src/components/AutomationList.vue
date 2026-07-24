@@ -30,6 +30,13 @@
           </div>
           <div class="flex items-center space-x-2">
             <button 
+              @click="$emit('viewHistory', automation)"
+              class="p-1 text-gray-400 hover:text-purple-600"
+              :title="t('automation.viewHistory')"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
+            <button 
               @click="toggleEnabled(automation)"
               :class="[
                 'px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer',
@@ -46,13 +53,6 @@
             <button @click="handleDelete(automation)" class="p-1 text-gray-400 hover:text-red-500">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
-            <button 
-              @click="$emit('viewHistory', automation)"
-              class="p-1 text-gray-400 hover:text-purple-600 ml-2"
-              :title="t('automation.viewHistory')"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </button>
           </div>
         </div>
 
@@ -64,6 +64,35 @@
               <span class="mr-1">⚡</span>
               {{ getTriggerLabel(automation.trigger_type) }}
             </span>
+
+            <!-- 项目作用域（仅工作区规则） -->
+            <template v-if="automation.project_id === 0 && automation.scope">
+              <span class="text-gray-400">|</span>
+              <span :class="[
+                'inline-flex items-center px-2 py-1 rounded text-xs font-medium',
+                isAllScope(automation.scope) ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'
+              ]">
+                <span class="mr-1">📂</span>
+                {{ formatScope(automation.scope) }}
+              </span>
+            </template>
+
+            <!-- 定时触发器 -->
+            <template v-if="automation.trigger_type === 'scheduled' && automation.schedule_config">
+              <span class="text-gray-400">|</span>
+              <span class="inline-flex items-center px-2 py-1 rounded bg-cyan-50 text-cyan-700">
+                <span class="mr-1">⏱️</span>
+                {{ formatSchedule(automation.schedule_config) }}
+              </span>
+            </template>
+
+            <!-- 继承标记 -->
+            <template v-if="automation.is_inherited">
+              <span class="text-gray-400">|</span>
+              <span class="inline-flex items-center px-2 py-1 rounded bg-yellow-50 text-yellow-700 text-xs">
+                🔗 来自工作区
+              </span>
+            </template>
 
             <!-- 条件 -->
             <template v-if="getConditions(automation).length > 0">
@@ -162,6 +191,36 @@ function getActions(automation: any): any[] {
     const parsed = typeof automation.actions === 'string' ? JSON.parse(automation.actions) : automation.actions;
     return Array.isArray(parsed) ? parsed : [];
   } catch { return []; }
+}
+
+function isAllScope(scope: string): boolean {
+  return scope === 'all' || scope === '';
+}
+
+function formatScope(scope: string): string {
+  if (isAllScope(scope)) return '全部项目';
+  try {
+    const ids = JSON.parse(scope);
+    if (Array.isArray(ids)) {
+      return `${ids.length} 个项目`;
+    }
+  } catch { /* ignore */ }
+  return '指定项目';
+}
+
+function formatSchedule(scheduleConfig: string): string {
+  try {
+    const sc = JSON.parse(scheduleConfig);
+    const freqLabels: Record<string, string> = {
+      hourly: '每小时',
+      daily: '每天',
+      weekly: '每周',
+      monthly: '每月',
+    };
+    const freq = freqLabels[sc.frequency] || sc.frequency;
+    if (sc.frequency === 'hourly') return `${freq} 第${sc.minute ?? 0}分`;
+    return `${freq} ${sc.time || ''}`;
+  } catch { return ''; }
 }
 
 function toggleEnabled(automation: any) {

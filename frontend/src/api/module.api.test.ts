@@ -104,17 +104,17 @@ describe('Module Analysis API', () => {
     expect(mockGet).toHaveBeenCalledWith('/modules/1/statistics')
   })
 
-  it('getModuleTree should GET tree with project_id', async () => {
+  it('getModuleTree should GET tree with project_id and workspace_id', async () => {
     mockGet.mockResolvedValue({ data: [] })
-    await getModuleTree(1)
-    expect(mockGet).toHaveBeenCalledWith('/modules/tree?project_id=1')
+    await getModuleTree(1, 1)
+    expect(mockGet).toHaveBeenCalledWith('/modules/tree?project_id=1&workspace_id=1')
   })
 })
 
 describe('moduleApi export', () => {
   it('should export all methods', () => {
     const keys = Object.keys(moduleApi)
-    // CRUD: 5, Issues: 3, Stats: 2, Tree: 1 = 11
-    expect(keys).toHaveLength(11)
+    // CRUD: 5, Issues: 3, Stats: 2, Tree: 1, Inheritance: 2 = 13
+    expect(keys).toHaveLength(13)
   })
 })

@@ -8,12 +8,17 @@ export interface AutomationRule {
   name: string
   description: string
   project_id: number
+  workspace_id: number
   trigger_type: string
   conditions: string
   actions: string
   is_enabled: boolean
+  is_inherited?: boolean
   sequence: number
   execution_count: number
+  scope?: string
+  schedule_config?: string
+  last_triggered_at?: string
   created_at: string
   updated_at: string
 }

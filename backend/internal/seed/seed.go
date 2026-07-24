@@ -21,9 +21,155 @@ func SeedAll(db *gorm.DB) {
 	SeedDemoData(db)
 	SeedConfigData(db)
 	SeedIssueTypesForAllWorkspaces(db)
+	SeedRelationTypesForAllWorkspaces(db)
+	SeedReleasesForAllProjects(db)
+	BackfillIssueTypeIDs(db)
+	FixIssueTypeHierarchy(db)
 	SeedSearchTemplates(db)
+	SeedAutomationRulesForAllWorkspaces(db)
+	SeedWebhookDemoExecutionLogs(db)
 
 	fmt.Println("=== Data initialization complete ===")
+}
+
+// SeedReleasesForAllProjects creates default releases for every project that has none.
+func SeedReleasesForAllProjects(db *gorm.DB) {
+	var projects []model.Project
+	if db.Find(&projects).Error != nil {
+		return
+	}
+	created := 0
+	for _, proj := range projects {
+		var count int64
+		db.Model(&model.Release{}).Where("project_id = ?", proj.ID).Count(&count)
+		if count > 0 {
+			continue
+		}
+		releaseDefs := []struct {
+			name, version, description, status string
+		}{
+			{"v1.0.0", "v1.0.0", "首个正式版本发布", "released"},
+			{"v1.1.0", "v1.1.0", "功能增强与Bug修复版本", "in_progress"},
+			{"v2.0.0", "v2.0.0", "重大架构升级版本", "planned"},
+		}
+		for _, rd := range releaseDefs {
+			db.Create(&model.Release{
+				Name:        rd.name,
+				Version:     rd.version,
+				Description: rd.description,
+				Status:      rd.status,
+				ProjectID:   proj.ID,
+			})
+			created++
+		}
+	}
+	if created > 0 {
+		fmt.Printf("Seeded %d releases across %d projects\n", created, len(projects))
+	}
+}
+
+// FixIssueTypeHierarchy clears ParentTypeID on Bug/Task issue types so they can
+// be children of any lower-level type (not just Feature). This runs as a migration
+// for existing databases that were seeded with the old strict hierarchy.
+func FixIssueTypeHierarchy(db *gorm.DB) {
+	if err := db.Model(&model.IssueType{}).
+		Where("level = ? AND name IN ?", 2, []string{"Bug", "Task"}).
+		Update("parent_type_id", nil).Error; err != nil {
+		fmt.Printf("  WARN: failed to fix issue type hierarchy: %v\n", err)
+	} else {
+		fmt.Println("Fixed IssueType hierarchy: Bug/Task can now be children of any lower-level type")
+	}
+}
+
+// BackfillIssueTypeIDs assigns issue_type_id to existing issues that lack one,
+// by inferring the type from the issue title.
+func BackfillIssueTypeIDs(db *gorm.DB) {
+	var missingCount int64
+	db.Model(&model.Issue{}).Where("issue_type_id IS NULL").Count(&missingCount)
+	if missingCount == 0 {
+		fmt.Println("All issues already have issue_type_id, skipping backfill")
+		return
+	}
+	fmt.Printf("--- Backfilling issue_type_id for %d issues ---\n", missingCount)
+
+	// Build workspaceID -> {typeName -> issueType} map
+	typeMap := make(map[uint64]map[string]model.IssueType)
+	var allTypes []model.IssueType
+	db.Find(&allTypes)
+	for _, t := range allTypes {
+		if _, ok := typeMap[t.WorkspaceID]; !ok {
+			typeMap[t.WorkspaceID] = make(map[string]model.IssueType)
+		}
+		typeMap[t.WorkspaceID][t.Name] = t
+	}
+
+	// Fetch issues lacking issue_type_id
+	var issues []model.Issue
+	db.Where("issue_type_id IS NULL").Find(&issues)
+
+	updated := 0
+	for _, issue := range issues {
+		typeName := inferIssueTypeFromTitle(issue.Name)
+		wsTypes, ok := typeMap[issue.WorkspaceID]
+		if !ok {
+			continue
+		}
+		it, ok := wsTypes[typeName]
+		if !ok {
+			// Fallback: use default type (Epic) or first available
+			if def, ok := wsTypes["Epic"]; ok {
+				it = def
+			} else {
+				continue
+			}
+		}
+		issueTypeID := it.ID
+		if err := db.Model(&model.Issue{}).Where("id = ?", issue.ID).Update("issue_type_id", issueTypeID).Error; err != nil {
+			fmt.Printf("  WARN: failed to update issue %d: %v\n", issue.ID, err)
+			continue
+		}
+		updated++
+	}
+	fmt.Printf("  Backfilled issue_type_id for %d issues\n", updated)
+}
+
+// inferIssueTypeFromTitle guesses the issue type name based on title keywords.
+func inferIssueTypeFromTitle(title string) string {
+	switch {
+	case containsAny(title, "Epic:"):
+		return "Epic"
+	case containsAny(title, "技术调研:"):
+		return "Spike"
+	case containsAny(title, "作为"):
+		return "Story"
+	case containsAny(title, "修复", "Bug", "bug", "崩溃", "异常", "报错", "失效", "缺失", "错位", "无法", "未保存", "未刷新", "未更新", "未清理", "不显示", "不更新"):
+		return "Bug"
+	case containsAny(title, "编写", "优化", "配置", "升级", "部署", "分析", "调整", "测试", "整理", "创建", "修复", "演练", "扫描"):
+		return "Task"
+	default:
+		return "Feature"
+	}
+}
+
+func containsAny(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if len(sub) == 0 {
+			continue
+		}
+		if idx := indexOf(s, sub); idx >= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func indexOf(s, sub string) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
 }
 
 func SeedDemoData(db *gorm.DB) {
@@ -234,6 +380,8 @@ func SeedDemoData(db *gorm.DB) {
 	allCycles := make(map[uint64][]model.Cycle)
 	allModules := make(map[uint64][]model.Module)
 	allLabels := make(map[uint64][]model.Label)
+	// allIssueTypes maps workspaceID -> {typeName -> IssueType}
+	allIssueTypes := make(map[uint64]map[string]model.IssueType)
 
 	moduleTemplates := [][]string{
 		{"用户管理", "权限系统", "消息通知", "数据报表", "系统配置", "日志审计", "API网关", "任务调度"},
@@ -259,6 +407,66 @@ func SeedDemoData(db *gorm.DB) {
 				ws = w
 				break
 			}
+		}
+
+		// Ensure issue types exist for this workspace (create once, cache by name)
+		if _, ok := allIssueTypes[ws.ID]; !ok {
+			typeMap := make(map[string]model.IssueType)
+			var existingTypes []model.IssueType
+			db.Where("workspace_id = ?", ws.ID).Find(&existingTypes)
+			for _, t := range existingTypes {
+				typeMap[t.Name] = t
+			}
+			// Create missing standard types
+			typeDefs := []struct {
+				name, color, icon, desc string
+				level                   int
+				isDefault               bool
+				sequence                int
+			}{
+				{"Epic", "#8B5CF6", "layers", "顶层史诗级工作项", 0, true, 1},
+				{"Feature", "#6366F1", "star", "功能特性", 1, false, 2},
+				{"Bug", "#EF4444", "bug", "缺陷/问题", 2, false, 3},
+				{"Task", "#10B981", "check-circle", "开发任务", 2, false, 4},
+				{"Story", "#F59E0B", "bookmark", "用户故事", 1, false, 5},
+				{"Spike", "#06B6D4", "zap", "技术调研/探索", 1, false, 6},
+			}
+			var epicID uint64
+			for _, td := range typeDefs {
+				if existing, ok := typeMap[td.name]; ok {
+					if td.name == "Epic" {
+						epicID = existing.ID
+					}
+					continue
+				}
+				it := model.IssueType{
+					Name:        td.name,
+					Color:       td.color,
+					Icon:        td.icon,
+					Description: td.desc,
+					Level:       td.level,
+					IsDefault:   td.isDefault,
+					Sequence:    td.sequence,
+					WorkspaceID: ws.ID,
+				}
+				// Only Feature/Story/Spike (Level 1) point to Epic as their parent type.
+				// Bug/Task (Level 2) have no fixed ParentTypeID — they can be children
+				// of any type with a lower Level (Epic, Feature, Story, Spike).
+				if td.level == 1 {
+					if epicID != 0 {
+						it.ParentTypeID = &epicID
+					}
+				}
+				if err := db.Create(&it).Error; err != nil {
+					fmt.Printf("  WARN: failed to create issue type %s: %v\n", td.name, err)
+					continue
+				}
+				typeMap[td.name] = it
+				if td.name == "Epic" {
+					epicID = it.ID
+				}
+			}
+			allIssueTypes[ws.ID] = typeMap
 		}
 
 		// States
@@ -312,9 +520,8 @@ func SeedDemoData(db *gorm.DB) {
 		// Labels
 		labels := make([]model.Label, len(labelTemplates))
 		for i, l := range labelTemplates {
-			projectIDPtr := proj.ID
 			labels[i] = model.Label{
-				Name:        l.name, Color: l.color, ProjectID: &projectIDPtr,
+				Name: l.name, Color: l.color, ProjectID: proj.ID,
 				WorkspaceID: ws.ID,
 			}
 			db.Create(&labels[i])
@@ -446,6 +653,14 @@ func SeedDemoData(db *gorm.DB) {
 				TargetDate:          targetDate,
 				CompletedAt:         completedAt,
 				SortOrder:           float64(rng.Intn(10000)) / 100.0,
+			}
+
+			// Assign IssueTypeID based on issueTypeTag
+			if typeMap, ok := allIssueTypes[ws.ID]; ok {
+				if it, ok := typeMap[issueTypeTag]; ok {
+					issueTypeID := it.ID
+					issue.IssueTypeID = &issueTypeID
+				}
 			}
 
 			if err := db.Create(&issue).Error; err != nil {
@@ -866,15 +1081,16 @@ func SeedConfigData(db *gorm.DB) {
 		db.Create(&epic)
 		feature := model.IssueType{Name: "Feature", Color: "#6366F1", Icon: "star", Description: "功能特性", Level: 1, ParentTypeID: &epic.ID, Sequence: 2, WorkspaceID: ws.ID}
 		db.Create(&feature)
-		bug := model.IssueType{Name: "Bug", Color: "#EF4444", Icon: "bug", Description: "缺陷/问题", Level: 2, ParentTypeID: &feature.ID, Sequence: 3, WorkspaceID: ws.ID}
+		// Bug/Task (Level 2) have no fixed ParentTypeID — can be children of any lower-level type
+		bug := model.IssueType{Name: "Bug", Color: "#EF4444", Icon: "bug", Description: "缺陷/问题", Level: 2, Sequence: 3, WorkspaceID: ws.ID}
 		db.Create(&bug)
-		task := model.IssueType{Name: "Task", Color: "#10B981", Icon: "check-circle", Description: "开发任务", Level: 2, ParentTypeID: &feature.ID, Sequence: 4, WorkspaceID: ws.ID}
+		task := model.IssueType{Name: "Task", Color: "#10B981", Icon: "check-circle", Description: "开发任务", Level: 2, Sequence: 4, WorkspaceID: ws.ID}
 		db.Create(&task)
 		story := model.IssueType{Name: "Story", Color: "#F59E0B", Icon: "bookmark", Description: "用户故事", Level: 1, ParentTypeID: &epic.ID, Sequence: 5, WorkspaceID: ws.ID}
 		db.Create(&story)
 		spike := model.IssueType{Name: "Spike", Color: "#06B6D4", Icon: "zap", Description: "技术调研/探索", Level: 1, ParentTypeID: &epic.ID, Sequence: 6, WorkspaceID: ws.ID}
 		db.Create(&spike)
-		fmt.Printf("  Created 6 issue types (Epic → Feature/Story/Spike → Bug/Task)\n")
+		fmt.Printf("  Created 6 issue types (Epic/L0 → Feature/Story/Spike/L1 → Bug/Task/L2)\n")
 	}
 
 	// Custom Fields
@@ -929,10 +1145,32 @@ func SeedConfigData(db *gorm.DB) {
 			{"设计", "#A855F7"}, {"需求", "#EC4899"}, {"架构", "#0EA5E9"},
 		}
 		for _, l := range labelDefs {
-			projectIDPtr := proj.ID
-			db.Create(&model.Label{Name: l.name, Color: l.color, ProjectID: &projectIDPtr, WorkspaceID: ws.ID})
+			db.Create(&model.Label{Name: l.name, Color: l.color, ProjectID: proj.ID, WorkspaceID: ws.ID})
 		}
 		fmt.Printf("  Created %d labels\n", len(labelDefs))
+	}
+
+	// Releases (if not already created)
+	var releaseCount int64
+	db.Model(&model.Release{}).Where("project_id = ?", proj.ID).Count(&releaseCount)
+	if releaseCount == 0 {
+		releaseDefs := []struct {
+			name, version, description, status string
+		}{
+			{"v1.0.0", "v1.0.0", "首个正式版本发布", "released"},
+			{"v1.1.0", "v1.1.0", "功能增强与Bug修复版本", "in_progress"},
+			{"v2.0.0", "v2.0.0", "重大架构升级版本", "planned"},
+		}
+		for _, rd := range releaseDefs {
+			db.Create(&model.Release{
+				Name:        rd.name,
+				Version:     rd.version,
+				Description: rd.description,
+				Status:      rd.status,
+				ProjectID:   proj.ID,
+			})
+		}
+		fmt.Printf("  Created %d releases\n", len(releaseDefs))
 	}
 
 	// Workflow
@@ -943,7 +1181,8 @@ func SeedConfigData(db *gorm.DB) {
 		db.Where("project_id = ? AND is_active = true", proj.ID).Order("sequence").Find(&stList)
 		if len(stList) >= 5 {
 			bid, tid, ipid, rid, dnid := stList[0].ID, stList[1].ID, stList[2].ID, stList[3].ID, stList[4].ID
-			pid := proj.ID; wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: &pid, IsActive: true}
+			pid := proj.ID
+			wf := model.Workflow{Name: "Default Workflow", Description: "标准状态流转规则", ProjectID: &pid, IsActive: true}
 			db.Create(&wf)
 			trs := []model.StateTransition{
 				{Name: "Backlog→Todo", WorkflowID: wf.ID, SourceStateID: bid, TargetStateID: tid, RuleType: "allow", ProjectID: &pid, WorkspaceID: ws.ID},
@@ -1192,9 +1431,10 @@ func SeedIssueTypesForAllWorkspaces(db *gorm.DB) {
 		db.Create(&epic)
 		feature := model.IssueType{Name: "Feature", Color: "#6366F1", Icon: "star", Description: "功能特性", Level: 1, ParentTypeID: &epic.ID, Sequence: 2, WorkspaceID: ws.ID}
 		db.Create(&feature)
-		bug := model.IssueType{Name: "Bug", Color: "#EF4444", Icon: "bug", Description: "缺陷/问题", Level: 2, ParentTypeID: &feature.ID, Sequence: 3, WorkspaceID: ws.ID}
+		// Bug/Task (Level 2) have no fixed ParentTypeID — can be children of any lower-level type
+		bug := model.IssueType{Name: "Bug", Color: "#EF4444", Icon: "bug", Description: "缺陷/问题", Level: 2, Sequence: 3, WorkspaceID: ws.ID}
 		db.Create(&bug)
-		task := model.IssueType{Name: "Task", Color: "#10B981", Icon: "check-circle", Description: "开发任务", Level: 2, ParentTypeID: &feature.ID, Sequence: 4, WorkspaceID: ws.ID}
+		task := model.IssueType{Name: "Task", Color: "#10B981", Icon: "check-circle", Description: "开发任务", Level: 2, Sequence: 4, WorkspaceID: ws.ID}
 		db.Create(&task)
 		story := model.IssueType{Name: "Story", Color: "#F59E0B", Icon: "bookmark", Description: "用户故事", Level: 1, ParentTypeID: &epic.ID, Sequence: 5, WorkspaceID: ws.ID}
 		db.Create(&story)
@@ -1202,4 +1442,177 @@ func SeedIssueTypesForAllWorkspaces(db *gorm.DB) {
 		db.Create(&spike)
 	}
 	fmt.Println("Seeded issue types for all workspaces")
+}
+
+// SeedRelationTypesForAllWorkspaces ensures every workspace has default relation
+// types so that issue relations can reference them out of the box.
+func SeedRelationTypesForAllWorkspaces(db *gorm.DB) {
+	var workspaces []model.Workspace
+	db.Find(&workspaces)
+	for _, ws := range workspaces {
+		var count int64
+		db.Model(&model.RelationType{}).Where("workspace_id = ?", ws.ID).Count(&count)
+		if count > 0 {
+			continue
+		}
+		relTypes := []model.RelationType{
+			{Name: "阻塞", InwardName: "被阻塞于", OutwardName: "阻塞", WorkspaceID: ws.ID},
+			{Name: "关联", InwardName: "关联到", OutwardName: "被关联于", WorkspaceID: ws.ID},
+			{Name: "重复", InwardName: "重复于", OutwardName: "被重复于", WorkspaceID: ws.ID},
+			{Name: "父子", InwardName: "子任务", OutwardName: "父任务", WorkspaceID: ws.ID},
+			{Name: "依赖", InwardName: "依赖于", OutwardName: "被依赖于", WorkspaceID: ws.ID},
+		}
+		for _, r := range relTypes {
+			db.Create(&r)
+		}
+	}
+	fmt.Println("Seeded relation types for all workspaces")
+}
+
+// SeedAutomationRulesForAllWorkspaces creates built-in automation rules for
+// every workspace that has no automation rules yet. These are sensible defaults
+// inspired by Plane AI's built-in automations.
+func SeedAutomationRulesForAllWorkspaces(db *gorm.DB) {
+	var workspaces []model.Workspace
+	db.Find(&workspaces)
+	for _, ws := range workspaces {
+		var count int64
+		db.Model(&model.AutomationRule{}).Where("workspace_id = ?", ws.ID).Count(&count)
+		if count > 0 {
+			continue // Workspace already has automation rules, skip
+		}
+
+		builtInRules := []model.AutomationRule{
+			{
+				Name:        "高优先级任务自动分配",
+				Description: "当创建 urgent 或 high 优先级任务时，自动分配给工作区管理员",
+				WorkspaceID: ws.ID,
+				TriggerType: "issue.created",
+				Conditions:  `[{"field":"priority","operator":"in","value":["urgent","high"]}]`,
+				Actions:     `[{"type":"assign_to","value":` + fmt.Sprintf("%d", ws.OwnerID) + `}]`,
+				IsEnabled:   true,
+				Sequence:    1,
+				Scope:       "all",
+			},
+			{
+				Name:        "自动归档已完成任务",
+				Description: "状态变更为已完成超过7天的任务自动归档",
+				WorkspaceID: ws.ID,
+				TriggerType: "scheduled",
+				Conditions:  `[]`,
+				Actions:     `[{"type":"comment","value":"Scheduled: 可在此配置自动归档逻辑"}]`,
+				IsEnabled:   false, // disabled by default — needs schedule_config
+				Sequence:    2,
+				Scope:       "all",
+				ScheduleConfig: `{"frequency":"daily","time":"02:00"}`,
+			},
+			{
+			Name:        "Bug自动评论",
+			Description: "当创建 Bug 类型工作项时自动添加评论提醒",
+			WorkspaceID: ws.ID,
+			TriggerType: "issue.created",
+			Conditions:  `[{"field":"issue_type","operator":"equals","value":"Bug"}]`,
+			Actions:     `[{"type":"add_comment","value":"[自动化] Bug 已创建，请及时处理"}]`,
+				IsEnabled:   true,
+				Sequence:    3,
+				Scope:       "all",
+			},
+			{
+				Name:        "长期未更新提醒",
+				Description: "每周一检查超过14天未更新的进行中任务，发送提醒",
+				WorkspaceID: ws.ID,
+				TriggerType: "scheduled",
+				Conditions:  `[]`,
+				Actions:     `[{"type":"comment","value":"Scheduled: 可在此配置过期任务提醒逻辑"}]`,
+				IsEnabled:   false,
+				Sequence:    4,
+				Scope:       "all",
+				ScheduleConfig: `{"frequency":"weekly","time":"09:00","days":["mon"]}`,
+			},
+			{
+				Name:        "Webhook通知示例",
+				Description: "当创建新工作项时，通过Webhook通知外部系统",
+				WorkspaceID: ws.ID,
+				TriggerType: "issue.created",
+				Conditions:  `[]`,
+				Actions:     `[{"type":"call_webhook","field":"https://httpbin.org/post","value":{"method":"POST","headers":{"Content-Type":"application/json"},"body":"{\"event\":\"issue_created\",\"issue_id\":{{issue_id}},\"workspace_id\":{{workspace_id}},\"trigger\":\"{{trigger_type}}\"}"}}]`,
+				IsEnabled:   true,
+				Sequence:    5,
+				Scope:       "all",
+			},
+		}
+
+		for _, rule := range builtInRules {
+			if err := db.Create(&rule).Error; err != nil {
+				fmt.Printf("  WARN: failed to seed automation rule '%s' for workspace %d: %v\n",
+					rule.Name, ws.ID, err)
+			}
+		}
+	}
+	fmt.Println("Seeded built-in automation rules for all workspaces")
+}
+
+// SeedWebhookDemoExecutionLogs inserts demo execution logs for webhook
+// automation rules so users can see what the execution log looks like.
+func SeedWebhookDemoExecutionLogs(db *gorm.DB) {
+	var rules []model.AutomationRule
+	db.Where("actions LIKE ?", "%call_webhook%").Find(&rules)
+	if len(rules) == 0 {
+		fmt.Println("No webhook automation rules found, skipping execution log seed")
+		return
+	}
+
+	for _, rule := range rules {
+		// Find an issue in the same workspace
+		var issue model.Issue
+		if err := db.Where("workspace_id = ?", rule.WorkspaceID).First(&issue).Error; err != nil {
+			fmt.Printf("  WARN: no issue found for workspace %d, skipping execution log seed for rule '%s'\n",
+				rule.WorkspaceID, rule.Name)
+			continue
+		}
+
+		// Check if execution log already exists for this rule
+		var count int64
+		db.Model(&model.AutomationExecution{}).Where("rule_id = ?", rule.ID).Count(&count)
+		if count > 0 {
+			continue
+		}
+
+		contextJSON := fmt.Sprintf(`{"event_type":"issue.created","trigger_type":"issue.created","project_id":%d,"workspace_id":%d}`,
+			issue.ProjectID, rule.WorkspaceID)
+		actionsTaken := `[{"type":"call_webhook","field":"https://httpbin.org/post","status":"success","response_code":200}]`
+
+		exec := model.AutomationExecution{
+			RuleID:       rule.ID,
+			IssueID:      issue.ID,
+			TriggerType:  "issue.created",
+			ContextJSON:  contextJSON,
+			ActionsTaken: actionsTaken,
+			Status:       "success",
+			Duration:     320, // ms
+			ExecutedAt:   time.Now().Add(-1 * time.Hour),
+		}
+		if err := db.Create(&exec).Error; err != nil {
+			fmt.Printf("  WARN: failed to seed execution log for rule '%s': %v\n", rule.Name, err)
+		} else {
+			fmt.Printf("  Seeded demo execution log for rule '%s' (rule_id=%d, issue_id=%d)\n",
+				rule.Name, rule.ID, issue.ID)
+		}
+
+		// Also create a second execution log (a "failed" one for demo variety)
+		failExec := model.AutomationExecution{
+			RuleID:       rule.ID,
+			IssueID:      issue.ID,
+			TriggerType:  "issue.created",
+			ContextJSON:  contextJSON,
+			ActionsTaken: `[{"type":"call_webhook","field":"https://httpbin.org/post","status":"failed"}]`,
+			Status:       "failed",
+			Error:        "context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
+			Duration:     15000, // ms - timed out
+			ExecutedAt:   time.Now().Add(-30 * time.Minute),
+		}
+		if err := db.Create(&failExec).Error; err != nil {
+			fmt.Printf("  WARN: failed to seed fail execution log for rule '%s': %v\n", rule.Name, err)
+		}
+	}
 }

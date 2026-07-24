@@ -145,6 +145,16 @@
         </div>
 
         <div class="property-group">
+          <label class="property-label">{{ t('issue.release') }}</label>
+          <select v-model="formData.release_id" class="property-select">
+            <option value="">{{ t('issue.releasePlaceholder') }}</option>
+            <option v-for="release in releases" :key="release.id" :value="release.id">
+              {{ release.name }} ({{ release.version }})
+            </option>
+          </select>
+        </div>
+
+        <div class="property-group">
           <label class="property-label">{{ t('issue.startDate') }}</label>
           <input v-model="formData.start_date" type="date" class="property-input" />
         </div>
@@ -152,34 +162,6 @@
         <div class="property-group">
           <label class="property-label">{{ t('issue.targetDate') }}</label>
           <input v-model="formData.target_date" type="date" class="property-input" />
-        </div>
-
-        <div class="property-group">
-          <label class="property-label">{{ t('issue.parentIssue') }}</label>
-          <div class="relative">
-            <div v-if="selectedParent" class="flex items-center justify-between p-2 bg-gray-50 rounded-md mb-1">
-              <span class="text-sm text-gray-700">#{{ selectedParent.sequence_id }} {{ selectedParent.name }}</span>
-              <button @click="selectedParent = null; formData.parent_id = ''" class="text-gray-400 hover:text-red-500">&times;</button>
-            </div>
-            <input
-              v-if="!selectedParent"
-              v-model="parentSearch"
-              @input="searchParents"
-              type="text"
-              :placeholder="t('issue.parentSearchPlaceholder')"
-              class="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 text-sm"
-            />
-            <div v-if="parentResults.length > 0 && !selectedParent" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-36 overflow-y-auto">
-              <div
-                v-for="p in parentResults"
-                :key="p.id"
-                @click="selectParent(p)"
-                class="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm"
-              >
-                <span class="font-medium">#{{ p.sequence_id }}</span> {{ p.name }}
-              </div>
-            </div>
-          </div>
         </div>
 
         <div class="property-group">
@@ -226,6 +208,7 @@ import * as issueApi from '@/api/issue'
 import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
+import { releaseApi } from '@/api/release'
 import projectApi from '@/api/project'
 import { workspaceApi } from '@/api/workspace'
 
@@ -243,6 +226,12 @@ const projectId = computed(() => {
 })
 const workspaceId = ref(0)
 const slug = computed(() => route.params.slug as string || '')
+// Support both route shapes: /workspace/:slug/project/:id/issues/new (slug-based)
+// and /workspaces/:workspaceId/projects/:projectId/issues/new (id-based).
+const workspaceIdParam = computed(() => {
+  const wid = parseInt(route.params.workspaceId as string, 10)
+  return isNaN(wid) ? 0 : wid
+})
 const returnView = computed(() => route.query.view as string || 'list')
 
 // 定义事件
@@ -256,6 +245,7 @@ const linkedFields = ref<any[]>([])
 const states = ref<State[]>([])
 const cycles = ref<CycleResponse[]>([])
 const modules = ref<ModuleResponse[]>([])
+const releases = ref<{ id: number; name: string; version: string }[]>([])
 const projectMembers = ref<User[]>([])
 const selectedTypeId = ref<number | null>(null)
 const customFieldValues = ref<Record<number, IssueCustomFieldValueUpdate>>({})
@@ -273,15 +263,11 @@ const formData = ref({
   assignee_id: '' as number | string,
   cycle_id: '' as number | string,
   module_id: '' as number | string,
+  release_id: '' as number | string,
   start_date: '',
-  target_date: '',
-  parent_id: '' as number | string
+  target_date: ''
 })
 const selectedLabelIds = ref<number[]>([])
-const parentSearch = ref('')
-const parentResults = ref<any[]>([])
-const selectedParent = ref<any>(null)
-let parentSearchTimer: any = null
 
 // 计算属性
 const canSubmit = computed(() => {
@@ -350,6 +336,10 @@ function applyTemplate(template: WorkItemTemplate | null) {
     selectedLabelIds.value = [...defaults.label_ids]
   }
 
+  if (defaults.module_id) {
+    formData.value.module_id = defaults.module_id
+  }
+
   if (defaults.description_html) {
     formData.value.description = defaults.description_html
   }
@@ -385,7 +375,10 @@ function handleTemplateChange(templateId: number | null) {
 // 加载数据
 async function loadData() {
   try {
-    if (slug.value) {
+    // Resolve workspaceId: prefer route param (id-based route), fall back to slug lookup.
+    if (workspaceIdParam.value > 0) {
+      workspaceId.value = workspaceIdParam.value
+    } else if (slug.value) {
       try {
         const ws = await workspaceApi.getBySlug(slug.value)
         workspaceId.value = ws.id
@@ -393,16 +386,21 @@ async function loadData() {
         console.error('Failed to load workspace:', e)
       }
     }
-    
+
     // 加载工作项类型 - 如果 API 不可用则使用默认类型
     try {
       const typesRes = await issueTypeApi.getIssueTypes(workspaceId.value, projectId.value)
       issueTypes.value = typesRes
-      
+
       // 设置默认类型
       const defaultType = typesRes.find((t: any) => t.is_default) || typesRes[0]
       if (defaultType) {
         selectedTypeId.value = defaultType.id
+      } else if (typesRes.length === 0) {
+        // API succeeded but returned no types; fall back to type ID 1 so the
+        // form remains usable (e.g. when workspaceId resolution failed).
+        console.warn('No issue types returned, falling back to default type ID 1')
+        selectedTypeId.value = 1
       }
     } catch (e) {
       // API 不可用时使用默认类型 ID = 1
@@ -438,6 +436,14 @@ async function loadData() {
       console.error('Failed to load modules:', e)
     }
 
+    // 加载发布版本
+    try {
+      const releasesRes = await releaseApi.list(projectId.value)
+      releases.value = releasesRes
+    } catch (e) {
+      console.error('Failed to load releases:', e)
+    }
+
     // 加载项目成员
     try {
       const membersRes = await projectApi.listProjectMembers(projectId.value)
@@ -455,29 +461,6 @@ async function loadData() {
   } catch (error) {
     console.error('Failed to load data:', error)
   }
-}
-
-// 搜索父工作项
-async function searchParents() {
-  if (parentSearchTimer) clearTimeout(parentSearchTimer)
-  if (!parentSearch.value.trim()) {
-    parentResults.value = []
-    return
-  }
-  parentSearchTimer = setTimeout(async () => {
-    try {
-      const result: any = await issueApi.searchIssues(workspaceId.value, parentSearch.value, projectId.value)
-      parentResults.value = (Array.isArray(result) ? result : (result.items || [])).slice(0, 10)
-    } catch (e) {
-      console.error('Parent search failed:', e)
-    }
-  }, 300)
-}
-
-function selectParent(p: any) {
-  selectedParent.value = p
-  parentResults.value = []
-  parentSearch.value = ''
 }
 
 // 加载类型的关联字段
@@ -565,9 +548,34 @@ async function submitForm() {
       data.label_ids = selectedLabelIds.value
     }
 
-    // Add parent if selected
-    if (selectedParent.value) {
-      data.parent_id = selectedParent.value.id
+    // Add module if selected
+    if (formData.value.module_id) {
+      const moduleId = typeof formData.value.module_id === 'string'
+        ? parseInt(formData.value.module_id)
+        : formData.value.module_id
+      if (moduleId > 0) {
+        data.module_ids = [moduleId]
+      }
+    }
+
+    // Add cycle if selected
+    if (formData.value.cycle_id) {
+      const cycleId = typeof formData.value.cycle_id === 'string'
+        ? parseInt(formData.value.cycle_id)
+        : formData.value.cycle_id
+      if (cycleId > 0) {
+        data.cycle_id = cycleId
+      }
+    }
+
+    // Add release if selected
+    if (formData.value.release_id) {
+      const releaseId = typeof formData.value.release_id === 'string'
+        ? parseInt(formData.value.release_id)
+        : formData.value.release_id
+      if (releaseId > 0) {
+        data.release_id = releaseId
+      }
     }
 
     // Add custom field values
@@ -630,17 +638,8 @@ watch(selectedTypeId, (newTypeId) => {
 
 onMounted(async () => {
   await loadData()
-  // Auto-populate parent from query param (e.g. ?parent_id=X from IssueDetail)
-  const parentId = route.query.parent_id
-  if (parentId) {
-    try {
-      const parent = await issueApi.getIssue(Number(parentId))
-      if (parent) selectParent(parent)
-    } catch (e) {
-      console.error('Failed to load parent issue:', e)
-    }
-  }
 })
+
 </script>
 
 <style scoped>

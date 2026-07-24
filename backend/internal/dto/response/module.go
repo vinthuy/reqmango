@@ -15,6 +15,7 @@ type ModuleResponse struct {
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 	IsInherited bool       `json:"is_inherited"`
+	HasOverride bool       `json:"has_override"`
 }
 
 type ModuleTreeNode struct {

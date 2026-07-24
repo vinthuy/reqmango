@@ -103,6 +103,34 @@ export async function removeFieldFromIssueType(typeId: number, fieldId: number):
   await api.delete(`/issue-types/${typeId}/fields/${fieldId}`)
 }
 
+// ==================== Plane v3-style Import Model ====================
+// Project references a workspace-level type by link (not copy). After import,
+// custom fields attached to the type are visible in the project automatically.
+
+/**
+ * 列出项目尚未导入的工作空间类型
+ */
+export async function listImportableTypes(workspaceId: number, projectId: number): Promise<IssueType[]> {
+  const response = await api.get(`/projects/${projectId}/issue-types/importable`, {
+    params: { workspace_id: workspaceId },
+  })
+  return response.data
+}
+
+/**
+ * 导入工作空间类型到项目（按引用关联）
+ */
+export async function importIssueType(projectId: number, typeId: number): Promise<void> {
+  await api.post(`/projects/${projectId}/issue-types/${typeId}/import`)
+}
+
+/**
+ * 取消导入工作空间类型
+ */
+export async function unimportIssueType(projectId: number, typeId: number): Promise<void> {
+  await api.delete(`/projects/${projectId}/issue-types/${typeId}/import`)
+}
+
 const issueTypeApi = {
   getIssueTypes,
   getIssueType,
@@ -114,6 +142,9 @@ const issueTypeApi = {
   addFieldToIssueType,
   updateIssueTypeField,
   removeFieldFromIssueType,
+  listImportableTypes,
+  importIssueType,
+  unimportIssueType,
 }
 
 export default issueTypeApi
