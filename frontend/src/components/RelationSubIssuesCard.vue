@@ -223,7 +223,7 @@ const allowedIssueTypes = computed(() => {
   if (!props.issueTypes) return []
   const parentLevel = props.parentIssueType?.level ?? -1
   if (parentLevel < 0) return props.issueTypes
-  return props.issueTypes.filter(t => t.level >= parentLevel)
+  return props.issueTypes.filter(t => (t.level ?? 0) >= parentLevel)
 })
 
 const emit = defineEmits<{

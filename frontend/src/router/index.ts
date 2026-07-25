@@ -206,6 +206,36 @@ const router = createRouter({
       component: () => import('@/views/agents/PipelineRunDetail.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/workspaces/:wsParam/agents/templates',
+      name: 'agent-templates',
+      component: () => import('@/views/agents/AgentTemplateList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/configs',
+      name: 'agent-configs',
+      component: () => import('@/views/agents/AgentConfigList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/skills',
+      name: 'agent-skills',
+      component: () => import('@/views/agents/SkillList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/tasks',
+      name: 'agent-tasks',
+      component: () => import('@/views/agents/AgentTaskList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/monitor',
+      name: 'agent-monitor',
+      component: () => import('@/views/agents/AgentMonitor.vue'),
+      meta: { requiresAuth: true },
+    },
   ]
 })
 

@@ -51,8 +51,4 @@ const emit = defineEmits<{
   'navigate': [issueId: number]
 }>()
 
-function handleNavigate(issueId: number) {
-  emit('navigate', issueId)
-}
-
 </script>

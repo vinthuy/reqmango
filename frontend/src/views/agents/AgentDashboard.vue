@@ -1,72 +1,218 @@
 <template>
-  <div class="p-6 max-w-5xl mx-auto">
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">🤖 Agent Dashboard</h1>
-        <p class="text-sm text-gray-500 mt-1">Monitor and manage autonomous agent loops</p>
-      </div>
-    </div>
-
-    <section class="mb-8">
-      <h2 class="text-lg font-semibold mb-3">Active Loops</h2>
-      <div v-if="activeRuns.length === 0" class="text-sm text-gray-400 py-8 text-center border rounded-lg dark:border-gray-700">
-        No active loop runs. Start one from the Loops tab.
-      </div>
-      <div v-else class="space-y-3">
-        <div
-          v-for="run in activeRuns"
-          :key="run.id"
-          class="border rounded-lg p-4 hover:border-indigo-300 cursor-pointer transition-colors dark:border-gray-700"
-          @click="$router.push(`/agents/loops/runs/${run.id}`)"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <span class="font-medium text-gray-900 dark:text-white">{{ run.goal }}</span>
-            <LoopStateBadge :status="run.status" />
-          </div>
-          <BudgetGauge
-            :max-tokens="50000"
-            :used-tokens="run.tokens_used"
-            :max-iterations="run.max_iterations"
-            :current-iteration="run.current_iteration"
-          />
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-semibold text-gray-800">🤖 Agent Dashboard</h1>
+          <p class="text-sm text-gray-500 mt-0.5">Monitor and manage AI agents</p>
         </div>
       </div>
-    </section>
+    </header>
 
-    <section class="grid grid-cols-2 gap-4">
-      <router-link
-        to="/agents/loops"
-        class="border rounded-lg p-4 hover:border-indigo-400 hover:shadow-sm transition-all dark:border-gray-700"
-      >
-        <div class="text-xl mb-1">🔄</div>
-        <div class="font-medium text-sm text-gray-900 dark:text-white">Loop Configurations</div>
-        <div class="text-xs text-gray-400 mt-1">Create and manage autonomous loops</div>
-      </router-link>
-      <router-link
-        to="/agents/sessions"
-        class="border rounded-lg p-4 hover:border-indigo-400 hover:shadow-sm transition-all dark:border-gray-700"
-      >
-        <div class="text-xl mb-1">📋</div>
-        <div class="font-medium text-sm text-gray-900 dark:text-white">Agent Sessions</div>
-        <div class="text-xs text-gray-400 mt-1">View agent execution history and costs</div>
-      </router-link>
-    </section>
+    <main class="p-6">
+      <div class="max-w-5xl mx-auto">
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div class="bg-white border border-gray-200 rounded-xl p-4">
+            <div class="text-2xl font-bold text-indigo-600">{{ templatesCount }}</div>
+            <div class="text-xs text-gray-500 mt-1">Templates</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4">
+            <div class="text-2xl font-bold text-blue-600">{{ configsCount }}</div>
+            <div class="text-xs text-gray-500 mt-1">Configs</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4">
+            <div class="text-2xl font-bold text-purple-600">{{ skillsCount }}</div>
+            <div class="text-xs text-gray-500 mt-1">Skills</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4">
+            <div class="text-2xl font-bold text-teal-600">{{ tasksCount }}</div>
+            <div class="text-xs text-gray-500 mt-1">Tasks</div>
+          </div>
+        </div>
+
+        <!-- Active Loops -->
+        <section class="mb-8">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-gray-800">Active Loops</h2>
+            <router-link
+              :to="`/workspaces/${getWorkspaceId()}/agents/loops`"
+              class="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              View All
+            </router-link>
+          </div>
+          <div v-if="activeRuns.length === 0" class="text-sm text-gray-400 py-8 text-center border border-gray-200 rounded-xl bg-white">
+            No active loop runs. Start one from the Loops tab.
+          </div>
+          <div v-else class="space-y-3">
+            <div
+              v-for="run in activeRuns"
+              :key="run.id"
+              class="bg-white border border-gray-200 rounded-xl p-4 hover:border-indigo-300 cursor-pointer transition-colors"
+              @click="$router.push(`/workspaces/${getWorkspaceId()}/agents/loops/runs/${run.id}`)"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-medium text-gray-900">{{ run.goal }}</span>
+                <LoopStateBadge :status="run.status" />
+              </div>
+              <BudgetGauge
+                :max-tokens="50000"
+                :used-tokens="run.tokens_used"
+                :max-iterations="run.max_iterations"
+                :current-iteration="run.current_iteration"
+              />
+            </div>
+          </div>
+        </section>
+
+        <!-- Navigation Grid -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <router-link
+            :to="`/workspaces/${getWorkspaceId()}/agents/templates`"
+            class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xl">
+                🎭
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">Agent Templates</div>
+                <div class="text-sm text-gray-500 mt-1">Manage agent role templates</div>
+              </div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="`/workspaces/${getWorkspaceId()}/agents/configs`"
+            class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xl">
+                ⚙️
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">Model Configs</div>
+                <div class="text-sm text-gray-500 mt-1">Manage AI model configurations</div>
+              </div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="`/workspaces/${getWorkspaceId()}/agents/skills`"
+            class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl">
+                🛠️
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">Skills</div>
+                <div class="text-sm text-gray-500 mt-1">Manage reusable AI skills</div>
+              </div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="`/workspaces/${getWorkspaceId()}/agents/tasks`"
+            class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white text-xl">
+                📋
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">Tasks</div>
+                <div class="text-sm text-gray-500 mt-1">Monitor and execute agent tasks</div>
+              </div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="`/workspaces/${getWorkspaceId()}/agents/loops`"
+            class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white text-xl">
+                🔄
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">Loop Configurations</div>
+                <div class="text-sm text-gray-500 mt-1">Create autonomous loops</div>
+              </div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="`/workspaces/${getWorkspaceId()}/agents/monitor`"
+            class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center text-white text-xl">
+                📈
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">Monitor</div>
+                <div class="text-sm text-gray-500 mt-1">Real-time task monitoring</div>
+              </div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="`/workspaces/${getWorkspaceId()}/agents/sessions`"
+            class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white text-xl">
+                📊
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">Agent Sessions</div>
+                <div class="text-sm text-gray-500 mt-1">View execution history</div>
+              </div>
+            </div>
+          </router-link>
+        </section>
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { loopApi, type LoopRun } from '@/api/agent-loop'
+import { agentTemplateApi } from '@/api/agent-template'
+import { agentConfigApi } from '@/api/agent-config'
+import { skillApi } from '@/api/skill'
+import { agentTaskApi } from '@/api/agent-task'
 import LoopStateBadge from '@/components/agents/LoopStateBadge.vue'
 import BudgetGauge from '@/components/agents/BudgetGauge.vue'
 
 const activeRuns = ref<LoopRun[]>([])
+const templatesCount = ref(0)
+const configsCount = ref(0)
+const skillsCount = ref(0)
+const tasksCount = ref(0)
 
 onMounted(async () => {
   try {
-    // Get workspace ID from localStorage or router
     const wsId = getWorkspaceId()
     if (!wsId) return
+
+    // Load stats
+    const [templatesRes, configsRes, skillsRes, tasksRes] = await Promise.all([
+      agentTemplateApi.list(wsId),
+      agentConfigApi.list(wsId),
+      skillApi.list(wsId),
+      agentTaskApi.list(wsId)
+    ])
+    templatesCount.value = templatesRes?.length || 0
+    configsCount.value = configsRes?.length || 0
+    skillsCount.value = skillsRes?.length || 0
+    tasksCount.value = tasksRes?.length || 0
+
+    // Load active loops
     const loops = await loopApi.list(wsId)
     for (const loop of loops) {
       if (loop.status === 'active') {
@@ -74,13 +220,12 @@ onMounted(async () => {
         activeRuns.value.push(...runs.filter(r => r.status === 'running'))
       }
     }
-  } catch { /* no loops yet */ }
+  } catch { /* no data yet */ }
 })
 
 function getWorkspaceId(): number | null {
   const match = window.location.pathname.match(/\/workspaces\/(\d+)/)
   if (match) return Number(match[1])
-  // fallback: check localStorage
   const stored = localStorage.getItem('currentWorkspaceId')
   return stored ? Number(stored) : null
 }

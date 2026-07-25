@@ -21,6 +21,6 @@
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
-  "exclude": ["src/__tests__/**/*.ts", "src/__tests__/**/*.tsx"],
+  "exclude": ["src/__tests__/**/*.ts", "src/__tests__/**/*.tsx", "src/**/*.test.ts", "src/**/*.test.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

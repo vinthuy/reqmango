@@ -124,7 +124,7 @@ function openCreate() { form.value = { name: '', desc: '', selectedTypeIds: [] }
 async function save() { 
   const data: any = { name: form.value.name, description: form.value.desc }
   if (form.value.selectedTypeIds.length > 0) {
-    data.issue_type_ids = JSON.stringify(form.value.selectedTypeIds)
+    data.issue_type_ids = form.value.selectedTypeIds
   }
   if (isWorkspaceMode.value) {
     await workflowApi.createWorkspaceWorkflow(props.workspaceId!, data)

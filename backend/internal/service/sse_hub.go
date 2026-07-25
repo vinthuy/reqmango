@@ -58,3 +58,21 @@ func (h *SSEHub) NotifyUser(userID uint64, ntype, title, message string) {
 	data, _ := json.Marshal(map[string]string{"type": ntype, "title": title, "message": message})
 	h.SendToUser(userID, "notification", string(data))
 }
+
+// BroadcastWorkspace sends an event to all connected clients in a workspace.
+// Note: currently we only track by user ID; this sends to all connected users
+// since workspace membership lookup would need a DB call. Use SendToUser for targeted pushes.
+func (h *SSEHub) BroadcastEvent(event string, data interface{}) {
+	dataBytes, _ := json.Marshal(data)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, clients := range h.clients {
+		for _, c := range clients {
+			msg := fmt.Sprintf("event: %s\ndata: %s\n\n", event, string(dataBytes))
+			select {
+			case c.Ch <- msg:
+			default:
+			}
+		}
+	}
+}
