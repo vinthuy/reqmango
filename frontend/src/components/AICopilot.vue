@@ -72,6 +72,35 @@
         </div>
       </div>
 
+      <!-- Related Memories -->
+      <Transition name="fade">
+        <div v-if="relatedMemories.length > 0" class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-amber-50/50">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs text-amber-600 font-medium">🧠</span>
+            <span class="text-xs text-amber-700 font-medium">相关记忆</span>
+            <button @click="relatedMemories = []" class="ml-auto text-xs text-gray-400 hover:text-gray-600">✕</button>
+          </div>
+          <div class="space-y-1">
+            <div
+              v-for="mem in relatedMemories"
+              :key="mem.id"
+              class="text-xs text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 rounded px-2 py-1.5 border border-gray-200 dark:border-gray-700"
+            >
+              <div class="line-clamp-2">{{ mem.content }}</div>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[10px] text-gray-400">{{ mem.context_name }}</span>
+                <span
+                  v-if="mem.tags?.length"
+                  class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500"
+                >
+                  {{ mem.tags.join(', ') }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
       <!-- Quick Actions -->
       <div class="flex gap-1.5 px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex-wrap">
         <template v-if="mode === 'agent'">
@@ -346,8 +375,10 @@ import { generateChart, createPreviewWithAI } from '@/api/ai'
 import { agentApi } from '@/api/agent'
 import issueApi from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
+import * as memoryApi from '@/api/memory'
 import type { AIChartData } from '@/api/ai'
 import type { Agent } from '@/types/agent'
+import type { MemoryEntry } from '@/api/memory'
 import AIChartRenderer from '@/components/AIChartRenderer.vue'
 import AIResultActions from '@/components/AIResultActions.vue'
 
@@ -410,6 +441,10 @@ const showMentionPopup = ref(false)
 const mentionStartIdx = ref(-1)
 
 const expandedThinking = ref(new Set<number>())
+
+// Memory context state
+const relatedMemories = ref<MemoryEntry[]>([])
+const isLoadingMemories = ref(false)
 
 function toggleThinking(idx: number) {
   if (expandedThinking.value.has(idx)) {
@@ -603,10 +638,14 @@ function sendAgent(text: string) {
   if (!text.trim()) return
   const msg = text.trim()
   input.value = ''
+  const userMsg = selectedAgent.value ? `@${selectedAgent.value.name} ${msg}` : msg
+
+  // Search related memories before sending
+  searchRelatedMemories(msg)
 
   messages.value.push({
     role: 'user',
-    content: selectedAgent.value ? `@${selectedAgent.value.name} ${msg}` : msg,
+    content: userMsg,
   })
 
   if (!selectedAgent.value) {
@@ -620,12 +659,14 @@ function sendAgent(text: string) {
   agentApi
     .dispatch(props.workspaceId, selectedAgent.value.id, { task: msg })
     .then((activity) => {
-      messages.value[messages.value.length - 1].content =
-        `${selectedAgent.value?.avatar || '🤖'} **${selectedAgent.value?.name}**:\n\n${activity.result_summary}`
+      const aiResponse = `${selectedAgent.value?.avatar || '🤖'} **${selectedAgent.value?.name}**:\n\n${activity.result_summary}`
+      messages.value[messages.value.length - 1].content = aiResponse
+      // Save conversation to memory
+      saveConversationToMemory(msg, activity.result_summary || '')
     })
     .catch((e) => {
-      messages.value[messages.value.length - 1].content =
-        `❌ Agent error: ${e?.response?.data?.message || e.message || 'Unknown error'}`
+      const errorMsg = `❌ Agent error: ${e?.response?.data?.message || e.message || 'Unknown error'}`
+      messages.value[messages.value.length - 1].content = errorMsg
     })
     .finally(() => {
       isStreaming.value = false
@@ -660,10 +701,49 @@ async function sendChartQuery(query: string) {
   }
 }
 
+// Memory context functions
+async function searchRelatedMemories(query: string) {
+  if (!props.workspaceId || !query.trim()) return []
+  try {
+    isLoadingMemories.value = true
+    const results = await memoryApi.searchMemories(props.workspaceId, query.trim(), 5)
+    relatedMemories.value = results
+    return results
+  } catch (e) {
+    console.error('[AICopilot] Memory search failed', e)
+    return []
+  } finally {
+    isLoadingMemories.value = false
+  }
+}
+
+async function saveConversationToMemory(userMsg: string, aiResponse: string) {
+  if (!props.workspaceId) return
+  try {
+    const content = `Q: ${userMsg}\nA: ${aiResponse}`
+    const tags = ['conversation', mode.value]
+    const contextName = props.projectName || 'General'
+    
+    await memoryApi.createMemory(props.workspaceId, {
+      content,
+      memory_type: 'medium_term',
+      scope: props.projectId ? 'project' : 'workspace',
+      tags,
+      context_name: contextName,
+    })
+  } catch (e) {
+    console.error('[AICopilot] Save memory failed', e)
+  }
+}
+
 function send(text: string) {
   if (!text.trim() || isStreaming.value) return
   const msg = text.trim()
   input.value = ''
+  
+  // Search related memories before sending
+  searchRelatedMemories(msg)
+  
   const chatMode = (mode.value === 'agent' ? 'ask' : mode.value) as 'ask' | 'build'
   sendMessage(msg, props.projectId, props.workspaceId, chatMode)
 }

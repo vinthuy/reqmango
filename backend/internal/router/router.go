@@ -250,6 +250,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/agent-tasks/:taskId/cancel", agentTaskH.CancelAgentTask)
 			workspaces.GET("/:wsParam/agent-tasks/:taskId/logs", agentTaskH.GetTaskLogs)
 
+			// Tools (new)
+			toolH := handler.NewToolHandler(db)
+			workspaces.GET("/:wsParam/tools", toolH.ListTools)
+			workspaces.POST("/:wsParam/tools", toolH.CreateTool)
+			workspaces.GET("/:wsParam/tools/:toolId", toolH.GetTool)
+			workspaces.PUT("/:wsParam/tools/:toolId", toolH.UpdateTool)
+			workspaces.DELETE("/:wsParam/tools/:toolId", toolH.DeleteTool)
+			workspaces.POST("/:wsParam/tools/call", toolH.CallTool)
+			workspaces.GET("/:wsParam/tools/call-logs", toolH.GetToolCallLogs)
+
 			// Agent Sessions
 			workspaces.GET("/:wsParam/agent-sessions", sessionH.List)
 			workspaces.GET("/:wsParam/agent-sessions/:sessionId", sessionH.Get)
@@ -381,6 +391,22 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/modules/:moduleId", moduleH.GetWorkspaceModule)
 			workspaces.PUT("/:wsParam/modules/:moduleId", moduleH.UpdateWorkspaceModule)
 			workspaces.DELETE("/:wsParam/modules/:moduleId", moduleH.DeleteWorkspaceModule)
+
+			// Memory (new)
+			memoryH := handler.NewMemoryHandler(db)
+			workspaces.GET("/:wsParam/memories", memoryH.ListMemories)
+			workspaces.POST("/:wsParam/memories", memoryH.CreateMemory)
+			workspaces.GET("/:wsParam/memories/:memoryId", memoryH.GetMemory)
+			workspaces.PUT("/:wsParam/memories/:memoryId", memoryH.UpdateMemory)
+			workspaces.DELETE("/:wsParam/memories/:memoryId", memoryH.DeleteMemory)
+			workspaces.POST("/:wsParam/memories/search", memoryH.SearchMemories)
+			workspaces.POST("/:wsParam/memories/semantic-search", memoryH.SemanticSearch)
+			workspaces.GET("/:wsParam/memories/context/:contextKey", memoryH.GetContextMemories)
+
+			// Memory Sessions
+			workspaces.POST("/:wsParam/memory-sessions", memoryH.CreateMemorySession)
+			workspaces.GET("/:wsParam/memory-sessions/:sessionId", memoryH.GetMemorySession)
+			workspaces.PUT("/:wsParam/memory-sessions/:sessionId/close", memoryH.CloseMemorySession)
 		}
 
 		// Permissions (global, read-only)

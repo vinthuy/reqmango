@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/reqmango/backend/internal/common"
@@ -11,10 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
-type AgentTaskService struct{ db *gorm.DB }
+type AgentTaskService struct {
+	db        *gorm.DB
+	toolSvc   *ToolService
+}
 
 func NewAgentTaskService(db *gorm.DB) *AgentTaskService {
-	return &AgentTaskService{db: db}
+	return &AgentTaskService{
+		db:      db,
+		toolSvc: NewToolService(db),
+	}
 }
 
 func (s *AgentTaskService) Create(wid uint64, req request.AgentTaskCreate) (*response.AgentTaskResponse, error) {
@@ -166,7 +173,62 @@ func (s *AgentTaskService) Start(id uint64) (*response.AgentTaskResponse, error)
 	if err == nil && resp != nil {
 		s.pushTaskEvent("agent_task.started", resp)
 	}
+
+	// Execute tool if specified in input data
+	go s.executeTaskTool(id, task.WorkspaceID, task.InputData)
+
 	return resp, err
+}
+
+// executeTaskTool executes the tool specified in task input data
+func (s *AgentTaskService) executeTaskTool(taskID, wid uint64, inputData json.RawMessage) {
+	var input map[string]interface{}
+	if err := json.Unmarshal(inputData, &input); err != nil {
+		return
+	}
+
+	// Check if tool_id is specified in input data
+	toolIDVal, ok := input["tool_id"]
+	if !ok {
+		return
+	}
+
+	toolID, ok := toolIDVal.(float64)
+	if !ok {
+		return
+	}
+
+	// Extract tool parameters
+	toolParams, _ := input["tool_params"].(map[string]interface{})
+	paramsBytes, _ := json.Marshal(toolParams)
+
+	// Execute the tool
+	callReq := request.CallToolRequest{
+		ToolID:      uint64(toolID),
+		InputParams: paramsBytes,
+	}
+
+	result, err := s.toolSvc.Call(wid, callReq)
+	if err != nil {
+		s.AddLog(taskID, "error", fmt.Sprintf("Tool execution failed: %v", err), nil)
+		// Mark task as failed if tool execution fails
+		s.Fail(taskID, request.AgentTaskFail{ErrorInfo: fmt.Sprintf("Tool execution failed: %v", err)})
+		return
+	}
+
+	// Log tool execution result
+	s.AddLog(taskID, "info", fmt.Sprintf("Tool executed: %s", result.ToolName), nil)
+
+	// Update task with output
+	outputBytes, _ := json.Marshal(result.OutputResult)
+	s.db.Model(&model.AgentTask{}).Where("id = ?", taskID).Update("output_data", outputBytes)
+
+	// Mark task as completed
+	completeReq := request.AgentTaskComplete{
+		OutputData: outputBytes,
+		ActualTime: int(result.DurationMs),
+	}
+	s.Complete(taskID, completeReq)
 }
 
 func (s *AgentTaskService) Complete(id uint64, req request.AgentTaskComplete) (*response.AgentTaskResponse, error) {

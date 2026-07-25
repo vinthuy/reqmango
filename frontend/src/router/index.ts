@@ -231,9 +231,21 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/workspaces/:wsParam/agents/runtimes',
+      name: 'agent-runtimes',
+      component: () => import('@/views/agents/RuntimeList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/workspaces/:wsParam/agents/monitor',
       name: 'agent-monitor',
       component: () => import('@/views/agents/AgentMonitor.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/memories',
+      name: 'agent-memories',
+      component: () => import('@/views/agents/MemoryList.vue'),
       meta: { requiresAuth: true },
     },
   ]

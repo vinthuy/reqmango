@@ -11,6 +11,7 @@ import (
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/router"
 	"github.com/reqmango/backend/internal/seed"
+	"github.com/reqmango/backend/internal/service"
 	searchtemplate "github.com/reqmango/backend/internal/service"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -139,10 +140,25 @@ func main() {
 		&model.Skill{},
 		&model.AgentTask{},
 		&model.Runtime{},
+		// Tool Calling models
+		&model.Tool{},
+		&model.ToolPermission{},
+		&model.ToolCallLog{},
+		// Memory models
+		&model.MemoryEntry{},
+		&model.MemorySession{},
+		&model.MemoryVectorIndex{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
 	fmt.Println("Database migration completed")
+
+	// Register built-in tools
+	toolSvc := service.NewToolService(db)
+	if err := toolSvc.RegisterBuiltinTools(); err != nil {
+		log.Fatalf("Failed to register built-in tools: %v", err)
+	}
+	fmt.Println("Built-in tools registered")
 
 	// Drop old foreign key constraint on automation_executions (if exists)
 	db.Exec(`DO $$ BEGIN
