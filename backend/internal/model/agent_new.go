@@ -54,6 +54,16 @@ type AgentConfig struct {
 
 func (AgentConfig) TableName() string { return "agent_configs" }
 
+// RuntimeHealth defines the health status of a runtime.
+type RuntimeHealth string
+
+const (
+	RuntimeHealthOnline        RuntimeHealth = "online"         // Runtime is online and responsive
+	RuntimeHealthRecentlyLost  RuntimeHealth = "recently_lost"  // Runtime recently lost connection
+	RuntimeHealthOffline       RuntimeHealth = "offline"        // Runtime is offline
+	RuntimeHealthAboutToGC     RuntimeHealth = "about_to_gc"    // Runtime is about to be garbage collected
+)
+
 // Runtime represents a local daemon or cloud runtime for executing agent tasks.
 type Runtime struct {
 	BaseModel
@@ -63,6 +73,7 @@ type Runtime struct {
 	RuntimeMode    string          `gorm:"size:20;default:pull" json:"runtime_mode"`   // "pull", "push"
 	Endpoint       *string         `gorm:"size:255" json:"endpoint,omitempty"`         // WebSocket/HTTP endpoint
 	Status         string          `gorm:"size:20;default:offline" json:"status"`      // "online", "offline", "busy"
+	Health         RuntimeHealth   `gorm:"size:20;default:offline" json:"health"`      // "online" | "recently_lost" | "offline" | "about_to_gc"
 	Capacity       int             `gorm:"default:1" json:"capacity"`                 // Number of concurrent tasks
 	CurrentLoad    int             `gorm:"default:0" json:"current_load"`              // Currently running tasks
 	Version        string          `gorm:"size:50" json:"version,omitempty"`           // Agent CLI version
@@ -74,6 +85,28 @@ type Runtime struct {
 	// Relationships
 	Workspace Workspace `gorm:"foreignKey:WorkspaceID" json:"-"`
 }
+
+// AgentTaskSnapshot represents a snapshot of an agent's current task state.
+type AgentTaskSnapshot struct {
+	BaseModel
+
+	AgentID        uint64          `gorm:"not null;index" json:"agent_id"`
+	TaskID         uint64          `gorm:"not null;index" json:"task_id"`
+	TaskTitle      string          `gorm:"size:255" json:"task_title"`
+	TaskStatus     string          `gorm:"size:20" json:"task_status"`
+	Progress       int             `gorm:"default:0" json:"progress"`
+	CurrentStep    *string         `json:"current_step,omitempty"`    // Current execution step
+	StepProgress   *int            `json:"step_progress,omitempty"`   // Progress within current step
+	EstimatedTime  *int            `json:"estimated_time,omitempty"`  // Estimated remaining minutes
+	StartedAt      *time.Time      `json:"started_at,omitempty"`
+	UpdatedAt      time.Time       `gorm:"autoUpdateTime" json:"updated_at"`
+
+	// Relationships
+	Agent Agent `gorm:"foreignKey:AgentID" json:"-"`
+	Task  AgentTask `gorm:"foreignKey:TaskID" json:"-"`
+}
+
+func (AgentTaskSnapshot) TableName() string { return "agent_task_snapshots" }
 
 func (Runtime) TableName() string { return "runtimes" }
 
@@ -91,6 +124,7 @@ type Skill struct {
 	Tags        json.RawMessage `gorm:"type:jsonb;default:'[]'" json:"tags"`          // Tags for categorization
 	UsageCount  int             `gorm:"default:0" json:"usage_count"`                 // How many times this skill was used
 	IsShared    bool            `gorm:"default:false" json:"is_shared"`               // Whether shared to workspace
+	IsPreset    bool            `gorm:"default:false" json:"is_preset"`               // Whether this is a preset skill
 	WorkspaceID uint64          `gorm:"not null;index" json:"workspace_id"`
 
 	// Relationships
@@ -98,6 +132,52 @@ type Skill struct {
 }
 
 func (Skill) TableName() string { return "skills" }
+
+// SkillExecutionLog represents a log entry for a skill execution.
+type SkillExecutionLog struct {
+	BaseModel
+
+	SkillID     uint64         `gorm:"not null;index" json:"skill_id"`
+	WorkspaceID uint64         `gorm:"not null;index" json:"workspace_id"`
+	InputParams json.RawMessage `gorm:"type:jsonb;default:'{}'" json:"input_params"`
+	OutputResult json.RawMessage `gorm:"type:jsonb;default:'{}'" json:"output_result"`
+	Status      string         `gorm:"size:20;default:running" json:"status"` // "running", "completed", "failed"
+	ErrorMessage *string        `gorm:"type:text" json:"error_message,omitempty"`
+	TokensUsed  int            `gorm:"default:0" json:"tokens_used"`
+	DurationMs  int64          `gorm:"default:0" json:"duration_ms"`
+
+	// Relationships
+	Skill   Skill   `gorm:"foreignKey:SkillID" json:"-"`
+	Workspace Workspace `gorm:"foreignKey:WorkspaceID" json:"-"`
+}
+
+func (SkillExecutionLog) TableName() string { return "skill_execution_logs" }
+
+// TaskFailureReason defines the reason why a task failed.
+type TaskFailureReason string
+
+const (
+	FailureReasonAgentError      TaskFailureReason = "agent_error"      // Agent execution error
+	FailureReasonTimeout         TaskFailureReason = "timeout"          // Task timed out
+	FailureReasonRuntimeOffline  TaskFailureReason = "runtime_offline"  // Runtime is offline
+	FailureReasonInvalidInput    TaskFailureReason = "invalid_input"    // Invalid input parameters
+	FailureReasonModelError      TaskFailureReason = "model_error"      // LLM model error
+	FailureReasonRateLimit       TaskFailureReason = "rate_limit"       // API rate limit exceeded
+	FailureReasonUnknown         TaskFailureReason = "unknown"          // Unknown failure reason
+)
+
+// TaskEvidence represents evidence related to a task.
+type TaskEvidence struct {
+	Kind  string `json:"kind"`   // "issue", "comment", "file", "url", "message"
+	RefID string `json:"ref_id"` // Reference ID for the evidence
+}
+
+// TaskAttribution represents the attribution information for a task.
+type TaskAttribution struct {
+	InitiatorID   uint64 `json:"initiator_id"`    // User who initiated the task
+	OriginatorID  uint64 `json:"originator_id"`   // Agent/entity that originated the task
+	Evidence      []TaskEvidence `json:"evidence,omitempty"` // Evidence supporting the task
+}
 
 // AgentTask represents a task assigned to an AI agent for execution.
 // Status flow: enqueue -> claim -> start -> complete/fail
@@ -114,6 +194,13 @@ type AgentTask struct {
 	OutputData  json.RawMessage `gorm:"type:jsonb" json:"output_data,omitempty"`       // Execution result
 	ErrorInfo   *string         `gorm:"type:text" json:"error_info,omitempty"`          // Error message if failed
 	Logs        json.RawMessage `gorm:"type:jsonb;default:'[]'" json:"logs"`            // Execution logs
+
+	// Attribution fields (MUL-3963)
+	FailureReason TaskFailureReason `gorm:"size:30" json:"failure_reason,omitempty"`   // Why the task failed
+	Attribution   json.RawMessage   `gorm:"type:jsonb" json:"attribution,omitempty"`  // TaskAttribution JSON
+	ParentTaskID  *uint64           `gorm:"index" json:"parent_task_id,omitempty"`     // Parent task for subtasks
+	RetryOfTaskID *uint64           `gorm:"index" json:"retry_of_task_id,omitempty"`  // Task this is a retry of
+	RerunOfTaskID *uint64           `gorm:"index" json:"rerun_of_task_id,omitempty"`  // Task this is a rerun of
 
 	// Agent configuration
 	AgentTemplateID *uint64 `gorm:"index" json:"agent_template_id,omitempty"`           // Template used

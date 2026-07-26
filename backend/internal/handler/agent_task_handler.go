@@ -154,3 +154,23 @@ func (h *AgentTaskHandler) GetTaskLogs(c *gin.Context) {
 	}
 	c.JSON(200, resp)
 }
+
+// RetryAgentTask handles POST /workspaces/:wsParam/agent-tasks/:taskId/retry
+func (h *AgentTaskHandler) RetryAgentTask(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("taskId"), 10, 64)
+	resp, e := h.svc.Retry(id)
+	if h.respond(c, e) {
+		return
+	}
+	c.JSON(201, resp)
+}
+
+// RerunAgentTask handles POST /workspaces/:wsParam/agent-tasks/:taskId/rerun
+func (h *AgentTaskHandler) RerunAgentTask(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("taskId"), 10, 64)
+	resp, e := h.svc.Rerun(id)
+	if h.respond(c, e) {
+		return
+	}
+	c.JSON(201, resp)
+}

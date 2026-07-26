@@ -8,6 +8,7 @@ import (
 	"github.com/reqmango/backend/internal/ai/common"
 	"github.com/reqmango/backend/internal/ai/service"
 	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/model"
 )
 
 // AgentHandler handles HTTP requests for AI Agent management.
@@ -357,6 +358,136 @@ func (h *AgentHandler) resolveWorkspaceID(c *gin.Context) uint64 {
 	return 0
 }
 
+// ==================== Agent Presence ====================
+
+// GetPresence handles GET /workspaces/:wsParam/agents/:id/presence
+func (h *AgentHandler) GetPresence(c *gin.Context) {
+	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+		return
+	}
+
+	presence, svcErr := h.svc.GetPresence(agentID)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, presence)
+}
+
+// ListPresence handles GET /workspaces/:wsParam/agents/presence
+func (h *AgentHandler) ListPresence(c *gin.Context) {
+	wsID := h.resolveWorkspaceID(c)
+	if wsID == 0 {
+		return
+	}
+
+	presenceList, svcErr := h.svc.ListPresence(wsID)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, presenceList)
+}
+
+// Heartbeat handles POST /workspaces/:wsParam/agents/:id/heartbeat
+func (h *AgentHandler) Heartbeat(c *gin.Context) {
+	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+		return
+	}
+
+	if svcErr := h.svc.RecordHeartbeat(agentID); appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Heartbeat recorded"})
+}
+
+// UpdateAvailability handles PUT /workspaces/:wsParam/agents/:id/availability
+func (h *AgentHandler) UpdateAvailability(c *gin.Context) {
+	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+		return
+	}
+
+	var req struct {
+		Availability string `json:"availability" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid body"})
+		return
+	}
+
+	if svcErr := h.svc.UpdateAvailability(agentID, model.AgentAvailability(req.Availability)); appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Availability updated"})
+}
+
+// UpdateWorkload handles PUT /workspaces/:wsParam/agents/:id/workload
+func (h *AgentHandler) UpdateWorkload(c *gin.Context) {
+	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+		return
+	}
+
+	var req struct {
+		Workload string `json:"workload" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid body"})
+		return
+	}
+
+	if svcErr := h.svc.UpdateWorkload(agentID, model.AgentWorkload(req.Workload)); appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Workload updated"})
+}
+
+// GetSnapshots handles GET /workspaces/:wsParam/agents/:id/snapshots
+func (h *AgentHandler) GetSnapshots(c *gin.Context) {
+	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+		return
+	}
+
+	snapshots, svcErr := h.svc.GetSnapshots(agentID)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, snapshots)
+}
+
+// CreateSnapshot handles POST /workspaces/:wsParam/agents/:id/snapshots
+func (h *AgentHandler) CreateSnapshot(c *gin.Context) {
+	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+		return
+	}
+
+	var req struct {
+		TaskID      uint64  `json:"task_id" binding:"required"`
+		TaskTitle   string  `json:"task_title" binding:"required"`
+		TaskStatus  string  `json:"task_status" binding:"required"`
+		Progress    int     `json:"progress"`
+		CurrentStep *string `json:"current_step"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid body"})
+		return
+	}
+
+	if svcErr := h.svc.CreateSnapshot(agentID, req.TaskID, req.TaskTitle, req.TaskStatus, req.Progress, req.CurrentStep); appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Snapshot created/updated"})
+}
+
 // UpdateActivityFeedback handles PATCH /workspaces/:wsParam/agents/activity/:id/feedback
 func (h *AgentHandler) UpdateActivityFeedback(c *gin.Context) {
 	activityID, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -380,4 +511,20 @@ func (h *AgentHandler) UpdateActivityFeedback(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Feedback recorded"})
+}
+
+// ==================== Monitoring Dashboard ====================
+
+// GetMonitoringStats handles GET /workspaces/:wsParam/agents/monitoring
+func (h *AgentHandler) GetMonitoringStats(c *gin.Context) {
+	wsID := h.resolveWorkspaceID(c)
+	if wsID == 0 {
+		return
+	}
+
+	stats, svcErr := h.svc.GetMonitoringStats(wsID)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, stats)
 }

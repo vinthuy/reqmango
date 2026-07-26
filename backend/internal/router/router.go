@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	aihandler "github.com/reqmango/backend/internal/ai/handler"
+	"github.com/reqmango/backend/internal/ai/harness"
 	"github.com/reqmango/backend/internal/scheduler"
 	"github.com/reqmango/backend/internal/ai/llm"
 	"github.com/reqmango/backend/internal/ai/registry"
@@ -14,6 +15,7 @@ import (
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/handler"
 	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/rql"
 	"github.com/reqmango/backend/internal/service"
 	"gorm.io/gorm"
@@ -246,15 +248,28 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 			// Skills (new)
 			skillSvc := service.NewSkillService(db)
+			// Create tool executor and skill executor
+			toolExecutor := harness.NewDatabaseToolExecutor(db)
+			skillExecutor := harness.NewSkillExecutor(db, toolExecutor)
+			// Wrap harness executor to implement service.SkillExecutor interface
+			skillSvc.SetExecutor(&harnessSkillExecutorAdapter{executor: skillExecutor})
 			skillH := handler.NewSkillHandler(skillSvc)
 			workspaces.GET("/:wsParam/skills", skillH.ListSkills)
 			workspaces.POST("/:wsParam/skills", skillH.CreateSkill)
 			workspaces.GET("/:wsParam/skills/:skillId", skillH.GetSkill)
 			workspaces.PUT("/:wsParam/skills/:skillId", skillH.UpdateSkill)
 			workspaces.DELETE("/:wsParam/skills/:skillId", skillH.DeleteSkill)
+			workspaces.POST("/:wsParam/skills/:skillId/execute", skillH.ExecuteSkill)
+			// Skill execution logs
+			workspaces.GET("/:wsParam/skills/execution-logs", skillH.ListSkillExecutionLogs)
+			workspaces.GET("/:wsParam/skills/:skillId/execution-logs", skillH.ListSkillExecutionLogs)
+			// Preset skills
+			workspaces.GET("/:wsParam/skills/presets", skillH.ListPresetSkills)
+			workspaces.POST("/:wsParam/skills/presets/initialize", skillH.InitializePresetSkills)
 
 			// Agent Tasks (new)
 			agentTaskSvc := service.NewAgentTaskService(db)
+			agentTaskSvc.SetPresenceService(agentSvc) // Inject presence service
 			agentTaskH := handler.NewAgentTaskHandler(agentTaskSvc)
 			workspaces.GET("/:wsParam/agent-tasks", agentTaskH.ListAgentTasks)
 			workspaces.POST("/:wsParam/agent-tasks", agentTaskH.CreateAgentTask)
@@ -267,6 +282,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/agent-tasks/:taskId/fail", agentTaskH.FailAgentTask)
 			workspaces.POST("/:wsParam/agent-tasks/:taskId/cancel", agentTaskH.CancelAgentTask)
 			workspaces.GET("/:wsParam/agent-tasks/:taskId/logs", agentTaskH.GetTaskLogs)
+			workspaces.POST("/:wsParam/agent-tasks/:taskId/retry", agentTaskH.RetryAgentTask)
+			workspaces.POST("/:wsParam/agent-tasks/:taskId/rerun", agentTaskH.RerunAgentTask)
 
 			// Squads (new)
 			squadSvc := service.NewSquadService(db)
@@ -343,6 +360,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/agents/:id/activity", agentH.GetActivity)
 			workspaces.POST("/:wsParam/agents/:id/auto-triage", agentH.AutoTriage)
 			workspaces.POST("/:wsParam/agents/:id/auto-assign", agentH.AutoAssign)
+			// Agent Presence routes
+			workspaces.GET("/:wsParam/agents/presence", agentH.ListPresence)
+			workspaces.GET("/:wsParam/agents/:id/presence", agentH.GetPresence)
+			workspaces.POST("/:wsParam/agents/:id/heartbeat", agentH.Heartbeat)
+			workspaces.PUT("/:wsParam/agents/:id/availability", agentH.UpdateAvailability)
+			workspaces.PUT("/:wsParam/agents/:id/workload", agentH.UpdateWorkload)
+			workspaces.GET("/:wsParam/agents/:id/snapshots", agentH.GetSnapshots)
+			workspaces.POST("/:wsParam/agents/:id/snapshots", agentH.CreateSnapshot)
+
+			// Agent Monitoring Dashboard
+			workspaces.GET("/:wsParam/agents/monitoring", agentH.GetMonitoringStats)
 
 			// MCP Server
 			workspaces.GET("/:wsParam/mcp", mcpH.List)
@@ -1008,6 +1036,40 @@ func Shutdown() {
 		memScheduler = nil
 	}
 	schedulerMu.Unlock()
+}
+
+// harnessSkillExecutorAdapter adapts harness.SkillExecutor to service.SkillExecutor interface.
+type harnessSkillExecutorAdapter struct {
+	executor *harness.SkillExecutor
+}
+
+func (a *harnessSkillExecutorAdapter) Execute(ctx context.Context, skill *model.Skill, params map[string]interface{}) (*service.SkillExecutionResult, error) {
+	result, err := a.executor.Execute(ctx, skill, params)
+	if err != nil {
+		return nil, err
+	}
+
+	steps := make([]service.SkillStep, 0, len(result.Steps))
+	for _, step := range result.Steps {
+		steps = append(steps, service.SkillStep{
+			Step:     step.Step,
+			Action:   step.Action,
+			Tool:     step.Tool,
+			Input:    step.Input,
+			Output:   step.Output,
+			Error:    step.Error,
+			Status:   step.Status,
+		})
+	}
+
+	return &service.SkillExecutionResult{
+		SkillID:    result.SkillID,
+		SkillName:  result.SkillName,
+		Steps:      steps,
+		FinalResult: result.FinalResult,
+		Error:      result.Error,
+		TokensUsed: result.TokensUsed,
+	}, nil
 }
 
 

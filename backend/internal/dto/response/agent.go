@@ -160,6 +160,47 @@ type SkillResponse struct {
 	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
+type SkillStepResponse struct {
+	Step     int                 `json:"step"`
+	Action   string              `json:"action"`
+	Tool     string              `json:"tool,omitempty"`
+	Input    map[string]interface{} `json:"input,omitempty"`
+	Output   interface{}         `json:"output,omitempty"`
+	Error    string              `json:"error,omitempty"`
+	Status   string              `json:"status"`
+}
+
+type SkillExecutionResponse struct {
+	SkillID    uint64              `json:"skill_id"`
+	SkillName  string              `json:"skill_name"`
+	Steps      []SkillStepResponse `json:"steps"`
+	FinalResult string             `json:"final_result"`
+	Error      string              `json:"error,omitempty"`
+	TokensUsed int                 `json:"tokens_used"`
+}
+
+type SkillExecutionLogResponse struct {
+	ID          uint64         `json:"id"`
+	SkillID     uint64         `json:"skill_id"`
+	WorkspaceID uint64         `json:"workspace_id"`
+	InputParams json.RawMessage `json:"input_params"`
+	OutputResult json.RawMessage `json:"output_result"`
+	Status      string         `json:"status"`
+	ErrorMessage *string        `json:"error_message,omitempty"`
+	TokensUsed  int            `json:"tokens_used"`
+	DurationMs  int64          `json:"duration_ms"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+}
+
+type PaginationResponse struct {
+	Items       interface{} `json:"items"`
+	Total       int64       `json:"total"`
+	Page        int         `json:"page"`
+	PageSize    int         `json:"page_size"`
+	TotalPages  int         `json:"total_pages"`
+}
+
 type AgentTaskResponse struct {
 	ID               uint64          `json:"id"`
 	Title            string          `json:"title"`
@@ -172,6 +213,14 @@ type AgentTaskResponse struct {
 	OutputData       json.RawMessage `json:"output_data"`
 	ErrorInfo        *string         `json:"error_info"`
 	Logs             json.RawMessage `json:"logs"`
+	
+	// Attribution fields (MUL-3963)
+	FailureReason    string          `json:"failure_reason,omitempty"`   // Why the task failed
+	Attribution      json.RawMessage `json:"attribution,omitempty"`      // TaskAttribution JSON
+	ParentTaskID     *uint64         `json:"parent_task_id,omitempty"`   // Parent task for subtasks
+	RetryOfTaskID    *uint64         `json:"retry_of_task_id,omitempty"` // Task this is a retry of
+	RerunOfTaskID    *uint64         `json:"rerun_of_task_id,omitempty"` // Task this is a rerun of
+	
 	AgentTemplateID  *uint64         `json:"agent_template_id"`
 	AgentConfigID    *uint64         `json:"agent_config_id"`
 	RuntimeID        *uint64         `json:"runtime_id"`
@@ -196,4 +245,72 @@ type TaskLogResponse struct {
 	Message   string          `json:"message"`
 	Metadata  json.RawMessage `json:"metadata"`
 	CreatedAt time.Time       `json:"created_at"`
+}
+
+// Monitoring Dashboard DTOs
+
+// AgentPresenceSummary contains agent presence statistics.
+type AgentPresenceSummary struct {
+	Total      int64 `json:"total"`
+	Online     int64 `json:"online"`
+	Unstable   int64 `json:"unstable"`
+	Offline    int64 `json:"offline"`
+	Archived   int64 `json:"archived"`
+	Working    int64 `json:"working"`
+	Queued     int64 `json:"queued"`
+	Idle       int64 `json:"idle"`
+}
+
+// TaskExecutionStats contains task execution statistics.
+type TaskExecutionStats struct {
+	Total       int64 `json:"total"`
+	Completed   int64 `json:"completed"`
+	Failed      int64 `json:"failed"`
+	Cancelled   int64 `json:"cancelled"`
+	Running     int64 `json:"running"`
+	Enqueued    int64 `json:"enqueued"`
+	SuccessRate float64 `json:"success_rate"`
+	AvgDurationMs int64 `json:"avg_duration_ms"`
+}
+
+// ToolCallStats contains tool call statistics.
+type ToolCallStats struct {
+	Total       int64 `json:"total"`
+	Success     int64 `json:"success"`
+	Failed      int64 `json:"failed"`
+	AvgDurationMs int64 `json:"avg_duration_ms"`
+	TopTools    []ToolCallFrequency `json:"top_tools"`
+}
+
+// ToolCallFrequency contains tool call frequency data.
+type ToolCallFrequency struct {
+	ToolName   string `json:"tool_name"`
+	ToolID     uint64 `json:"tool_id"`
+	CallCount  int64  `json:"call_count"`
+	SuccessRate float64 `json:"success_rate"`
+}
+
+// SkillUsageStats contains skill usage statistics.
+type SkillUsageStats struct {
+	TotalExecutions int64 `json:"total_executions"`
+	ActiveSkills    int64 `json:"active_skills"`
+	TopSkills       []SkillUsageFrequency `json:"top_skills"`
+}
+
+// SkillUsageFrequency contains skill usage frequency data.
+type SkillUsageFrequency struct {
+	SkillName    string `json:"skill_name"`
+	SkillID      uint64 `json:"skill_id"`
+	ExecutionCount int64 `json:"execution_count"`
+	AvgDurationMs int64 `json:"avg_duration_ms"`
+}
+
+// AgentMonitoringResponse is the main monitoring dashboard response.
+type AgentMonitoringResponse struct {
+	WorkspaceID        uint64               `json:"workspace_id"`
+	AgentPresence      AgentPresenceSummary `json:"agent_presence"`
+	TaskExecution      TaskExecutionStats   `json:"task_execution"`
+	ToolCalls          ToolCallStats        `json:"tool_calls"`
+	SkillUsage         SkillUsageStats      `json:"skill_usage"`
+	GeneratedAt        time.Time            `json:"generated_at"`
 }

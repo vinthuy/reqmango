@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/reqmango/backend/internal/common"
@@ -13,8 +14,9 @@ import (
 )
 
 type AgentTaskService struct {
-	db        *gorm.DB
-	toolSvc   *ToolService
+	db            *gorm.DB
+	toolSvc       *ToolService
+	presenceSvc   model.AgentPresenceInterface
 }
 
 func NewAgentTaskService(db *gorm.DB) *AgentTaskService {
@@ -22,6 +24,19 @@ func NewAgentTaskService(db *gorm.DB) *AgentTaskService {
 		db:      db,
 		toolSvc: NewToolService(db),
 	}
+}
+
+// SetPresenceService sets the presence service for updating agent presence
+func (s *AgentTaskService) SetPresenceService(presenceSvc model.AgentPresenceInterface) {
+	s.presenceSvc = presenceSvc
+}
+
+// updateAgentPresence updates agent presence based on task state change
+func (s *AgentTaskService) updateAgentPresence(taskID, agentID uint64, status string) {
+	if s.presenceSvc == nil {
+		return
+	}
+	go s.presenceSvc.UpdatePresenceOnTaskStateChange(agentID, taskID, status)
 }
 
 func (s *AgentTaskService) Create(wid uint64, req request.AgentTaskCreate) (*response.AgentTaskResponse, error) {
@@ -49,6 +64,10 @@ func (s *AgentTaskService) Create(wid uint64, req request.AgentTaskCreate) (*res
 	resp, err := s.Get(task.ID)
 	if err == nil && resp != nil {
 		s.pushTaskEvent("agent_task.created", resp)
+		// Update agent presence
+		if task.AgentTemplateID != nil {
+			s.updateAgentPresence(task.ID, *task.AgentTemplateID, "enqueue")
+		}
 	}
 	return resp, err
 }
@@ -172,6 +191,10 @@ func (s *AgentTaskService) Start(id uint64) (*response.AgentTaskResponse, error)
 	resp, err := s.Get(id)
 	if err == nil && resp != nil {
 		s.pushTaskEvent("agent_task.started", resp)
+		// Update agent presence
+		if task.AgentTemplateID != nil {
+			s.updateAgentPresence(task.ID, *task.AgentTemplateID, "running")
+		}
 	}
 
 	// Execute tool if specified in input data
@@ -259,6 +282,10 @@ func (s *AgentTaskService) Complete(id uint64, req request.AgentTaskComplete) (*
 	resp, err := s.Get(id)
 	if err == nil && resp != nil {
 		s.pushTaskEvent("agent_task.completed", resp)
+		// Update agent presence
+		if task.AgentTemplateID != nil {
+			s.updateAgentPresence(task.ID, *task.AgentTemplateID, "completed")
+		}
 	}
 	return resp, err
 }
@@ -271,6 +298,28 @@ func (s *AgentTaskService) Fail(id uint64, req request.AgentTaskFail) (*response
 
 	task.Status = "failed"
 	task.ErrorInfo = &req.ErrorInfo
+	
+	// Set failure reason based on error info
+	if req.FailureReason != "" {
+		task.FailureReason = model.TaskFailureReason(req.FailureReason)
+	} else {
+		// Auto-detect failure reason
+		task.FailureReason = model.FailureReasonUnknown
+		if strings.Contains(req.ErrorInfo, "timeout") {
+			task.FailureReason = model.FailureReasonTimeout
+		} else if strings.Contains(req.ErrorInfo, "offline") {
+			task.FailureReason = model.FailureReasonRuntimeOffline
+		} else if strings.Contains(req.ErrorInfo, "invalid") || strings.Contains(req.ErrorInfo, "Bad Request") {
+			task.FailureReason = model.FailureReasonInvalidInput
+		} else if strings.Contains(req.ErrorInfo, "rate limit") {
+			task.FailureReason = model.FailureReasonRateLimit
+		} else if strings.Contains(req.ErrorInfo, "model") || strings.Contains(req.ErrorInfo, "API") {
+			task.FailureReason = model.FailureReasonModelError
+		} else {
+			task.FailureReason = model.FailureReasonAgentError
+		}
+	}
+	
 	now := time.Now()
 	task.CompletedAt = &now
 
@@ -285,6 +334,92 @@ func (s *AgentTaskService) Fail(id uint64, req request.AgentTaskFail) (*response
 	resp, err := s.Get(id)
 	if err == nil && resp != nil {
 		s.pushTaskEvent("agent_task.failed", resp)
+		// Update agent presence
+		if task.AgentTemplateID != nil {
+			s.updateAgentPresence(task.ID, *task.AgentTemplateID, "failed")
+		}
+	}
+	return resp, err
+}
+
+// Retry creates a new task as a retry of the original failed task
+func (s *AgentTaskService) Retry(id uint64) (*response.AgentTaskResponse, error) {
+	var task model.AgentTask
+	if err := s.db.First(&task, id).Error; err != nil {
+		return nil, common.NotFound("Agent task not found")
+	}
+
+	if task.Status != "failed" {
+		return nil, common.BadRequest("Only failed tasks can be retried")
+	}
+
+	retryTask := model.AgentTask{
+		Title:            task.Title,
+		Description:      task.Description,
+		Status:           "enqueue",
+		Priority:         task.Priority,
+		Progress:         0,
+		TaskType:         task.TaskType,
+		InputData:        task.InputData,
+		AgentTemplateID:  task.AgentTemplateID,
+		AgentConfigID:    task.AgentConfigID,
+		WorkspaceID:      task.WorkspaceID,
+		ProjectID:        task.ProjectID,
+		IssueID:          task.IssueID,
+		EnqueuedAt:       time.Now(),
+		EstimatedTime:    task.EstimatedTime,
+		RetryOfTaskID:    &task.ID,
+		Attribution:      task.Attribution, // Inherit attribution from original
+	}
+
+	if err := s.db.Create(&retryTask).Error; err != nil {
+		return nil, common.Internal("Failed to create retry task")
+	}
+
+	resp, err := s.Get(retryTask.ID)
+	if err == nil && resp != nil {
+		s.pushTaskEvent("agent_task.created", resp)
+	}
+	return resp, err
+}
+
+// Rerun creates a new task as a rerun of any completed/failed task
+func (s *AgentTaskService) Rerun(id uint64) (*response.AgentTaskResponse, error) {
+	var task model.AgentTask
+	if err := s.db.First(&task, id).Error; err != nil {
+		return nil, common.NotFound("Agent task not found")
+	}
+
+	if task.Status != "completed" && task.Status != "failed" {
+		return nil, common.BadRequest("Only completed or failed tasks can be rerun")
+	}
+
+	rerunTask := model.AgentTask{
+		Title:            task.Title,
+		Description:      task.Description,
+		Status:           "enqueue",
+		Priority:         task.Priority,
+		Progress:         0,
+		TaskType:         task.TaskType,
+		InputData:        task.InputData,
+		AgentTemplateID:  task.AgentTemplateID,
+		AgentConfigID:    task.AgentConfigID,
+		WorkspaceID:      task.WorkspaceID,
+		ProjectID:        task.ProjectID,
+		IssueID:          task.IssueID,
+		EnqueuedAt:       time.Now(),
+		EstimatedTime:    task.EstimatedTime,
+		RerunOfTaskID:    &task.ID,
+		Attribution:      task.Attribution, // Inherit attribution from original
+	}
+
+	if err := s.db.Create(&rerunTask).Error; err != nil {
+		return nil, common.Internal("Failed to create rerun task")
+	}
+
+	resp, err := s.Get(rerunTask.ID)
+	if err == nil && resp != nil {
+		s.pushTaskEvent("agent_task.created", resp)
 	}
 	return resp, err
 }
@@ -314,6 +449,10 @@ func (s *AgentTaskService) Cancel(id uint64) (*response.AgentTaskResponse, error
 	resp, err := s.Get(id)
 	if err == nil && resp != nil {
 		s.pushTaskEvent("agent_task.cancelled", resp)
+		// Update agent presence
+		if task.AgentTemplateID != nil {
+			s.updateAgentPresence(task.ID, *task.AgentTemplateID, "cancelled")
+		}
 	}
 	return resp, err
 }
@@ -361,6 +500,11 @@ func (s *AgentTaskService) toResponse(t *model.AgentTask) *response.AgentTaskRes
 		OutputData:      t.OutputData,
 		ErrorInfo:       t.ErrorInfo,
 		Logs:            t.Logs,
+		FailureReason:   string(t.FailureReason),
+		Attribution:     t.Attribution,
+		ParentTaskID:    t.ParentTaskID,
+		RetryOfTaskID:   t.RetryOfTaskID,
+		RerunOfTaskID:   t.RerunOfTaskID,
 		AgentTemplateID: t.AgentTemplateID,
 		AgentConfigID:   t.AgentConfigID,
 		RuntimeID:       t.RuntimeID,

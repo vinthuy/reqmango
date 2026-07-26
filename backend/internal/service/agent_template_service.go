@@ -1,6 +1,8 @@
 package service
 
 import (
+	"encoding/json"
+
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
@@ -14,7 +16,40 @@ func NewAgentTemplateService(db *gorm.DB) *AgentTemplateService {
 	return &AgentTemplateService{db: db}
 }
 
+// validateSkillIDs validates that all referenced skill IDs exist in the workspace.
+func (s *AgentTemplateService) validateSkillIDs(wid uint64, skillsJSON json.RawMessage) error {
+	if skillsJSON == nil || len(skillsJSON) == 0 {
+		return nil
+	}
+
+	var skillIDs []uint64
+	if err := json.Unmarshal(skillsJSON, &skillIDs); err != nil {
+		return common.BadRequest("Invalid available_skills format: must be an array of skill IDs")
+	}
+
+	if len(skillIDs) == 0 {
+		return nil
+	}
+
+	// Check if all skill IDs exist
+	var count int64
+	s.db.Model(&model.Skill{}).
+		Where("id IN ? AND workspace_id = ?", skillIDs, wid).
+		Count(&count)
+
+	if int(count) != len(skillIDs) {
+		return common.BadRequest("Some referenced skill IDs do not exist in the workspace")
+	}
+
+	return nil
+}
+
 func (s *AgentTemplateService) Create(wid uint64, req request.AgentTemplateCreate) (*response.AgentTemplateResponse, error) {
+	// Validate skill IDs
+	if err := s.validateSkillIDs(wid, req.AvailableSkills); err != nil {
+		return nil, err
+	}
+
 	template := model.AgentTemplate{
 		Name:            req.Name,
 		Description:     req.Description,
@@ -61,6 +96,13 @@ func (s *AgentTemplateService) Update(id uint64, req request.AgentTemplateUpdate
 	var template model.AgentTemplate
 	if err := s.db.First(&template, id).Error; err != nil {
 		return nil, common.NotFound("Agent template not found")
+	}
+
+	// Validate skill IDs if provided
+	if req.AvailableSkills != nil && template.WorkspaceID != nil {
+		if err := s.validateSkillIDs(*template.WorkspaceID, *req.AvailableSkills); err != nil {
+			return nil, err
+		}
 	}
 
 	if req.Name != nil {

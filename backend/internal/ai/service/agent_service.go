@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/reqmango/backend/internal/ai/common"
 	"github.com/reqmango/backend/internal/ai/llm"
+	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
@@ -41,6 +44,65 @@ func (s *AgentService) ListByWorkspace(workspaceID uint64) ([]model.Agent, error
 	return agents, nil
 }
 
+// ListVisibleAgents returns agents visible to a specific user (workspace agents + private agents owned by user).
+func (s *AgentService) ListVisibleAgents(workspaceID, userID uint64) ([]model.Agent, error) {
+	var agents []model.Agent
+	if err := s.db.Where("workspace_id = ? AND (visibility = ? OR (visibility = ? AND created_by_id = ?))",
+		workspaceID, model.VisibilityWorkspace, model.VisibilityPrivate, userID).
+		Order("name ASC").Find(&agents).Error; err != nil {
+		return nil, common.Internal("Failed to list visible agents")
+	}
+	return agents, nil
+}
+
+// CanInvoke checks if a user can invoke an agent based on permission_mode and invocation_targets.
+func (s *AgentService) CanInvoke(agentID, userID uint64) (bool, error) {
+	agent, err := s.GetByID(agentID)
+	if err != nil {
+		return false, err
+	}
+
+	// Owner can always invoke
+	if agent.CreatedByID != nil && *agent.CreatedByID == userID {
+		return true, nil
+	}
+
+	// Check permission mode
+	switch agent.PermissionMode {
+	case model.PermissionModePrivate:
+		// Private mode: only owner can invoke
+		return false, nil
+	case model.PermissionModePublicTo:
+		// Public_to mode: check invocation targets
+		var targets []model.AgentInvocationTarget
+		if err := json.Unmarshal(agent.InvocationTargets, &targets); err != nil {
+			return false, nil
+		}
+		for _, target := range targets {
+			switch target.TargetType {
+			case "workspace":
+				// Workspace target: any workspace member can invoke
+				return true, nil
+			case "member":
+				// Member target: check if user matches
+				if target.TargetID != "" {
+					// Convert targetID to uint64 and compare
+					targetUserID, err := strconv.ParseUint(target.TargetID, 10, 64)
+					if err == nil && targetUserID == userID {
+						return true, nil
+					}
+				}
+			case "team":
+				// Team target: reserved, INERT in v1
+				continue
+			}
+		}
+		return false, nil
+	default:
+		return false, nil
+	}
+}
+
 // GetByID returns a single agent by ID.
 func (s *AgentService) GetByID(agentID uint64) (*model.Agent, error) {
 	var agent model.Agent
@@ -54,23 +116,33 @@ func (s *AgentService) GetByID(agentID uint64) (*model.Agent, error) {
 }
 
 type AgentCreateRequest struct {
-	Name          string   `json:"name" binding:"required"`
-	Avatar        string   `json:"avatar"`
-	AgentType     string   `json:"agent_type"`
-	Capabilities  []string `json:"capabilities"`
-	Status        string   `json:"status"`
-	ModelOverride *string  `json:"model_override"`
-	SystemPrompt  *string  `json:"system_prompt"`
+	Name               string                  `json:"name" binding:"required"`
+	Avatar             string                  `json:"avatar"`
+	AgentType          string                  `json:"agent_type"`
+	Capabilities       []string                `json:"capabilities"`
+	Status             string                  `json:"status"`
+	ModelOverride      *string                 `json:"model_override"`
+	SystemPrompt       *string                 `json:"system_prompt"`
+	
+	// Permission fields
+	PermissionMode     *string                 `json:"permission_mode"`
+	Visibility         *string                 `json:"visibility"`
+	InvocationTargets  []model.AgentInvocationTarget `json:"invocation_targets"`
 }
 
 type AgentUpdateRequest struct {
-	Name          *string   `json:"name"`
-	Avatar        *string   `json:"avatar"`
-	AgentType     *string   `json:"agent_type"`
-	Capabilities  *[]string `json:"capabilities"`
-	Status        *string   `json:"status"`
-	ModelOverride *string   `json:"model_override"`
-	SystemPrompt  *string   `json:"system_prompt"`
+	Name               *string                 `json:"name"`
+	Avatar             *string                 `json:"avatar"`
+	AgentType          *string                 `json:"agent_type"`
+	Capabilities       *[]string               `json:"capabilities"`
+	Status             *string                 `json:"status"`
+	ModelOverride      *string                 `json:"model_override"`
+	SystemPrompt       *string                 `json:"system_prompt"`
+	
+	// Permission fields (owner-only)
+	PermissionMode     *string                 `json:"permission_mode"`
+	Visibility         *string                 `json:"visibility"`
+	InvocationTargets  *[]model.AgentInvocationTarget `json:"invocation_targets"`
 }
 
 // Create creates a new agent.
@@ -87,15 +159,43 @@ func (s *AgentService) Create(workspaceID, userID uint64, req *AgentCreateReques
 
 	capsJSON, _ := json.Marshal(req.Capabilities)
 
+	// Permission mode: use requested or default to private
+	permissionMode := model.PermissionModePrivate
+	if req.PermissionMode != nil {
+		permissionMode = model.AgentPermissionMode(*req.PermissionMode)
+	}
+
+	// Visibility: derive from permission mode if not explicitly set
+	visibility := model.VisibilityPrivate
+	if req.Visibility != nil {
+		visibility = model.AgentVisibility(*req.Visibility)
+	} else {
+		// Derive visibility from permission mode
+		if permissionMode == model.PermissionModePublicTo && len(req.InvocationTargets) > 0 {
+			for _, target := range req.InvocationTargets {
+				if target.TargetType == "workspace" {
+					visibility = model.VisibilityWorkspace
+					break
+				}
+			}
+		}
+	}
+
+	// Invocation targets
+	targetsJSON, _ := json.Marshal(req.InvocationTargets)
+
 	agent := model.Agent{
-		WorkspaceID:   workspaceID,
-		Name:          req.Name,
-		Avatar:        req.Avatar,
-		AgentType:     req.AgentType,
-		Capabilities:  capsJSON,
-		Status:        req.Status,
-		ModelOverride: req.ModelOverride,
-		SystemPrompt:  req.SystemPrompt,
+		WorkspaceID:       workspaceID,
+		Name:              req.Name,
+		Avatar:            req.Avatar,
+		AgentType:         req.AgentType,
+		Capabilities:      capsJSON,
+		Status:            req.Status,
+		ModelOverride:     req.ModelOverride,
+		SystemPrompt:      req.SystemPrompt,
+		PermissionMode:    permissionMode,
+		InvocationTargets: targetsJSON,
+		Visibility:        visibility,
 	}
 	agent.CreatedByID = &userID
 
@@ -134,6 +234,20 @@ func (s *AgentService) Update(agentID, userID uint64, req *AgentUpdateRequest) (
 	}
 	if req.SystemPrompt != nil {
 		updates["system_prompt"] = *req.SystemPrompt
+	}
+
+	// Permission updates (owner-only, silently ignored for non-owners)
+	if agent.CreatedByID != nil && *agent.CreatedByID == userID {
+		if req.PermissionMode != nil {
+			updates["permission_mode"] = model.AgentPermissionMode(*req.PermissionMode)
+		}
+		if req.Visibility != nil {
+			updates["visibility"] = model.AgentVisibility(*req.Visibility)
+		}
+		if req.InvocationTargets != nil {
+			targetsJSON, _ := json.Marshal(*req.InvocationTargets)
+			updates["invocation_targets"] = targetsJSON
+		}
 	}
 
 	if err := s.db.Model(agent).Updates(updates).Error; err != nil {
@@ -248,6 +362,15 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		return nil, common.Validation("Agent is not active")
 	}
 
+	// Check permission to invoke
+	canInvoke, err := s.CanInvoke(agentID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !canInvoke {
+		return nil, common.Permission("You do not have permission to invoke this agent")
+	}
+
 	systemPrompt := s.buildAgentSystemPrompt(agent, ctx)
 	tools := s.filterToolsByCapabilities(agent)
 
@@ -312,6 +435,9 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	}
 
 	s.recordActivity(agent, ctx.IssueID, "dispatch", summary, task, userID)
+
+	// Record heartbeat to mark agent as online
+	s.RecordHeartbeat(agent.ID)
 
 	// Save task result as memory after completion
 	if s.memSvc != nil && resp.Content != "" {
@@ -445,6 +571,148 @@ func (s *AgentService) SummarizeCycle(cycleID, userID uint64) (*model.AgentActiv
 	return s.DispatchAgent(agent.ID, userID, task, ctx)
 }
 
+// ======== Agent Presence ========
+
+// UpdateAvailability updates the agent's availability status.
+func (s *AgentService) UpdateAvailability(agentID uint64, availability model.AgentAvailability) error {
+	result := s.db.Model(&model.Agent{}).Where("id = ?", agentID).Update("availability", availability)
+	if result.RowsAffected == 0 {
+		return common.NotFound("Agent not found")
+	}
+	return result.Error
+}
+
+// UpdateWorkload updates the agent's workload status.
+func (s *AgentService) UpdateWorkload(agentID uint64, workload model.AgentWorkload) error {
+	result := s.db.Model(&model.Agent{}).Where("id = ?", agentID).Update("workload", workload)
+	if result.RowsAffected == 0 {
+		return common.NotFound("Agent not found")
+	}
+	return result.Error
+}
+
+// RecordHeartbeat updates the agent's last active timestamp and marks as online.
+func (s *AgentService) RecordHeartbeat(agentID uint64) error {
+	now := time.Now()
+	result := s.db.Model(&model.Agent{}).Where("id = ?", agentID).
+		Updates(map[string]interface{}{
+			"last_active_at": &now,
+			"availability":   model.AvailabilityOnline,
+		})
+	if result.RowsAffected == 0 {
+		return common.NotFound("Agent not found")
+	}
+	return result.Error
+}
+
+// GetPresence returns the presence info for an agent.
+func (s *AgentService) GetPresence(agentID uint64) (*model.Agent, error) {
+	var agent model.Agent
+	if err := s.db.Select("id, name, avatar, availability, workload, last_active_at, running_task_id, queued_task_count").
+		Where("id = ?", agentID).First(&agent).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, common.NotFound("Agent not found")
+		}
+		return nil, common.Internal("Failed to get agent presence")
+	}
+	return &agent, nil
+}
+
+// ListPresence returns presence info for all agents in a workspace.
+func (s *AgentService) ListPresence(workspaceID uint64) ([]model.Agent, error) {
+	var agents []model.Agent
+	if err := s.db.Select("id, name, avatar, availability, workload, last_active_at, running_task_id, queued_task_count").
+		Where("workspace_id = ?", workspaceID).Find(&agents).Error; err != nil {
+		return nil, common.Internal("Failed to list agent presence")
+	}
+	return agents, nil
+}
+
+// CreateSnapshot creates or updates an agent task snapshot.
+func (s *AgentService) CreateSnapshot(agentID, taskID uint64, taskTitle, taskStatus string, progress int, currentStep *string) error {
+	var snapshot model.AgentTaskSnapshot
+	if err := s.db.Where("agent_id = ? AND task_id = ?", agentID, taskID).First(&snapshot).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			return common.Internal("Failed to query snapshot")
+		}
+		// Create new snapshot
+		snapshot = model.AgentTaskSnapshot{
+			AgentID:   agentID,
+			TaskID:    taskID,
+			TaskTitle: taskTitle,
+		}
+	}
+
+	snapshot.TaskStatus = taskStatus
+	snapshot.Progress = progress
+	snapshot.CurrentStep = currentStep
+	now := time.Now()
+	if snapshot.StartedAt == nil {
+		snapshot.StartedAt = &now
+	}
+	snapshot.UpdatedAt = now
+
+	return s.db.Save(&snapshot).Error
+}
+
+// GetSnapshots returns all task snapshots for an agent.
+func (s *AgentService) GetSnapshots(agentID uint64) ([]model.AgentTaskSnapshot, error) {
+	var snapshots []model.AgentTaskSnapshot
+	if err := s.db.Where("agent_id = ?", agentID).Order("updated_at DESC").Find(&snapshots).Error; err != nil {
+		return nil, common.Internal("Failed to get snapshots")
+	}
+	return snapshots, nil
+}
+
+// UpdatePresenceOnTaskStateChange updates agent presence based on task state changes.
+func (s *AgentService) UpdatePresenceOnTaskStateChange(agentID, taskID uint64, taskStatus string) error {
+	var agent model.Agent
+	if err := s.db.First(&agent, agentID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil // Agent not found, skip
+		}
+		return err
+	}
+
+	now := time.Now()
+	updates := map[string]interface{}{"last_active_at": &now}
+
+	switch taskStatus {
+	case "enqueue":
+		updates["queued_task_count"] = gorm.Expr("queued_task_count + 1")
+		updates["workload"] = model.WorkloadQueued
+		if agent.Availability != model.AvailabilityOnline {
+			updates["availability"] = model.AvailabilityOnline
+		}
+	case "claimed":
+	case "running":
+		updates["running_task_id"] = taskID
+		updates["workload"] = model.WorkloadWorking
+		if agent.Availability != model.AvailabilityOnline {
+			updates["availability"] = model.AvailabilityOnline
+		}
+	case "completed", "failed", "cancelled":
+		// Only clear running_task_id if this is the current running task
+		if agent.RunningTaskID != nil && *agent.RunningTaskID == taskID {
+			updates["running_task_id"] = nil
+		}
+		updates["queued_task_count"] = gorm.Expr("GREATEST(queued_task_count - 1, 0)")
+		// Check if there are any remaining tasks
+		var queuedCount, runningCount int64
+		s.db.Model(&model.AgentTask{}).Where("agent_id = ? AND status = ?", agentID, "enqueue").Count(&queuedCount)
+		s.db.Model(&model.AgentTask{}).Where("agent_id = ? AND status = ?", agentID, "running").Count(&runningCount)
+		if runningCount > 0 {
+			updates["workload"] = model.WorkloadWorking
+		} else if queuedCount > 0 {
+			updates["workload"] = model.WorkloadQueued
+		} else {
+			updates["workload"] = model.WorkloadIdle
+		}
+	}
+
+	return s.db.Model(&agent).Updates(updates).Error
+}
+
 // ======== Internal Helpers ========
 
 func (s *AgentService) findAgentByCapability(capability string) (*model.Agent, error) {
@@ -507,6 +775,186 @@ func (s *AgentService) buildAgentSystemPrompt(agent *model.Agent, ctx *DispatchC
 
 	return sb.String()
 }
+
+// ======== Monitoring Dashboard ========
+
+// GetMonitoringStats returns monitoring statistics for a workspace.
+func (s *AgentService) GetMonitoringStats(workspaceID uint64) (*response.AgentMonitoringResponse, error) {
+	result := &response.AgentMonitoringResponse{
+		WorkspaceID: workspaceID,
+		GeneratedAt: time.Now(),
+	}
+
+	// Get agent presence summary
+	presence, err := s.getAgentPresenceSummary(workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	result.AgentPresence = presence
+
+	// Get task execution stats
+	taskStats, err := s.getTaskExecutionStats(workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	result.TaskExecution = taskStats
+
+	// Get tool call stats
+	toolStats, err := s.getToolCallStats(workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	result.ToolCalls = toolStats
+
+	// Get skill usage stats
+	skillStats, err := s.getSkillUsageStats(workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	result.SkillUsage = skillStats
+
+	return result, nil
+}
+
+// getAgentPresenceSummary returns agent presence statistics.
+func (s *AgentService) getAgentPresenceSummary(workspaceID uint64) (response.AgentPresenceSummary, error) {
+	var summary response.AgentPresenceSummary
+
+	// Total agents
+	s.db.Model(&model.Agent{}).Where("workspace_id = ?", workspaceID).Count(&summary.Total)
+
+	// By availability
+	s.db.Model(&model.Agent{}).Where("workspace_id = ? AND availability = ?", workspaceID, model.AvailabilityOnline).Count(&summary.Online)
+	s.db.Model(&model.Agent{}).Where("workspace_id = ? AND availability = ?", workspaceID, model.AvailabilityUnstable).Count(&summary.Unstable)
+	s.db.Model(&model.Agent{}).Where("workspace_id = ? AND availability = ?", workspaceID, model.AvailabilityOffline).Count(&summary.Offline)
+	s.db.Model(&model.Agent{}).Where("workspace_id = ? AND availability = ?", workspaceID, model.AvailabilityArchived).Count(&summary.Archived)
+
+	// By workload
+	s.db.Model(&model.Agent{}).Where("workspace_id = ? AND workload = ?", workspaceID, model.WorkloadWorking).Count(&summary.Working)
+	s.db.Model(&model.Agent{}).Where("workspace_id = ? AND workload = ?", workspaceID, model.WorkloadQueued).Count(&summary.Queued)
+	s.db.Model(&model.Agent{}).Where("workspace_id = ? AND workload = ?", workspaceID, model.WorkloadIdle).Count(&summary.Idle)
+
+	return summary, nil
+}
+
+// getTaskExecutionStats returns task execution statistics.
+func (s *AgentService) getTaskExecutionStats(workspaceID uint64) (response.TaskExecutionStats, error) {
+	var stats response.TaskExecutionStats
+
+	// Total tasks
+	s.db.Model(&model.AgentTask{}).Where("workspace_id = ?", workspaceID).Count(&stats.Total)
+
+	// By status
+	s.db.Model(&model.AgentTask{}).Where("workspace_id = ? AND status = ?", workspaceID, "completed").Count(&stats.Completed)
+	s.db.Model(&model.AgentTask{}).Where("workspace_id = ? AND status = ?", workspaceID, "failed").Count(&stats.Failed)
+	s.db.Model(&model.AgentTask{}).Where("workspace_id = ? AND status = ?", workspaceID, "cancelled").Count(&stats.Cancelled)
+	s.db.Model(&model.AgentTask{}).Where("workspace_id = ? AND status = ?", workspaceID, "running").Count(&stats.Running)
+	s.db.Model(&model.AgentTask{}).Where("workspace_id = ? AND status = ?", workspaceID, "enqueue").Count(&stats.Enqueued)
+
+	// Calculate success rate
+	if stats.Total > 0 {
+		stats.SuccessRate = float64(stats.Completed) / float64(stats.Total) * 100
+	}
+
+	// Calculate average duration
+	var avgDuration int64
+	s.db.Model(&model.AgentTask{}).
+		Where("workspace_id = ? AND status = ? AND duration_ms > 0", workspaceID, "completed").
+		Select("AVG(duration_ms)").Scan(&avgDuration)
+	stats.AvgDurationMs = avgDuration
+
+	return stats, nil
+}
+
+// getToolCallStats returns tool call statistics.
+func (s *AgentService) getToolCallStats(workspaceID uint64) (response.ToolCallStats, error) {
+	var stats response.ToolCallStats
+
+	// Total tool calls
+	s.db.Model(&model.ToolCallLog{}).Where("workspace_id = ?", workspaceID).Count(&stats.Total)
+
+	// By status
+	s.db.Model(&model.ToolCallLog{}).Where("workspace_id = ? AND status = ?", workspaceID, "success").Count(&stats.Success)
+	s.db.Model(&model.ToolCallLog{}).Where("workspace_id = ? AND status = ?", workspaceID, "failed").Count(&stats.Failed)
+
+	// Calculate average duration
+	var avgDuration int64
+	s.db.Model(&model.ToolCallLog{}).
+		Where("workspace_id = ?", workspaceID).
+		Select("AVG(duration_ms)").Scan(&avgDuration)
+	stats.AvgDurationMs = avgDuration
+
+	// Top tools (by call count)
+	var topTools []struct {
+		ToolID     uint64
+		ToolName   string
+		CallCount  int64
+		SuccessRate float64
+	}
+	s.db.Raw(`
+		SELECT tc.tool_id, t.name as tool_name, COUNT(tc.id) as call_count,
+		       SUM(CASE WHEN tc.status = 'success' THEN 1 ELSE 0 END) * 100.0 / COUNT(tc.id) as success_rate
+		FROM tool_call_logs tc
+		JOIN tools t ON tc.tool_id = t.id
+		WHERE tc.workspace_id = ?
+		GROUP BY tc.tool_id, t.name
+		ORDER BY call_count DESC
+		LIMIT 10
+	`, workspaceID).Scan(&topTools)
+
+	for _, tt := range topTools {
+		stats.TopTools = append(stats.TopTools, response.ToolCallFrequency{
+			ToolName:   tt.ToolName,
+			ToolID:     tt.ToolID,
+			CallCount:  tt.CallCount,
+			SuccessRate: tt.SuccessRate,
+		})
+	}
+
+	return stats, nil
+}
+
+// getSkillUsageStats returns skill usage statistics.
+func (s *AgentService) getSkillUsageStats(workspaceID uint64) (response.SkillUsageStats, error) {
+	var stats response.SkillUsageStats
+
+	// Total executions
+	s.db.Model(&model.SkillExecutionLog{}).Where("workspace_id = ?", workspaceID).Count(&stats.TotalExecutions)
+
+	// Active skills
+	s.db.Model(&model.Skill{}).Where("workspace_id = ? AND status = ?", workspaceID, "active").Count(&stats.ActiveSkills)
+
+	// Top skills (by execution count)
+	var topSkills []struct {
+		SkillID      uint64
+		SkillName    string
+		ExecutionCount int64
+		AvgDurationMs int64
+	}
+	s.db.Raw(`
+		SELECT sel.skill_id, s.name as skill_name, COUNT(sel.id) as execution_count,
+		       AVG(sel.duration_ms) as avg_duration_ms
+		FROM skill_execution_logs sel
+		JOIN skills s ON sel.skill_id = s.id
+		WHERE sel.workspace_id = ?
+		GROUP BY sel.skill_id, s.name
+		ORDER BY execution_count DESC
+		LIMIT 10
+	`, workspaceID).Scan(&topSkills)
+
+	for _, ts := range topSkills {
+		stats.TopSkills = append(stats.TopSkills, response.SkillUsageFrequency{
+			SkillName:    ts.SkillName,
+			SkillID:      ts.SkillID,
+			ExecutionCount: ts.ExecutionCount,
+			AvgDurationMs: ts.AvgDurationMs,
+		})
+	}
+
+	return stats, nil
+}
+
+// ======== Internal Helpers ========
 
 func (s *AgentService) filterToolsByCapabilities(agent *model.Agent) []llm.Tool {
 	allTools := s.aiSvc.GetTools()

@@ -35,6 +35,10 @@ func Unauthorized(msg string) *AppError {
 	return &AppError{Code: 401, Message: msg}
 }
 
+func Permission(msg string) *AppError {
+	return &AppError{Code: 403, Message: msg}
+}
+
 // AgentNotFound returns a 404 for missing agents.
 func AgentNotFound() *AppError {
 	return &AppError{Code: 404, Message: "Agent not found"}

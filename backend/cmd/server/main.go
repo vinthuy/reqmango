@@ -138,7 +138,9 @@ func main() {
 		&model.AgentTemplate{},
 		&model.AgentConfig{},
 		&model.Skill{},
+		&model.SkillExecutionLog{},
 		&model.AgentTask{},
+		&model.AgentTaskSnapshot{},
 		&model.Runtime{},
 		// Tool Calling models
 		&model.Tool{},

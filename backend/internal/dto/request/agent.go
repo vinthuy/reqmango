@@ -164,6 +164,10 @@ type SkillUpdate struct {
 	Status      *string          `json:"status"`
 }
 
+type SkillExecute struct {
+	Parameters json.RawMessage `json:"parameters"`
+}
+
 type AgentTaskCreate struct {
 	Title             string          `json:"title" binding:"required"`
 	Description       *string         `json:"description"`
@@ -200,5 +204,6 @@ type AgentTaskComplete struct {
 }
 
 type AgentTaskFail struct {
-	ErrorInfo string `json:"error_info"`
+	ErrorInfo      string `json:"error_info"`
+	FailureReason  string `json:"failure_reason"` // Optional: "agent_error", "timeout", "runtime_offline", "invalid_input", "model_error", "rate_limit", "unknown"
 }
