@@ -143,6 +143,16 @@ type RuntimeResponse struct {
 	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
+type RuntimeStatsResponse struct {
+	Total             int64 `json:"total"`
+	Online            int64 `json:"online"`
+	Offline           int64 `json:"offline"`
+	Busy              int64 `json:"busy"`
+	TotalCapacity     int   `json:"total_capacity"`
+	TotalCurrentLoad  int   `json:"total_current_load"`
+	AvailableCapacity int   `json:"available_capacity"`
+}
+
 type SkillResponse struct {
 	ID          uint64          `json:"id"`
 	Name        string          `json:"name"`

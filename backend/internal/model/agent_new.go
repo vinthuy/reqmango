@@ -22,6 +22,10 @@ type AgentTemplate struct {
 	Status         string          `gorm:"size:20;default:active" json:"status"`              // "active" | "deprecated"
 	WorkspaceID    *uint64         `gorm:"index" json:"workspace_id,omitempty"`               // Null for preset templates
 
+	// Skill integration fields
+	DefaultSkillID *uint64         `gorm:"index" json:"default_skill_id,omitempty"`          // Default skill to use
+	SkillMode      string          `gorm:"size:20;default:auto" json:"skill_mode"`           // "auto" (auto-detect), "manual" (user selects), "forced" (use default)
+
 	// Relationships
 	Workspace *Workspace `gorm:"foreignKey:WorkspaceID" json:"-"`
 }

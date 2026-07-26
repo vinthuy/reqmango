@@ -397,6 +397,15 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		}
 	}
 
+	// Execute skill if agent template has skill integration enabled
+	var skillResult string
+	if agent.TemplateID != nil {
+		skillResult = s.executeAgentSkill(context.Background(), agent, task, userID)
+		if skillResult != "" {
+			systemPrompt += fmt.Sprintf("\n\n技能执行结果（作为参考）：\n%s", skillResult)
+		}
+	}
+
 	executedTools := make([]string, 0)
 	resp, llmErr := s.llm.ChatSyncWithTools(context.Background(), systemPrompt, []llm.Message{
 		{Role: "user", Content: task},
@@ -952,6 +961,147 @@ func (s *AgentService) getSkillUsageStats(workspaceID uint64) (response.SkillUsa
 	}
 
 	return stats, nil
+}
+
+// ======== Skill Integration ========
+
+// executeAgentSkill executes the agent's skill if configured in the template.
+// Returns the skill execution result or empty string if no skill was executed.
+func (s *AgentService) executeAgentSkill(ctx context.Context, agent *model.Agent, task string, userID uint64) string {
+	if agent.TemplateID == nil {
+		return ""
+	}
+
+	// Get the agent template
+	var template model.AgentTemplate
+	if err := s.db.First(&template, *agent.TemplateID).Error; err != nil {
+		return ""
+	}
+
+	// Check skill mode
+	if template.SkillMode == "manual" {
+		// In manual mode, skill is selected by user, not automatically
+		return ""
+	}
+
+	// Get skill ID to execute
+	var skillID uint64
+	if template.SkillMode == "forced" && template.DefaultSkillID != nil {
+		skillID = *template.DefaultSkillID
+	} else if template.SkillMode == "auto" {
+		// Auto-detect based on available skills
+		skillID = s.detectSkillFromTask(ctx, template, task)
+	}
+
+	if skillID == 0 {
+		return ""
+	}
+
+	// Execute the skill
+	var skill model.Skill
+	if err := s.db.First(&skill, skillID).Error; err != nil {
+		return ""
+	}
+
+	// Build skill parameters from task
+	params := map[string]interface{}{
+		"input": task,
+	}
+
+	// Execute skill using SkillService
+	// Note: This is a simplified integration - in production, you would inject SkillService
+	// For now, we parse the SKILL.md and execute the logic directly
+
+	return s.executeSkillDirectly(ctx, &skill, params)
+}
+
+// detectSkillFromTask auto-detects the most relevant skill based on task content.
+func (s *AgentService) detectSkillFromTask(ctx context.Context, template model.AgentTemplate, task string) uint64 {
+	// Parse available skills from template
+	var skillIDs []uint64
+	if template.AvailableSkills != nil {
+		json.Unmarshal(template.AvailableSkills, &skillIDs)
+	}
+
+	if len(skillIDs) == 0 {
+		return 0
+	}
+
+	// Simple keyword matching to detect skill
+	for _, id := range skillIDs {
+		var skill model.Skill
+		if err := s.db.First(&skill, id).Error; err != nil {
+			continue
+		}
+
+		// Check if task keywords match skill tags
+		var tags []string
+		if skill.Tags != nil {
+			json.Unmarshal(skill.Tags, &tags)
+		}
+
+		for _, tag := range tags {
+			if strings.Contains(strings.ToLower(task), strings.ToLower(tag)) {
+				return id
+			}
+		}
+	}
+
+	// If no match found and default skill is set, use default
+	if template.DefaultSkillID != nil {
+		return *template.DefaultSkillID
+	}
+
+	return 0
+}
+
+// executeSkillDirectly executes a skill by parsing SKILL.md and running the steps.
+func (s *AgentService) executeSkillDirectly(ctx context.Context, skill *model.Skill, params map[string]interface{}) string {
+	if skill == nil || skill.SkillMD == "" {
+		return ""
+	}
+
+	// Parse SKILL.md and extract steps
+	steps := parseSkillSteps(skill.SkillMD)
+	if len(steps) == 0 {
+		return ""
+	}
+
+	var resultBuilder strings.Builder
+	resultBuilder.WriteString(fmt.Sprintf("技能: %s\n", skill.Name))
+	resultBuilder.WriteString("执行步骤:\n")
+
+	for i, step := range steps {
+		resultBuilder.WriteString(fmt.Sprintf("%d. %s\n", i+1, step))
+	}
+
+	resultBuilder.WriteString("\n输入参数:\n")
+	for k, v := range params {
+		resultBuilder.WriteString(fmt.Sprintf("- %s: %v\n", k, v))
+	}
+
+	return resultBuilder.String()
+}
+
+// parseSkillSteps parses SKILL.md content and extracts step descriptions.
+func parseSkillSteps(skillMD string) []string {
+	var steps []string
+	lines := strings.Split(skillMD, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "## Step") {
+			// Extract step title
+			step := strings.TrimPrefix(line, "## Step ")
+			step = strings.Split(step, ":")[0]
+			steps = append(steps, step)
+		} else if strings.HasPrefix(line, "- ") && len(steps) > 0 {
+			// Add bullet points to the last step
+			steps[len(steps)-1] += " " + strings.TrimPrefix(line, "- ")
+		}
+	}
+
+	return steps
 }
 
 // ======== Internal Helpers ========

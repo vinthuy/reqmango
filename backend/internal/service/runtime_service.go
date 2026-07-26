@@ -158,3 +158,125 @@ func (s *RuntimeService) toResponse(r *model.Runtime) *response.RuntimeResponse 
 		UpdatedAt:     r.UpdatedAt,
 	}
 }
+
+// ======== Health Check & Auto Scheduling ========
+
+// HealthCheckInterval defines the interval for health checks (default 30 seconds).
+const HealthCheckInterval = 30 * time.Second
+
+// HeartbeatTimeout defines the timeout for considering a runtime offline (default 60 seconds).
+const HeartbeatTimeout = 60 * time.Second
+
+// PerformHealthCheck performs health check for all runtimes in a workspace.
+// Updates status based on last heartbeat time.
+func (s *RuntimeService) PerformHealthCheck(workspaceID uint64) error {
+	now := time.Now()
+	timeoutThreshold := now.Add(-HeartbeatTimeout)
+
+	// Update offline runtimes (no heartbeat in timeout period)
+	if err := s.db.Model(&model.Runtime{}).
+		Where("workspace_id = ? AND status = ? AND last_heartbeat IS NOT NULL AND last_heartbeat < ?",
+			workspaceID, "online", timeoutThreshold).
+		Updates(map[string]interface{}{
+			"status":  "offline",
+			"health":  model.RuntimeHealthOffline,
+		}).Error; err != nil {
+		return common.Internal("Failed to update offline runtimes")
+	}
+
+	// Update recently_lost runtimes (heartbeat lost but not long)
+	if err := s.db.Model(&model.Runtime{}).
+		Where("workspace_id = ? AND status = ? AND health != ?",
+			workspaceID, "online", model.RuntimeHealthOnline).
+		Updates(map[string]interface{}{
+			"health": model.RuntimeHealthOnline,
+		}).Error; err != nil {
+		return common.Internal("Failed to update runtime health status")
+	}
+
+	return nil
+}
+
+// PerformGlobalHealthCheck performs health check for all runtimes across all workspaces.
+func (s *RuntimeService) PerformGlobalHealthCheck() error {
+	now := time.Now()
+	timeoutThreshold := now.Add(-HeartbeatTimeout)
+
+	// Update offline runtimes
+	if err := s.db.Model(&model.Runtime{}).
+		Where("status = ? AND last_heartbeat IS NOT NULL AND last_heartbeat < ?",
+			"online", timeoutThreshold).
+		Updates(map[string]interface{}{
+			"status": "offline",
+			"health": model.RuntimeHealthOffline,
+		}).Error; err != nil {
+		return common.Internal("Failed to perform global health check")
+	}
+
+	return nil
+}
+
+// ScheduleTask finds the best available runtime for a task and increments its load.
+// Returns the runtime ID or error if no available runtime.
+func (s *RuntimeService) ScheduleTask(workspaceID uint64) (uint64, error) {
+	var runtime model.Runtime
+
+	// Find runtime with lowest current load among available runtimes
+	if err := s.db.Where("workspace_id = ? AND status = ? AND current_load < capacity",
+		workspaceID, "online").
+		Order("current_load ASC, created_at ASC").
+		First(&runtime).Error; err != nil {
+		return 0, common.NotFound("No available runtime for task scheduling")
+	}
+
+	// Increment load
+	runtime.CurrentLoad++
+	if err := s.db.Save(&runtime).Error; err != nil {
+		return 0, common.Internal("Failed to update runtime load")
+	}
+
+	return runtime.ID, nil
+}
+
+// ReleaseTask decrements the load on a runtime when a task completes.
+func (s *RuntimeService) ReleaseTask(runtimeID uint64) error {
+	var runtime model.Runtime
+	if err := s.db.First(&runtime, runtimeID).Error; err != nil {
+		return common.NotFound("Runtime not found")
+	}
+
+	if runtime.CurrentLoad > 0 {
+		runtime.CurrentLoad--
+		if err := s.db.Save(&runtime).Error; err != nil {
+			return common.Internal("Failed to release runtime load")
+		}
+	}
+
+	return nil
+}
+
+// GetRuntimeStats returns runtime statistics for a workspace.
+func (s *RuntimeService) GetRuntimeStats(workspaceID uint64) (*response.RuntimeStatsResponse, error) {
+	var stats response.RuntimeStatsResponse
+
+	// Total runtimes
+	s.db.Model(&model.Runtime{}).Where("workspace_id = ?", workspaceID).Count(&stats.Total)
+
+	// By status
+	s.db.Model(&model.Runtime{}).Where("workspace_id = ? AND status = ?", workspaceID, "online").Count(&stats.Online)
+	s.db.Model(&model.Runtime{}).Where("workspace_id = ? AND status = ?", workspaceID, "offline").Count(&stats.Offline)
+	s.db.Model(&model.Runtime{}).Where("workspace_id = ? AND status = ?", workspaceID, "busy").Count(&stats.Busy)
+
+	// Total capacity and current load
+	var capacities []model.Runtime
+	s.db.Where("workspace_id = ?", workspaceID).Find(&capacities)
+	for _, r := range capacities {
+		stats.TotalCapacity += r.Capacity
+		stats.TotalCurrentLoad += r.CurrentLoad
+	}
+
+	// Calculate available capacity
+	stats.AvailableCapacity = stats.TotalCapacity - stats.TotalCurrentLoad
+
+	return &stats, nil
+}

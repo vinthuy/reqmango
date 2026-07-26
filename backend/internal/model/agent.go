@@ -78,9 +78,13 @@ type Agent struct {
 	RunningTaskID     *uint64               `gorm:"index" json:"running_task_id,omitempty"`          // Currently running task
 	QueuedTaskCount   int                   `gorm:"default:0" json:"queued_task_count"`             // Number of queued tasks
 
+	// Template association
+	TemplateID        *uint64               `gorm:"index" json:"template_id,omitempty"`               // Associated agent template
+
 	// Relationships
 	Activities []AgentActivity `gorm:"foreignKey:AgentID" json:"-"`
 	Workspace  Workspace       `gorm:"foreignKey:WorkspaceID" json:"-"`
+	Template   *AgentTemplate  `gorm:"foreignKey:TemplateID" json:"-"`
 }
 
 func (Agent) TableName() string { return "agents" }
