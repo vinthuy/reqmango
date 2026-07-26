@@ -31,6 +31,7 @@ export function useAI() {
     projectId: number,
     workspaceId: number,
     mode: 'ask' | 'build' | 'chart' = 'ask',
+    context?: string,
   ) {
     // Abort any existing stream before starting a new one
     abort()
@@ -51,7 +52,7 @@ export function useAI() {
     controller = chatWithAI(
       projectId,
       workspaceId,
-      { message: text, mode },
+      { message: text, mode, context },
       (evt: StreamEvent) => {
         switch (evt.type) {
           case 'text':

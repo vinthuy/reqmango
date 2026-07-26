@@ -148,6 +148,15 @@ func main() {
 		&model.MemoryEntry{},
 		&model.MemorySession{},
 		&model.MemoryVectorIndex{},
+		// Squad models
+		&model.Squad{},
+		&model.SquadMember{},
+		&model.SquadTask{},
+		&model.SquadExecution{},
+		// Autopilot models
+		&model.AutopilotTask{},
+		&model.AutopilotExecution{},
+		&model.AutopilotWebhook{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

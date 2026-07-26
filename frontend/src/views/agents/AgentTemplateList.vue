@@ -83,7 +83,7 @@ function openEditModal(template: AgentTemplateResponse) {
 
 async function handleCreate() {
   if (!newTemplate.value.name || !newTemplate.value.system_prompt) {
-    alert(t('agentTemplate.nameAndPromptRequired') || 'Name and system prompt are required')
+    alert(t('ai.agentTemplate.nameAndPromptRequired') || 'Name and system prompt are required')
     return
   }
   saving.value = true
@@ -93,7 +93,7 @@ async function handleCreate() {
     await loadTemplates()
   } catch (err: any) {
     console.error('Failed to create template:', err)
-    alert(err.response?.data?.message || t('agentTemplate.createFailed') || 'Failed to create template')
+    alert(err.response?.data?.message || t('ai.agentTemplate.createFailed') || 'Failed to create template')
   } finally {
     saving.value = false
   }
@@ -102,7 +102,7 @@ async function handleCreate() {
 async function handleUpdate() {
   if (!editingTemplate.value) return
   if (!editForm.value.name || !editForm.value.system_prompt) {
-    alert(t('agentTemplate.nameAndPromptRequired') || 'Name and system prompt are required')
+    alert(t('ai.agentTemplate.nameAndPromptRequired') || 'Name and system prompt are required')
     return
   }
   saving.value = true
@@ -112,14 +112,14 @@ async function handleUpdate() {
     await loadTemplates()
   } catch (err: any) {
     console.error('Failed to update template:', err)
-    alert(err.response?.data?.message || t('agentTemplate.updateFailed') || 'Failed to update template')
+    alert(err.response?.data?.message || t('ai.agentTemplate.updateFailed') || 'Failed to update template')
   } finally {
     saving.value = false
   }
 }
 
 async function handleDelete(templateId: number) {
-  if (!confirm(t('agentTemplate.deleteConfirm') || 'Are you sure you want to delete this template?')) {
+  if (!confirm(t('ai.agentTemplate.deleteConfirm') || 'Are you sure you want to delete this template?')) {
     return
   }
   try {
@@ -127,7 +127,7 @@ async function handleDelete(templateId: number) {
     await loadTemplates()
   } catch (err: any) {
     console.error('Failed to delete template:', err)
-    alert(err.response?.data?.message || t('agentTemplate.deleteFailed') || 'Failed to delete template')
+    alert(err.response?.data?.message || t('ai.agentTemplate.deleteFailed') || 'Failed to delete template')
   }
 }
 
@@ -152,8 +152,8 @@ function getStatusColor(status: string) {
 
 function getStatusText(status: string) {
   switch (status) {
-    case 'active': return t('agentTemplate.active') || 'Active'
-    case 'inactive': return t('agentTemplate.inactive') || 'Inactive'
+    case 'active': return t('ai.agentTemplate.active') || 'Active'
+    case 'inactive': return t('ai.agentTemplate.inactive') || 'Inactive'
     default: return status
   }
 }
@@ -173,8 +173,8 @@ onMounted(loadTemplates)
             </svg>
           </button>
           <div>
-            <h1 class="text-xl font-semibold text-gray-800">{{ t('agentTemplate.title') || 'Agent Templates' }}</h1>
-            <p class="text-sm text-gray-500">{{ t('agentTemplate.description') || 'Manage agent role templates for AI collaboration' }}</p>
+            <h1 class="text-xl font-semibold text-gray-800">{{ t('ai.agentTemplate.title') || 'Agent Templates' }}</h1>
+            <p class="text-sm text-gray-500">{{ t('ai.agentTemplate.description') || 'Manage agent role templates for AI collaboration' }}</p>
           </div>
         </div>
         <button
@@ -184,7 +184,7 @@ onMounted(loadTemplates)
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          {{ t('agentTemplate.create') || 'Create Template' }}
+          {{ t('ai.agentTemplate.create') || 'Create Template' }}
         </button>
       </div>
     </header>
@@ -204,13 +204,13 @@ onMounted(loadTemplates)
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
-          <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">{{ t('agentTemplate.noTemplates') || 'No Templates' }}</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ t('agentTemplate.noTemplatesHint') || 'Create your first agent template to get started' }}</p>
+          <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">{{ t('ai.agentTemplate.noTemplates') || 'No Templates' }}</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ t('ai.agentTemplate.noTemplatesHint') || 'Create your first agent template to get started' }}</p>
           <button
             @click="openCreateModal"
             class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
           >
-            {{ t('agentTemplate.createFirst') || 'Create First Template' }}
+            {{ t('ai.agentTemplate.createFirst') || 'Create First Template' }}
           </button>
         </div>
 
@@ -230,7 +230,7 @@ onMounted(loadTemplates)
                   <div class="flex items-center space-x-2">
                     <h3 class="font-semibold text-gray-900 truncate">{{ template.name }}</h3>
                     <span v-if="template.is_preset" class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-xs font-medium">
-                      {{ t('agentTemplate.preset') || 'Preset' }}
+                      {{ t('ai.agentTemplate.preset') || 'Preset' }}
                     </span>
                   </div>
                   <div class="flex items-center space-x-2 mt-0.5">
@@ -273,11 +273,11 @@ onMounted(loadTemplates)
                 +{{ (template.available_skills || []).length - 3 }}
               </span>
               <span v-if="!template.available_skills || template.available_skills.length === 0" class="text-xs text-gray-400">
-                {{ t('agentTemplate.noSkills') || 'No skills' }}
+                {{ t('ai.agentTemplate.noSkills') || 'No skills' }}
               </span>
             </div>
             <div class="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
-              {{ t('agentTemplate.createdAt') || 'Created' }}: {{ new Date(template.created_at).toLocaleDateString() }}
+              {{ t('ai.agentTemplate.createdAt') || 'Created' }}: {{ new Date(template.created_at).toLocaleDateString() }}
             </div>
           </div>
         </div>
@@ -288,7 +288,7 @@ onMounted(loadTemplates)
     <div v-if="showCreateModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showCreateModal = false">
       <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">{{ t('agentTemplate.create') || 'Create Agent Template' }}</h3>
+          <h3 class="text-lg font-semibold text-gray-900">{{ t('ai.agentTemplate.create') || 'Create Agent Template' }}</h3>
           <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -302,7 +302,7 @@ onMounted(loadTemplates)
               v-model="newTemplate.name"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
-              :placeholder="t('agentTemplate.namePlaceholder') || 'Enter template name'"
+              :placeholder="t('ai.agentTemplate.namePlaceholder') || 'Enter template name'"
             />
           </div>
           <div>
@@ -311,54 +311,54 @@ onMounted(loadTemplates)
               v-model="newTemplate.description"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
               rows="2"
-              :placeholder="t('agentTemplate.descriptionPlaceholder') || 'Enter description'"
+              :placeholder="t('ai.agentTemplate.descriptionPlaceholder') || 'Enter description'"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.icon') || 'Icon' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.icon') || 'Icon' }}</label>
             <input
               v-model="newTemplate.icon"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
-              :placeholder="t('agentTemplate.iconPlaceholder') || 'Emoji or icon URL'"
+              :placeholder="t('ai.agentTemplate.iconPlaceholder') || 'Emoji or icon URL'"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.systemPrompt') || 'System Prompt' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.systemPrompt') || 'System Prompt' }}</label>
             <textarea
               v-model="newTemplate.system_prompt"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
               rows="6"
-              :placeholder="t('agentTemplate.systemPromptPlaceholder') || 'Enter system prompt...'"
+              :placeholder="t('ai.agentTemplate.systemPromptPlaceholder') || 'Enter system prompt...'"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.availableSkills') || 'Available Skills (comma separated)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.availableSkills') || 'Available Skills (comma separated)' }}</label>
             <input
               v-model="newTemplate.available_skills"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
-              :placeholder="t('agentTemplate.skillsPlaceholder') || 'skill1, skill2, skill3'"
+              :placeholder="t('ai.agentTemplate.skillsPlaceholder') || 'skill1, skill2, skill3'"
               @blur="newTemplate.available_skills = parseCommaSeparated(newTemplate.available_skills)"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.availableTools') || 'Available Tools (comma separated)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.availableTools') || 'Available Tools (comma separated)' }}</label>
             <input
               v-model="newTemplate.available_tools"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
-              :placeholder="t('agentTemplate.toolsPlaceholder') || 'tool1, tool2, tool3'"
+              :placeholder="t('ai.agentTemplate.toolsPlaceholder') || 'tool1, tool2, tool3'"
               @blur="newTemplate.available_tools = parseCommaSeparated(newTemplate.available_tools)"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.version') || 'Version' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.version') || 'Version' }}</label>
             <input
               v-model="newTemplate.version"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
-              :placeholder="t('agentTemplate.versionPlaceholder') || '1.0.0'"
+              :placeholder="t('ai.agentTemplate.versionPlaceholder') || '1.0.0'"
             />
           </div>
         </div>
@@ -384,7 +384,7 @@ onMounted(loadTemplates)
     <div v-if="showEditModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showEditModal = false">
       <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">{{ t('agentTemplate.edit') || 'Edit Agent Template' }}</h3>
+          <h3 class="text-lg font-semibold text-gray-900">{{ t('ai.agentTemplate.edit') || 'Edit Agent Template' }}</h3>
           <button @click="showEditModal = false" class="text-gray-400 hover:text-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -409,7 +409,7 @@ onMounted(loadTemplates)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.icon') || 'Icon' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.icon') || 'Icon' }}</label>
             <input
               v-model="editForm.icon"
               type="text"
@@ -417,7 +417,7 @@ onMounted(loadTemplates)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.systemPrompt') || 'System Prompt' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.systemPrompt') || 'System Prompt' }}</label>
             <textarea
               v-model="editForm.system_prompt"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
@@ -425,7 +425,7 @@ onMounted(loadTemplates)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.availableSkills') || 'Available Skills (comma separated)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.availableSkills') || 'Available Skills (comma separated)' }}</label>
             <input
               v-model="editForm.available_skills"
               type="text"
@@ -434,7 +434,7 @@ onMounted(loadTemplates)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.availableTools') || 'Available Tools (comma separated)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.availableTools') || 'Available Tools (comma separated)' }}</label>
             <input
               v-model="editForm.available_tools"
               type="text"
@@ -443,7 +443,7 @@ onMounted(loadTemplates)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentTemplate.version') || 'Version' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentTemplate.version') || 'Version' }}</label>
             <input
               v-model="editForm.version"
               type="text"
@@ -456,8 +456,8 @@ onMounted(loadTemplates)
               v-model="editForm.status"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
             >
-              <option value="active">{{ t('agentTemplate.active') || 'Active' }}</option>
-              <option value="inactive">{{ t('agentTemplate.inactive') || 'Inactive' }}</option>
+              <option value="active">{{ t('ai.agentTemplate.active') || 'Active' }}</option>
+              <option value="inactive">{{ t('ai.agentTemplate.inactive') || 'Inactive' }}</option>
             </select>
           </div>
         </div>

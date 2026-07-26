@@ -94,7 +94,7 @@ function openEditModal(skill: SkillResponse) {
 
 async function handleCreate() {
   if (!newSkill.value.name) {
-    alert(t('skill.nameRequired') || 'Name is required')
+    alert(t('ai.skill.nameRequired') || 'Name is required')
     return
   }
   saving.value = true
@@ -104,7 +104,7 @@ async function handleCreate() {
     await loadSkills()
   } catch (err: any) {
     console.error('Failed to create skill:', err)
-    alert(err.response?.data?.message || t('skill.createFailed') || 'Failed to create skill')
+    alert(err.response?.data?.message || t('ai.skill.createFailed') || 'Failed to create skill')
   } finally {
     saving.value = false
   }
@@ -113,7 +113,7 @@ async function handleCreate() {
 async function handleUpdate() {
   if (!editingSkill.value) return
   if (!editForm.value.name) {
-    alert(t('skill.nameRequired') || 'Name is required')
+    alert(t('ai.skill.nameRequired') || 'Name is required')
     return
   }
   saving.value = true
@@ -123,14 +123,14 @@ async function handleUpdate() {
     await loadSkills()
   } catch (err: any) {
     console.error('Failed to update skill:', err)
-    alert(err.response?.data?.message || t('skill.updateFailed') || 'Failed to update skill')
+    alert(err.response?.data?.message || t('ai.skill.updateFailed') || 'Failed to update skill')
   } finally {
     saving.value = false
   }
 }
 
 async function handleDelete(skillId: number) {
-  if (!confirm(t('skill.deleteConfirm') || 'Are you sure you want to delete this skill?')) {
+  if (!confirm(t('ai.skill.deleteConfirm') || 'Are you sure you want to delete this skill?')) {
     return
   }
   try {
@@ -138,7 +138,7 @@ async function handleDelete(skillId: number) {
     await loadSkills()
   } catch (err: any) {
     console.error('Failed to delete skill:', err)
-    alert(err.response?.data?.message || t('skill.deleteFailed') || 'Failed to delete skill')
+    alert(err.response?.data?.message || t('ai.skill.deleteFailed') || 'Failed to delete skill')
   }
 }
 
@@ -156,8 +156,8 @@ function getStatusColor(status: string) {
 
 function getStatusText(status: string) {
   switch (status) {
-    case 'active': return t('skill.active') || 'Active'
-    case 'inactive': return t('skill.inactive') || 'Inactive'
+    case 'active': return t('ai.skill.active') || 'Active'
+    case 'inactive': return t('ai.skill.inactive') || 'Inactive'
     default: return status
   }
 }
@@ -197,8 +197,8 @@ onMounted(loadSkills)
             </svg>
           </button>
           <div>
-            <h1 class="text-xl font-semibold text-gray-800">{{ t('skill.title') || 'Skills' }}</h1>
-            <p class="text-sm text-gray-500">{{ t('skill.description') || 'Manage reusable AI skills and tools' }}</p>
+            <h1 class="text-xl font-semibold text-gray-800">{{ t('ai.skill.title') || 'Skills' }}</h1>
+            <p class="text-sm text-gray-500">{{ t('ai.skill.description') || 'Manage reusable AI skills and tools' }}</p>
           </div>
         </div>
         <button
@@ -208,7 +208,7 @@ onMounted(loadSkills)
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          {{ t('skill.create') || 'Create Skill' }}
+          {{ t('ai.skill.create') || 'Create Skill' }}
         </button>
       </div>
     </header>
@@ -228,13 +228,13 @@ onMounted(loadSkills)
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">{{ t('skill.noSkills') || 'No Skills' }}</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ t('skill.noSkillsHint') || 'Create your first skill to get started' }}</p>
+          <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">{{ t('ai.skill.noSkills') || 'No Skills' }}</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ t('ai.skill.noSkillsHint') || 'Create your first skill to get started' }}</p>
           <button
             @click="openCreateModal"
             class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
           >
-            {{ t('skill.createFirst') || 'Create First Skill' }}
+            {{ t('ai.skill.createFirst') || 'Create First Skill' }}
           </button>
         </div>
 
@@ -254,7 +254,7 @@ onMounted(loadSkills)
                   <div class="flex items-center space-x-2">
                     <h3 class="font-semibold text-gray-900 truncate">{{ skill.name }}</h3>
                     <span v-if="skill.is_shared" class="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
-                      {{ t('skill.shared') || 'Shared' }}
+                      {{ t('ai.skill.shared') || 'Shared' }}
                     </span>
                   </div>
                   <div class="flex items-center space-x-2 mt-0.5">
@@ -291,17 +291,17 @@ onMounted(loadSkills)
             <p v-if="skill.description" class="text-sm text-gray-500 line-clamp-2 mb-3">{{ skill.description }}</p>
             <div class="flex flex-wrap gap-2 mb-3">
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                {{ skill.parameters.length }} {{ t('skill.params') || 'params' }}
+                {{ skill.parameters.length }} {{ t('ai.skill.params') || 'params' }}
               </span>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                {{ skill.steps.length }} {{ t('skill.steps') || 'steps' }}
+                {{ skill.steps.length }} {{ t('ai.skill.stepsCount') || 'steps' }}
               </span>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                {{ skill.usage_count }} {{ t('skill.usage') || 'uses' }}
+                {{ skill.usage_count }} {{ t('ai.skill.usage') || 'uses' }}
               </span>
             </div>
             <div class="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
-              {{ t('skill.updatedAt') || 'Updated' }}: {{ new Date(skill.updated_at).toLocaleDateString() }}
+              {{ t('ai.skill.updatedAt') || 'Updated' }}: {{ new Date(skill.updated_at).toLocaleDateString() }}
             </div>
           </div>
         </div>
@@ -312,7 +312,7 @@ onMounted(loadSkills)
     <div v-if="showCreateModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showCreateModal = false">
       <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">{{ t('skill.create') || 'Create Skill' }}</h3>
+          <h3 class="text-lg font-semibold text-gray-900">{{ t('ai.skill.create') || 'Create Skill' }}</h3>
           <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -326,7 +326,7 @@ onMounted(loadSkills)
               v-model="newSkill.name"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
-              :placeholder="t('skill.namePlaceholder') || 'Enter skill name'"
+              :placeholder="t('ai.skill.namePlaceholder') || 'Enter skill name'"
             />
           </div>
           <div>
@@ -335,11 +335,11 @@ onMounted(loadSkills)
               v-model="newSkill.description"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
               rows="2"
-              :placeholder="t('skill.descriptionPlaceholder') || 'Enter description'"
+              :placeholder="t('ai.skill.descriptionPlaceholder') || 'Enter description'"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.category') || 'Category' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.category') || 'Category' }}</label>
             <select
               v-model="newSkill.category"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
@@ -348,41 +348,41 @@ onMounted(loadSkills)
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.parameters') || 'Parameters (JSON)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.parameters') || 'Parameters (JSON)' }}</label>
             <textarea
               v-model="newSkill.parameters"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
               rows="3"
-              :placeholder="t('skill.parametersPlaceholder') || 'Enter JSON array'"
+              :placeholder="t('ai.skill.parametersPlaceholder') || 'Enter JSON array'"
               @blur="newSkill.parameters = parseParameters(newSkill.parameters)"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.steps') || 'Steps (JSON)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.steps') || 'Steps (JSON)' }}</label>
             <textarea
               v-model="newSkill.steps"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
               rows="3"
-              :placeholder="t('skill.stepsPlaceholder') || 'Enter JSON array'"
+              :placeholder="t('ai.skill.stepsPlaceholder') || 'Enter JSON array'"
               @blur="newSkill.steps = parseSteps(newSkill.steps)"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.outputFormat') || 'Output Format' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.outputFormat') || 'Output Format' }}</label>
             <textarea
               v-model="newSkill.output_format"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
               rows="2"
-              :placeholder="t('skill.outputFormatPlaceholder') || 'JSON schema or description'"
+              :placeholder="t('ai.skill.outputFormatPlaceholder') || 'JSON schema or description'"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.version') || 'Version' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.version') || 'Version' }}</label>
             <input
               v-model="newSkill.version"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
-              :placeholder="t('skill.versionPlaceholder') || '1.0.0'"
+              :placeholder="t('ai.skill.versionPlaceholder') || '1.0.0'"
             />
           </div>
           <div class="flex items-center">
@@ -391,7 +391,7 @@ onMounted(loadSkills)
               type="checkbox"
               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
-            <label class="ml-2 text-sm text-gray-700">{{ t('skill.isShared') || 'Make this skill shared' }}</label>
+            <label class="ml-2 text-sm text-gray-700">{{ t('ai.skill.isShared') || 'Make this skill shared' }}</label>
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
@@ -416,7 +416,7 @@ onMounted(loadSkills)
     <div v-if="showEditModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showEditModal = false">
       <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">{{ t('skill.edit') || 'Edit Skill' }}</h3>
+          <h3 class="text-lg font-semibold text-gray-900">{{ t('ai.skill.edit') || 'Edit Skill' }}</h3>
           <button @click="showEditModal = false" class="text-gray-400 hover:text-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -441,7 +441,7 @@ onMounted(loadSkills)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.category') || 'Category' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.category') || 'Category' }}</label>
             <select
               v-model="editForm.category"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
@@ -450,7 +450,7 @@ onMounted(loadSkills)
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.parameters') || 'Parameters (JSON)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.parameters') || 'Parameters (JSON)' }}</label>
             <textarea
               v-model="editForm.parameters"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
@@ -459,7 +459,7 @@ onMounted(loadSkills)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.steps') || 'Steps (JSON)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.steps') || 'Steps (JSON)' }}</label>
             <textarea
               v-model="editForm.steps"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
@@ -468,7 +468,7 @@ onMounted(loadSkills)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.outputFormat') || 'Output Format' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.outputFormat') || 'Output Format' }}</label>
             <textarea
               v-model="editForm.output_format"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
@@ -476,7 +476,7 @@ onMounted(loadSkills)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('skill.version') || 'Version' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.skill.version') || 'Version' }}</label>
             <input
               v-model="editForm.version"
               type="text"
@@ -489,8 +489,8 @@ onMounted(loadSkills)
               v-model="editForm.status"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
             >
-              <option value="active">{{ t('skill.active') || 'Active' }}</option>
-              <option value="inactive">{{ t('skill.inactive') || 'Inactive' }}</option>
+              <option value="active">{{ t('ai.skill.active') || 'Active' }}</option>
+              <option value="inactive">{{ t('ai.skill.inactive') || 'Inactive' }}</option>
             </select>
           </div>
           <div class="flex items-center">
@@ -499,7 +499,7 @@ onMounted(loadSkills)
               type="checkbox"
               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
-            <label class="ml-2 text-sm text-gray-700">{{ t('skill.isShared') || 'Make this skill shared' }}</label>
+            <label class="ml-2 text-sm text-gray-700">{{ t('ai.skill.isShared') || 'Make this skill shared' }}</label>
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">

@@ -2,6 +2,69 @@ package request
 
 import "encoding/json"
 
+// Squad DTOs
+type SquadCreate struct {
+	Name           string                 `json:"name" binding:"required"`
+	Description    string                 `json:"description"`
+	LeaderAgentID  *uint64                `json:"leader_agent_id"`
+	ProjectID      *uint64                `json:"project_id"`
+	Goal           string                 `json:"goal"`
+	Config         map[string]interface{} `json:"config"`
+	Members        []SquadMemberCreate    `json:"members"`
+}
+
+type SquadMemberCreate struct {
+	AgentID       uint64 `json:"agent_id"`
+	Role          string `json:"role"`
+	AgentConfigID uint64 `json:"agent_config_id"`
+}
+
+type SquadUpdate struct {
+	Name           *string                 `json:"name"`
+	Description    *string                 `json:"description"`
+	LeaderAgentID  *uint64                `json:"leader_agent_id"`
+	Goal           *string                 `json:"goal"`
+	Config         map[string]interface{} `json:"config"`
+}
+
+type SquadMemberAdd struct {
+	AgentID       uint64 `json:"agent_id"`
+	Role          string `json:"role"`
+	AgentConfigID uint64 `json:"agent_config_id"`
+}
+
+type SquadExecutionStart struct {
+	Goal      string                 `json:"goal" binding:"required"`
+	InputData map[string]interface{} `json:"input_data"`
+}
+
+// Autopilot DTOs
+type AutopilotTaskCreate struct {
+	Name               string                 `json:"name" binding:"required"`
+	Description        string                 `json:"description"`
+	TriggerType        string                 `json:"trigger_type" binding:"required"`
+	CronExpression     string                 `json:"cron_expression"`
+	TaskType           string                 `json:"task_type" binding:"required"`
+	AgentTemplateID    *uint64                `json:"agent_template_id"`
+	AgentConfigID      *uint64                `json:"agent_config_id"`
+	ProjectID          *uint64                `json:"project_id"`
+	InputData          map[string]interface{} `json:"input_data"`
+	Config             map[string]interface{} `json:"config"`
+	NotificationConfig map[string]interface{} `json:"notification_config"`
+	TimeoutSeconds     int                    `json:"timeout_seconds"`
+	RetryCount         int                    `json:"retry_count"`
+	Enabled            bool                   `json:"enabled"`
+}
+
+type AutopilotTaskUpdate struct {
+	Name            *string                 `json:"name"`
+	Description     *string                 `json:"description"`
+	CronExpression  *string                 `json:"cron_expression"`
+	InputData       map[string]interface{} `json:"input_data"`
+	Config          map[string]interface{} `json:"config"`
+	Enabled         *bool                   `json:"enabled"`
+}
+
 type AgentTemplateCreate struct {
 	Name            string          `json:"name" binding:"required"`
 	Description     *string         `json:"description"`

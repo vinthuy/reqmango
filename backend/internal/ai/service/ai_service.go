@@ -325,6 +325,7 @@ type AIChatRequest struct {
 	Message  string `json:"message"`
 	ThreadID uint64 `json:"thread_id"`
 	Mode     string `json:"mode"` // "ask" | "build"
+	Context  string `json:"context"`
 }
 
 // Chat handles a conversational AI request with SSE streaming.
@@ -337,6 +338,11 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 		systemPrompt += "\n\n当前为 Build 模式：执行操作前展示预览，等用户说「确认」再执行。"
 	} else {
 		systemPrompt += "\n\n当前为 Ask 模式：回答用户问题，展示数据。如需操作请建议用户切换到 Build 模式。"
+	}
+	
+	// Inject memory context into system prompt
+	if req.Context != "" {
+		systemPrompt += "\n\n" + req.Context
 	}
 
 	messages := []llm.Message{

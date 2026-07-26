@@ -6,6 +6,7 @@ export interface AIChatRequest {
   message: string
   thread_id?: number
   mode: 'ask' | 'build' | 'chart'
+  context?: string
 }
 
 export interface StreamEvent {

@@ -736,16 +736,26 @@ async function saveConversationToMemory(userMsg: string, aiResponse: string) {
   }
 }
 
-function send(text: string) {
+async function send(text: string) {
   if (!text.trim() || isStreaming.value) return
   const msg = text.trim()
   input.value = ''
   
-  // Search related memories before sending
-  searchRelatedMemories(msg)
+  // Search related memories and build context
+  const memories = await searchRelatedMemories(msg)
+  
+  // Build context from related memories
+  let context = ''
+  if (memories.length > 0) {
+    context = `相关记忆（请参考这些历史对话和知识来回答问题）：\n`
+    memories.forEach((mem, idx) => {
+      context += `${idx + 1}. ${mem.content}\n`
+    })
+    context += '\n'
+  }
   
   const chatMode = (mode.value === 'agent' ? 'ask' : mode.value) as 'ask' | 'build'
-  sendMessage(msg, props.projectId, props.workspaceId, chatMode)
+  sendMessage(msg, props.projectId, props.workspaceId, chatMode, context)
 }
 
 function scrollToBottom() {

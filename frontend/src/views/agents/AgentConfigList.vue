@@ -116,7 +116,7 @@ function openEditModal(config: AgentConfigResponse) {
 
 async function handleCreate() {
   if (!newConfig.value.name || !newConfig.value.model || !newConfig.value.api_key) {
-    alert(t('agentConfig.nameModelKeyRequired') || 'Name, model and API key are required')
+    alert(t('ai.agentConfig.nameModelKeyRequired') || 'Name, model and API key are required')
     return
   }
   saving.value = true
@@ -126,7 +126,7 @@ async function handleCreate() {
     await loadConfigs()
   } catch (err: any) {
     console.error('Failed to create config:', err)
-    alert(err.response?.data?.message || t('agentConfig.createFailed') || 'Failed to create config')
+    alert(err.response?.data?.message || t('ai.agentConfig.createFailed') || 'Failed to create config')
   } finally {
     saving.value = false
   }
@@ -135,7 +135,7 @@ async function handleCreate() {
 async function handleUpdate() {
   if (!editingConfig.value) return
   if (!editForm.value.name || !editForm.value.model) {
-    alert(t('agentConfig.nameModelRequired') || 'Name and model are required')
+    alert(t('ai.agentConfig.nameModelRequired') || 'Name and model are required')
     return
   }
   saving.value = true
@@ -145,14 +145,14 @@ async function handleUpdate() {
     await loadConfigs()
   } catch (err: any) {
     console.error('Failed to update config:', err)
-    alert(err.response?.data?.message || t('agentConfig.updateFailed') || 'Failed to update config')
+    alert(err.response?.data?.message || t('ai.agentConfig.updateFailed') || 'Failed to update config')
   } finally {
     saving.value = false
   }
 }
 
 async function handleDelete(configId: number) {
-  if (!confirm(t('agentConfig.deleteConfirm') || 'Are you sure you want to delete this config?')) {
+  if (!confirm(t('ai.agentConfig.deleteConfirm') || 'Are you sure you want to delete this config?')) {
     return
   }
   try {
@@ -160,7 +160,7 @@ async function handleDelete(configId: number) {
     await loadConfigs()
   } catch (err: any) {
     console.error('Failed to delete config:', err)
-    alert(err.response?.data?.message || t('agentConfig.deleteFailed') || 'Failed to delete config')
+    alert(err.response?.data?.message || t('ai.agentConfig.deleteFailed') || 'Failed to delete config')
   }
 }
 
@@ -173,7 +173,7 @@ function getStatusColor(status: boolean) {
 }
 
 function getStatusText(status: boolean) {
-  return status ? (t('agentConfig.active') || 'Active') : (t('agentConfig.inactive') || 'Inactive')
+  return status ? (t('ai.agentConfig.active') || 'Active') : (t('ai.agentConfig.inactive') || 'Inactive')
 }
 
 function getProviderLabel(provider: string) {
@@ -203,8 +203,8 @@ onMounted(loadConfigs)
             </svg>
           </button>
           <div>
-            <h1 class="text-xl font-semibold text-gray-800">{{ t('agentConfig.title') || 'Agent Configs' }}</h1>
-            <p class="text-sm text-gray-500">{{ t('agentConfig.description') || 'Manage AI model configurations for agents' }}</p>
+            <h1 class="text-xl font-semibold text-gray-800">{{ t('ai.agentConfig.title') || 'Agent Configs' }}</h1>
+            <p class="text-sm text-gray-500">{{ t('ai.agentConfig.description') || 'Manage AI model configurations for agents' }}</p>
           </div>
         </div>
         <button
@@ -214,7 +214,7 @@ onMounted(loadConfigs)
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          {{ t('agentConfig.create') || 'Create Config' }}
+          {{ t('ai.agentConfig.create') || 'Create Config' }}
         </button>
       </div>
     </header>
@@ -234,13 +234,13 @@ onMounted(loadConfigs)
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
             </svg>
           </div>
-          <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">{{ t('agentConfig.noConfigs') || 'No Configurations' }}</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ t('agentConfig.noConfigsHint') || 'Create your first model configuration to get started' }}</p>
+          <h3 class="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">{{ t('ai.agentConfig.noConfigs') || 'No Configurations' }}</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">{{ t('ai.agentConfig.noConfigsHint') || 'Create your first model configuration to get started' }}</p>
           <button
             @click="openCreateModal"
             class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
           >
-            {{ t('agentConfig.createFirst') || 'Create First Config' }}
+            {{ t('ai.agentConfig.createFirst') || 'Create First Config' }}
           </button>
         </div>
 
@@ -260,7 +260,7 @@ onMounted(loadConfigs)
                   <div class="flex items-center space-x-2">
                     <h3 class="font-semibold text-gray-900">{{ config.name }}</h3>
                     <span v-if="config.is_default" class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-                      {{ t('agentConfig.default') || 'Default' }}
+                      {{ t('ai.agentConfig.default') || 'Default' }}
                     </span>
                   </div>
                   <div class="flex items-center space-x-3 mt-1">
@@ -297,19 +297,19 @@ onMounted(loadConfigs)
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
-                <div class="text-xs text-gray-400 mb-1">{{ t('agentConfig.inferenceLevel') || 'Inference' }}</div>
+                <div class="text-xs text-gray-400 mb-1">{{ t('ai.agentConfig.inferenceLevel') || 'Inference' }}</div>
                 <div class="text-gray-700 font-medium">{{ getInferenceLabel(config.inference_level) }}</div>
               </div>
               <div>
-                <div class="text-xs text-gray-400 mb-1">{{ t('agentConfig.serviceLevel') || 'Service' }}</div>
+                <div class="text-xs text-gray-400 mb-1">{{ t('ai.agentConfig.serviceLevel') || 'Service' }}</div>
                 <div class="text-gray-700 font-medium">{{ getServiceLabel(config.service_level) }}</div>
               </div>
               <div>
-                <div class="text-xs text-gray-400 mb-1">{{ t('agentConfig.maxTokens') || 'Max Tokens' }}</div>
+                <div class="text-xs text-gray-400 mb-1">{{ t('ai.agentConfig.maxTokens') || 'Max Tokens' }}</div>
                 <div class="text-gray-700 font-medium">{{ config.max_tokens.toLocaleString() }}</div>
               </div>
               <div>
-                <div class="text-xs text-gray-400 mb-1">{{ t('agentConfig.temperature') || 'Temperature' }}</div>
+                <div class="text-xs text-gray-400 mb-1">{{ t('ai.agentConfig.temperature') || 'Temperature' }}</div>
                 <div class="text-gray-700 font-medium">{{ config.temperature }}</div>
               </div>
             </div>
@@ -318,7 +318,7 @@ onMounted(loadConfigs)
               <p class="text-sm text-gray-500">{{ config.description }}</p>
             </div>
             <div class="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400">
-              {{ t('agentConfig.createdAt') || 'Created' }}: {{ new Date(config.created_at).toLocaleString() }}
+              {{ t('ai.agentConfig.createdAt') || 'Created' }}: {{ new Date(config.created_at).toLocaleString() }}
             </div>
           </div>
         </div>
@@ -329,7 +329,7 @@ onMounted(loadConfigs)
     <div v-if="showCreateModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showCreateModal = false">
       <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">{{ t('agentConfig.create') || 'Create Config' }}</h3>
+          <h3 class="text-lg font-semibold text-gray-900">{{ t('ai.agentConfig.create') || 'Create Config' }}</h3>
           <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -343,7 +343,7 @@ onMounted(loadConfigs)
               v-model="newConfig.name"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
-              :placeholder="t('agentConfig.namePlaceholder') || 'Enter config name'"
+              :placeholder="t('ai.agentConfig.namePlaceholder') || 'Enter config name'"
             />
           </div>
           <div>
@@ -352,11 +352,11 @@ onMounted(loadConfigs)
               v-model="newConfig.description"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
               rows="2"
-              :placeholder="t('agentConfig.descriptionPlaceholder') || 'Enter description'"
+              :placeholder="t('ai.agentConfig.descriptionPlaceholder') || 'Enter description'"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.provider') || 'Provider' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.provider') || 'Provider' }}</label>
             <select
               v-model="newConfig.provider"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
@@ -365,35 +365,35 @@ onMounted(loadConfigs)
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.model') || 'Model' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.model') || 'Model' }}</label>
             <input
               v-model="newConfig.model"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
-              :placeholder="t('agentConfig.modelPlaceholder') || 'gpt-4o'"
+              :placeholder="t('ai.agentConfig.modelPlaceholder') || 'gpt-4o'"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.apiKey') || 'API Key' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.apiKey') || 'API Key' }}</label>
             <input
               v-model="newConfig.api_key"
               type="password"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
-              :placeholder="t('agentConfig.apiKeyPlaceholder') || 'sk-...'"
+              :placeholder="t('ai.agentConfig.apiKeyPlaceholder') || 'sk-...'"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.apiEndpoint') || 'API Endpoint (optional)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.apiEndpoint') || 'API Endpoint (optional)' }}</label>
             <input
               v-model="newConfig.api_endpoint"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
-              :placeholder="t('agentConfig.apiEndpointPlaceholder') || 'https://api.openai.com/v1'"
+              :placeholder="t('ai.agentConfig.apiEndpointPlaceholder') || 'https://api.openai.com/v1'"
             />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.inferenceLevel') || 'Inference Level' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.inferenceLevel') || 'Inference Level' }}</label>
               <select
                 v-model="newConfig.inference_level"
                 class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
@@ -402,7 +402,7 @@ onMounted(loadConfigs)
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.serviceLevel') || 'Service Level' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.serviceLevel') || 'Service Level' }}</label>
               <select
                 v-model="newConfig.service_level"
                 class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
@@ -413,7 +413,7 @@ onMounted(loadConfigs)
           </div>
           <div class="grid grid-cols-3 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.maxTokens') || 'Max Tokens' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.maxTokens') || 'Max Tokens' }}</label>
               <input
                 v-model.number="newConfig.max_tokens"
                 type="number"
@@ -421,7 +421,7 @@ onMounted(loadConfigs)
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.temperature') || 'Temperature' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.temperature') || 'Temperature' }}</label>
               <input
                 v-model.number="newConfig.temperature"
                 type="number"
@@ -432,7 +432,7 @@ onMounted(loadConfigs)
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.topP') || 'Top P' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.topP') || 'Top P' }}</label>
               <input
                 v-model.number="newConfig.top_p"
                 type="number"
@@ -449,7 +449,7 @@ onMounted(loadConfigs)
               type="checkbox"
               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
-            <label class="ml-2 text-sm text-gray-700">{{ t('agentConfig.setAsDefault') || 'Set as default config' }}</label>
+            <label class="ml-2 text-sm text-gray-700">{{ t('ai.agentConfig.setAsDefault') || 'Set as default config' }}</label>
           </div>
         </div>
         <div class="flex justify-end space-x-3 mt-6">
@@ -474,7 +474,7 @@ onMounted(loadConfigs)
     <div v-if="showEditModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showEditModal = false">
       <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">{{ t('agentConfig.edit') || 'Edit Config' }}</h3>
+          <h3 class="text-lg font-semibold text-gray-900">{{ t('ai.agentConfig.edit') || 'Edit Config' }}</h3>
           <button @click="showEditModal = false" class="text-gray-400 hover:text-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -499,7 +499,7 @@ onMounted(loadConfigs)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.provider') || 'Provider' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.provider') || 'Provider' }}</label>
             <select
               v-model="editForm.provider"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
@@ -508,7 +508,7 @@ onMounted(loadConfigs)
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.model') || 'Model' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.model') || 'Model' }}</label>
             <input
               v-model="editForm.model"
               type="text"
@@ -516,16 +516,16 @@ onMounted(loadConfigs)
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.apiKey') || 'API Key (leave empty to keep current)' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.apiKey') || 'API Key (leave empty to keep current)' }}</label>
             <input
               v-model="editForm.api_key"
               type="password"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
-              :placeholder="t('agentConfig.apiKeyPlaceholder') || 'sk-...'"
+              :placeholder="t('ai.agentConfig.apiKeyPlaceholder') || 'sk-...'"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.apiEndpoint') || 'API Endpoint' }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.apiEndpoint') || 'API Endpoint' }}</label>
             <input
               v-model="editForm.api_endpoint"
               type="text"
@@ -534,7 +534,7 @@ onMounted(loadConfigs)
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.inferenceLevel') || 'Inference Level' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.inferenceLevel') || 'Inference Level' }}</label>
               <select
                 v-model="editForm.inference_level"
                 class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
@@ -543,7 +543,7 @@ onMounted(loadConfigs)
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.serviceLevel') || 'Service Level' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.serviceLevel') || 'Service Level' }}</label>
               <select
                 v-model="editForm.service_level"
                 class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
@@ -554,7 +554,7 @@ onMounted(loadConfigs)
           </div>
           <div class="grid grid-cols-3 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.maxTokens') || 'Max Tokens' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.maxTokens') || 'Max Tokens' }}</label>
               <input
                 v-model.number="editForm.max_tokens"
                 type="number"
@@ -562,7 +562,7 @@ onMounted(loadConfigs)
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.temperature') || 'Temperature' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.temperature') || 'Temperature' }}</label>
               <input
                 v-model.number="editForm.temperature"
                 type="number"
@@ -573,7 +573,7 @@ onMounted(loadConfigs)
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('agentConfig.topP') || 'Top P' }}</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.topP') || 'Top P' }}</label>
               <input
                 v-model.number="editForm.top_p"
                 type="number"
@@ -591,7 +591,7 @@ onMounted(loadConfigs)
                 type="checkbox"
                 class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
               />
-              <span class="ml-2 text-sm text-gray-700">{{ t('agentConfig.setAsDefault') || 'Set as default' }}</span>
+              <span class="ml-2 text-sm text-gray-700">{{ t('ai.agentConfig.setAsDefault') || 'Set as default' }}</span>
             </label>
             <label class="flex items-center">
               <input
@@ -599,7 +599,7 @@ onMounted(loadConfigs)
                 type="checkbox"
                 class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
               />
-              <span class="ml-2 text-sm text-gray-700">{{ t('agentConfig.isActive') || 'Active' }}</span>
+              <span class="ml-2 text-sm text-gray-700">{{ t('ai.agentConfig.isActive') || 'Active' }}</span>
             </label>
           </div>
         </div>

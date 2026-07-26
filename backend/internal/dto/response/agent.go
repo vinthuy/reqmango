@@ -5,6 +5,90 @@ import (
 	"time"
 )
 
+// Squad DTOs
+type SquadResponse struct {
+	ID             uint64     `json:"id"`
+	WorkspaceID    uint64     `json:"workspace_id"`
+	ProjectID      *uint64    `json:"project_id"`
+	Name           string     `json:"name"`
+	Description    string     `json:"description"`
+	LeaderAgentID  *uint64    `json:"leader_agent_id"`
+	Status         string     `json:"status"`
+	Goal           string     `json:"goal"`
+	Members        []SquadMemberResponse `json:"members"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type SquadMemberResponse struct {
+	ID             uint64     `json:"id"`
+	SquadID        uint64     `json:"squad_id"`
+	AgentID        uint64     `json:"agent_id"`
+	Role           string     `json:"role"`
+	AgentConfigID  uint64     `json:"agent_config_id"`
+	Status         string     `json:"status"`
+	AssignedAt     time.Time  `json:"assigned_at"`
+	RemovedAt      *time.Time `json:"removed_at"`
+}
+
+type SquadExecutionResponse struct {
+	ID           uint64          `json:"id"`
+	SquadID      uint64          `json:"squad_id"`
+	Status       string          `json:"status"`
+	Goal         string          `json:"goal"`
+	InputData    json.RawMessage `json:"input_data"`
+	OutputData   json.RawMessage `json:"output_data"`
+	Logs         json.RawMessage `json:"logs"`
+	StartedAt    *time.Time      `json:"started_at"`
+	CompletedAt  *time.Time      `json:"completed_at"`
+	FailedAt     *time.Time      `json:"failed_at"`
+	ErrorInfo    string          `json:"error_info"`
+	CreatedAt    time.Time       `json:"created_at"`
+}
+
+// Autopilot DTOs
+type AutopilotTaskResponse struct {
+	ID                uint64          `json:"id"`
+	WorkspaceID       uint64          `json:"workspace_id"`
+	ProjectID         *uint64         `json:"project_id"`
+	Name              string          `json:"name"`
+	Description       string          `json:"description"`
+	TriggerType       string          `json:"trigger_type"`
+	CronExpression    string          `json:"cron_expression"`
+	TriggerURL        string          `json:"trigger_url"`
+	TaskType          string          `json:"task_type"`
+	AgentTemplateID   *uint64         `json:"agent_template_id"`
+	AgentConfigID     *uint64         `json:"agent_config_id"`
+	InputData         json.RawMessage `json:"input_data"`
+	Status            string          `json:"status"`
+	LastRunAt         *time.Time      `json:"last_run_at"`
+	NextRunAt         *time.Time      `json:"next_run_at"`
+	Config            json.RawMessage `json:"config"`
+	NotificationConfig json.RawMessage `json:"notification_config"`
+	TimeoutSeconds    int             `json:"timeout_seconds"`
+	RetryCount        int             `json:"retry_count"`
+	Enabled           bool            `json:"enabled"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+}
+
+type AutopilotExecutionResponse struct {
+	ID          uint64          `json:"id"`
+	TaskID      uint64          `json:"task_id"`
+	Status      string          `json:"status"`
+	TriggerType string          `json:"trigger_type"`
+	InputData   json.RawMessage `json:"input_data"`
+	OutputData  json.RawMessage `json:"output_data"`
+	ErrorInfo   string          `json:"error_info"`
+	Logs        json.RawMessage `json:"logs"`
+	StartedAt   *time.Time      `json:"started_at"`
+	CompletedAt *time.Time      `json:"completed_at"`
+	FailedAt    *time.Time      `json:"failed_at"`
+	DurationMs  int64           `json:"duration_ms"`
+	RetryCount  int             `json:"retry_count"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
 type AgentTemplateResponse struct {
 	ID              uint64          `json:"id"`
 	Name            string          `json:"name"`

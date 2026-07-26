@@ -121,7 +121,7 @@ async function handleUpdate() {
 }
 
 async function handleDelete(runtime: RuntimeResponse) {
-  if (!confirm(t('ai.common.confirmDelete', { name: runtime.name }))) return
+  if (!confirm(t('common.confirmDelete', { name: runtime.name }))) return
   try {
     await runtimeApi.delete(workspaceId.value, runtime.id)
     await loadRuntimes()
@@ -173,7 +173,7 @@ onMounted(() => {
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
         </svg>
-        {{ t('ai.common.create') }}
+        {{ t('common.create') }}
       </button>
     </div>
 
@@ -210,7 +210,7 @@ onMounted(() => {
           <thead class="bg-gray-50">
             <tr>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {{ t('ai.common.name') }}
+                {{ t('common.name') }}
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 {{ t('ai.runtime.type') }}
@@ -225,14 +225,14 @@ onMounted(() => {
                 {{ t('ai.runtime.load') }}
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {{ t('ai.common.lastHeartbeat') }}
+                {{ t('common.lastHeartbeat') }}
               </th>
               <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {{ t('ai.common.actions') }}
+                {{ t('common.actions') }}
               </th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200" v-loading="loading">
+          <tbody class="bg-white divide-y divide-gray-200">
             <tr v-for="runtime in filteredRuntimes" :key="runtime.id" class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
@@ -287,13 +287,13 @@ onMounted(() => {
                   @click="openEditModal(runtime)"
                   class="text-blue-600 hover:text-blue-700 mr-3"
                 >
-                  {{ t('ai.common.edit') }}
+                  {{ t('common.edit') }}
                 </button>
                 <button
                   @click="handleDelete(runtime)"
                   class="text-red-600 hover:text-red-700"
                 >
-                  {{ t('ai.common.delete') }}
+                  {{ t('common.delete') }}
                 </button>
               </td>
             </tr>
@@ -320,7 +320,7 @@ onMounted(() => {
         </div>
         <div class="px-6 py-4 space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">{{ t('ai.common.name') }}</label>
+            <label class="block text-sm font-medium text-gray-700">{{ t('common.name') }}</label>
             <input
               v-model="newRuntime.name"
               type="text"
@@ -371,14 +371,14 @@ onMounted(() => {
             @click="showCreateModal = false"
             class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
           >
-            {{ t('ai.common.cancel') }}
+            {{ t('common.cancel') }}
           </button>
           <button
             @click="handleCreate"
             :disabled="!newRuntime.name || saving"
             class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
           >
-            {{ saving ? t('ai.common.saving') : t('ai.common.create') }}
+            {{ saving ? t('common.saving') : t('common.create') }}
           </button>
         </div>
       </div>
@@ -392,7 +392,7 @@ onMounted(() => {
         </div>
         <div class="px-6 py-4 space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">{{ t('ai.common.name') }}</label>
+            <label class="block text-sm font-medium text-gray-700">{{ t('common.name') }}</label>
             <input
               v-model="editForm.name"
               type="text"
@@ -441,14 +441,14 @@ onMounted(() => {
             @click="showEditModal = false"
             class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
           >
-            {{ t('ai.common.cancel') }}
+            {{ t('common.cancel') }}
           </button>
           <button
             @click="handleUpdate"
             :disabled="!editForm.name || saving"
             class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
           >
-            {{ saving ? t('ai.common.saving') : t('ai.common.update') }}
+            {{ saving ? t('common.saving') : t('common.update') }}
           </button>
         </div>
       </div>

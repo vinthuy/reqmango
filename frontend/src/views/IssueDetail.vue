@@ -91,6 +91,34 @@
             v-else-if="activeTab === 'activity'"
             :issue-id="issueId"
           />
+          <!-- AI Tab -->
+          <div v-else-if="activeTab === 'ai'" class="space-y-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🤖 AI 助手</h3>
+                <button
+                  @click="showAICopilot = true"
+                  class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg flex items-center gap-1.5"
+                >
+                  <span>💬</span> {{ t('ai.copilotTitle') }}
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <button
+                  v-for="action in aiActions"
+                  :key="action.key"
+                  @click="executeAIAction(action.key)"
+                  class="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-left"
+                >
+                  <span class="text-xl">{{ action.icon }}</span>
+                  <div>
+                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ action.title }}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ action.description }}</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Right sidebar -->
@@ -121,6 +149,15 @@
         />
       </div>
     </div>
+
+    <!-- AI Copilot Side Panel -->
+    <AICopilot
+      :visible="showAICopilot"
+      :project-id="projectId"
+      :workspace-id="workspaceId"
+      :project-name="projectIdentifier"
+      @close="showAICopilot = false"
+    />
   </div>
 </template>
 
@@ -152,6 +189,7 @@ import IssueGitPanel from '@/components/IssueGitPanel.vue'
 import ApprovalSubmitDialog from '@/components/ApprovalSubmitDialog.vue'
 import ApprovalDecisionDialog from '@/components/ApprovalDecisionDialog.vue'
 import ApprovalPendingBanner from '@/components/ApprovalPendingBanner.vue'
+import AICopilot from '@/components/AICopilot.vue'
 import approvalApi, { type ApprovalResponse } from '@/api/approval'
 
 // Route params
@@ -181,6 +219,7 @@ const isWatching = ref(false)
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
+const showAICopilot = ref(false)
 const activeApproval = ref<ApprovalResponse | null>(null)
 const currentUserId = parseInt(localStorage.getItem('user_id') || '0', 10)
 const showSubmitDialog = ref(false)
@@ -203,7 +242,24 @@ const tabs = computed(() => [
   { key: 'git', label: t('gitIntegration.title'), count: undefined },
   { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
   { key: 'activity', label: t('issue.tabActivity'), count: undefined },
+  { key: 'ai', label: '🤖 AI', count: undefined },
 ])
+
+// AI quick actions
+const aiActions = computed(() => [
+  { key: 'summarize', icon: '📝', title: t('ai.summarizeLabel'), description: t('ai.summarizeIssue') },
+  { key: 'risk', icon: '⚠️', title: t('ai.riskLabel'), description: t('ai.riskAnalysis') },
+  { key: 'suggest', icon: '💡', title: t('ai.suggestLabel'), description: t('ai.suggestSteps') },
+  { key: 'copilot', icon: '🤖', title: t('ai.copilotTitle'), description: t('ai.readyHint') },
+])
+
+function executeAIAction(action: string) {
+  if (action === 'copilot') {
+    showAICopilot.value = true
+  } else {
+    showAICopilot.value = true
+  }
+}
 
 // Props for IssueTabDetails
 const detailProps = computed(() => ({

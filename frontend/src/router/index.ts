@@ -237,6 +237,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/workspaces/:wsParam/agents/squads',
+      name: 'agent-squads',
+      component: () => import('@/views/agents/SquadList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/workspaces/:wsParam/agents/monitor',
       name: 'agent-monitor',
       component: () => import('@/views/agents/AgentMonitor.vue'),
@@ -246,6 +252,12 @@ const router = createRouter({
       path: '/workspaces/:wsParam/agents/memories',
       name: 'agent-memories',
       component: () => import('@/views/agents/MemoryList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/autopilot',
+      name: 'agent-autopilot',
+      component: () => import('@/views/agents/AutopilotList.vue'),
       meta: { requiresAuth: true },
     },
   ]

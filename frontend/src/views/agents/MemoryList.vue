@@ -10,7 +10,7 @@
         @click="openCreateModal"
         class="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium transition"
       >
-        {{ t('ai.common.create') }}
+        {{ t('common.create') }}
       </button>
     </div>
 
@@ -71,7 +71,7 @@
           @click="resetFilters"
           class="px-3 py-2 text-gray-600 hover:text-gray-900 text-sm"
         >
-          {{ t('ai.common.reset') }}
+          {{ t('common.reset') }}
         </button>
       </div>
     </div>
@@ -86,8 +86,8 @@
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{{ t('ai.memory.scope') }}</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{{ t('ai.memory.relevance') }}</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{{ t('ai.memory.tags') }}</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{{ t('ai.common.createdAt') }}</th>
-            <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{{ t('ai.common.actions') }}</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{{ t('common.createdAt') }}</th>
+            <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -134,14 +134,14 @@
                 <button
                   @click="openEditModal(memory)"
                   class="text-gray-400 hover:text-indigo-600 p-1"
-                  :title="t('ai.common.edit')"
+                  :title="t('common.edit')"
                 >
                   ✏️
                 </button>
                 <button
                   @click="confirmDelete(memory)"
                   class="text-gray-400 hover:text-red-600 p-1"
-                  :title="t('ai.common.delete')"
+                  :title="t('common.delete')"
                 >
                   🗑️
                 </button>
@@ -232,13 +232,13 @@
             </div>
           </div>
           <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
-            <button @click="closeModal" class="px-4 py-2 text-gray-600 hover:text-gray-900">{{ t('ai.common.cancel') }}</button>
+            <button @click="closeModal" class="px-4 py-2 text-gray-600 hover:text-gray-900">{{ t('common.cancel') }}</button>
             <button
               @click="saveMemory"
               :disabled="!formData.content.trim()"
               class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg disabled:opacity-50"
             >
-              {{ t('ai.common.save') }}
+              {{ t('common.save') }}
             </button>
           </div>
         </div>
