@@ -36,6 +36,7 @@ type SquadMemberAdd struct {
 type SquadExecutionStart struct {
 	Goal      string                 `json:"goal" binding:"required"`
 	InputData map[string]interface{} `json:"input_data"`
+	UserID    uint64                 `json:"user_id"` // ID of the user triggering the execution
 }
 
 // Autopilot DTOs

@@ -10,6 +10,7 @@ import (
 
 	"github.com/reqmango/backend/internal/ai/common"
 	"github.com/reqmango/backend/internal/ai/llm"
+	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
@@ -21,6 +22,7 @@ type AgentService struct {
 	llm     *llm.LLMClient
 	aiSvc   *AIService
 	memSvc  MemoryServiceInterface
+	skillSvc SkillExecutorInterface
 }
 
 // NewAgentService creates a new AgentService.
@@ -31,6 +33,17 @@ func NewAgentService(db *gorm.DB, llmClient *llm.LLMClient, aiSvc *AIService) *A
 // SetMemoryService sets the memory service
 func (s *AgentService) SetMemoryService(memSvc MemoryServiceInterface) {
 	s.memSvc = memSvc
+}
+
+// SkillExecutorInterface defines the interface for skill execution.
+// Used to avoid circular dependency between internal/service and internal/ai/service.
+type SkillExecutorInterface interface {
+	Execute(ctx context.Context, skillID uint64, params request.SkillExecute) (*response.SkillExecutionResponse, error)
+}
+
+// SetSkillExecutor sets the skill executor
+func (s *AgentService) SetSkillExecutor(skillSvc SkillExecutorInterface) {
+	s.skillSvc = skillSvc
 }
 
 // ======== CRUD ========
@@ -70,7 +83,12 @@ func (s *AgentService) CanInvoke(agentID, userID uint64) (bool, error) {
 	// Check permission mode
 	switch agent.PermissionMode {
 	case model.PermissionModePrivate:
-		// Private mode: only owner can invoke
+		// Private mode: owner or same workspace member can invoke
+		// Check if user is a member of the agent's workspace
+		var workspaceMember model.WorkspaceMember
+		if err := s.db.Where("workspace_id = ? AND user_id = ?", agent.WorkspaceID, userID).First(&workspaceMember).Error; err == nil {
+			return true, nil
+		}
 		return false, nil
 	case model.PermissionModePublicTo:
 		// Public_to mode: check invocation targets
@@ -997,22 +1015,36 @@ func (s *AgentService) executeAgentSkill(ctx context.Context, agent *model.Agent
 		return ""
 	}
 
-	// Execute the skill
-	var skill model.Skill
-	if err := s.db.First(&skill, skillID).Error; err != nil {
+	// Execute the skill using the injected SkillExecutor
+	if s.skillSvc == nil {
+		// Fallback: no skill executor injected, return empty result
 		return ""
 	}
 
 	// Build skill parameters from task
-	params := map[string]interface{}{
-		"input": task,
+	paramsJSON, _ := json.Marshal(map[string]interface{}{"input": task})
+	params := request.SkillExecute{
+		Parameters: paramsJSON,
 	}
 
-	// Execute skill using SkillService
-	// Note: This is a simplified integration - in production, you would inject SkillService
-	// For now, we parse the SKILL.md and execute the logic directly
+	// Execute the skill
+	executionResult, err := s.skillSvc.Execute(ctx, skillID, params)
+	if err != nil {
+		return ""
+	}
 
-	return s.executeSkillDirectly(ctx, &skill, params)
+	// Format the execution result
+	if executionResult == nil {
+		return ""
+	}
+
+	var resultBuilder strings.Builder
+	resultBuilder.WriteString(fmt.Sprintf("技能: %s\n", executionResult.SkillName))
+	if executionResult.FinalResult != "" {
+		resultBuilder.WriteString(fmt.Sprintf("执行结果:\n%s\n", executionResult.FinalResult))
+	}
+
+	return resultBuilder.String()
 }
 
 // detectSkillFromTask auto-detects the most relevant skill based on task content.
@@ -1053,55 +1085,6 @@ func (s *AgentService) detectSkillFromTask(ctx context.Context, template model.A
 	}
 
 	return 0
-}
-
-// executeSkillDirectly executes a skill by parsing SKILL.md and running the steps.
-func (s *AgentService) executeSkillDirectly(ctx context.Context, skill *model.Skill, params map[string]interface{}) string {
-	if skill == nil || skill.SkillMD == "" {
-		return ""
-	}
-
-	// Parse SKILL.md and extract steps
-	steps := parseSkillSteps(skill.SkillMD)
-	if len(steps) == 0 {
-		return ""
-	}
-
-	var resultBuilder strings.Builder
-	resultBuilder.WriteString(fmt.Sprintf("技能: %s\n", skill.Name))
-	resultBuilder.WriteString("执行步骤:\n")
-
-	for i, step := range steps {
-		resultBuilder.WriteString(fmt.Sprintf("%d. %s\n", i+1, step))
-	}
-
-	resultBuilder.WriteString("\n输入参数:\n")
-	for k, v := range params {
-		resultBuilder.WriteString(fmt.Sprintf("- %s: %v\n", k, v))
-	}
-
-	return resultBuilder.String()
-}
-
-// parseSkillSteps parses SKILL.md content and extracts step descriptions.
-func parseSkillSteps(skillMD string) []string {
-	var steps []string
-	lines := strings.Split(skillMD, "\n")
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "## Step") {
-			// Extract step title
-			step := strings.TrimPrefix(line, "## Step ")
-			step = strings.Split(step, ":")[0]
-			steps = append(steps, step)
-		} else if strings.HasPrefix(line, "- ") && len(steps) > 0 {
-			// Add bullet points to the last step
-			steps[len(steps)-1] += " " + strings.TrimPrefix(line, "- ")
-		}
-	}
-
-	return steps
 }
 
 // ======== Internal Helpers ========

@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/reqmango/backend/internal/dto/request"
@@ -10,10 +11,37 @@ import (
 	"gorm.io/gorm"
 )
 
-type SquadService struct{ db *gorm.DB }
+// AgentExecutorInterface defines the interface for agent execution.
+// Used to avoid circular dependency between internal/service and internal/ai/service.
+type AgentExecutorInterface interface {
+	DispatchAgent(agentID uint64, userID uint64, task string, ctx *AgentDispatchContext) (*AgentDispatchResult, error)
+}
+
+// AgentDispatchContext is a simplified context struct for agent dispatch.
+type AgentDispatchContext struct {
+	IssueID     *uint64
+	ProjectID   *uint64
+	WorkspaceID uint64
+	TriggeredBy string
+}
+
+// AgentDispatchResult is a simplified result struct for agent dispatch.
+type AgentDispatchResult struct {
+	ResultSummary string
+}
+
+type SquadService struct {
+	db       *gorm.DB
+	agentSvc AgentExecutorInterface
+}
 
 func NewSquadService(db *gorm.DB) *SquadService {
 	return &SquadService{db: db}
+}
+
+// SetAgentExecutor sets the agent executor for squad execution.
+func (s *SquadService) SetAgentExecutor(agentSvc AgentExecutorInterface) {
+	s.agentSvc = agentSvc
 }
 
 func (s *SquadService) Create(wid uint64, req request.SquadCreate) (*response.SquadResponse, error) {
@@ -154,19 +182,92 @@ func (s *SquadService) StartExecution(squadID uint64, req request.SquadExecution
 		return nil, err
 	}
 
-	// Create tasks for each member (simplified)
+	// Track execution logs
+	var logs []string
+	var outputs []string
+	failedCount := 0
+
+	// Execute tasks for each member
 	for _, member := range squad.Members {
 		if member.Role == "observer" {
 			continue
 		}
+
+		// Create task record
+		taskStartedAt := time.Now()
 		task := &model.SquadTask{
 			SquadID:   squadID,
 			MemberID:  member.ID,
-			Status:    "pending",
+			Status:    "running",
 			Priority:  "medium",
 			Progress:  0,
+			StartedAt: &taskStartedAt,
 		}
-		s.db.Create(task)
+		if err := s.db.Create(task).Error; err != nil {
+			return nil, err
+		}
+
+		logs = append(logs, fmt.Sprintf("[%s] Agent %d (%s) started task", time.Now().Format("15:04:05"), member.AgentID, member.Role))
+
+		// Call agent service to execute task
+		var result string
+		if s.agentSvc != nil {
+			taskDescription := fmt.Sprintf("作为团队成员（角色：%s），请执行以下目标：%s", member.Role, req.Goal)
+			dispatchResult, err := s.agentSvc.DispatchAgent(member.AgentID, req.UserID, taskDescription, &AgentDispatchContext{
+				WorkspaceID: squad.WorkspaceID,
+				TriggeredBy: "squad",
+			})
+			if err != nil {
+				logs = append(logs, fmt.Sprintf("[%s] Agent %d (%s) failed: %v", time.Now().Format("15:04:05"), member.AgentID, member.Role, err))
+				task.Status = "failed"
+				task.Feedback = err.Error()
+				failedCount++
+			} else {
+				result = dispatchResult.ResultSummary
+				logs = append(logs, fmt.Sprintf("[%s] Agent %d (%s) completed", time.Now().Format("15:04:05"), member.AgentID, member.Role))
+				task.Status = "completed"
+				task.Progress = 100
+				task.Feedback = result
+				outputs = append(outputs, result)
+			}
+		} else {
+			// Fallback when no agent service is available
+			result = fmt.Sprintf("Agent %d (%s) would execute: %s", member.AgentID, member.Role, req.Goal)
+			logs = append(logs, fmt.Sprintf("[%s] Agent %d (%s) executed (stub)", time.Now().Format("15:04:05"), member.AgentID, member.Role))
+			task.Status = "completed"
+			task.Progress = 100
+			task.Feedback = result
+			outputs = append(outputs, result)
+		}
+
+		// Set completed time for task
+		taskCompletedAt := time.Now()
+		task.CompletedAt = &taskCompletedAt
+
+		// Update task status
+		if err := s.db.Save(task).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	// Update execution with logs and output
+	logsJSON, _ := json.Marshal(logs)
+	outputsJSON, _ := json.Marshal(outputs)
+	exec.Logs = logsJSON
+	exec.OutputData = outputsJSON
+	
+	// Set execution status based on failure count
+	if failedCount > 0 {
+		exec.Status = "partial_failed"
+	} else {
+		exec.Status = "completed"
+	}
+	
+	completedAt := time.Now()
+	exec.CompletedAt = &completedAt
+
+	if err := s.db.Save(exec).Error; err != nil {
+		return nil, err
 	}
 
 	return s.buildExecutionResponse(exec), nil

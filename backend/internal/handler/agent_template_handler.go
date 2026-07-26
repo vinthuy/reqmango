@@ -84,3 +84,11 @@ func (h *AgentTemplateHandler) DeleteAgentTemplate(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"message": "Deleted"})
 }
+
+// InitializePresetTemplates initializes preset agent templates for the system.
+func (h *AgentTemplateHandler) InitializePresetTemplates(c *gin.Context) {
+	if h.respond(c, h.svc.InitializePresetTemplates()) {
+		return
+	}
+	c.JSON(200, gin.H{"message": "Preset agent templates initialized"})
+}

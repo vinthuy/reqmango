@@ -167,31 +167,51 @@ const HealthCheckInterval = 30 * time.Second
 // HeartbeatTimeout defines the timeout for considering a runtime offline (default 60 seconds).
 const HeartbeatTimeout = 60 * time.Second
 
+// HeartbeatWarningThreshold defines the threshold for marking runtime as recently_lost (default 30 seconds).
+const HeartbeatWarningThreshold = 30 * time.Second
+
 // PerformHealthCheck performs health check for all runtimes in a workspace.
-// Updates status based on last heartbeat time.
+// Updates status based on last heartbeat time with three-level health status:
+// - online: heartbeat within warning threshold
+// - recently_lost: heartbeat between warning threshold and timeout
+// - offline: heartbeat beyond timeout
+// Also supports status recovery: recently_lost/offline -> online when heartbeat resumes
 func (s *RuntimeService) PerformHealthCheck(workspaceID uint64) error {
 	now := time.Now()
 	timeoutThreshold := now.Add(-HeartbeatTimeout)
+	warningThreshold := now.Add(-HeartbeatWarningThreshold)
 
-	// Update offline runtimes (no heartbeat in timeout period)
+	// Step 1: Mark runtimes with heartbeat beyond timeout as offline
 	if err := s.db.Model(&model.Runtime{}).
-		Where("workspace_id = ? AND status = ? AND last_heartbeat IS NOT NULL AND last_heartbeat < ?",
-			workspaceID, "online", timeoutThreshold).
+		Where("workspace_id = ? AND last_heartbeat IS NOT NULL AND last_heartbeat < ?",
+			workspaceID, timeoutThreshold).
 		Updates(map[string]interface{}{
-			"status":  "offline",
-			"health":  model.RuntimeHealthOffline,
+			"status": "offline",
+			"health": model.RuntimeHealthOffline,
 		}).Error; err != nil {
 		return common.Internal("Failed to update offline runtimes")
 	}
 
-	// Update recently_lost runtimes (heartbeat lost but not long)
+	// Step 2: Mark runtimes with heartbeat between warning and timeout as recently_lost
 	if err := s.db.Model(&model.Runtime{}).
-		Where("workspace_id = ? AND status = ? AND health != ?",
-			workspaceID, "online", model.RuntimeHealthOnline).
+		Where("workspace_id = ? AND last_heartbeat IS NOT NULL AND last_heartbeat >= ? AND last_heartbeat < ?",
+			workspaceID, warningThreshold, timeoutThreshold).
 		Updates(map[string]interface{}{
+			"status": "online",
+			"health": model.RuntimeHealthRecentlyLost,
+		}).Error; err != nil {
+		return common.Internal("Failed to update recently_lost runtimes")
+	}
+
+	// Step 3: Mark runtimes with recent heartbeat as online health
+	if err := s.db.Model(&model.Runtime{}).
+		Where("workspace_id = ? AND (last_heartbeat IS NULL OR last_heartbeat >= ?)",
+			workspaceID, warningThreshold).
+		Updates(map[string]interface{}{
+			"status": "online",
 			"health": model.RuntimeHealthOnline,
 		}).Error; err != nil {
-		return common.Internal("Failed to update runtime health status")
+		return common.Internal("Failed to update online runtime health status")
 	}
 
 	return nil
@@ -201,11 +221,12 @@ func (s *RuntimeService) PerformHealthCheck(workspaceID uint64) error {
 func (s *RuntimeService) PerformGlobalHealthCheck() error {
 	now := time.Now()
 	timeoutThreshold := now.Add(-HeartbeatTimeout)
+	warningThreshold := now.Add(-HeartbeatWarningThreshold)
 
-	// Update offline runtimes
+	// Step 1: Mark runtimes with heartbeat beyond timeout as offline
 	if err := s.db.Model(&model.Runtime{}).
-		Where("status = ? AND last_heartbeat IS NOT NULL AND last_heartbeat < ?",
-			"online", timeoutThreshold).
+		Where("last_heartbeat IS NOT NULL AND last_heartbeat < ?",
+			timeoutThreshold).
 		Updates(map[string]interface{}{
 			"status": "offline",
 			"health": model.RuntimeHealthOffline,
@@ -213,11 +234,34 @@ func (s *RuntimeService) PerformGlobalHealthCheck() error {
 		return common.Internal("Failed to perform global health check")
 	}
 
+	// Step 2: Mark runtimes with heartbeat between warning and timeout as recently_lost
+	if err := s.db.Model(&model.Runtime{}).
+		Where("last_heartbeat IS NOT NULL AND last_heartbeat >= ? AND last_heartbeat < ?",
+			warningThreshold, timeoutThreshold).
+		Updates(map[string]interface{}{
+			"status": "online",
+			"health": model.RuntimeHealthRecentlyLost,
+		}).Error; err != nil {
+		return common.Internal("Failed to update global recently_lost runtimes")
+	}
+
+	// Step 3: Mark runtimes with recent heartbeat as online health
+	if err := s.db.Model(&model.Runtime{}).
+		Where("last_heartbeat IS NULL OR last_heartbeat >= ?",
+			warningThreshold).
+		Updates(map[string]interface{}{
+			"status": "online",
+			"health": model.RuntimeHealthOnline,
+		}).Error; err != nil {
+		return common.Internal("Failed to update global online runtime health status")
+	}
+
 	return nil
 }
 
 // ScheduleTask finds the best available runtime for a task and increments its load.
 // Returns the runtime ID or error if no available runtime.
+// Uses atomic update to prevent concurrent over-allocation.
 func (s *RuntimeService) ScheduleTask(workspaceID uint64) (uint64, error) {
 	var runtime model.Runtime
 
@@ -229,10 +273,29 @@ func (s *RuntimeService) ScheduleTask(workspaceID uint64) (uint64, error) {
 		return 0, common.NotFound("No available runtime for task scheduling")
 	}
 
-	// Increment load
-	runtime.CurrentLoad++
-	if err := s.db.Save(&runtime).Error; err != nil {
+	// Use atomic update to prevent concurrent over-allocation
+	result := s.db.Model(&model.Runtime{}).
+		Where("id = ? AND current_load < capacity", runtime.ID).
+		Update("current_load", gorm.Expr("current_load + ?", 1))
+	if result.Error != nil {
 		return 0, common.Internal("Failed to update runtime load")
+	}
+	if result.RowsAffected == 0 {
+		return 0, common.NotFound("Runtime became unavailable during scheduling")
+	}
+
+	// Refresh the runtime to get updated current_load
+	if err := s.db.First(&runtime, runtime.ID).Error; err != nil {
+		return 0, common.Internal("Failed to refresh runtime")
+	}
+
+	// Mark as busy if load reaches capacity
+	if runtime.CurrentLoad >= runtime.Capacity {
+		if err := s.db.Model(&model.Runtime{}).
+			Where("id = ?", runtime.ID).
+			Update("status", "busy").Error; err != nil {
+			return 0, common.Internal("Failed to mark runtime as busy")
+		}
 	}
 
 	return runtime.ID, nil
@@ -246,9 +309,29 @@ func (s *RuntimeService) ReleaseTask(runtimeID uint64) error {
 	}
 
 	if runtime.CurrentLoad > 0 {
-		runtime.CurrentLoad--
-		if err := s.db.Save(&runtime).Error; err != nil {
+		// Use atomic update to prevent negative load
+		result := s.db.Model(&model.Runtime{}).
+			Where("id = ? AND current_load > 0", runtime.ID).
+			Update("current_load", gorm.Expr("current_load - ?", 1))
+		if result.Error != nil {
 			return common.Internal("Failed to release runtime load")
+		}
+		if result.RowsAffected == 0 {
+			return common.Internal("Runtime load was already 0")
+		}
+
+		// Refresh the runtime to get updated current_load
+		if err := s.db.First(&runtime, runtimeID).Error; err != nil {
+			return common.Internal("Failed to refresh runtime")
+		}
+
+		// Restore to online if load drops to 0
+		if runtime.CurrentLoad == 0 {
+			if err := s.db.Model(&model.Runtime{}).
+				Where("id = ?", runtime.ID).
+				Update("status", "online").Error; err != nil {
+				return common.Internal("Failed to restore runtime status")
+			}
 		}
 	}
 

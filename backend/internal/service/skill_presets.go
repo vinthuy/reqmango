@@ -170,3 +170,32 @@ func (p *PresetSkill) ToSkill(workspaceID uint64) model.Skill {
 		WorkspaceID: workspaceID,
 	}
 }
+
+// PresetTools contains all built-in tools used by preset skills.
+var PresetTools = []struct {
+	Name        string
+	Description string
+	Category    string
+	ToolType    string
+}{
+	{"analyze_code", "分析代码结构和质量", "code", "function"},
+	{"extract_requirements", "提取需求关键信息", "project_management", "function"},
+	{"analyze_content", "分析内容并生成文档大纲", "general", "function"},
+	{"analyze_issue", "分析问题描述并分类", "project_management", "function"},
+	{"analyze_performance", "分析代码性能瓶颈", "code", "function"},
+	{"extract_meeting_info", "提取会议关键信息", "general", "function"},
+}
+
+// ToTool converts a preset tool definition to a model.Tool.
+func PresetToolToModel(toolName, description, category, toolType string, workspaceID uint64) model.Tool {
+	return model.Tool{
+		Name:        toolName,
+		Description: description,
+		Category:    category,
+		IsBuiltin:   true,
+		Status:      "active",
+		ToolType:    toolType,
+		Timeout:     30,
+		WorkspaceID: &workspaceID,
+	}
+}

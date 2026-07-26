@@ -373,8 +373,24 @@ func (s *SkillService) toExecutionLogResponse(log *model.SkillExecutionLog) resp
 	}
 }
 
-// InitializePresetSkills initializes preset skills for a workspace if they don't exist.
+// InitializePresetSkills initializes preset skills and their required tools for a workspace if they don't exist.
 func (s *SkillService) InitializePresetSkills(workspaceID uint64) error {
+	// First, create preset tools
+	for _, presetTool := range PresetTools {
+		var existingTool model.Tool
+		if err := s.db.Where("workspace_id = ? AND name = ?", workspaceID, presetTool.Name).
+			First(&existingTool).Error; err == nil {
+			// Tool already exists, skip
+			continue
+		}
+
+		tool := PresetToolToModel(presetTool.Name, presetTool.Description, presetTool.Category, presetTool.ToolType, workspaceID)
+		if err := s.db.Create(&tool).Error; err != nil {
+			return common.Internal("Failed to create preset tool: " + presetTool.Name)
+		}
+	}
+
+	// Then, create preset skills
 	for _, preset := range PresetSkills {
 		// Check if the preset skill already exists
 		var existing model.Skill

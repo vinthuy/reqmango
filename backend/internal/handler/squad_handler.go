@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -32,7 +33,11 @@ func (h *SquadHandler) parseWorkspaceID(c *gin.Context) (uint64, error) {
 }
 
 func (h *SquadHandler) CreateSquad(c *gin.Context) {
-	wid, _ := h.parseWorkspaceID(c)
+	wid, err := h.parseWorkspaceID(c)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "Invalid workspace ID"})
+		return
+	}
 	var req request.SquadCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"message": "Invalid body"})
@@ -121,6 +126,15 @@ func (h *SquadHandler) StartExecution(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "Invalid body"})
 		return
 	}
+	
+	// Get current user from context
+	currentUser, exists := c.Get("currentUser")
+	if exists {
+		if user, ok := currentUser.(*model.User); ok {
+			req.UserID = user.ID
+		}
+	}
+	
 	resp, e := h.svc.StartExecution(squadID, req)
 	if h.respond(c, e) {
 		return

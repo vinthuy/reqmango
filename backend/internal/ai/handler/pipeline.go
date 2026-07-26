@@ -10,6 +10,7 @@ import (
 	"github.com/reqmango/backend/internal/ai/common"
 	"github.com/reqmango/backend/internal/ai/harness"
 	"github.com/reqmango/backend/internal/ai/registry"
+	"github.com/reqmango/backend/internal/ai/service"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
@@ -18,10 +19,11 @@ import (
 type AgentPipelineHandler struct {
 	db       *gorm.DB
 	registry *registry.Registry
+	agentSvc *service.AgentService
 }
 
-func NewAgentPipelineHandler(db *gorm.DB, reg *registry.Registry) *AgentPipelineHandler {
-	return &AgentPipelineHandler{db: db, registry: reg}
+func NewAgentPipelineHandler(db *gorm.DB, reg *registry.Registry, agentSvc *service.AgentService) *AgentPipelineHandler {
+	return &AgentPipelineHandler{db: db, registry: reg, agentSvc: agentSvc}
 }
 
 func (h *AgentPipelineHandler) getWSAndUser(c *gin.Context) (uint64, uint64, error) {
@@ -162,8 +164,8 @@ func (h *AgentPipelineHandler) Run(c *gin.Context) {
 		return
 	}
 
-	// Build AgentCaller adapter
-	caller := &registryAgentCaller{registry: h.registry, workspaceID: wsID, userID: userID}
+	// Build AgentCaller adapter using real AgentService
+	caller := &agentServiceCaller{agentSvc: h.agentSvc, workspaceID: wsID, userID: userID, db: h.db}
 	runner := harness.NewPipelineRunner(caller)
 
 	// Create run record
@@ -230,20 +232,43 @@ func (h *AgentPipelineHandler) GetRun(c *gin.Context) {
 	c.JSON(http.StatusOK, run)
 }
 
-// registryAgentCaller adapts the Registry to the harness.AgentCaller interface.
-type registryAgentCaller struct {
-	registry    *registry.Registry
+// agentServiceCaller adapts the AgentService to the harness.AgentCaller interface.
+type agentServiceCaller struct {
+	agentSvc    *service.AgentService
 	workspaceID uint64
 	userID      uint64
+	db          *gorm.DB
 }
 
-func (c *registryAgentCaller) CallAgent(ctx context.Context, agentID uint64, model string, systemPrompt string, userMessage string, contextMap map[string]interface{}) (string, int, float64, error) {
-	// Stub: In real implementation, this calls AgentService.DispatchAgent
-	_ = systemPrompt
-	_ = userMessage
-	_ = contextMap
-	_ = model
-	_ = agentID
-	_ = ctx
-	return "agent execution result (stub -- wire AgentService in production)", 500, 0.001, nil
+func (c *agentServiceCaller) CallAgent(ctx context.Context, agentID uint64, modelName string, systemPrompt string, userMessage string, contextMap map[string]interface{}) (string, int, float64, error) {
+	// Check if agent exists
+	var agent model.Agent
+	if err := c.db.Where("id = ? AND workspace_id = ?", agentID, c.workspaceID).First(&agent).Error; err != nil {
+		return "", 0, 0, common.NotFound("Agent not found")
+	}
+
+	// Build dispatch context from contextMap
+	var issueIDPtr, projectIDPtr *uint64
+	if id, ok := contextMap["issue_id"].(uint64); ok {
+		issueIDPtr = &id
+	}
+	if id, ok := contextMap["project_id"].(uint64); ok {
+		projectIDPtr = &id
+	}
+
+	result, err := c.agentSvc.DispatchAgent(agentID, c.userID, userMessage, &service.DispatchContext{
+		IssueID:     issueIDPtr,
+		ProjectID:   projectIDPtr,
+		WorkspaceID: c.workspaceID,
+		TriggeredBy: "pipeline",
+	})
+	if err != nil {
+		return "", 0, 0, err
+	}
+
+	// Estimate tokens and cost
+	tokens := 500
+	cost := float64(tokens) * 0.000002
+
+	return result.ResultSummary, tokens, cost, nil
 }

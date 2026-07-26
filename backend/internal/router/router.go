@@ -156,7 +156,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	aiH := aihandler.NewAIHandler(aiSvc, db, cfg.AIAPIKey, cfg.AIModel, cfg.AIBaseURL, cfg.AIProvider)
 	agentH := aihandler.NewAgentHandler(agentSvc)
 	loopH := aihandler.NewAgentLoopHandler(loopSvc)
-	pipelineH := aihandler.NewAgentPipelineHandler(db, reg)
+	pipelineH := aihandler.NewAgentPipelineHandler(db, reg, agentSvc)
 	sessionH := aihandler.NewAgentSessionHandler(db)
 
 	// JWT middleware
@@ -223,6 +223,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/agent-templates/:templateId", agentTemplateH.GetAgentTemplate)
 			workspaces.PUT("/:wsParam/agent-templates/:templateId", agentTemplateH.UpdateAgentTemplate)
 			workspaces.DELETE("/:wsParam/agent-templates/:templateId", agentTemplateH.DeleteAgentTemplate)
+			// Preset templates
+			workspaces.POST("/:wsParam/agent-templates/presets/initialize", agentTemplateH.InitializePresetTemplates)
 
 			// Agent Configs (new)
 			agentConfigSvc := service.NewAgentConfigService(db)
@@ -245,6 +247,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/runtimes/register", runtimeH.RegisterRuntime)
 			workspaces.POST("/:wsParam/runtimes/:runtimeId/heartbeat", runtimeH.Heartbeat)
 			workspaces.GET("/:wsParam/runtimes/available", runtimeH.FindAvailableRuntime)
+			// Runtime health check & scheduling
+			workspaces.POST("/:wsParam/runtimes/health-check", runtimeH.HealthCheck)
+			workspaces.POST("/:wsParam/runtimes/health-check/global", runtimeH.GlobalHealthCheck)
+			workspaces.POST("/:wsParam/runtimes/schedule", runtimeH.ScheduleTask)
+			workspaces.POST("/:wsParam/runtimes/:runtimeId/release", runtimeH.ReleaseTask)
+			workspaces.GET("/:wsParam/runtimes/stats", runtimeH.GetRuntimeStats)
 
 			// Skills (new)
 			skillSvc := service.NewSkillService(db)
@@ -253,19 +261,22 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			skillExecutor := harness.NewSkillExecutor(db, toolExecutor)
 			// Wrap harness executor to implement service.SkillExecutor interface
 			skillSvc.SetExecutor(&harnessSkillExecutorAdapter{executor: skillExecutor})
+			// Inject SkillService into AgentService for skill integration
+			agentSvc.SetSkillExecutor(skillSvc)
 			skillH := handler.NewSkillHandler(skillSvc)
 			workspaces.GET("/:wsParam/skills", skillH.ListSkills)
 			workspaces.POST("/:wsParam/skills", skillH.CreateSkill)
+			// Preset skills (must be registered before :skillId routes to avoid conflict)
+			workspaces.GET("/:wsParam/skills/presets", skillH.ListPresetSkills)
+			workspaces.POST("/:wsParam/skills/presets/initialize", skillH.InitializePresetSkills)
+			// Skill execution logs
+			workspaces.GET("/:wsParam/skills/execution-logs", skillH.ListSkillExecutionLogs)
+			// Dynamic skill ID routes (must come last)
 			workspaces.GET("/:wsParam/skills/:skillId", skillH.GetSkill)
 			workspaces.PUT("/:wsParam/skills/:skillId", skillH.UpdateSkill)
 			workspaces.DELETE("/:wsParam/skills/:skillId", skillH.DeleteSkill)
 			workspaces.POST("/:wsParam/skills/:skillId/execute", skillH.ExecuteSkill)
-			// Skill execution logs
-			workspaces.GET("/:wsParam/skills/execution-logs", skillH.ListSkillExecutionLogs)
 			workspaces.GET("/:wsParam/skills/:skillId/execution-logs", skillH.ListSkillExecutionLogs)
-			// Preset skills
-			workspaces.GET("/:wsParam/skills/presets", skillH.ListPresetSkills)
-			workspaces.POST("/:wsParam/skills/presets/initialize", skillH.InitializePresetSkills)
 
 			// Agent Tasks (new)
 			agentTaskSvc := service.NewAgentTaskService(db)
@@ -287,6 +298,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 			// Squads (new)
 			squadSvc := service.NewSquadService(db)
+			// Create adapter to connect AgentService to SquadService
+			squadSvc.SetAgentExecutor(&aiAgentExecutorAdapter{agentSvc: agentSvc})
 			squadH := handler.NewSquadHandler(squadSvc)
 			workspaces.GET("/:wsParam/squads", squadH.ListSquads)
 			workspaces.POST("/:wsParam/squads", squadH.CreateSquad)
@@ -1069,6 +1082,32 @@ func (a *harnessSkillExecutorAdapter) Execute(ctx context.Context, skill *model.
 		FinalResult: result.FinalResult,
 		Error:      result.Error,
 		TokensUsed: result.TokensUsed,
+	}, nil
+}
+
+// aiAgentExecutorAdapter adapts aiservice.AgentService to service.AgentExecutorInterface.
+type aiAgentExecutorAdapter struct {
+	agentSvc *aiservice.AgentService
+}
+
+func (a *aiAgentExecutorAdapter) DispatchAgent(agentID uint64, userID uint64, task string, ctx *service.AgentDispatchContext) (*service.AgentDispatchResult, error) {
+	// Convert service.AgentDispatchContext to aiservice.DispatchContext
+	dispatchCtx := &aiservice.DispatchContext{
+		IssueID:     ctx.IssueID,
+		ProjectID:   ctx.ProjectID,
+		WorkspaceID: ctx.WorkspaceID,
+		TriggeredBy: ctx.TriggeredBy,
+	}
+
+	// Call the real AgentService
+	result, err := a.agentSvc.DispatchAgent(agentID, userID, task, dispatchCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert model.AgentActivity to service.AgentDispatchResult
+	return &service.AgentDispatchResult{
+		ResultSummary: result.ResultSummary,
 	}, nil
 }
 

@@ -121,3 +121,49 @@ func (h *RuntimeHandler) FindAvailableRuntime(c *gin.Context) {
 	}
 	c.JSON(200, resp)
 }
+
+// HealthCheck performs health check for all runtimes in a workspace.
+func (h *RuntimeHandler) HealthCheck(c *gin.Context) {
+	wid, _ := h.parseWorkspaceID(c)
+	if h.respond(c, h.svc.PerformHealthCheck(wid)) {
+		return
+	}
+	c.JSON(200, gin.H{"message": "Health check completed"})
+}
+
+// GlobalHealthCheck performs health check for all runtimes across all workspaces.
+func (h *RuntimeHandler) GlobalHealthCheck(c *gin.Context) {
+	if h.respond(c, h.svc.PerformGlobalHealthCheck()) {
+		return
+	}
+	c.JSON(200, gin.H{"message": "Global health check completed"})
+}
+
+// ScheduleTask finds an available runtime and schedules a task.
+func (h *RuntimeHandler) ScheduleTask(c *gin.Context) {
+	wid, _ := h.parseWorkspaceID(c)
+	runtimeID, e := h.svc.ScheduleTask(wid)
+	if h.respond(c, e) {
+		return
+	}
+	c.JSON(200, gin.H{"runtime_id": runtimeID})
+}
+
+// ReleaseTask releases a runtime from a completed task.
+func (h *RuntimeHandler) ReleaseTask(c *gin.Context) {
+	runtimeID, _ := strconv.ParseUint(c.Param("runtimeId"), 10, 64)
+	if h.respond(c, h.svc.ReleaseTask(runtimeID)) {
+		return
+	}
+	c.JSON(200, gin.H{"message": "Task released from runtime"})
+}
+
+// GetRuntimeStats returns runtime statistics for a workspace.
+func (h *RuntimeHandler) GetRuntimeStats(c *gin.Context) {
+	wid, _ := h.parseWorkspaceID(c)
+	stats, e := h.svc.GetRuntimeStats(wid)
+	if h.respond(c, e) {
+		return
+	}
+	c.JSON(200, stats)
+}
