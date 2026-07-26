@@ -66,3 +66,6 @@ backend-go/uploads/
 
 # Superpowers (temporary brainstorming files)
 .superpowers/
+
+# Temporary projects
+temp_multica/

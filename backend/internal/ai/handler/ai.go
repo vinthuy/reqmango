@@ -68,7 +68,9 @@ func (h *AIHandler) resolveService(workspaceID uint64) *service.AIService {
 	}
 
 	wsLLM := llm.NewLLMClient(cfg.APIKey, model, baseURL, provider)
-	return service.NewAIService(h.db, wsLLM)
+	wsSvc := service.NewAIService(h.db, wsLLM)
+	wsSvc.SetMemoryService(h.svc.GetMemoryService())
+	return wsSvc
 }
 
 // getBaseURLForProvider returns the default base URL for a provider.

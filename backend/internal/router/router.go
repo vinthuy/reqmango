@@ -2,9 +2,11 @@ package router
 
 import (
 	"context"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	aihandler "github.com/reqmango/backend/internal/ai/handler"
+	"github.com/reqmango/backend/internal/scheduler"
 	"github.com/reqmango/backend/internal/ai/llm"
 	"github.com/reqmango/backend/internal/ai/registry"
 	aiservice "github.com/reqmango/backend/internal/ai/service"
@@ -15,6 +17,11 @@ import (
 	"github.com/reqmango/backend/internal/rql"
 	"github.com/reqmango/backend/internal/service"
 	"gorm.io/gorm"
+)
+
+var (
+	memScheduler *scheduler.MemoryScheduler
+	schedulerMu  sync.Mutex
 )
 
 // SetupRoutes initializes all services, handlers, and routes.
@@ -72,6 +79,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	aiSvc := aiservice.NewAIService(db, llmClient)
 	agentSvc := aiservice.NewAgentService(db, llmClient, aiSvc)
 	loopSvc := aiservice.NewLoopService(db, agentSvc)
+
+	// Initialize Memory service and inject via setter (to avoid import cycle)
+	memSvc := service.NewMemoryService(db)
+	aiSvc.SetMemoryService(memSvc)
+	agentSvc.SetMemoryService(memSvc)
+
+	// Start memory cleanup scheduler
+	schedulerMu.Lock()
+	memScheduler = scheduler.NewMemoryScheduler(memSvc)
+	memScheduler.Start(context.Background())
+	schedulerMu.Unlock()
 
 	// Seed agent registry
 	reg := registry.NewRegistry(db)
@@ -430,6 +448,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/memories/search", memoryH.SearchMemories)
 			workspaces.POST("/:wsParam/memories/semantic-search", memoryH.SemanticSearch)
 			workspaces.GET("/:wsParam/memories/context/:contextKey", memoryH.GetContextMemories)
+			workspaces.POST("/:wsParam/memories/prune", memoryH.PruneMemories)
+			workspaces.GET("/:wsParam/memories/stats", memoryH.GetMemoryStats)
+			workspaces.POST("/:wsParam/memories/find-similar", memoryH.FindSimilarMemories)
+			workspaces.POST("/:wsParam/memories/merge", memoryH.MergeMemories)
 
 			// Memory Sessions
 			workspaces.POST("/:wsParam/memory-sessions", memoryH.CreateMemorySession)
@@ -976,6 +998,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			notifications.DELETE("/:id", notificationH.Delete)
 		}
 	}
+}
+
+// Shutdown performs graceful shutdown of all background services
+func Shutdown() {
+	schedulerMu.Lock()
+	if memScheduler != nil {
+		memScheduler.Stop()
+		memScheduler = nil
+	}
+	schedulerMu.Unlock()
 }
 
 

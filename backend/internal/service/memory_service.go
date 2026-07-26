@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 
 	"github.com/reqmango/backend/internal/model"
 )
+
+var ErrMergeRequiresTwoMemories = errors.New("at least 2 memories are required to merge")
 
 // MemoryService provides memory management capabilities
 type MemoryService struct {
@@ -67,61 +70,127 @@ func (s *MemoryService) GetMemoryByID(ctx context.Context, id uint64, workspaceI
 }
 
 // ListMemories retrieves memory entries with filters
-func (s *MemoryService) ListMemories(ctx context.Context, workspaceID uint64, filters MemoryListFilters) ([]*model.MemoryEntry, error) {
+func (s *MemoryService) ListMemories(ctx context.Context, workspaceID uint64, filters interface{}) ([]*model.MemoryEntry, error) {
 	query := s.db.WithContext(ctx).Where("workspace_id = ?", workspaceID)
 
-	if filters.ProjectID != nil {
-		query = query.Where("project_id = ?", *filters.ProjectID)
-	}
-	if filters.IssueID != nil {
-		query = query.Where("issue_id = ?", *filters.IssueID)
-	}
-	if filters.AgentID != nil {
-		query = query.Where("agent_id = ?", *filters.AgentID)
-	}
-	if filters.MemoryType != "" {
-		query = query.Where("memory_type = ?", filters.MemoryType)
-	}
-	if filters.Scope != "" {
-		query = query.Where("scope = ?", filters.Scope)
-	}
-	if filters.ContextKey != "" {
-		query = query.Where("context_key = ?", filters.ContextKey)
-	}
-	if filters.Tag != "" {
-		query = query.Where("tags @> ?", fmt.Sprintf("[\"%s\"]", filters.Tag))
+	switch f := filters.(type) {
+	case MemoryListFilters:
+		if f.ProjectID != nil {
+			query = query.Where("project_id = ?", *f.ProjectID)
+		}
+		if f.IssueID != nil {
+			query = query.Where("issue_id = ?", *f.IssueID)
+		}
+		if f.AgentID != nil {
+			query = query.Where("agent_id = ?", *f.AgentID)
+		}
+		if f.MemoryType != "" {
+			query = query.Where("memory_type = ?", f.MemoryType)
+		}
+		if f.Scope != "" {
+			query = query.Where("scope = ?", f.Scope)
+		}
+		if f.ContextKey != "" {
+			query = query.Where("context_key = ?", f.ContextKey)
+		}
+		if f.Tag != "" {
+			query = query.Where("tags @> ?", fmt.Sprintf("[\"%s\"]", f.Tag))
+		}
+		if f.SearchQuery != "" {
+			keywords := strings.Fields(strings.ToLower(f.SearchQuery))
+			var conditions []string
+			var args []interface{}
+			for _, kw := range keywords {
+				conditions = append(conditions, "LOWER(content) LIKE ?")
+				args = append(args, "%"+kw+"%")
+			}
+			query = query.Where(strings.Join(conditions, " OR "), args...)
+		}
+		if f.MinRelevance > 0 {
+			query = query.Where("relevance_score >= ?", f.MinRelevance)
+		}
+		if f.StartDate != nil {
+			query = query.Where("created_at >= ?", *f.StartDate)
+		}
+		if f.EndDate != nil {
+			query = query.Where("created_at <= ?", *f.EndDate)
+		}
+		if f.Limit > 0 {
+			query = query.Limit(f.Limit)
+		}
+		if f.Offset > 0 {
+			query = query.Offset(f.Offset)
+		}
+	case map[string]interface{}:
+		if v, ok := f["project_id"]; ok {
+			query = query.Where("project_id = ?", v)
+		}
+		if v, ok := f["issue_id"]; ok {
+			query = query.Where("issue_id = ?", v)
+		}
+		if v, ok := f["agent_id"]; ok {
+			query = query.Where("agent_id = ?", v)
+		}
+		if v, ok := f["memory_type"]; ok {
+			query = query.Where("memory_type = ?", v)
+		}
+		if v, ok := f["scope"]; ok {
+			query = query.Where("scope = ?", v)
+		}
+		if v, ok := f["limit"]; ok {
+			query = query.Limit(v.(int))
+		}
 	}
 
 	// Exclude expired short-term memories
 	query = query.Where("expires_at IS NULL OR expires_at > NOW()")
 
-	query = query.Order("relevance_score DESC, created_at DESC")
-
-	if filters.Limit > 0 {
-		query = query.Limit(filters.Limit)
-	}
-	if filters.Offset > 0 {
-		query = query.Offset(filters.Offset)
+	switch f := filters.(type) {
+	case MemoryListFilters:
+		sortField := "relevance_score"
+		if f.SortBy == "created_at" || f.SortBy == "updated_at" {
+			sortField = f.SortBy
+		}
+		sortOrder := "DESC"
+		if f.SortOrder == "asc" {
+			sortOrder = "ASC"
+		}
+		query = query.Order(fmt.Sprintf("%s %s", sortField, sortOrder))
+	default:
+		query = query.Order("relevance_score DESC, created_at DESC")
 	}
 
 	var entries []*model.MemoryEntry
 	if err := query.Find(&entries).Error; err != nil {
 		return nil, err
 	}
+
+	if f, ok := filters.(MemoryListFilters); ok && f.SearchQuery != "" {
+		for _, entry := range entries {
+			entry.Summary = extractSummary(entry.Content, f.SearchQuery)
+		}
+	}
+
 	return entries, nil
 }
 
 // MemoryListFilters defines filters for listing memories
 type MemoryListFilters struct {
-	ProjectID   *uint64
-	IssueID     *uint64
-	AgentID     *uint64
-	MemoryType  model.MemoryType
-	Scope       model.MemoryScope
-	ContextKey  string
-	Tag         string
-	Limit       int
-	Offset      int
+	ProjectID    *uint64
+	IssueID      *uint64
+	AgentID      *uint64
+	MemoryType   model.MemoryType
+	Scope        model.MemoryScope
+	ContextKey   string
+	Tag          string
+	Limit        int
+	Offset       int
+	SearchQuery  string
+	MinRelevance float64
+	StartDate    *time.Time
+	EndDate      *time.Time
+	SortBy       string
+	SortOrder    string
 }
 
 // UpdateMemory updates an existing memory entry
@@ -214,6 +283,44 @@ func (s *MemoryService) SemanticSearch(ctx context.Context, workspaceID uint64, 
 	return entries, nil
 }
 
+// extractSummary extracts a summary from content that contains search keywords
+// Returns a summary of ~100-150 characters, prioritizing context around keywords
+func extractSummary(content, query string) string {
+	contentLen := len(content)
+	if contentLen <= 150 {
+		return content
+	}
+
+	summaryLen := 150
+	keywords := strings.Fields(strings.ToLower(query))
+	lowerContent := strings.ToLower(content)
+
+	for _, kw := range keywords {
+		idx := strings.Index(lowerContent, kw)
+		if idx != -1 {
+			start := idx - 40
+			if start < 0 {
+				start = 0
+			}
+			end := idx + len(kw) + 110
+			if end > contentLen {
+				end = contentLen
+			}
+
+			result := content[start:end]
+			if start > 0 {
+				result = "..." + result
+			}
+			if end < contentLen {
+				result = result + "..."
+			}
+			return result
+		}
+	}
+
+	return content[:summaryLen] + "..."
+}
+
 // cosineSimilarity calculates cosine similarity between two vectors
 func cosineSimilarity(a, b []float64) float64 {
 	if len(a) != len(b) || len(a) == 0 {
@@ -279,10 +386,96 @@ func (s *MemoryService) AddMemoryToSession(ctx context.Context, sessionID string
 }
 
 // PruneExpiredMemories removes expired short-term memories
-func (s *MemoryService) PruneExpiredMemories(ctx context.Context) error {
-	return s.db.WithContext(ctx).
+func (s *MemoryService) PruneExpiredMemories(ctx context.Context) (int64, error) {
+	result := s.db.WithContext(ctx).
 		Where("memory_type = ? AND expires_at IS NOT NULL AND expires_at < NOW()", model.MemoryShortTerm).
-		Delete(&model.MemoryEntry{}).Error
+		Delete(&model.MemoryEntry{})
+	return result.RowsAffected, result.Error
+}
+
+// PruneLowRelevanceMemories removes old memories with low relevance score
+func (s *MemoryService) PruneLowRelevanceMemories(ctx context.Context, maxDays int, minScore float64) (int64, error) {
+	result := s.db.WithContext(ctx).
+		Where("created_at < NOW() - INTERVAL '? days' AND relevance_score < ?", maxDays, minScore).
+		Delete(&model.MemoryEntry{})
+	return result.RowsAffected, result.Error
+}
+
+// GetMemoryStats returns memory statistics by type and scope
+func (s *MemoryService) GetMemoryStats(ctx context.Context, workspaceID uint64) (map[string]int64, error) {
+	result := map[string]int64{
+		"total":           0,
+		"short_term":      0,
+		"medium_term":     0,
+		"long_term":       0,
+		"scope_workspace": 0,
+		"scope_project":   0,
+		"scope_issue":     0,
+		"scope_agent":     0,
+		"expired":         0,
+	}
+
+	var total int64
+	if err := s.db.WithContext(ctx).Model(&model.MemoryEntry{}).
+		Where("workspace_id = ?", workspaceID).Count(&total).Error; err != nil {
+		return nil, err
+	}
+	result["total"] = total
+
+	var typeCounts []struct {
+		MemoryType string `gorm:"column:memory_type"`
+		Count      int64  `gorm:"column:count"`
+	}
+	if err := s.db.WithContext(ctx).Model(&model.MemoryEntry{}).
+		Select("memory_type, COUNT(*) as count").
+		Where("workspace_id = ?", workspaceID).
+		Group("memory_type").
+		Find(&typeCounts).Error; err != nil {
+		return nil, err
+	}
+	for _, tc := range typeCounts {
+		switch tc.MemoryType {
+		case string(model.MemoryShortTerm):
+			result["short_term"] = tc.Count
+		case string(model.MemoryMediumTerm):
+			result["medium_term"] = tc.Count
+		case string(model.MemoryLongTerm):
+			result["long_term"] = tc.Count
+		}
+	}
+
+	var scopeCounts []struct {
+		Scope string `gorm:"column:scope"`
+		Count int64  `gorm:"column:count"`
+	}
+	if err := s.db.WithContext(ctx).Model(&model.MemoryEntry{}).
+		Select("scope, COUNT(*) as count").
+		Where("workspace_id = ?", workspaceID).
+		Group("scope").
+		Find(&scopeCounts).Error; err != nil {
+		return nil, err
+	}
+	for _, sc := range scopeCounts {
+		switch sc.Scope {
+		case string(model.ScopeWorkspace):
+			result["scope_workspace"] = sc.Count
+		case string(model.ScopeProject):
+			result["scope_project"] = sc.Count
+		case string(model.ScopeIssue):
+			result["scope_issue"] = sc.Count
+		case string(model.ScopeAgent):
+			result["scope_agent"] = sc.Count
+		}
+	}
+
+	var expired int64
+	if err := s.db.WithContext(ctx).Model(&model.MemoryEntry{}).
+		Where("workspace_id = ? AND expires_at IS NOT NULL AND expires_at < NOW()", workspaceID).Count(&expired).Error; err != nil {
+		return nil, err
+	}
+	result["expired"] = expired
+
+	return result, nil
 }
 
 // GetContextMemories retrieves memories for a specific context
@@ -299,4 +492,274 @@ func (s *MemoryService) UpdateRelevance(ctx context.Context, id, workspaceID uin
 		Model(&model.MemoryEntry{}).
 		Where("id = ? AND workspace_id = ?", id, workspaceID).
 		Update("relevance_score", score).Error
+}
+
+// tokenize splits text into words (tokens), supports both Chinese and English
+func tokenize(text string) []string {
+	text = strings.ToLower(text)
+	var tokens []string
+	
+	// Split by whitespace first
+	words := strings.Fields(text)
+	
+	for _, w := range words {
+		var cleaned string
+		var hasChinese bool
+		
+		for _, c := range w {
+			// Check if it's a Chinese character
+			if c >= '\u4e00' && c <= '\u9fff' {
+				// Chinese: add each character as separate token
+				tokens = append(tokens, string(c))
+				hasChinese = true
+			} else if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+				// English/numbers: accumulate into word
+				cleaned += string(c)
+			}
+		}
+		
+		if !hasChinese && cleaned != "" {
+			tokens = append(tokens, cleaned)
+		}
+	}
+	
+	return tokens
+}
+
+// calculateWordFrequency creates a frequency map for words in text
+func calculateWordFrequency(text string) map[string]int {
+	tokens := tokenize(text)
+	freq := make(map[string]int)
+	for _, t := range tokens {
+		freq[t]++
+	}
+	return freq
+}
+
+// CalculateTextSimilarity calculates cosine similarity between two texts based on word frequency
+func (s *MemoryService) CalculateTextSimilarity(text1, text2 string) float64 {
+	if text1 == "" || text2 == "" {
+		return 0.0
+	}
+
+	freq1 := calculateWordFrequency(text1)
+	freq2 := calculateWordFrequency(text2)
+
+	var dot, mag1, mag2 float64
+	words := make(map[string]bool)
+	for w := range freq1 {
+		words[w] = true
+	}
+	for w := range freq2 {
+		words[w] = true
+	}
+
+	for w := range words {
+		f1 := float64(freq1[w])
+		f2 := float64(freq2[w])
+		dot += f1 * f2
+		mag1 += f1 * f1
+		mag2 += f2 * f2
+	}
+
+	if mag1 == 0 || mag2 == 0 {
+		return 0.0
+	}
+
+	return dot / (math.Sqrt(mag1) * math.Sqrt(mag2))
+}
+
+// SimilarMemoryResult represents a memory entry with its similarity score
+type SimilarMemoryResult struct {
+	MemoryEntry *model.MemoryEntry `json:"memory_entry"`
+	Similarity  float64            `json:"similarity"`
+}
+
+// FindSimilarMemories finds memories similar to the given content
+// Limits search to the most recent 100 non-expired memories
+func (s *MemoryService) FindSimilarMemories(ctx context.Context, workspaceID uint64, content string, threshold float64, limit int) ([]SimilarMemoryResult, error) {
+	if content == "" {
+		return nil, errors.New("content is required")
+	}
+
+	var entries []*model.MemoryEntry
+	if err := s.db.WithContext(ctx).
+		Where("workspace_id = ?", workspaceID).
+		Where("expires_at IS NULL OR expires_at > NOW()").
+		Order("created_at DESC").
+		Limit(100).
+		Find(&entries).Error; err != nil {
+		return nil, err
+	}
+
+	results := make([]SimilarMemoryResult, 0)
+	for _, entry := range entries {
+		sim := s.CalculateTextSimilarity(content, entry.Content)
+		if sim >= threshold {
+			results = append(results, SimilarMemoryResult{
+				MemoryEntry: entry,
+				Similarity:  sim,
+			})
+		}
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Similarity > results[j].Similarity
+	})
+
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
+	}
+
+	return results, nil
+}
+
+// MergeMemories merges multiple memories into one, marking original memories with merged_into metadata
+// Requires at least 2 memories to merge
+func (s *MemoryService) MergeMemories(ctx context.Context, memoryIDs []uint64, workspaceID uint64) (*model.MemoryEntry, error) {
+	if len(memoryIDs) < 2 {
+		return nil, ErrMergeRequiresTwoMemories
+	}
+
+	var mergedEntry *model.MemoryEntry
+
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var entries []*model.MemoryEntry
+		if err := tx.
+			Where("id IN ? AND workspace_id = ?", memoryIDs, workspaceID).
+			Find(&entries).Error; err != nil {
+			return err
+		}
+
+		if len(entries) != len(memoryIDs) {
+			return errors.New("some memory entries not found")
+		}
+
+		var mergedContent strings.Builder
+		var allTags []string
+		tagSet := make(map[string]bool)
+		var allMetadata map[string]interface{} = make(map[string]interface{})
+		var projectID *uint64
+		var issueID *uint64
+		var agentID *uint64
+		var memoryType model.MemoryType = model.MemoryMediumTerm
+		var scope model.MemoryScope = model.ScopeWorkspace
+		var contextKey string
+		var contextName string
+
+		for i, entry := range entries {
+			if i > 0 {
+				mergedContent.WriteString("\n\n---\n\n")
+			}
+			mergedContent.WriteString(entry.Content)
+
+			if entry.Tags != nil {
+				var tags []string
+				if err := json.Unmarshal(entry.Tags, &tags); err == nil {
+					for _, t := range tags {
+						if !tagSet[t] {
+							tagSet[t] = true
+							allTags = append(allTags, t)
+						}
+					}
+				}
+			}
+
+			if entry.Metadata != nil {
+				var meta map[string]interface{}
+				if err := json.Unmarshal(entry.Metadata, &meta); err == nil {
+					for k, v := range meta {
+						if _, exists := allMetadata[k]; !exists {
+							allMetadata[k] = v
+						}
+					}
+				}
+			}
+
+			if projectID == nil && entry.ProjectID != nil {
+				projectID = entry.ProjectID
+			}
+			if issueID == nil && entry.IssueID != nil {
+				issueID = entry.IssueID
+			}
+			if agentID == nil && entry.AgentID != nil {
+				agentID = entry.AgentID
+			}
+			if entry.MemoryType == model.MemoryLongTerm {
+				memoryType = model.MemoryLongTerm
+			}
+			if entry.Scope == model.ScopeProject || entry.Scope == model.ScopeIssue || entry.Scope == model.ScopeAgent {
+				scope = entry.Scope
+			}
+			if contextKey == "" {
+				contextKey = entry.ContextKey
+			}
+			if contextName == "" {
+				contextName = entry.ContextName
+			}
+		}
+
+		mergedEntry = &model.MemoryEntry{
+			WorkspaceID:    workspaceID,
+			ProjectID:      projectID,
+			IssueID:        issueID,
+			AgentID:        agentID,
+			MemoryType:     memoryType,
+			Scope:          scope,
+			Content:        mergedContent.String(),
+			ContextKey:     contextKey,
+			ContextName:    contextName,
+			RelevanceScore: 0.9,
+		}
+
+		if len(allTags) > 0 {
+			tagsJSON, err := json.Marshal(allTags)
+			if err != nil {
+				return err
+			}
+			mergedEntry.Tags = tagsJSON
+		}
+
+		if len(allMetadata) > 0 {
+			metaJSON, err := json.Marshal(allMetadata)
+			if err != nil {
+				return err
+			}
+			mergedEntry.Metadata = metaJSON
+		}
+
+		if err := tx.Create(mergedEntry).Error; err != nil {
+			return err
+		}
+
+		for _, entry := range entries {
+			var meta map[string]interface{}
+			if entry.Metadata != nil {
+				if err := json.Unmarshal(entry.Metadata, &meta); err != nil {
+					return err
+				}
+			} else {
+				meta = make(map[string]interface{})
+			}
+			meta["merged_into"] = mergedEntry.ID
+			metaJSON, err := json.Marshal(meta)
+			if err != nil {
+				return err
+			}
+			if err := tx.
+				Model(&model.MemoryEntry{}).
+				Where("id = ?", entry.ID).
+				Update("metadata", metaJSON).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return mergedEntry, nil
 }

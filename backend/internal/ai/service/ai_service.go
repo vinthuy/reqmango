@@ -17,15 +17,32 @@ import (
 	"gorm.io/gorm"
 )
 
+// MemoryServiceInterface defines the interface for memory operations
+type MemoryServiceInterface interface {
+	CreateMemory(ctx context.Context, entry *model.MemoryEntry) (*model.MemoryEntry, error)
+	ListMemories(ctx context.Context, workspaceID uint64, filters interface{}) ([]*model.MemoryEntry, error)
+}
+
 // AIService provides AI-powered features on top of the existing services.
 type AIService struct {
-	db  *gorm.DB
-	llm *llm.LLMClient
+	db       *gorm.DB
+	llm      *llm.LLMClient
+	memSvc   MemoryServiceInterface
 }
 
 // NewAIService creates an AIService.
 func NewAIService(db *gorm.DB, llmClient *llm.LLMClient) *AIService {
 	return &AIService{db: db, llm: llmClient}
+}
+
+// SetMemoryService sets the memory service
+func (s *AIService) SetMemoryService(memSvc MemoryServiceInterface) {
+	s.memSvc = memSvc
+}
+
+// GetMemoryService returns the memory service
+func (s *AIService) GetMemoryService() MemoryServiceInterface {
+	return s.memSvc
 }
 
 // ==================== Permission Check ====================
@@ -340,6 +357,19 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 		systemPrompt += "\n\n当前为 Ask 模式：回答用户问题，展示数据。如需操作请建议用户切换到 Build 模式。"
 	}
 	
+	// Retrieve relevant memories and inject into system prompt
+	if s.memSvc != nil {
+		memories, _ := s.retrieveRelevantMemories(ctx, actx)
+		if len(memories) > 0 {
+			var memBuilder strings.Builder
+			memBuilder.WriteString("\n\n以下是相关历史记忆（帮助你理解上下文）：\n")
+			for _, mem := range memories {
+				memBuilder.WriteString(fmt.Sprintf("- [%s] %s\n", mem.ContextName, mem.Content[:minX(len(mem.Content), 200)]))
+			}
+			systemPrompt += memBuilder.String()
+		}
+	}
+
 	// Inject memory context into system prompt
 	if req.Context != "" {
 		systemPrompt += "\n\n" + req.Context
@@ -367,6 +397,7 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 	}
 
 	outCh := make(chan llm.StreamEvent, 64)
+	var finalResponse strings.Builder
 	go func() {
 		defer close(outCh)
 		emit := func(evt llm.StreamEvent) bool {
@@ -425,6 +456,9 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 					}, nil)
 					if synthErr == nil {
 						for se := range synthCh {
+							if (se.Type == "content" || se.Type == "text") && se.Content != "" {
+								finalResponse.WriteString(se.Content)
+							}
 							if !emit(se) {
 								return
 							}
@@ -435,15 +469,79 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 				if !emit(evt) {
 					return
 				}
+			case "content":
+				if evt.Content != "" {
+					finalResponse.WriteString(evt.Content)
+				}
+				if !emit(evt) {
+					return
+				}
+			case "text":
+				if evt.Content != "" {
+					finalResponse.WriteString(evt.Content)
+				}
+				if !emit(evt) {
+					return
+				}
 			default:
 				if !emit(evt) {
 					return
 				}
 			}
 		}
+
+		// Save conversation result as memory after completion
+		if s.memSvc != nil && finalResponse.Len() > 0 {
+			s.saveConversationMemory(context.Background(), actx, req.Message, finalResponse.String(), toolResults)
+		}
 	}()
 
 	return outCh, nil
+}
+
+// retrieveRelevantMemories retrieves relevant memories based on context
+func (s *AIService) retrieveRelevantMemories(ctx context.Context, actx *AIContext) ([]*model.MemoryEntry, error) {
+	filters := map[string]interface{}{
+		"project_id":   actx.ProjectID,
+		"memory_type":  model.MemoryShortTerm,
+		"limit":        5,
+	}
+	if actx.IssueID > 0 {
+		filters["issue_id"] = actx.IssueID
+	}
+	return s.memSvc.ListMemories(ctx, actx.WorkspaceID, filters)
+}
+
+// saveConversationMemory saves the conversation result as a memory entry
+func (s *AIService) saveConversationMemory(ctx context.Context, actx *AIContext, question, answer string, toolResults []llm.ToolResult) {
+	contextKey := fmt.Sprintf("chat_%d", actx.ProjectID)
+	
+	var issueID *uint64
+	if actx.IssueID > 0 {
+		contextKey = fmt.Sprintf("issue_%d", actx.IssueID)
+		issueID = &actx.IssueID
+	}
+
+	content := fmt.Sprintf("问题：%s\n\n回答：%s", question, answer)
+	if len(toolResults) > 0 {
+		content += fmt.Sprintf("\n\n执行工具：%d个", len(toolResults))
+	}
+
+	entry := &model.MemoryEntry{
+		WorkspaceID:    actx.WorkspaceID,
+		ProjectID:      &actx.ProjectID,
+		IssueID:        issueID,
+		MemoryType:     model.MemoryShortTerm,
+		Scope:          model.ScopeProject,
+		Content:        content,
+		ContextKey:     contextKey,
+		ContextName:    actx.ProjectName,
+		RelevanceScore: 0.8,
+	}
+
+	go func() {
+		s.memSvc.CreateMemory(ctx, entry)
+	}()
 }
 
 // ==================== AI Chart Generation ====================

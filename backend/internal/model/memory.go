@@ -39,6 +39,7 @@ type MemoryEntry struct {
 
 	// Content
 	Content     string          `gorm:"type:text;not null" json:"content"`
+	Summary     string          `gorm:"-" json:"summary,omitempty"` // Generated summary for search results, not stored in DB
 	Embedding   json.RawMessage `gorm:"type:jsonb" json:"embedding,omitempty"` // Vector embedding for semantic search
 	Metadata    json.RawMessage `gorm:"type:jsonb;default:'{}'" json:"metadata"`
 	Tags        json.RawMessage `gorm:"type:jsonb;default:'[]'" json:"tags"` // Array of strings

@@ -14,14 +14,20 @@ import (
 
 // AgentService manages AI agents and their actions.
 type AgentService struct {
-	db    *gorm.DB
-	llm   *llm.LLMClient
-	aiSvc *AIService
+	db      *gorm.DB
+	llm     *llm.LLMClient
+	aiSvc   *AIService
+	memSvc  MemoryServiceInterface
 }
 
 // NewAgentService creates a new AgentService.
 func NewAgentService(db *gorm.DB, llmClient *llm.LLMClient, aiSvc *AIService) *AgentService {
 	return &AgentService{db: db, llm: llmClient, aiSvc: aiSvc}
+}
+
+// SetMemoryService sets the memory service
+func (s *AgentService) SetMemoryService(memSvc MemoryServiceInterface) {
+	s.memSvc = memSvc
 }
 
 // ======== CRUD ========
@@ -255,6 +261,19 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		actx.ProjectID = *ctx.ProjectID
 	}
 
+	// Retrieve relevant memories and inject into system prompt
+	if s.memSvc != nil {
+		memories, _ := s.retrieveAgentMemories(context.Background(), agent, actx)
+		if len(memories) > 0 {
+			var memBuilder strings.Builder
+			memBuilder.WriteString("\n\n以下是相关历史记忆（帮助你理解上下文）：\n")
+			for _, mem := range memories {
+				memBuilder.WriteString(fmt.Sprintf("- [%s] %s\n", mem.ContextName, mem.Content[:minX(len(mem.Content), 150)]))
+			}
+			systemPrompt += memBuilder.String()
+		}
+	}
+
 	executedTools := make([]string, 0)
 	resp, llmErr := s.llm.ChatSyncWithTools(context.Background(), systemPrompt, []llm.Message{
 		{Role: "user", Content: task},
@@ -294,7 +313,49 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 
 	s.recordActivity(agent, ctx.IssueID, "dispatch", summary, task, userID)
 
+	// Save task result as memory after completion
+	if s.memSvc != nil && resp.Content != "" {
+		s.saveAgentTaskMemory(context.Background(), agent, actx, task, resp.Content, executedTools)
+	}
+
 	return s.getLatestActivity(agent.ID)
+}
+
+// retrieveAgentMemories retrieves relevant memories for an agent task
+func (s *AgentService) retrieveAgentMemories(ctx context.Context, agent *model.Agent, actx *AIContext) ([]*model.MemoryEntry, error) {
+	filters := map[string]interface{}{
+		"project_id":   actx.ProjectID,
+		"agent_id":     agent.ID,
+		"memory_type":  model.MemoryMediumTerm,
+		"limit":        5,
+	}
+	return s.memSvc.ListMemories(ctx, actx.WorkspaceID, filters)
+}
+
+// saveAgentTaskMemory saves the agent task result as a memory entry
+func (s *AgentService) saveAgentTaskMemory(ctx context.Context, agent *model.Agent, actx *AIContext, task, result string, executedTools []string) {
+	contextKey := fmt.Sprintf("agent_%d_task", agent.ID)
+
+	content := fmt.Sprintf("任务：%s\n\n执行结果：%s", task, result)
+	if len(executedTools) > 0 {
+		content += fmt.Sprintf("\n\n执行工具：%v", executedTools)
+	}
+
+	entry := &model.MemoryEntry{
+		WorkspaceID:    actx.WorkspaceID,
+		ProjectID:      &actx.ProjectID,
+		AgentID:        &agent.ID,
+		MemoryType:     model.MemoryMediumTerm,
+		Scope:          model.ScopeAgent,
+		Content:        content,
+		ContextKey:     contextKey,
+		ContextName:    agent.Name,
+		RelevanceScore: 0.7,
+	}
+
+	go func() {
+		s.memSvc.CreateMemory(ctx, entry)
+	}()
 }
 
 // ======== Auto Triage ========

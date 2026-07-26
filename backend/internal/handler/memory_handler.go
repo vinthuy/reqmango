@@ -2,8 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -15,14 +17,12 @@ import (
 // MemoryHandler handles memory-related endpoints
 type MemoryHandler struct {
 	svc *service.MemoryService
-	db  *gorm.DB
 }
 
 // NewMemoryHandler creates a new MemoryHandler
 func NewMemoryHandler(db *gorm.DB) *MemoryHandler {
 	return &MemoryHandler{
 		svc: service.NewMemoryService(db),
-		db:  db,
 	}
 }
 
@@ -87,6 +87,30 @@ func (h *MemoryHandler) ListMemories(c *gin.Context) {
 		if offset, err := strconv.Atoi(offsetStr); err == nil {
 			filters.Offset = offset
 		}
+	}
+	if q := c.Query("q"); q != "" {
+		filters.SearchQuery = q
+	}
+	if minRelevanceStr := c.Query("min_relevance"); minRelevanceStr != "" {
+		if minRelevance, err := strconv.ParseFloat(minRelevanceStr, 64); err == nil {
+			filters.MinRelevance = minRelevance
+		}
+	}
+	if startDateStr := c.Query("start_date"); startDateStr != "" {
+		if startDate, err := time.Parse(time.RFC3339, startDateStr); err == nil {
+			filters.StartDate = &startDate
+		}
+	}
+	if endDateStr := c.Query("end_date"); endDateStr != "" {
+		if endDate, err := time.Parse(time.RFC3339, endDateStr); err == nil {
+			filters.EndDate = &endDate
+		}
+	}
+	if sortBy := c.Query("sort_by"); sortBy != "" {
+		filters.SortBy = sortBy
+	}
+	if sortOrder := c.Query("sort_order"); sortOrder != "" {
+		filters.SortOrder = sortOrder
 	}
 
 	entries, err := h.svc.ListMemories(c.Request.Context(), wid, filters)
@@ -438,4 +462,134 @@ func (h *MemoryHandler) GetContextMemories(c *gin.Context) {
 		return
 	}
 	c.JSON(200, entries)
+}
+
+// PruneMemories handles POST /workspaces/:wsParam/memories/prune
+func (h *MemoryHandler) PruneMemories(c *gin.Context) {
+	wid := h.parseWorkspaceID(c)
+	if wid == 0 {
+		c.JSON(400, gin.H{"message": "Invalid workspace"})
+		return
+	}
+
+	var req struct {
+		MaxDays   *int     `json:"max_days"`
+		MinScore  *float64 `json:"min_score"`
+		Expired   *bool    `json:"expired"`
+		LowRelevance *bool `json:"low_relevance"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"message": err.Error()})
+		return
+	}
+
+	result := gin.H{}
+
+	if req.Expired != nil && *req.Expired {
+		expiredCount, err := h.svc.PruneExpiredMemories(c.Request.Context())
+		if h.respond(c, err) {
+			return
+		}
+		result["expired_pruned"] = expiredCount
+	}
+
+	if req.LowRelevance != nil && *req.LowRelevance {
+		maxDays := 30
+		if req.MaxDays != nil && *req.MaxDays > 0 {
+			maxDays = *req.MaxDays
+		}
+		minScore := 0.3
+		if req.MinScore != nil && *req.MinScore >= 0 {
+			minScore = *req.MinScore
+		}
+		lowRelevanceCount, err := h.svc.PruneLowRelevanceMemories(c.Request.Context(), maxDays, minScore)
+		if h.respond(c, err) {
+			return
+		}
+		result["low_relevance_pruned"] = lowRelevanceCount
+	}
+
+	c.JSON(200, result)
+}
+
+// GetMemoryStats handles GET /workspaces/:wsParam/memories/stats
+func (h *MemoryHandler) GetMemoryStats(c *gin.Context) {
+	wid := h.parseWorkspaceID(c)
+	if wid == 0 {
+		c.JSON(400, gin.H{"message": "Invalid workspace"})
+		return
+	}
+
+	stats, err := h.svc.GetMemoryStats(c.Request.Context(), wid)
+	if h.respond(c, err) {
+		return
+	}
+	c.JSON(200, stats)
+}
+
+// FindSimilarMemories handles POST /workspaces/:wsParam/memories/find-similar
+func (h *MemoryHandler) FindSimilarMemories(c *gin.Context) {
+	wid := h.parseWorkspaceID(c)
+	if wid == 0 {
+		c.JSON(400, gin.H{"message": "Invalid workspace"})
+		return
+	}
+
+	var req struct {
+		Content   string  `json:"content" binding:"required"`
+		Threshold float64 `json:"threshold"`
+		Limit     int     `json:"limit"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"message": err.Error()})
+		return
+	}
+
+	if req.Threshold <= 0 {
+		req.Threshold = 0.5
+	}
+	if req.Limit <= 0 {
+		req.Limit = 10
+	}
+
+	results, err := h.svc.FindSimilarMemories(c.Request.Context(), wid, req.Content, req.Threshold, req.Limit)
+	if h.respond(c, err) {
+		return
+	}
+	c.JSON(200, results)
+}
+
+// MergeMemories handles POST /workspaces/:wsParam/memories/merge
+func (h *MemoryHandler) MergeMemories(c *gin.Context) {
+	wid := h.parseWorkspaceID(c)
+	if wid == 0 {
+		c.JSON(400, gin.H{"message": "Invalid workspace"})
+		return
+	}
+
+	var req struct {
+		MemoryIDs []uint64 `json:"memory_ids" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"message": err.Error()})
+		return
+	}
+
+	merged, err := h.svc.MergeMemories(c.Request.Context(), req.MemoryIDs, wid)
+	if err != nil {
+		if errors.Is(err, service.ErrMergeRequiresTwoMemories) {
+			c.JSON(400, gin.H{"message": err.Error()})
+			return
+		}
+		if err.Error() == "some memory entries not found" {
+			c.JSON(404, gin.H{"message": err.Error()})
+			return
+		}
+		h.respond(c, err)
+		return
+	}
+	c.JSON(200, merged)
 }
