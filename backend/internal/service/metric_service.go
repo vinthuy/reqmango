@@ -20,6 +20,19 @@ func NewMetricService(db *gorm.DB) *MetricService {
 	return &MetricService{db: db}
 }
 
+// checkProjectMembership verifies that the caller is an active member of the
+// project. Charts are content artifacts; members may manage them.
+func (s *MetricService) checkProjectMembership(projectID, userID uint64) error {
+	var count int64
+	s.db.Model(&model.ProjectMember{}).
+		Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, userID, true).
+		Count(&count)
+	if count == 0 {
+		return common.Forbidden("You must be a member of the project to manage charts")
+	}
+	return nil
+}
+
 type MetricTemplate struct {
 	ID             string                 `json:"id"`
 	Category       string                 `json:"category"`
@@ -108,6 +121,9 @@ func (s *MetricService) GetChart(projectID, chartID uint64) (*model.MetricChart,
 }
 
 func (s *MetricService) CreateChart(projectID, creatorID uint64, req *CreateChartRequest) (*model.MetricChart, error) {
+	if err := s.checkProjectMembership(projectID, creatorID); err != nil {
+		return nil, err
+	}
 	filtersJSON, _ := json.Marshal(req.Filters)
 	configJSON, _ := json.Marshal(req.Config)
 
@@ -130,7 +146,10 @@ func (s *MetricService) CreateChart(projectID, creatorID uint64, req *CreateChar
 	return &chart, nil
 }
 
-func (s *MetricService) UpdateChart(projectID, chartID uint64, req *UpdateChartRequest) (*model.MetricChart, error) {
+func (s *MetricService) UpdateChart(projectID, chartID, callerID uint64, req *UpdateChartRequest) (*model.MetricChart, error) {
+	if err := s.checkProjectMembership(projectID, callerID); err != nil {
+		return nil, err
+	}
 	chart, err := s.GetChart(projectID, chartID)
 	if err != nil {
 		return nil, err
@@ -161,7 +180,10 @@ func (s *MetricService) UpdateChart(projectID, chartID uint64, req *UpdateChartR
 	return chart, nil
 }
 
-func (s *MetricService) DeleteChart(projectID, chartID uint64) error {
+func (s *MetricService) DeleteChart(projectID, chartID, callerID uint64) error {
+	if err := s.checkProjectMembership(projectID, callerID); err != nil {
+		return err
+	}
 	result := s.db.Where("project_id = ? AND id = ?", projectID, chartID).Delete(&model.MetricChart{})
 	if result.RowsAffected == 0 {
 		return common.NotFound("Chart not found")

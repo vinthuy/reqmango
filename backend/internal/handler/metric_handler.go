@@ -70,7 +70,7 @@ func (h *MetricHandler) UpdateChart(c *gin.Context) {
 		common.RespondError(c, common.BadRequest(err.Error()))
 		return
 	}
-	chart, err := h.svc.UpdateChart(pid, cid, &req)
+	chart, err := h.svc.UpdateChart(pid, cid, middleware.GetCurrentUser(c).ID, &req)
 	if err != nil {
 		common.RespondError(c, err)
 		return
@@ -82,7 +82,7 @@ func (h *MetricHandler) UpdateChart(c *gin.Context) {
 func (h *MetricHandler) DeleteChart(c *gin.Context) {
 	pid, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
 	cid, _ := strconv.ParseUint(c.Param("chartId"), 10, 64)
-	if err := h.svc.DeleteChart(pid, cid); err != nil {
+	if err := h.svc.DeleteChart(pid, cid, middleware.GetCurrentUser(c).ID); err != nil {
 		common.RespondError(c, err)
 		return
 	}
