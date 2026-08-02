@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/reqmango/backend/internal/common"
@@ -12,6 +13,38 @@ import (
 
 type ModuleService struct {
 	db *gorm.DB
+}
+
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. Guards mutations against privilege escalation.
+func (s *ModuleService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage modules")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage modules")
+	}
+	return nil
+}
+
+// checkProjectAdmin verifies that the caller is an active admin-level member
+// of the project. Guards mutations against privilege escalation.
+func (s *ModuleService) checkProjectAdmin(projectID, callerID uint64) error {
+	var member model.ProjectMember
+	if err := s.db.Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a project admin to manage modules")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a project admin to manage modules")
+	}
+	return nil
 }
 
 func NewModuleService(db *gorm.DB) *ModuleService {
@@ -320,10 +353,19 @@ func (s *ModuleService) Update(moduleID, userID uint64, req request.ModuleUpdate
 	return s.buildResponse(module, nil), nil
 }
 
-func (s *ModuleService) Delete(moduleID uint64) error {
+func (s *ModuleService) Delete(moduleID, callerID uint64) error {
 	var module model.Module
 	if err := s.db.First(&module, moduleID).Error; err != nil {
 		return common.NotFound("Module not found")
+	}
+	if module.ProjectID != nil {
+		if err := s.checkProjectAdmin(*module.ProjectID, callerID); err != nil {
+			return err
+		}
+	} else {
+		if err := s.checkWorkspaceAdmin(module.WorkspaceID, callerID); err != nil {
+			return err
+		}
 	}
 	tx := s.db.Begin()
 	defer func() {
@@ -375,7 +417,10 @@ func (s *ModuleService) CreateOrUpdateOverride(projectID, workspaceModuleID uint
 	return s.buildResponse(module, &override), nil
 }
 
-func (s *ModuleService) DeleteOverride(projectID, workspaceModuleID uint64) error {
+func (s *ModuleService) DeleteOverride(projectID, workspaceModuleID, callerID uint64) error {
+	if err := s.checkProjectAdmin(projectID, callerID); err != nil {
+		return err
+	}
 	result := s.db.Where("project_id = ? AND workspace_module_id = ?", projectID, workspaceModuleID).Delete(&model.ModuleInheritanceOverride{})
 	if result.RowsAffected == 0 {
 		return common.NotFound("Override not found")

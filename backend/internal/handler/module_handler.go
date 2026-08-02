@@ -211,7 +211,7 @@ func (h *ModuleHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Delete(moduleID); svcErr != nil {
+	if svcErr := h.svc.Delete(moduleID, middleware.GetCurrentUser(c).ID); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
@@ -414,7 +414,7 @@ func (h *ModuleHandler) DeleteOverride(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.DeleteOverride(projectID, moduleID); svcErr != nil {
+	if svcErr := h.svc.DeleteOverride(projectID, moduleID, middleware.GetCurrentUser(c).ID); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return
