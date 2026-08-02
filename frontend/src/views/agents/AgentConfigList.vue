@@ -2,11 +2,14 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { agentConfigApi, type AgentConfigResponse, type AgentConfigCreate, type AgentConfigUpdate } from '@/api/agent-config'
+import { workspaceApi } from '@/api/workspace'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { getWorkspaceId } = useWorkspaceId()
 
 const workspaceId = ref(0)
 const configs = ref<AgentConfigResponse[]>([])
@@ -14,15 +17,16 @@ const loading = ref(true)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const saving = ref(false)
+const wsAIConfig = ref<any>(null)
 
 const newConfig = ref<AgentConfigCreate>({
   name: '',
   description: '',
-  provider: 'openai',
-  model: '',
+  provider: 'deepseek',
+  model: 'deepseek-chat',
   api_key: '',
   api_endpoint: '',
-  inference_level: 'standard',
+  inference_level: 'normal',
   service_level: 'standard',
   max_tokens: 4096,
   temperature: 0.7,
@@ -34,23 +38,24 @@ const editingConfig = ref<AgentConfigResponse | null>(null)
 const editForm = ref<AgentConfigUpdate>({})
 
 const providers = [
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'google', label: 'Google' },
-  { value: 'azure', label: 'Azure OpenAI' },
-  { value: 'local', label: 'Local' }
+  { value: 'deepseek', label: 'DeepSeek', models: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'] },
+  { value: 'openai', label: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
+  { value: 'anthropic', label: 'Anthropic', models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'] },
+  { value: 'google', label: 'Google', models: ['gemini-pro', 'gemini-1.5-pro'] },
+  { value: 'azure', label: 'Azure OpenAI', models: [] },
+  { value: 'local', label: 'Local', models: [] }
 ]
 
 const inferenceLevels = [
-  { value: 'standard', label: 'Standard' },
-  { value: 'turbo', label: 'Turbo' },
-  { value: 'premium', label: 'Premium' }
+  { value: 'normal', label: 'Normal' },
+  { value: 'advanced', label: 'Advanced' },
+  { value: 'thinking-2', label: 'Thinking-2 (推理增强)' }
 ]
 
 const serviceLevels = [
   { value: 'standard', label: 'Standard' },
-  { value: 'priority', label: 'Priority' },
-  { value: 'dedicated', label: 'Dedicated' }
+  { value: 'premium', label: 'Premium' },
+  { value: 'turbo', label: 'Turbo' }
 ]
 
 const filteredConfigs = computed(() => {
@@ -66,9 +71,40 @@ const filteredConfigs = computed(() => {
 async function loadConfigs() {
   loading.value = true
   try {
-    const wsId = parseInt(route.params.wsParam as string, 10)
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
     workspaceId.value = wsId
-    configs.value = await agentConfigApi.list(wsId) || []
+
+    // Load both agent configs and workspace AI config
+    const [agentConfigs, aiConfig] = await Promise.all([
+      agentConfigApi.list(wsId).catch(() => []),
+      workspaceApi.getAIConfig(wsId).catch(() => null)
+    ])
+    configs.value = agentConfigs || []
+    wsAIConfig.value = aiConfig
+
+    // If workspace has AI config but no agent configs, show it as a default config
+    if (aiConfig && aiConfig.provider && aiConfig.api_key && configs.value.length === 0) {
+      configs.value = [{
+        id: 0,
+        name: `${aiConfig.provider.toUpperCase()} Workspace Config`,
+        description: '工作空间默认AI配置',
+        provider: aiConfig.provider,
+        model: aiConfig.model || 'deepseek-chat',
+        api_key: aiConfig.api_key,
+        api_endpoint: aiConfig.api_endpoint || '',
+        inference_level: 'normal',
+        service_level: 'standard',
+        max_tokens: aiConfig.max_tokens || 4096,
+        temperature: 0.7,
+        top_p: 0.9,
+        is_default: true,
+        is_active: true,
+        workspace_id: wsId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }]
+    }
   } catch (err) {
     console.error('Failed to load configs:', err)
     configs.value = []
@@ -165,7 +201,12 @@ async function handleDelete(configId: number) {
 }
 
 function goBack() {
-  router.push(`/workspaces/${workspaceId.value}/agents`)
+  const slug = route.params.slug as string
+  if (slug) {
+    router.push(`/workspace/${slug}/agents`)
+  } else {
+    router.push(`/workspaces/${workspaceId.value}/agents`)
+  }
 }
 
 function getStatusColor(status: boolean) {
@@ -179,6 +220,16 @@ function getStatusText(status: boolean) {
 function getProviderLabel(provider: string) {
   return providers.find(p => p.value === provider)?.label || provider
 }
+
+const availableModels = computed(() => {
+  const provider = providers.find(p => p.value === newConfig.value.provider)
+  return provider?.models || []
+})
+
+const editAvailableModels = computed(() => {
+  const provider = providers.find(p => p.value === editForm.value.provider)
+  return provider?.models || []
+})
 
 function getInferenceLabel(level: string) {
   return inferenceLevels.find(l => l.value === level)?.label || level
@@ -366,11 +417,19 @@ onMounted(loadConfigs)
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.model') || 'Model' }}</label>
+            <select
+              v-if="availableModels.length > 0"
+              v-model="newConfig.model"
+              class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
+            >
+              <option v-for="m in availableModels" :key="m" :value="m">{{ m }}</option>
+            </select>
             <input
+              v-else
               v-model="newConfig.model"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
-              :placeholder="t('ai.agentConfig.modelPlaceholder') || 'gpt-4o'"
+              placeholder="模型名称"
             />
           </div>
           <div>
@@ -509,7 +568,15 @@ onMounted(loadConfigs)
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ t('ai.agentConfig.model') || 'Model' }}</label>
+            <select
+              v-if="editAvailableModels.length > 0"
+              v-model="editForm.model"
+              class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm"
+            >
+              <option v-for="m in editAvailableModels" :key="m" :value="m">{{ m }}</option>
+            </select>
             <input
+              v-else
               v-model="editForm.model"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"

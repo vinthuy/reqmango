@@ -30,7 +30,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import workflowApi from '@/api/workflow'
+import { automationApi } from '@/api/automation'
 import { useConfirm } from '@/composables/useConfirm'
 const props = defineProps<{ projectId: number }>()
 const { t } = useI18n()
@@ -38,9 +38,9 @@ const { confirm } = useConfirm()
 const automations = ref<any[]>([])
 const showModal = ref(false)
 const form = ref({ name:'', description:'', trigger:'issue_created', conditions:'[]', actions:'[]' })
-async function load() { try { automations.value = await workflowApi.listAutomations(props.projectId) } catch(e){ console.error(e) } }
+async function load() { try { automations.value = await automationApi.list(props.projectId) } catch(e){ console.error(e) } }
 function openCreate() { form.value = { name:'', description:'', trigger:'issue_created', conditions:'[]', actions:'[]' }; showModal.value = true }
-async function save() { await workflowApi.createAutomation(props.projectId, { name:form.value.name, description:form.value.description, trigger_type:form.value.trigger, conditions:form.value.conditions, actions:form.value.actions }); showModal.value = false; load() }
-async function confirmDel(a:any) { if(await confirm(t('automation.deleteConfirm'))) { await workflowApi.deleteAutomation(props.projectId, a.id); load() } }
+async function save() { await automationApi.create(props.projectId, { name:form.value.name, description:form.value.description, trigger_type:form.value.trigger, conditions:form.value.conditions, actions:form.value.actions }); showModal.value = false; load() }
+async function confirmDel(a:any) { if(await confirm(t('automation.deleteConfirm'))) { await automationApi.delete(props.projectId, a.id); load() } }
 onMounted(load)
 </script>

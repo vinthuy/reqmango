@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { useSSE } from '@/composables/useSSE'
 import { agentTaskApi, type AgentTaskResponse, type AgentTaskCreate } from '@/api/agent-task'
 import { agentTemplateApi, type AgentTemplateResponse } from '@/api/agent-template'
@@ -11,6 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { onAgentTask } = useSSE()
+const { getWorkspaceId } = useWorkspaceId()
 
 const workspaceId = ref(0)
 const tasks = ref<AgentTaskResponse[]>([])
@@ -56,7 +58,8 @@ const filteredTasks = computed(() => {
 async function loadData() {
   loading.value = true
   try {
-    const wsId = parseInt(route.params.wsParam as string, 10)
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
     workspaceId.value = wsId
     
     const [tasksRes, templatesRes, configsRes] = await Promise.all([
@@ -161,7 +164,12 @@ async function handleDelete(taskId: number) {
 }
 
 function goBack() {
-  router.push(`/workspaces/${workspaceId.value}/agents`)
+  const slug = route.params.slug as string
+  if (slug) {
+    router.push(`/workspace/${slug}/agents`)
+  } else {
+    router.push(`/workspaces/${workspaceId.value}/agents`)
+  }
 }
 
 function getStatusColor(status: string) {

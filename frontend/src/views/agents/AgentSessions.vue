@@ -34,21 +34,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { sessionApi, type AgentSession } from '@/api/agent-session'
 import LoopStateBadge from '@/components/agents/LoopStateBadge.vue'
+
+const route = useRoute()
+const { getWorkspaceId } = useWorkspaceId()
 
 const sessions = ref<AgentSession[]>([])
 const loading = ref(true)
 
-function getWorkspaceId(): number | null {
-  const match = window.location.pathname.match(/\/workspaces\/(\d+)/)
-  if (match) return Number(match[1])
-  const stored = localStorage.getItem('currentWorkspaceId')
-  return stored ? Number(stored) : null
-}
-
 onMounted(async () => {
-  const wsId = getWorkspaceId()
+  const wsId = await getWorkspaceId()
   if (!wsId) { loading.value = false; return }
   try {
     sessions.value = await sessionApi.list(wsId, { limit: 50 })

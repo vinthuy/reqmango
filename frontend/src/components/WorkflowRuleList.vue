@@ -84,7 +84,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import WorkflowRuleCard from './WorkflowRuleCard.vue'
-import workflowApi from '@/api/workflow'
+import { listAutomationRules, toggleAutomationRule } from '@/api/workflow'
 import type { AutomationRule } from '@/types/workflow'
 
 const { t } = useI18n()
@@ -127,7 +127,7 @@ onMounted(() => {
 async function loadRules() {
   loading.value = true
   try {
-    rules.value = await workflowApi.listAutomationRules(props.projectId)
+    rules.value = await listAutomationRules(props.projectId)
   } catch (error) {
     console.error('Failed to load automation rules:', error)
   } finally {
@@ -138,7 +138,7 @@ async function loadRules() {
 // Toggle rule enabled
 async function toggleRule(rule: AutomationRule) {
   try {
-    const updated = await workflowApi.toggleAutomationRule(props.projectId, rule.id, !rule.is_enabled)
+    const updated = await toggleAutomationRule(props.projectId, rule.id, !rule.is_enabled)
     const index = rules.value.findIndex(r => r.id === rule.id)
     if (index !== -1) {
       rules.value[index] = updated

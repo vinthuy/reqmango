@@ -175,9 +175,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useRoute } from 'vue-router'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { autopilotApi, type AutopilotTask, type AutopilotCreateRequest, type AutopilotUpdateRequest } from '@/api/autopilot'
 
 const { t } = useI18n()
+const route = useRoute()
+const { getWorkspaceId } = useWorkspaceId()
+
+const workspaceId = ref(0)
 
 const tasks = ref<AutopilotTask[]>([])
 const showModal = ref(false)
@@ -196,18 +202,17 @@ const enabledCount = computed(() => tasks.value.filter(t => t.enabled).length)
 const cronCount = computed(() => tasks.value.filter(t => t.trigger_type === 'cron').length)
 const webhookCount = computed(() => tasks.value.filter(t => t.trigger_type === 'webhook').length)
 
-function getWorkspaceId(): number | null {
-  const match = window.location.pathname.match(/\/workspaces\/(\d+)/)
-  if (match) return Number(match[1])
-  return null
-}
-
-function loadTasks() {
-  const wsId = getWorkspaceId()
-  if (!wsId) return
-  autopilotApi.list(wsId).then(data => {
-    tasks.value = data
-  })
+async function loadTasks() {
+  try {
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
+    workspaceId.value = wsId
+    const data = await autopilotApi.list(wsId)
+    tasks.value = data || []
+  } catch (err) {
+    console.error('Failed to load autopilot tasks:', err)
+    tasks.value = []
+  }
 }
 
 function openCreateModal() {
@@ -269,7 +274,7 @@ function saveTask() {
 }
 
 function executeTask(task: AutopilotTask) {
-  const wsId = getWorkspaceId()
+  const wsId = workspaceId.value
   if (!wsId) return
   autopilotApi.execute(wsId, task.id).then(() => {
     loadTasks()
@@ -285,7 +290,7 @@ function toggleTask(task: AutopilotTask) {
 }
 
 function deleteTaskConfirm(task: AutopilotTask) {
-  const wsId = getWorkspaceId()
+  const wsId = workspaceId.value
   if (!wsId) return
   if (confirm(t('ai.autopilot.deleteConfirm', { name: task.name }))) {
     autopilotApi.delete(wsId, task.id).then(() => {

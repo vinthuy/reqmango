@@ -61,6 +61,10 @@
       "dashboards": "Dashboards",
       "reports": "Reports",
       "metrics": "Metrics",
+      "agentMembers": "Agent Members",
+      "workflows": "Workflows",
+      "agentIssues": "Agent Issues",
+      "budgetSla": "Budget & SLA",
       "settings": "Settings"
     },
     "view": {

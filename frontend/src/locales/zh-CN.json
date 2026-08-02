@@ -61,6 +61,10 @@
       "dashboards": "仪表盘",
       "reports": "度量",
       "metrics": "度量",
+      "agentMembers": "Agent 成员",
+      "workflows": "工作流",
+      "agentIssues": "Agent 任务",
+      "budgetSla": "预算与SLA",
       "settings": "设置"
     },
     "view": {

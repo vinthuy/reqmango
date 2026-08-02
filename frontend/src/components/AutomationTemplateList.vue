@@ -97,7 +97,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import workflowApi from '@/api/workflow'
+import { listAutomationTemplates } from '@/api/workflow'
 import { useI18n } from '@/composables/useI18n'
 import type { AutomationTemplate, TriggerTypeEnum } from '@/types/workflow'
 import { getTriggerDisplayName } from '@/types/workflow'
@@ -134,7 +134,7 @@ onMounted(() => {
 async function loadTemplates() {
   loading.value = true
   try {
-    templates.value = await workflowApi.listAutomationTemplates()
+    templates.value = await listAutomationTemplates()
   } catch (error) {
     console.error('Failed to load templates:', error)
   } finally {

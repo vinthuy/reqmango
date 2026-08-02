@@ -159,6 +159,12 @@ func main() {
 		&model.AutopilotTask{},
 		&model.AutopilotExecution{},
 		&model.AutopilotWebhook{},
+		// Agent-Project Integration models
+		&model.AgentWorkflow{},
+		&model.WorkflowNode{},
+		&model.WorkflowEdge{},
+		&model.WorkflowRun{},
+		&model.WorkflowNodeRun{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

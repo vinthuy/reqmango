@@ -33,6 +33,10 @@ type Issue struct {
 	IntakeSource     *string `gorm:"size:50" json:"intake_source"` // "form" | "email" | "api"
 	IntakeStatus     *string `gorm:"size:30" json:"intake_status"` // "pending" | "accepted" | "rejected"
 
+	// Agent integration (Agent-Project Integration)
+	AgentAssigneeID *uint64 `gorm:"index" json:"agent_assignee_id,omitempty"`
+	AgentTaskID     *uint64 `gorm:"index" json:"agent_task_id,omitempty"`
+
 	// Relationships
 	Project       Project         `gorm:"foreignKey:ProjectID" json:"-"`
 	State         State           `gorm:"foreignKey:StateID" json:"-"`

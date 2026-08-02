@@ -46,27 +46,23 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { useAgentLoopStore } from '@/stores/agentLoop'
-import { useRouter } from 'vue-router'
 
-const store = useAgentLoopStore()
+const route = useRoute()
 const router = useRouter()
+const store = useAgentLoopStore()
+const { getWorkspaceId } = useWorkspaceId()
 const showCreate = ref(false)
 
-function getWorkspaceId(): number | null {
-  const match = window.location.pathname.match(/\/workspaces\/(\d+)/)
-  if (match) return Number(match[1])
-  const stored = localStorage.getItem('currentWorkspaceId')
-  return stored ? Number(stored) : null
-}
-
-onMounted(() => {
-  const wsId = getWorkspaceId()
+onMounted(async () => {
+  const wsId = await getWorkspaceId()
   if (wsId) store.fetchLoops(wsId)
 })
 
 async function startLoop(loopId: number) {
-  const wsId = getWorkspaceId()
+  const wsId = await getWorkspaceId()
   if (!wsId) return
   try {
     const run = await store.startLoop(wsId, loopId)

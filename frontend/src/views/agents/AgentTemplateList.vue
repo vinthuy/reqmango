@@ -2,11 +2,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { agentTemplateApi, type AgentTemplateResponse, type AgentTemplateCreate, type AgentTemplateUpdate } from '@/api/agent-template'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { getWorkspaceId } = useWorkspaceId()
 
 const workspaceId = ref(0)
 const templates = ref<AgentTemplateResponse[]>([])
@@ -40,7 +42,8 @@ const filteredTemplates = computed(() => {
 async function loadTemplates() {
   loading.value = true
   try {
-    const wsId = parseInt(route.params.wsParam as string, 10)
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
     workspaceId.value = wsId
     templates.value = await agentTemplateApi.list(wsId) || []
   } catch (err) {

@@ -1,6 +1,7 @@
 package seed
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"time"
@@ -28,6 +29,7 @@ func SeedAll(db *gorm.DB) {
 	SeedSearchTemplates(db)
 	SeedAutomationRulesForAllWorkspaces(db)
 	SeedWebhookDemoExecutionLogs(db)
+	SeedAIData(db)
 
 	fmt.Println("=== Data initialization complete ===")
 }
@@ -1629,3 +1631,799 @@ func SeedWebhookDemoExecutionLogs(db *gorm.DB) {
 		}
 	}
 }
+
+// SeedAIData creates rich seed data for all AI modules.
+func SeedAIData(db *gorm.DB) {
+	fmt.Println("--- Seeding AI data ---")
+
+	var workspaces []model.Workspace
+	db.Find(&workspaces)
+	if len(workspaces) == 0 {
+		fmt.Println("  No workspaces found, skipping AI seed")
+		return
+	}
+
+	// Use the first workspace for AI seed data
+	ws := workspaces[0]
+	adminID := ws.OwnerID
+
+	// 1. Agent Templates (preset)
+	seedAgentTemplates(db, ws.ID, adminID)
+
+	// 2. Agent Configs (LLM model configs)
+	seedAgentConfigs(db, ws.ID)
+
+	// 3. Skills (preset)
+	seedSkills(db, ws.ID)
+
+	// 4. Runtimes
+	seedRuntimes(db, ws.ID)
+
+	// 5. Squads with members
+	seedSquads(db, ws.ID, adminID)
+
+	// 6. Memory entries
+	seedMemories(db, ws.ID)
+
+	// 7. Agent tasks
+	seedAgentTasks(db, ws.ID)
+
+	// 8. Agent activities
+	seedAgentActivities(db, ws.ID)
+
+	// 9. Agent sessions
+	seedAgentSessions(db, ws.ID)
+
+	fmt.Println("--- AI data seed complete ---")
+}
+
+func seedAgentTemplates(db *gorm.DB, wsID, adminID uint64) {
+	var count int64
+	db.Model(&model.AgentTemplate{}).Where("workspace_id = ? OR workspace_id IS NULL", wsID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Agent templates already exist, skipping")
+		return
+	}
+
+	templates := []model.AgentTemplate{
+		{
+			Name:        "代码审查专家",
+			Description: strPtr("专注于代码质量审查，识别潜在问题并提供改进建议"),
+			IsPreset:    true,
+			Icon:        "🔍",
+			SystemPrompt: `你是一位资深的代码审查专家。你的职责是：
+1. 检查代码风格和一致性
+2. 识别潜在的bug和安全漏洞
+3. 评估代码复杂度和可维护性
+4. 提供具体的改进建议
+请用简洁专业的语言给出审查意见。`,
+			AvailableTools: []byte(`["analyze_code","search_code"]`),
+			DefaultConfig:  []byte(`{"model":"deepseek-chat","temperature":0.3}`),
+			Version:        "1.0",
+			Status:         "active",
+		},
+		{
+			Name:        "需求分析师",
+			Description: strPtr("分析用户需求，提取关键信息，生成结构化需求文档"),
+			IsPreset:    true,
+			Icon:        "📋",
+			SystemPrompt: `你是一位专业的需求分析师。你的职责是：
+1. 理解用户的原始需求描述
+2. 提取关键功能点和约束条件
+3. 识别需求中的歧义和遗漏
+4. 生成结构化的需求文档
+请确保输出清晰、完整、可执行。`,
+			AvailableTools: []byte(`["extract_requirements","analyze_content"]`),
+			DefaultConfig:  []byte(`{"model":"deepseek-chat","temperature":0.5}`),
+			Version:        "1.0",
+			Status:         "active",
+		},
+		{
+			Name:        "测试工程师",
+			Description: strPtr("根据需求和代码生成测试用例，执行测试分析"),
+			IsPreset:    true,
+			Icon:        "🧪",
+			SystemPrompt: `你是一位经验丰富的测试工程师。你的职责是：
+1. 分析需求和代码逻辑
+2. 设计全面的测试用例
+3. 覆盖正常流程和边界情况
+4. 识别潜在的测试盲区
+请输出结构化的测试用例，包含输入、预期输出和测试步骤。`,
+			AvailableTools: []byte(`["analyze_code","generate_test"]`),
+			DefaultConfig:  []byte(`{"model":"deepseek-chat","temperature":0.4}`),
+			Version:        "1.0",
+			Status:         "active",
+		},
+		{
+			Name:        "技术文档撰写者",
+			Description: strPtr("根据代码和需求自动生成技术文档"),
+			IsPreset:    true,
+			Icon:        "📝",
+			SystemPrompt: `你是一位技术文档撰写专家。你的职责是：
+1. 理解代码结构和功能
+2. 生成清晰的技术文档
+3. 包含API说明、使用示例和注意事项
+4. 保持文档格式规范统一
+请输出Markdown格式的文档。`,
+			AvailableTools: []byte(`["analyze_code","analyze_content"]`),
+			DefaultConfig:  []byte(`{"model":"deepseek-chat","temperature":0.6}`),
+			Version:        "1.0",
+			Status:         "active",
+		},
+		{
+			Name:        "项目管理助手",
+			Description: strPtr("协助项目经理进行任务分配、进度跟踪和风险评估"),
+			IsPreset:    true,
+			Icon:        "📊",
+			SystemPrompt: `你是一位专业的项目管理助手。你的职责是：
+1. 分析项目进度和团队工作量
+2. 提供任务优先级建议
+3. 识别项目风险和瓶颈
+4. 生成项目状态报告
+请基于数据给出客观、可操作的建议。`,
+			AvailableTools: []byte(`["list_issues","analyze_sprint","generate_report"]`),
+			DefaultConfig:  []byte(`{"model":"deepseek-chat","temperature":0.5}`),
+			Version:        "1.0",
+			Status:         "active",
+		},
+	}
+
+	for i := range templates {
+		templates[i].WorkspaceID = &wsID
+		templates[i].BaseModel = model.BaseModel{CreatedByID: &adminID}
+		if err := db.Create(&templates[i]).Error; err != nil {
+			fmt.Printf("  WARN: failed to create agent template '%s': %v\n", templates[i].Name, err)
+		}
+	}
+	fmt.Printf("  Created %d agent templates\n", len(templates))
+}
+
+func seedAgentConfigs(db *gorm.DB, wsID uint64) {
+	var count int64
+	db.Model(&model.AgentConfig{}).Where("workspace_id = ?", wsID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Agent configs already exist, skipping")
+		return
+	}
+
+	configs := []model.AgentConfig{
+		{
+			Name:           "DeepSeek Chat",
+			Description:    strPtr("DeepSeek 通用对话模型"),
+			Provider:       "deepseek",
+			Model:          "deepseek-chat",
+			MaxTokens:      4096,
+			Temperature:    0.7,
+			TopP:           1.0,
+			IsDefault:      true,
+			IsActive:       true,
+			InferenceLevel: "normal",
+			ServiceLevel:   "standard",
+			WorkspaceID:    wsID,
+		},
+		{
+			Name:           "DeepSeek Coder",
+			Description:    strPtr("DeepSeek 代码专用模型"),
+			Provider:       "deepseek",
+			Model:          "deepseek-coder",
+			MaxTokens:      8192,
+			Temperature:    0.3,
+			TopP:           0.95,
+			IsDefault:      false,
+			IsActive:       true,
+			InferenceLevel: "advanced",
+			ServiceLevel:   "premium",
+			WorkspaceID:    wsID,
+		},
+		{
+			Name:           "DeepSeek Reasoner",
+			Description:    strPtr("DeepSeek 推理增强模型"),
+			Provider:       "deepseek",
+			Model:          "deepseek-reasoner",
+			MaxTokens:      16384,
+			Temperature:    0.2,
+			TopP:           0.9,
+			IsDefault:      false,
+			IsActive:       true,
+			InferenceLevel: "thinking-2",
+			ServiceLevel:   "premium",
+			WorkspaceID:    wsID,
+		},
+	}
+
+	for i := range configs {
+		if err := db.Create(&configs[i]).Error; err != nil {
+			fmt.Printf("  WARN: failed to create agent config '%s': %v\n", configs[i].Name, err)
+		}
+	}
+	fmt.Printf("  Created %d agent configs\n", len(configs))
+}
+
+func seedSkills(db *gorm.DB, wsID uint64) {
+	var count int64
+	db.Model(&model.Skill{}).Where("workspace_id = ?", wsID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Skills already exist, skipping")
+		return
+	}
+
+	skills := []model.Skill{
+		{
+			Name:        "代码审查",
+			Description: strPtr("分析代码质量，识别潜在问题和改进建议"),
+			SkillType:   "builtin",
+			Version:     "1.0",
+			Status:      "active",
+			SkillMD: `## Step 1: 分析代码结构
+**Tool:** analyze_code
+**Input:** {"code": "{{code}}", "language": "{{language}}"}
+
+## Step 2: 识别问题
+分析代码中的潜在问题：
+- 代码复杂度
+- 潜在bug
+- 安全漏洞
+- 性能问题
+
+## Step 3: 生成改进建议
+提供具体的改进建议和优化方案。`,
+			Parameters: []byte(`[{"name":"code","type":"string","required":true,"description":"要审查的代码"},{"name":"language","type":"string","required":true,"description":"代码语言"}]`),
+			Tags:       []byte(`["code","review","quality"]`),
+			UsageCount: 12,
+			IsShared:   true,
+			IsPreset:   true,
+			WorkspaceID: wsID,
+		},
+		{
+			Name:        "需求分析",
+			Description: strPtr("分析用户需求，提取关键信息，生成需求文档"),
+			SkillType:   "builtin",
+			Version:     "1.0",
+			Status:      "active",
+			SkillMD: `## Step 1: 提取关键信息
+**Tool:** extract_requirements
+**Input:** {"input": "{{input}}"}
+
+## Step 2: 分类整理
+将需求分类为：功能需求、非功能需求、约束条件
+
+## Step 3: 生成需求文档
+输出结构化的需求文档。`,
+			Parameters: []byte(`[{"name":"input","type":"string","required":true,"description":"原始需求文本"}]`),
+			Tags:       []byte(`["requirement","analysis","document"]`),
+			UsageCount: 8,
+			IsShared:   true,
+			IsPreset:   true,
+			WorkspaceID: wsID,
+		},
+		{
+			Name:        "文档生成",
+			Description: strPtr("根据内容自动生成技术文档"),
+			SkillType:   "builtin",
+			Version:     "1.0",
+			Status:      "active",
+			SkillMD: `## Step 1: 分析内容
+分析输入内容的结构和关键信息。
+
+## Step 2: 生成大纲
+根据分析结果生成文档大纲。
+
+## Step 3: 生成文档
+按大纲生成完整的Markdown文档。`,
+			Parameters: []byte(`[{"name":"content","type":"string","required":true,"description":"原始内容"},{"name":"format","type":"string","required":false,"description":"输出格式","default":"markdown"}]`),
+			Tags:       []byte(`["documentation","generation"]`),
+			UsageCount: 5,
+			IsShared:   true,
+			IsPreset:   true,
+			WorkspaceID: wsID,
+		},
+		{
+			Name:        "问题分类",
+			Description: strPtr("自动分类问题类型和优先级"),
+			SkillType:   "builtin",
+			Version:     "1.0",
+			Status:      "active",
+			SkillMD: `## Step 1: 分析问题
+**Tool:** analyze_issue
+分析问题描述和标题。
+
+## Step 2: 识别类型
+分类为：Bug、功能请求、改进建议、文档问题
+
+## Step 3: 建议优先级
+根据影响范围和紧急程度建议优先级。`,
+			Parameters: []byte(`[{"name":"title","type":"string","required":true,"description":"问题标题"},{"name":"description","type":"string","required":true,"description":"问题描述"}]`),
+			Tags:       []byte(`["issue","classification","triage"]`),
+			UsageCount: 15,
+			IsShared:   true,
+			IsPreset:   true,
+			WorkspaceID: wsID,
+		},
+		{
+			Name:        "代码优化",
+			Description: strPtr("分析代码性能，提供优化建议"),
+			SkillType:   "builtin",
+			Version:     "1.0",
+			Status:      "active",
+			SkillMD: `## Step 1: 性能分析
+**Tool:** analyze_performance
+分析代码性能瓶颈。
+
+## Step 2: 识别优化点
+找出可优化的代码段。
+
+## Step 3: 生成优化方案
+提供具体的优化代码和建议。`,
+			Parameters: []byte(`[{"name":"code","type":"string","required":true,"description":"要优化的代码"},{"name":"language","type":"string","required":true,"description":"代码语言"}]`),
+			Tags:       []byte(`["code","optimization","performance"]`),
+			UsageCount: 3,
+			IsShared:   true,
+			IsPreset:   true,
+			WorkspaceID: wsID,
+		},
+		{
+			Name:        "会议纪要",
+			Description: strPtr("根据会议内容生成结构化会议纪要"),
+			SkillType:   "builtin",
+			Version:     "1.0",
+			Status:      "active",
+			SkillMD: `## Step 1: 提取信息
+提取会议主题、参与人、时间等信息。
+
+## Step 2: 整理要点
+整理讨论要点、决策事项、行动项。
+
+## Step 3: 生成纪要
+生成结构化的会议纪要文档。`,
+			Parameters: []byte(`[{"name":"transcript","type":"string","required":true,"description":"会议记录文本"}]`),
+			Tags:       []byte(`["meeting","minutes","summary"]`),
+			UsageCount: 2,
+			IsShared:   true,
+			IsPreset:   true,
+			WorkspaceID: wsID,
+		},
+	}
+
+	for i := range skills {
+		if err := db.Create(&skills[i]).Error; err != nil {
+			fmt.Printf("  WARN: failed to create skill '%s': %v\n", skills[i].Name, err)
+		}
+	}
+	fmt.Printf("  Created %d skills\n", len(skills))
+}
+
+func seedRuntimes(db *gorm.DB, wsID uint64) {
+	var count int64
+	db.Model(&model.Runtime{}).Where("workspace_id = ?", wsID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Runtimes already exist, skipping")
+		return
+	}
+
+	now := time.Now()
+	runtimes := []model.Runtime{
+		{
+			Name:         "本地开发环境",
+			RuntimeType:  "local_daemon",
+			RuntimeMode:  "pull",
+			Status:       "online",
+			Health:       "online",
+			Capacity:     4,
+			CurrentLoad:  1,
+			Version:      "1.2.0",
+			HostInfo:     []byte(`{"os":"windows","cpu":"Intel i7-12700","memory":"32GB","disk":"512GB SSD"}`),
+			LastHeartbeat: &now,
+			WorkspaceID:  wsID,
+		},
+		{
+			Name:         "云端推理集群",
+			RuntimeType:  "cloud",
+			RuntimeMode:  "push",
+			Status:       "online",
+			Health:       "online",
+			Capacity:     16,
+			CurrentLoad:  5,
+			Version:      "2.0.1",
+			HostInfo:     []byte(`{"provider":"aliyun","region":"cn-shanghai","gpu":"A100","memory":"64GB"}`),
+			LastHeartbeat: &now,
+			Endpoint:     strPtr("wss://ai-cluster.example.com/ws"),
+			WorkspaceID:  wsID,
+		},
+	}
+
+	for i := range runtimes {
+		if err := db.Create(&runtimes[i]).Error; err != nil {
+			fmt.Printf("  WARN: failed to create runtime '%s': %v\n", runtimes[i].Name, err)
+		}
+	}
+	fmt.Printf("  Created %d runtimes\n", len(runtimes))
+}
+
+func seedSquads(db *gorm.DB, wsID, adminID uint64) {
+	var count int64
+	db.Model(&model.Squad{}).Where("workspace_id = ?", wsID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Squads already exist, skipping")
+		return
+	}
+
+	// Get agents in this workspace
+	var agents []model.Agent
+	db.Where("workspace_id = ?", wsID).Find(&agents)
+	if len(agents) < 2 {
+		fmt.Println("  Not enough agents for squads, skipping")
+		return
+	}
+
+	// Squad 1: Sprint质量保障团队
+	squad1 := model.Squad{
+		WorkspaceID:   wsID,
+		Name:          "Sprint质量保障团队",
+		Description:   "负责Sprint期间的代码质量保障，包括代码审查、测试和Bug修复",
+		LeaderAgentID: &agents[0].ID,
+		Status:        "active",
+		Goal:          "确保当前Sprint的所有交付物通过质量门禁",
+		Config:        []byte(`{"max_parallel_tasks":3,"timeout_minutes":60,"auto_assign":true}`),
+		BaseModel:     model.BaseModel{CreatedByID: &adminID},
+	}
+	if err := db.Create(&squad1).Error; err != nil {
+		fmt.Printf("  WARN: failed to create squad '%s': %v\n", squad1.Name, err)
+		return
+	}
+
+	// Add members to squad 1
+	for i, agent := range agents {
+		role := "member"
+		if i == 0 {
+			role = "leader"
+		}
+		db.Create(&model.SquadMember{
+			SquadID:  squad1.ID,
+			AgentID:  agent.ID,
+			Role:     role,
+			Status:   "active",
+		})
+	}
+
+	// Squad 2: 需求分析团队
+	if len(agents) >= 3 {
+		squad2 := model.Squad{
+			WorkspaceID:   wsID,
+			Name:          "需求分析团队",
+			Description:   "负责需求分析、拆解和任务分配",
+			LeaderAgentID: &agents[1].ID,
+			Status:        "active",
+			Goal:          "将产品需求拆解为可执行的开发任务",
+			Config:        []byte(`{"max_parallel_tasks":2,"timeout_minutes":30}`),
+			BaseModel:     model.BaseModel{CreatedByID: &adminID},
+		}
+		if err := db.Create(&squad2).Error; err != nil {
+			fmt.Printf("  WARN: failed to create squad '%s': %v\n", squad2.Name, err)
+			return
+		}
+
+		for i := 0; i < 2 && i < len(agents); i++ {
+			role := "member"
+			if i == 0 {
+				role = "leader"
+			}
+			db.Create(&model.SquadMember{
+				SquadID:  squad2.ID,
+				AgentID:  agents[i].ID,
+				Role:     role,
+				Status:   "active",
+			})
+		}
+	}
+
+	fmt.Println("  Created 2 squads with members")
+}
+
+func seedMemories(db *gorm.DB, wsID uint64) {
+	var count int64
+	db.Model(&model.MemoryEntry{}).Where("workspace_id = ?", wsID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Memories already exist, skipping")
+		return
+	}
+
+	memories := []model.MemoryEntry{
+		{
+			WorkspaceID: wsID,
+			MemoryType:  "long_term",
+			Scope:       "workspace",
+			Content:     "项目使用Go语言后端 + Vue3前端技术栈，数据库为PostgreSQL，ORM使用GORM",
+			Tags:        []byte(`["tech-stack","architecture"]`),
+			ContextKey:  "project_architecture",
+			ContextName: "项目架构",
+		},
+		{
+			WorkspaceID: wsID,
+			MemoryType:  "long_term",
+			Scope:       "workspace",
+			Content:     "API设计遵循RESTful规范，统一使用/api/v1前缀，工作空间路由为/api/v1/workspaces/:wsParam/",
+			Tags:        []byte(`["api","conventions"]`),
+			ContextKey:  "api_conventions",
+			ContextName: "API规范",
+		},
+		{
+			WorkspaceID: wsID,
+			MemoryType:  "medium_term",
+			Scope:       "workspace",
+			Content:     "当前Sprint目标：完成AI Agent平台Phase 2开发，包括技能执行引擎、监控仪表盘和Squad协作功能",
+			Tags:        []byte(`["sprint","goals"]`),
+			ContextKey:  "current_sprint",
+			ContextName: "当前Sprint",
+		},
+		{
+			WorkspaceID: wsID,
+			MemoryType:  "short_term",
+			Scope:       "workspace",
+			Content:     "最近一次代码审查发现：Squad执行时需要从context中获取userID，否则权限检查会失败",
+			Tags:        []byte(`["code-review","bug-fix"]`),
+			ContextKey:  "recent_review",
+			ContextName: "最近审查",
+			ExpiresAt:   timePtr(time.Now().Add(7 * 24 * time.Hour)),
+		},
+		{
+			WorkspaceID: wsID,
+			MemoryType:  "long_term",
+			Scope:       "workspace",
+			Content:     "用户角色体系：超级管理员(admin)、工作空间所有者(owner)、成员(member)、访客(guest)",
+			Tags:        []byte(`["rbac","roles"]`),
+			ContextKey:  "user_roles",
+			ContextName: "用户角色",
+		},
+		{
+			WorkspaceID: wsID,
+			MemoryType:  "medium_term",
+			Scope:       "workspace",
+			Content:     "Agent权限模式：private(仅创建者)、public(所有人)、restricted(指定成员)，同工作空间成员可调用private模式Agent",
+			Tags:        []byte(`["agent","permissions"]`),
+			ContextKey:  "agent_permissions",
+			ContextName: "Agent权限",
+		},
+		{
+			WorkspaceID: wsID,
+			MemoryType:  "short_term",
+			Scope:       "workspace",
+			Content:     "安全隔离测试已通过：使用sqlmock模拟数据库，验证不同用户在不同工作空间的数据隔离性",
+			Tags:        []byte(`["testing","security"]`),
+			ContextKey:  "test_status",
+			ContextName: "测试状态",
+			ExpiresAt:   timePtr(time.Now().Add(3 * 24 * time.Hour)),
+		},
+		{
+			WorkspaceID: wsID,
+			MemoryType:  "long_term",
+			Scope:       "workspace",
+			Content:     "预设技能系统包含：代码审查、需求分析、文档生成、问题分类、代码优化、会议纪要共6个内置技能",
+			Tags:        []byte(`["skills","presets"]`),
+			ContextKey:  "preset_skills",
+			ContextName: "预设技能",
+		},
+	}
+
+	for i := range memories {
+		if err := db.Create(&memories[i]).Error; err != nil {
+			fmt.Printf("  WARN: failed to create memory: %v\n", err)
+		}
+	}
+	fmt.Printf("  Created %d memory entries\n", len(memories))
+}
+
+func seedAgentTasks(db *gorm.DB, wsID uint64) {
+	var count int64
+	db.Model(&model.AgentTask{}).Where("workspace_id = ?", wsID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Agent tasks already exist, skipping")
+		return
+	}
+
+	tasks := []model.AgentTask{
+		{
+			Title:       "审查用户认证模块代码",
+			Description: strPtr("对auth_service.go进行代码审查，检查JWT token生成和验证逻辑"),
+			Status:      "completed",
+			Priority:    "high",
+			Progress:    100,
+			TaskType:    "code_review",
+			InputData:   []byte(`{"file":"internal/service/auth_service.go","language":"go"}`),
+			OutputData:  []byte(`{"issues_found":3,"suggestions":["增加token刷新机制","添加rate limiting","优化错误处理"]}`),
+			WorkspaceID: wsID,
+		},
+		{
+			Title:       "分析Sprint 3进度报告",
+			Description: strPtr("汇总Sprint 3的任务完成情况和风险项"),
+			Status:      "completed",
+			Priority:    "normal",
+			Progress:    100,
+			TaskType:    "analyze_requirement",
+			InputData:   []byte(`{"sprint_id":3}`),
+			OutputData:  []byte(`{"completion_rate":78,"risk_items":["API文档未更新"],"velocity":42}`),
+			WorkspaceID: wsID,
+		},
+		{
+			Title:       "生成单元测试用例",
+			Description: strPtr("为squad_service.go的StartExecution方法生成测试用例"),
+			Status:      "running",
+			Priority:    "normal",
+			Progress:    65,
+			TaskType:    "write_test",
+			InputData:   []byte(`{"file":"internal/service/squad_service.go","method":"StartExecution"}`),
+			WorkspaceID: wsID,
+		},
+		{
+			Title:       "重构权限检查模块",
+			Description: strPtr("优化CanInvoke方法，减少数据库查询次数"),
+			Status:      "enqueue",
+			Priority:    "high",
+			Progress:    0,
+			TaskType:    "refactor",
+			InputData:   []byte(`{"file":"internal/ai/service/agent_service.go","method":"CanInvoke"}`),
+			WorkspaceID: wsID,
+		},
+		{
+			Title:       "分析性能瓶颈",
+			Description: strPtr("分析Agent监控仪表盘接口的性能瓶颈"),
+			Status:      "failed",
+			Priority:    "low",
+			Progress:    30,
+			TaskType:    "analyze_requirement",
+			ErrorInfo:   strPtr("timeout: LLM API response exceeded 30s limit"),
+			WorkspaceID: wsID,
+		},
+		{
+			Title:       "编写API文档",
+			Description: strPtr("为Squad相关API编写OpenAPI规范文档"),
+			Status:      "completed",
+			Priority:    "normal",
+			Progress:    100,
+			TaskType:    "generate_doc",
+			InputData:   []byte(`{"module":"squad","format":"openapi"}`),
+			OutputData:  []byte(`{"endpoints":10,"schemas":5}`),
+			WorkspaceID: wsID,
+		},
+	}
+
+	now := time.Now()
+	for i := range tasks {
+		tasks[i].EnqueuedAt = now.Add(-time.Duration(len(tasks)-i) * time.Hour)
+		if tasks[i].Status == "completed" {
+			completed := now.Add(-time.Duration(len(tasks)-i) * 30 * time.Minute)
+			tasks[i].StartedAt = &completed
+			tasks[i].CompletedAt = &completed
+		}
+		if err := db.Create(&tasks[i]).Error; err != nil {
+			fmt.Printf("  WARN: failed to create agent task '%s': %v\n", tasks[i].Title, err)
+		}
+	}
+	fmt.Printf("  Created %d agent tasks\n", len(tasks))
+}
+
+func seedAgentActivities(db *gorm.DB, wsID uint64) {
+	var count int64
+	db.Model(&model.AgentActivity{}).Where("workspace_id = ?", wsID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Agent activities already exist, skipping")
+		return
+	}
+
+	// Get first agent
+	var agent model.Agent
+	if err := db.Where("workspace_id = ?", wsID).First(&agent).Error; err != nil {
+		fmt.Println("  No agent found, skipping activities")
+		return
+	}
+
+	activities := []model.AgentActivity{
+		{
+			AgentID:       agent.ID,
+			Action:        "auto_triage",
+			ResultSummary: "已将Issue #101分类为Bug，优先级设为High，分配给后端团队",
+			ExecutedAt:    time.Now().Add(-2 * time.Hour),
+			AgentName:     agent.Name,
+			TaskContext:   strPtr("分析Issue #101: 用户登录时出现500错误"),
+		},
+		{
+			AgentID:       agent.ID,
+			Action:        "dispatch",
+			ResultSummary: "已派发代码审查任务，审查auth模块的JWT实现",
+			ExecutedAt:    time.Now().Add(-5 * time.Hour),
+			AgentName:     agent.Name,
+			TaskContext:   strPtr("审查internal/service/auth_service.go的JWT实现"),
+		},
+		{
+			AgentID:       agent.ID,
+			Action:        "summarize",
+			ResultSummary: "Sprint 3进度：完成78%，剩余5个任务，预计本周五完成",
+			ExecutedAt:    time.Now().Add(-24 * time.Hour),
+			AgentName:     agent.Name,
+		},
+		{
+			AgentID:       agent.ID,
+			Action:        "auto_assign",
+			ResultSummary: "已将Issue #105自动分配给张三（前端开发）",
+			ExecutedAt:    time.Now().Add(-3 * time.Hour),
+			AgentName:     agent.Name,
+			Rating:        intPtr(1),
+		},
+	}
+
+	for i := range activities {
+		if err := db.Create(&activities[i]).Error; err != nil {
+			fmt.Printf("  WARN: failed to create agent activity: %v\n", err)
+		}
+	}
+	fmt.Printf("  Created %d agent activities\n", len(activities))
+}
+
+func seedAgentSessions(db *gorm.DB, wsID uint64) {
+	var count int64
+	db.Model(&model.AgentSession{}).Where("workspace_id = ?", wsID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Agent sessions already exist, skipping")
+		return
+	}
+
+	sessions := []model.AgentSession{
+		{
+			ID:           "sess-001",
+			WorkspaceID:  wsID,
+			AgentType:    "builtin",
+			AgentRef:     strPtr("Triage Agent"),
+			Status:       "completed",
+			ModelUsed:    strPtr("deepseek-chat"),
+			InputSummary: strPtr("分析Issue #101的类型和优先级"),
+			OutputSummary: strPtr("Bug, High Priority, Backend Team"),
+			TokensInput:  450,
+			TokensOutput: 120,
+			CostUSD:      0.002,
+			ToolsCalled:  []byte(`["analyze_issue","search_assignee"]`),
+			StartedAt:    time.Now().Add(-2 * time.Hour),
+			CompletedAt:  timePtr(time.Now().Add(-2*time.Hour + 15*time.Second)),
+		},
+		{
+			ID:           "sess-002",
+			WorkspaceID:  wsID,
+			AgentType:    "builtin",
+			AgentRef:     strPtr("Summary Agent"),
+			Status:       "completed",
+			ModelUsed:    strPtr("deepseek-chat"),
+			InputSummary: strPtr("汇总Sprint 3进度"),
+			OutputSummary: strPtr("完成率78%，剩余5个任务"),
+			TokensInput:  800,
+			TokensOutput: 350,
+			CostUSD:      0.005,
+			ToolsCalled:  []byte(`["list_issues","analyze_sprint"]`),
+			StartedAt:    time.Now().Add(-24 * time.Hour),
+			CompletedAt:  timePtr(time.Now().Add(-24*time.Hour + 45*time.Second)),
+		},
+		{
+			ID:           "sess-003",
+			WorkspaceID:  wsID,
+			AgentType:    "builtin",
+			AgentRef:     strPtr("Assistant Agent"),
+			Status:       "running",
+			ModelUsed:    strPtr("deepseek-chat"),
+			InputSummary: strPtr("生成单元测试用例"),
+			TokensInput:  600,
+			TokensOutput: 200,
+			ToolsCalled:  []byte(`["analyze_code"]`),
+			StartedAt:    time.Now().Add(-5 * time.Minute),
+		},
+	}
+
+	for i := range sessions {
+		if err := db.Create(&sessions[i]).Error; err != nil {
+			fmt.Printf("  WARN: failed to create agent session: %v\n", err)
+		}
+	}
+	fmt.Printf("  Created %d agent sessions\n", len(sessions))
+}
+
+func timePtr(t time.Time) *time.Time { return &t }
+func intPtr(i int) *int              { return &i }
+
+// Ensure json is used
+var _ = json.Marshal

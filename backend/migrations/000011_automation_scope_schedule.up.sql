@@ -2,7 +2,7 @@
 -- 'all' = applies to all projects in the workspace
 -- JSON array like '[1,2,3]' = applies to specific project IDs only
 ALTER TABLE automation_rules ADD COLUMN IF NOT EXISTS scope varchar(50) DEFAULT 'all';
-ALTER TABLE automation_rules ADD INDEX IF NOT EXISTS idx_automation_rules_scope (scope);
+CREATE INDEX IF NOT EXISTS idx_automation_rules_scope ON automation_rules(scope);
 
 -- Add scheduled trigger support
 -- schedule_config stores JSON: {"frequency":"daily","time":"09:00","days":["mon","wed","fri"]}

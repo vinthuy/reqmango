@@ -150,12 +150,15 @@ func NewLLMClient(apiKey, model, baseURL, provider string) *LLMClient {
 	default:
 		p = ProviderDeepSeek
 	}
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+	}
 	return &LLMClient{
 		apiKey:   apiKey,
 		model:    model,
 		baseURL:  baseURL,
 		provider: p,
-		client:   &http.Client{Timeout: 120 * time.Second},
+		client:   &http.Client{Timeout: 120 * time.Second, Transport: transport},
 	}
 }
 
@@ -186,7 +189,7 @@ func (c *LLMClient) ChatSync(ctx context.Context, systemPrompt string, messages 
 	}
 	resp, err := c.doRequest(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("API 连接失败 (%s): %w。请检查网络连接或API密钥配置", c.baseURL, err)
 	}
 	defer resp.Body.Close()
 
@@ -261,7 +264,7 @@ func (c *LLMClient) ChatStream(ctx context.Context, systemPrompt string, message
 	}
 	resp, err := c.doRequest(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("API 连接失败 (%s): %w。请检查网络连接或API密钥配置", c.baseURL, err)
 	}
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
@@ -307,7 +310,7 @@ func (c *LLMClient) ChatSyncWithTools(ctx context.Context, systemPrompt string, 
 		}
 		resp, err := c.doRequest(ctx, req)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("API 连接失败 (%s): %w。请检查网络连接或API密钥配置", c.baseURL, err)
 		}
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
@@ -547,6 +550,9 @@ func (c *LLMClient) readOpenAISSE(body io.ReadCloser, ch chan<- StreamEvent) {
 			}
 		}
 	}
+	if err := scanner.Err(); err != nil && err != io.EOF {
+		ch <- StreamEvent{Type: "error", Content: fmt.Sprintf("SSE stream error: %v", err)}
+	}
 }
 
 // --- Anthropic SSE ---
@@ -609,5 +615,8 @@ func (c *LLMClient) readAnthropicSSE(body io.ReadCloser, ch chan<- StreamEvent) 
 			}
 			ch <- StreamEvent{Type: "error", Error: errMsg}
 		}
+	}
+	if err := scanner.Err(); err != nil && err != io.EOF {
+		ch <- StreamEvent{Type: "error", Content: fmt.Sprintf("SSE stream error: %v", err)}
 	}
 }

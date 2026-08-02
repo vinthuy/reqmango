@@ -34,6 +34,78 @@ const router = createRouter({
       component: () => import('@/views/Workspace.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      path: '/workspace/:slug/agents',
+      name: 'WorkspaceAgents',
+      component: () => import('@/views/agents/AgentDashboard.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/templates',
+      name: 'WorkspaceAgentTemplates',
+      component: () => import('@/views/agents/AgentTemplateList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/configs',
+      name: 'WorkspaceAgentConfigs',
+      component: () => import('@/views/agents/AgentConfigList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/skills',
+      name: 'WorkspaceAgentSkills',
+      component: () => import('@/views/agents/SkillList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/tasks',
+      name: 'WorkspaceAgentTasks',
+      component: () => import('@/views/agents/AgentTaskList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/runtimes',
+      name: 'WorkspaceAgentRuntimes',
+      component: () => import('@/views/agents/RuntimeList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/loops',
+      name: 'WorkspaceAgentLoops',
+      component: () => import('@/views/agents/LoopList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/monitor',
+      name: 'WorkspaceAgentMonitor',
+      component: () => import('@/views/agents/AgentMonitor.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/sessions',
+      name: 'WorkspaceAgentSessions',
+      component: () => import('@/views/agents/AgentSessions.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/memories',
+      name: 'WorkspaceAgentMemories',
+      component: () => import('@/views/agents/MemoryList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/squads',
+      name: 'WorkspaceAgentSquads',
+      component: () => import('@/views/agents/SquadList.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/autopilot',
+      name: 'WorkspaceAgentAutopilot',
+      component: () => import('@/views/agents/AutopilotList.vue'),
+      meta: { requiresAuth: true }
+    },
     // /roadmap is now merged into /initiatives — redirect
     {
       path: '/workspace/:slug/roadmap',
@@ -169,6 +241,36 @@ const router = createRouter({
       name: 'Dashboards',
       component: () => import('@/views/Dashboard.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/project/:id/agent-members',
+      name: 'AgentMembers',
+      component: () => import('@/views/agent/AgentMembersPage.vue'),
+      meta: { requiresAuth: true, title: 'Agent 成员' }
+    },
+    {
+      path: '/workspace/:slug/project/:id/workflows',
+      name: 'Workflows',
+      component: () => import('@/views/agent/WorkflowsPage.vue'),
+      meta: { requiresAuth: true, title: '工作流' }
+    },
+    {
+      path: '/workspace/:slug/project/:id/workflow/:workflowId/design',
+      name: 'WorkflowDesigner',
+      component: () => import('@/views/agent/WorkflowDesigner.vue'),
+      meta: { requiresAuth: true, title: '工作流设计器' }
+    },
+    {
+      path: '/workspace/:slug/project/:id/agent-issues',
+      name: 'AgentIssues',
+      component: () => import('@/views/agent/AgentIssuesPage.vue'),
+      meta: { requiresAuth: true, title: 'Agent 任务' }
+    },
+    {
+      path: '/workspace/:slug/project/:id/budget-sla',
+      name: 'BudgetSLA',
+      component: () => import('@/views/agent/BudgetSLAPage.vue'),
+      meta: { requiresAuth: true, title: '预算与SLA' }
     },
     {
       path: '/workspaces/:wsParam/agents',

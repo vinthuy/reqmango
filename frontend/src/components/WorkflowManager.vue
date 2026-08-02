@@ -71,7 +71,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import workflowApi from '@/api/workflow'
+import { workflowApi, listWorkspaceWorkflows, createWorkspaceWorkflow, deleteWorkspaceWorkflow, addWorkspaceTransition, deleteWorkspaceTransition } from '@/api/workflow'
 import api from '@/api'
 import { useConfirm } from '@/composables/useConfirm'
 
@@ -101,8 +101,8 @@ async function load() {
   try { 
     const [w, s] = await Promise.all([
       isWorkspaceMode.value 
-        ? workflowApi.listWorkspaceWorkflows(props.workspaceId!) 
-        : workflowApi.listWorkflows(props.projectId!),
+        ? listWorkspaceWorkflows(props.workspaceId!)
+        : workflowApi.list(props.projectId!),
       isWorkspaceMode.value
         ? api.get(`/workspaces/${props.workspaceId}/settings/states`)
         : api.get(`/projects/${props.projectId}/settings/states`)
@@ -127,9 +127,9 @@ async function save() {
     data.issue_type_ids = form.value.selectedTypeIds
   }
   if (isWorkspaceMode.value) {
-    await workflowApi.createWorkspaceWorkflow(props.workspaceId!, data)
+    await createWorkspaceWorkflow(props.workspaceId!, data)
   } else {
-    await workflowApi.createWorkflow(props.projectId!, data)
+    await workflowApi.create(props.projectId!, data)
   }
   showModal.value = false; load() 
 }
@@ -137,9 +137,9 @@ async function save() {
 async function confirmDel(w:any) { 
   if(await confirm(t('workflow.confirmDelete'))) { 
     if (isWorkspaceMode.value) {
-      await workflowApi.deleteWorkspaceWorkflow(props.workspaceId!, w.id)
+      await deleteWorkspaceWorkflow(props.workspaceId!, w.id)
     } else {
-      await workflowApi.deleteWorkflow(props.projectId!, w.id)
+      await workflowApi.delete(props.projectId!, w.id)
     }
     load() 
   } 
@@ -150,9 +150,9 @@ function openAddTrans(w:any) { selWid.value = w.id; trans.value = { from:0, to:0
 async function saveTrans() { 
   const data = { from_state_id:trans.value.from, to_state_id:trans.value.to, description:trans.value.desc, rule_type:trans.value.rule_type, approver_ids:trans.value.approver_ids || undefined, role_allowed:trans.value.role_allowed || undefined }
   if (isWorkspaceMode.value) {
-    await workflowApi.addWorkspaceTransition(props.workspaceId!, selWid.value, data)
+    await addWorkspaceTransition(props.workspaceId!, selWid.value, data)
   } else {
-    await workflowApi.addTransition(props.projectId!, selWid.value, data)
+    await workflowApi.addEdge(props.projectId!, selWid.value, data as any)
   }
   showTrans.value = false; load() 
 }
@@ -160,9 +160,9 @@ async function saveTrans() {
 async function delTrans(tid:number) { 
   const wid = selWid.value || (workflows.value.find(w=>w.transitions?.some((t:any)=>t.id===tid))?.id||0)
   if (isWorkspaceMode.value) {
-    await workflowApi.deleteWorkspaceTransition(props.workspaceId!, wid, tid)
+    await deleteWorkspaceTransition(props.workspaceId!, wid, tid)
   } else {
-    await workflowApi.deleteTransition(props.projectId!, wid, tid)
+    await workflowApi.deleteEdge(props.projectId!, wid, tid)
   }
   load() 
 }

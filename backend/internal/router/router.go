@@ -45,7 +45,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	templateSvc := service.NewProjectTemplateService(db)
 	typeTemplateSvc := service.NewTypeTemplateService(db)
 	relationSvc := service.NewRelationService(db)
-	workflowSvc := service.NewWorkflowService(db)
 	approvalSvc := service.NewApprovalService(db, notificationSvc)
 	approvalH := handler.NewApprovalHandler(approvalSvc)
 	commentSvc := service.NewCommentService(db, notificationSvc)
@@ -111,6 +110,18 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	fieldPermSvc := service.NewFieldPermissionService(db)
 	pluginSvc := service.NewPluginService(db)
 
+	// --- Agent-Project Integration services ---
+	agentMemberSvc := service.NewAgentMemberService(db)
+	agentBudgetSvc := service.NewAgentCostBudgetService(db)
+	agentSLASvc := service.NewAgentSLAService(db)
+	agentDecisionSvc := service.NewAgentDecisionService(db)
+	agentTaskSvc := service.NewAgentTaskService(db)
+	agentTaskSvc.SetPresenceService(agentSvc)
+	contextPayloadSvc := service.NewContextPayloadService(db)
+	workflowSvc := service.NewWorkflowService(db, contextPayloadSvc, agentDecisionSvc, agentBudgetSvc)
+	workflowExecutor := service.NewWorkflowExecutor(db, workflowSvc, contextPayloadSvc, agentDecisionSvc, agentBudgetSvc, agentSLASvc)
+	issueAgentSvc := service.NewIssueAgentService(db, agentTaskSvc, agentBudgetSvc, agentSLASvc, agentDecisionSvc)
+
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
 	workspaceH := handler.NewWorkspaceHandler(workspaceSvc)
@@ -124,7 +135,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	templateH := handler.NewProjectTemplateHandler(templateSvc)
 	typeTemplateH := handler.NewTypeTemplateHandler(typeTemplateSvc)
 	relationH := handler.NewRelationHandler(relationSvc)
-	workflowH := handler.NewWorkflowHandler(workflowSvc)
+	workflowH := handler.NewWorkflowHandler(workflowSvc, workflowExecutor)
+	agentMemberH := handler.NewAgentMemberHandler(agentMemberSvc)
+	issueAgentH := handler.NewIssueAgentHandler(issueAgentSvc)
+	budgetH := handler.NewBudgetHandler(agentBudgetSvc)
+	slaH := handler.NewSLAHandler(agentSLASvc)
+	decisionH := handler.NewDecisionHandler(agentDecisionSvc)
 	commentH := handler.NewCommentHandler(commentSvc)
 	notificationH := handler.NewNotificationHandler(notificationSvc)
 	savedViewH := handler.NewSavedViewHandler(savedViewSvc)
@@ -279,8 +295,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/skills/:skillId/execution-logs", skillH.ListSkillExecutionLogs)
 
 			// Agent Tasks (new)
-			agentTaskSvc := service.NewAgentTaskService(db)
-			agentTaskSvc.SetPresenceService(agentSvc) // Inject presence service
 			agentTaskH := handler.NewAgentTaskHandler(agentTaskSvc)
 			workspaces.GET("/:wsParam/agent-tasks", agentTaskH.ListAgentTasks)
 			workspaces.POST("/:wsParam/agent-tasks", agentTaskH.CreateAgentTask)
@@ -979,7 +993,41 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workflows.POST("/:workflowId/transitions", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.AddTransition)
 			workflows.PUT("/:workflowId/transitions/:transitionId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateTransition)
 			workflows.DELETE("/:workflowId/transitions/:transitionId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.DeleteTransition)
+			// --- Agent-Project Integration: Workflow nodes, edges, execute, runs ---
+			workflows.POST("/:workflowId/nodes", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.AddNode)
+			workflows.PUT("/:workflowId/nodes/:nodeId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateNode)
+			workflows.DELETE("/:workflowId/nodes/:nodeId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.DeleteNode)
+			workflows.POST("/:workflowId/edges", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.AddEdge)
+			workflows.PUT("/:workflowId/edges/:edgeId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateEdge)
+			workflows.DELETE("/:workflowId/edges/:edgeId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.DeleteEdge)
+			workflows.POST("/:workflowId/execute", workflowH.ExecuteWorkflow)
+			workflows.GET("/:workflowId/runs", workflowH.ListRuns)
+			workflows.GET("/:workflowId/runs/:runId", workflowH.GetRun)
+			workflows.POST("/:workflowId/runs/:runId/cancel", workflowH.CancelRun)
 		}
+		// ---- Agent Members (project-level) ----
+		agentMembers := v1.Group("/projects/:projectId/agent-members", authMiddleware)
+		{
+			agentMembers.GET("", agentMemberH.ListByProject)
+			agentMembers.POST("", middleware.RequirePermission(db, "workflow:manage", "project"), agentMemberH.Add)
+			agentMembers.PUT("/:memberId/role", middleware.RequirePermission(db, "workflow:manage", "project"), agentMemberH.UpdateRole)
+			agentMembers.DELETE("/:memberId", middleware.RequirePermission(db, "workflow:manage", "project"), agentMemberH.Remove)
+		}
+		// ---- Issue-Agent assignments ----
+		issues.POST("/:issueId/assign-agent", issueAgentH.AssignAgent)
+		issues.DELETE("/:issueId/assign-agent", issueAgentH.UnassignAgent)
+		issues.GET("/:issueId/agent-status", issueAgentH.GetAgentStatus)
+		issues.POST("/:issueId/preview-execution", issueAgentH.PreviewExecution)
+		issues.POST("/bulk-assign-agent", issueAgentH.BulkAssign)
+		// ---- Budget & SLA (project-level) ----
+		v1.GET("/projects/:projectId/budget", authMiddleware, budgetH.Get)
+		v1.PUT("/projects/:projectId/budget", authMiddleware, middleware.RequirePermission(db, "workflow:manage", "project"), budgetH.Update)
+		v1.GET("/projects/:projectId/sla", authMiddleware, slaH.Get)
+		v1.PUT("/projects/:projectId/sla", authMiddleware, middleware.RequirePermission(db, "workflow:manage", "project"), slaH.Update)
+		v1.GET("/projects/:projectId/decisions", authMiddleware, decisionH.ListByProject)
+		// ---- Decision Records ----
+		issues.GET("/:issueId/decisions", decisionH.ListByIssue)
+		v1.GET("/agent-tasks/:taskId/decisions", authMiddleware, decisionH.ListByTask)
 		// ---- Comments (protected) ----
 		comments := v1.Group("/comments", authMiddleware)
 		{

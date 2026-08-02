@@ -251,19 +251,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useRoute } from 'vue-router'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import * as memoryApi from '@/api/memory'
 import type { MemoryEntry, MemoryListFilters } from '@/api/memory'
 
 const { t } = useI18n()
 const route = useRoute()
+const { getWorkspaceId } = useWorkspaceId()
 
-const getWorkspaceId = () => {
-  const id = route.params.wsParam
-  if (Array.isArray(id)) {
-    return parseInt(id[0])
-  }
-  return typeof id === 'string' ? parseInt(id) : 0
-}
+const workspaceId = ref(0)
 
 const memories = ref<MemoryEntry[]>([])
 const searchQuery = ref('')
@@ -287,7 +283,10 @@ const longTermCount = computed(() => memories.value.filter(m => m.memory_type ==
 
 async function loadMemories() {
   try {
-    memories.value = await memoryApi.listMemories(getWorkspaceId(), {
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
+    workspaceId.value = wsId
+    memories.value = await memoryApi.listMemories(wsId, {
       ...filters.value,
       limit: 100,
     })
@@ -362,7 +361,7 @@ async function saveMemory() {
   if (!formData.value.content.trim()) return
   try {
     if (isEditing.value && editingId.value) {
-      await memoryApi.updateMemory(getWorkspaceId(), editingId.value, {
+      await memoryApi.updateMemory(workspaceId.value, editingId.value, {
         content: formData.value.content,
         memory_type: formData.value.memory_type,
         scope: formData.value.scope,
@@ -388,7 +387,7 @@ async function saveMemory() {
 async function confirmDelete(memory: MemoryEntry) {
   if (confirm(t('ai.memory.confirmDelete'))) {
     try {
-      await memoryApi.deleteMemory(getWorkspaceId(), memory.id)
+      await memoryApi.deleteMemory(workspaceId.value, memory.id)
       await loadMemories()
     } catch (e) {
       console.error('Delete failed', e)

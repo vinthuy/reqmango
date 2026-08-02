@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { runtimeApi, type RuntimeResponse, type RuntimeCreate, type RuntimeUpdate } from '@/api/runtime'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
+const { getWorkspaceId } = useWorkspaceId()
 
 const workspaceId = ref(0)
 const runtimes = ref<RuntimeResponse[]>([])
@@ -56,7 +59,8 @@ const filteredRuntimes = computed(() => {
 async function loadRuntimes() {
   loading.value = true
   try {
-    const wsId = parseInt(route.params.wsParam as string, 10)
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
     workspaceId.value = wsId
     runtimes.value = await runtimeApi.list(wsId) || []
   } catch (err) {

@@ -152,19 +152,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useRoute } from 'vue-router'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import * as squadApi from '@/api/squad'
 import type { Squad } from '@/api/squad'
 
 const { t } = useI18n()
 const route = useRoute()
+const { getWorkspaceId } = useWorkspaceId()
 
-const getWorkspaceId = () => {
-  const id = route.params.wsParam
-  if (Array.isArray(id)) {
-    return parseInt(id[0])
-  }
-  return typeof id === 'string' ? parseInt(id) : 0
-}
+const workspaceId = ref(0)
 
 const squads = ref<Squad[]>([])
 const showModal = ref(false)
@@ -183,7 +179,10 @@ const executionCount = computed(() => {
 
 async function loadSquads() {
   try {
-    squads.value = await squadApi.listSquads(getWorkspaceId())
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
+    workspaceId.value = wsId
+    squads.value = await squadApi.listSquads(wsId)
   } catch (e) {
     console.error('Failed to load squads', e)
   }
@@ -225,7 +224,7 @@ async function saveSquad() {
 async function deleteSquadConfirm(squad: Squad) {
   if (confirm(t('common.deleteConfirm'))) {
     try {
-      await squadApi.deleteSquad(getWorkspaceId(), squad.id)
+      await squadApi.deleteSquad(workspaceId.value, squad.id)
       await loadSquads()
     } catch (e) {
       console.error('Delete failed', e)

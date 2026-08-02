@@ -1,213 +1,776 @@
 package service
 
 import (
-	"github.com/reqmango/backend/internal/common"
-	"github.com/reqmango/backend/internal/dto/request"
-	"github.com/reqmango/backend/internal/dto/response"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 
-type WorkflowService struct{ db *gorm.DB }
-func NewWorkflowService(db *gorm.DB) *WorkflowService { return &WorkflowService{db: db} }
-func descStr(d *string) string { if d != nil { return *d }; return "" }
-
-func (s *WorkflowService) Create(pid uint64, req request.WorkflowCreate) (*response.WorkflowResponse, error) {
-	var projectID *uint64 = &pid
-	w := model.Workflow{Name: req.Name, Description: req.Description, ProjectID: projectID, IssueTypeID: req.IssueTypeID, IssueTypeIDs: req.IssueTypeIDs}
-	if err := s.db.Create(&w).Error; err != nil { return nil, common.Internal("Failed to create workflow") }
-	return s.Get(w.ID)
+// WorkflowService manages workflow definitions and execution.
+type WorkflowService struct {
+	db         *gorm.DB
+	contextSvc *ContextPayloadService
+	decisionSvc *AgentDecisionService
+	budgetSvc  *AgentCostBudgetService
 }
-func (s *WorkflowService) List(pid uint64) ([]response.WorkflowResponse, error) {
-	var project model.Project
-	if err := s.db.Select("workspace_id").First(&project, pid).Error; err != nil {
-		return nil, common.NotFound("Project not found")
+
+// NewWorkflowService creates a new WorkflowService.
+func NewWorkflowService(
+	db *gorm.DB,
+	contextSvc *ContextPayloadService,
+	decisionSvc *AgentDecisionService,
+	budgetSvc *AgentCostBudgetService,
+) *WorkflowService {
+	return &WorkflowService{
+		db:          db,
+		contextSvc:  contextSvc,
+		decisionSvc: decisionSvc,
+		budgetSvc:   budgetSvc,
+	}
+}
+
+// WorkflowResponse represents a workflow in API response.
+type WorkflowResponse struct {
+	ID            uint64  `json:"id"`
+	Name          string  `json:"name"`
+	Description   string  `json:"description"`
+	ProjectID     uint64  `json:"project_id"`
+	WorkspaceID   uint64  `json:"workspace_id"`
+	Version       int     `json:"version"`
+	IsActive      bool    `json:"is_active"`
+	TriggerType   string  `json:"trigger_type"`
+	NodeCount     int     `json:"node_count"`
+	EdgeCount     int     `json:"edge_count"`
+	CreatedAt     string  `json:"created_at"`
+	UpdatedAt     string  `json:"updated_at"`
+}
+
+// WorkflowDetail represents a workflow with full details.
+type WorkflowDetail struct {
+	WorkflowResponse
+	Nodes []WorkflowNodeResponse `json:"nodes"`
+	Edges []WorkflowEdgeResponse `json:"edges"`
+}
+
+// WorkflowNodeResponse represents a workflow node in API response.
+type WorkflowNodeResponse struct {
+	ID            uint64  `json:"id"`
+	WorkflowID    uint64  `json:"workflow_id"`
+	AgentID       uint64  `json:"agent_id"`
+	AgentName     string  `json:"agent_name"`
+	NodeType      string  `json:"node_type"`
+	Name          string  `json:"name"`
+	Config        json.RawMessage `json:"config"`
+	SortOrder     int     `json:"sort_order"`
+	Timeout       int     `json:"timeout"`
+	RetryPolicy   string  `json:"retry_policy"`
+	MaxRetries    int     `json:"max_retries"`
+}
+
+// WorkflowEdgeResponse represents a workflow edge in API response.
+type WorkflowEdgeResponse struct {
+	ID             uint64  `json:"id"`
+	WorkflowID     uint64  `json:"workflow_id"`
+	SourceNodeID   uint64  `json:"source_node_id"`
+	TargetNodeID   uint64  `json:"target_node_id"`
+	Condition      string  `json:"condition"`
+	ContextMapping json.RawMessage `json:"context_mapping"`
+}
+
+// CreateWorkflowRequest represents the request to create a workflow.
+type CreateWorkflowRequest struct {
+	Name          string  `json:"name" binding:"required"`
+	Description   string  `json:"description"`
+	TriggerType   string  `json:"trigger_type"`
+}
+
+// UpdateWorkflowRequest represents the request to update a workflow.
+type UpdateWorkflowRequest struct {
+	Name          *string `json:"name"`
+	Description   *string `json:"description"`
+	IsActive      *bool   `json:"is_active"`
+	TriggerType   *string `json:"trigger_type"`
+}
+
+// CreateNodeRequest represents the request to create a workflow node.
+type CreateNodeRequest struct {
+	AgentID       uint64  `json:"agent_id" binding:"required"`
+	NodeType      string  `json:"node_type"`
+	Name          string  `json:"name" binding:"required"`
+	Config        json.RawMessage `json:"config"`
+	SortOrder     int     `json:"sort_order"`
+	Timeout       int     `json:"timeout"`
+	RetryPolicy   string  `json:"retry_policy"`
+	MaxRetries    int     `json:"max_retries"`
+}
+
+// CreateEdgeRequest represents the request to create a workflow edge.
+type CreateEdgeRequest struct {
+	SourceNodeID   uint64  `json:"source_node_id" binding:"required"`
+	TargetNodeID   uint64  `json:"target_node_id" binding:"required"`
+	Condition      string  `json:"condition"`
+	ContextMapping json.RawMessage `json:"context_mapping"`
+}
+
+// WorkflowRunResponse represents a workflow run in API response.
+type WorkflowRunResponse struct {
+	ID            uint64  `json:"id"`
+	WorkflowID    uint64  `json:"workflow_id"`
+	IssueID       *uint64 `json:"issue_id"`
+	Status        string  `json:"status"`
+	StartedAt     *string `json:"started_at"`
+	CompletedAt   *string `json:"completed_at"`
+	TotalTokens   int     `json:"total_tokens"`
+	TotalCost     float64 `json:"total_cost"`
+	ErrorInfo     string  `json:"error_info"`
+	CreatedAt     string  `json:"created_at"`
+}
+
+// WorkflowRunDetail represents a workflow run with node runs.
+type WorkflowRunDetail struct {
+	WorkflowRunResponse
+	NodeRuns []WorkflowNodeRunResponse `json:"node_runs"`
+}
+
+// WorkflowNodeRunResponse represents a node run in API response.
+type WorkflowNodeRunResponse struct {
+	ID            uint64  `json:"id"`
+	WorkflowRunID uint64  `json:"workflow_run_id"`
+	NodeID        uint64  `json:"node_id"`
+	NodeName      string  `json:"node_name"`
+	AgentID       uint64  `json:"agent_id"`
+	AgentName     string  `json:"agent_name"`
+	Status        string  `json:"status"`
+	StartedAt     *string `json:"started_at"`
+	CompletedAt   *string `json:"completed_at"`
+	TokensUsed    int     `json:"tokens_used"`
+	Cost          float64 `json:"cost"`
+	ErrorInfo     string  `json:"error_info"`
+	RetryCount    int     `json:"retry_count"`
+}
+
+// ListByProject returns all workflows for a project.
+func (s *WorkflowService) ListByProject(projectID uint64) ([]WorkflowResponse, error) {
+	var workflows []struct {
+		ID          uint64 `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		ProjectID   uint64 `json:"project_id"`
+		WorkspaceID uint64 `json:"workspace_id"`
+		Version     int    `json:"version"`
+		IsActive    bool   `json:"is_active"`
+		TriggerType string `json:"trigger_type"`
+		CreatedAt   time.Time `json:"created_at"`
+		UpdatedAt   time.Time `json:"updated_at"`
 	}
 
-	var projectWorkflows []model.Workflow
-	s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").Where("project_id = ?", pid).Find(&projectWorkflows)
+	err := s.db.Raw(`
+		SELECT id, name, description, project_id, workspace_id, version, is_active, trigger_type, created_at, updated_at
+		FROM agent_workflows
+		WHERE project_id = ? AND deleted_at IS NULL
+		ORDER BY created_at DESC
+	`, projectID).Scan(&workflows).Error
 
-	var workspaceWorkflows []model.Workflow
-	s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").Where("workspace_id = ? AND project_id IS NULL", project.WorkspaceID).Find(&workspaceWorkflows)
-
-	projectWorkflowNames := make(map[string]bool)
-	for _, w := range projectWorkflows {
-		projectWorkflowNames[w.Name] = true
+	if err != nil {
+		return nil, err
 	}
 
-	mergedWorkflows := append(projectWorkflows, workspaceWorkflows...)
-
-	res := make([]response.WorkflowResponse, len(mergedWorkflows))
-	for i, w := range mergedWorkflows {
-		var projectID uint64
-		if w.ProjectID != nil { projectID = *w.ProjectID }
-		isInherited := w.ProjectID == nil
-		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IssueTypeIDs: w.IssueTypeIDs, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0), IsInherited: isInherited}
-		for _, t := range w.Transitions {
-			// Load approve/reject target state names
-			var approveState, rejectState model.State
-			if t.ApproveTargetStateID != nil { s.db.First(&approveState, *t.ApproveTargetStateID) }
-			if t.RejectTargetStateID != nil { s.db.First(&rejectState, *t.RejectTargetStateID) }
-			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, ApproveTargetStateID: t.ApproveTargetStateID, ApproveStateName: approveState.Name, RejectTargetStateID: t.RejectTargetStateID, RejectStateName: rejectState.Name, ApprovalMode: t.ApprovalMode, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
+	var result []WorkflowResponse
+	for _, w := range workflows {
+		resp := WorkflowResponse{
+			ID:          w.ID,
+			Name:        w.Name,
+			Description: w.Description,
+			ProjectID:   w.ProjectID,
+			WorkspaceID: w.WorkspaceID,
+			Version:     w.Version,
+			IsActive:    w.IsActive,
+			TriggerType: w.TriggerType,
+			CreatedAt:   w.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:   w.UpdatedAt.Format(time.RFC3339),
 		}
+
+		// Get node and edge counts
+		s.db.Raw("SELECT COUNT(*) FROM workflow_nodes WHERE workflow_id = ?", w.ID).Scan(&resp.NodeCount)
+		s.db.Raw("SELECT COUNT(*) FROM workflow_edges WHERE workflow_id = ?", w.ID).Scan(&resp.EdgeCount)
+
+		result = append(result, resp)
 	}
-	if res == nil { res = []response.WorkflowResponse{} }; return res, nil
-}
-func (s *WorkflowService) Get(id uint64) (*response.WorkflowResponse, error) {
-	var w model.Workflow
-	if err := s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").First(&w, id).Error; err != nil { return nil, common.NotFound("Workflow not found") }
-	var projectID uint64
-	if w.ProjectID != nil { projectID = *w.ProjectID }
-	r := &response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IssueTypeIDs: w.IssueTypeIDs, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
-	for _, t := range w.Transitions {
-		// Load approve/reject target state names
-		var approveState, rejectState model.State
-		if t.ApproveTargetStateID != nil { s.db.First(&approveState, *t.ApproveTargetStateID) }
-		if t.RejectTargetStateID != nil { s.db.First(&rejectState, *t.RejectTargetStateID) }
-		r.Transitions = append(r.Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, ApproveTargetStateID: t.ApproveTargetStateID, ApproveStateName: approveState.Name, RejectTargetStateID: t.RejectTargetStateID, RejectStateName: rejectState.Name, ApprovalMode: t.ApprovalMode, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
+
+	if result == nil {
+		result = []WorkflowResponse{}
 	}
-	return r, nil
-}
-func (s *WorkflowService) Update(id uint64, req request.WorkflowUpdate) (*response.WorkflowResponse, error) {
-	var w model.Workflow
-	if err := s.db.First(&w, id).Error; err != nil { return nil, common.NotFound("Workflow not found") }
-	if req.Name != nil { w.Name = *req.Name }
-	if req.Description != nil { w.Description = *req.Description }
-	if req.IssueTypeID != nil { w.IssueTypeID = req.IssueTypeID }
-	if req.IssueTypeIDs != nil { w.IssueTypeIDs = *req.IssueTypeIDs }
-	if req.IsActive != nil { w.IsActive = *req.IsActive }
-	s.db.Save(&w); return s.Get(id)
-}
-func (s *WorkflowService) Delete(id uint64) error {
-	s.db.Where("workflow_id = ?", id).Delete(&model.StateTransition{})
-	return s.db.Delete(&model.Workflow{}, id).Error
+
+	return result, nil
 }
 
-func (s *WorkflowService) CreateWorkspace(wid uint64, req request.WorkflowCreate) (*response.WorkflowResponse, error) {
-	w := model.Workflow{Name: req.Name, Description: req.Description, WorkspaceID: wid, IssueTypeID: req.IssueTypeID, IssueTypeIDs: req.IssueTypeIDs}
-	if err := s.db.Create(&w).Error; err != nil { return nil, common.Internal("Failed to create workflow") }
-	return s.Get(w.ID)
-}
+// Create creates a new workflow.
+func (s *WorkflowService) Create(projectID uint64, req CreateWorkflowRequest) (*WorkflowResponse, error) {
+	if req.TriggerType == "" {
+		req.TriggerType = "manual"
+	}
 
-func (s *WorkflowService) ListWorkspace(wid uint64) ([]response.WorkflowResponse, error) {
-	var ws []model.Workflow
-	s.db.Preload("Transitions.SourceState").Preload("Transitions.TargetState").Where("workspace_id = ?", wid).Find(&ws)
-	res := make([]response.WorkflowResponse, len(ws))
-	for i, w := range ws {
-		var projectID uint64
-		if w.ProjectID != nil { projectID = *w.ProjectID }
-		res[i] = response.WorkflowResponse{ID: w.ID, Name: w.Name, Description: w.Description, ProjectID: projectID, WorkspaceID: w.WorkspaceID, IssueTypeID: w.IssueTypeID, IssueTypeIDs: w.IssueTypeIDs, IsActive: w.IsActive, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt, Transitions: make([]response.TransitionResponse, 0)}
-		for _, t := range w.Transitions {
-			// Load approve/reject target state names
-			var approveState, rejectState model.State
-			if t.ApproveTargetStateID != nil { s.db.First(&approveState, *t.ApproveTargetStateID) }
-			if t.RejectTargetStateID != nil { s.db.First(&rejectState, *t.RejectTargetStateID) }
-			res[i].Transitions = append(res[i].Transitions, response.TransitionResponse{ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID, Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed, ApproveTargetStateID: t.ApproveTargetStateID, ApproveStateName: approveState.Name, RejectTargetStateID: t.RejectTargetStateID, RejectStateName: rejectState.Name, ApprovalMode: t.ApprovalMode, SourceName: t.SourceState.Name, TargetName: t.TargetState.Name})
-		}
-	}
-	if res == nil { res = []response.WorkflowResponse{} }; return res, nil
-}
+	// Get workspace ID from project
+	var workspaceID uint64
+	s.db.Raw("SELECT workspace_id FROM projects WHERE id = ?", projectID).Scan(&workspaceID)
 
-func (s *WorkflowService) UpdateWorkspace(id uint64, req request.WorkflowUpdate) (*response.WorkflowResponse, error) {
-	return s.Update(id, req)
-}
+	workflow := &model.AgentWorkflow{
+		Name:         req.Name,
+		Description:  req.Description,
+		ProjectID:    projectID,
+		WorkspaceID:  workspaceID,
+		Version:      1,
+		IsActive:     true,
+		TriggerType:  req.TriggerType,
+	}
 
-func (s *WorkflowService) DeleteWorkspace(id uint64) error {
-	return s.Delete(id)
-}
-func (s *WorkflowService) AddTransition(wid uint64, req request.TransitionCreate) (*response.TransitionResponse, error) {
-	var w model.Workflow
-	if err := s.db.First(&w, wid).Error; err != nil { return nil, common.NotFound("Workflow not found") }
-	name := req.Name
-	var fs, ts model.State
-	s.db.First(&fs, req.FromStateID); s.db.First(&ts, req.ToStateID)
-	if name == "" {
-		name = fs.Name + "→" + ts.Name
+	if err := s.db.Create(workflow).Error; err != nil {
+		return nil, err
 	}
-	var projectIDPtr *uint64
-	if w.ProjectID != nil {
-		pid := *w.ProjectID
-		projectIDPtr = &pid
-	}
-	t := model.StateTransition{
-		Name: name, WorkflowID: wid,
-		SourceStateID: req.FromStateID, TargetStateID: req.ToStateID,
-		Description: &req.Description, RuleType: req.RuleType,
-		ApproverIDs: req.ApproverIDs, RoleAllowed: req.RoleAllowed,
-		ApproveTargetStateID: req.ApproveTargetStateID,
-		RejectTargetStateID:  req.RejectTargetStateID,
-		ProjectID: projectIDPtr, WorkspaceID: fs.WorkspaceID,
-	}
-	if t.RuleType == "" { t.RuleType = "allow" }
-	if req.ApprovalMode != "" {
-		t.ApprovalMode = req.ApprovalMode
-	} else {
-		t.ApprovalMode = "any"
-	}
-	if err := s.db.Create(&t).Error; err != nil { return nil, common.Internal("Failed to add transition") }
-	// Load approve/reject target state names if set
-	var approveState, rejectState model.State
-	if t.ApproveTargetStateID != nil { s.db.First(&approveState, *t.ApproveTargetStateID) }
-	if t.RejectTargetStateID != nil { s.db.First(&rejectState, *t.RejectTargetStateID) }
-	return &response.TransitionResponse{
-		ID: t.ID, WorkflowID: wid, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID,
-		Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed,
-		ApproveTargetStateID: t.ApproveTargetStateID, ApproveStateName: approveState.Name,
-		RejectTargetStateID:  t.RejectTargetStateID,  RejectStateName:  rejectState.Name,
-		ApprovalMode: t.ApprovalMode,
-		SourceName: fs.Name, TargetName: ts.Name,
+
+	return &WorkflowResponse{
+		ID:          workflow.ID,
+		Name:        req.Name,
+		Description: req.Description,
+		ProjectID:   projectID,
+		WorkspaceID: workspaceID,
+		Version:     1,
+		IsActive:    true,
+		TriggerType: req.TriggerType,
+		CreatedAt:   workflow.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   workflow.UpdatedAt.Format(time.RFC3339),
 	}, nil
 }
-func (s *WorkflowService) UpdateTransition(id uint64, req request.TransitionUpdate) (*response.TransitionResponse, error) {
-	var t model.StateTransition
-	if err := s.db.First(&t, id).Error; err != nil { return nil, common.NotFound("Transition not found") }
-	if req.Description != nil { t.Description = req.Description }
-	if req.RuleType != nil { t.RuleType = *req.RuleType }
-	if req.ApproverIDs != nil { t.ApproverIDs = req.ApproverIDs }
-	if req.RoleAllowed != nil { t.RoleAllowed = *req.RoleAllowed }
-	if req.ApproveTargetStateID != nil { t.ApproveTargetStateID = req.ApproveTargetStateID }
-	if req.RejectTargetStateID != nil { t.RejectTargetStateID = req.RejectTargetStateID }
-	if req.ApprovalMode != nil { t.ApprovalMode = *req.ApprovalMode }
-	s.db.Save(&t)
-	// Load approve/reject target state names if set
-	var approveState, rejectState model.State
-	if t.ApproveTargetStateID != nil { s.db.First(&approveState, *t.ApproveTargetStateID) }
-	if t.RejectTargetStateID != nil { s.db.First(&rejectState, *t.RejectTargetStateID) }
-	return &response.TransitionResponse{
-		ID: t.ID, WorkflowID: t.WorkflowID, SourceStateID: t.SourceStateID, TargetStateID: t.TargetStateID,
-		Description: descStr(t.Description), RuleType: t.RuleType, ApproverIDs: t.ApproverIDs, RoleAllowed: t.RoleAllowed,
-		ApproveTargetStateID: t.ApproveTargetStateID, ApproveStateName: approveState.Name,
-		RejectTargetStateID:  t.RejectTargetStateID,  RejectStateName:  rejectState.Name,
-		ApprovalMode: t.ApprovalMode,
+
+// Get returns a workflow with full details.
+func (s *WorkflowService) Get(workflowID uint64) (*WorkflowDetail, error) {
+	var workflow struct {
+		ID          uint64 `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		ProjectID   uint64 `json:"project_id"`
+		WorkspaceID uint64 `json:"workspace_id"`
+		Version     int    `json:"version"`
+		IsActive    bool   `json:"is_active"`
+		TriggerType string `json:"trigger_type"`
+		CreatedAt   time.Time `json:"created_at"`
+		UpdatedAt   time.Time `json:"updated_at"`
+	}
+
+	err := s.db.Raw(`
+		SELECT id, name, description, project_id, workspace_id, version, is_active, trigger_type, created_at, updated_at
+		FROM agent_workflows
+		WHERE id = ? AND deleted_at IS NULL
+	`, workflowID).Scan(&workflow).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	detail := &WorkflowDetail{
+		WorkflowResponse: WorkflowResponse{
+			ID:          workflow.ID,
+			Name:        workflow.Name,
+			Description: workflow.Description,
+			ProjectID:   workflow.ProjectID,
+			WorkspaceID: workflow.WorkspaceID,
+			Version:     workflow.Version,
+			IsActive:    workflow.IsActive,
+			TriggerType: workflow.TriggerType,
+			CreatedAt:   workflow.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:   workflow.UpdatedAt.Format(time.RFC3339),
+		},
+		Nodes: []WorkflowNodeResponse{},
+		Edges: []WorkflowEdgeResponse{},
+	}
+
+	// Get nodes
+	var nodes []struct {
+		ID        uint64 `json:"id"`
+		AgentID   uint64 `json:"agent_id"`
+		NodeType  string `json:"node_type"`
+		Name      string `json:"name"`
+		Config    []byte `json:"config"`
+		SortOrder int    `json:"sort_order"`
+		Timeout   int    `json:"timeout"`
+		RetryPolicy string `json:"retry_policy"`
+		MaxRetries int    `json:"max_retries"`
+	}
+
+	s.db.Raw(`
+		SELECT id, agent_id, node_type, name, config, sort_order, timeout, retry_policy, max_retries
+		FROM workflow_nodes
+		WHERE workflow_id = ? AND deleted_at IS NULL
+		ORDER BY sort_order
+	`, workflowID).Scan(&nodes)
+
+	for _, n := range nodes {
+		var agentName string
+		s.db.Raw("SELECT name FROM agents WHERE id = ?", n.AgentID).Scan(&agentName)
+
+		detail.Nodes = append(detail.Nodes, WorkflowNodeResponse{
+			ID:          n.ID,
+			WorkflowID:  workflowID,
+			AgentID:     n.AgentID,
+			AgentName:   agentName,
+			NodeType:    n.NodeType,
+			Name:        n.Name,
+			Config:      n.Config,
+			SortOrder:   n.SortOrder,
+			Timeout:     n.Timeout,
+			RetryPolicy: n.RetryPolicy,
+			MaxRetries:  n.MaxRetries,
+		})
+	}
+
+	// Get edges
+	var edges []struct {
+		ID             uint64 `json:"id"`
+		SourceNodeID   uint64 `json:"source_node_id"`
+		TargetNodeID   uint64 `json:"target_node_id"`
+		Condition      string `json:"condition"`
+		ContextMapping []byte `json:"context_mapping"`
+	}
+
+	s.db.Raw(`
+		SELECT id, source_node_id, target_node_id, condition, context_mapping
+		FROM workflow_edges
+		WHERE workflow_id = ? AND deleted_at IS NULL
+	`, workflowID).Scan(&edges)
+
+	for _, e := range edges {
+		detail.Edges = append(detail.Edges, WorkflowEdgeResponse{
+			ID:             e.ID,
+			WorkflowID:     workflowID,
+			SourceNodeID:   e.SourceNodeID,
+			TargetNodeID:   e.TargetNodeID,
+			Condition:      e.Condition,
+			ContextMapping: e.ContextMapping,
+		})
+	}
+
+	return detail, nil
+}
+
+// Update updates a workflow.
+func (s *WorkflowService) Update(workflowID uint64, req UpdateWorkflowRequest) error {
+	updates := map[string]interface{}{}
+
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+	if req.TriggerType != nil {
+		updates["trigger_type"] = *req.TriggerType
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	result := s.db.Table("agent_workflows").
+		Where("id = ?", workflowID).
+		Updates(updates)
+
+	if result.RowsAffected == 0 {
+		return errors.New("workflow not found")
+	}
+
+	return result.Error
+}
+
+// Delete soft-deletes a workflow.
+func (s *WorkflowService) Delete(workflowID uint64) error {
+	result := s.db.Where("id = ?", workflowID).Delete(&struct{}{})
+	if result.RowsAffected == 0 {
+		return errors.New("workflow not found")
+	}
+	return nil
+}
+
+// AddNode adds a node to a workflow.
+func (s *WorkflowService) AddNode(workflowID uint64, req CreateNodeRequest) (*WorkflowNodeResponse, error) {
+	if req.NodeType == "" {
+		req.NodeType = "agent"
+	}
+	if req.Timeout == 0 {
+		req.Timeout = 1800
+	}
+	if req.RetryPolicy == "" {
+		req.RetryPolicy = "retry"
+	}
+	if req.MaxRetries == 0 {
+		req.MaxRetries = 3
+	}
+
+	node := &model.WorkflowNode{
+		WorkflowID:  workflowID,
+		AgentID:     req.AgentID,
+		NodeType:    req.NodeType,
+		Name:        req.Name,
+		Config:      req.Config,
+		SortOrder:   req.SortOrder,
+		Timeout:     req.Timeout,
+		RetryPolicy: req.RetryPolicy,
+		MaxRetries:  req.MaxRetries,
+	}
+
+	if err := s.db.Create(node).Error; err != nil {
+		return nil, err
+	}
+
+	// Get agent name
+	var agentName string
+	s.db.Raw("SELECT name FROM agents WHERE id = ?", req.AgentID).Scan(&agentName)
+
+	return &WorkflowNodeResponse{
+		ID:          node.ID,
+		WorkflowID:  workflowID,
+		AgentID:     req.AgentID,
+		AgentName:   agentName,
+		NodeType:    req.NodeType,
+		Name:        req.Name,
+		Config:      req.Config,
+		SortOrder:   req.SortOrder,
+		Timeout:     req.Timeout,
+		RetryPolicy: req.RetryPolicy,
+		MaxRetries:  req.MaxRetries,
 	}, nil
 }
-func (s *WorkflowService) DeleteTransition(id uint64) error { return s.db.Delete(&model.StateTransition{}, id).Error }
 
-func (s *WorkflowService) CreateAutomation(pid uint64, req request.AutomationCreate) (*response.AutomationResponse, error) {
-	a := model.AutomationRule{Name: req.Name, Description: req.Description, ProjectID: pid, TriggerType: req.TriggerType, Conditions: req.Conditions, Actions: req.Actions, Sequence: req.Sequence}
-	if err := s.db.Create(&a).Error; err != nil { return nil, common.Internal("Failed to create automation") }
-	return &response.AutomationResponse{ID: a.ID, Name: a.Name, Description: a.Description, ProjectID: a.ProjectID, IsEnabled: a.IsEnabled, Sequence: a.Sequence, ExecutionCount: a.ExecutionCount, TriggerType: a.TriggerType, Conditions: a.Conditions, Actions: a.Actions, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}, nil
-}
-func (s *WorkflowService) ListAutomations(pid uint64) ([]response.AutomationResponse, error) {
-	var as []model.AutomationRule
-	s.db.Where("project_id = ?", pid).Order("sequence").Find(&as)
-	res := make([]response.AutomationResponse, len(as))
-	for i, a := range as {
-		res[i] = response.AutomationResponse{ID: a.ID, Name: a.Name, Description: a.Description, ProjectID: a.ProjectID, IsEnabled: a.IsEnabled, Sequence: a.Sequence, ExecutionCount: a.ExecutionCount, TriggerType: a.TriggerType, Conditions: a.Conditions, Actions: a.Actions, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}
+// UpdateNode updates a workflow node.
+func (s *WorkflowService) UpdateNode(nodeID uint64, req CreateNodeRequest) error {
+	updates := map[string]interface{}{
+		"agent_id":     req.AgentID,
+		"name":         req.Name,
+		"config":       req.Config,
+		"sort_order":   req.SortOrder,
+		"timeout":      req.Timeout,
+		"retry_policy": req.RetryPolicy,
+		"max_retries":  req.MaxRetries,
 	}
-	if res == nil { res = []response.AutomationResponse{} }; return res, nil
+
+	if req.NodeType != "" {
+		updates["node_type"] = req.NodeType
+	}
+
+	result := s.db.Table("workflow_nodes").
+		Where("id = ?", nodeID).
+		Updates(updates)
+
+	if result.RowsAffected == 0 {
+		return errors.New("node not found")
+	}
+
+	return result.Error
 }
-func (s *WorkflowService) UpdateAutomation(id uint64, req request.AutomationUpdate) (*response.AutomationResponse, error) {
-	var a model.AutomationRule
-	if err := s.db.First(&a, id).Error; err != nil { return nil, common.NotFound("Automation not found") }
-	if req.Name != nil { a.Name = *req.Name }
-	if req.Description != nil { a.Description = *req.Description }
-	if req.TriggerType != nil { a.TriggerType = *req.TriggerType }
-	if req.Conditions != nil { a.Conditions = *req.Conditions }
-	if req.Actions != nil { a.Actions = *req.Actions }
-	if req.IsEnabled != nil { a.IsEnabled = *req.IsEnabled }
-	if req.Sequence != nil { a.Sequence = *req.Sequence }
-	s.db.Save(&a)
-	return &response.AutomationResponse{ID: a.ID, Name: a.Name, Description: a.Description, ProjectID: a.ProjectID, IsEnabled: a.IsEnabled, Sequence: a.Sequence, ExecutionCount: a.ExecutionCount, TriggerType: a.TriggerType, Conditions: a.Conditions, Actions: a.Actions, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}, nil
+
+// DeleteNode deletes a workflow node.
+func (s *WorkflowService) DeleteNode(nodeID uint64) error {
+	result := s.db.Where("id = ?", nodeID).Delete(&struct{}{})
+	if result.RowsAffected == 0 {
+		return errors.New("node not found")
+	}
+	return nil
 }
-func (s *WorkflowService) DeleteAutomation(id uint64) error { return s.db.Delete(&model.AutomationRule{}, id).Error }
+
+// AddEdge adds an edge to a workflow.
+func (s *WorkflowService) AddEdge(workflowID uint64, req CreateEdgeRequest) (*WorkflowEdgeResponse, error) {
+	// Validate nodes exist
+	var sourceExists, targetExists bool
+	s.db.Raw("SELECT EXISTS(SELECT 1 FROM workflow_nodes WHERE id = ? AND workflow_id = ?)", req.SourceNodeID, workflowID).Scan(&sourceExists)
+	s.db.Raw("SELECT EXISTS(SELECT 1 FROM workflow_nodes WHERE id = ? AND workflow_id = ?)", req.TargetNodeID, workflowID).Scan(&targetExists)
+
+	if !sourceExists || !targetExists {
+		return nil, errors.New("source or target node not found")
+	}
+
+	edge := &model.WorkflowEdge{
+		WorkflowID:     workflowID,
+		SourceNodeID:   req.SourceNodeID,
+		TargetNodeID:   req.TargetNodeID,
+		Condition:      req.Condition,
+		ContextMapping: req.ContextMapping,
+	}
+
+	if err := s.db.Create(edge).Error; err != nil {
+		return nil, err
+	}
+
+	return &WorkflowEdgeResponse{
+		ID:             edge.ID,
+		WorkflowID:     workflowID,
+		SourceNodeID:   req.SourceNodeID,
+		TargetNodeID:   req.TargetNodeID,
+		Condition:      req.Condition,
+		ContextMapping: req.ContextMapping,
+	}, nil
+}
+
+// UpdateEdge updates a workflow edge.
+func (s *WorkflowService) UpdateEdge(edgeID uint64, req CreateEdgeRequest) error {
+	updates := map[string]interface{}{
+		"source_node_id": req.SourceNodeID,
+		"target_node_id": req.TargetNodeID,
+		"condition":      req.Condition,
+		"context_mapping": req.ContextMapping,
+	}
+
+	result := s.db.Table("workflow_edges").
+		Where("id = ?", edgeID).
+		Updates(updates)
+
+	if result.RowsAffected == 0 {
+		return errors.New("edge not found")
+	}
+
+	return result.Error
+}
+
+// DeleteEdge deletes a workflow edge.
+func (s *WorkflowService) DeleteEdge(edgeID uint64) error {
+	result := s.db.Where("id = ?", edgeID).Delete(&struct{}{})
+	if result.RowsAffected == 0 {
+		return errors.New("edge not found")
+	}
+	return nil
+}
+
+// GetRuns returns all runs for a workflow.
+func (s *WorkflowService) GetRuns(workflowID uint64) ([]WorkflowRunResponse, error) {
+	var runs []struct {
+		ID          uint64     `json:"id"`
+		WorkflowID  uint64     `json:"workflow_id"`
+		IssueID     *uint64    `json:"issue_id"`
+		Status      string     `json:"status"`
+		StartedAt   *time.Time `json:"started_at"`
+		CompletedAt *time.Time `json:"completed_at"`
+		TotalTokens int        `json:"total_tokens"`
+		TotalCost   float64    `json:"total_cost"`
+		ErrorInfo   string     `json:"error_info"`
+		CreatedAt   time.Time  `json:"created_at"`
+	}
+
+	err := s.db.Raw(`
+		SELECT id, workflow_id, issue_id, status, started_at, completed_at, total_tokens, total_cost, error_info, created_at
+		FROM workflow_runs
+		WHERE workflow_id = ? AND deleted_at IS NULL
+		ORDER BY created_at DESC
+	`, workflowID).Scan(&runs).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	var result []WorkflowRunResponse
+	for _, r := range runs {
+		resp := WorkflowRunResponse{
+			ID:          r.ID,
+			WorkflowID:  r.WorkflowID,
+			IssueID:     r.IssueID,
+			Status:      r.Status,
+			TotalTokens: r.TotalTokens,
+			TotalCost:   r.TotalCost,
+			ErrorInfo:   r.ErrorInfo,
+			CreatedAt:   r.CreatedAt.Format(time.RFC3339),
+		}
+
+		if r.StartedAt != nil {
+			started := r.StartedAt.Format(time.RFC3339)
+			resp.StartedAt = &started
+		}
+		if r.CompletedAt != nil {
+			completed := r.CompletedAt.Format(time.RFC3339)
+			resp.CompletedAt = &completed
+		}
+
+		result = append(result, resp)
+	}
+
+	if result == nil {
+		result = []WorkflowRunResponse{}
+	}
+
+	return result, nil
+}
+
+// GetRun returns a workflow run with node runs.
+func (s *WorkflowService) GetRun(runID uint64) (*WorkflowRunDetail, error) {
+	var run struct {
+		ID          uint64     `json:"id"`
+		WorkflowID  uint64     `json:"workflow_id"`
+		IssueID     *uint64    `json:"issue_id"`
+		Status      string     `json:"status"`
+		StartedAt   *time.Time `json:"started_at"`
+		CompletedAt *time.Time `json:"completed_at"`
+		TotalTokens int        `json:"total_tokens"`
+		TotalCost   float64    `json:"total_cost"`
+		ErrorInfo   string     `json:"error_info"`
+		CreatedAt   time.Time  `json:"created_at"`
+	}
+
+	err := s.db.Raw(`
+		SELECT id, workflow_id, issue_id, status, started_at, completed_at, total_tokens, total_cost, error_info, created_at
+		FROM workflow_runs
+		WHERE id = ? AND deleted_at IS NULL
+	`, runID).Scan(&run).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	detail := &WorkflowRunDetail{
+		WorkflowRunResponse: WorkflowRunResponse{
+			ID:          run.ID,
+			WorkflowID:  run.WorkflowID,
+			IssueID:     run.IssueID,
+			Status:      run.Status,
+			TotalTokens: run.TotalTokens,
+			TotalCost:   run.TotalCost,
+			ErrorInfo:   run.ErrorInfo,
+			CreatedAt:   run.CreatedAt.Format(time.RFC3339),
+		},
+		NodeRuns: []WorkflowNodeRunResponse{},
+	}
+
+	if run.StartedAt != nil {
+		started := run.StartedAt.Format(time.RFC3339)
+		detail.StartedAt = &started
+	}
+	if run.CompletedAt != nil {
+		completed := run.CompletedAt.Format(time.RFC3339)
+		detail.CompletedAt = &completed
+	}
+
+	// Get node runs
+	var nodeRuns []struct {
+		ID            uint64     `json:"id"`
+		WorkflowRunID uint64     `json:"workflow_run_id"`
+		NodeID        uint64     `json:"node_id"`
+		AgentID       uint64     `json:"agent_id"`
+		Status        string     `json:"status"`
+		StartedAt     *time.Time `json:"started_at"`
+		CompletedAt   *time.Time `json:"completed_at"`
+		TokensUsed    int        `json:"tokens_used"`
+		Cost          float64    `json:"cost"`
+		ErrorInfo     string     `json:"error_info"`
+		RetryCount    int        `json:"retry_count"`
+	}
+
+	s.db.Raw(`
+		SELECT id, workflow_run_id, node_id, agent_id, status, started_at, completed_at, tokens_used, cost, error_info, retry_count
+		FROM workflow_node_runs
+		WHERE workflow_run_id = ?
+		ORDER BY id
+	`, runID).Scan(&nodeRuns)
+
+	for _, nr := range nodeRuns {
+		nrResp := WorkflowNodeRunResponse{
+			ID:            nr.ID,
+			WorkflowRunID: nr.WorkflowRunID,
+			NodeID:        nr.NodeID,
+			AgentID:       nr.AgentID,
+			Status:        nr.Status,
+			TokensUsed:    nr.TokensUsed,
+			Cost:          nr.Cost,
+			ErrorInfo:     nr.ErrorInfo,
+			RetryCount:    nr.RetryCount,
+		}
+
+		// Get node name
+		s.db.Raw("SELECT name FROM workflow_nodes WHERE id = ?", nr.NodeID).Scan(&nrResp.NodeName)
+
+		// Get agent name
+		s.db.Raw("SELECT name FROM agents WHERE id = ?", nr.AgentID).Scan(&nrResp.AgentName)
+
+		if nr.StartedAt != nil {
+			started := nr.StartedAt.Format(time.RFC3339)
+			nrResp.StartedAt = &started
+		}
+		if nr.CompletedAt != nil {
+			completed := nr.CompletedAt.Format(time.RFC3339)
+			nrResp.CompletedAt = &completed
+		}
+
+		detail.NodeRuns = append(detail.NodeRuns, nrResp)
+	}
+
+	return detail, nil
+}
+
+// ExecuteWorkflow starts a workflow execution.
+func (s *WorkflowService) ExecuteWorkflow(workflowID uint64, issueID *uint64) (*WorkflowRunResponse, error) {
+	// Get workflow
+	workflow, err := s.Get(workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("workflow not found: %w", err)
+	}
+
+	// Check budget
+	if issueID != nil {
+		ok, msg, err := s.budgetSvc.CheckBudget(workflow.ProjectID, 0.1) // estimated cost
+		if err != nil || !ok {
+			return nil, fmt.Errorf("budget check failed: %s", msg)
+		}
+	}
+
+	// Build initial context (safe for nil issueID — BuildInitialContext handles id=0)
+	var issueIDVal uint64
+	if issueID != nil {
+		issueIDVal = *issueID
+	}
+	ctx, err := s.contextSvc.BuildInitialContext(issueIDVal)
+	if err != nil {
+		return nil, err
+	}
+
+	ctxJSON, _ := s.contextSvc.ContextToJSON(ctx)
+
+	// Create run (use model struct so GORM populates the auto-increment ID)
+	now := time.Now()
+	run := &model.WorkflowRun{
+		WorkflowID: workflowID,
+		IssueID:    issueID,
+		Status:     "pending",
+		Context:    ctxJSON,
+		StartedAt:  &now,
+	}
+
+	if err := s.db.Create(run).Error; err != nil {
+		return nil, err
+	}
+
+	// Create node runs for all nodes
+	for _, node := range workflow.Nodes {
+		nodeRun := &model.WorkflowNodeRun{
+			WorkflowRunID: run.ID,
+			NodeID:        node.ID,
+			AgentID:       node.AgentID,
+			Status:        "pending",
+		}
+		s.db.Create(nodeRun)
+	}
+
+	return &WorkflowRunResponse{
+		ID:          run.ID,
+		WorkflowID:  workflowID,
+		IssueID:     issueID,
+		Status:      "pending",
+		StartedAt:   ptrString(now.Format(time.RFC3339)),
+		CreatedAt:   run.CreatedAt.Format(time.RFC3339),
+	}, nil
+}
+
+// ptrString returns a pointer to a string.
+func ptrString(s string) *string {
+	return &s
+}

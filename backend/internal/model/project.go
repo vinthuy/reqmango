@@ -66,3 +66,21 @@ type ProjectSubscriber struct {
 func (ProjectSubscriber) TableName() string {
 	return "project_subscribers"
 }
+
+// ProjectAgentMember represents an Agent's membership in a project (virtual member).
+type ProjectAgentMember struct {
+	BaseModel
+
+	ProjectID uint64 `gorm:"not null;uniqueIndex:idx_proj_agent_member" json:"project_id"`
+	AgentID   uint64 `gorm:"not null;uniqueIndex:idx_proj_agent_member" json:"agent_id"`
+	Role      string `gorm:"size:20;default:member" json:"role"` // observer, member, admin
+	IsActive  bool   `gorm:"default:true" json:"is_active"`
+
+	// Relationships
+	Project Project `gorm:"foreignKey:ProjectID" json:"-"`
+	Agent   Agent   `gorm:"foreignKey:AgentID" json:"agent,omitempty"`
+}
+
+func (ProjectAgentMember) TableName() string {
+	return "project_agent_members"
+}

@@ -205,7 +205,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import workflowApi from '@/api/workflow'
+import { listStateTransitions, createStateTransition, updateStateTransition, deleteStateTransition } from '@/api/workflow'
 import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
 import type { StateTransition, StateTransitionCreate } from '@/types/workflow'
@@ -251,7 +251,7 @@ onMounted(() => {
 async function loadTransitions() {
   loading.value = true
   try {
-    transitions.value = await workflowApi.listStateTransitions(props.projectId, props.workflowId || 0)
+    transitions.value = await listStateTransitions(props.projectId, props.workflowId || 0)
   } catch (error) {
     console.error('Failed to load transitions:', error)
   } finally {
@@ -283,7 +283,7 @@ async function deleteTransition(transition: StateTransition) {
   if (!(await confirm(t('stateTransition.confirmDelete')))) return
 
   try {
-    await workflowApi.deleteStateTransition(props.projectId, props.workflowId || 0, transition.id)
+    await deleteStateTransition(props.projectId, props.workflowId || 0, transition.id)
     transitions.value = transitions.value.filter(t => t.id !== transition.id)
     emit('deleted')
   } catch (error) {
@@ -296,7 +296,7 @@ async function submitTransition() {
   try {
     if (showEditModal.value && editingTransition.value) {
       // Update
-      await workflowApi.updateStateTransition(props.projectId, props.workflowId || 0, editingTransition.value.id, {
+      await updateStateTransition(props.projectId, props.workflowId || 0, editingTransition.value.id, {
         name: transitionForm.value.name,
         description: transitionForm.value.description || undefined,
         is_auto: transitionForm.value.is_auto
@@ -311,7 +311,7 @@ async function submitTransition() {
         target_state_id: transitionForm.value.target_state_id,
         is_auto: transitionForm.value.is_auto
       }
-      await workflowApi.createStateTransition(props.projectId, props.workflowId || 0, data)
+      await createStateTransition(props.projectId, props.workflowId || 0, data)
       emit('created')
     }
     closeModal()

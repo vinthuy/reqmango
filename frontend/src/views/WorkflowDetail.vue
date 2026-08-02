@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import WorkflowVisualization from '@/components/WorkflowVisualization.vue';
 import api from '@/api';
-import * as workflowApi from '@/api/workflow';
+import { workflowApi } from '@/api/workflow';
 import { useI18n } from '@/composables/useI18n';
 
 const { t } = useI18n();
@@ -66,7 +66,7 @@ async function saveIssueTypes() {
   if (!workflowId.value || savingIssueTypes.value) return;
   savingIssueTypes.value = true;
   try {
-    await workflowApi.updateWorkflow(projectId.value, workflowId.value, {
+    await workflowApi.update(projectId.value, workflowId.value, {
       issue_type_ids: selectedIssueTypeIds.value
     });
     await loadData();
@@ -215,15 +215,17 @@ async function handleSaveTransition() {
       }
     });
 
-    await workflowApi.addTransition(projectId.value, workflowId.value, {
-      from_state_id: selectedFromState.value,
-      to_state_id: newTransitionTo.value,
-      name: name,
-      description: newTransitionDesc.value,
-      rule_type: newTransitionType.value,
-      approver_ids: approverIds,
-      reject_target_state_id: rejectTargetStateId
-    });
+    await workflowApi.addEdge(projectId.value, workflowId.value, {
+      source_node_id: selectedFromState.value as number,
+      target_node_id: newTransitionTo.value as number,
+      condition: name,
+      context_mapping: {
+        description: newTransitionDesc.value,
+        rule_type: newTransitionType.value,
+        approver_ids: approverIds,
+        reject_target_state_id: rejectTargetStateId
+      }
+    } as any);
     showAddTransitionModal.value = false;
     await loadData();
   } catch (e: any) { 
@@ -235,7 +237,7 @@ async function handleSaveTransition() {
 async function handleDeleteTransition(transitionId: number) {
   if (!workflowId.value) return;
   try {
-    await workflowApi.deleteTransition(projectId.value, workflowId.value, transitionId);
+    await workflowApi.deleteEdge(projectId.value, workflowId.value, transitionId);
     await loadData();
   } catch (e) { console.error('Failed to delete transition:', e); }
 }

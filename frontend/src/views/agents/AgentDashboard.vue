@@ -37,7 +37,7 @@
           <div class="flex items-center justify-between mb-3">
             <h2 class="text-lg font-semibold text-gray-800">Active Loops</h2>
             <router-link
-              :to="`/workspaces/${getWorkspaceId()}/agents/loops`"
+              :to="agentLink('/loops')"
               class="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
             >
               View All
@@ -51,7 +51,7 @@
               v-for="run in activeRuns"
               :key="run.id"
               class="bg-white border border-gray-200 rounded-xl p-4 hover:border-indigo-300 cursor-pointer transition-colors"
-              @click="$router.push(`/workspaces/${getWorkspaceId()}/agents/loops/runs/${run.id}`)"
+              @click="$router.push(agentLink(`/loops/runs/${run.id}`))"
             >
               <div class="flex items-center justify-between mb-2">
                 <span class="font-medium text-gray-900">{{ run.goal }}</span>
@@ -70,7 +70,7 @@
         <!-- Navigation Grid -->
         <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <router-link
-            :to="`/workspaces/${getWorkspaceId()}/agents/templates`"
+            :to="agentLink('/templates')"
             class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
             <div class="flex items-start gap-4">
@@ -100,13 +100,12 @@
           </router-link>
 
           <router-link
-            :to="`/workspaces/${getWorkspaceId()}/agents/skills`"
+            :to="agentLink('/skills')"
             class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
             <div class="flex items-start gap-4">
               <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl">
-                🛠️
-              </div>
+                🛠�?              </div>
               <div>
                 <div class="font-semibold text-gray-900">Skills</div>
                 <div class="text-sm text-gray-500 mt-1">Manage reusable AI skills</div>
@@ -130,13 +129,12 @@
           </router-link>
 
           <router-link
-            :to="`/workspaces/${getWorkspaceId()}/agents/runtimes`"
+            :to="agentLink('/runtimes')"
             class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
             <div class="flex items-start gap-4">
               <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center text-white text-xl">
-                🖥️
-              </div>
+                🖥�?              </div>
               <div>
                 <div class="font-semibold text-gray-900">Runtimes</div>
                 <div class="text-sm text-gray-500 mt-1">Manage agent runtime environments</div>
@@ -160,7 +158,7 @@
           </router-link>
 
           <router-link
-            :to="`/workspaces/${getWorkspaceId()}/agents/monitor`"
+            :to="agentLink('/monitor')"
             class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
             <div class="flex items-start gap-4">
@@ -175,7 +173,7 @@
           </router-link>
 
           <router-link
-            :to="`/workspaces/${getWorkspaceId()}/agents/sessions`"
+            :to="agentLink('/sessions')"
             class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
             <div class="flex items-start gap-4">
@@ -205,13 +203,12 @@
           </router-link>
 
           <router-link
-            :to="`/workspaces/${getWorkspaceId()}/agents/autopilot`"
+            :to="agentLink('/autopilot')"
             class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
             <div class="flex items-start gap-4">
               <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white text-xl">
-                ⏰
-              </div>
+                �?              </div>
               <div>
                 <div class="font-semibold text-gray-900">Autopilot Tasks</div>
                 <div class="text-sm text-gray-500 mt-1">Manage scheduled automation tasks</div>
@@ -226,24 +223,40 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { loopApi, type LoopRun } from '@/api/agent-loop'
 import { agentTemplateApi } from '@/api/agent-template'
 import { agentConfigApi } from '@/api/agent-config'
 import { skillApi } from '@/api/skill'
 import { agentTaskApi } from '@/api/agent-task'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import LoopStateBadge from '@/components/agents/LoopStateBadge.vue'
 import BudgetGauge from '@/components/agents/BudgetGauge.vue'
+
+const route = useRoute()
+const router = useRouter()
+const { getWorkspaceId } = useWorkspaceId()
 
 const activeRuns = ref<LoopRun[]>([])
 const templatesCount = ref(0)
 const configsCount = ref(0)
 const skillsCount = ref(0)
 const tasksCount = ref(0)
+const resolvedWsId = ref<number | null>(null)
+
+function agentLink(subpath: string): string {
+  const slug = route.params.slug as string
+  if (slug) return `/workspace/${slug}/agents${subpath}`
+  const wsId = resolvedWsId.value
+  if (wsId) return `/workspaces/${wsId}/agents${subpath}`
+  return '#'
+}
 
 onMounted(async () => {
   try {
-    const wsId = getWorkspaceId()
+    const wsId = await getWorkspaceId()
     if (!wsId) return
+    resolvedWsId.value = wsId
 
     // Load stats
     const [templatesRes, configsRes, skillsRes, tasksRes] = await Promise.all([
@@ -267,11 +280,4 @@ onMounted(async () => {
     }
   } catch { /* no data yet */ }
 })
-
-function getWorkspaceId(): number | null {
-  const match = window.location.pathname.match(/\/workspaces\/(\d+)/)
-  if (match) return Number(match[1])
-  const stored = localStorage.getItem('currentWorkspaceId')
-  return stored ? Number(stored) : null
-}
 </script>

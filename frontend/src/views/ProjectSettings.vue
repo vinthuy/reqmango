@@ -3,7 +3,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi } from '@/api/project'
-import * as workflowApi from '@/api/workflow'
+import { workflowApi } from '@/api/workflow'
+import { automationApi } from '@/api/automation'
 import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
@@ -175,8 +176,8 @@ async function loadData() {
     const results = await Promise.allSettled([
       api.get(`/projects/${pid}/settings/states`).then(r => r.data),
       api.get(`/projects/${pid}/settings/labels`).then(r => r.data),
-      workflowApi.listWorkflows(pid),
-      workflowApi.listAutomations(pid),
+      workflowApi.list(pid),
+      automationApi.list(pid),
       api.get(`/projects/${pid}/members`).then(r => r.data),
     ])
     states.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value) ? results[0].value : []) : []
@@ -251,7 +252,7 @@ async function applyTemplate(template: any) {
       conditions: template.conditions.length > 0 ? JSON.stringify(template.conditions) : undefined,
       actions: JSON.stringify(template.actions)
     }
-    await workflowApi.createAutomation(projectId.value, data)
+    await automationApi.create(projectId.value, data)
     await loadData()
     toast.success(t('automationTemplates.createdSuccess'))
   } catch (e: any) {
@@ -357,7 +358,7 @@ function handleAddWorkflow() {
 async function handleSaveWorkflow() {
   if (!newWorkflowForm.value.name || !projectId.value) return
   try {
-    await workflowApi.createWorkflow(projectId.value, {
+    await workflowApi.create(projectId.value, {
       name: newWorkflowForm.value.name,
       description: newWorkflowForm.value.description
     })
@@ -368,7 +369,7 @@ async function handleSaveWorkflow() {
 async function handleDeleteWorkflow(workflow: any) {
   if (!projectId.value) return
   if (!(await confirm({ title: t('settings.deleteWorkflow'), message: t('settings.confirmDeleteWorkflow', { 0: workflow.name }), danger: true, confirmText: t('common.delete') }))) return
-  try { await workflowApi.deleteWorkflow(projectId.value, workflow.id); await loadData() }
+  try { await workflowApi.delete(projectId.value, workflow.id); await loadData() }
   catch (e: any) { console.error('Failed to delete workflow:', e); toast.error(e?.response?.data?.message || 'Failed to delete workflow') }
 }
 
@@ -385,7 +386,7 @@ async function handleToggleWorkflowStatus(workflow: any) {
   }))) return
   togglingWorkflowId.value = workflow.id
   try {
-    await workflowApi.updateWorkflow(projectId.value, workflow.id, { is_active: newStatus })
+    await workflowApi.update(projectId.value, workflow.id, { is_active: newStatus })
     await loadData()
   } catch (e: any) {
     console.error('Failed to toggle workflow status:', e)
@@ -420,9 +421,9 @@ async function handleSaveAutomation(data: any) {
   if (!projectId.value) return
   try {
     if (editingAutomation.value) {
-      await workflowApi.updateAutomation(projectId.value, editingAutomation.value.id, data)
+      await automationApi.update(projectId.value, editingAutomation.value.id, data)
     } else {
-      await workflowApi.createAutomation(projectId.value, data)
+      await automationApi.create(projectId.value, data)
     }
     
     showAutomationModal.value = false
@@ -443,7 +444,7 @@ async function handleToggleAutomation(automation: any) {
   }))) return
   
   try { 
-    await workflowApi.updateAutomation(projectId.value, automation.id, { is_enabled: newStatus })
+    await automationApi.update(projectId.value, automation.id, { is_enabled: newStatus })
     await loadData() 
   } catch (e: any) { console.error('Failed to toggle automation:', e); toast.error(e?.response?.data?.message || 'Failed to toggle automation') }
 }
@@ -451,7 +452,7 @@ async function handleToggleAutomation(automation: any) {
 async function handleDeleteAutomation(automation: any) {
   if (!projectId.value) return
   if (!(await confirm({ title: t('settings.deleteAutomation'), message: t('settings.confirmDeleteAutomation', { 0: automation.name }), danger: true, confirmText: t('common.delete') }))) return
-  try { await workflowApi.deleteAutomation(projectId.value, automation.id); await loadData() }
+  try { await automationApi.delete(projectId.value, automation.id); await loadData() }
   catch (e: any) { console.error('Failed to delete automation:', e); toast.error(e?.response?.data?.message || 'Failed to delete automation') }
 }
 

@@ -2,11 +2,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
+import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { skillApi, type SkillResponse, type SkillCreate, type SkillUpdate } from '@/api/skill'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { getWorkspaceId } = useWorkspaceId()
 
 const workspaceId = ref(0)
 const skills = ref<SkillResponse[]>([])
@@ -51,7 +53,8 @@ const filteredSkills = computed(() => {
 async function loadSkills() {
   loading.value = true
   try {
-    const wsId = parseInt(route.params.wsParam as string, 10)
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
     workspaceId.value = wsId
     skills.value = await skillApi.list(wsId) || []
   } catch (err) {
@@ -143,7 +146,12 @@ async function handleDelete(skillId: number) {
 }
 
 function goBack() {
-  router.push(`/workspaces/${workspaceId.value}/agents`)
+  const slug = route.params.slug as string
+  if (slug) {
+    router.push(`/workspace/${slug}/agents`)
+  } else {
+    router.push(`/workspaces/${workspaceId.value}/agents`)
+  }
 }
 
 function getStatusColor(status: string) {
