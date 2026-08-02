@@ -161,7 +161,8 @@ func (h *WorkspaceHandler) UpdateMember(c *gin.Context) {
 		return
 	}
 
-	member, svcErr := h.svc.UpdateMember(workspaceID, userID, role)
+	currentUser := middleware.GetCurrentUser(c)
+	member, svcErr := h.svc.UpdateMember(workspaceID, currentUser.ID, userID, role)
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -187,7 +188,8 @@ func (h *WorkspaceHandler) RemoveMember(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.RemoveMember(workspaceID, userID); svcErr != nil {
+	currentUser := middleware.GetCurrentUser(c)
+	if svcErr := h.svc.RemoveMember(workspaceID, currentUser.ID, userID); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return

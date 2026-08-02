@@ -244,8 +244,29 @@ func (s *WorkspaceService) ListMembers(workspaceID uint64) ([]model.WorkspaceMem
 	return members, nil
 }
 
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. This guards membership mutations against privilege
+// escalation by non-admin members.
+func (s *WorkspaceService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage members")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage members")
+	}
+	return nil
+}
+
 // AddMember adds a user to a workspace.
 func (s *WorkspaceService) AddMember(workspaceID uint64, req *request.WorkspaceAddMemberRequest, addedBy uint64) (*response.WorkspaceMemberResponse, error) {
+	if err := s.checkWorkspaceAdmin(workspaceID, addedBy); err != nil {
+		return nil, err
+	}
+
 	// Verify user exists
 	var user model.User
 	if err := s.db.First(&user, req.UserID).Error; err != nil {
@@ -297,7 +318,11 @@ func (s *WorkspaceService) AddMember(workspaceID uint64, req *request.WorkspaceA
 }
 
 // UpdateMember updates a workspace member's role.
-func (s *WorkspaceService) UpdateMember(workspaceID uint64, userID uint64, role int) (*response.WorkspaceMemberResponse, error) {
+func (s *WorkspaceService) UpdateMember(workspaceID, callerID, userID uint64, role int) (*response.WorkspaceMemberResponse, error) {
+	if err := s.checkWorkspaceAdmin(workspaceID, callerID); err != nil {
+		return nil, err
+	}
+
 	var member model.WorkspaceMember
 	if err := s.db.Where("workspace_id = ? AND user_id = ?", workspaceID, userID).First(&member).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -328,7 +353,11 @@ func (s *WorkspaceService) UpdateMember(workspaceID uint64, userID uint64, role 
 }
 
 // RemoveMember performs a soft remove on a workspace member (sets is_active=false).
-func (s *WorkspaceService) RemoveMember(workspaceID uint64, userID uint64) error {
+func (s *WorkspaceService) RemoveMember(workspaceID, callerID, userID uint64) error {
+	if err := s.checkWorkspaceAdmin(workspaceID, callerID); err != nil {
+		return err
+	}
+
 	result := s.db.Model(&model.WorkspaceMember{}).
 		Where("workspace_id = ? AND user_id = ?", workspaceID, userID).
 		Update("is_active", false)
