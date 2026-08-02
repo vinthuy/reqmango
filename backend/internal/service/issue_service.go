@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -42,10 +43,16 @@ type IssueService struct {
 	webhookSvc      *WebhookService
 	automationSvc   *AutomationService
 	slackSvc        *SlackService
+	chatSvc         *ChatService
 }
 
 func NewIssueService(db *gorm.DB, notificationSvc *NotificationService, webhookSvc *WebhookService, automationSvc *AutomationService, slackSvc *SlackService) *IssueService {
 	return &IssueService{db: db, notificationSvc: notificationSvc, webhookSvc: webhookSvc, automationSvc: automationSvc, slackSvc: slackSvc}
+}
+
+// SetChatService injects the chat service for issue state-change -> agent reply hooks.
+func (s *IssueService) SetChatService(chatSvc *ChatService) {
+	s.chatSvc = chatSvc
 }
 
 // DB returns the database instance for use in handlers (for security checks).
@@ -977,6 +984,11 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 			"project_id":  issue.ProjectID,
 			"priority":    issue.Priority,
 		})
+
+		// Chat hook: trigger agent auto-reply on issue state change (async, non-blocking)
+		if s.chatSvc != nil && oldStateID != 0 {
+			go s.chatSvc.OnIssueStateChanged(context.Background(), issueID, oldStateID, *req.StateID, userID)
+		}
 	}
 
 	// Automation trigger: fire after commit for issue updates (including priority changes)
