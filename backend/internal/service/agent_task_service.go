@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -26,6 +27,22 @@ func NewAgentTaskService(db *gorm.DB) *AgentTaskService {
 	}
 }
 
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. Guards mutations against privilege escalation.
+func (s *AgentTaskService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage agent tasks")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage agent tasks")
+	}
+	return nil
+}
+
 // SetPresenceService sets the presence service for updating agent presence
 func (s *AgentTaskService) SetPresenceService(presenceSvc model.AgentPresenceInterface) {
 	s.presenceSvc = presenceSvc
@@ -39,7 +56,10 @@ func (s *AgentTaskService) updateAgentPresence(taskID, agentID uint64, status st
 	go s.presenceSvc.UpdatePresenceOnTaskStateChange(agentID, taskID, status)
 }
 
-func (s *AgentTaskService) Create(wid uint64, req request.AgentTaskCreate) (*response.AgentTaskResponse, error) {
+func (s *AgentTaskService) Create(wid uint64, callerID uint64, req request.AgentTaskCreate) (*response.AgentTaskResponse, error) {
+	if err := s.checkWorkspaceAdmin(wid, callerID); err != nil {
+		return nil, err
+	}
 	task := model.AgentTask{
 		Title:            req.Title,
 		Description:      req.Description,
@@ -97,10 +117,13 @@ func (s *AgentTaskService) List(wid uint64, status string) ([]response.AgentTask
 	return res, nil
 }
 
-func (s *AgentTaskService) Update(id uint64, req request.AgentTaskUpdate) (*response.AgentTaskResponse, error) {
+func (s *AgentTaskService) Update(id uint64, callerID uint64, req request.AgentTaskUpdate) (*response.AgentTaskResponse, error) {
 	var task model.AgentTask
 	if err := s.db.First(&task, id).Error; err != nil {
 		return nil, common.NotFound("Agent task not found")
+	}
+	if err := s.checkWorkspaceAdmin(task.WorkspaceID, callerID); err != nil {
+		return nil, err
 	}
 
 	if req.Title != nil {
@@ -136,10 +159,13 @@ func (s *AgentTaskService) Update(id uint64, req request.AgentTaskUpdate) (*resp
 	return resp, err
 }
 
-func (s *AgentTaskService) Delete(id uint64) error {
+func (s *AgentTaskService) Delete(id uint64, callerID uint64) error {
 	var task model.AgentTask
 	if err := s.db.First(&task, id).Error; err != nil {
 		return common.NotFound("Agent task not found")
+	}
+	if err := s.checkWorkspaceAdmin(task.WorkspaceID, callerID); err != nil {
+		return err
 	}
 
 	return s.db.Delete(&task).Error
