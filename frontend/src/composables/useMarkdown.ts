@@ -159,8 +159,15 @@ function inlineMarkdown(text: string): string {
   text = text.replace(/\*(.+?)\*/g, '<em>$1</em>')
   // Strikethrough
   text = text.replace(/~~(.+?)~~/g, '<del class="text-gray-400">$1</del>')
-  // Links
-  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-indigo-600 dark:text-indigo-400 underline" target="_blank">$1</a>')
+  // Links — validate URL scheme to prevent XSS (javascript:, data:, etc.) and escape quotes
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label: string, url: string) => {
+    const trimmed = url.trim()
+    if (/^(https?:|mailto:)/i.test(trimmed) || /^[/#]/.test(trimmed) || !/:/.test(trimmed)) {
+      const safeUrl = trimmed.replace(/"/g, '&quot;')
+      return `<a href="${safeUrl}" class="text-indigo-600 dark:text-indigo-400 underline" target="_blank" rel="noopener noreferrer">${label}</a>`
+    }
+    return label
+  })
 
   return text
 }
