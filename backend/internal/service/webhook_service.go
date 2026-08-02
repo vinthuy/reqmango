@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -26,9 +27,29 @@ func (s *WebhookService) List(projectID uint64) ([]model.Webhook, error) {
 	return wh, nil
 }
 
+// checkProjectAdmin verifies the caller is an active admin-level member of the
+// project. Webhooks can exfiltrate issue data and carry secrets, so only
+// project admins may manage them.
+func (s *WebhookService) checkProjectAdmin(projectID, callerID uint64) error {
+	var member model.ProjectMember
+	if err := s.db.Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a project admin to manage webhooks")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a project admin to manage webhooks")
+	}
+	return nil
+}
+
 func (s *WebhookService) Create(projectID, workspaceID uint64, req *struct {
 	Name, URL, Secret, Events string
-}) (*model.Webhook, error) {
+}, callerID uint64) (*model.Webhook, error) {
+	if err := s.checkProjectAdmin(projectID, callerID); err != nil {
+		return nil, err
+	}
 	events := req.Events
 	if events == "" { events = "issue_created,issue_updated,state_changed" }
 	w := &model.Webhook{Name: req.Name, URL: req.URL, Secret: req.Secret, Events: events, IsActive: true, ProjectID: projectID, WorkspaceID: workspaceID}
@@ -38,9 +59,12 @@ func (s *WebhookService) Create(projectID, workspaceID uint64, req *struct {
 
 func (s *WebhookService) Update(id uint64, req *struct {
 	Name, URL, Secret, Events *string; IsActive *bool
-}) (*model.Webhook, error) {
+}, callerID uint64) (*model.Webhook, error) {
 	var w model.Webhook
 	if s.db.First(&w, id).Error != nil { return nil, common.NotFound("Webhook not found") }
+	if err := s.checkProjectAdmin(w.ProjectID, callerID); err != nil {
+		return nil, err
+	}
 	u := map[string]interface{}{}
 	if req.Name != nil { u["name"] = *req.Name }
 	if req.URL != nil { u["url"] = *req.URL }
@@ -51,7 +75,12 @@ func (s *WebhookService) Update(id uint64, req *struct {
 	return &w, nil
 }
 
-func (s *WebhookService) Delete(id uint64) error {
+func (s *WebhookService) Delete(id, callerID uint64) error {
+	var w model.Webhook
+	if s.db.First(&w, id).Error != nil { return common.NotFound("Webhook not found") }
+	if err := s.checkProjectAdmin(w.ProjectID, callerID); err != nil {
+		return err
+	}
 	if s.db.Delete(&model.Webhook{}, id).RowsAffected == 0 { return common.NotFound("Webhook not found") }
 	return nil
 }
