@@ -35,3 +35,22 @@ func (c *AgentClient) HandleMention(workspaceID, agentID, commentID, userID uint
 	_, err := c.agentSvc.HandleMention(agentID, commentID, userID, commentBody, issueName, issueID)
 	return err
 }
+
+// DispatchAgentWithResult dispatches a task to an agent and returns the
+// human-readable result summary. Used by ChatService to capture agent replies
+// as chat messages.
+func (c *AgentClient) DispatchAgentWithResult(workspaceID, agentID, userID uint64, task string, issueID, projectID *uint64, triggeredBy string) (string, error) {
+	act, err := c.agentSvc.DispatchAgent(agentID, userID, task, &aiservice.DispatchContext{
+		IssueID:     issueID,
+		ProjectID:   projectID,
+		WorkspaceID: workspaceID,
+		TriggeredBy: triggeredBy,
+	})
+	if err != nil {
+		return "", err
+	}
+	if act == nil {
+		return "", nil
+	}
+	return act.ResultSummary, nil
+}
