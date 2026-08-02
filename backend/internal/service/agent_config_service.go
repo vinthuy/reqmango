@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
@@ -14,7 +16,26 @@ func NewAgentConfigService(db *gorm.DB) *AgentConfigService {
 	return &AgentConfigService{db: db}
 }
 
-func (s *AgentConfigService) Create(wid uint64, req request.AgentConfigCreate) (*response.AgentConfigResponse, error) {
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. Guards mutations against privilege escalation.
+func (s *AgentConfigService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage agent configs")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage agent configs")
+	}
+	return nil
+}
+
+func (s *AgentConfigService) Create(wid uint64, callerID uint64, req request.AgentConfigCreate) (*response.AgentConfigResponse, error) {
+	if err := s.checkWorkspaceAdmin(wid, callerID); err != nil {
+		return nil, err
+	}
 	config := model.AgentConfig{
 		Name:           req.Name,
 		Description:    req.Description,
@@ -60,10 +81,13 @@ func (s *AgentConfigService) List(wid uint64) ([]response.AgentConfigResponse, e
 	return res, nil
 }
 
-func (s *AgentConfigService) Update(id uint64, req request.AgentConfigUpdate) (*response.AgentConfigResponse, error) {
+func (s *AgentConfigService) Update(id uint64, callerID uint64, req request.AgentConfigUpdate) (*response.AgentConfigResponse, error) {
 	var config model.AgentConfig
 	if err := s.db.First(&config, id).Error; err != nil {
 		return nil, common.NotFound("Agent config not found")
+	}
+	if err := s.checkWorkspaceAdmin(config.WorkspaceID, callerID); err != nil {
+		return nil, err
 	}
 
 	if req.Name != nil {
@@ -116,10 +140,13 @@ func (s *AgentConfigService) Update(id uint64, req request.AgentConfigUpdate) (*
 	return s.Get(id)
 }
 
-func (s *AgentConfigService) Delete(id uint64) error {
+func (s *AgentConfigService) Delete(id uint64, callerID uint64) error {
 	var config model.AgentConfig
 	if err := s.db.First(&config, id).Error; err != nil {
 		return common.NotFound("Agent config not found")
+	}
+	if err := s.checkWorkspaceAdmin(config.WorkspaceID, callerID); err != nil {
+		return err
 	}
 
 	return s.db.Delete(&config).Error
