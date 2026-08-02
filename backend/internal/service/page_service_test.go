@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/glebarez/sqlite"
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -26,6 +27,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&model.User{},
 		&model.Workspace{},
 		&model.Project{},
+		&model.ProjectMember{},
 		&model.Page{},
 		&model.PageVersion{},
 		&model.PageTemplate{},
@@ -63,6 +65,10 @@ func seedTestData(t *testing.T, db *gorm.DB) (workspaceID, projectID, userID uin
 	projectIDPtr := projectID
 	state := &model.State{Name: "Backlog", Color: "#ccc", ProjectID: &projectIDPtr, WorkspaceID: workspaceID}
 	require.NoError(t, db.Create(state).Error)
+
+	// Project membership for the test user (required for page template auth)
+	member := &model.ProjectMember{ProjectID: projectID, UserID: userID, Role: common.RoleAdmin, IsActive: true}
+	require.NoError(t, db.Create(member).Error)
 
 	return
 }
@@ -323,7 +329,7 @@ func TestPageTemplateService_CRUD(t *testing.T) {
 		Content:     "# Meeting Notes\n\nDate: {{date}}\nAttendees: ",
 		IsDefault:   true,
 	}
-	tmpl, err := ts.Create(req, wsID, userID)
+	tmpl, err := ts.Create(req, wsID, projID, userID)
 	require.NoError(t, err)
 	assert.True(t, tmpl.IsDefault)
 
@@ -340,11 +346,11 @@ func TestPageTemplateService_CRUD(t *testing.T) {
 
 	// Update
 	newName := "Weekly Standup Notes"
-	_, err = ts.Update(tmpl.ID, userID, &request.PageTemplateUpdateRequest{Name: &newName})
+	_, err = ts.Update(tmpl.ID, projID, userID, &request.PageTemplateUpdateRequest{Name: &newName})
 	require.NoError(t, err)
 
 	// Delete
-	err = ts.Delete(tmpl.ID)
+	err = ts.Delete(tmpl.ID, projID, userID)
 	require.NoError(t, err)
 	_, err = ts.Get(tmpl.ID)
 	assert.Error(t, err)
