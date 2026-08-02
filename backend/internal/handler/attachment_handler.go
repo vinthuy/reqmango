@@ -108,11 +108,22 @@ func (h *AttachmentHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Limit request body to defend against oversized uploads before they are
+	// buffered to disk/memory. c.FormFile parses the multipart form lazily, so
+	// wrapping the body here aborts the upload mid-stream when it exceeds the
+	// limit instead of rejecting it only after the full file has been read.
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize+1024)
+
 	user := middleware.GetCurrentUser(c)
 	uploaderID := user.ID
 
 	file, err := c.FormFile("file")
 	if err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "File size exceeds 10MB limit"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded: " + err.Error()})
 		return
 	}
