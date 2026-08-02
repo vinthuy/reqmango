@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +21,22 @@ type MCPService struct {
 
 func NewMCPService(db *gorm.DB) *MCPService {
 	return &MCPService{db: db}
+}
+
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. Guards mutations against privilege escalation.
+func (s *MCPService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage MCP configs")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage MCP configs")
+	}
+	return nil
 }
 
 // ======== Request/Response types ========
@@ -96,7 +113,10 @@ func (s *MCPService) Get(id uint64) (*MCPResponse, error) {
 	return &r, nil
 }
 
-func (s *MCPService) Create(workspaceID uint64, req *MCPCreateRequest) (*MCPResponse, error) {
+func (s *MCPService) Create(workspaceID uint64, callerID uint64, req *MCPCreateRequest) (*MCPResponse, error) {
+	if err := s.checkWorkspaceAdmin(workspaceID, callerID); err != nil {
+		return nil, err
+	}
 	enabled := true
 	if req.IsEnabled != nil {
 		enabled = *req.IsEnabled
@@ -123,13 +143,16 @@ func (s *MCPService) Create(workspaceID uint64, req *MCPCreateRequest) (*MCPResp
 	return &r, nil
 }
 
-func (s *MCPService) Update(id uint64, req *MCPUpdateRequest) (*MCPResponse, error) {
+func (s *MCPService) Update(id uint64, callerID uint64, req *MCPUpdateRequest) (*MCPResponse, error) {
 	var cfg model.MCPConfig
 	if err := s.db.First(&cfg, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, common.NotFound("MCP config not found")
 		}
 		return nil, common.Internal("Failed to get MCP config")
+	}
+	if err := s.checkWorkspaceAdmin(cfg.WorkspaceID, callerID); err != nil {
+		return nil, err
 	}
 
 	updates := map[string]interface{}{}
@@ -161,13 +184,16 @@ func (s *MCPService) Update(id uint64, req *MCPUpdateRequest) (*MCPResponse, err
 	return &r, nil
 }
 
-func (s *MCPService) Delete(id uint64) error {
+func (s *MCPService) Delete(id uint64, callerID uint64) error {
 	var cfg model.MCPConfig
 	if err := s.db.First(&cfg, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return common.NotFound("MCP config not found")
 		}
 		return common.Internal("Failed to get MCP config")
+	}
+	if err := s.checkWorkspaceAdmin(cfg.WorkspaceID, callerID); err != nil {
+		return err
 	}
 	if err := s.db.Delete(&cfg).Error; err != nil {
 		return common.Internal("Failed to delete MCP config")

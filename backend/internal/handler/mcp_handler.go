@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -16,9 +17,9 @@ func NewMCPHandler(svc *service.MCPService) *MCPHandler {
 	return &MCPHandler{svc: svc}
 }
 
-// List handles GET /workspaces/:workspaceId/mcp
+// List handles GET /workspaces/:wsParam/mcp
 func (h *MCPHandler) List(c *gin.Context) {
-	workspaceID, _ := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	workspaceID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
 	result, err := h.svc.List(workspaceID)
 	if appError(c, err) {
 		return
@@ -36,22 +37,22 @@ func (h *MCPHandler) Get(c *gin.Context) {
 	c.JSON(200, result)
 }
 
-// Create handles POST /workspaces/:workspaceId/mcp
+// Create handles POST /workspaces/:wsParam/mcp
 func (h *MCPHandler) Create(c *gin.Context) {
-	workspaceID, _ := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	workspaceID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
 	var req service.MCPCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"message": err.Error()})
 		return
 	}
-	result, err := h.svc.Create(workspaceID, &req)
+	result, err := h.svc.Create(workspaceID, middleware.GetCurrentUser(c).ID, &req)
 	if appError(c, err) {
 		return
 	}
 	c.JSON(201, result)
 }
 
-// Update handles PUT /workspaces/:workspaceId/mcp/:id
+// Update handles PUT /workspaces/:wsParam/mcp/:id
 func (h *MCPHandler) Update(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	var req service.MCPUpdateRequest
@@ -59,17 +60,17 @@ func (h *MCPHandler) Update(c *gin.Context) {
 		c.JSON(400, gin.H{"message": err.Error()})
 		return
 	}
-	result, err := h.svc.Update(id, &req)
+	result, err := h.svc.Update(id, middleware.GetCurrentUser(c).ID, &req)
 	if appError(c, err) {
 		return
 	}
 	c.JSON(200, result)
 }
 
-// Delete handles DELETE /workspaces/:workspaceId/mcp/:id
+// Delete handles DELETE /workspaces/:wsParam/mcp/:id
 func (h *MCPHandler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err := h.svc.Delete(id); err != nil {
+	if err := h.svc.Delete(id, middleware.GetCurrentUser(c).ID); err != nil {
 		appError(c, err)
 		return
 	}
