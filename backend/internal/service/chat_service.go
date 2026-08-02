@@ -614,3 +614,28 @@ func mustJSON(v interface{}) json.RawMessage {
 	}
 	return b
 }
+
+// GetChat returns a chat by ID (without messages). Caller must have already
+// verified membership via GetChatMembershipCheck.
+func (s *ChatService) GetChat(chatID uint64) (*response.ChatResponse, error) {
+	var chat model.Chat
+	if err := s.db.First(&chat, chatID).Error; err != nil {
+		return nil, common.NotFound("Chat not found")
+	}
+	return &response.ChatResponse{
+		ID:          chat.ID,
+		WorkspaceID: chat.WorkspaceID,
+		ProjectID:   chat.ProjectID,
+		IssueID:     chat.IssueID,
+		Type:        chat.Type,
+		Title:       chat.Title,
+		CreatedAt:   chat.CreatedAt,
+		Messages:    []response.MessageResponse{},
+	}, nil
+}
+
+// GetChatMembershipCheck verifies the user is a project member of the chat's
+// issue. Used by SSE subscription + GetChat.
+func (s *ChatService) GetChatMembershipCheck(chatID, userID uint64) error {
+	return s.checkChatMembership(chatID, userID)
+}
