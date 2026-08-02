@@ -86,3 +86,6 @@ export { default as attachmentApi } from './attachment'
 
 // Re-export RQL API
 export { rqlApi } from './rql'
+
+// Re-export chat API
+export { default as chatApi } from './chat'
