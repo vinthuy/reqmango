@@ -82,10 +82,28 @@ func (s *AttachmentService) Create(issueID, uploaderID uint64, file io.Reader, f
 	return &attachment, nil
 }
 
-func (s *AttachmentService) Delete(attachmentID uint64) error {
+func (s *AttachmentService) Delete(attachmentID, userID uint64) error {
 	var attachment model.Attachment
 	if err := s.db.First(&attachment, attachmentID).Error; err != nil {
 		return common.NotFound("Attachment not found")
+	}
+
+	// Authorization: only the uploader or a project admin may delete the
+	// attachment. Without this check any authenticated user could remove
+	// attachments belonging to projects they do not belong to.
+	if attachment.UploaderID == nil || *attachment.UploaderID != userID {
+		var issue model.Issue
+		if err := s.db.Select("project_id").First(&issue, attachment.IssueID).Error; err != nil {
+			return common.Internal("Failed to verify project membership")
+		}
+		var member model.ProjectMember
+		err := s.db.Where("project_id = ? AND user_id = ? AND is_active = ?", issue.ProjectID, userID, true).First(&member).Error
+		if err != nil {
+			return common.Forbidden("You can only delete attachments you uploaded")
+		}
+		if member.Role < common.RoleAdmin {
+			return common.Forbidden("You can only delete attachments you uploaded")
+		}
 	}
 
 	if err := os.Remove(attachment.FilePath); err != nil && !os.IsNotExist(err) {

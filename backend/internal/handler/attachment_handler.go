@@ -5,11 +5,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
-	"strconv"
 )
 
 const maxFileSize = 10 * 1024 * 1024
@@ -156,8 +157,13 @@ func (h *AttachmentHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	err = h.attachmentService.Delete(attachmentID)
+	user := middleware.GetCurrentUser(c)
+	err = h.attachmentService.Delete(attachmentID, user.ID)
 	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
