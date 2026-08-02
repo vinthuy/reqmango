@@ -1,4 +1,30 @@
 {
+  "chat": {
+    "title": "Work Item Chat",
+    "placeholder": "Type a message, @mention an Agent, Enter to send, Shift+Enter for newline",
+    "send": "Send",
+    "loading": "Loading…",
+    "loadOlder": "Load older messages",
+    "loadFailed": "Failed to load chat",
+    "sendFailed": "Send failed",
+    "editFailed": "Edit failed",
+    "deleteFailed": "Delete failed",
+    "editPrompt": "Edit message:",
+    "deleteConfirm": "Delete this message?",
+    "replyingTo": "Replying to #",
+    "editedMarker": "(edited)",
+    "deletedPlaceholder": "This message was deleted",
+    "reaction": {
+      "add": "Add reaction"
+    },
+    "action": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "reply": "Reply",
+      "copy": "Copy"
+    },
+    "agentTyping": "Agent is typing…"
+  },
   "app": {
     "name": "ReqMango",
     "home": "Home",
@@ -176,6 +202,7 @@
     "tabAttachments": "Attachments",
     "tabTimetrack": "Time Tracking",
     "tabActivity": "Activity",
+    "tabChat": "Chat",
     "noActivity": "No activity recorded yet.",
     "openFullPage": "Open in full page",
     "copyLink": "Copy link",

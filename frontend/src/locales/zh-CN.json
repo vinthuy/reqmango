@@ -1,4 +1,30 @@
 {
+  "chat": {
+    "title": "工作项聊天",
+    "placeholder": "输入消息，@提及 Agent，回车发送，Shift+回车换行",
+    "send": "发送",
+    "loading": "加载中…",
+    "loadOlder": "加载更早的消息",
+    "loadFailed": "加载聊天失败",
+    "sendFailed": "发送失败",
+    "editFailed": "编辑失败",
+    "deleteFailed": "删除失败",
+    "editPrompt": "编辑消息：",
+    "deleteConfirm": "确认删除这条消息？",
+    "replyingTo": "回复 #",
+    "editedMarker": "(已编辑)",
+    "deletedPlaceholder": "此消息已被删除",
+    "reaction": {
+      "add": "添加表情"
+    },
+    "action": {
+      "edit": "编辑",
+      "delete": "删除",
+      "reply": "回复",
+      "copy": "复制"
+    },
+    "agentTyping": "Agent 正在输入…"
+  },
   "app": {
     "name": "ReqMango",
     "home": "首页",
@@ -176,6 +202,7 @@
     "tabAttachments": "附件",
     "tabTimetrack": "工时",
     "tabActivity": "动态",
+    "tabChat": "聊天",
     "noActivity": "暂无活动记录",
     "openFullPage": "在新页面打开",
     "copyLink": "复制链接",
