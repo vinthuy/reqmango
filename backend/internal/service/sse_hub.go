@@ -13,12 +13,18 @@ type SSEClient struct {
 }
 
 // SSEHub manages SSE connections.
+// clients maps user IDs to their SSE clients (personal notifications).
+// chatClients maps chat IDs to SSE clients subscribed to that chat room.
 type SSEHub struct {
-	mu      sync.RWMutex
-	clients map[uint64][]*SSEClient
+	mu          sync.RWMutex
+	clients     map[uint64][]*SSEClient
+	chatClients map[uint64][]*SSEClient
 }
 
-var SSE = &SSEHub{clients: make(map[uint64][]*SSEClient)}
+var SSE = &SSEHub{
+	clients:     make(map[uint64][]*SSEClient),
+	chatClients: make(map[uint64][]*SSEClient),
+}
 
 func (h *SSEHub) Register(userID uint64) *SSEClient {
 	c := &SSEClient{UserID: userID, Ch: make(chan string, 32)}
@@ -59,9 +65,7 @@ func (h *SSEHub) NotifyUser(userID uint64, ntype, title, message string) {
 	h.SendToUser(userID, "notification", string(data))
 }
 
-// BroadcastWorkspace sends an event to all connected clients in a workspace.
-// Note: currently we only track by user ID; this sends to all connected users
-// since workspace membership lookup would need a DB call. Use SendToUser for targeted pushes.
+// BroadcastEvent sends an event to all connected clients (legacy, personal维度).
 func (h *SSEHub) BroadcastEvent(event string, data interface{}) {
 	dataBytes, _ := json.Marshal(data)
 	h.mu.RLock()
@@ -73,6 +77,46 @@ func (h *SSEHub) BroadcastEvent(event string, data interface{}) {
 			case c.Ch <- msg:
 			default:
 			}
+		}
+	}
+}
+
+// RegisterChat subscribes a user to a chat room and returns the SSE client.
+func (h *SSEHub) RegisterChat(chatID, userID uint64) *SSEClient {
+	c := &SSEClient{UserID: userID, Ch: make(chan string, 32)}
+	h.mu.Lock()
+	h.chatClients[chatID] = append(h.chatClients[chatID], c)
+	h.mu.Unlock()
+	return c
+}
+
+// UnregisterChat removes a client from a chat room.
+func (h *SSEHub) UnregisterChat(chatID uint64, c *SSEClient) {
+	h.mu.Lock()
+	clients := h.chatClients[chatID]
+	for i, cl := range clients {
+		if cl == c {
+			h.chatClients[chatID] = append(clients[:i], clients[i+1:]...)
+			break
+		}
+	}
+	if len(h.chatClients[chatID]) == 0 {
+		delete(h.chatClients, chatID)
+	}
+	h.mu.Unlock()
+	close(c.Ch)
+}
+
+// BroadcastToChat sends an event to all clients subscribed to a chat room.
+func (h *SSEHub) BroadcastToChat(chatID uint64, event string, data interface{}) {
+	dataBytes, _ := json.Marshal(data)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, c := range h.chatClients[chatID] {
+		msg := fmt.Sprintf("event: %s\ndata: %s\n\n", event, string(dataBytes))
+		select {
+		case c.Ch <- msg:
+		default:
 		}
 	}
 }
