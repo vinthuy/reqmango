@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,22 @@ type GitHubService struct {
 
 func NewGitHubService(db *gorm.DB) *GitHubService {
 	return &GitHubService{db: db}
+}
+
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. Guards mutations against privilege escalation.
+func (s *GitHubService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage GitHub connections")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage GitHub connections")
+	}
+	return nil
 }
 
 // ======== Request/Response types ========
@@ -99,7 +116,10 @@ func (s *GitHubService) Get(id uint64) (*GitHubResponse, error) {
 	return &r, nil
 }
 
-func (s *GitHubService) Create(workspaceID uint64, req *GitHubCreateRequest) (*GitHubResponse, error) {
+func (s *GitHubService) Create(workspaceID uint64, callerID uint64, req *GitHubCreateRequest) (*GitHubResponse, error) {
+	if err := s.checkWorkspaceAdmin(workspaceID, callerID); err != nil {
+		return nil, err
+	}
 	enabled := true
 	if req.IsEnabled != nil {
 		enabled = *req.IsEnabled
@@ -132,13 +152,16 @@ func (s *GitHubService) Create(workspaceID uint64, req *GitHubCreateRequest) (*G
 	return &r, nil
 }
 
-func (s *GitHubService) Update(id uint64, req *GitHubUpdateRequest) (*GitHubResponse, error) {
+func (s *GitHubService) Update(id uint64, callerID uint64, req *GitHubUpdateRequest) (*GitHubResponse, error) {
 	var conn model.GitHubConnection
 	if err := s.db.First(&conn, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, common.NotFound("GitHub connection not found")
 		}
 		return nil, common.Internal("Failed to get GitHub connection")
+	}
+	if err := s.checkWorkspaceAdmin(conn.WorkspaceID, callerID); err != nil {
+		return nil, err
 	}
 
 	updates := map[string]interface{}{}
@@ -173,13 +196,16 @@ func (s *GitHubService) Update(id uint64, req *GitHubUpdateRequest) (*GitHubResp
 	return &r, nil
 }
 
-func (s *GitHubService) Delete(id uint64) error {
+func (s *GitHubService) Delete(id uint64, callerID uint64) error {
 	var conn model.GitHubConnection
 	if err := s.db.First(&conn, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return common.NotFound("GitHub connection not found")
 		}
 		return common.Internal("Failed to get GitHub connection")
+	}
+	if err := s.checkWorkspaceAdmin(conn.WorkspaceID, callerID); err != nil {
+		return err
 	}
 	if err := s.db.Delete(&conn).Error; err != nil {
 		return common.Internal("Failed to delete GitHub connection")
