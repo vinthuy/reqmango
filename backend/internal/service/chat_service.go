@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/reqmango/backend/internal/client"
@@ -299,7 +300,317 @@ func (s *ChatService) toMessageResponses(msgs []model.Message) []response.Messag
 	return out
 }
 
-// triggerAgentReply is a stub; full implementation arrives in Task 8.
-func (s *ChatService) triggerAgentReply(chatID, agentID, userID uint64, trigger, content string) error {
+// --- Agent auto-reply ---
+
+// triggerAgentReply is called asynchronously when a user @mentions an agent or
+// when an issue state changes. It builds a context-aware prompt, dispatches the
+// agent, and creates a sender_type=agent message with the result summary.
+// Failures are silent (logged) and never write a message — see spec §5.
+func (s *ChatService) triggerAgentReply(chatID, agentID, userID uint64, trigger, triggerContent string) error {
+	if s.agentClient == nil {
+		return nil // agent auto-reply disabled
+	}
+	var chat model.Chat
+	if err := s.db.First(&chat, chatID).Error; err != nil {
+		return err
+	}
+	if chat.IssueID == nil {
+		return nil
+	}
+	issueID := *chat.IssueID
+
+	// Debounce per agent+issue
+	if !s.debouncer.Allow(agentID, issueID) {
+		return nil
+	}
+
+	// Signal "agent is typing"
+	SSE.BroadcastToChat(chatID, "agent_typing", map[string]interface{}{
+		"chat_id": chatID, "agent_id": agentID,
+	})
+
+	task, err := s.buildAgentTask(chatID, agentID, issueID, trigger, triggerContent)
+	if err != nil {
+		return err
+	}
+
+	summary, err := s.agentClient.DispatchAgentWithResult(
+		chat.WorkspaceID, agentID, userID, task, &issueID, chat.ProjectID, "chat:"+trigger,
+	)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(summary) == "" {
+		return nil // empty reply -> don't pollute chat
+	}
+
+	m := model.Message{
+		ChatID:     chatID,
+		SenderID:   agentID,
+		SenderType: "agent",
+		Content:    summary,
+	}
+	if err := s.db.Create(&m).Error; err != nil {
+		return err
+	}
+	resp := s.toMessageResponses([]model.Message{m})[0]
+	SSE.BroadcastToChat(chatID, "message_new", resp)
 	return nil
+}
+
+// OnIssueStateChanged is invoked (asynchronously, via a goroutine) by
+// IssueService.Update after a successful state transition. It triggers an
+// agent reply for the issue's assigned agent (if any). No-op if the issue has
+// no chat or no assigned agent.
+func (s *ChatService) OnIssueStateChanged(ctx context.Context, issueID, oldStateID, newStateID, userID uint64) {
+	if s.agentClient == nil {
+		return
+	}
+	var chat model.Chat
+	err := s.db.Where("issue_id = ? AND deleted_at IS NULL", issueID).First(&chat).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return // no chat -> don't force-create
+	} else if err != nil {
+		log.Printf("[ChatService] OnIssueStateChanged: load chat failed: %v", err)
+		return
+	}
+
+	var issue model.Issue
+	if err := s.db.First(&issue, issueID).Error; err != nil {
+		return
+	}
+	if issue.AgentAssigneeID == nil {
+		return // no agent assigned -> skip
+	}
+	agentID := *issue.AgentAssigneeID
+
+	var oldState, newState model.State
+	s.db.First(&oldState, oldStateID)
+	s.db.First(&newState, newStateID)
+
+	triggerContent := fmt.Sprintf("状态从 %s 变为 %s", oldState.Name, newState.Name)
+	// Use the issue context, not a user message, as the trigger content
+	if err := s.triggerAgentReply(chat.ID, agentID, userID, "state_change", triggerContent); err != nil {
+		log.Printf("[ChatService] OnIssueStateChanged: agent reply failed (agent=%d): %v", agentID, err)
+	}
+}
+
+// buildAgentTask constructs the LLM prompt for an agent reply. It gathers:
+//   - issue context (title, type, priority, description)
+//   - state transition context (if trigger == "state_change")
+//   - relevant memories via MemoryService.SemanticSearchByText (degrades gracefully)
+//   - the 10 most recent chat messages
+func (s *ChatService) buildAgentTask(chatID, agentID, issueID uint64, trigger, triggerContent string) (string, error) {
+	var issue model.Issue
+	if err := s.db.Preload("Project").First(&issue, issueID).Error; err != nil {
+		return "", err
+	}
+	descStripped := ""
+	if issue.DescriptionStripped != nil {
+		descStripped = *issue.DescriptionStripped
+	}
+	if len(descStripped) > 500 {
+		descStripped = descStripped[:500]
+	}
+
+	var agent model.Agent
+	if err := s.db.First(&agent, agentID).Error; err != nil {
+		return "", err
+	}
+
+	// Recent messages (10, newest first, exclude nothing)
+	var recent []model.Message
+	s.db.Where("chat_id = ? AND deleted_at IS NULL", chatID).
+		Order("created_at DESC").Limit(10).Find(&recent)
+	// Reverse to chronological
+	for i, j := 0, len(recent)-1; i < j; i, j = i+1, j-1 {
+		recent[i], recent[j] = recent[j], recent[i]
+	}
+
+	// Memory retrieval (degrades gracefully on failure)
+	var memories []string
+	if s.memorySvc != nil {
+		query := triggerContent
+		if trigger == "mention" {
+			query = triggerContent
+		}
+		entries, err := s.memorySvc.SemanticSearchByText(context.Background(), issue.WorkspaceID, query, 5)
+		if err == nil {
+			for _, e := range entries {
+				if e.Content != "" {
+					memories = append(memories, e.Content)
+				}
+			}
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("你是被分配到工作项 #%d 的 %s。\n\n", issue.SequenceID, agent.Name))
+	sb.WriteString("[工作项上下文]\n")
+	sb.WriteString(fmt.Sprintf("- 标题: %s\n", issue.Name))
+	sb.WriteString(fmt.Sprintf("- 优先级: %s\n", issue.Priority))
+	sb.WriteString(fmt.Sprintf("- 描述: %s\n", descStripped))
+	if trigger == "state_change" {
+		sb.WriteString(fmt.Sprintf("[触发] %s\n", triggerContent))
+	} else {
+		sb.WriteString(fmt.Sprintf("[触发] 用户消息: %s\n", triggerContent))
+	}
+
+	if len(memories) > 0 {
+		sb.WriteString("\n[相关记忆]\n")
+		for i, m := range memories {
+			sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, m))
+		}
+	}
+
+	if len(recent) > 0 {
+		sb.WriteString("\n[最近对话]\n")
+		for _, m := range recent {
+			role := "用户"
+			if m.SenderType == "agent" {
+				role = "Agent"
+			}
+			sb.WriteString(fmt.Sprintf("[%s] %s\n", role, m.Content))
+		}
+	}
+
+	sb.WriteString("\n[任务]\n基于上下文，提供 1-3 句简明建议。不要重复已知信息。\n回复:")
+	return sb.String(), nil
+}
+
+// --- Edit / Delete / Reactions ---
+
+// EditMessage updates a message's content. Only the author may edit, and only
+// within 30 minutes of creation. EditedAt is stamped.
+func (s *ChatService) EditMessage(messageID, userID uint64, req request.EditMessageRequest) (*response.MessageResponse, error) {
+	var m model.Message
+	if err := s.db.First(&m, messageID).Error; err != nil {
+		return nil, common.NotFound("Message not found")
+	}
+	if m.DeletedAt != nil {
+		return nil, common.NotFound("Message not found")
+	}
+	if m.SenderType != "user" || m.SenderID != userID {
+		return nil, common.Forbidden("You can only edit your own messages")
+	}
+	if time.Since(m.CreatedAt) > 30*time.Minute {
+		return nil, common.Forbidden("Edit window (30 minutes) has expired")
+	}
+	m.Content = req.Content
+	m.Mentions = mustJSON(s.parseAndResolveMentions(req.Content, m.ChatID))
+	now := time.Now()
+	m.EditedAt = &now
+	if err := s.db.Save(&m).Error; err != nil {
+		return nil, common.Internal("Failed to edit message")
+	}
+	resp := s.toMessageResponses([]model.Message{m})[0]
+	SSE.BroadcastToChat(m.ChatID, "message_edited", resp)
+	return &resp, nil
+}
+
+// DeleteMessage soft-deletes a message. The author or a project admin may delete.
+// Content is cleared to avoid leaking; the message row is retained for context.
+func (s *ChatService) DeleteMessage(messageID, userID uint64) error {
+	var m model.Message
+	if err := s.db.First(&m, messageID).Error; err != nil {
+		return common.NotFound("Message not found")
+	}
+	if m.DeletedAt != nil {
+		return nil // idempotent
+	}
+	isAuthor := m.SenderType == "user" && m.SenderID == userID
+	if !isAuthor {
+		// Allow project admins (workspace owner) to delete any message
+		if err := s.checkChatMembership(m.ChatID, userID); err != nil {
+			return err
+		}
+		// Only the issue's project admin (workspace owner) may delete others' messages
+		var chat model.Chat
+		if err := s.db.First(&chat, m.ChatID).Error; err != nil {
+			return common.Internal("Failed to load chat")
+		}
+		if chat.IssueID == nil {
+			return common.Forbidden("Forbidden")
+		}
+		var issue model.Issue
+		if err := s.db.Preload("Project").First(&issue, *chat.IssueID).Error; err != nil {
+			return common.Internal("Failed to load issue")
+		}
+		var ws model.Workspace
+		if err := s.db.First(&ws, issue.WorkspaceID).Error; err != nil {
+			return common.Internal("Failed to load workspace")
+		}
+		if ws.OwnerID != userID {
+			return common.Forbidden("Only the author or a workspace owner may delete messages")
+		}
+	}
+	now := time.Now()
+	m.DeletedAt = &now
+	m.Content = ""
+	if err := s.db.Save(&m).Error; err != nil {
+		return common.Internal("Failed to delete message")
+	}
+	SSE.BroadcastToChat(m.ChatID, "message_deleted", map[string]interface{}{
+		"id": m.ID, "deleted_at": m.DeletedAt,
+	})
+	return nil
+}
+
+// AddReaction adds an emoji reaction (idempotent via DB UNIQUE constraint).
+func (s *ChatService) AddReaction(messageID, userID uint64, emoji string) error {
+	if err := s.checkMessageMembership(messageID, userID); err != nil {
+		return err
+	}
+	r := model.MessageReaction{MessageID: messageID, UserID: userID, Emoji: emoji}
+	if err := s.db.Create(&r).Error; err != nil {
+		// UNIQUE violation -> already exists, treat as success (idempotent)
+		// GORM returns error; we ignore the duplicate-key case heuristically.
+		// PostgreSQL error code 23505 would be ideal, but string match is fine.
+		if !isDuplicateKeyErr(err) {
+			return common.Internal("Failed to add reaction")
+		}
+	}
+	SSE.BroadcastToChat(s.messageChatID(messageID), "reaction_added", map[string]interface{}{
+		"message_id": messageID, "user_id": userID, "emoji": emoji,
+	})
+	return nil
+}
+
+// RemoveReaction removes an emoji reaction (idempotent).
+func (s *ChatService) RemoveReaction(messageID, userID uint64, emoji string) error {
+	if err := s.checkMessageMembership(messageID, userID); err != nil {
+		return err
+	}
+	s.db.Where("message_id = ? AND user_id = ? AND emoji = ?", messageID, userID, emoji).
+		Delete(&model.MessageReaction{})
+	SSE.BroadcastToChat(s.messageChatID(messageID), "reaction_removed", map[string]interface{}{
+		"message_id": messageID, "user_id": userID, "emoji": emoji,
+	})
+	return nil
+}
+
+func (s *ChatService) checkMessageMembership(messageID, userID uint64) error {
+	var m model.Message
+	if err := s.db.Select("chat_id").First(&m, messageID).Error; err != nil {
+		return common.NotFound("Message not found")
+	}
+	return s.checkChatMembership(m.ChatID, userID)
+}
+
+func (s *ChatService) messageChatID(messageID uint64) uint64 {
+	var m model.Message
+	s.db.Select("chat_id").First(&m, messageID)
+	return m.ChatID
+}
+
+func isDuplicateKeyErr(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "duplicate key")
+}
+
+func mustJSON(v interface{}) json.RawMessage {
+	b, _ := json.Marshal(v)
+	if b == nil {
+		return json.RawMessage("[]")
+	}
+	return b
 }
