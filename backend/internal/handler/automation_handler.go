@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 	"gorm.io/gorm"
@@ -230,7 +231,7 @@ func (h *AutomationHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.Delete(id); appError(c, svcErr) {
+	if svcErr := h.svc.Delete(id, middleware.GetCurrentUser(c).ID); appError(c, svcErr) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Automation rule deleted"})
@@ -337,7 +338,7 @@ func (h *AutomationHandler) DeleteWorkspace(c *gin.Context) {
 		return
 	}
 
-	if svcErr := h.svc.DeleteWorkspace(id); appError(c, svcErr) {
+	if svcErr := h.svc.DeleteWorkspace(id, middleware.GetCurrentUser(c).ID); appError(c, svcErr) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Automation rule deleted"})

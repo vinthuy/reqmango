@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -893,6 +894,38 @@ func NewAutomationService(db *gorm.DB) *AutomationService {
 	return service
 }
 
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. Guards automation mutations against privilege escalation.
+func (s *AutomationService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage automation rules")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage automation rules")
+	}
+	return nil
+}
+
+// checkProjectAdmin verifies that the caller is an active admin-level member
+// of the project. Guards automation mutations against privilege escalation.
+func (s *AutomationService) checkProjectAdmin(projectID, callerID uint64) error {
+	var member model.ProjectMember
+	if err := s.db.Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a project admin to manage automation rules")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a project admin to manage automation rules")
+	}
+	return nil
+}
+
 func (s *AutomationService) registerEventHandlers() {
 	// 订阅所有触发类型的事件
 	triggerTypes := []string{
@@ -1428,13 +1461,22 @@ func (s *AutomationService) Update(id uint64, projectID uint64, req *AutomationU
 	return &r, nil
 }
 
-func (s *AutomationService) Delete(id uint64) error {
+func (s *AutomationService) Delete(id, callerID uint64) error {
 	var rule model.AutomationRule
 	if err := s.db.First(&rule, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return common.NotFound("Automation rule not found")
 		}
 		return common.Internal("Failed to get automation rule")
+	}
+	if rule.ProjectID > 0 {
+		if err := s.checkProjectAdmin(rule.ProjectID, callerID); err != nil {
+			return err
+		}
+	} else if rule.WorkspaceID > 0 {
+		if err := s.checkWorkspaceAdmin(rule.WorkspaceID, callerID); err != nil {
+			return err
+		}
 	}
 	if err := s.db.Delete(&rule).Error; err != nil {
 		return common.Internal("Failed to delete automation rule")
@@ -1579,13 +1621,16 @@ func (s *AutomationService) UpdateWorkspace(id uint64, req *AutomationUpdateRequ
 	return &r, nil
 }
 
-func (s *AutomationService) DeleteWorkspace(id uint64) error {
+func (s *AutomationService) DeleteWorkspace(id, callerID uint64) error {
 	var rule model.AutomationRule
 	if err := s.db.First(&rule, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return common.NotFound("Automation rule not found")
 		}
 		return common.Internal("Failed to get automation rule")
+	}
+	if err := s.checkWorkspaceAdmin(rule.WorkspaceID, callerID); err != nil {
+		return err
 	}
 	if err := s.db.Delete(&rule).Error; err != nil {
 		return common.Internal("Failed to delete automation rule")
