@@ -185,7 +185,6 @@ import projectApi from '@/api/project'
 import api from '@/api'
 import { agentApi } from '@/api/agent'
 import { useConfirm } from '@/composables/useConfirm'
-import { useAuthStore } from '@/stores/auth'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
 import IssueDetailHeader from '@/components/IssueDetailHeader.vue'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
@@ -231,10 +230,9 @@ const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
 const showAICopilot = ref(false)
 const activeApproval = ref<ApprovalResponse | null>(null)
-const authStore = useAuthStore()
 const currentUserId = computed(() => {
-  // Prefer the auth store; fall back to localStorage user id.
-  if (authStore.user?.id) return authStore.user.id
+  // Prefer localStorage 'user_id' (matches existing convention in this file),
+  // then fall back to the 'user' JSON blob, then 0.
   const uid = parseInt(localStorage.getItem('user_id') || '0', 10)
   if (uid) return uid
   try {

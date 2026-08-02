@@ -196,19 +196,21 @@ describe('IssueDetail', () => {
     expect(wrapper.text()).toContain('issue.save')
   })
 
-  it('renders 6 tab buttons', async () => {
+  it('renders 8 tab buttons', async () => {
     const wrapper = mountComponent()
     await nextTick()
     await nextTick()
 
     const tabBtns = wrapper.findAll('[data-test="tab-btn"]')
-    expect(tabBtns.length).toBe(6)
+    expect(tabBtns.length).toBe(8)
     expect(tabBtns[0].text()).toBe('issue.tabDetails')
     expect(tabBtns[1].text()).toBe('issue.tabRelations')
     expect(tabBtns[2].text()).toBe('issue.tabAttachments')
     expect(tabBtns[3].text()).toBe('gitIntegration.title')
     expect(tabBtns[4].text()).toBe('issue.tabTimetrack')
     expect(tabBtns[5].text()).toBe('issue.tabActivity')
+    expect(tabBtns[6].text()).toBe('🤖 AI')
+    expect(tabBtns[7].text()).toBe('issue.tabChat')
   })
 
   it('shows Details tab by default', async () => {
