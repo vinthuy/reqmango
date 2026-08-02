@@ -282,8 +282,29 @@ func (s *ProjectService) ListMembers(projectID uint64, onlyActive bool) ([]respo
 	return result, nil
 }
 
+// checkProjectAdmin verifies that the caller is an active admin-level member
+// of the project. This guards membership mutations against privilege
+// escalation by non-admin members.
+func (s *ProjectService) checkProjectAdmin(projectID, callerID uint64) error {
+	var member model.ProjectMember
+	if err := s.db.Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a project admin to manage members")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a project admin to manage members")
+	}
+	return nil
+}
+
 // AddMember adds a user as a project member.
 func (s *ProjectService) AddMember(projectID, userID uint64, role int, addedBy uint64) (*response.ProjectMemberResponse, error) {
+	if err := s.checkProjectAdmin(projectID, addedBy); err != nil {
+		return nil, err
+	}
+
 	// Verify user exists
 	var user model.User
 	if err := s.db.First(&user, userID).Error; err != nil {
@@ -331,7 +352,11 @@ func (s *ProjectService) AddMember(projectID, userID uint64, role int, addedBy u
 }
 
 // UpdateMember updates a member's role.
-func (s *ProjectService) UpdateMember(projectID, userID uint64, role int) (*response.ProjectMemberResponse, error) {
+func (s *ProjectService) UpdateMember(projectID, callerID, userID uint64, role int) (*response.ProjectMemberResponse, error) {
+	if err := s.checkProjectAdmin(projectID, callerID); err != nil {
+		return nil, err
+	}
+
 	var member model.ProjectMember
 	if err := s.db.Where("project_id = ? AND user_id = ?", projectID, userID).First(&member).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -362,7 +387,11 @@ func (s *ProjectService) UpdateMember(projectID, userID uint64, role int) (*resp
 }
 
 // RemoveMember removes a user from a project.
-func (s *ProjectService) RemoveMember(projectID, userID uint64) error {
+func (s *ProjectService) RemoveMember(projectID, callerID, userID uint64) error {
+	if err := s.checkProjectAdmin(projectID, callerID); err != nil {
+		return err
+	}
+
 	result := s.db.Where("project_id = ? AND user_id = ?", projectID, userID).Delete(&model.ProjectMember{})
 	if result.RowsAffected == 0 {
 		return common.NotFound("Project member not found")
