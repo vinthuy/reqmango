@@ -165,6 +165,10 @@ func main() {
 		&model.WorkflowEdge{},
 		&model.WorkflowRun{},
 		&model.WorkflowNodeRun{},
+		// Chat & Messages
+		&model.Chat{},
+		&model.Message{},
+		&model.MessageReaction{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
