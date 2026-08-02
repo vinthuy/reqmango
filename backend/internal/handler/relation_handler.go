@@ -47,7 +47,7 @@ func (h *RelationHandler) UpdateType(c *gin.Context) {
 }
 func (h *RelationHandler) DeleteType(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	if h.respond(c, h.svc.DeleteType(id)) { return }
+	if h.respond(c, h.svc.DeleteType(id, middleware.GetCurrentUser(c).ID)) { return }
 	c.JSON(200, gin.H{"message":"Deleted"})
 }
 
@@ -56,7 +56,7 @@ func (h *RelationHandler) CreateRelation(c *gin.Context) {
 	iid, _ := strconv.ParseUint(c.Param("issueId"), 10, 64)
 	var req request.IssueRelationCreate
 	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"message":"Invalid body"}); return }
-	resp, e := h.svc.CreateRelation(iid, req)
+	resp, e := h.svc.CreateRelation(iid, middleware.GetCurrentUser(c).ID, req)
 	if h.respond(c, e) { return }
 	c.JSON(201, resp)
 }
@@ -75,6 +75,6 @@ func (h *RelationHandler) ListRelations(c *gin.Context) {
 }
 func (h *RelationHandler) DeleteRelation(c *gin.Context) {
 	rid, _ := strconv.ParseUint(c.Param("relationId"), 10, 64)
-	if h.respond(c, h.svc.DeleteRelation(rid)) { return }
-	c.JSON(200, gin.H{"message":"Deleted"})
+	if h.respond(c, h.svc.DeleteRelation(rid, middleware.GetCurrentUser(c).ID)) { return }
+	c.JSON(200, gin.H{"message": "Deleted"})
 }

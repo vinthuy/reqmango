@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
@@ -11,6 +13,35 @@ import (
 type RelationService struct{ db *gorm.DB }
 
 func NewRelationService(db *gorm.DB) *RelationService { return &RelationService{db: db} }
+
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. Guards relation type mutations against privilege escalation.
+func (s *RelationService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage relation types")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage relation types")
+	}
+	return nil
+}
+
+// checkProjectMembership verifies that the caller is an active member of the
+// project. Issue relation mutations are member-scoped.
+func (s *RelationService) checkProjectMembership(projectID, userID uint64) error {
+	var count int64
+	s.db.Model(&model.ProjectMember{}).
+		Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, userID, true).
+		Count(&count)
+	if count == 0 {
+		return common.Forbidden("You must be a member of the project to manage issue relations")
+	}
+	return nil
+}
 
 // ---- Relation Types ----
 
@@ -47,18 +78,20 @@ func (s *RelationService) UpdateType(id, userID uint64, req request.RelationType
 	return &response.RelationTypeResponse{ID: t.ID, Name: t.Name, InwardName: t.InwardName, OutwardName: t.OutwardName, WorkspaceID: t.WorkspaceID, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt}, nil
 }
 
-func (s *RelationService) DeleteType(id uint64) error {
+func (s *RelationService) DeleteType(id, callerID uint64) error {
 	var t model.RelationType
 	if err := s.db.First(&t, id).Error; err != nil { return common.NotFound("Relation type not found") }
+	if err := s.checkWorkspaceAdmin(t.WorkspaceID, callerID); err != nil { return err }
 	s.db.Where("relation_type_id = ?", id).Delete(&model.IssueRelation{})
 	return s.db.Delete(&t).Error
 }
 
 // ---- Issue Relations ----
 
-func (s *RelationService) CreateRelation(issueID uint64, req request.IssueRelationCreate) (*response.IssueRelationResponse, error) {
+func (s *RelationService) CreateRelation(issueID, callerID uint64, req request.IssueRelationCreate) (*response.IssueRelationResponse, error) {
 	var issue model.Issue
 	if err := s.db.First(&issue, issueID).Error; err != nil { return nil, common.NotFound("Issue not found") }
+	if err := s.checkProjectMembership(issue.ProjectID, callerID); err != nil { return nil, err }
 	var related model.Issue
 	if err := s.db.Preload("Project").First(&related, req.RelatedIssueID).Error; err != nil { return nil, common.NotFound("Related issue not found") }
 	var rt model.RelationType
@@ -211,11 +244,12 @@ func (s *RelationService) buildInboundRelationResponse(r model.IssueRelation) re
 	return item
 }
 
-func (s *RelationService) DeleteRelation(relationID uint64) error {
+func (s *RelationService) DeleteRelation(relationID, callerID uint64) error {
 	var rel model.IssueRelation
 	if err := s.db.Preload("RelationType").Preload("Issue").Preload("RelatedIssue").First(&rel, relationID).Error; err != nil {
 		return common.NotFound("Relation not found")
 	}
+	if err := s.checkProjectMembership(rel.Issue.ProjectID, callerID); err != nil { return err }
 	result := s.db.Delete(&model.IssueRelation{}, relationID)
 	if result.RowsAffected == 0 { return common.NotFound("Relation not found") }
 
