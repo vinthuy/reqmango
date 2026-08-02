@@ -217,10 +217,6 @@ const projectId = computed(() => {
   return Number(route.params.projectId || route.params.id)
 })
 
-const workspaceId = computed(() => {
-  return Number(route.params.workspaceId || route.params.wsParam)
-})
-
 const activeTab = ref<string>('workflows')
 const loadingWorkflows = ref(false)
 const loadingRuns = ref(false)
@@ -451,8 +447,11 @@ async function handleArchive(workflow: Workflow) {
 }
 
 function goToDesign(workflow: Workflow) {
+  // The route is /workspace/:slug/... — use the slug from the current route
+  // rather than the numeric workspace id (which is NaN for slug-based routes).
+  const slug = route.params.slug
   router.push(
-    `/workspace/${workspaceId.value}/project/${projectId.value}/workflow/${workflow.id}/design`
+    `/workspace/${slug}/project/${projectId.value}/workflow/${workflow.id}/design`
   )
 }
 

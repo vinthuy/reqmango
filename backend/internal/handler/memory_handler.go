@@ -5,11 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/reqmango/backend/internal/ai/llm"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
@@ -17,19 +19,32 @@ import (
 // MemoryHandler handles memory-related endpoints
 type MemoryHandler struct {
 	svc *service.MemoryService
+	db  *gorm.DB
 }
 
-// NewMemoryHandler creates a new MemoryHandler
-func NewMemoryHandler(db *gorm.DB) *MemoryHandler {
+// NewMemoryHandler creates a new MemoryHandler.
+// The llm client is optional; when provided it enables text-based semantic
+// search and automatic embedding generation.
+func NewMemoryHandler(db *gorm.DB, llmClient *llm.LLMClient) *MemoryHandler {
 	return &MemoryHandler{
-		svc: service.NewMemoryService(db),
+		svc: service.NewMemoryService(db, llmClient),
+		db:  db,
 	}
 }
 
-// parseWorkspaceID parses workspace ID from route parameter
+// parseWorkspaceID parses workspace ID from route parameter. Accepts either a
+// numeric ID or a workspace slug (e.g. "reqmango-dev"); returns 0 when the
+// workspace cannot be resolved.
 func (h *MemoryHandler) parseWorkspaceID(c *gin.Context) uint64 {
-	id, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
-	return id
+	wsParam := c.Param("wsParam")
+	if id, err := strconv.ParseUint(wsParam, 10, 64); err == nil {
+		return id
+	}
+	var workspace model.Workspace
+	if err := h.db.Where("slug = ?", wsParam).First(&workspace).Error; err != nil {
+		return 0
+	}
+	return workspace.ID
 }
 
 // respond handles error responses
@@ -155,17 +170,18 @@ func (h *MemoryHandler) CreateMemory(c *gin.Context) {
 	}
 
 	var req struct {
-		ProjectID   *uint64              `json:"project_id"`
-		IssueID     *uint64              `json:"issue_id"`
-		AgentID     *uint64              `json:"agent_id"`
-		MemoryType  *string              `json:"memory_type"`
-		Scope       *string              `json:"scope"`
-		Content     string               `json:"content"`
-		Embedding   []float64            `json:"embedding"`
-		Metadata    map[string]interface{} `json:"metadata"`
-		Tags        []string             `json:"tags"`
-		ContextKey  string               `json:"context_key"`
-		ContextName string               `json:"context_name"`
+		ProjectID      *uint64                `json:"project_id"`
+		IssueID        *uint64                `json:"issue_id"`
+		AgentID        *uint64                `json:"agent_id"`
+		MemoryType     *string                `json:"memory_type"`
+		Scope          *string                `json:"scope"`
+		Content        string                 `json:"content"`
+		Embedding      []float64              `json:"embedding"`
+		Metadata       map[string]interface{} `json:"metadata"`
+		Tags           []string               `json:"tags"`
+		ContextKey     string                 `json:"context_key"`
+		ContextName    string                 `json:"context_name"`
+		RelevanceScore *float64               `json:"relevance_score"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -186,6 +202,10 @@ func (h *MemoryHandler) CreateMemory(c *gin.Context) {
 		Content:     req.Content,
 		ContextKey:  req.ContextKey,
 		ContextName: req.ContextName,
+	}
+
+	if req.RelevanceScore != nil {
+		entry.RelevanceScore = *req.RelevanceScore
 	}
 
 	if req.MemoryType != nil {
@@ -340,6 +360,10 @@ func (h *MemoryHandler) SearchMemories(c *gin.Context) {
 }
 
 // SemanticSearch handles POST /workspaces/:wsParam/memories/semantic-search
+//
+// Accepts either:
+//   - {"embedding": [...], "limit": N}  -> search using a pre-computed embedding
+//   - {"query": "text", "limit": N}     -> generate embedding server-side via LLM
 func (h *MemoryHandler) SemanticSearch(c *gin.Context) {
 	wid := h.parseWorkspaceID(c)
 	if wid == 0 {
@@ -348,7 +372,8 @@ func (h *MemoryHandler) SemanticSearch(c *gin.Context) {
 	}
 
 	var req struct {
-		Embedding []float64 `json:"embedding" binding:"required"`
+		Embedding []float64 `json:"embedding"`
+		Query     string    `json:"query"`
 		Limit     int       `json:"limit"`
 	}
 
@@ -361,8 +386,25 @@ func (h *MemoryHandler) SemanticSearch(c *gin.Context) {
 		req.Limit = 10
 	}
 
-	entries, err := h.svc.SemanticSearch(c.Request.Context(), wid, req.Embedding, req.Limit)
-	if h.respond(c, err) {
+	var entries []*model.MemoryEntry
+	var err error
+	if len(req.Embedding) > 0 {
+		entries, err = h.svc.SemanticSearch(c.Request.Context(), wid, req.Embedding, req.Limit)
+	} else if req.Query != "" {
+		entries, err = h.svc.SemanticSearchByText(c.Request.Context(), wid, req.Query, req.Limit)
+	} else {
+		c.JSON(400, gin.H{"message": "either 'embedding' or 'query' is required"})
+		return
+	}
+	if err != nil {
+		// Missing LLM/embedding support is a client precondition error, not a
+		// server failure.
+		msg := err.Error()
+		if strings.Contains(msg, "LLM client") || strings.Contains(msg, "embedding support") {
+			c.JSON(400, gin.H{"message": msg})
+			return
+		}
+		h.respond(c, err)
 		return
 	}
 	c.JSON(200, entries)

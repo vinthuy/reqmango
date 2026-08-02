@@ -37,15 +37,16 @@ type SquadMember struct {
 // SquadTask represents a task assigned to a squad member
 type SquadTask struct {
 	BaseModel
-	SquadID       uint64     `gorm:"not null;index" json:"squad_id"`
-	AgentTaskID   uint64     `gorm:"not null;index" json:"agent_task_id"`
-	MemberID      uint64     `gorm:"not null;index" json:"member_id"`
-	Status        string     `gorm:"size:20;not null;default:pending" json:"status"`
-	Priority      string     `gorm:"size:20" json:"priority"`
-	Progress      int        `gorm:"default:0" json:"progress"`
-	Feedback      string     `gorm:"type:text" json:"feedback"`
-	StartedAt     *time.Time `json:"started_at,omitempty"`
-	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+	SquadID         uint64     `gorm:"not null;index" json:"squad_id"`
+	AgentTaskID     uint64     `gorm:"not null;index" json:"agent_task_id"`
+	MemberID        uint64     `gorm:"not null;index" json:"member_id"`
+	Status          string     `gorm:"size:20;not null;default:pending" json:"status"`
+	Priority        string     `gorm:"size:20" json:"priority"`
+	Progress        int        `gorm:"default:0" json:"progress"`
+	TaskDescription string     `gorm:"type:text" json:"task_description"` // What the member was asked to do (decomposed subtask)
+	Feedback        string     `gorm:"type:text" json:"feedback"`
+	StartedAt       *time.Time `json:"started_at,omitempty"`
+	CompletedAt     *time.Time `json:"completed_at,omitempty"`
 }
 
 // SquadExecution represents a squad's execution session

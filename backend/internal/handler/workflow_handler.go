@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -139,8 +140,9 @@ func (h *WorkflowHandler) ExecuteWorkflow(c *gin.Context) {
 		return
 	}
 
-	// Execute in background
-	go h.executor.Execute(run.ID)
+	// Execute in background with the invoking user's identity (for agent permission checks)
+	userID := middleware.GetUserID(c)
+	go h.executor.Execute(run.ID, userID)
 
 	c.JSON(http.StatusAccepted, run)
 }

@@ -246,6 +246,19 @@ func (s *WorkflowService) Create(projectID uint64, req CreateWorkflowRequest) (*
 	}, nil
 }
 
+// GetByNodeID returns the workflow that contains the given node id.
+func (s *WorkflowService) GetByNodeID(nodeID uint64) (*WorkflowDetail, error) {
+	var workflowID uint64
+	err := s.db.Raw(`SELECT workflow_id FROM workflow_nodes WHERE id = ? AND deleted_at IS NULL`, nodeID).Scan(&workflowID).Error
+	if err != nil {
+		return nil, err
+	}
+	if workflowID == 0 {
+		return nil, errors.New("workflow not found for node")
+	}
+	return s.Get(workflowID)
+}
+
 // Get returns a workflow with full details.
 func (s *WorkflowService) Get(workflowID uint64) (*WorkflowDetail, error) {
 	var workflow struct {
@@ -269,6 +282,9 @@ func (s *WorkflowService) Get(workflowID uint64) (*WorkflowDetail, error) {
 
 	if err != nil {
 		return nil, err
+	}
+	if workflow.ID == 0 {
+		return nil, gorm.ErrRecordNotFound
 	}
 
 	detail := &WorkflowDetail{

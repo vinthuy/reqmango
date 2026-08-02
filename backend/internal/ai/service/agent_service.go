@@ -404,7 +404,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 
 	// Retrieve relevant memories and inject into system prompt
 	if s.memSvc != nil {
-		memories, _ := s.retrieveAgentMemories(context.Background(), agent, actx)
+		memories, _ := s.retrieveAgentMemories(context.Background(), agent, actx, task)
 		if len(memories) > 0 {
 			var memBuilder strings.Builder
 			memBuilder.WriteString("\n\n以下是相关历史记忆（帮助你理解上下文）：\n")
@@ -474,13 +474,27 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	return s.getLatestActivity(agent.ID)
 }
 
-// retrieveAgentMemories retrieves relevant memories for an agent task
-func (s *AgentService) retrieveAgentMemories(ctx context.Context, agent *model.Agent, actx *AIContext) ([]*model.MemoryEntry, error) {
+// retrieveAgentMemories retrieves relevant memories for an agent task.
+// Prefers semantic search (when the memory service has embedding support)
+// and falls back to keyword/attribute filtering otherwise.
+func (s *AgentService) retrieveAgentMemories(ctx context.Context, agent *model.Agent, actx *AIContext, task string) ([]*model.MemoryEntry, error) {
+	const limit = 5
+	// Try semantic search first — it ranks memories by actual similarity to
+	// the task text rather than relying on stored relevance_score.
+	if task != "" {
+		if memories, err := s.memSvc.SemanticSearchByText(ctx, actx.WorkspaceID, task, limit); err == nil && len(memories) > 0 {
+			return memories, nil
+		}
+	}
+
+	// Fallback: structured attribute filtering (agent-scoped, medium-term).
 	filters := map[string]interface{}{
-		"project_id":   actx.ProjectID,
-		"agent_id":     agent.ID,
-		"memory_type":  model.MemoryMediumTerm,
-		"limit":        5,
+		"agent_id":    agent.ID,
+		"memory_type": model.MemoryMediumTerm,
+		"limit":       limit,
+	}
+	if actx.ProjectID > 0 {
+		filters["project_id"] = actx.ProjectID
 	}
 	return s.memSvc.ListMemories(ctx, actx.WorkspaceID, filters)
 }

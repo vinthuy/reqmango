@@ -82,7 +82,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	loopSvc := aiservice.NewLoopService(db, agentSvc)
 
 	// Initialize Memory service and inject via setter (to avoid import cycle)
-	memSvc := service.NewMemoryService(db)
+	memSvc := service.NewMemoryService(db, llmClient)
 	aiSvc.SetMemoryService(memSvc)
 	agentSvc.SetMemoryService(memSvc)
 
@@ -120,6 +120,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	contextPayloadSvc := service.NewContextPayloadService(db)
 	workflowSvc := service.NewWorkflowService(db, contextPayloadSvc, agentDecisionSvc, agentBudgetSvc)
 	workflowExecutor := service.NewWorkflowExecutor(db, workflowSvc, contextPayloadSvc, agentDecisionSvc, agentBudgetSvc, agentSLASvc)
+	workflowExecutor.SetAgentExecutor(&aiAgentExecutorAdapter{agentSvc: agentSvc})
 	issueAgentSvc := service.NewIssueAgentService(db, agentTaskSvc, agentBudgetSvc, agentSLASvc, agentDecisionSvc)
 
 	// Initialize handlers
@@ -494,7 +495,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.DELETE("/:wsParam/modules/:moduleId", moduleH.DeleteWorkspaceModule)
 
 			// Memory (new)
-			memoryH := handler.NewMemoryHandler(db)
+			memoryH := handler.NewMemoryHandler(db, llmClient)
 			workspaces.GET("/:wsParam/memories", memoryH.ListMemories)
 			workspaces.POST("/:wsParam/memories", memoryH.CreateMemory)
 			workspaces.GET("/:wsParam/memories/:memoryId", memoryH.GetMemory)

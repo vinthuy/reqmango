@@ -127,15 +127,15 @@
           <div class="p-4 space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('common.name') }}</label>
-              <input v-model="form.name" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="{{ t('ai.squad.namePlaceholder') }}" />
+              <input v-model="form.name" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" :placeholder="t('ai.squad.namePlaceholder')" />
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('common.description') }}</label>
-              <textarea v-model="form.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="3" placeholder="{{ t('ai.squad.descriptionPlaceholder') }}"></textarea>
+              <textarea v-model="form.description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="3" :placeholder="t('ai.squad.descriptionPlaceholder')"></textarea>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('ai.squad.goal') }}</label>
-              <textarea v-model="form.goal" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="3" placeholder="{{ t('ai.squad.goalPlaceholder') }}"></textarea>
+              <textarea v-model="form.goal" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" rows="3" :placeholder="t('ai.squad.goalPlaceholder')"></textarea>
             </div>
           </div>
           <div class="flex items-center justify-end p-4 border-t space-x-2">

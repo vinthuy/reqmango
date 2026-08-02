@@ -21,6 +21,10 @@ import (
 type MemoryServiceInterface interface {
 	CreateMemory(ctx context.Context, entry *model.MemoryEntry) (*model.MemoryEntry, error)
 	ListMemories(ctx context.Context, workspaceID uint64, filters interface{}) ([]*model.MemoryEntry, error)
+	// SemanticSearchByText generates an embedding for the query and returns
+	// the most semantically similar memories. Implementations without an LLM
+	// client should return an error so callers can fall back to ListMemories.
+	SemanticSearchByText(ctx context.Context, workspaceID uint64, query string, limit int) ([]*model.MemoryEntry, error)
 }
 
 // AIService provides AI-powered features on top of the existing services.

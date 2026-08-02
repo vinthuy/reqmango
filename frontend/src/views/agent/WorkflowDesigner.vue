@@ -1060,6 +1060,12 @@ function onKeyDown(event: KeyboardEvent) {
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown)
+  // Guard against invalid route params (e.g. NaN from a broken navigation)
+  // which would produce failing API calls and an empty canvas.
+  if (!Number.isFinite(projectId.value) || !Number.isFinite(workflowId.value)) {
+    message.error('无效的工作流参数，无法加载设计器')
+    return
+  }
   await Promise.all([loadWorkflow(), loadAgentMembers()])
 })
 

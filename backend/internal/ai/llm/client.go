@@ -129,11 +129,12 @@ const (
 
 // LLMClient wraps LLM API calls. Supports Anthropic and OpenAI-compatible protocols.
 type LLMClient struct {
-	apiKey   string
-	model    string
-	baseURL  string
-	provider LLMProvider
-	client   *http.Client
+	apiKey         string
+	model          string
+	baseURL        string
+	provider       LLMProvider
+	client         *http.Client
+	embeddingModel string // model name used for /embeddings endpoint; empty = use provider default
 }
 
 // NewLLMClient creates a new LLM client.
@@ -160,6 +161,87 @@ func NewLLMClient(apiKey, model, baseURL, provider string) *LLMClient {
 		provider: p,
 		client:   &http.Client{Timeout: 120 * time.Second, Transport: transport},
 	}
+}
+
+// SetEmbeddingModel overrides the model name used for embedding generation.
+// When empty, a provider-specific default is used.
+func (c *LLMClient) SetEmbeddingModel(m string) {
+	c.embeddingModel = m
+}
+
+// defaultEmbeddingModel returns the provider-specific default embedding model.
+func (c *LLMClient) defaultEmbeddingModel() string {
+	switch c.provider {
+	case ProviderOpenAI:
+		return "text-embedding-3-small"
+	case ProviderDeepSeek:
+		return "deepseek-embedding" // placeholder; users should override via SetEmbeddingModel
+	default:
+		return ""
+	}
+}
+
+// SupportsEmbedding reports whether this provider exposes an embeddings endpoint.
+// Anthropic does not provide embeddings natively; callers should configure a
+// separate OpenAI-compatible client for embeddings.
+func (c *LLMClient) SupportsEmbedding() bool {
+	return c.isOpenAIProtocol() && c.hasValidAPIKey()
+}
+
+// GenerateEmbedding calls the provider's /embeddings endpoint and returns the
+// embedding vector for the given text. Returns an error if the provider does
+// not support embeddings or the API key is invalid.
+func (c *LLMClient) GenerateEmbedding(ctx context.Context, text string) ([]float64, error) {
+	if !c.isOpenAIProtocol() {
+		return nil, fmt.Errorf("embedding generation not supported for provider %q (use an OpenAI-compatible provider)", c.provider)
+	}
+	if !c.hasValidAPIKey() {
+		return nil, fmt.Errorf("AI 服务未配置：无法生成 embedding（API Key 无效）")
+	}
+	if strings.TrimSpace(text) == "" {
+		return nil, fmt.Errorf("text is required for embedding")
+	}
+
+	model := c.embeddingModel
+	if model == "" {
+		model = c.defaultEmbeddingModel()
+	}
+
+	body := map[string]interface{}{
+		"model": model,
+		"input": text,
+	}
+	bodyBytes, _ := json.Marshal(body)
+	url := strings.TrimRight(c.baseURL, "/") + "/embeddings"
+	httpReq, _ := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.doRequest(ctx, httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("embedding API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read embedding response: %w", err)
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("embedding API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Data []struct {
+			Embedding []float64 `json:"embedding"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("parse embedding response: %w", err)
+	}
+	if len(result.Data) == 0 {
+		return nil, fmt.Errorf("embedding response contained no data")
+	}
+	return result.Data[0].Embedding, nil
 }
 
 func (c *LLMClient) isOpenAIProtocol() bool {

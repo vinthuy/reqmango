@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/reqmango/backend/internal/ai/llm"
 	"github.com/reqmango/backend/internal/model"
 )
 
@@ -20,12 +21,19 @@ var ErrMergeRequiresTwoMemories = errors.New("at least 2 memories are required t
 
 // MemoryService provides memory management capabilities
 type MemoryService struct {
-	db *gorm.DB
+	db  *gorm.DB
+	llm *llm.LLMClient
 }
 
-// NewMemoryService creates a new MemoryService
-func NewMemoryService(db *gorm.DB) *MemoryService {
-	return &MemoryService{db: db}
+// NewMemoryService creates a new MemoryService. The llm client is optional and
+// enables automatic embedding generation when configured.
+func NewMemoryService(db *gorm.DB, llmClient *llm.LLMClient) *MemoryService {
+	return &MemoryService{db: db, llm: llmClient}
+}
+
+// SetLLMClient injects an LLM client for embedding generation.
+func (s *MemoryService) SetLLMClient(c *llm.LLMClient) {
+	s.llm = c
 }
 
 // CreateMemory creates a new memory entry
@@ -49,6 +57,17 @@ func (s *MemoryService) CreateMemory(ctx context.Context, entry *model.MemoryEnt
 	if entry.MemoryType == model.MemoryShortTerm && entry.ExpiresAt == nil {
 		expiry := time.Now().Add(24 * time.Hour)
 		entry.ExpiresAt = &expiry
+	}
+
+	// Auto-generate embedding if not provided and an LLM client is configured.
+	// Failures are non-fatal: we still persist the memory without an embedding
+	// so that memory creation never breaks when the AI backend is unavailable.
+	if len(entry.Embedding) == 0 && s.llm != nil && s.llm.SupportsEmbedding() {
+		if emb, err := s.llm.GenerateEmbedding(ctx, entry.Content); err == nil && len(emb) > 0 {
+			if embJSON, mErr := json.Marshal(emb); mErr == nil {
+				entry.Embedding = embJSON
+			}
+		}
 	}
 
 	if err := s.db.WithContext(ctx).Create(entry).Error; err != nil {
@@ -202,6 +221,16 @@ func (s *MemoryService) UpdateMemory(ctx context.Context, id, workspaceID uint64
 		return nil, err
 	}
 
+	// If content is being updated and embedding support is configured,
+	// regenerate the embedding so semantic search stays accurate.
+	if newContent, ok := updates["content"].(string); ok && newContent != "" && s.llm != nil && s.llm.SupportsEmbedding() {
+		if emb, err := s.llm.GenerateEmbedding(ctx, newContent); err == nil && len(emb) > 0 {
+			if embJSON, mErr := json.Marshal(emb); mErr == nil {
+				updates["embedding"] = embJSON
+			}
+		}
+	}
+
 	if err := s.db.WithContext(ctx).Model(&entry).Updates(updates).Error; err != nil {
 		return nil, err
 	}
@@ -249,38 +278,80 @@ func (s *MemoryService) SearchMemories(ctx context.Context, workspaceID uint64, 
 	return entries, nil
 }
 
-// SemanticSearch performs semantic similarity search using embedding vectors
+// SemanticSearch performs semantic similarity search using embedding vectors.
+// Entries are fetched from the DB, their cosine similarity to the query
+// embedding is computed in Go, and the result is re-sorted by that score
+// (descending) so callers receive truly most-similar entries first.
 func (s *MemoryService) SemanticSearch(ctx context.Context, workspaceID uint64, queryEmbedding []float64, limit int) ([]*model.MemoryEntry, error) {
 	if len(queryEmbedding) == 0 {
 		return nil, errors.New("query embedding is required")
 	}
 
-	// Simple cosine similarity search using PostgreSQL's vector operations
-	// This requires pgvector extension or we use a simplified approach
+	// Fetch candidate entries that have embeddings. We over-fetch relative to
+	// the requested limit because the DB-side relevance_score is unrelated to
+	// the query embedding similarity and would otherwise prune good matches.
+	fetchLimit := limit * 5
+	if fetchLimit < 50 {
+		fetchLimit = 50
+	}
 
 	var entries []*model.MemoryEntry
 	if err := s.db.WithContext(ctx).
 		Where("workspace_id = ?", workspaceID).
 		Where("embedding IS NOT NULL").
 		Where("expires_at IS NULL OR expires_at > NOW()").
-		Order("relevance_score DESC").
-		Limit(limit).
+		Order("created_at DESC").
+		Limit(fetchLimit).
 		Find(&entries).Error; err != nil {
 		return nil, err
 	}
 
-	// Calculate cosine similarity with query embedding
+	// Compute cosine similarity against the query embedding for every entry.
+	scored := make([]*model.MemoryEntry, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Embedding != nil {
-			var embedding []float64
-			if err := json.Unmarshal(entry.Embedding, &embedding); err == nil {
-				sim := cosineSimilarity(queryEmbedding, embedding)
-				entry.RelevanceScore = sim
-			}
+		if len(entry.Embedding) == 0 {
+			continue
 		}
+		var embedding []float64
+		if err := json.Unmarshal(entry.Embedding, &embedding); err != nil {
+			continue
+		}
+		sim := cosineSimilarity(queryEmbedding, embedding)
+		entry.RelevanceScore = sim
+		scored = append(scored, entry)
 	}
 
-	return entries, nil
+	// Re-sort by computed similarity (descending) — the DB-side order by
+	// relevance_score is meaningless for an arbitrary query embedding.
+	sort.SliceStable(scored, func(i, j int) bool {
+		return scored[i].RelevanceScore > scored[j].RelevanceScore
+	})
+
+	if limit > 0 && len(scored) > limit {
+		scored = scored[:limit]
+	}
+
+	return scored, nil
+}
+
+// SemanticSearchByText generates an embedding for the query text and then
+// performs a semantic search. Returns an error if no LLM client is configured
+// or the provider does not support embeddings.
+func (s *MemoryService) SemanticSearchByText(ctx context.Context, workspaceID uint64, query string, limit int) ([]*model.MemoryEntry, error) {
+	if query == "" {
+		return nil, errors.New("query is required")
+	}
+	if s.llm == nil || !s.llm.SupportsEmbedding() {
+		return nil, errors.New("semantic search requires an LLM client with embedding support")
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	emb, err := s.llm.GenerateEmbedding(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("generate query embedding: %w", err)
+	}
+	return s.SemanticSearch(ctx, workspaceID, emb, limit)
 }
 
 // extractSummary extracts a summary from content that contains search keywords
@@ -335,7 +406,11 @@ func cosineSimilarity(a, b []float64) float64 {
 	if magA == 0 || magB == 0 {
 		return 0
 	}
-	return dot / (math.Sqrt(magA) * math.Sqrt(magB))
+	sim := dot / (math.Sqrt(magA) * math.Sqrt(magB))
+	if math.IsNaN(sim) || math.IsInf(sim, 0) {
+		return 0
+	}
+	return sim
 }
 
 // CreateMemorySession creates a new memory session
@@ -395,8 +470,11 @@ func (s *MemoryService) PruneExpiredMemories(ctx context.Context) (int64, error)
 
 // PruneLowRelevanceMemories removes old memories with low relevance score
 func (s *MemoryService) PruneLowRelevanceMemories(ctx context.Context, maxDays int, minScore float64) (int64, error) {
+	// Build the interval with MAKE_INTERVAL so the integer parameter is
+	// substituted by the driver (a literal '? days' string would not be
+	// interpolated inside single quotes).
 	result := s.db.WithContext(ctx).
-		Where("created_at < NOW() - INTERVAL '? days' AND relevance_score < ?", maxDays, minScore).
+		Where("created_at < NOW() - MAKE_INTERVAL(days => ?) AND relevance_score < ?", maxDays, minScore).
 		Delete(&model.MemoryEntry{})
 	return result.RowsAffected, result.Error
 }
