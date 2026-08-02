@@ -119,6 +119,14 @@
               </div>
             </div>
           </div>
+          <!-- Chat Tab (lazy: only mounts when active) -->
+          <ChatPanel
+            v-else-if="activeTab === 'chat'"
+            :issue-id="issueId"
+            :workspace-id="workspaceId"
+            :current-user-id="currentUserId"
+            :mention-candidates="chatMentionCandidates"
+          />
         </div>
 
         <!-- Right sidebar -->
@@ -177,6 +185,7 @@ import projectApi from '@/api/project'
 import api from '@/api'
 import { agentApi } from '@/api/agent'
 import { useConfirm } from '@/composables/useConfirm'
+import { useAuthStore } from '@/stores/auth'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
 import IssueDetailHeader from '@/components/IssueDetailHeader.vue'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
@@ -186,6 +195,7 @@ import IssueTabAttachments from '@/components/IssueTabAttachments.vue'
 import IssueTabTimeTracking from '@/components/IssueTabTimeTracking.vue'
 import IssueTabActivity from '@/components/IssueTabActivity.vue'
 import IssueGitPanel from '@/components/IssueGitPanel.vue'
+import ChatPanel from '@/components/chat/ChatPanel.vue'
 import ApprovalSubmitDialog from '@/components/ApprovalSubmitDialog.vue'
 import ApprovalDecisionDialog from '@/components/ApprovalDecisionDialog.vue'
 import ApprovalPendingBanner from '@/components/ApprovalPendingBanner.vue'
@@ -221,7 +231,23 @@ const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
 const showAICopilot = ref(false)
 const activeApproval = ref<ApprovalResponse | null>(null)
-const currentUserId = parseInt(localStorage.getItem('user_id') || '0', 10)
+const authStore = useAuthStore()
+const currentUserId = computed(() => {
+  // Prefer the auth store; fall back to localStorage user id.
+  if (authStore.user?.id) return authStore.user.id
+  const uid = parseInt(localStorage.getItem('user_id') || '0', 10)
+  if (uid) return uid
+  try {
+    const raw = localStorage.getItem('user')
+    if (raw) return JSON.parse(raw).id || 0
+  } catch {}
+  return 0
+})
+
+// v1: empty mention candidates list (the @mention picker will still work but
+// show no suggestions until project members/agents are wired in a follow-up).
+// This keeps the chat usable for plain text + agent @mentions resolved server-side.
+const chatMentionCandidates = computed(() => [] as { id: number; name: string; type: 'user' | 'agent' }[])
 const showSubmitDialog = ref(false)
 const showDecisionDialog = ref(false)
 const submitDialogData = ref<{ transitionId: number; fromStateName: string; approveStateName: string; approverNames: string[]; workflowName?: string }>({
@@ -243,6 +269,7 @@ const tabs = computed(() => [
   { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
   { key: 'activity', label: t('issue.tabActivity'), count: undefined },
   { key: 'ai', label: '🤖 AI', count: undefined },
+  { key: 'chat', label: t('issue.tabChat'), count: undefined },
 ])
 
 // AI quick actions
