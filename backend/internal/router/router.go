@@ -102,6 +102,13 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	commentSvc.SetAgentService(agentClient)        // enable @agent-name mention handling in comments
 	commentSvc.SetAutomationService(automationSvc) // enable comment_added automation trigger
 
+	// Chat & Messages: construct chatSvc, inject agent client + memory service,
+	// and wire the state-change hook into issueSvc (setter injection, mirrors commentSvc).
+	chatSvc := service.NewChatService(db, memSvc)
+	chatSvc.SetAgentClient(agentClient)
+	chatSvc.StartDebouncerCleanup(context.Background())
+	issueSvc.SetChatService(chatSvc)
+
 	// Start the scheduled automation trigger background scheduler
 	automationSvc.StartScheduler(context.Background())
 	mcpSvc := service.NewMCPService(db)
@@ -143,6 +150,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	slaH := handler.NewSLAHandler(agentSLASvc)
 	decisionH := handler.NewDecisionHandler(agentDecisionSvc)
 	commentH := handler.NewCommentHandler(commentSvc)
+	chatH := handler.NewChatHandler(chatSvc, db, cfg.SecretKey)
 	notificationH := handler.NewNotificationHandler(notificationSvc)
 	savedViewH := handler.NewSavedViewHandler(savedViewSvc)
 	searchTemplateH := handler.NewSearchTemplateHandler(searchTemplateSvc)
@@ -802,6 +810,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.POST("/:issueId/restore", middleware.RequirePermission(db, "issue:edit", "project"), issueH.Restore)
 			issues.POST("/:issueId/convert-type", middleware.RequirePermission(db, "issue:edit", "project"), issueH.ConvertType)
 			issues.GET("/:issueId/activities", issueH.GetActivities) // ?limit=&offset=
+			// Chat (lazy get/create for an issue)
+			issues.GET("/:issueId/chat", chatH.GetOrCreateForIssue)
 
 			// Assignees
 			issues.POST("/:issueId/assignees", middleware.RequirePermission(db, "issue:edit", "project"), issueH.AddAssignee) // ?user_id=
@@ -1039,6 +1049,25 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			comments.DELETE("/:commentId", commentH.Delete)
 			comments.POST("/:commentId/resolve", commentH.Resolve)
 			comments.POST("/:commentId/unresolve", commentH.Unresolve)
+		}
+		// ---- Chat & Messages ----
+		// SSE stream is registered without authMiddleware because browser EventSource
+		// cannot set the Authorization header; the handler performs its own JWT auth
+		// via ?token= plus a membership check (defense in depth).
+		v1.GET("/chats/:chatId/stream", chatH.Stream)
+		chats := v1.Group("/chats", authMiddleware)
+		{
+			chats.GET("/:chatId", chatH.GetChat)
+			chats.GET("/:chatId/messages", chatH.ListMessages)
+			chats.POST("/:chatId/messages", chatH.SendMessage)
+		}
+		// Message-scoped routes (flat for stable URLs regardless of chat)
+		messages := v1.Group("/messages", authMiddleware)
+		{
+			messages.PUT("/:messageId", chatH.EditMessage)
+			messages.DELETE("/:messageId", chatH.DeleteMessage)
+			messages.POST("/:messageId/reactions", chatH.AddReaction)
+			messages.DELETE("/:messageId/reactions", chatH.RemoveReaction)
 		}
 		// ---- RQL (protected) ----
 		v1.POST("/pages/:pageId/ai", authMiddleware, aiH.PageAI)
