@@ -14,7 +14,26 @@ type InitiativeService struct{ db *gorm.DB }
 
 func NewInitiativeService(db *gorm.DB) *InitiativeService { return &InitiativeService{db} }
 
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. Guards mutations against privilege escalation.
+func (s *InitiativeService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage initiatives")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage initiatives")
+	}
+	return nil
+}
+
 func (s *InitiativeService) Create(workspaceID uint64, req request.CreateInitiativeReq, userID uint64) (*model.Initiative, error) {
+	if err := s.checkWorkspaceAdmin(workspaceID, userID); err != nil {
+		return nil, err
+	}
 	status := req.Status
 	if status == "" {
 		status = "active"
@@ -75,9 +94,12 @@ func (s *InitiativeService) Get(id uint64) (*model.Initiative, error) {
 	return &i, err
 }
 
-func (s *InitiativeService) Update(id uint64, req request.UpdateInitiativeReq) (*model.Initiative, error) {
+func (s *InitiativeService) Update(id, callerID uint64, req request.UpdateInitiativeReq) (*model.Initiative, error) {
 	var i model.Initiative
 	if err := s.db.First(&i, id).Error; err != nil {
+		return nil, err
+	}
+	if err := s.checkWorkspaceAdmin(i.WorkspaceID, callerID); err != nil {
 		return nil, err
 	}
 	updates := map[string]interface{}{}
@@ -120,7 +142,17 @@ func (s *InitiativeService) Update(id uint64, req request.UpdateInitiativeReq) (
 	return &i, nil
 }
 
-func (s *InitiativeService) Delete(id uint64) error {
+func (s *InitiativeService) Delete(id, callerID uint64) error {
+	var i model.Initiative
+	if err := s.db.First(&i, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.NotFound("Initiative not found")
+		}
+		return err
+	}
+	if err := s.checkWorkspaceAdmin(i.WorkspaceID, callerID); err != nil {
+		return err
+	}
 	s.db.Where("initiative_id = ?", id).Delete(&model.InitiativeProject{})
 	return s.db.Delete(&model.Initiative{}, id).Error
 }

@@ -87,7 +87,7 @@ func (h *InitiativeHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	i, err := h.svc.Update(id, req)
+	i, err := h.svc.Update(id, h.getUserID(c), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -97,7 +97,7 @@ func (h *InitiativeHandler) Update(c *gin.Context) {
 
 func (h *InitiativeHandler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("initiativeId"), 10, 64)
-	if err := h.svc.Delete(id); err != nil {
+	if err := h.svc.Delete(id, h.getUserID(c)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
