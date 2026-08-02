@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
@@ -32,7 +33,7 @@ func (h *FieldPermissionHandler) Create(c *gin.Context) {
 		c.JSON(400, gin.H{"message": err.Error()})
 		return
 	}
-	if err := h.svc.Create(&perm); err != nil {
+	if err := h.svc.Create(&perm, middleware.GetCurrentUser(c).ID); err != nil {
 		common.RespondError(c, err)
 		return
 	}
@@ -49,7 +50,7 @@ func (h *FieldPermissionHandler) Update(c *gin.Context) {
 		c.JSON(400, gin.H{"message": err.Error()})
 		return
 	}
-	if err := h.svc.Update(id, req.CanRead, req.CanWrite); err != nil {
+	if err := h.svc.Update(id, middleware.GetCurrentUser(c).ID, req.CanRead, req.CanWrite); err != nil {
 		common.RespondError(c, err)
 		return
 	}
@@ -58,7 +59,7 @@ func (h *FieldPermissionHandler) Update(c *gin.Context) {
 
 func (h *FieldPermissionHandler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err := h.svc.Delete(id); err != nil {
+	if err := h.svc.Delete(id, middleware.GetCurrentUser(c).ID); err != nil {
 		common.RespondError(c, err)
 		return
 	}
