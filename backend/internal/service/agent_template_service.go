@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
@@ -14,6 +15,22 @@ type AgentTemplateService struct{ db *gorm.DB }
 
 func NewAgentTemplateService(db *gorm.DB) *AgentTemplateService {
 	return &AgentTemplateService{db: db}
+}
+
+// checkWorkspaceAdmin verifies that the caller is an active admin-level member
+// of the workspace. Guards mutations against privilege escalation.
+func (s *AgentTemplateService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
+	var member model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, callerID, true).First(&member).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return common.Forbidden("You must be a workspace admin to manage agent templates")
+		}
+		return common.Internal("Database error")
+	}
+	if member.Role < common.RoleAdmin {
+		return common.Forbidden("You must be a workspace admin to manage agent templates")
+	}
+	return nil
 }
 
 // validateSkillIDs validates that all referenced skill IDs exist in the workspace.
@@ -44,7 +61,10 @@ func (s *AgentTemplateService) validateSkillIDs(wid uint64, skillsJSON json.RawM
 	return nil
 }
 
-func (s *AgentTemplateService) Create(wid uint64, req request.AgentTemplateCreate) (*response.AgentTemplateResponse, error) {
+func (s *AgentTemplateService) Create(wid uint64, callerID uint64, req request.AgentTemplateCreate) (*response.AgentTemplateResponse, error) {
+	if err := s.checkWorkspaceAdmin(wid, callerID); err != nil {
+		return nil, err
+	}
 	// Validate skill IDs
 	if err := s.validateSkillIDs(wid, req.AvailableSkills); err != nil {
 		return nil, err
@@ -92,10 +112,15 @@ func (s *AgentTemplateService) List(wid uint64) ([]response.AgentTemplateRespons
 	return res, nil
 }
 
-func (s *AgentTemplateService) Update(id uint64, req request.AgentTemplateUpdate) (*response.AgentTemplateResponse, error) {
+func (s *AgentTemplateService) Update(id uint64, callerID uint64, req request.AgentTemplateUpdate) (*response.AgentTemplateResponse, error) {
 	var template model.AgentTemplate
 	if err := s.db.First(&template, id).Error; err != nil {
 		return nil, common.NotFound("Agent template not found")
+	}
+	if template.WorkspaceID != nil {
+		if err := s.checkWorkspaceAdmin(*template.WorkspaceID, callerID); err != nil {
+			return nil, err
+		}
 	}
 
 	// Validate skill IDs if provided
@@ -140,7 +165,7 @@ func (s *AgentTemplateService) Update(id uint64, req request.AgentTemplateUpdate
 	return s.Get(id)
 }
 
-func (s *AgentTemplateService) Delete(id uint64) error {
+func (s *AgentTemplateService) Delete(id uint64, callerID uint64) error {
 	var template model.AgentTemplate
 	if err := s.db.First(&template, id).Error; err != nil {
 		return common.NotFound("Agent template not found")
@@ -148,6 +173,10 @@ func (s *AgentTemplateService) Delete(id uint64) error {
 
 	if template.IsPreset {
 		return common.BadRequest("Cannot delete preset agent template")
+	}
+
+	if err := s.checkWorkspaceAdmin(*template.WorkspaceID, callerID); err != nil {
+		return err
 	}
 
 	return s.db.Delete(&template).Error

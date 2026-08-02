@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -38,7 +39,7 @@ func (h *AgentTemplateHandler) CreateAgentTemplate(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "Invalid body"})
 		return
 	}
-	resp, e := h.svc.Create(wid, req)
+	resp, e := h.svc.Create(wid, middleware.GetCurrentUser(c).ID, req)
 	if h.respond(c, e) {
 		return
 	}
@@ -70,7 +71,7 @@ func (h *AgentTemplateHandler) UpdateAgentTemplate(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "Invalid body"})
 		return
 	}
-	resp, e := h.svc.Update(id, req)
+	resp, e := h.svc.Update(id, middleware.GetCurrentUser(c).ID, req)
 	if h.respond(c, e) {
 		return
 	}
@@ -79,7 +80,7 @@ func (h *AgentTemplateHandler) UpdateAgentTemplate(c *gin.Context) {
 
 func (h *AgentTemplateHandler) DeleteAgentTemplate(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("templateId"), 10, 64)
-	if h.respond(c, h.svc.Delete(id)) {
+	if h.respond(c, h.svc.Delete(id, middleware.GetCurrentUser(c).ID)) {
 		return
 	}
 	c.JSON(200, gin.H{"message": "Deleted"})
