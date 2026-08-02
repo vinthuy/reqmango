@@ -18,6 +18,19 @@ func NewPageTemplateService(db *gorm.DB) *PageTemplateService {
 	return &PageTemplateService{db: db}
 }
 
+// checkProjectMembership verifies that the caller is an active member of the
+// project. Content operations like page templates are member-scoped.
+func (s *PageTemplateService) checkProjectMembership(projectID, userID uint64) error {
+	var count int64
+	s.db.Model(&model.ProjectMember{}).
+		Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, userID, true).
+		Count(&count)
+	if count == 0 {
+		return common.Forbidden("You must be a member of the project to manage page templates")
+	}
+	return nil
+}
+
 // List returns templates for a project (or workspace).
 func (s *PageTemplateService) List(workspaceID uint64, projectID *uint64) ([]response.PageTemplateResponse, error) {
 	var templates []model.PageTemplate
@@ -50,7 +63,10 @@ func (s *PageTemplateService) Get(id uint64) (*response.PageTemplateResponse, er
 }
 
 // Create creates a new page template.
-func (s *PageTemplateService) Create(req *request.PageTemplateCreateRequest, workspaceID, userID uint64) (*response.PageTemplateResponse, error) {
+func (s *PageTemplateService) Create(req *request.PageTemplateCreateRequest, workspaceID, projectID, userID uint64) (*response.PageTemplateResponse, error) {
+	if err := s.checkProjectMembership(projectID, userID); err != nil {
+		return nil, err
+	}
 	// If setting as default, unset others first
 	if req.IsDefault {
 		s.db.Model(&model.PageTemplate{}).
@@ -77,7 +93,10 @@ func (s *PageTemplateService) Create(req *request.PageTemplateCreateRequest, wor
 }
 
 // Update updates a page template.
-func (s *PageTemplateService) Update(id, userID uint64, req *request.PageTemplateUpdateRequest) (*response.PageTemplateResponse, error) {
+func (s *PageTemplateService) Update(id, projectID, userID uint64, req *request.PageTemplateUpdateRequest) (*response.PageTemplateResponse, error) {
+	if err := s.checkProjectMembership(projectID, userID); err != nil {
+		return nil, err
+	}
 	var t model.PageTemplate
 	if err := s.db.First(&t, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -121,7 +140,10 @@ func (s *PageTemplateService) Update(id, userID uint64, req *request.PageTemplat
 }
 
 // Delete deletes a page template.
-func (s *PageTemplateService) Delete(id uint64) error {
+func (s *PageTemplateService) Delete(id, projectID, callerID uint64) error {
+	if err := s.checkProjectMembership(projectID, callerID); err != nil {
+		return err
+	}
 	result := s.db.Delete(&model.PageTemplate{}, id)
 	if result.Error != nil {
 		return common.Internal("Failed to delete page template")

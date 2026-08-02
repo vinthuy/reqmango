@@ -66,6 +66,11 @@ func (h *PageTemplateHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
 		return
 	}
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
 
 	var req request.PageTemplateCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -73,7 +78,7 @@ func (h *PageTemplateHandler) Create(c *gin.Context) {
 		return
 	}
 
-	template, svcErr := h.svc.Create(&req, workspaceID, getUserIDFromContext(c))
+	template, svcErr := h.svc.Create(&req, workspaceID, projectID, getUserIDFromContext(c))
 	if svcErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": svcErr.Error()})
 		return
@@ -88,6 +93,11 @@ func (h *PageTemplateHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid template ID"})
 		return
 	}
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
 
 	var req request.PageTemplateUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -95,7 +105,7 @@ func (h *PageTemplateHandler) Update(c *gin.Context) {
 		return
 	}
 
-	template, svcErr := h.svc.Update(templateID, getUserIDFromContext(c), &req)
+	template, svcErr := h.svc.Update(templateID, projectID, getUserIDFromContext(c), &req)
 	if svcErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": svcErr.Error()})
 		return
@@ -110,8 +120,13 @@ func (h *PageTemplateHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid template ID"})
 		return
 	}
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
 
-	if svcErr := h.svc.Delete(templateID); svcErr != nil {
+	if svcErr := h.svc.Delete(templateID, projectID, getUserIDFromContext(c)); svcErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": svcErr.Error()})
 		return
 	}
