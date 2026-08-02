@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
 )
@@ -92,8 +93,13 @@ func (h *CommentHandler) Delete(c *gin.Context) {
 
 func (h *CommentHandler) Resolve(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("commentId"), 10, 64)
-	resp, err := h.svc.Resolve(id)
+	user := middleware.GetCurrentUser(c)
+	resp, err := h.svc.Resolve(id, user.ID)
 	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
 		c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
 		return
 	}
@@ -102,8 +108,13 @@ func (h *CommentHandler) Resolve(c *gin.Context) {
 
 func (h *CommentHandler) Unresolve(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("commentId"), 10, 64)
-	resp, err := h.svc.Unresolve(id)
+	user := middleware.GetCurrentUser(c)
+	resp, err := h.svc.Unresolve(id, user.ID)
 	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
 		c.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
 		return
 	}

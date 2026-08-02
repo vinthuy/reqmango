@@ -232,20 +232,45 @@ func (s *CommentService) Delete(id, userID uint64) error {
 	return s.db.Delete(&model.Comment{}, id).Error
 }
 
-func (s *CommentService) Resolve(id uint64) (*model.Comment, error) {
+// checkCommentProjectMembership verifies the caller is an active member of the
+// project that owns the comment's issue. Comment routes are not project-scoped
+// in the URL, so membership must be resolved via the comment -> issue -> project
+// chain to prevent cross-project mutations.
+func (s *CommentService) checkCommentProjectMembership(c *model.Comment, userID uint64) error {
+	var issue model.Issue
+	if err := s.db.Select("project_id").First(&issue, c.IssueID).Error; err != nil {
+		return common.Internal("Failed to verify project membership")
+	}
+	var count int64
+	s.db.Model(&model.ProjectMember{}).
+		Where("project_id = ? AND user_id = ? AND is_active = ?", issue.ProjectID, userID, true).
+		Count(&count)
+	if count == 0 {
+		return common.Forbidden("You must be a project member to perform this action")
+	}
+	return nil
+}
+
+func (s *CommentService) Resolve(id, userID uint64) (*model.Comment, error) {
 	var c model.Comment
 	if err := s.db.First(&c, id).Error; err != nil {
 		return nil, common.NotFound("Comment not found")
+	}
+	if err := s.checkCommentProjectMembership(&c, userID); err != nil {
+		return nil, err
 	}
 	c.IsResolved = true
 	s.db.Save(&c)
 	return &c, nil
 }
 
-func (s *CommentService) Unresolve(id uint64) (*model.Comment, error) {
+func (s *CommentService) Unresolve(id, userID uint64) (*model.Comment, error) {
 	var c model.Comment
 	if err := s.db.First(&c, id).Error; err != nil {
 		return nil, common.NotFound("Comment not found")
+	}
+	if err := s.checkCommentProjectMembership(&c, userID); err != nil {
+		return nil, err
 	}
 	c.IsResolved = false
 	s.db.Save(&c)
