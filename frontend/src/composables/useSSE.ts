@@ -127,6 +127,28 @@ function ensureConnection(key: string): EventSource {
   es.addEventListener('sdlc_stage.failed', (e: MessageEvent) => {
     dispatch(key, 'sdlc_stage.failed', parseData(e.data))
   })
+  // Autopilot task & execution lifecycle (PRD P4-008)
+  es.addEventListener('autopilot_task.created', (e: MessageEvent) => {
+    dispatch(key, 'autopilot_task.created', parseData(e.data))
+  })
+  es.addEventListener('autopilot_task.updated', (e: MessageEvent) => {
+    dispatch(key, 'autopilot_task.updated', parseData(e.data))
+  })
+  es.addEventListener('autopilot_task.deleted', (e: MessageEvent) => {
+    dispatch(key, 'autopilot_task.deleted', parseData(e.data))
+  })
+  es.addEventListener('autopilot_task.toggled', (e: MessageEvent) => {
+    dispatch(key, 'autopilot_task.toggled', parseData(e.data))
+  })
+  es.addEventListener('autopilot_execution.started', (e: MessageEvent) => {
+    dispatch(key, 'autopilot_execution.started', parseData(e.data))
+  })
+  es.addEventListener('autopilot_execution.completed', (e: MessageEvent) => {
+    dispatch(key, 'autopilot_execution.completed', parseData(e.data))
+  })
+  es.addEventListener('autopilot_execution.failed', (e: MessageEvent) => {
+    dispatch(key, 'autopilot_execution.failed', parseData(e.data))
+  })
   es.addEventListener('notification', (e: MessageEvent) => {
     dispatch(key, 'notification', parseData(e.data))
   })

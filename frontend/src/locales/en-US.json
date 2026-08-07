@@ -789,8 +789,31 @@
       "namePlaceholder": "Enter task name",
       "cronExpression": "Cron Expression",
       "cronHint": "Format: minute hour day month weekday (e.g., 0 9 * * 1-5 means 9AM Mon-Fri)",
+      "cronRequired": "Cron expression is required for cron trigger type",
       "enableTask": "Enable task",
-      "deleteConfirm": "Are you sure you want to delete task \"{name}\"?"
+      "deleteConfirm": "Are you sure you want to delete task \"{name}\"?",
+      "taskType": "Task Type",
+      "taskTypeLocked": "Task type cannot be changed after creation",
+      "taskTypes": {
+        "report": "Report Generation",
+        "sdlc": "SDLC Workflow",
+        "test": "Test Execution",
+        "deploy": "Deployment",
+        "cleanup": "Data Cleanup"
+      },
+      "webhookUrl": "Webhook URL",
+      "executionHistory": "Execution History",
+      "noExecutions": "No executions yet",
+      "startedAt": "Started",
+      "completedAt": "Completed",
+      "duration": "Duration",
+      "retryCount": "Retries",
+      "output": "Output",
+      "statusCompleted": "Completed",
+      "statusFailed": "Failed",
+      "statusRunning": "Running",
+      "statusPending": "Pending",
+      "executeFailed": "Execution failed, please retry"
     },
     "agentTemplate": {
       "title": "Agent Templates",
@@ -1255,7 +1278,11 @@
     "export": "Export",
     "apply": "Apply",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "copy": "Copy",
+    "copied": "Copied",
+    "saveFailed": "Save failed",
+    "operationFailed": "Operation failed"
   },
   "confirm": {
     "title": "Confirm Action",
