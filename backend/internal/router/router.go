@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	aihandler "github.com/reqmango/backend/internal/ai/handler"
 	"github.com/reqmango/backend/internal/ai/harness"
-	"github.com/reqmango/backend/internal/scheduler"
 	"github.com/reqmango/backend/internal/ai/llm"
 	"github.com/reqmango/backend/internal/ai/registry"
 	aiservice "github.com/reqmango/backend/internal/ai/service"
@@ -17,6 +16,7 @@ import (
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/rql"
+	"github.com/reqmango/backend/internal/scheduler"
 	"github.com/reqmango/backend/internal/service"
 	"gorm.io/gorm"
 )
@@ -433,6 +433,38 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PUT("/:wsParam/github/:id", githubH.Update)
 			workspaces.DELETE("/:wsParam/github/:id", githubH.Delete)
 			workspaces.POST("/:wsParam/github/:id/sync", githubH.SyncIssues)
+
+			// Developer Agent (PRD P4-001)
+			developerAgentSvc := service.NewDeveloperAgentService(db, githubSvc, llmClient)
+			developerAgentH := handler.NewDeveloperAgentHandler(developerAgentSvc)
+			workspaces.GET("/:wsParam/developer-agent/jobs", developerAgentH.List)
+			workspaces.POST("/:wsParam/developer-agent/jobs", developerAgentH.Create)
+			workspaces.GET("/:wsParam/developer-agent/jobs/:jobId", developerAgentH.Get)
+			workspaces.POST("/:wsParam/developer-agent/jobs/:jobId/cancel", developerAgentH.Cancel)
+			workspaces.DELETE("/:wsParam/developer-agent/jobs/:jobId", developerAgentH.Delete)
+
+			// Tester Agent (PRD P4-002)
+			testerAgentSvc := service.NewTesterAgentService(db, llmClient)
+			testerAgentH := handler.NewTesterAgentHandler(testerAgentSvc)
+			workspaces.GET("/:wsParam/tester-agent/jobs", testerAgentH.List)
+			workspaces.POST("/:wsParam/tester-agent/jobs", testerAgentH.Create)
+			workspaces.GET("/:wsParam/tester-agent/jobs/:jobId", testerAgentH.Get)
+			workspaces.POST("/:wsParam/tester-agent/jobs/:jobId/cancel", testerAgentH.Cancel)
+			workspaces.DELETE("/:wsParam/tester-agent/jobs/:jobId", testerAgentH.Delete)
+
+			// CI/CD integration (PRD P4-003/004)
+			cicdSvc := service.NewCICDService(db)
+			cicdH := handler.NewCICDHandler(cicdSvc)
+			workspaces.GET("/:wsParam/cicd/configs", cicdH.ListConfigs)
+			workspaces.POST("/:wsParam/cicd/configs", cicdH.CreateConfig)
+			workspaces.GET("/:wsParam/cicd/configs/:configId", cicdH.GetConfig)
+			workspaces.PATCH("/:wsParam/cicd/configs/:configId", cicdH.UpdateConfig)
+			workspaces.DELETE("/:wsParam/cicd/configs/:configId", cicdH.DeleteConfig)
+			workspaces.GET("/:wsParam/cicd/builds", cicdH.ListBuilds)
+			workspaces.POST("/:wsParam/cicd/builds", cicdH.TriggerBuild)
+			workspaces.GET("/:wsParam/cicd/builds/:buildId", cicdH.GetBuild)
+			workspaces.POST("/:wsParam/cicd/builds/:buildId/cancel", cicdH.CancelBuild)
+			workspaces.DELETE("/:wsParam/cicd/builds/:buildId", cicdH.DeleteBuild)
 
 			// Git integration
 			workspaces.POST("/:wsParam/git-integration", gitIntegrationH.CreateIntegration)
@@ -1151,23 +1183,23 @@ func (a *harnessSkillExecutorAdapter) Execute(ctx context.Context, skill *model.
 	steps := make([]service.SkillStep, 0, len(result.Steps))
 	for _, step := range result.Steps {
 		steps = append(steps, service.SkillStep{
-			Step:     step.Step,
-			Action:   step.Action,
-			Tool:     step.Tool,
-			Input:    step.Input,
-			Output:   step.Output,
-			Error:    step.Error,
-			Status:   step.Status,
+			Step:   step.Step,
+			Action: step.Action,
+			Tool:   step.Tool,
+			Input:  step.Input,
+			Output: step.Output,
+			Error:  step.Error,
+			Status: step.Status,
 		})
 	}
 
 	return &service.SkillExecutionResult{
-		SkillID:    result.SkillID,
-		SkillName:  result.SkillName,
-		Steps:      steps,
+		SkillID:     result.SkillID,
+		SkillName:   result.SkillName,
+		Steps:       steps,
 		FinalResult: result.FinalResult,
-		Error:      result.Error,
-		TokensUsed: result.TokensUsed,
+		Error:       result.Error,
+		TokensUsed:  result.TokensUsed,
 	}, nil
 }
 
@@ -1196,5 +1228,3 @@ func (a *aiAgentExecutorAdapter) DispatchAgent(agentID uint64, userID uint64, ta
 		ResultSummary: result.ResultSummary,
 	}, nil
 }
-
-

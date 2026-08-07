@@ -45,6 +45,60 @@ function ensureConnection(key: string): EventSource {
   es.addEventListener('agent_task.cancelled', (e: MessageEvent) => {
     dispatch(key, 'agent_task.cancelled', parseData(e.data))
   })
+  // Developer Agent job lifecycle (PRD P4-001)
+  es.addEventListener('developer_job.created', (e: MessageEvent) => {
+    dispatch(key, 'developer_job.created', parseData(e.data))
+  })
+  es.addEventListener('developer_job.updated', (e: MessageEvent) => {
+    dispatch(key, 'developer_job.updated', parseData(e.data))
+  })
+  es.addEventListener('developer_job.completed', (e: MessageEvent) => {
+    dispatch(key, 'developer_job.completed', parseData(e.data))
+  })
+  es.addEventListener('developer_job.failed', (e: MessageEvent) => {
+    dispatch(key, 'developer_job.failed', parseData(e.data))
+  })
+  es.addEventListener('developer_job.cancelled', (e: MessageEvent) => {
+    dispatch(key, 'developer_job.cancelled', parseData(e.data))
+  })
+  // Tester Agent job lifecycle (PRD P4-002)
+  es.addEventListener('tester_job.created', (e: MessageEvent) => {
+    dispatch(key, 'tester_job.created', parseData(e.data))
+  })
+  es.addEventListener('tester_job.updated', (e: MessageEvent) => {
+    dispatch(key, 'tester_job.updated', parseData(e.data))
+  })
+  es.addEventListener('tester_job.completed', (e: MessageEvent) => {
+    dispatch(key, 'tester_job.completed', parseData(e.data))
+  })
+  es.addEventListener('tester_job.failed', (e: MessageEvent) => {
+    dispatch(key, 'tester_job.failed', parseData(e.data))
+  })
+  es.addEventListener('tester_job.cancelled', (e: MessageEvent) => {
+    dispatch(key, 'tester_job.cancelled', parseData(e.data))
+  })
+  // CI/CD build lifecycle (PRD P4-004)
+  es.addEventListener('cicd_config.created', (e: MessageEvent) => {
+    dispatch(key, 'cicd_config.created', parseData(e.data))
+  })
+  es.addEventListener('cicd_config.updated', (e: MessageEvent) => {
+    dispatch(key, 'cicd_config.updated', parseData(e.data))
+  })
+  es.addEventListener('cicd_build.created', (e: MessageEvent) => {
+    dispatch(key, 'cicd_build.created', parseData(e.data))
+  })
+  es.addEventListener('cicd_build.updated', (e: MessageEvent) => {
+    dispatch(key, 'cicd_build.updated', parseData(e.data))
+  })
+  es.addEventListener('cicd_build.completed', (e: MessageEvent) => {
+    dispatch(key, 'cicd_build.completed', parseData(e.data))
+  })
+  es.addEventListener('cicd_build.failed', (e: MessageEvent) => {
+    dispatch(key, 'cicd_build.failed', parseData(e.data))
+  })
+  es.addEventListener('cicd_build.cancelled', (e: MessageEvent) => {
+    dispatch(key, 'cicd_build.cancelled', parseData(e.data))
+  })
   es.addEventListener('notification', (e: MessageEvent) => {
     dispatch(key, 'notification', parseData(e.data))
   })

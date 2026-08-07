@@ -169,6 +169,13 @@ func main() {
 		&model.Chat{},
 		&model.Message{},
 		&model.MessageReaction{},
+		// Phase 4 - Developer Agent (P4-001)
+		&model.DeveloperJob{},
+		// Phase 4 - Tester Agent (P4-002)
+		&model.TesterJob{},
+		// Phase 4 - CI/CD integration (P4-003)
+		&model.CICDConfig{},
+		&model.BuildRecord{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

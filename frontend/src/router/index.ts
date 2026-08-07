@@ -112,6 +112,24 @@ const router = createRouter({
       component: () => import('@/views/agents/AutopilotList.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      path: '/workspace/:slug/agents/developer',
+      name: 'WorkspaceAgentDeveloper',
+      component: () => import('@/views/agents/DeveloperAgent.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/tester',
+      name: 'WorkspaceAgentTester',
+      component: () => import('@/views/agents/TesterAgent.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/cicd',
+      name: 'WorkspaceAgentCICD',
+      component: () => import('@/views/agents/CICDManager.vue'),
+      meta: { requiresAuth: true }
+    },
     // /roadmap is now merged into /initiatives — redirect
     {
       path: '/workspace/:slug/roadmap',
@@ -372,6 +390,24 @@ const router = createRouter({
       path: '/workspaces/:wsParam/agents/autopilot',
       name: 'agent-autopilot',
       component: () => import('@/views/agents/AutopilotList.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/developer',
+      name: 'agent-developer',
+      component: () => import('@/views/agents/DeveloperAgent.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/tester',
+      name: 'agent-tester',
+      component: () => import('@/views/agents/TesterAgent.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/cicd',
+      name: 'agent-cicd',
+      component: () => import('@/views/agents/CICDManager.vue'),
       meta: { requiresAuth: true },
     },
   ]
