@@ -44,6 +44,10 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+frontend/playwright-report/
+
+# Local debug artifacts
+token.txt
 
 # Temporary files
 *.tmp
