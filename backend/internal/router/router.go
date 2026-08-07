@@ -466,6 +466,18 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/cicd/builds/:buildId/cancel", cicdH.CancelBuild)
 			workspaces.DELETE("/:wsParam/cicd/builds/:buildId", cicdH.DeleteBuild)
 
+			// SDLC orchestration (PRD P4-006)
+			sdlcSvc := service.NewSDLCService(db)
+			sdlcH := handler.NewSDLCHandler(sdlcSvc)
+			workspaces.GET("/:wsParam/sdlc/workflows", sdlcH.ListWorkflows)
+			workspaces.POST("/:wsParam/sdlc/workflows", sdlcH.CreateWorkflow)
+			workspaces.GET("/:wsParam/sdlc/workflows/:workflowId", sdlcH.GetWorkflow)
+			workspaces.POST("/:wsParam/sdlc/workflows/:workflowId/cancel", sdlcH.CancelWorkflow)
+			workspaces.DELETE("/:wsParam/sdlc/workflows/:workflowId", sdlcH.DeleteWorkflow)
+			workspaces.POST("/:wsParam/sdlc/workflows/:workflowId/retry", sdlcH.RetryWorkflow)
+			workspaces.GET("/:wsParam/sdlc/workflows/:workflowId/stages", sdlcH.ListStages)
+			workspaces.GET("/:wsParam/sdlc/workflows/:workflowId/stages/:stageId", sdlcH.GetStage)
+
 			// Git integration
 			workspaces.POST("/:wsParam/git-integration", gitIntegrationH.CreateIntegration)
 			workspaces.GET("/:wsParam/git-integration", gitIntegrationH.GetIntegration)

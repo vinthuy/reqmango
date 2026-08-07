@@ -130,6 +130,12 @@ const router = createRouter({
       component: () => import('@/views/agents/CICDManager.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      path: '/workspace/:slug/agents/sdlc',
+      name: 'WorkspaceAgentSDLC',
+      component: () => import('@/views/agents/SDLCManager.vue'),
+      meta: { requiresAuth: true }
+    },
     // /roadmap is now merged into /initiatives — redirect
     {
       path: '/workspace/:slug/roadmap',
@@ -408,6 +414,12 @@ const router = createRouter({
       path: '/workspaces/:wsParam/agents/cicd',
       name: 'agent-cicd',
       component: () => import('@/views/agents/CICDManager.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/sdlc',
+      name: 'agent-sdlc',
+      component: () => import('@/views/agents/SDLCManager.vue'),
       meta: { requiresAuth: true },
     },
   ]

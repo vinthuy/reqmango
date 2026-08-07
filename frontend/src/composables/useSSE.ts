@@ -99,6 +99,34 @@ function ensureConnection(key: string): EventSource {
   es.addEventListener('cicd_build.cancelled', (e: MessageEvent) => {
     dispatch(key, 'cicd_build.cancelled', parseData(e.data))
   })
+  // SDLC workflow & stage lifecycle (PRD P4-006)
+  es.addEventListener('sdlc_workflow.created', (e: MessageEvent) => {
+    dispatch(key, 'sdlc_workflow.created', parseData(e.data))
+  })
+  es.addEventListener('sdlc_workflow.updated', (e: MessageEvent) => {
+    dispatch(key, 'sdlc_workflow.updated', parseData(e.data))
+  })
+  es.addEventListener('sdlc_workflow.completed', (e: MessageEvent) => {
+    dispatch(key, 'sdlc_workflow.completed', parseData(e.data))
+  })
+  es.addEventListener('sdlc_workflow.failed', (e: MessageEvent) => {
+    dispatch(key, 'sdlc_workflow.failed', parseData(e.data))
+  })
+  es.addEventListener('sdlc_workflow.cancelled', (e: MessageEvent) => {
+    dispatch(key, 'sdlc_workflow.cancelled', parseData(e.data))
+  })
+  es.addEventListener('sdlc_workflow.resumed', (e: MessageEvent) => {
+    dispatch(key, 'sdlc_workflow.resumed', parseData(e.data))
+  })
+  es.addEventListener('sdlc_stage.updated', (e: MessageEvent) => {
+    dispatch(key, 'sdlc_stage.updated', parseData(e.data))
+  })
+  es.addEventListener('sdlc_stage.completed', (e: MessageEvent) => {
+    dispatch(key, 'sdlc_stage.completed', parseData(e.data))
+  })
+  es.addEventListener('sdlc_stage.failed', (e: MessageEvent) => {
+    dispatch(key, 'sdlc_stage.failed', parseData(e.data))
+  })
   es.addEventListener('notification', (e: MessageEvent) => {
     dispatch(key, 'notification', parseData(e.data))
   })

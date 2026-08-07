@@ -176,6 +176,9 @@ func main() {
 		// Phase 4 - CI/CD integration (P4-003)
 		&model.CICDConfig{},
 		&model.BuildRecord{},
+		// Phase 4 - SDLC orchestration (P4-006)
+		&model.SDLCWorkflow{},
+		&model.SDLCStage{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
