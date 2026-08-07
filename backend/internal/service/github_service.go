@@ -1,6 +1,8 @@
 package service
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,39 +43,39 @@ func (s *GitHubService) checkWorkspaceAdmin(workspaceID, callerID uint64) error 
 // ======== Request/Response types ========
 
 type GitHubCreateRequest struct {
-	ProjectID      uint64 `json:"project_id" binding:"required"`
-	RepoOwner      string `json:"repo_owner" binding:"required"`
-	RepoName       string `json:"repo_name" binding:"required"`
-	AccessToken    string `json:"access_token"`
-	WebhookSecret  string `json:"webhook_secret"`
-	IsEnabled      *bool  `json:"is_enabled"`
-	SyncIssues     *bool  `json:"sync_issues"`
-	SyncPRs        *bool  `json:"sync_prs"`
+	ProjectID     uint64 `json:"project_id" binding:"required"`
+	RepoOwner     string `json:"repo_owner" binding:"required"`
+	RepoName      string `json:"repo_name" binding:"required"`
+	AccessToken   string `json:"access_token"`
+	WebhookSecret string `json:"webhook_secret"`
+	IsEnabled     *bool  `json:"is_enabled"`
+	SyncIssues    *bool  `json:"sync_issues"`
+	SyncPRs       *bool  `json:"sync_prs"`
 }
 
 type GitHubUpdateRequest struct {
-	RepoOwner      *string `json:"repo_owner"`
-	RepoName       *string `json:"repo_name"`
-	AccessToken    *string `json:"access_token"`
-	WebhookSecret  *string `json:"webhook_secret"`
-	IsEnabled      *bool   `json:"is_enabled"`
-	SyncIssues     *bool   `json:"sync_issues"`
-	SyncPRs        *bool   `json:"sync_prs"`
+	RepoOwner     *string `json:"repo_owner"`
+	RepoName      *string `json:"repo_name"`
+	AccessToken   *string `json:"access_token"`
+	WebhookSecret *string `json:"webhook_secret"`
+	IsEnabled     *bool   `json:"is_enabled"`
+	SyncIssues    *bool   `json:"sync_issues"`
+	SyncPRs       *bool   `json:"sync_prs"`
 }
 
 type GitHubResponse struct {
-	ID            uint64  `json:"id"`
-	WorkspaceID   uint64  `json:"workspace_id"`
-	ProjectID     uint64  `json:"project_id"`
-	RepoOwner     string  `json:"repo_owner"`
-	RepoName      string  `json:"repo_name"`
-	IsEnabled     bool    `json:"is_enabled"`
-	SyncIssues    bool    `json:"sync_issues"`
-	SyncPRs       bool    `json:"sync_prs"`
-	LastSyncAt    *string `json:"last_sync_at"`
-	WebhookID     *uint64 `json:"webhook_id"`
-	CreatedAt     string  `json:"created_at"`
-	UpdatedAt     string  `json:"updated_at"`
+	ID          uint64  `json:"id"`
+	WorkspaceID uint64  `json:"workspace_id"`
+	ProjectID   uint64  `json:"project_id"`
+	RepoOwner   string  `json:"repo_owner"`
+	RepoName    string  `json:"repo_name"`
+	IsEnabled   bool    `json:"is_enabled"`
+	SyncIssues  bool    `json:"sync_issues"`
+	SyncPRs     bool    `json:"sync_prs"`
+	LastSyncAt  *string `json:"last_sync_at"`
+	WebhookID   *uint64 `json:"webhook_id"`
+	CreatedAt   string  `json:"created_at"`
+	UpdatedAt   string  `json:"updated_at"`
 }
 
 type GitHubIssue struct {
@@ -278,14 +280,14 @@ func (s *GitHubService) importIssue(conn *model.GitHubConnection, gi *GitHubIssu
 	source := "github"
 
 	issue := model.Issue{
-		Name:           gi.Title,
+		Name:            gi.Title,
 		DescriptionHTML: fmt.Sprintf("<p>%s</p>\n<p><a href=\"%s\">View on GitHub</a></p>", gi.Body, gi.HTMLURL),
-		Priority:       priority,
-		ProjectID:      conn.ProjectID,
-		WorkspaceID:    conn.WorkspaceID,
-		StateID:        stateModel.ID,
-		ExternalID:     &externalID,
-		ExternalSource: &source,
+		Priority:        priority,
+		ProjectID:       conn.ProjectID,
+		WorkspaceID:     conn.WorkspaceID,
+		StateID:         stateModel.ID,
+		ExternalID:      &externalID,
+		ExternalSource:  &source,
 	}
 	s.db.Create(&issue)
 }
@@ -368,12 +370,12 @@ func (s *GitHubService) fetchIssuesFromGitHub(owner, repo, token string) ([]GitH
 
 // WebhookEvent represents a GitHub webhook payload.
 type WebhookEvent struct {
-	Action     string `json:"action"`
-	Issue      struct {
-		Number int    `json:"number"`
-		Title  string `json:"title"`
-		Body   string `json:"body"`
-		State  string `json:"state"`
+	Action string `json:"action"`
+	Issue  struct {
+		Number  int    `json:"number"`
+		Title   string `json:"title"`
+		Body    string `json:"body"`
+		State   string `json:"state"`
 		HTMLURL string `json:"html_url"`
 	} `json:"issue"`
 	Repository struct {
@@ -439,17 +441,260 @@ func (s *GitHubService) handleIssueWebhook(conn *model.GitHubConnection, event *
 
 func (s *GitHubService) toResponse(conn *model.GitHubConnection) GitHubResponse {
 	return GitHubResponse{
-		ID:            conn.ID,
-		WorkspaceID:   conn.WorkspaceID,
-		ProjectID:     conn.ProjectID,
-		RepoOwner:     conn.RepoOwner,
-		RepoName:      conn.RepoName,
-		IsEnabled:     conn.IsEnabled,
-		SyncIssues:    conn.SyncIssues,
-		SyncPRs:       conn.SyncPRs,
-		LastSyncAt:    conn.LastSyncAt,
-		WebhookID:     conn.WebhookID,
-		CreatedAt:     conn.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:     conn.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:          conn.ID,
+		WorkspaceID: conn.WorkspaceID,
+		ProjectID:   conn.ProjectID,
+		RepoOwner:   conn.RepoOwner,
+		RepoName:    conn.RepoName,
+		IsEnabled:   conn.IsEnabled,
+		SyncIssues:  conn.SyncIssues,
+		SyncPRs:     conn.SyncPRs,
+		LastSyncAt:  conn.LastSyncAt,
+		WebhookID:   conn.WebhookID,
+		CreatedAt:   conn.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:   conn.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+}
+
+// ======== Developer Agent support (P4-001) ========
+// The methods below wrap the GitHub REST API endpoints required by the
+// Developer Agent to create a working branch, commit generated files, and
+// open a pull request. They return typed results so callers (the developer
+// agent service) can persist them on the DeveloperJob record.
+
+// GitHubFileInput represents a single file to commit via the GitHub API.
+type GitHubFileInput struct {
+	Path    string `json:"path"`           // repository-relative path, e.g. "src/auth/login.go"
+	Content string `json:"content"`        // raw file content; will be base64-encoded by the API
+	Mode    string `json:"mode,omitempty"` // optional file mode hint ("100644" default)
+}
+
+// GitHubBranchRef describes a branch SHA reference returned by the Git refs API.
+type GitHubBranchRef struct {
+	Ref    string `json:"ref"`
+	NodeID string `json:"node_id"`
+	URL    string `json:"url"`
+	Object struct {
+		Type string `json:"type"`
+		SHA  string `json:"sha"`
+	} `json:"object"`
+}
+
+// GitHubCommitFileResponse is the response from POST /repos/{owner}/{repo}/contents/{path}.
+type GitHubCommitFileResponse struct {
+	Content struct {
+		Path string `json:"path"`
+		SHA  string `json:"sha"`
+	} `json:"content"`
+	Commit struct {
+		SHA string `json:"sha"`
+	} `json:"commit"`
+}
+
+// GitHubPullRequest represents a pull request opened by the Developer Agent.
+type GitHubPullRequest struct {
+	Number  int    `json:"number"`
+	Title   string `json:"title"`
+	HTMLURL string `json:"html_url"`
+	State   string `json:"state"`
+	Head    struct {
+		Ref string `json:"ref"`
+		SHA string `json:"sha"`
+	} `json:"head"`
+	Base struct {
+		Ref string `json:"ref"`
+	} `json:"base"`
+}
+
+// GetConnection fetches a GitHubConnection row by ID.
+// Used by the developer agent to resolve credentials and repo coordinates.
+func (s *GitHubService) GetConnection(connID uint64) (*model.GitHubConnection, error) {
+	var conn model.GitHubConnection
+	if err := s.db.First(&conn, connID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("GitHub connection not found")
+		}
+		return nil, common.Internal("Failed to get GitHub connection")
+	}
+	return &conn, nil
+}
+
+// GetBranchSHA fetches the SHA that a branch currently points to.
+func (s *GitHubService) GetBranchSHA(owner, repo, branch, token string) (string, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/git/refs/heads/%s", owner, repo, branch)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	s.applyGitHubHeaders(req, token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == 404 {
+		return "", common.NotFound(fmt.Sprintf("Branch '%s' not found in %s/%s", branch, owner, repo))
+	}
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("GitHub getBranchSHA error %d: %s", resp.StatusCode, string(body))
+	}
+
+	var ref GitHubBranchRef
+	if err := json.Unmarshal(body, &ref); err != nil {
+		return "", err
+	}
+	return ref.Object.SHA, nil
+}
+
+// CreateBranch creates a new branch pointing at the supplied base SHA.
+// If baseSHA is empty, the current HEAD of baseBranch is used.
+func (s *GitHubService) CreateBranch(owner, repo, baseBranch, newBranch, token, baseSHA string) (*GitHubBranchRef, error) {
+	if baseSHA == "" {
+		var err error
+		baseSHA, err = s.GetBranchSHA(owner, repo, baseBranch, token)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	payload := map[string]interface{}{
+		"ref": "refs/heads/" + newBranch,
+		"sha": baseSHA,
+	}
+	body, _ := json.Marshal(payload)
+
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/git/refs", owner, repo)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	s.applyGitHubHeaders(req, token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == 422 {
+		return nil, common.BadRequest(fmt.Sprintf("Branch '%s' already exists or SHA is invalid", newBranch))
+	}
+	if resp.StatusCode != 201 {
+		return nil, fmt.Errorf("GitHub createBranch error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var ref GitHubBranchRef
+	if err := json.Unmarshal(respBody, &ref); err != nil {
+		return nil, err
+	}
+	return &ref, nil
+}
+
+// CommitFile creates or updates a single file on the supplied branch.
+// Returns the commit SHA so callers can chain multiple commits.
+func (s *GitHubService) CommitFile(owner, repo, branch, path, content, commitMessage, token, existingFileSHA string) (*GitHubCommitFileResponse, error) {
+	payload := map[string]interface{}{
+		"message": commitMessage,
+		"content": base64.StdEncoding.EncodeToString([]byte(content)),
+		"branch":  branch,
+		"path":    path,
+	}
+	if existingFileSHA != "" {
+		payload["sha"] = existingFileSHA
+	}
+	body, _ := json.Marshal(payload)
+
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	s.applyGitHubHeaders(req, token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return nil, fmt.Errorf("GitHub commitFile error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var out GitHubCommitFileResponse
+	if err := json.Unmarshal(respBody, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// CommitFiles commits multiple files in sequence on the given branch.
+// It returns the SHA of the last commit (head of branch) and the count of
+// files successfully committed. The Developer Agent uses this to push a
+// batch of generated source files in a single logical change.
+func (s *GitHubService) CommitFiles(owner, repo, branch, commitMessage, token string, files []GitHubFileInput) (string, int, error) {
+	if len(files) == 0 {
+		return "", 0, common.BadRequest("No files to commit")
+	}
+	lastSHA := ""
+	committed := 0
+	for _, f := range files {
+		resp, err := s.CommitFile(owner, repo, branch, f.Path, f.Content, commitMessage, token, "")
+		if err != nil {
+			if lastSHA == "" {
+				return "", committed, err
+			}
+			// Continue partial: caller may inspect committed count + error.
+			return lastSHA, committed, err
+		}
+		lastSHA = resp.Commit.SHA
+		committed++
+	}
+	return lastSHA, committed, nil
+}
+
+// CreatePullRequest opens a PR from headBranch into baseBranch.
+func (s *GitHubService) CreatePullRequest(owner, repo, baseBranch, headBranch, title, body, token string) (*GitHubPullRequest, error) {
+	payload := map[string]interface{}{
+		"title": title,
+		"body":  body,
+		"head":  headBranch,
+		"base":  baseBranch,
+	}
+	bodyBytes, _ := json.Marshal(payload)
+
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls", owner, repo)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return nil, err
+	}
+	s.applyGitHubHeaders(req, token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 201 {
+		return nil, fmt.Errorf("GitHub createPullRequest error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var pr GitHubPullRequest
+	if err := json.Unmarshal(respBody, &pr); err != nil {
+		return nil, err
+	}
+	return &pr, nil
+}
+
+// applyGitHubHeaders sets the standard headers required by the GitHub REST API.
+func (s *GitHubService) applyGitHubHeaders(req *http.Request, token string) {
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "reqmango")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 }
