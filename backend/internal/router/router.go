@@ -355,7 +355,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/autopilot-tasks/:taskId/execute", autopilotH.ExecuteTask)
 			workspaces.GET("/:wsParam/autopilot-tasks/:taskId/executions", autopilotH.ListExecutions)
 			workspaces.GET("/:wsParam/autopilot-tasks/:taskId/executions/:executionId", autopilotH.GetExecution)
-			workspaces.POST("/:wsParam/autopilot/webhook/:token", autopilotH.TriggerWebhook)
+			// Public webhook trigger (no auth) so external systems can fire it.
+			v1.POST("/autopilot/webhook/:token", autopilotH.TriggerWebhook)
 
 			// Tools (new)
 			toolH := handler.NewToolHandler(db)
