@@ -83,6 +83,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/workspace/:slug/agents/performance',
+      name: 'WorkspaceAgentPerformance',
+      component: () => import('@/views/agents/AgentPerformance.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/workspace/:slug/agents/sessions',
       name: 'WorkspaceAgentSessions',
       component: () => import('@/views/agents/AgentSessions.vue'),
@@ -348,6 +354,12 @@ const router = createRouter({
       path: '/workspaces/:wsParam/agents/monitor',
       name: 'agent-monitor',
       component: () => import('@/views/agents/AgentMonitor.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/performance',
+      name: 'agent-performance',
+      component: () => import('@/views/agents/AgentPerformance.vue'),
       meta: { requiresAuth: true },
     },
     {

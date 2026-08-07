@@ -319,6 +319,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/agent-tasks/:taskId/retry", agentTaskH.RetryAgentTask)
 			workspaces.POST("/:wsParam/agent-tasks/:taskId/rerun", agentTaskH.RerunAgentTask)
 
+			// Agent Performance Analytics (PRD P4-010)
+			agentPerfSvc := service.NewAgentPerformanceService(db)
+			agentPerfH := handler.NewAgentPerformanceHandler(agentPerfSvc)
+			workspaces.GET("/:wsParam/agent-performance/overview", agentPerfH.Overview)
+			workspaces.GET("/:wsParam/agent-performance/by-template", agentPerfH.ByTemplate)
+			workspaces.GET("/:wsParam/agent-performance/timeline", agentPerfH.Timeline)
+			workspaces.GET("/:wsParam/agent-performance/failures", agentPerfH.FailureBreakdown)
+
 			// Squads (new)
 			squadSvc := service.NewSquadService(db)
 			// Create adapter to connect AgentService to SquadService

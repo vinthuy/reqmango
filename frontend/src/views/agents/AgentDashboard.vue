@@ -173,6 +173,21 @@
           </router-link>
 
           <router-link
+            :to="agentLink('/performance')"
+            class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-fuchsia-500 to-pink-500 flex items-center justify-center text-white text-xl">
+                📊
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">Performance</div>
+                <div class="text-sm text-gray-500 mt-1">Execution efficiency &amp; success analytics</div>
+              </div>
+            </div>
+          </router-link>
+
+          <router-link
             :to="agentLink('/sessions')"
             class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
