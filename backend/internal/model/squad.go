@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -55,16 +54,16 @@ type SquadTask struct {
 // SquadExecution represents a squad's execution session
 type SquadExecution struct {
 	BaseModel
-	SquadID       uint64         `gorm:"not null;index" json:"squad_id"`
-	Status        string         `gorm:"size:20;not null;default:pending" json:"status"`
-	Goal          string         `gorm:"type:text" json:"goal"`
-	InputData     json.RawMessage `gorm:"type:jsonb;default:'{}'" json:"input_data"`
-	OutputData    json.RawMessage `gorm:"type:jsonb" json:"output_data"`
-	Logs          json.RawMessage `gorm:"type:jsonb;default:'[]'" json:"logs"`
-	StartedAt     *time.Time     `json:"started_at,omitempty"`
-	CompletedAt   *time.Time     `json:"completed_at,omitempty"`
-	FailedAt      *time.Time     `json:"failed_at,omitempty"`
-	ErrorInfo     string         `json:"error_info"`
-	CancelledAt   *time.Time     `json:"cancelled_at,omitempty"`
-	CancelReason  string         `gorm:"type:text;default:''" json:"cancel_reason"`
+	SquadID       uint64          `gorm:"not null;index" json:"squad_id"`
+	Status        string          `gorm:"size:20;not null;default:pending" json:"status"`
+	Goal          string          `gorm:"type:text" json:"goal"`
+	InputData     JSONRawMessage  `gorm:"type:text;default:'{}'" json:"input_data"`
+	OutputData    JSONRawMessage  `gorm:"type:text" json:"output_data"`
+	Logs          JSONRawMessage  `gorm:"type:text;default:'[]'" json:"logs"`
+	StartedAt     *time.Time      `json:"started_at,omitempty"`
+	CompletedAt   *time.Time      `json:"completed_at,omitempty"`
+	FailedAt      *time.Time      `json:"failed_at,omitempty"`
+	ErrorInfo     string          `json:"error_info"`
+	CancelledAt   *time.Time      `json:"cancelled_at,omitempty"`
+	CancelReason  string          `gorm:"type:text;default:''" json:"cancel_reason"`
 }
