@@ -14,7 +14,7 @@ type Squad struct {
 	Description    string         `gorm:"type:text" json:"description"`
 	LeaderAgentID  *uint64        `gorm:"index" json:"leader_agent_id,omitempty"`
 	Status         string         `gorm:"size:20;not null;default:active" json:"status"`
-	Config         json.RawMessage `gorm:"type:jsonb;default:'{}'" json:"config"`
+	Config         JSONRawMessage  `gorm:"type:text;default:'{}'" json:"config"`
 	Goal           string         `gorm:"type:text" json:"goal"`
 	Members        []SquadMember  `json:"members"`
 	CreatedAt      time.Time      `json:"created_at"`
@@ -38,13 +38,16 @@ type SquadMember struct {
 type SquadTask struct {
 	BaseModel
 	SquadID         uint64     `gorm:"not null;index" json:"squad_id"`
-	AgentTaskID     uint64     `gorm:"not null;index" json:"agent_task_id"`
+	AgentTaskID     uint64     `gorm:"index" json:"agent_task_id"`
 	MemberID        uint64     `gorm:"not null;index" json:"member_id"`
 	Status          string     `gorm:"size:20;not null;default:pending" json:"status"`
 	Priority        string     `gorm:"size:20" json:"priority"`
 	Progress        int        `gorm:"default:0" json:"progress"`
 	TaskDescription string     `gorm:"type:text" json:"task_description"` // What the member was asked to do (decomposed subtask)
 	Feedback        string     `gorm:"type:text" json:"feedback"`
+	RetryCount      int        `gorm:"default:0" json:"retry_count"`
+	MaxRetries      int        `gorm:"default:2" json:"max_retries"`
+	ErrorMessage    string     `gorm:"type:text;default:''" json:"error_message"`
 	StartedAt       *time.Time `json:"started_at,omitempty"`
 	CompletedAt     *time.Time `json:"completed_at,omitempty"`
 }
@@ -62,4 +65,6 @@ type SquadExecution struct {
 	CompletedAt   *time.Time     `json:"completed_at,omitempty"`
 	FailedAt      *time.Time     `json:"failed_at,omitempty"`
 	ErrorInfo     string         `json:"error_info"`
+	CancelledAt   *time.Time     `json:"cancelled_at,omitempty"`
+	CancelReason  string         `gorm:"type:text;default:''" json:"cancel_reason"`
 }

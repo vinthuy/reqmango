@@ -151,13 +151,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import * as squadApi from '@/api/squad'
 import type { Squad } from '@/api/squad'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const { getWorkspaceId } = useWorkspaceId()
 
 const workspaceId = ref(0)
@@ -232,8 +233,11 @@ async function deleteSquadConfirm(squad: Squad) {
   }
 }
 
-function viewSquad(_squad: Squad) {
-  // TODO: Implement detail view
+function viewSquad(squad: Squad) {
+  const slug = route.params.slug as string
+  if (slug) {
+    router.push(`/workspace/${slug}/agents/squads/${squad.id}`)
+  }
 }
 
 function getStatusClass(status: string) {

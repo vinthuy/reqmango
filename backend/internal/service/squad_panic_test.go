@@ -62,20 +62,41 @@ func TestSquadStartExecution_PanicRecovery(t *testing.T) {
 		db.Delete(squad)
 	}()
 
+	// Ensure new columns exist (cancelled_at, cancel_reason)
+	db.AutoMigrate(&model.SquadExecution{})
+
 	svc := NewSquadService(db)
 	svc.SetAgentExecutor(&panickingAgent{})
 
-	// decomposeGoal calls the panicking mock -> panic -> deferred recover marks
-	// the exec row failed. StartExecution returns (nil, nil) after recovery.
-	_, _ = svc.StartExecution(squad.ID, request.SquadExecutionStart{
+	// StartExecution is now async — it returns immediately with status=pending.
+	// The goroutine will panic and recover, marking execution as "failed".
+	resp, err := svc.StartExecution(squad.ID, request.SquadExecutionStart{
 		Goal:   "test goal",
 		UserID: 1,
 	})
-
-	var exec model.SquadExecution
-	if err := db.Where("squad_id = ?", squad.ID).Order("id desc").First(&exec).Error; err != nil {
-		t.Fatalf("query exec: %v", err)
+	if err != nil {
+		t.Fatalf("start execution: %v", err)
 	}
+	if resp == nil {
+		t.Fatal("expected non-nil response")
+	}
+	if resp.Status != "pending" {
+		t.Errorf("expected initial status 'pending', got %q", resp.Status)
+	}
+
+	// Wait for the async goroutine to finish (panic recovery + DB update).
+	// Poll with a short timeout.
+	var exec model.SquadExecution
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if err := db.Where("squad_id = ?", squad.ID).Order("id desc").First(&exec).Error; err == nil {
+			if exec.Status == "failed" {
+				break
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
 	if exec.Status != "failed" {
 		t.Errorf("expected exec status 'failed', got %q (error_info: %s)", exec.Status, exec.ErrorInfo)
 	}

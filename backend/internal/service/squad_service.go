@@ -1,12 +1,15 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/model"
@@ -33,8 +36,9 @@ type AgentDispatchResult struct {
 }
 
 type SquadService struct {
-	db       *gorm.DB
-	agentSvc AgentExecutorInterface
+	db         *gorm.DB
+	agentSvc   AgentExecutorInterface
+	cancelStore sync.Map // executionID -> context.CancelFunc
 }
 
 func NewSquadService(db *gorm.DB) *SquadService {
@@ -56,7 +60,8 @@ func (s *SquadService) Create(wid uint64, req request.SquadCreate) (*response.Sq
 		Status:        "active",
 	}
 	if req.Config != nil {
-		squad.Config, _ = json.Marshal(req.Config)
+		b, _ := json.Marshal(req.Config)
+		squad.Config = model.FromRawMessage(b)
 	}
 
 	if err := s.db.Create(squad).Error; err != nil {
@@ -125,7 +130,8 @@ func (s *SquadService) Update(id uint64, req request.SquadUpdate) (*response.Squ
 		squad.Goal = *req.Goal
 	}
 	if req.Config != nil {
-		squad.Config, _ = json.Marshal(req.Config)
+		b, _ := json.Marshal(req.Config)
+		squad.Config = model.FromRawMessage(b)
 	}
 
 	if err := s.db.Save(&squad).Error; err != nil {
@@ -173,29 +179,34 @@ type subtaskSpec struct {
 	Role        string `json:"role"` // "contributor" | "reviewer" | "leader"
 }
 
-// StartExecution runs the squad's role-based collaboration pipeline:
-//
-//  1. Decomposition — if a leader agent is configured, dispatch the goal to
-//     the leader and parse its response into a list of role-tagged subtasks.
-//     Without a leader, fall back to assigning the full goal to every
-//     non-observer member.
-//  2. Contributor execution — each contributor-role member is dispatched a
-//     subtask. Subsequent contributors receive prior contributor outputs as
-//     context, implementing member-to-member task handoff.
-//  3. Review — each reviewer-role member receives the aggregated contributor
-//     outputs and produces a review. Review feedback is appended to the
-//     execution output.
-//  4. Aggregation — outputs and logs are persisted; execution status is set
-//     based on failure count.
+// checkPermissions verifies the user is an active workspace member.
+func (s *SquadService) checkPermissions(workspaceID, userID uint64) error {
+	if s.db == nil {
+		return nil // test mode: skip
+	}
+	var m model.WorkspaceMember
+	if err := s.db.Where("workspace_id = ? AND user_id = ? AND is_active = ?",
+		workspaceID, userID, true).First(&m).Error; err != nil {
+		return common.Forbidden("Workspace member required")
+	}
+	return nil
+}
+
+// StartExecution creates a pending execution and launches the async pipeline.
 func (s *SquadService) StartExecution(squadID uint64, req request.SquadExecutionStart) (*response.SquadExecutionResponse, error) {
 	var squad model.Squad
 	if err := s.db.Preload("Members").First(&squad, squadID).Error; err != nil {
+		return nil, common.NotFound("Squad not found")
+	}
+
+	// Permission check
+	if err := s.checkPermissions(squad.WorkspaceID, req.UserID); err != nil {
 		return nil, err
 	}
 
 	exec := &model.SquadExecution{
 		SquadID:   squadID,
-		Status:    "running",
+		Status:    "pending",
 		Goal:      req.Goal,
 		StartedAt: &time.Time{},
 	}
@@ -209,72 +220,106 @@ func (s *SquadService) StartExecution(squadID uint64, req request.SquadExecution
 		return nil, err
 	}
 
-	// Guard against panics during execution so the execution row is never
-	// left stuck in "running".
+	// Launch async goroutine
+	go s.executeAsync(exec.ID, squad, req.UserID)
+
+	// Broadcast execution started
+	s.broadcastEvent("squad.execution.started", map[string]interface{}{
+		"execution_id": exec.ID,
+		"squad_id":     squadID,
+		"goal":         req.Goal,
+	})
+
+	return s.buildExecutionResponse(exec), nil
+}
+
+// executeAsync runs the 4-phase squad pipeline in a background goroutine.
+func (s *SquadService) executeAsync(executionID uint64, squad model.Squad, userID uint64) {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancelStore.Store(executionID, cancel)
+	defer s.cancelStore.Delete(executionID)
+
+	// Panic recovery
 	defer func() {
 		if r := recover(); r != nil {
-			exec.Status = "failed"
-			exec.ErrorInfo = fmt.Sprint(r)
-			completedAt := time.Now()
-			exec.CompletedAt = &completedAt
-			s.db.Save(exec)
+			s.failExecution(executionID, fmt.Sprint(r))
 		}
 	}()
+
+	// Load execution and set to running
+	var exec model.SquadExecution
+	if err := s.db.First(&exec, executionID).Error; err != nil {
+		return
+	}
+	exec.Status = "running"
+	s.db.Save(&exec)
+
+	// Timeout from Squad.Config
+	timeout := 300 * time.Second
+	if squad.Config != nil {
+		var cfg struct {
+			TimeoutSeconds int `json:"timeout_seconds"`
+		}
+		json.Unmarshal(squad.Config.ToRawMessage(), &cfg)
+		if cfg.TimeoutSeconds > 0 {
+			timeout = time.Duration(cfg.TimeoutSeconds) * time.Second
+		}
+	}
+	ctx, cancel = context.WithTimeout(ctx, timeout)
+	defer cancel()
 
 	logs := []string{}
 	outputs := []string{}
 	failedCount := 0
 	totalTasks := 0
 
-	logs = append(logs, fmt.Sprintf("[%s] Squad execution started: %s", time.Now().Format("15:04:05"), req.Goal))
+	logs = append(logs, fmt.Sprintf("[%s] Squad execution started: %s", time.Now().Format("15:04:05"), exec.Goal))
 
-	// ===== Phase 1: Leader decomposition =====
-	subtasks := s.decomposeGoal(&squad, req, &logs)
+	// ===== Phase 1: Decompose =====
+	s.broadcastPhaseStart(executionID, "decompose")
+	subtasks := s.decomposeGoal(&squad, request.SquadExecutionStart{Goal: exec.Goal, UserID: userID}, &logs)
+
 	if len(subtasks) == 0 {
-		// Fallback: no leader / decomposition failed — give each
-		// non-observer, non-leader member the full goal as one subtask.
 		for _, m := range squad.Members {
 			if m.Role == "observer" || m.Role == "leader" {
 				continue
 			}
 			subtasks = append(subtasks, subtaskSpec{
-				Title:       truncateStr(req.Goal, 80),
-				Description: req.Goal,
+				Title:       truncateStr(exec.Goal, 80),
+				Description: exec.Goal,
 				Role:        m.Role,
 			})
 		}
 	}
 	if len(subtasks) == 0 {
-		logs = append(logs, fmt.Sprintf("[%s] No executable members in squad; aborting", time.Now().Format("15:04:05")))
+		logs = append(logs, fmt.Sprintf("[%s] No executable members; aborting", time.Now().Format("15:04:05")))
 	} else {
 		logs = append(logs, fmt.Sprintf("[%s] Decomposed into %d subtask(s)", time.Now().Format("15:04:05"), len(subtasks)))
 	}
 
-	// ===== Phase 2: Contributor execution (with handoff) =====
+	// ===== Phase 2: Execute (with context check + retry) =====
+	s.broadcastPhaseStart(executionID, "execute")
 	var contributorOutputs []string
 	for _, st := range subtasks {
+		if ctx.Err() != nil {
+			logs = append(logs, fmt.Sprintf("[%s] Execution cancelled during execute phase", time.Now().Format("15:04:05")))
+			break
+		}
 		if st.Role == "reviewer" || st.Role == "leader" || st.Role == "observer" {
 			continue
 		}
 		member := s.findMemberByRole(squad.Members, st.Role)
 		if member == nil {
-			logs = append(logs, fmt.Sprintf("[%s] No available member with role %q for subtask %q; skipping",
-				time.Now().Format("15:04:05"), st.Role, st.Title))
+			logs = append(logs, fmt.Sprintf("[%s] No member for role %q; skipping", time.Now().Format("15:04:05"), st.Role))
 			continue
 		}
-
 		taskDesc := st.Description
-		// Member-to-member handoff: pass prior contributor outputs as context
-		// so downstream contributors can build on upstream work.
 		if len(contributorOutputs) > 0 {
-			taskDesc = fmt.Sprintf(
-				"%s\n\n以下是上游成员已完成的工作，请在此基础上继续，避免重复劳动：\n%s",
-				st.Description, strings.Join(contributorOutputs, "\n---\n"),
-			)
+			taskDesc = fmt.Sprintf("%s\n\n以下是上游成员已完成的工作：\n%s", st.Description, strings.Join(contributorOutputs, "\n---\n"))
 		}
 
 		totalTasks++
-		result := s.runMemberTask(&squad, member, taskDesc, st.Title, req.UserID, &logs)
+		result := s.executeSubtaskWithRetry(ctx, executionID, &squad, member, taskDesc, st.Title, userID, &logs)
 		if result != "" {
 			contributorOutputs = append(contributorOutputs, fmt.Sprintf("[%s] %s", st.Title, result))
 			outputs = append(outputs, result)
@@ -284,17 +329,15 @@ func (s *SquadService) StartExecution(squadID uint64, req request.SquadExecution
 	}
 
 	// ===== Phase 3: Review =====
-	if len(contributorOutputs) > 0 {
+	s.broadcastPhaseStart(executionID, "review")
+	if len(contributorOutputs) > 0 && ctx.Err() == nil {
 		for _, member := range squad.Members {
-			if member.Role != "reviewer" {
+			if member.Role != "reviewer" || ctx.Err() != nil {
 				continue
 			}
-			reviewDesc := fmt.Sprintf(
-				"你是团队的审核者。请审核以下成员提交的工作成果，指出问题、风险和改进建议，并给出最终通过/打回的结论：\n\n%s",
-				strings.Join(contributorOutputs, "\n---\n"),
-			)
-			result := s.runMemberTask(&squad, &member, reviewDesc, "审核成员产出", req.UserID, &logs)
+			reviewDesc := fmt.Sprintf("你是审核者。请审核以下成员产出并给出结论：\n\n%s", strings.Join(contributorOutputs, "\n---\n"))
 			totalTasks++
+			result := s.runMemberTask(&squad, &member, reviewDesc, "审核成员产出", userID, executionID, &logs)
 			if result != "" {
 				outputs = append(outputs, fmt.Sprintf("[审核反馈] %s", result))
 			} else {
@@ -304,6 +347,7 @@ func (s *SquadService) StartExecution(squadID uint64, req request.SquadExecution
 	}
 
 	// ===== Phase 4: Aggregate =====
+	s.broadcastPhaseStart(executionID, "aggregate")
 	switch {
 	case totalTasks > 0 && failedCount >= totalTasks:
 		exec.Status = "failed"
@@ -314,17 +358,126 @@ func (s *SquadService) StartExecution(squadID uint64, req request.SquadExecution
 	}
 	completedAt := time.Now()
 	exec.CompletedAt = &completedAt
-
 	logsJSON, _ := json.Marshal(logs)
 	outputsJSON, _ := json.Marshal(outputs)
 	exec.Logs = logsJSON
 	exec.OutputData = outputsJSON
+	s.db.Save(&exec)
 
-	if err := s.db.Save(exec).Error; err != nil {
-		return nil, err
+	s.broadcastEvent("squad.execution.completed", map[string]interface{}{
+		"execution_id": executionID,
+		"status":       exec.Status,
+	})
+}
+
+// failExecution marks an execution as failed (used by panic recovery and error paths).
+func (s *SquadService) failExecution(executionID uint64, errMsg string) {
+	var exec model.SquadExecution
+	if err := s.db.First(&exec, executionID).Error; err != nil {
+		return
+	}
+	exec.Status = "failed"
+	exec.ErrorInfo = errMsg
+	completedAt := time.Now()
+	exec.CompletedAt = &completedAt
+	s.db.Save(&exec)
+	s.broadcastEvent("squad.execution.completed", map[string]interface{}{
+		"execution_id": executionID,
+		"status":       "failed",
+	})
+}
+
+// CancelExecution cancels a running execution via context cancellation.
+func (s *SquadService) CancelExecution(executionID uint64) error {
+	val, ok := s.cancelStore.Load(executionID)
+	if !ok {
+		return common.NotFound("Execution not running or not found")
+	}
+	cancelFunc := val.(context.CancelFunc)
+	cancelFunc()
+	s.cancelStore.Delete(executionID)
+
+	// Update execution status
+	var exec model.SquadExecution
+	if err := s.db.First(&exec, executionID).Error; err != nil {
+		return common.NotFound("Execution not found")
+	}
+	exec.Status = "cancelled"
+	exec.CancelReason = "User cancelled"
+	now := time.Now()
+	exec.CancelledAt = &now
+	exec.CompletedAt = &now
+	s.db.Save(&exec)
+
+	s.broadcastEvent("squad.execution.cancelled", map[string]interface{}{
+		"execution_id": executionID,
+		"reason":       "User cancelled",
+	})
+
+	return nil
+}
+
+// broadcastEvent sends an SSE event to all connected clients.
+func (s *SquadService) broadcastEvent(event string, data interface{}) {
+	SSE.BroadcastEvent(event, data)
+}
+
+// broadcastPhaseStart broadcasts a phase_start event for the given phase.
+func (s *SquadService) broadcastPhaseStart(executionID uint64, phase string) {
+	s.broadcastEvent("squad.execution.phase_start", map[string]interface{}{
+		"execution_id": executionID,
+		"phase":        phase,
+	})
+}
+
+// executeSubtaskWithRetry dispatches a subtask with automatic retry on failure.
+func (s *SquadService) executeSubtaskWithRetry(ctx context.Context, executionID uint64, squad *model.Squad, member *model.SquadMember, taskDesc, title string, userID uint64, logs *[]string) string {
+	maxRetries := 2
+	if squad.Config != nil {
+		var cfg struct {
+			MaxRetries int `json:"max_retries"`
+		}
+		json.Unmarshal(squad.Config.ToRawMessage(), &cfg)
+		if cfg.MaxRetries > 0 {
+			maxRetries = cfg.MaxRetries
+		}
 	}
 
-	return s.buildExecutionResponse(exec), nil
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if ctx.Err() != nil {
+			*logs = append(*logs, fmt.Sprintf("[%s] Execution cancelled, stopping retry for agent %d",
+				time.Now().Format("15:04:05"), member.AgentID))
+			return ""
+		}
+
+		if attempt > 0 {
+			*logs = append(*logs, fmt.Sprintf("[%s] Retrying agent %d (attempt %d/%d)",
+				time.Now().Format("15:04:05"), member.AgentID, attempt+1, maxRetries+1))
+			s.broadcastEvent("squad.execution.subtask_progress", map[string]interface{}{
+				"execution_id": executionID,
+				"retry":        attempt,
+			})
+		}
+
+		result := s.runMemberTask(squad, member, taskDesc, title, userID, executionID, logs)
+		if result != "" {
+			return result
+		}
+		// Update retry_count and error_message on the last failed task
+		if s.db != nil {
+			var lastTask model.SquadTask
+			if tx := s.db.Where("squad_id = ? AND member_id = ? AND status = ?",
+				squad.ID, member.ID, "failed").Order("id DESC").First(&lastTask); tx.Error == nil {
+				lastTask.RetryCount = attempt + 1
+				lastTask.ErrorMessage = "task returned empty result"
+				s.db.Save(&lastTask)
+			}
+		}
+	}
+
+	*logs = append(*logs, fmt.Sprintf("[%s] Agent %d failed after %d retries",
+		time.Now().Format("15:04:05"), member.AgentID, maxRetries))
+	return ""
 }
 
 // decomposeGoal dispatches the goal to the squad's leader agent and parses
@@ -370,7 +523,7 @@ func (s *SquadService) decomposeGoal(squad *model.Squad, req request.SquadExecut
 // runMemberTask dispatches a single subtask to a member agent, records the
 // SquadTask row, appends a log entry, and returns the result summary. Returns
 // an empty string when the dispatch fails.
-func (s *SquadService) runMemberTask(squad *model.Squad, member *model.SquadMember, taskDesc, title string, userID uint64, logs *[]string) string {
+func (s *SquadService) runMemberTask(squad *model.Squad, member *model.SquadMember, taskDesc, title string, userID uint64, executionID uint64, logs *[]string) string {
 	startedAt := time.Now()
 	task := &model.SquadTask{
 		SquadID:         squad.ID,
@@ -389,6 +542,14 @@ func (s *SquadService) runMemberTask(squad *model.Squad, member *model.SquadMemb
 	*logs = append(*logs, fmt.Sprintf("[%s] Agent %d (%s) started: %s",
 		time.Now().Format("15:04:05"), member.AgentID, member.Role, title))
 
+	// Broadcast subtask_start
+	s.broadcastEvent("squad.execution.subtask_start", map[string]interface{}{
+		"execution_id": executionID,
+		"task_id":      task.ID,
+		"member_id":    member.ID,
+		"title":        title,
+	})
+
 	var result string
 	if s.agentSvc != nil {
 		dispatchResult, err := s.agentSvc.DispatchAgent(member.AgentID, userID, taskDesc, &AgentDispatchContext{
@@ -400,6 +561,7 @@ func (s *SquadService) runMemberTask(squad *model.Squad, member *model.SquadMemb
 				time.Now().Format("15:04:05"), member.AgentID, member.Role, err))
 			task.Status = "failed"
 			task.Feedback = err.Error()
+			task.ErrorMessage = err.Error()
 		} else {
 			result = dispatchResult.ResultSummary
 			*logs = append(*logs, fmt.Sprintf("[%s] Agent %d (%s) completed",
@@ -424,6 +586,14 @@ func (s *SquadService) runMemberTask(squad *model.Squad, member *model.SquadMemb
 		*logs = append(*logs, fmt.Sprintf("[%s] Failed to save SquadTask for agent %d: %v",
 			time.Now().Format("15:04:05"), member.AgentID, err))
 	}
+
+	// Broadcast subtask_done
+	s.broadcastEvent("squad.execution.subtask_done", map[string]interface{}{
+		"execution_id": executionID,
+		"task_id":      task.ID,
+		"status":       task.Status,
+	})
+
 	return result
 }
 
@@ -497,64 +667,68 @@ func parseSubtasksFromLLM(response string) []subtaskSpec {
 	return out
 }
 
-// truncateStr returns at most n characters of s, suffixed with "..." when truncated.
-func truncateStr(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
-}
-
+// GetExecution returns a single execution by ID.
 func (s *SquadService) GetExecution(id uint64) (*response.SquadExecutionResponse, error) {
 	var exec model.SquadExecution
 	if err := s.db.First(&exec, id).Error; err != nil {
-		return nil, err
+		return nil, common.NotFound("Execution not found")
 	}
 	return s.buildExecutionResponse(&exec), nil
 }
 
+// ListExecutions returns all executions for a given squad, ordered by most recent.
 func (s *SquadService) ListExecutions(squadID uint64) ([]*response.SquadExecutionResponse, error) {
 	var execs []model.SquadExecution
-	if err := s.db.Where("squad_id = ?", squadID).Order("created_at DESC").Find(&execs).Error; err != nil {
+	if err := s.db.Where("squad_id = ?", squadID).Order("id DESC").Find(&execs).Error; err != nil {
 		return nil, err
 	}
 	var resp []*response.SquadExecutionResponse
-	for _, e := range execs {
-		resp = append(resp, s.buildExecutionResponse(&e))
+	for i := range execs {
+		resp = append(resp, s.buildExecutionResponse(&execs[i]))
 	}
 	return resp, nil
 }
 
 func (s *SquadService) buildResponse(squad *model.Squad) *response.SquadResponse {
 	resp := &response.SquadResponse{
-		ID:             squad.ID,
-		WorkspaceID:    squad.WorkspaceID,
-		Name:           squad.Name,
-		Description:    squad.Description,
-		LeaderAgentID:  squad.LeaderAgentID,
-		Status:         squad.Status,
-		Goal:           squad.Goal,
-		CreatedAt:      squad.CreatedAt,
-		UpdatedAt:      squad.UpdatedAt,
+		ID:            squad.ID,
+		WorkspaceID:   squad.WorkspaceID,
+		ProjectID:     squad.ProjectID,
+		Name:          squad.Name,
+		Description:   squad.Description,
+		LeaderAgentID: squad.LeaderAgentID,
+		Status:        squad.Status,
+		Goal:          squad.Goal,
+		Config:        json.RawMessage(squad.Config),
+		Members:       make([]response.SquadMemberResponse, 0, len(squad.Members)),
+		CreatedAt:     squad.CreatedAt,
+		UpdatedAt:     squad.UpdatedAt,
 	}
-	// Include members
-	var members []response.SquadMemberResponse
 	for _, m := range squad.Members {
-		members = append(members, *s.buildMemberResponse(&m))
+		resp.Members = append(resp.Members, response.SquadMemberResponse{
+			ID:            m.ID,
+			SquadID:       m.SquadID,
+			AgentID:       m.AgentID,
+			Role:          m.Role,
+			AgentConfigID: m.AgentConfigID,
+			Status:        m.Status,
+			AssignedAt:    m.AssignedAt,
+			RemovedAt:     m.RemovedAt,
+		})
 	}
-	resp.Members = members
 	return resp
 }
 
 func (s *SquadService) buildMemberResponse(member *model.SquadMember) *response.SquadMemberResponse {
 	return &response.SquadMemberResponse{
-		ID:             member.ID,
-		SquadID:        member.SquadID,
-		AgentID:        member.AgentID,
-		Role:           member.Role,
-		AgentConfigID:  member.AgentConfigID,
-		Status:         member.Status,
-		AssignedAt:     member.AssignedAt,
+		ID:            member.ID,
+		SquadID:       member.SquadID,
+		AgentID:       member.AgentID,
+		Role:          member.Role,
+		AgentConfigID: member.AgentConfigID,
+		Status:        member.Status,
+		AssignedAt:    member.AssignedAt,
+		RemovedAt:     member.RemovedAt,
 	}
 }
 
@@ -571,6 +745,16 @@ func (s *SquadService) buildExecutionResponse(exec *model.SquadExecution) *respo
 		CompletedAt:  exec.CompletedAt,
 		FailedAt:     exec.FailedAt,
 		ErrorInfo:    exec.ErrorInfo,
+		CancelledAt:  exec.CancelledAt,
+		CancelReason: exec.CancelReason,
 		CreatedAt:    exec.CreatedAt,
 	}
+}
+
+// truncateStr returns at most n characters of s, suffixed with "..." when truncated.
+func truncateStr(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }

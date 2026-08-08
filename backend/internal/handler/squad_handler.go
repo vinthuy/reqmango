@@ -139,7 +139,19 @@ func (h *SquadHandler) StartExecution(c *gin.Context) {
 	if h.respond(c, e) {
 		return
 	}
-	c.JSON(200, resp)
+	c.JSON(202, resp)
+}
+
+func (h *SquadHandler) CancelExecution(c *gin.Context) {
+	executionID, err := strconv.ParseUint(c.Param("executionId"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "Invalid execution ID"})
+		return
+	}
+	if h.respond(c, h.svc.CancelExecution(executionID)) {
+		return
+	}
+	c.JSON(200, gin.H{"message": "Execution cancelled"})
 }
 
 func (h *SquadHandler) GetExecution(c *gin.Context) {

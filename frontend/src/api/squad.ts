@@ -128,8 +128,13 @@ export async function getExecution(workspaceId: number, squadId: number, executi
   return response.data
 }
 
+export async function cancelExecution(workspaceId: number, squadId: number, executionId: number): Promise<void> {
+  await api.delete(`/workspaces/${workspaceId}/squads/${squadId}/executions/${executionId}`)
+}
+
 export default {
   getSquads,
+  listSquads,
   createSquad,
   getSquad,
   updateSquad,
@@ -139,4 +144,5 @@ export default {
   startExecution,
   getExecutions,
   getExecution,
+  cancelExecution,
 }
