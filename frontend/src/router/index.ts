@@ -107,6 +107,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/workspace/:slug/agents/squads/:id',
+      name: 'WorkspaceAgentSquadDetail',
+      component: () => import('@/views/agents/SquadDetail.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/workspace/:slug/agents/autopilot',
       name: 'WorkspaceAgentAutopilot',
       component: () => import('@/views/agents/AutopilotList.vue'),
@@ -134,6 +140,12 @@ const router = createRouter({
       path: '/workspace/:slug/agents/sdlc',
       name: 'WorkspaceAgentSDLC',
       component: () => import('@/views/agents/SDLCManager.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/workspace/:slug/agents/tools',
+      name: 'WorkspaceAgentTools',
+      component: () => import('@/views/agents/ToolManager.vue'),
       meta: { requiresAuth: true }
     },
     // /roadmap is now merged into /initiatives — redirect
@@ -375,6 +387,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/workspaces/:wsParam/agents/squads/:id',
+      name: 'agent-squad-detail',
+      component: () => import('@/views/agents/SquadDetail.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/workspaces/:wsParam/agents/monitor',
       name: 'agent-monitor',
       component: () => import('@/views/agents/AgentMonitor.vue'),
@@ -420,6 +438,12 @@ const router = createRouter({
       path: '/workspaces/:wsParam/agents/sdlc',
       name: 'agent-sdlc',
       component: () => import('@/views/agents/SDLCManager.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/workspaces/:wsParam/agents/tools',
+      name: 'agent-tools',
+      component: () => import('@/views/agents/ToolManager.vue'),
       meta: { requiresAuth: true },
     },
   ]

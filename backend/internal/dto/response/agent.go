@@ -15,6 +15,7 @@ type SquadResponse struct {
 	LeaderAgentID  *uint64    `json:"leader_agent_id"`
 	Status         string     `json:"status"`
 	Goal           string     `json:"goal"`
+	Config         json.RawMessage `json:"config"`
 	Members        []SquadMemberResponse `json:"members"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
@@ -43,6 +44,8 @@ type SquadExecutionResponse struct {
 	CompletedAt  *time.Time      `json:"completed_at"`
 	FailedAt     *time.Time      `json:"failed_at"`
 	ErrorInfo    string          `json:"error_info"`
+	CancelledAt  *time.Time      `json:"cancelled_at,omitempty"`
+	CancelReason string          `json:"cancel_reason"`
 	CreatedAt    time.Time       `json:"created_at"`
 }
 

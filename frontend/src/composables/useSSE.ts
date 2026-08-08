@@ -149,6 +149,38 @@ function ensureConnection(key: string): EventSource {
   es.addEventListener('autopilot_execution.failed', (e: MessageEvent) => {
     dispatch(key, 'autopilot_execution.failed', parseData(e.data))
   })
+  // Tool calling lifecycle (T7 Tool Calling Hardening)
+  es.addEventListener('tool_call.completed', (e: MessageEvent) => {
+    dispatch(key, 'tool_call.completed', parseData(e.data))
+  })
+  es.addEventListener('tool_call.failed', (e: MessageEvent) => {
+    dispatch(key, 'tool_call.failed', parseData(e.data))
+  })
+  es.addEventListener('tool_call.rate_limited', (e: MessageEvent) => {
+    dispatch(key, 'tool_call.rate_limited', parseData(e.data))
+  })
+  // Squad execution lifecycle (T6 Squads Multi-Agent)
+  es.addEventListener('squad.execution.started', (e: MessageEvent) => {
+    dispatch(key, 'squad.execution.started', parseData(e.data))
+  })
+  es.addEventListener('squad.execution.updated', (e: MessageEvent) => {
+    dispatch(key, 'squad.execution.updated', parseData(e.data))
+  })
+  es.addEventListener('squad.execution.log', (e: MessageEvent) => {
+    dispatch(key, 'squad.execution.log', parseData(e.data))
+  })
+  es.addEventListener('squad.execution.progress', (e: MessageEvent) => {
+    dispatch(key, 'squad.execution.progress', parseData(e.data))
+  })
+  es.addEventListener('squad.execution.completed', (e: MessageEvent) => {
+    dispatch(key, 'squad.execution.completed', parseData(e.data))
+  })
+  es.addEventListener('squad.execution.failed', (e: MessageEvent) => {
+    dispatch(key, 'squad.execution.failed', parseData(e.data))
+  })
+  es.addEventListener('squad.execution.cancelled', (e: MessageEvent) => {
+    dispatch(key, 'squad.execution.cancelled', parseData(e.data))
+  })
   es.addEventListener('notification', (e: MessageEvent) => {
     dispatch(key, 'notification', parseData(e.data))
   })

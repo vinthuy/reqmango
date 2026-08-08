@@ -37,6 +37,11 @@ type UpdateToolRequest struct {
 type CallToolRequest struct {
 	ToolID      uint64          `json:"tool_id" binding:"required"`
 	InputParams json.RawMessage `json:"input_params"`
+
+	// === Hardening fields ===
+	AgentTemplateID *uint64 `json:"agent_template_id,omitempty"` // ToolPermission 白/黑名单匹配
+	AgentTaskID     *uint64 `json:"agent_task_id,omitempty"`     // 任务关联（审计）
+	CallerUserID    uint64  `json:"-"`                           // 从 auth middleware 注入，禁止客户端伪造
 }
 
 // CreateToolPermissionRequest represents the request to create a tool permission.

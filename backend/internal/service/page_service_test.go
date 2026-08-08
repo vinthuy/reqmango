@@ -43,7 +43,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 // seedTestData creates minimal test data (workspace, project, user).
 func seedTestData(t *testing.T, db *gorm.DB) (workspaceID, projectID, userID uint64) {
 	// User
-	user := &model.User{DisplayName: "Test User", Email: "test@reqmango.com"}
+	user := &model.User{DisplayName: "Test User", Username: "test_seed_user", Email: "test@reqmango.com"}
 	require.NoError(t, db.Create(user).Error)
 	userID = user.ID
 

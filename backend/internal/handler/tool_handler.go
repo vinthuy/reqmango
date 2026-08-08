@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
 	"gorm.io/gorm"
 )
@@ -18,6 +19,11 @@ func NewToolHandler(db *gorm.DB) *ToolHandler {
 	return &ToolHandler{
 		service: service.NewToolService(db),
 	}
+}
+
+// NewToolHandlerWithService creates a ToolHandler with an injected ToolService.
+func NewToolHandlerWithService(svc *service.ToolService) *ToolHandler {
+	return &ToolHandler{service: svc}
 }
 
 func (h *ToolHandler) respond(c *gin.Context, err error) bool {
@@ -118,6 +124,10 @@ func (h *ToolHandler) CallTool(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "Invalid body"})
 		return
 	}
+
+	// Inject CallerUserID from auth middleware to prevent client forgery
+	user := middleware.GetCurrentUser(c)
+	req.CallerUserID = user.ID
 
 	result, err := h.service.Call(wid, req)
 	if h.respond(c, err) {

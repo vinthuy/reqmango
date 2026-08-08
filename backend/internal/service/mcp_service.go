@@ -1,6 +1,8 @@
 package service
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -365,4 +367,91 @@ func (s *MCPService) callToolOnServer(serverURL, apiKey, toolName string, args m
 		return map[string]interface{}{"raw": string(respBody)}, nil
 	}
 	return result, nil
+}
+
+// ==================== SyncTools ====================
+
+type mcpListToolsResp struct {
+	JSONRPC string       `json:"jsonrpc"`
+	Result  []mcpToolDef `json:"result"`
+	ID      int          `json:"id"`
+}
+
+type mcpToolDef struct {
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	InputSchema map[string]interface{} `json:"inputSchema"`
+}
+
+// SyncTools fetches tools from the remote MCP server via JSON-RPC and upserts them into the tools table.
+func (s *MCPService) SyncTools(workspaceID, configID, callerID uint64) (int, int, error) {
+	if err := s.checkWorkspaceAdmin(workspaceID, callerID); err != nil {
+		return 0, 0, err
+	}
+	var cfg model.MCPConfig
+	if err := s.db.Where("workspace_id = ? AND id = ?", workspaceID, configID).First(&cfg).Error; err != nil {
+		return 0, 0, common.NotFound("MCP config not found")
+	}
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"jsonrpc": "2.0", "method": "tools/list", "id": 1,
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "POST", cfg.ServerURL, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if cfg.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+	}
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return 0, 0, common.Internal("MCP server unreachable: " + err.Error())
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	var parsed mcpListToolsResp
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return 0, 0, common.Internal("MCP response parse failed: " + err.Error())
+	}
+
+	added, updated := 0, 0
+	for _, def := range parsed.Result {
+		var existing model.Tool
+		findErr := s.db.Where("mcp_config_id = ? AND name = ?", configID, def.Name).First(&existing).Error
+		paramsJSON, _ := json.Marshal(def.InputSchema)
+		if findErr == gorm.ErrRecordNotFound {
+			s.db.Create(&model.Tool{
+				Name:        def.Name,
+				Description: def.Description,
+				Category:    "general",
+				ToolType:    "mcp",
+				IsBuiltin:   false,
+				Status:      "active",
+				MCPConfigID: &configID,
+				WorkspaceID: &workspaceID,
+				Params:      model.FromRawMessage(paramsJSON),
+			})
+			added++
+		} else if findErr == nil {
+			existing.Description = def.Description
+			existing.Params = model.FromRawMessage(paramsJSON)
+			s.db.Save(&existing)
+			updated++
+		}
+	}
+	now := time.Now()
+	cfg.LastSyncAt = &now
+	s.db.Save(&cfg)
+	return added, updated, nil
+}
+
+// ==================== CallTool (used by ToolService) ====================
+
+// CallTool executes a specific tool on the remote MCP server by configID and toolName.
+func (s *MCPService) CallTool(workspaceID, configID uint64, toolName string, args map[string]interface{}) (map[string]interface{}, error) {
+	var cfg model.MCPConfig
+	if err := s.db.Where("workspace_id = ? AND id = ?", workspaceID, configID).First(&cfg).Error; err != nil {
+		return nil, common.NotFound("MCP config not found")
+	}
+	return s.callToolOnServer(cfg.ServerURL, cfg.APIKey, toolName, args)
 }

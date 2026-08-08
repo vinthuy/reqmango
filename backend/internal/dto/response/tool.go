@@ -39,14 +39,15 @@ type ToolCallResponse struct {
 type ToolCallLogResponse struct {
 	ID             uint64        `json:"id"`
 	WorkspaceID    uint64        `json:"workspace_id"`
-	AgentTaskID    *uint64       `json:"agent_task_id"`
+	AgentTaskID    *uint64       `json:"agent_task_id,omitempty"`
 	ToolID         uint64        `json:"tool_id"`
 	ToolName       string        `json:"tool_name"`
-	AgentID        *uint64       `json:"agent_id"`
+	AgentID        *uint64       `json:"agent_id,omitempty"`
+	CallerUserID   *uint64       `json:"caller_user_id,omitempty"` // 发起调用的用户（审计）
 	InputParams    interface{}   `json:"input_params"`
 	OutputResult   interface{}   `json:"output_result"`
 	Status         string        `json:"status"`
-	ErrorMessage   *string       `json:"error_message"`
+	ErrorMessage   *string       `json:"error_message,omitempty"`
 	DurationMs     int64         `json:"duration_ms"`
 	RateLimited    bool          `json:"rate_limited"`
 	CreatedAt      time.Time     `json:"created_at"`

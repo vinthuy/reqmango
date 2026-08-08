@@ -186,7 +186,7 @@ func main() {
 
 	// Register built-in tools
 	toolSvc := service.NewToolService(db)
-	if err := toolSvc.RegisterBuiltinTools(); err != nil {
+	if err := toolSvc.RegisterBuiltinTools(0); err != nil {
 		log.Fatalf("Failed to register built-in tools: %v", err)
 	}
 	fmt.Println("Built-in tools registered")

@@ -90,7 +90,7 @@ func (e *DatabaseToolExecutor) Execute(ctx context.Context, toolName string, inp
 func (e *DatabaseToolExecutor) recordToolCallLog(tool *model.Tool, input json.RawMessage, output interface{}, err error, durationMs int64) {
 	log := model.ToolCallLog{
 		ToolID:      tool.ID,
-		InputParams: input,
+		InputParams: model.FromRawMessage(input),
 		DurationMs:  durationMs,
 	}
 
@@ -153,7 +153,7 @@ func (e *DatabaseToolExecutor) executeAPI(ctx context.Context, tool *model.Tool,
 
 	// Add auth if configured
 	if tool.AuthType != nil && tool.AuthConfig != nil {
-		if err := e.addAuthHeaders(req, *tool.AuthType, tool.AuthConfig); err != nil {
+		if err := e.addAuthHeaders(req, *tool.AuthType, tool.AuthConfig.ToRawMessage()); err != nil {
 			return nil, fmt.Errorf("auth config error: %w", err)
 		}
 	}

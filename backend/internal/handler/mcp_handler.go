@@ -8,6 +8,12 @@ import (
 	"github.com/reqmango/backend/internal/service"
 )
 
+// MCPSyncResult represents the result of syncing MCP tools.
+type MCPSyncResult struct {
+	Added   int `json:"added"`
+	Updated int `json:"updated"`
+}
+
 // MCPHandler handles MCP configuration and tool execution endpoints.
 type MCPHandler struct {
 	svc *service.MCPService
@@ -110,4 +116,16 @@ func (h *MCPHandler) ExecuteTool(c *gin.Context) {
 		return
 	}
 	c.JSON(200, result)
+}
+
+// SyncTools handles POST /workspaces/:wsParam/mcp/:id/sync
+func (h *MCPHandler) SyncTools(c *gin.Context) {
+	workspaceID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+
+	added, updated, err := h.svc.SyncTools(workspaceID, id, middleware.GetCurrentUser(c).ID)
+	if appError(c, err) {
+		return
+	}
+	c.JSON(200, MCPSyncResult{Added: added, Updated: updated})
 }

@@ -342,6 +342,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/squads/:squadId/executions", squadH.StartExecution)
 			workspaces.GET("/:wsParam/squads/:squadId/executions", squadH.ListExecutions)
 			workspaces.GET("/:wsParam/squads/:squadId/executions/:executionId", squadH.GetExecution)
+			workspaces.DELETE("/:wsParam/squads/:squadId/executions/:executionId", squadH.CancelExecution)
 
 			// Autopilot (new)
 			autopilotSvc := service.NewAutopilotService(db)
@@ -359,7 +360,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			v1.POST("/autopilot/webhook/:token", autopilotH.TriggerWebhook)
 
 			// Tools (new)
-			toolH := handler.NewToolHandler(db)
+			toolSvc := service.NewToolService(db)
+			toolSvc.SetMCPService(mcpSvc)
+			toolH := handler.NewToolHandlerWithService(toolSvc)
 			workspaces.GET("/:wsParam/tools", toolH.ListTools)
 			workspaces.POST("/:wsParam/tools", toolH.CreateTool)
 			workspaces.GET("/:wsParam/tools/:toolId", toolH.GetTool)
@@ -426,6 +429,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/mcp/:id/discover", mcpH.DiscoverTools)
 			workspaces.GET("/:wsParam/mcp/:id/tools", mcpH.GetTools)
 			workspaces.POST("/:wsParam/mcp/:id/execute", mcpH.ExecuteTool)
+			workspaces.POST("/:wsParam/mcp/:id/sync", mcpH.SyncTools)
 
 			// GitHub integration
 			workspaces.GET("/:wsParam/github", githubH.List)
