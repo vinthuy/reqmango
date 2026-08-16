@@ -299,10 +299,10 @@ onMounted(loadSkills)
             <p v-if="skill.description" class="text-sm text-gray-500 line-clamp-2 mb-3">{{ skill.description }}</p>
             <div class="flex flex-wrap gap-2 mb-3">
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                {{ skill.parameters.length }} {{ t('ai.skill.params') || 'params' }}
+                {{ skill.parameters?.length || 0 }} {{ t('ai.skill.params') || 'params' }}
               </span>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                {{ skill.steps.length }} {{ t('ai.skill.stepsCount') || 'steps' }}
+                {{ skill.steps?.length || 0 }} {{ t('ai.skill.stepsCount') || 'steps' }}
               </span>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
                 {{ skill.usage_count }} {{ t('ai.skill.usage') || 'uses' }}

@@ -357,10 +357,10 @@ async function loadExecutions() {
   try {
     if (!workspaceId.value) return
     const data = await squadApi.getExecutions(workspaceId.value, squadId.value)
-    executions.value = data
+    executions.value = data || []
 
     // Find running execution
-    runningExecution.value = data.find(e => e.status === 'running') || null
+    runningExecution.value = (data || []).find(e => e.status === 'running') || null
   } catch (e) {
     console.error('Failed to load executions', e)
   }
