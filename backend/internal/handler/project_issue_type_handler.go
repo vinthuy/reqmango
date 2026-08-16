@@ -44,10 +44,15 @@ func (h *ProjectIssueTypeHandler) ListProjectTypes(c *gin.Context) {
 		return
 	}
 
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
-		return
+	workspaceID, _ := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if workspaceID == 0 {
+		// Resolve workspace_id from the project when not explicitly provided.
+		resolved, svcErr := h.svc.ResolveWorkspaceID(projectID)
+		if svcErr != nil {
+			c.JSON(http.StatusNotFound, gin.H{"message": "Project not found"})
+			return
+		}
+		workspaceID = resolved
 	}
 
 	// List types scoped to this project OR workspace-shared
@@ -71,10 +76,14 @@ func (h *ProjectIssueTypeHandler) CreateProjectType(c *gin.Context) {
 		return
 	}
 
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
-		return
+	workspaceID, _ := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if workspaceID == 0 {
+		resolved, svcErr := h.svc.ResolveWorkspaceID(projectID)
+		if svcErr != nil {
+			c.JSON(http.StatusNotFound, gin.H{"message": "Project not found"})
+			return
+		}
+		workspaceID = resolved
 	}
 
 	var req request.IssueTypeCreate
@@ -135,10 +144,14 @@ func (h *ProjectIssueTypeHandler) ListImportable(c *gin.Context) {
 		return
 	}
 
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
-		return
+	workspaceID, _ := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if workspaceID == 0 {
+		resolved, svcErr := h.svc.ResolveWorkspaceID(projectID)
+		if svcErr != nil {
+			c.JSON(http.StatusNotFound, gin.H{"message": "Project not found"})
+			return
+		}
+		workspaceID = resolved
 	}
 
 	types, svcErr := h.svc.ListImportable(workspaceID, projectID)

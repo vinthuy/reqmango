@@ -16,6 +16,16 @@ func NewIssueTypeService(db *gorm.DB) *IssueTypeService {
 	return &IssueTypeService{db: db}
 }
 
+// ResolveWorkspaceID returns the workspace_id for a given project ID.
+// Returns 0 and an error if the project does not exist.
+func (s *IssueTypeService) ResolveWorkspaceID(projectID uint64) (uint64, error) {
+	var project model.Project
+	if err := s.db.Select("workspace_id").First(&project, projectID).Error; err != nil {
+		return 0, common.NotFound("Project not found")
+	}
+	return project.WorkspaceID, nil
+}
+
 // buildResponse converts an IssueType model to its API response shape.
 // isImported indicates the project has explicitly imported this workspace-level
 // type via the Plane v3-style Import model (only meaningful in project context).
