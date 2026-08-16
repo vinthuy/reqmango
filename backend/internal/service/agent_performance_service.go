@@ -47,12 +47,17 @@ func parsePeriodRange(from, to string) (*time.Time, *time.Time, error) {
 }
 
 // applyPeriodFilter adds created_at bounds to a query when period is provided.
-func applyPeriodFilter(q *gorm.DB, fromT, toT *time.Time) *gorm.DB {
+// qualifier prefixes the column name (e.g. "t.") to avoid ambiguity with JOINs.
+func applyPeriodFilter(q *gorm.DB, fromT, toT *time.Time, qualifier ...string) *gorm.DB {
+	prefix := ""
+	if len(qualifier) > 0 {
+		prefix = qualifier[0]
+	}
 	if fromT != nil {
-		q = q.Where("created_at >= ?", *fromT)
+		q = q.Where(prefix+"created_at >= ?", *fromT)
 	}
 	if toT != nil {
-		q = q.Where("created_at <= ?", *toT)
+		q = q.Where(prefix+"created_at <= ?", *toT)
 	}
 	return q
 }
@@ -166,7 +171,7 @@ func (s *AgentPerformanceService) ByTemplate(workspaceID uint64, from, to string
 		Where("t.workspace_id = ?", workspaceID).
 		Group("t.agent_template_id, tpl.name, t.task_type").
 		Order("total_tasks DESC")
-	q = applyPeriodFilter(q, fromT, toT)
+	q = applyPeriodFilter(q, fromT, toT, "t.")
 
 	var rows []row
 	if err := q.Scan(&rows).Error; err != nil {
@@ -212,11 +217,11 @@ func (s *AgentPerformanceService) Timeline(workspaceID uint64, bucket, from, to 
 	}
 
 	type row struct {
-		BucketStart     time.Time
-		TotalTasks      int64
-		CompletedTasks  int64
-		FailedTasks     int64
-		AvgDurationSec  float64
+		BucketStart    time.Time
+		TotalTasks     int64
+		CompletedTasks int64
+		FailedTasks    int64
+		AvgDurationSec float64
 	}
 
 	q := s.db.Model(&model.AgentTask{}).Table("agent_tasks AS t").
