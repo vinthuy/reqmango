@@ -864,20 +864,26 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 
 	// Parse dates
 	if req.StartDate != nil {
-		if t, err := time.Parse(time.RFC3339, *req.StartDate); err == nil {
-			s.createActivity(tx, issueID, "updated", strPtr("start_date"), nil, nil, nil, &userID)
-			issue.StartDate = &t
-			tx.Save(&issue)
-			hasChanges = true
+		t, err := time.Parse(time.RFC3339, *req.StartDate)
+		if err != nil {
+			tx.Rollback()
+			return nil, common.BadRequest("Invalid start_date format, expected RFC3339")
 		}
+		s.createActivity(tx, issueID, "updated", strPtr("start_date"), nil, nil, nil, &userID)
+		issue.StartDate = &t
+		tx.Save(&issue)
+		hasChanges = true
 	}
 	if req.TargetDate != nil {
-		if t, err := time.Parse(time.RFC3339, *req.TargetDate); err == nil {
-			s.createActivity(tx, issueID, "updated", strPtr("target_date"), nil, nil, nil, &userID)
-			issue.TargetDate = &t
-			tx.Save(&issue)
-			hasChanges = true
+		t, err := time.Parse(time.RFC3339, *req.TargetDate)
+		if err != nil {
+			tx.Rollback()
+			return nil, common.BadRequest("Invalid target_date format, expected RFC3339")
 		}
+		s.createActivity(tx, issueID, "updated", strPtr("target_date"), nil, nil, nil, &userID)
+		issue.TargetDate = &t
+		tx.Save(&issue)
+		hasChanges = true
 	}
 
 	if req.CoverImageURL != nil {
