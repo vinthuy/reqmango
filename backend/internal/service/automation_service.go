@@ -1500,9 +1500,14 @@ func (s *AutomationService) ExecuteTrigger(projectID uint64, triggerType string,
 		Timestamp: time.Now(),
 	}
 
-	// 同步执行用于测试
-	ctx := context.Background()
-	_ = s.handleAutomationEvent(ctx, event)
+	// 异步执行：dispatch_agent 等动作会同步阻塞在 LLM 调用上（最长 120s），
+	// 与事件总线一致地放入 goroutine，避免手动执行接口挂起
+	go func() {
+		ctx := context.Background()
+		if err := s.handleAutomationEvent(ctx, event); err != nil {
+			log.Printf("[Automation] Manual execution failed for event %s: %v", event.Type, err)
+		}
+	}()
 
 	return []string{"Executed"}
 }
