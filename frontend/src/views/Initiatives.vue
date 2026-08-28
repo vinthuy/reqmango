@@ -90,7 +90,7 @@ function getStatusColor(s: string) {
     <!-- Header with view toggle -->
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-bold">Initiatives</h1>
+        <h1 class="text-2xl font-bold">{{ t('initiative.title') }}</h1>
         <!-- View toggle -->
         <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
           <button

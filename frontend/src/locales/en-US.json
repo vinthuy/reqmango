@@ -342,6 +342,7 @@
     "create": "Create"
   },
   "initiative": {
+    "title": "Initiatives",
     "create": "+ New Initiative",
     "edit": "Edit",
     "delete": "Delete",

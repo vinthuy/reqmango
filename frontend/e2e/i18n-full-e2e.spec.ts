@@ -163,8 +163,9 @@ test.describe('i18n UI Translation - Chinese (zh-CN)', () => {
     await page.waitForTimeout(1000)
 
     // Title or navigation items should be in Chinese
-    const zhInit = page.locator('text="战略目标"').or(page.locator('text="Initiatives"'))
-    await expect(zhInit).toBeVisible({ timeout: 5000 })
+    // (page heading and sidebar link are both translated now, so scope to the h1)
+    const zhInit = page.locator('h1').or(page.locator('text="Initiatives"'))
+    await expect(zhInit).toContainText('战略目标', { timeout: 5000 })
   })
 
   test('home page shows Chinese workspace label', async ({ page }) => {

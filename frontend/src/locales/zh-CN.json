@@ -342,6 +342,7 @@
     "create": "创建"
   },
   "initiative": {
+    "title": "战略目标",
     "create": "+ 新建 Initiative",
     "edit": "编辑",
     "delete": "删除",
