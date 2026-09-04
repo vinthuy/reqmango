@@ -128,6 +128,35 @@ func (s *ProjectService) Create(req *request.ProjectCreateRequest, workspaceID, 
 		}
 	}
 
+	// Create default issue types if not using a template
+	if req.TemplateID == nil {
+		defaultTypes := []struct {
+			Name  string
+			Color string
+			Icon  string
+		}{
+			{"Bug", "#EF4444", "circle"},
+			{"Feature", "#6366F1", "circle"},
+			{"Task", "#F59E0B", "circle"},
+		}
+		for i, dt := range defaultTypes {
+			issueType := &model.IssueType{
+				Name:        dt.Name,
+				Color:       dt.Color,
+				Icon:        dt.Icon,
+				IsDefault:   true,
+				Sequence:    i + 1,
+				IsActive:    true,
+				ProjectID:   &project.ID,
+				WorkspaceID: workspaceID,
+			}
+			if err := tx.Create(issueType).Error; err != nil {
+				tx.Rollback()
+				return nil, common.Internal("Failed to create default issue types")
+			}
+		}
+	}
+
 	if err := tx.Commit().Error; err != nil {
 		return nil, common.Internal("Failed to commit transaction")
 	}

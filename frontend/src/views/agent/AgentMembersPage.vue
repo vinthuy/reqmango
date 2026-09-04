@@ -412,22 +412,22 @@ onMounted(() => {
 
         <template v-if="column.key === 'actions'">
           <Space>
-            <Button size="small" @click="openEditModal(record)">
+            <Button size="small" @click="openEditModal(record as AgentMember)">
               编辑
             </Button>
             <Button
               size="small"
-              :type="record.is_active ? 'default' : 'primary'"
+              :type="(record as AgentMember).is_active ? 'default' : 'primary'"
               ghost
-              @click="handleToggleStatus(record)"
+              @click="handleToggleStatus(record as AgentMember)"
             >
-              {{ record.is_active ? '停用' : '激活' }}
+              {{ (record as AgentMember).is_active ? '停用' : '激活' }}
             </Button>
             <Popconfirm
               title="确定要删除该 Agent 成员吗？"
               okText="确定"
               cancelText="取消"
-              @confirm="handleDelete(record)"
+              @confirm="handleDelete(record as AgentMember)"
             >
               <Button size="small" danger>
                 删除
@@ -458,7 +458,7 @@ onMounted(() => {
           <Select
             v-model:value="formState.agent_id"
             placeholder="请选择要添加的 Agent"
-            @change="onAgentSelect"
+            @change="(val: any) => onAgentSelect(val)"
           >
             <SelectOption
               v-for="agent in availableAgents"
@@ -540,7 +540,7 @@ onMounted(() => {
             showSearch
             :filter-option="(input: string, option: any) => option.value.toLowerCase().includes(input.toLowerCase())"
             style="width: 200px;"
-            @change="(val: string) => handleSkillAdd(val)"
+            @change="(val: any) => val && handleSkillAdd(val)"
             allowClear
           >
             <SelectOption

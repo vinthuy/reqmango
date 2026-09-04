@@ -210,10 +210,12 @@ function closeModal() {
 async function saveSquad() {
   if (!form.value.name) return
   try {
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
     if (isEditing.value && editingId.value) {
-      await squadApi.updateSquad(getWorkspaceId(), editingId.value, form.value)
+      await squadApi.updateSquad(wsId, editingId.value, form.value)
     } else {
-      await squadApi.createSquad(getWorkspaceId(), form.value)
+      await squadApi.createSquad(wsId, form.value)
     }
     closeModal()
     await loadSquads()

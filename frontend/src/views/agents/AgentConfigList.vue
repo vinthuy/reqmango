@@ -91,7 +91,6 @@ async function loadConfigs() {
         description: '工作空间默认AI配置',
         provider: aiConfig.provider,
         model: aiConfig.model || 'deepseek-chat',
-        api_key: aiConfig.api_key,
         api_endpoint: aiConfig.api_endpoint || '',
         inference_level: 'normal',
         service_level: 'standard',
@@ -103,7 +102,7 @@ async function loadConfigs() {
         workspace_id: wsId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      }]
+      } as any]
     }
   } catch (err) {
     console.error('Failed to load configs:', err)

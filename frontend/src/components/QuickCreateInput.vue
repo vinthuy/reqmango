@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import issueApi from '@/api/issue'
 import { useI18n } from '@/composables/useI18n'
 
@@ -91,6 +91,12 @@ const quickCreate = reactive({
   priority: 'none' as string,
   state_id: props.defaultStateId || null
 })
+
+watch(() => props.defaultTypeId, (newVal) => {
+  if (newVal && !quickCreate.type_id) {
+    quickCreate.type_id = newVal
+  }
+}, { immediate: true })
 
 async function handleCreate() {
   if (!quickCreate.title.trim() || creating.value) return

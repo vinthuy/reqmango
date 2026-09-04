@@ -34,12 +34,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
 import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { sessionApi, type AgentSession } from '@/api/agent-session'
 import LoopStateBadge from '@/components/agents/LoopStateBadge.vue'
 
-const route = useRoute()
 const { getWorkspaceId } = useWorkspaceId()
 
 const sessions = ref<AgentSession[]>([])

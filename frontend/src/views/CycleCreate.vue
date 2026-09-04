@@ -60,11 +60,11 @@
       <div v-if="currentStep === 2" class="bg-white rounded-lg shadow-sm p-6">
         <h3 class="text-lg font-medium text-gray-900 mb-4">{{ t('cycle.confirmCreate') }}</h3>
         <div class="space-y-2 text-sm">
-          <div class="flex"><span class="text-gray-500 w-20">{{ t('cycle.name') }}:</span><span class="text-gray-900">{{ form.name }}</span></div>
-          <div class="flex"><span class="text-gray-500 w-20">{{ t('cycle.description') }}:</span><span class="text-gray-900">{{ form.description || '-' }}</span></div>
-          <div class="flex"><span class="text-gray-500 w-20">{{ t('cycle.startDate') }}:</span><span class="text-gray-900">{{ form.start_date }}</span></div>
-          <div class="flex"><span class="text-gray-500 w-20">{{ t('cycle.endDate') }}:</span><span class="text-gray-900">{{ form.end_date || '-' }}</span></div>
-          <div class="flex"><span class="text-gray-500 w-20">{{ t('issue.issues') }}:</span><span class="text-gray-900">{{ t('cycle.issueCount', { count: selectedIssueIds.length }) }}</span></div>
+          <div class="flex"><span class="text-gray-500 w-20 inline-block shrink-0">{{ t('cycle.name') }}:</span><span class="text-gray-900">{{ form.name }}</span></div>
+          <div class="flex"><span class="text-gray-500 w-20 inline-block shrink-0">{{ t('cycle.description') }}:</span><span class="text-gray-900">{{ form.description || '-' }}</span></div>
+          <div class="flex"><span class="text-gray-500 w-20 inline-block shrink-0">{{ t('cycle.startDate') }}:</span><span class="text-gray-900">{{ form.start_date }}</span></div>
+          <div class="flex"><span class="text-gray-500 w-20 inline-block shrink-0">{{ t('cycle.endDate') }}:</span><span class="text-gray-900">{{ form.end_date || '-' }}</span></div>
+          <div class="flex"><span class="text-gray-500 w-20 inline-block shrink-0">{{ t('issue.issues') }}:</span><span class="text-gray-900">{{ t('cycle.issueCount', { count: selectedIssueIds.length }) }}</span></div>
         </div>
       </div>
 

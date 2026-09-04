@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import { runtimeApi, type RuntimeResponse, type RuntimeCreate, type RuntimeUpdate } from '@/api/runtime'
 
-const route = useRoute()
-const router = useRouter()
 const { t } = useI18n()
 const { getWorkspaceId } = useWorkspaceId()
 

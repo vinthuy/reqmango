@@ -1,32 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRoute } from 'vue-router'
-import {
-  Badge,
-  Modal,
-  Tag,
-  Tabs,
-  TabPane,
-  Progress,
-  Select,
-  Input,
-  Textarea,
-  Form,
-  FormItem,
-  DatePicker,
-  Spin,
-  Space,
-  Tooltip,
-  Popconfirm,
-  Dropdown,
-  Menu,
-  MenuItem,
-  message
-} from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import type { Dayjs } from 'dayjs'
-import { useI18n } from '@/composables/useI18n'
 import { useWorkspaceId } from '@/composables/useWorkspaceId'
-import { listIssues, type IssueResponse } from '@/api/issue'
+import { listIssues } from '@/api/issue'
+import type { IssueResponse } from '@/types/issue'
 import {
   issueAgentApi,
   type AgentStatus,
@@ -38,7 +17,6 @@ import {
 import { agentMemberApi, type AgentMember } from '@/api/agent-member'
 
 const route = useRoute()
-const { t } = useI18n()
 const { getWorkspaceId } = useWorkspaceId()
 
 const projectId = computed(() => parseInt(route.params.projectId as string, 10) || parseInt(route.params.id as string, 10))
@@ -266,7 +244,7 @@ async function loadData() {
     }
 
     const membersRes = await agentMemberApi.list(projectId.value)
-    agentMembers.value = membersRes?.data || []
+    agentMembers.value = membersRes?.data?.data || []
 
     const statusPromises = issues.map(issue =>
       issueAgentApi.getStatus(issue.id).then(res => res.data).catch(() => null)
@@ -390,10 +368,10 @@ async function handleEscalate() {
   }
 }
 
-function openStatusModal(row: IssueAgentRow) {
-  statusTarget.value = row
-  statusForm.status = row.agentStatus?.task_status || 'pending'
-  statusModalVisible.value = true
+function handleStatusMenuClick(info: { key: string }, record: IssueAgentRow) {
+  statusTarget.value = record
+  statusForm.status = info.key
+  handleStatusUpdate()
 }
 
 async function handleStatusUpdate() {
@@ -580,7 +558,7 @@ onMounted(() => {
                   Status
                 </a-button>
                 <template #overlay>
-                  <a-menu @click="({ key }) => { statusTarget = record as IssueAgentRow; statusForm.status = key as string; handleStatusUpdate(); }">
+                  <a-menu @click="handleStatusMenuClick($event, record)">
                     <a-menu-item key="pending">Pending</a-menu-item>
                     <a-menu-item key="in_progress">In Progress</a-menu-item>
                     <a-menu-item key="completed">Completed</a-menu-item>

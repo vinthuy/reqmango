@@ -2,29 +2,6 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  Card,
-  Tabs,
-  TabPane,
-  Table,
-  Modal,
-  Form,
-  FormItem,
-  InputNumber,
-  Slider,
-  Switch,
-  Spin,
-  Tag,
-  Button,
-  Progress,
-  Drawer,
-  Statistic,
-  Row,
-  Col,
-  Divider,
-  Timeline,
-  TimelineItem,
-  Badge,
-  Space,
   message,
 } from 'ant-design-vue'
 import {

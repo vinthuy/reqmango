@@ -685,14 +685,20 @@ async function loadIssues() {
     }
     const result = await issueApi.listIssues(props.projectId, props.workspaceId, params)
     issues.value = result.items
-    rebuildGroupedIssues()
-    rebuildSwimlaneGrouped()
   } catch (e) { console.error('Failed to load issues:', e) }
   finally { loading.value = false }
 }
 
-onMounted(() => Promise.all([loadIssues(), loadStates(), loadMembers(), loadIssueTypes()]))
+onMounted(async () => {
+  await Promise.all([loadIssues(), loadStates(), loadMembers(), loadIssueTypes()])
+  rebuildGroupedIssues()
+  rebuildSwimlaneGrouped()
+})
 watch(() => [props.rql, props.filterSortBy, props.filterSortDir, props.filterSortConfig], () => loadIssues())
+watch([issues, states], () => {
+  rebuildGroupedIssues()
+  rebuildSwimlaneGrouped()
+})
 
 async function loadStates() {
   try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ }

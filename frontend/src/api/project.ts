@@ -23,7 +23,7 @@ export async function createProject(
   workspaceId: number,
   data: ProjectCreate
 ): Promise<ProjectResponse> {
-  let url = `/projects/?workspace_id=${workspaceId}`
+  let url = `/projects?workspace_id=${workspaceId}`
   if (data.template_id) {
     url += `&template_id=${data.template_id}`
   }

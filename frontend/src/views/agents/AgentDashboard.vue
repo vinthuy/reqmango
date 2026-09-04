@@ -85,7 +85,7 @@
           </router-link>
 
           <router-link
-            :to="`/workspaces/${getWorkspaceId()}/agents/configs`"
+            :to="agentLink('/configs')"
             class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
             <div class="flex items-start gap-4">
@@ -203,7 +203,7 @@
           </router-link>
 
           <router-link
-            :to="`/workspaces/${getWorkspaceId()}/agents/memories`"
+            :to="agentLink('/memories')"
             class="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition-all"
           >
             <div class="flex items-start gap-4">
@@ -313,7 +313,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { loopApi, type LoopRun } from '@/api/agent-loop'
 import { agentTemplateApi } from '@/api/agent-template'
 import { agentConfigApi } from '@/api/agent-config'
@@ -324,7 +324,6 @@ import LoopStateBadge from '@/components/agents/LoopStateBadge.vue'
 import BudgetGauge from '@/components/agents/BudgetGauge.vue'
 
 const route = useRoute()
-const router = useRouter()
 const { getWorkspaceId } = useWorkspaceId()
 
 const activeRuns = ref<LoopRun[]>([])

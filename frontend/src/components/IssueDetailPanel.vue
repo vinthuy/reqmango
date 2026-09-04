@@ -366,6 +366,7 @@ async function handleStateChange(newStateId: number) {
   try {
     const updated = await issueApi.updateIssue(issue.value.id, { state_id: newStateId })
     if (issue.value) Object.assign(issue.value, updated)
+    emit('refresh')
   } catch (e: any) {
     if (e?.response?.status === 409 && e?.response?.data?.message === 'approval_required') {
       const transitionId = e.response.data.transition_id
@@ -448,6 +449,7 @@ async function quickUpdate(field: string, value: any) {
   try {
     const updated = await issueApi.updateIssue(issue.value.id, { [field]: value })
     if (issue.value) Object.assign(issue.value, updated)
+    emit('refresh')
   } catch (e: any) {
     toast.error(e?.response?.data?.message || t('issue.saveFailed'))
   }
@@ -458,6 +460,7 @@ async function quickUpdateAssignee(userId: any) {
     const assigneeIds = userId ? [Number(userId)] : []
     const updated = await issueApi.updateIssue(issue.value.id, { assignee_ids: assigneeIds })
     if (issue.value) Object.assign(issue.value, updated)
+    emit('refresh')
   } catch (e: any) { toast.error(t('issue.saveFailed')) }
 }
 

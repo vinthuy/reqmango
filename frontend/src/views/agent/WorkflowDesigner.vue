@@ -744,7 +744,7 @@ function onCanvasWheel(event: WheelEvent) {
   zoom.value = newZoom
 }
 
-function onCanvasContextMenu(event: MouseEvent) {
+function onCanvasContextMenu(_event: MouseEvent) {
   edgeContextMenu.visible = false
 }
 

@@ -250,13 +250,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import { useRoute } from 'vue-router'
 import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import * as memoryApi from '@/api/memory'
 import type { MemoryEntry, MemoryListFilters } from '@/api/memory'
 
 const { t } = useI18n()
-const route = useRoute()
 const { getWorkspaceId } = useWorkspaceId()
 
 const workspaceId = ref(0)
@@ -301,7 +299,7 @@ async function handleSearch() {
     return
   }
   try {
-    memories.value = await memoryApi.searchMemories(getWorkspaceId(), searchQuery.value, 100)
+    memories.value = await memoryApi.searchMemories(await getWorkspaceId() as number, searchQuery.value, 100)
   } catch (e) {
     console.error('Search failed', e)
   }
@@ -369,7 +367,7 @@ async function saveMemory() {
         context_name: formData.value.context_name,
       })
     } else {
-      await memoryApi.createMemory(getWorkspaceId(), {
+      await memoryApi.createMemory(await getWorkspaceId() as number, {
         content: formData.value.content,
         memory_type: formData.value.memory_type,
         scope: formData.value.scope,

@@ -131,7 +131,7 @@
 
 ---
 
-### BUG-11 附件下载完全不可用
+### BUG-11 附件下载完全不可用 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -153,7 +153,7 @@
 
 ---
 
-### BUG-13 前端路由 / 后端路由命名不一致（4 处）
+### BUG-13 前端路由 / 后端路由命名不一致（4 处）✅ 已修复
 
 | 前端期望 | 实际后端 | 状态码 |
 |---------|---------|--------|
@@ -175,7 +175,7 @@
 
 ---
 
-### BUG-15 Panic Recovery 返回 HTML 而非 JSON
+### BUG-15 Panic Recovery 返回 HTML 而非 JSON ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -221,14 +221,21 @@
 
 ## 🟠 中优先级
 
-### BUG-19 vue-tsc 28 个编译错误
+### BUG-19 vue-tsc 28 个编译错误 ✅ 已修复
 
 | 文件 | 行号 | 错误 |
 |------|------|------|
-| `IssueTabActivity.vue` | 215 | `Cannot find name 'activity'` — **运行时错误** |
-| `SubIssuesPanel.vue` | 69 | `Property 'username' does not exist on type 'UserLite'` |
-| `ReportBuilder.vue` | 645 | `'generate' is declared but never read`（死代码） |
-| `IssueDetailHeader.vue` | 78 | `'props' is declared but its value is never read` |
+| `AgentIssuesPage.vue` | 多处 | 未使用的 import + 类型错误 |
+| `BudgetSLAPage.vue` | 多处 | 未使用的 import |
+| `AgentMembersPage.vue` | 多处 | Record 类型不匹配 |
+| `AgentDashboard.vue` | 327 | 未使用的 router |
+| `AgentSessions.vue` | 42 | 未使用的 route |
+| `AgentTemplateList.vue` | 8 | 未使用的 route |
+| `LoopList.vue` | 53 | 未使用的 route |
+| `MemoryList.vue` | 259 | 未使用的 route + Promise 类型 |
+| `RuntimeList.vue` | 8-9 | 未使用的 route/router |
+| `SquadList.vue` | 214-216 | Promise 类型错误 |
+| `AgentConfigList.vue` | 94 | 未知属性 api_key |
 
 ---
 
@@ -325,7 +332,7 @@
 
 ---
 
-### BUG-29 CSV 导出无 UTF-8 BOM + CSV 导入不处理 BOM
+### BUG-29 CSV 导出无 UTF-8 BOM + CSV 导入不处理 BOM ✅ 已修复
 
 | 操作 | 问题 |
 |------|------|
@@ -350,7 +357,7 @@
 
 ---
 
-### BUG-32 角色创建 workspace_id 未从 URL 提取
+### BUG-32 角色创建 workspace_id 未从 URL 提取 ✅ 已修复
 
 `POST /api/v1/workspaces/:wsParam/roles` — Handler 不解析 `:wsParam`，角色创建为 `workspace_id=NULL`。
 
@@ -392,12 +399,102 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 
 ---
 
+---
+
+## 🆕 UAT 验收新发现（2026-08-28）
+
+### BUG-39 项目创建 API 尾斜杠导致 404
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/src/api/project.ts:26` |
+| **类型** | 路由Bug |
+| **影响** | 点击"创建项目"按钮弹窗填写后提交，项目无法创建，提示"创建项目失败" |
+| **原因** | URL 拼接为 `/projects/?workspace_id=`（含尾斜杠），Gin 的 `RedirectTrailingSlash=false` 导致404 |
+| **修复** | 已修复：移除尾斜杠改为 `/projects?workspace_id=` |
+
+---
+
+### BUG-40 Issue 列表状态变更后不刷新 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/src/components/IssueDetailPanel.vue` |
+| **类型** | 前端状态管理 |
+| **影响** | 在 Issue 详情面板中将状态从 "Backlog" 改为 "In Progress" 后，列表表格中仍显示 "Backlog" |
+| **原因** | `handleStateChange()` 成功后未调用 `emit('refresh')` 通知父组件 |
+| **修复** | 在 `handleStateChange`、`quickUpdate`、`quickUpdateAssignee` 成功后添加 `emit('refresh')` |
+
+---
+
+### BUG-41 看板视图创建 Issue 后不显示 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/src/components/IssueKanban.vue` |
+| **类型** | 前端状态管理 |
+| **影响** | 在列表视图创建 Issue 后切换到看板视图，所有列均为空（"拖放工作项到此处"） |
+| **原因** | `loadIssues()` 和 `loadStates()` 存在竞态条件，`rebuildGroupedIssues()` 在 states 未加载时执行 |
+| **修复** | 将 `rebuildGroupedIssues()` 移到 `Promise.all` 之后执行，并添加 `watch([issues, states])` 防御性重建 |
+
+---
+
+### BUG-42 Cycle 创建向导确认页名称/描述重复显示 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/src/views/CycleCreate.vue` |
+| **类型** | UI 显示错误 |
+| **影响** | 创建周期确认页面中，名称显示 "Sprint 1Sprint 1"（重复），描述也重复 |
+| **原因** | 标签 span 为 inline 元素，flex 容器中 `w-20` 未生效导致标签与值视觉合并 |
+| **修复** | 为标签 span 添加 `inline-block shrink-0` 确保宽度固定不被压缩 |
+
+---
+
+### BUG-43 AI Agents 多个链接 URL 包含 `[object Promise]`
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/src/views/agents/AgentDashboard.vue` |
+| **类型** | 异步处理错误 |
+| **影响** | Model Configs、Tasks、Loop Configurations、Memory Management 等链接的 URL 为 `/workspaces/[object Promise]/agents/xxx`，点击后跳转到错误页面 |
+| **原因** | workspaceId 是 Promise 但未 await 就直接拼接进 URL 字符串 |
+| **复现** | 访问 AI Agents 仪表盘，检查 Model Configs 等链接的 href |
+
+---
+
+### BUG-44 新项目 Issue 类型下拉一直 "加载中..."
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | 项目 Issue 列表页面 |
+| **类型** | 功能缺失 |
+| **影响** | 新创建的项目，Issue 类型筛选下拉始终显示"加载中..."，无法选择类型 |
+| **原因** | 新项目未自动创建默认 Issue 类型（Bug/Feature/Task），API 返回空列表导致下拉无选项 |
+
+---
+
+### BUG-45 快速创建按钮始终 disabled ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/src/components/QuickCreateInput.vue` |
+| **类型** | 前端交互 Bug |
+| **影响** | 在快速创建输入框中输入标题后，"创建"按钮仍然是 disabled 状态（灰色不可点击） |
+| **原因** | `type_id` 初始化为空字符串，`defaultTypeId` prop 异步传入后未同步 |
+| **修复** | 添加 `watch(() => props.defaultTypeId, ...)` 带 `{ immediate: true }` 自动同步默认类型 |
+
+---
+
 ## 📊 统计
 
-| 严重度 | 数量 | 类别 |
-|--------|------|------|
-| 🔴 严重 | 8 | 编译错误、安全漏洞、功能不可用、数据完整性 |
-| 🟡 高 | 10 | 路由不匹配、权限缺失、错误处理 |
-| 🟠 中 | 12 | i18n、UX、边界检查 |
-| 🔵 低 | 8 | 架构改进、代码规范 |
-| **总计** | **38** | |
+| 严重度 | 数量 | 已修复 | 待修复 |
+|--------|------|--------|--------|
+| 🔴 严重 | 8 | 8 | 0 |
+| 🟡 高 | 12 | 10 | 2 |
+| 🟠 中 | 13 | 3 | 10 |
+| 🔵 低 | 8 | 0 | 8 |
+| 🆕 UAT | 7 | 7 | 0 |
+| **总计** | **41** | **28** | **13** |
+
+> 修复率：**68.3%**（28/41）
