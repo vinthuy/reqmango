@@ -71,7 +71,7 @@ sdk/                          ← 新 Go module：github.com/reqmango/tools
     chat.go agents.go meta.go
   mcp/                        ← MCP server 组装
     server.go                 ← mcp-go 集成、stdio/HTTP 双传输
-    tools_core.go tools_ai.go ← 23 个 tools 定义 + handler
+    tools_core.go tools_ai.go ← 24 个 tools 定义 + handler
   cli/                        ← cobra 命令树
     root.go                   ← 全局 flag、config 加载
     config.go                 ← ~/.reqmango/config.json
@@ -194,6 +194,6 @@ reqmango ask "..." [--issue <id>]
 
 1. **backend PAT**（模型 + 迁移 + 端点 + 中间件 + 测试）
 2. **sdk/client**（核心 do() + 各资源客户端 + 测试）
-3. **sdk/mcp**（mcp-go 集成 + 23 tools + stdio/HTTP 双传输 + 测试）
+3. **sdk/mcp**（mcp-go 集成 + 24 tools + stdio/HTTP 双传输 + 测试）
 4. **sdk/cli**（cobra 命令树 + config + 测试）
 5. **e2e 冒烟 + README**（Claude Code `claude mcp add` 配置示例、Makefile、旧 mcp-server 目录删除）
