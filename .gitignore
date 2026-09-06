@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.pyc
 backend/build/
@@ -45,6 +45,10 @@ Thumbs.db
 .coverage
 htmlcov/
 frontend/playwright-report/
+tests/.browsers/
+tests/test-results/
+frontend/test-results/
+backend/coverage_ai
 
 # Local debug artifacts
 token.txt
