@@ -77,4 +77,9 @@ func TestAIChat_StreamError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
+	// The stub handler writes no explicit status (implicit 200): the error comes
+	// from the SSE error event, which AIChat maps to *APIError with status 502.
+	if apiErr := AsAPIError(err); apiErr == nil || apiErr.StatusCode != 502 {
+		t.Fatalf("expected APIError with status 502, got %v", err)
+	}
 }
