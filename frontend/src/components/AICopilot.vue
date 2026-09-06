@@ -77,7 +77,7 @@
         <div v-if="relatedMemories.length > 0" class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-amber-50/50">
           <div class="flex items-center gap-2 mb-2">
             <span class="text-xs text-amber-600 font-medium">🧠</span>
-            <span class="text-xs text-amber-700 font-medium">相关记忆</span>
+            <span class="text-xs text-amber-700 font-medium">{{ t('ai.relatedMemories') }}</span>
             <button @click="relatedMemories = []" class="ml-auto text-xs text-gray-400 hover:text-gray-600">✕</button>
           </div>
           <div class="space-y-1">
@@ -531,7 +531,7 @@ async function loadIssueTypes() {
 async function generatePreview() {
   if (!createInput.value.trim()) return
   if (!props.projectId || !props.workspaceId) {
-    createError.value = '项目数据加载中，请稍后再试'
+    createError.value = t('ai.projectDataLoading')
     return
   }
   isCreating.value = true
@@ -563,7 +563,7 @@ async function generatePreview() {
     } else if (!createPreview.value.type_id) {
       createPreview.value.type_id = ''
     }
-    createExplanation.value = result?.explanation || '已根据你的描述生成工作项预览'
+    createExplanation.value = result?.explanation || t('ai.previewGenerated')
   } catch (e: any) {
     createError.value = e?.response?.data?.message || e?.message || 'Failed to generate preview'
   } finally {
@@ -574,7 +574,7 @@ async function generatePreview() {
 async function confirmCreate() {
   if (!createPreview.value?.name?.trim()) return
   if (!props.projectId || !props.workspaceId) {
-    createError.value = '项目数据加载中，请稍后再试'
+    createError.value = t('ai.projectDataLoading')
     return
   }
   isCreating.value = true
@@ -686,14 +686,14 @@ async function sendChartQuery(query: string) {
     const chartData = await generateChart(props.projectId, props.workspaceId, q)
     messages.value.push({
       role: 'assistant',
-      content: `**${chartData.title}**\n\n${chartData.chart_type} 图表，${chartData.labels.length} 个数据维度`,
+      content: `**${chartData.title}**\n\n${chartData.chart_type} ${t('ai.chartDimension', { count: chartData.labels.length })}`,
       chartConfig: chartData as AIChartData,
     })
     scrollToBottom()
   } catch (e: any) {
     messages.value.push({
       role: 'assistant',
-      content: `❌ 图表生成失败: ${e?.response?.data?.message || e.message || '请重试'}`,
+      content: `❌ ${t('ai.chartGenerationError', { msg: e?.response?.data?.message || e.message || t('ai.chartRetry') })}`,
     })
   } finally {
     loadingChart.value = false
@@ -747,7 +747,7 @@ async function send(text: string) {
   // Build context from related memories
   let context = ''
   if (memories.length > 0) {
-    context = `相关记忆（请参考这些历史对话和知识来回答问题）：\n`
+    context = `${t('ai.relatedMemoryContext')}\n`
     memories.forEach((mem, idx) => {
       context += `${idx + 1}. ${mem.content}\n`
     })

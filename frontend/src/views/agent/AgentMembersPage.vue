@@ -17,8 +17,11 @@ import {
   Popconfirm,
   message
 } from 'ant-design-vue'
+import { useI18n } from '@/composables/useI18n'
 import { agentMemberApi, type AgentMember } from '@/api/agent-member'
 import { agentApi, type Agent } from '@/api/agent'
+
+const { t } = useI18n()
 
 const route = useRoute()
 
@@ -32,8 +35,8 @@ const filterAgentType = ref<string | undefined>(undefined)
 const filterStatus = ref<string | undefined>(undefined)
 
 const agentTypeOptions = [
-  { value: 'builtin', label: '内置 Agent' },
-  { value: 'custom', label: '自定义 Agent' }
+  { value: 'builtin', labelKey: 'agent.typeBuiltin' },
+  { value: 'custom', labelKey: 'agent.typeCustom' }
 ]
 
 const modelOptions = [
@@ -49,29 +52,34 @@ const modelOptions = [
 ]
 
 const roleOptions = [
-  { value: 'admin', label: '管理员' },
-  { value: 'lead', label: '负责人' },
-  { value: 'developer', label: '开发者' },
-  { value: 'reviewer', label: '审查者' },
-  { value: 'tester', label: '测试者' },
-  { value: 'contributor', label: '贡献者' },
-  { value: 'observer', label: '观察者' }
+  { value: 'admin', labelKey: 'agentMembers.roleAdmin' },
+  { value: 'lead', labelKey: 'agentMembers.roleLead' },
+  { value: 'developer', labelKey: 'agentMembers.roleDeveloper' },
+  { value: 'reviewer', labelKey: 'agentMembers.roleReviewer' },
+  { value: 'tester', labelKey: 'agentMembers.roleTester' },
+  { value: 'contributor', labelKey: 'agentMembers.roleContributor' },
+  { value: 'observer', labelKey: 'agentMembers.roleObserver' }
 ]
 
-const availableSkillOptions = [
-  '代码生成', '代码审查', '需求分析', '测试编写', '文档撰写',
-  'Bug修复', '重构优化', '性能分析', '安全审计', '部署运维',
-  '数据库管理', 'API设计', 'UI/UX设计', '项目管理', '数据分析'
-]
+const availableSkillOptions = computed(() => [
+  t('agentMembers.skillCodeGeneration'), t('agentMembers.skillCodeReview'),
+  t('agentMembers.skillRequirementAnalysis'), t('agentMembers.skillTestWriting'),
+  t('agentMembers.skillDocumentation'), t('agentMembers.skillBugFix'),
+  t('agentMembers.skillRefactoring'), t('agentMembers.skillPerformanceAnalysis'),
+  t('agentMembers.skillSecurityAudit'), t('agentMembers.skillDevOps'),
+  t('agentMembers.skillDatabaseManagement'), t('agentMembers.skillApiDesign'),
+  t('agentMembers.skillUiDesign'), t('agentMembers.skillProjectManagement'),
+  t('agentMembers.skillDataAnalysis')
+])
 
-const columns = [
-  { title: '名称', key: 'name', dataIndex: 'agent_name', width: 200 },
-  { title: 'Agent 类型', key: 'agentType', dataIndex: 'agent_type', width: 130 },
-  { title: '角色', key: 'role', dataIndex: 'role', width: 120 },
-  { title: '状态', key: 'status', dataIndex: 'is_active', width: 100 },
-  { title: '技能', key: 'skills', width: 260 },
-  { title: '操作', key: 'actions', width: 200 }
-]
+const columns = computed(() => [
+  { title: t('agentMembers.columnName'), key: 'name', dataIndex: 'agent_name', width: 200 },
+  { title: t('agentMembers.columnAgentType'), key: 'agentType', dataIndex: 'agent_type', width: 130 },
+  { title: t('agentMembers.columnRole'), key: 'role', dataIndex: 'role', width: 120 },
+  { title: t('agentMembers.columnStatus'), key: 'status', dataIndex: 'is_active', width: 100 },
+  { title: t('agentMembers.columnSkills'), key: 'skills', width: 260 },
+  { title: t('agentMembers.columnActions'), key: 'actions', width: 200 }
+])
 
 // Form state
 const modalVisible = ref(false)
@@ -206,16 +214,16 @@ function getAgentTypeColor(type: string): string {
 }
 
 function getAgentTypeLabel(type: string): string {
-  return type === 'builtin' ? '内置' : '自定义'
+  return type === 'builtin' ? t('agent.typeBuiltin') : t('agent.typeCustom')
 }
 
 function getStatusLabel(isActive: boolean): string {
-  return isActive ? '活跃' : '停用'
+  return isActive ? t('agent.statusActive') : t('agent.statusInactive')
 }
 
 function getRoleLabel(role: string): string {
   const found = roleOptions.find(r => r.value === role)
-  return found?.label || role
+  return found ? t(found.labelKey) : role
 }
 
 async function loadMembers() {
@@ -225,7 +233,7 @@ async function loadMembers() {
     const data = res.data?.data || res.data || []
     members.value = Array.isArray(data) ? data : []
   } catch (e: any) {
-    message.error('加载 Agent 成员失败：' + (e.response?.data?.message || e.message || '未知错误'))
+    message.error(t('agentMembers.loadFailed') + (e.response?.data?.message || e.message || t('agentMembers.unknownError')))
     members.value = []
   } finally {
     loading.value = false
@@ -243,7 +251,7 @@ async function loadAgents() {
 
 async function handleFormSubmit() {
   if (!formState.role) {
-    message.warning('请选择角色')
+    message.warning(t('agentMembers.selectRoleWarning'))
     return
   }
 
@@ -262,10 +270,10 @@ async function handleFormSubmit() {
         cost_per_task: formState.cost_per_task,
         sla_hours: formState.sla_hours
       }
-      message.success('成员更新成功')
+      message.success(t('agentMembers.updateSuccess'))
     } else {
       if (!formState.agent_id) {
-        message.warning('请选择要添加的 Agent')
+        message.warning(t('agentMembers.selectAgentWarning'))
         return
       }
       await agentMemberApi.add(projectId.value, {
@@ -281,12 +289,12 @@ async function handleFormSubmit() {
         cost_per_task: formState.cost_per_task,
         sla_hours: formState.sla_hours
       }
-      message.success('成员添加成功')
+      message.success(t('agentMembers.addSuccess'))
     }
     modalVisible.value = false
     await loadMembers()
   } catch (e: any) {
-    message.error('操作失败：' + (e.response?.data?.message || e.message || '未知错误'))
+    message.error(t('agentMembers.operationFailed') + (e.response?.data?.message || e.message || t('agentMembers.unknownError')))
   } finally {
     formSubmitting.value = false
   }
@@ -299,20 +307,20 @@ async function handleToggleStatus(member: AgentMember) {
       role: member.role
     })
     member.is_active = newStatus
-    message.success(`成员已${newStatus ? '激活' : '停用'}`)
+    message.success(newStatus ? t('agentMembers.activated') : t('agentMembers.deactivated'))
     await loadMembers()
   } catch (e: any) {
-    message.error('状态切换失败：' + (e.response?.data?.message || e.message || '未知错误'))
+    message.error(t('agentMembers.statusToggleFailed') + (e.response?.data?.message || e.message || t('agentMembers.unknownError')))
   }
 }
 
 async function handleDelete(member: AgentMember) {
   try {
     await agentMemberApi.remove(projectId.value, member.agent_id)
-    message.success('成员已删除')
+    message.success(t('agentMembers.deleteSuccess'))
     await loadMembers()
   } catch (e: any) {
-    message.error('删除失败：' + (e.response?.data?.message || e.message || '未知错误'))
+    message.error(t('agentMembers.deleteFailed') + (e.response?.data?.message || e.message || t('agentMembers.unknownError')))
   }
 }
 
@@ -323,18 +331,18 @@ onMounted(() => {
 </script>
 
 <template>
-  <Card title="Agent 团队成员" :bordered="false">
+  <Card :title="t('agentMembers.title')" :bordered="false">
     <template #extra>
       <Space>
         <Input
           v-model:value="searchName"
-          placeholder="搜索成员名称"
+          :placeholder="t('agentMembers.searchPlaceholder')"
           allowClear
           style="width: 200px;"
         />
         <Select
           v-model:value="filterAgentType"
-          placeholder="筛选类型"
+          :placeholder="t('agentMembers.filterType')"
           allowClear
           style="width: 140px;"
         >
@@ -343,20 +351,20 @@ onMounted(() => {
             :key="opt.value"
             :value="opt.value"
           >
-            {{ opt.label }}
+            {{ t(opt.labelKey) }}
           </SelectOption>
         </Select>
         <Select
           v-model:value="filterStatus"
-          placeholder="筛选状态"
+          :placeholder="t('agentMembers.filterStatus')"
           allowClear
           style="width: 120px;"
         >
-          <SelectOption value="active">活跃</SelectOption>
-          <SelectOption value="inactive">停用</SelectOption>
+          <SelectOption value="active">{{ t('agent.statusActive') }}</SelectOption>
+          <SelectOption value="inactive">{{ t('agent.statusInactive') }}</SelectOption>
         </Select>
         <Button type="primary" @click="openCreateModal">
-          添加 Agent 成员
+          {{ t('agentMembers.addButton') }}
         </Button>
       </Space>
     </template>
@@ -366,7 +374,7 @@ onMounted(() => {
       :columns="columns"
       :loading="loading"
       rowKey="id"
-      :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (total: number) => `共 ${total} 条` }"
+      :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (total: number) => t('agentMembers.totalItems', { total }) }"
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'name'">
@@ -405,7 +413,7 @@ onMounted(() => {
               {{ skill }}
             </Tag>
             <span v-if="getAgentSkills(record.agent_id).length === 0" style="color: #bfbfbf;">
-              暂无技能
+              {{ t('agentMembers.noSkills') }}
             </span>
           </Space>
         </template>
@@ -413,7 +421,7 @@ onMounted(() => {
         <template v-if="column.key === 'actions'">
           <Space>
             <Button size="small" @click="openEditModal(record as AgentMember)">
-              编辑
+              {{ t('common.edit') }}
             </Button>
             <Button
               size="small"
@@ -421,16 +429,16 @@ onMounted(() => {
               ghost
               @click="handleToggleStatus(record as AgentMember)"
             >
-              {{ (record as AgentMember).is_active ? '停用' : '激活' }}
+              {{ (record as AgentMember).is_active ? t('agentMembers.deactivate') : t('agentMembers.activate') }}
             </Button>
             <Popconfirm
-              title="确定要删除该 Agent 成员吗？"
-              okText="确定"
-              cancelText="取消"
+              :title="t('agentMembers.deleteConfirm')"
+              :okText="t('common.confirm')"
+              :cancelText="t('common.cancel')"
               @confirm="handleDelete(record as AgentMember)"
             >
               <Button size="small" danger>
-                删除
+                {{ t('common.delete') }}
               </Button>
             </Popconfirm>
           </Space>
@@ -441,11 +449,11 @@ onMounted(() => {
     <!-- Create / Edit Modal -->
     <Modal
       v-model:open="modalVisible"
-      :title="isEditing ? '编辑 Agent 成员' : '添加 Agent 成员'"
+      :title="isEditing ? t('agentMembers.editTitle') : t('agentMembers.createTitle')"
       @ok="handleFormSubmit"
       :confirmLoading="formSubmitting"
-      okText="确定"
-      cancelText="取消"
+      :okText="t('common.confirm')"
+      :cancelText="t('common.cancel')"
       width="640px"
     >
       <Form
@@ -454,10 +462,10 @@ onMounted(() => {
         :wrapper-col="{ span: 16 }"
         style="margin-top: 16px;"
       >
-        <FormItem v-if="!isEditing" label="选择 Agent" required>
+        <FormItem v-if="!isEditing" :label="t('agentMembers.formSelectAgent')" required>
           <Select
             v-model:value="formState.agent_id"
-            placeholder="请选择要添加的 Agent"
+            :placeholder="t('agentMembers.formSelectAgentPlaceholder')"
             @change="(val: any) => onAgentSelect(val)"
           >
             <SelectOption
@@ -465,19 +473,19 @@ onMounted(() => {
               :key="agent.id"
               :value="agent.id"
             >
-              {{ agent.avatar }} {{ agent.name }}（{{ agent.agent_type === 'builtin' ? '内置' : '自定义' }}）
+              {{ agent.avatar }} {{ agent.name }}（{{ agent.agent_type === 'builtin' ? t('agent.typeBuiltin') : t('agent.typeCustom') }}）
             </SelectOption>
           </Select>
         </FormItem>
 
-        <FormItem v-if="isEditing" label="名称">
+        <FormItem v-if="isEditing" :label="t('agentMembers.formName')">
           <Input :value="formState.name" disabled />
         </FormItem>
 
-        <FormItem label="模型">
+        <FormItem :label="t('agentMembers.formModel')">
           <Select
             v-model:value="formState.model_id"
-            placeholder="选择模型（可选）"
+            :placeholder="t('agentMembers.formModelPlaceholder')"
             allowClear
           >
             <SelectOption
@@ -490,10 +498,10 @@ onMounted(() => {
           </Select>
         </FormItem>
 
-        <FormItem label="Agent 类型">
+        <FormItem :label="t('agentMembers.formAgentType')">
           <Select
             v-model:value="formState.agent_type"
-            placeholder="选择 Agent 类型"
+            :placeholder="t('agentMembers.formAgentTypePlaceholder')"
             disabled
           >
             <SelectOption
@@ -501,27 +509,27 @@ onMounted(() => {
               :key="opt.value"
               :value="opt.value"
             >
-              {{ opt.label }}
+              {{ t(opt.labelKey) }}
             </SelectOption>
           </Select>
         </FormItem>
 
-        <FormItem label="角色" required>
+        <FormItem :label="t('agentMembers.formRole')" required>
           <Select
             v-model:value="formState.role"
-            placeholder="选择角色"
+            :placeholder="t('agentMembers.formRolePlaceholder')"
           >
             <SelectOption
               v-for="opt in roleOptions"
               :key="opt.value"
               :value="opt.value"
             >
-              {{ opt.label }}
+              {{ t(opt.labelKey) }}
             </SelectOption>
           </Select>
         </FormItem>
 
-        <FormItem label="技能">
+        <FormItem :label="t('agentMembers.formSkills')">
           <Space wrap :size="[4, 4]" style="margin-bottom: 8px;">
             <Tag
               v-for="skill in formState.skills"
@@ -536,7 +544,7 @@ onMounted(() => {
           </Space>
           <Select
             v-model:value="selectedSkill"
-            placeholder="选择技能"
+            :placeholder="t('agentMembers.formSkillsPlaceholder')"
             showSearch
             :filter-option="(input: string, option: any) => option.value.toLowerCase().includes(input.toLowerCase())"
             style="width: 200px;"
@@ -553,15 +561,15 @@ onMounted(() => {
           </Select>
         </FormItem>
 
-        <FormItem label="系统提示词">
+        <FormItem :label="t('agentMembers.formSystemPrompt')">
           <Input.Textarea
             v-model:value="formState.system_prompt"
             :rows="3"
-            placeholder="设置 Agent 的系统提示词（可选）"
+            :placeholder="t('agentMembers.formSystemPromptPlaceholder')"
           />
         </FormItem>
 
-        <FormItem label="最大 Token">
+        <FormItem :label="t('agentMembers.formMaxTokens')">
           <Input
             v-model:value="formState.max_tokens"
             type="number"
@@ -569,7 +577,7 @@ onMounted(() => {
           />
         </FormItem>
 
-        <FormItem label="温度">
+        <FormItem :label="t('agentMembers.formTemperature')">
           <Input
             v-model:value="formState.temperature"
             type="number"
@@ -580,7 +588,7 @@ onMounted(() => {
           />
         </FormItem>
 
-        <FormItem label="单次任务成本">
+        <FormItem :label="t('agentMembers.formCostPerTask')">
           <Input
             v-model:value="formState.cost_per_task"
             type="number"
@@ -590,7 +598,7 @@ onMounted(() => {
           />
         </FormItem>
 
-        <FormItem label="SLA (小时)">
+        <FormItem :label="t('agentMembers.formSlaHours')">
           <Input
             v-model:value="formState.sla_hours"
             type="number"

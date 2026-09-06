@@ -95,7 +95,7 @@
           <div v-else-if="activeTab === 'ai'" class="space-y-4">
             <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
               <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🤖 AI 助手</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🤖 {{ t('ai.title') }}</h3>
                 <button
                   @click="showAICopilot = true"
                   class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg flex items-center gap-1.5"

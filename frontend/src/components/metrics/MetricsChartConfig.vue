@@ -4,7 +4,7 @@
       <div class="bg-white rounded-xl shadow-xl w-[720px] max-h-[90vh] flex flex-col" @click.stop>
         <!-- Header -->
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 class="text-lg font-semibold text-gray-800">{{ isEdit ? '编辑图表' : '新建图表' }}</h3>
+          <h3 class="text-lg font-semibold text-gray-800">{{ isEdit ? t('metrics.editChart') : t('metrics.newChart') }}</h3>
           <button @click="emit('cancel')" class="text-gray-400 hover:text-gray-600 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -14,14 +14,14 @@
         <div class="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           <!-- Chart Name -->
           <div>
-            <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">图表名称</label>
-            <input v-model="form.name" type="text" placeholder="输入图表名称"
+            <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('metrics.chartName') }}</label>
+            <input v-model="form.name" type="text" :placeholder="t('metrics.chartNamePlaceholder')"
               class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" />
           </div>
 
           <!-- Chart Type -->
           <div>
-            <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">图表类型</label>
+            <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('metrics.chartType') }}</label>
             <div class="inline-flex bg-gray-100 rounded-lg p-0.5 flex-wrap gap-0.5">
               <button v-for="c in chartTypeOptions" :key="c.value" @click="form.chart_type = c.value"
                 :class="['px-2.5 py-1 text-xs rounded-md transition-colors', form.chart_type === c.value ? 'bg-white shadow-sm font-medium text-gray-800' : 'text-gray-500 hover:text-gray-700']"
@@ -33,18 +33,18 @@
           <div class="flex flex-wrap items-end gap-4">
             <!-- X-Axis -->
             <div class="flex-1 min-w-[200px]">
-              <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">度量维度</label>
+              <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('metrics.metricDimension') }}</label>
               <select v-model="form.x_axis" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                <optgroup label="分类维度">
+                <optgroup :label="t('metrics.categoryDimensions')">
                   <option v-for="d in xAxisCategoryOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
                 </optgroup>
-                <optgroup label="创建时间">
+                <optgroup :label="t('metrics.timeCreated')">
                   <option v-for="d in xAxisTimeCreatedOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
                 </optgroup>
-                <optgroup label="完成时间">
+                <optgroup :label="t('metrics.timeCompleted')">
                   <option v-for="d in xAxisTimeCompletedOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
                 </optgroup>
-                <optgroup label="更新时间">
+                <optgroup :label="t('metrics.timeUpdated')">
                   <option v-for="d in xAxisTimeUpdatedOptions" :key="d.value" :value="d.value">{{ d.label }}</option>
                 </optgroup>
               </select>
@@ -52,7 +52,7 @@
 
             <!-- Y-Axis -->
             <div class="flex-1 min-w-[200px]">
-              <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">度量指标</label>
+              <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('metrics.metricIndicator') }}</label>
               <select v-model="form.y_axis" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
                 <option v-for="m in yAxisOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
               </select>
@@ -61,8 +61,8 @@
 
           <!-- Filters (RQL) -->
           <div>
-            <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">筛选条件 (RQL)</label>
-            <textarea v-model="rqlQuery" rows="2" placeholder="例如: state = &quot;open&quot; AND priority = &quot;high&quot;"
+            <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('metrics.filterConditionsRql') }}</label>
+            <textarea v-model="rqlQuery" rows="2" :placeholder="t('metrics.filterRqlPlaceholder')"
               class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 transition-colors resize-none"></textarea>
           </div>
 
@@ -70,7 +70,7 @@
           <div class="border border-gray-100 rounded-lg">
             <button @click="showAdvanced = !showAdvanced"
               class="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-              <span class="font-medium">高级配置</span>
+              <span class="font-medium">{{ t('metrics.advancedConfig.title') }}</span>
               <svg :class="['w-4 h-4 transition-transform', showAdvanced ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
               </svg>
@@ -78,11 +78,11 @@
             <div v-show="showAdvanced" class="px-4 pb-4 space-y-4 border-t border-gray-100">
               <!-- Stack Mode -->
               <div v-if="form.chart_type === 'bar' || form.chart_type === 'area'" class="pt-3">
-                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">堆叠模式</label>
+                <label class="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">{{ t('metrics.advancedConfig.stackMode') }}</label>
                 <select v-model="advancedConfig.stack_mode" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                  <option value="none">无</option>
-                  <option value="stack">堆叠</option>
-                  <option value="percent_stack">百分比堆叠</option>
+                  <option value="none">{{ t('metrics.advancedConfig.stackNone') }}</option>
+                  <option value="stack">{{ t('metrics.advancedConfig.stack') }}</option>
+                  <option value="percent_stack">{{ t('metrics.advancedConfig.percentStack') }}</option>
                 </select>
               </div>
 
@@ -90,33 +90,33 @@
               <div class="flex items-center gap-2 pt-2">
                 <input type="checkbox" v-model="advancedConfig.show_labels" id="showLabels"
                   class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
-                <label for="showLabels" class="text-sm text-gray-600">显示数据标签</label>
+                <label for="showLabels" class="text-sm text-gray-600">{{ t('metrics.advancedConfig.showLabels') }}</label>
               </div>
 
               <!-- Reference Lines -->
               <div>
                 <div class="flex items-center justify-between mb-2">
-                  <label class="text-[11px] font-medium text-gray-400 uppercase tracking-wide">参考线</label>
+                  <label class="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{{ t('metrics.advancedConfig.referenceLine') }}</label>
                   <button @click="addReferenceLine" class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                    添加
+                    {{ t('metrics.addReferenceLine') }}
                   </button>
                 </div>
                 <div v-for="(line, idx) in advancedConfig.reference_lines" :key="idx" class="flex items-center gap-2 mb-2">
                   <select v-model="line.type" class="w-28 px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                    <option value="average">平均值</option>
-                    <option value="max">最大值</option>
-                    <option value="min">最小值</option>
-                    <option value="median">中位数</option>
-                    <option value="constant">固定值</option>
+                    <option value="average">{{ t('metrics.advancedConfig.refTypeAverage') }}</option>
+                    <option value="max">{{ t('metrics.advancedConfig.refTypeMax') }}</option>
+                    <option value="min">{{ t('metrics.advancedConfig.refTypeMin') }}</option>
+                    <option value="median">{{ t('metrics.advancedConfig.refTypeMedian') }}</option>
+                    <option value="constant">{{ t('metrics.advancedConfig.refTypeConstant') }}</option>
                   </select>
-                  <input v-if="line.type === 'constant'" v-model.number="line.value" type="number" placeholder="值"
+                  <input v-if="line.type === 'constant'" v-model.number="line.value" type="number" :placeholder="t('metrics.advancedConfig.refValuePlaceholder')"
                     class="w-24 px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
-                  <input v-model="line.label" type="text" placeholder="标签（可选）"
+                  <input v-model="line.label" type="text" :placeholder="t('metrics.advancedConfig.refLabelPlaceholder')"
                     class="flex-1 px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
                   <select v-model="line.style" class="w-20 px-2 py-1.5 border border-gray-200 rounded-md text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-                    <option value="solid">实线</option>
-                    <option value="dashed">虚线</option>
+                    <option value="solid">{{ t('metrics.advancedConfig.refStyleSolid') }}</option>
+                    <option value="dashed">{{ t('metrics.advancedConfig.refStyleDashed') }}</option>
                   </select>
                   <button @click="removeReferenceLine(idx)" class="text-gray-300 hover:text-red-500 text-lg leading-none px-1 transition-colors">&times;</button>
                 </div>
@@ -127,14 +127,14 @@
           <!-- Live Preview -->
           <div>
             <div class="flex items-center justify-between mb-2">
-              <label class="text-[11px] font-medium text-gray-400 uppercase tracking-wide">实时预览</label>
+              <label class="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{{ t('metrics.advancedConfig.livePreview') }}</label>
               <button @click="refreshPreview" :disabled="previewLoading" class="px-3 py-1 bg-neutral-900 text-white text-xs rounded-md hover:bg-neutral-800 disabled:opacity-50 transition-colors">
-                {{ previewLoading ? '加载中...' : '刷新预览' }}
+                {{ previewLoading ? t('metrics.loading') : t('metrics.advancedConfig.refreshPreview') }}
               </button>
             </div>
             <div class="bg-gray-50 border border-gray-100 rounded-xl p-4">
               <div v-if="previewLoading" class="flex items-center justify-center h-48 text-xs text-gray-400">
-                加载中...
+                {{ t('metrics.loading') }}
               </div>
               <div v-else-if="previewError" class="flex items-center justify-center h-48 text-xs text-red-400">
                 {{ previewError }}
@@ -144,7 +144,7 @@
               </div>
               <div v-else class="flex flex-col items-center justify-center h-48 text-xs text-gray-400">
                 <svg class="w-8 h-8 mb-2 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                <span>点击"刷新预览"查看图表效果</span>
+                <span>{{ t('metrics.advancedConfig.clickRefreshPreview') }}</span>
               </div>
             </div>
           </div>
@@ -152,9 +152,9 @@
 
         <!-- Footer -->
         <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
-          <button @click="emit('cancel')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm transition-colors">取消</button>
+          <button @click="emit('cancel')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm transition-colors">{{ t('common.cancel') }}</button>
           <button @click="handleSave" :disabled="saving || !form.name.trim()" class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-            {{ saving ? '保存中...' : (isEdit ? '更新' : '创建') }}
+            {{ saving ? t('common.saving') : (isEdit ? t('common.update') : t('common.create')) }}
           </button>
         </div>
       </div>
@@ -167,6 +167,9 @@ import { ref, computed, reactive, watch, nextTick, onUnmounted } from 'vue'
 import type { MetricTemplate, MetricChart, CreateChartPayload, MetricChartConfig } from '@/types/metrics'
 import { reportApi, type ReportResponse } from '@/api/report'
 import { useReportChart } from '@/composables/useReportChart'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   projectId: number
@@ -193,52 +196,52 @@ const chartTypeMap: Record<string, string> = {
 }
 
 const chartTypeOptions = [
-  { value: 'bar', label: '柱状图' },
-  { value: 'line', label: '折线图' },
-  { value: 'pie', label: '饼图' },
-  { value: 'doughnut', label: '环形图' },
-  { value: 'area', label: '面积图' },
-  { value: 'radar', label: '雷达图' },
-  { value: 'scatter', label: '散点图' },
-  { value: 'bubble', label: '气泡图' },
-  { value: 'mixed', label: '混合图' },
-  { value: 'table', label: '表格' },
+  { value: 'bar', label: t('metrics.chartTypes.bar') },
+  { value: 'line', label: t('metrics.chartTypes.line') },
+  { value: 'pie', label: t('metrics.chartTypes.pie') },
+  { value: 'doughnut', label: t('metrics.chartTypes.doughnut') },
+  { value: 'area', label: t('metrics.chartTypes.area') },
+  { value: 'radar', label: t('metrics.chartTypes.radar') },
+  { value: 'scatter', label: t('metrics.chartTypes.scatter') },
+  { value: 'bubble', label: t('metrics.chartTypes.bubble') },
+  { value: 'mixed', label: t('metrics.chartTypes.mixed') },
+  { value: 'table', label: t('metrics.chartTypes.table') },
 ]
 
 // ── X Axis Options ──
 const xAxisCategoryOptions = [
-  { value: 'state', label: '状态' },
-  { value: 'priority', label: '优先级' },
-  { value: 'assignee', label: '负责人' },
-  { value: 'type', label: '类型' },
-  { value: 'label', label: '标签' },
-  { value: 'cycle', label: '周期' },
-  { value: 'module', label: '模块' },
-  { value: 'state_group', label: '状态分组' },
-  { value: 'created_by', label: '创建者' },
+  { value: 'state', label: t('metrics.dimensions.state') },
+  { value: 'priority', label: t('metrics.dimensions.priority') },
+  { value: 'assignee', label: t('metrics.dimensions.assignee') },
+  { value: 'type', label: t('metrics.dimensions.type') },
+  { value: 'label', label: t('metrics.dimensions.label') },
+  { value: 'cycle', label: t('metrics.dimensions.cycle') },
+  { value: 'module', label: t('metrics.dimensions.module') },
+  { value: 'state_group', label: t('metrics.dimensions.state_group') },
+  { value: 'created_by', label: t('metrics.dimensions.created_by') },
 ]
 const xAxisTimeCreatedOptions = [
-  { value: 'created_day', label: '创建时间 - 日' },
-  { value: 'created_week', label: '创建时间 - 周' },
-  { value: 'created_month', label: '创建时间 - 月' },
+  { value: 'created_day', label: t('metrics.dimensions.byDay') },
+  { value: 'created_week', label: t('metrics.dimensions.byWeek') },
+  { value: 'created_month', label: t('metrics.dimensions.byMonth') },
 ]
 const xAxisTimeCompletedOptions = [
-  { value: 'completed_day', label: '完成时间 - 日' },
-  { value: 'completed_week', label: '完成时间 - 周' },
-  { value: 'completed_month', label: '完成时间 - 月' },
+  { value: 'completed_day', label: t('metrics.dimensions.byDay') },
+  { value: 'completed_week', label: t('metrics.dimensions.byWeek') },
+  { value: 'completed_month', label: t('metrics.dimensions.byMonth') },
 ]
 const xAxisTimeUpdatedOptions = [
-  { value: 'updated_day', label: '更新时间 - 日' },
-  { value: 'updated_week', label: '更新时间 - 周' },
-  { value: 'updated_month', label: '更新时间 - 月' },
+  { value: 'updated_day', label: t('metrics.dimensions.byDay') },
+  { value: 'updated_week', label: t('metrics.dimensions.byWeek') },
+  { value: 'updated_month', label: t('metrics.dimensions.byMonth') },
 ]
 
 // ── Y Axis Options ──
 const yAxisOptions = [
-  { value: 'count', label: '数量' },
-  { value: 'avg_processing_time', label: '平均处理时间' },
-  { value: 'current_retention', label: '当前留存' },
-  { value: 'created_vs_resolved', label: '创建 vs 解决' },
+  { value: 'count', label: t('metrics.yAxisOptions.count') },
+  { value: 'avg_processing_time', label: t('metrics.yAxisOptions.avg_processing_time') },
+  { value: 'current_retention', label: t('metrics.yAxisOptions.current_retention') },
+  { value: 'created_vs_resolved', label: t('metrics.yAxisOptions.created_vs_resolved') },
 ]
 
 // ── Form Data ──
@@ -303,7 +306,7 @@ async function refreshPreview() {
       renderChart(res, chartTypeForRenderer(form.chart_type))
     }
   } catch (e: any) {
-    const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || '加载预览失败'
+    const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || t('metrics.advancedConfig.loadingPreview')
     previewError.value = String(msg)
     previewData.value = null
   } finally {

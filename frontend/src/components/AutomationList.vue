@@ -90,7 +90,7 @@
             <template v-if="automation.is_inherited">
               <span class="text-gray-400">|</span>
               <span class="inline-flex items-center px-2 py-1 rounded bg-yellow-50 text-yellow-700 text-xs">
-                🔗 来自工作区
+                🔗 {{ t('automation.fromWorkspace') }}
               </span>
             </template>
 
@@ -198,27 +198,27 @@ function isAllScope(scope: string): boolean {
 }
 
 function formatScope(scope: string): string {
-  if (isAllScope(scope)) return '全部项目';
+  if (isAllScope(scope)) return t('automation.allProjects');
   try {
     const ids = JSON.parse(scope);
     if (Array.isArray(ids)) {
-      return `${ids.length} 个项目`;
+      return t('automation.scopeProjectCount', { count: ids.length });
     }
   } catch { /* ignore */ }
-  return '指定项目';
+  return t('automation.specificProjects');
 }
 
 function formatSchedule(scheduleConfig: string): string {
   try {
     const sc = JSON.parse(scheduleConfig);
     const freqLabels: Record<string, string> = {
-      hourly: '每小时',
-      daily: '每天',
-      weekly: '每周',
-      monthly: '每月',
+      hourly: t('automation.freqHourly'),
+      daily: t('automation.freqDaily'),
+      weekly: t('automation.freqWeekly'),
+      monthly: t('automation.freqMonthly'),
     };
     const freq = freqLabels[sc.frequency] || sc.frequency;
-    if (sc.frequency === 'hourly') return `${freq} 第${sc.minute ?? 0}分`;
+    if (sc.frequency === 'hourly') return `${freq} ${t('automation.scheduleAtMinute', { minute: sc.minute ?? 0 })}`;
     return `${freq} ${sc.time || ''}`;
   } catch { return ''; }
 }

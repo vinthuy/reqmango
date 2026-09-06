@@ -27,7 +27,7 @@
           text-anchor="middle"
           class="text-[10px] fill-gray-500"
         >
-          {{ transition.rule_type === 'approval' ? '审批' : '允许' }}
+          {{ transition.rule_type === 'approval' ? t('workflow.approval') : t('workflow.allow') }}
         </text>
       </g>
       
@@ -73,6 +73,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 interface State {
   id: number
@@ -172,11 +175,11 @@ function getTransitionMidpoint(transition: Transition) {
 
 function getStateGroupLabel(group: string) {
   const labels: Record<string, string> = {
-    backlog: '待办',
-    unstarted: '未开始',
-    started: '进行中',
-    completed: '已完成',
-    cancelled: '已取消'
+    backlog: t('settings.stateGroupBacklogName'),
+    unstarted: t('settings.stateGroupUnstartedName'),
+    started: t('settings.stateGroupStartedName'),
+    completed: t('settings.stateGroupCompletedName'),
+    cancelled: t('settings.stateGroupCancelledName')
   }
   return labels[group] || group
 }

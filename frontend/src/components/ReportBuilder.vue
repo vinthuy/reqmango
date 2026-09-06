@@ -428,16 +428,16 @@ const rqlQuery = ref('')
 interface FilterCondition { field: string; operator: string; value: string }
 const filters = ref<FilterCondition[]>([{ field: '', operator: '=', value: '' }])
 const filterOperators = computed(() => [
-  { value: '=', label: '等于' },
-  { value: '!=', label: '不等于' },
-  { value: 'in', label: '属于' },
-  { value: 'not_in', label: '不属于' },
-  { value: '~', label: '包含' },
-  { value: '!~', label: '不包含' },
-  { value: '>=', label: '晚于' },
-  { value: '<=', label: '早于' },
-  { value: 'empty', label: '为空' },
-  { value: 'not_empty', label: '不为空' },
+  { value: '=', label: t('reportBuilder.opEqual') },
+  { value: '!=', label: t('reportBuilder.opNotEqual') },
+  { value: 'in', label: t('reportBuilder.opIn') },
+  { value: 'not_in', label: t('reportBuilder.opNotIn') },
+  { value: '~', label: t('reportBuilder.opContains') },
+  { value: '!~', label: t('reportBuilder.opNotContains') },
+  { value: '>=', label: t('reportBuilder.opAfter') },
+  { value: '<=', label: t('reportBuilder.opBefore') },
+  { value: 'empty', label: t('reportBuilder.opEmpty') },
+  { value: 'not_empty', label: t('reportBuilder.opNotEmpty') },
 ])
 
 // ═══ DATA STATE ═══
@@ -475,13 +475,13 @@ const dims = computed(() => [
 ])
 const filterFields = computed(() => [
   ...dims.value,
-  { value: 'name', label: '标题' },
-  { value: 'description', label: '描述' },
-  { value: 'sequence_id', label: '编号' },
-  { value: 'start_date', label: '开始日期' },
-  { value: 'target_date', label: '目标日期' },
-  { value: 'created_at', label: '创建时间' },
-  { value: 'updated_at', label: '更新时间' },
+  { value: 'name', label: t('reportBuilder.fieldTitle') },
+  { value: 'description', label: t('reportBuilder.fieldDescription') },
+  { value: 'sequence_id', label: t('reportBuilder.fieldSequenceId') },
+  { value: 'start_date', label: t('reportBuilder.fieldStartDate') },
+  { value: 'target_date', label: t('reportBuilder.fieldTargetDate') },
+  { value: 'created_at', label: t('reportBuilder.fieldCreatedAt') },
+  { value: 'updated_at', label: t('reportBuilder.fieldUpdatedAt') },
 ])
 const availableCharts = computed(() => {
   return ['Bar', 'Pie', 'Doughnut', 'Line', 'Area', 'Radar', 'PolarArea', 'HorizontalBar', 'StackedBar', 'Bubble', 'Scatter', 'Mixed', 'Table']

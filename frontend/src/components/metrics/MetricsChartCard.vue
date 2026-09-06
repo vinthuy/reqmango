@@ -27,7 +27,7 @@
       <span v-if="chart.y_axis">Y: {{ axisLabel(chart.y_axis) }}</span>
       <template v-if="formatFilters(chart.filters)">
         <span class="axis-sep">|</span>
-        <span>筛选: {{ formatFilters(chart.filters) }}</span>
+        <span>{{ t('metrics.filter') }}: {{ formatFilters(chart.filters) }}</span>
       </template>
     </div>
 
@@ -46,7 +46,7 @@
             <tr class="border-b border-gray-100">
               <th class="text-left py-2 px-3 text-gray-500 font-medium">{{ axisLabel(chart.x_axis) }}</th>
               <th class="text-right py-2 px-3 text-gray-500 font-medium">{{ axisLabel(chart.y_axis) }}</th>
-              <th class="text-right py-2 px-3 text-gray-500 font-medium">占比</th>
+              <th class="text-right py-2 px-3 text-gray-500 font-medium">{{ t('metrics.tableHeader.ratio') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -58,7 +58,7 @@
           </tbody>
           <tfoot>
             <tr class="border-t border-gray-200 font-medium">
-              <td class="py-1.5 px-3 text-gray-600">合计</td>
+              <td class="py-1.5 px-3 text-gray-600">{{ t('metrics.tableHeader.total') }}</td>
               <td class="py-1.5 px-3 text-right text-gray-800">{{ renderData!.total.toLocaleString() }}</td>
               <td class="py-1.5 px-3 text-right text-gray-500">100%</td>
             </tr>
@@ -66,14 +66,14 @@
         </table>
         <!-- Pagination -->
         <div v-if="tablePageCount > 1" class="flex items-center justify-between py-2 px-3 border-t border-gray-100">
-          <span class="text-[11px] text-gray-400">共 {{ tableItems.length }} 条，第 {{ tablePage }}/{{ tablePageCount }} 页</span>
+          <span class="text-[11px] text-gray-400">{{ t('metrics.tableHeader.pagination', { total: tableItems.length, page: tablePage, totalPages: tablePageCount }) }}</span>
           <div class="flex items-center gap-1">
             <button @click="tablePage = Math.max(1, tablePage - 1)" :disabled="tablePage <= 1"
-              class="px-2 py-0.5 text-[11px] rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">上一页</button>
+              class="px-2 py-0.5 text-[11px] rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">{{ t('metrics.tableHeader.prevPage') }}</button>
             <button v-for="p in visiblePages" :key="p" @click="tablePage = p"
               :class="['px-2 py-0.5 text-[11px] rounded border', p === tablePage ? 'bg-indigo-50 border-indigo-200 text-indigo-600 font-medium' : 'border-gray-200 hover:bg-gray-50']">{{ p }}</button>
             <button @click="tablePage = Math.min(tablePageCount, tablePage + 1)" :disabled="tablePage >= tablePageCount"
-              class="px-2 py-0.5 text-[11px] rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">下一页</button>
+              class="px-2 py-0.5 text-[11px] rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">{{ t('metrics.tableHeader.nextPage') }}</button>
           </div>
         </div>
       </div>
@@ -85,7 +85,7 @@
         <svg class="w-8 h-8 mb-2 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <span>暂无数据</span>
+        <span>{{ t('metrics.tableHeader.noData') }}</span>
       </div>
     </div>
   </div>
@@ -98,6 +98,10 @@ import type { RenderResult } from '@/types/metrics'
 import type { ReportResponse } from '@/api/report'
 import { metricsApi } from '@/api/metrics'
 import { useReportChart } from '@/composables/useReportChart'
+
+import { useI18n } from '@/composables/useI18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   chart: MetricChart
@@ -117,7 +121,11 @@ const fetchedData = ref<ReportResponse | null>(null)
 const currentType = ref(props.chart.chart_type)
 
 const typeLabel = computed(() => {
-  const map: Record<string, string> = { bar: '柱状图', line: '折线图', pie: '饼图', doughnut: '环形图', area: '面积图', radar: '雷达图', scatter: '散点图', bubble: '气泡图', mixed: '混合图', table: '表格' }
+  const map: Record<string, string> = {
+    bar: t('metrics.chartTypes.bar'), line: t('metrics.chartTypes.line'), pie: t('metrics.chartTypes.pie'), doughnut: t('metrics.chartTypes.doughnut'),
+    area: t('metrics.chartTypes.area'), radar: t('metrics.chartTypes.radar'), scatter: t('metrics.chartTypes.scatter'), bubble: t('metrics.chartTypes.bubble'),
+    mixed: t('metrics.chartTypes.mixed'), table: t('metrics.chartTypes.table'),
+  }
   return map[currentType.value] || currentType.value
 })
 
@@ -161,32 +169,32 @@ const visiblePages = computed(() => {
 })
 
 const xAxisLabelMap: Record<string, string> = {
-  state: '状态', type: '类型', priority: '优先级', assignee: '负责人',
-  reporter: '报告人', title: '标题', label: '标签', module: '模块',
-  created_at: '创建日期', updated_at: '更新日期', created_by: '创建人',
-  created_day: '创建日期(天)', created_week: '创建日期(周)', created_month: '创建日期(月)',
-  completed_day: '完成日期(天)', completed_week: '完成日期(周)', completed_month: '完成日期(月)',
-  updated_day: '更新日期(天)', updated_week: '更新日期(周)', updated_month: '更新日期(月)',
-  state_group: '状态分组', cycle: '迭代',
+  state: t('metrics.dimensions.state'), type: t('metrics.dimensions.type'), priority: t('metrics.dimensions.priority'), assignee: t('metrics.dimensions.assignee'),
+  reporter: t('metrics.dimensions.reporter'), title: t('metrics.fieldTitle'), label: t('metrics.dimensions.label'), module: t('metrics.dimensions.module'),
+  created_at: t('metrics.dimensions.created_at'), updated_at: t('metrics.dimensions.updated_at'), created_by: t('metrics.fieldCreatedBy'),
+  created_day: t('metrics.dimensions.createdByDay'), created_week: t('metrics.dimensions.createdByWeek'), created_month: t('metrics.dimensions.createdByMonth'),
+  completed_day: t('metrics.dimensions.completedByDay'), completed_week: t('metrics.dimensions.completedByWeek'), completed_month: t('metrics.dimensions.completedByMonth'),
+  updated_day: t('metrics.dimensions.updatedByDay'), updated_week: t('metrics.dimensions.updatedByWeek'), updated_month: t('metrics.dimensions.updatedByMonth'),
+  state_group: t('metrics.dimensions.state_group'), cycle: t('metrics.dimensions.cycle'),
 }
 
 const yAxisLabelMap: Record<string, string> = {
-  count: '数量', avg_days: '平均天数', avg_processing_time: '平均处理时间(天)',
-  current_retention: '当前留存时间(天)', avg_cycle_time: '平均周期时间(天)',
-  completion_rate: '完成率(%)', throughput: '吞吐量(完成数)',
-  wip_count: '在制品数量', backlog_count: '待办数量', overdue_count: '逾期数量',
-  avg_resolution_days: '平均解决天数',
+  count: t('metrics.yAxisOptions.count'), avg_days: t('metrics.yAxisOptions.avgDays'), avg_processing_time: t('metrics.yAxisOptions.avg_processing_time'),
+  current_retention: t('metrics.yAxisOptions.current_retention'), avg_cycle_time: t('metrics.yAxisOptions.avg_cycle_time'),
+  completion_rate: t('metrics.yAxisOptions.completion_rate'), throughput: t('metrics.yAxisOptions.throughput'),
+  wip_count: t('metrics.yAxisOptions.wip_count'), backlog_count: t('metrics.yAxisOptions.backlog_count'), overdue_count: t('metrics.yAxisOptions.overdue_count'),
+  avg_resolution_days: t('metrics.yAxisOptions.avgResolutionDays'),
 }
 
 function axisLabel(field: string): string {
   if (field.startsWith('custom_field_avg:')) {
-    return '自定义字段(平均)'
+    return t('metrics.axisLabels.customFieldAvg')
   }
   if (field.startsWith('custom_field_count:')) {
-    return '自定义字段(计数)'
+    return t('metrics.axisLabels.customFieldCount')
   }
   if (field.startsWith('custom_field:')) {
-    return '自定义字段(' + field.split(':')[1] + ')'
+    return t('metrics.axisLabels.customFieldPrefix', { id: field.split(':')[1] })
   }
   return xAxisLabelMap[field] || yAxisLabelMap[field] || field
 }
@@ -202,8 +210,8 @@ function formatFilters(filters: string | Record<string, any> | null | undefined)
         if (!c || !c.field) continue
         const field = axisLabel(c.field)
         const op = c.operator || '='
-        if (op === 'empty') { parts.push(`${field} 为空`); continue }
-        if (op === 'not_empty') { parts.push(`${field} 不为空`); continue }
+        if (op === 'empty') { parts.push(`${field} ${t('metrics.opEmpty')}`); continue }
+        if (op === 'not_empty') { parts.push(`${field} ${t('metrics.opNotEmpty')}`); continue }
         let val = ''
         if (c.values && c.values.length > 0) val = c.values.join(', ')
         else if (c.value) val = String(c.value)

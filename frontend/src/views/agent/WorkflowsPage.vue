@@ -3,29 +3,29 @@
     <a-card>
       <template #title>
         <div style="display: flex; align-items: center; justify-content: space-between;">
-          <span style="font-size: 20px; font-weight: 600;">工作流管理</span>
+          <span style="font-size: 20px; font-weight: 600;">{{ t('workflowsPage.title') }}</span>
           <a-button type="primary" @click="openCreateModal">
-            创建工作流
+            {{ t('workflowsPage.createWorkflow') }}
           </a-button>
         </div>
       </template>
 
       <a-tabs v-model:activeKey="activeTab" @change="onTabChange">
-        <a-tab-pane key="workflows" tab="工作流列表">
+        <a-tab-pane key="workflows" :tab="t('workflowsPage.tabWorkflows')">
           <div style="margin-bottom: 16px;">
             <a-space>
               <a-select
                 v-model:value="statusFilter"
-                placeholder="筛选状态"
+                :placeholder="t('workflowsPage.filterStatus')"
                 allowClear
                 style="width: 160px;"
                 @change="loadWorkflows"
               >
-                <a-select-option value="draft">草稿</a-select-option>
-                <a-select-option value="active">激活</a-select-option>
-                <a-select-option value="archived">归档</a-select-option>
+                <a-select-option value="draft">{{ t('workflowsPage.statusDraft') }}</a-select-option>
+                <a-select-option value="active">{{ t('workflowsPage.statusActive') }}</a-select-option>
+                <a-select-option value="archived">{{ t('workflowsPage.statusArchived') }}</a-select-option>
               </a-select>
-              <a-button @click="loadWorkflows">刷新</a-button>
+              <a-button @click="loadWorkflows">{{ t('workflowsPage.refresh') }}</a-button>
             </a-space>
           </div>
 
@@ -34,7 +34,7 @@
             :columns="workflowColumns"
             :loading="loadingWorkflows"
             rowKey="id"
-            :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (total: number) => `共 ${total} 条` }"
+            :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (total: number) => t('workflowsPage.totalItems', { total }) }"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'name'">
@@ -44,7 +44,7 @@
               </template>
               <template v-if="column.key === 'status'">
                 <a-tag :color="getStatusColor(record.is_active)">
-                  {{ record.is_active ? '激活' : '草稿' }}
+                  {{ record.is_active ? t('workflowsPage.statusActive') : t('workflowsPage.statusDraft') }}
                 </a-tag>
               </template>
               <template v-if="column.key === 'nodeCount'">
@@ -55,9 +55,9 @@
               </template>
               <template v-if="column.key === 'actions'">
                 <a-space>
-                  <a-button size="small" @click="openEditModal(record)">编辑</a-button>
-                  <a-button size="small" type="primary" ghost @click="goToDesign(record)">设计</a-button>
-                  <a-button size="small" type="primary" @click="openRunModal(record)">运行</a-button>
+                  <a-button size="small" @click="openEditModal(record)">{{ t('common.edit') }}</a-button>
+                  <a-button size="small" type="primary" ghost @click="goToDesign(record)">{{ t('workflowsPage.design') }}</a-button>
+                  <a-button size="small" type="primary" @click="openRunModal(record)">{{ t('workflowsPage.run') }}</a-button>
                   <a-button
                     v-if="!record.is_active"
                     size="small"
@@ -65,7 +65,7 @@
                     ghost
                     @click="handleActivate(record)"
                   >
-                    激活
+                    {{ t('workflowsPage.activate') }}
                   </a-button>
                   <a-button
                     v-if="record.is_active"
@@ -74,15 +74,15 @@
                     ghost
                     @click="handleArchive(record)"
                   >
-                    归档
+                    {{ t('workflowsPage.archive') }}
                   </a-button>
                   <a-popconfirm
-                    title="确定要删除这个工作流吗？"
-                    okText="确定"
-                    cancelText="取消"
+                    :title="t('workflowsPage.deleteConfirm')"
+                    :okText="t('common.confirm')"
+                    :cancelText="t('common.cancel')"
                     @confirm="handleDelete(record)"
                   >
-                    <a-button size="small" danger>删除</a-button>
+                    <a-button size="small" danger>{{ t('common.delete') }}</a-button>
                   </a-popconfirm>
                 </a-space>
               </template>
@@ -90,13 +90,13 @@
           </a-table>
         </a-tab-pane>
 
-        <a-tab-pane key="runs" tab="执行记录">
+        <a-tab-pane key="runs" :tab="t('workflowsPage.tabRuns')">
           <a-table
             :dataSource="allRuns"
             :columns="runColumns"
             :loading="loadingRuns"
             rowKey="id"
-            :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (total: number) => `共 ${total} 条` }"
+            :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (total: number) => t('workflowsPage.totalItems', { total }) }"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'workflowName'">
@@ -118,7 +118,7 @@
               </template>
               <template v-if="column.key === 'errorMessage'">
                 <a-tooltip v-if="record.error_info" :title="record.error_info">
-                  <span style="color: #ff4d4f; cursor: pointer;">查看错误</span>
+                  <span style="color: #ff4d4f; cursor: pointer;">{{ t('workflowsPage.viewError') }}</span>
                 </a-tooltip>
                 <span v-else>-</span>
               </template>
@@ -131,35 +131,35 @@
     <!-- Create / Edit Workflow Modal -->
     <a-modal
       v-model:open="formModalVisible"
-      :title="isEditing ? '编辑工作流' : '创建工作流'"
+      :title="isEditing ? t('workflowsPage.editWorkflow') : t('workflowsPage.createWorkflow')"
       @ok="handleFormSubmit"
       :confirmLoading="formSubmitting"
-      okText="确定"
-      cancelText="取消"
+      :okText="t('common.confirm')"
+      :cancelText="t('common.cancel')"
     >
       <a-form
         :model="formState"
         :label-col="{ span: 6 }"
         :wrapper-col="{ span: 16 }"
       >
-        <a-form-item label="名称" required>
+        <a-form-item :label="t('common.name')" required>
           <a-input
             v-model:value="formState.name"
-            placeholder="请输入工作流名称"
+            :placeholder="t('workflowsPage.namePlaceholder')"
           />
         </a-form-item>
-        <a-form-item label="描述">
+        <a-form-item :label="t('common.description')">
           <a-input
             v-model:value="formState.description"
             type="textarea"
             :rows="3"
-            placeholder="请输入工作流描述"
+            :placeholder="t('workflowsPage.descriptionPlaceholder')"
           />
         </a-form-item>
-        <a-form-item label="触发方式">
-          <a-select v-model:value="formState.trigger_type" placeholder="选择触发方式">
-            <a-select-option value="manual">手动</a-select-option>
-            <a-select-option value="scheduled">定时</a-select-option>
+        <a-form-item :label="t('workflowsPage.triggerType')">
+          <a-select v-model:value="formState.trigger_type" :placeholder="t('workflowsPage.selectTriggerType')">
+            <a-select-option value="manual">{{ t('workflowsPage.triggerManual') }}</a-select-option>
+            <a-select-option value="scheduled">{{ t('workflowsPage.triggerScheduled') }}</a-select-option>
             <a-select-option value="webhook">Webhook</a-select-option>
           </a-select>
         </a-form-item>
@@ -169,24 +169,24 @@
     <!-- Run Workflow Modal -->
     <a-modal
       v-model:open="runModalVisible"
-      title="运行工作流"
+      :title="t('workflowsPage.runWorkflow')"
       @ok="handleRunSubmit"
       :confirmLoading="runSubmitting"
-      okText="运行"
-      cancelText="取消"
+      :okText="t('workflowsPage.run')"
+      :cancelText="t('common.cancel')"
     >
       <a-form
         :model="runFormState"
         :label-col="{ span: 6 }"
         :wrapper-col="{ span: 16 }"
       >
-        <a-form-item label="工作流">
+        <a-form-item :label="t('workflowsPage.workflow')">
           <a-input :value="runningWorkflow?.name" disabled />
         </a-form-item>
-        <a-form-item label="触发类型">
-          <a-select v-model:value="runFormState.trigger_type" placeholder="选择触发类型">
-            <a-select-option value="manual">手动</a-select-option>
-            <a-select-option value="scheduled">定时</a-select-option>
+        <a-form-item :label="t('workflowsPage.triggerType')">
+          <a-select v-model:value="runFormState.trigger_type" :placeholder="t('workflowsPage.selectTriggerType')">
+            <a-select-option value="manual">{{ t('workflowsPage.triggerManual') }}</a-select-option>
+            <a-select-option value="scheduled">{{ t('workflowsPage.triggerScheduled') }}</a-select-option>
             <a-select-option value="webhook">Webhook</a-select-option>
           </a-select>
         </a-form-item>
@@ -194,7 +194,7 @@
           <a-input-number
             v-model:value="runFormState.issue_id"
             :min="1"
-            placeholder="可选，关联的 Issue ID"
+            :placeholder="t('workflowsPage.issueIdPlaceholder')"
             style="width: 100%;"
           />
         </a-form-item>
@@ -207,11 +207,13 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
+import { useI18n } from '@/composables/useI18n'
 import { workflowApi } from '@/api/workflow'
 import type { Workflow, WorkflowRun } from '@/api/workflow'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const projectId = computed(() => {
   return Number(route.params.projectId || route.params.id)
@@ -224,23 +226,23 @@ const workflows = ref<Workflow[]>([])
 const allRuns = ref<(WorkflowRun & { trigger_type?: string })[]>([])
 const statusFilter = ref<string | undefined>(undefined)
 
-const workflowColumns = [
-  { title: '名称', key: 'name', dataIndex: 'name' },
-  { title: '描述', key: 'description', dataIndex: 'description', ellipsis: true },
-  { title: '状态', key: 'status', dataIndex: 'is_active', width: 100 },
-  { title: '节点数', key: 'nodeCount', dataIndex: 'node_count', width: 80 },
-  { title: '创建时间', key: 'createdAt', dataIndex: 'created_at', width: 160 },
-  { title: '操作', key: 'actions', width: 360 },
-]
+const workflowColumns = computed(() => [
+  { title: t('common.name'), key: 'name', dataIndex: 'name' },
+  { title: t('common.description'), key: 'description', dataIndex: 'description', ellipsis: true },
+  { title: t('common.status'), key: 'status', dataIndex: 'is_active', width: 100 },
+  { title: t('workflowsPage.nodeCount'), key: 'nodeCount', dataIndex: 'node_count', width: 80 },
+  { title: t('workflowsPage.createdAt'), key: 'createdAt', dataIndex: 'created_at', width: 160 },
+  { title: t('common.actions'), key: 'actions', width: 360 },
+])
 
-const runColumns = [
-  { title: '工作流', key: 'workflowName', dataIndex: 'workflow_id', width: 160 },
-  { title: '状态', key: 'status', dataIndex: 'status', width: 100 },
-  { title: '触发类型', key: 'triggerType', dataIndex: 'trigger_type', width: 120 },
-  { title: '开始时间', key: 'startedAt', dataIndex: 'started_at', width: 160 },
-  { title: '完成时间', key: 'completedAt', dataIndex: 'completed_at', width: 160 },
-  { title: '错误信息', key: 'errorMessage', dataIndex: 'error_info', ellipsis: true },
-]
+const runColumns = computed(() => [
+  { title: t('workflowsPage.workflow'), key: 'workflowName', dataIndex: 'workflow_id', width: 160 },
+  { title: t('common.status'), key: 'status', dataIndex: 'status', width: 100 },
+  { title: t('workflowsPage.triggerType'), key: 'triggerType', dataIndex: 'trigger_type', width: 120 },
+  { title: t('workflowsPage.startedAt'), key: 'startedAt', dataIndex: 'started_at', width: 160 },
+  { title: t('workflowsPage.completedAt'), key: 'completedAt', dataIndex: 'completed_at', width: 160 },
+  { title: t('workflowsPage.errorMessage'), key: 'errorMessage', dataIndex: 'error_info', ellipsis: true },
+])
 
 const filteredWorkflows = computed(() => {
   if (!statusFilter.value) return workflows.value
@@ -289,19 +291,19 @@ function getRunStatusColor(status: string): string {
 
 function getRunStatusLabel(status: string): string {
   const map: Record<string, string> = {
-    running: '运行中',
-    completed: '已完成',
-    failed: '失败',
-    cancelled: '已取消',
-    pending: '等待中',
+    running: t('workflowsPage.runStatusRunning'),
+    completed: t('workflowsPage.runStatusCompleted'),
+    failed: t('workflowsPage.runStatusFailed'),
+    cancelled: t('workflowsPage.runStatusCancelled'),
+    pending: t('workflowsPage.runStatusPending'),
   }
   return map[status] || status
 }
 
 function getTriggerTypeLabel(type?: string): string {
   const map: Record<string, string> = {
-    manual: '手动',
-    scheduled: '定时',
+    manual: t('workflowsPage.triggerManual'),
+    scheduled: t('workflowsPage.triggerScheduled'),
     webhook: 'Webhook',
   }
   return map[type || ''] || type || '-'
@@ -330,7 +332,7 @@ async function loadWorkflows() {
     const res = await workflowApi.list(projectId.value)
     workflows.value = res.data.data || []
   } catch (e: any) {
-    message.error('加载工作流列表失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.loadWorkflowsFailed') + (e.message || t('workflowsPage.unknownError')))
   } finally {
     loadingWorkflows.value = false
   }
@@ -355,7 +357,7 @@ async function loadAllRuns() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
   } catch (e: any) {
-    message.error('加载执行记录失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.loadRunsFailed') + (e.message || t('workflowsPage.unknownError')))
   } finally {
     loadingRuns.value = false
   }
@@ -387,7 +389,7 @@ function openEditModal(workflow: Workflow) {
 
 async function handleFormSubmit() {
   if (!formState.name.trim()) {
-    message.warning('请输入工作流名称')
+    message.warning(t('workflowsPage.nameRequired'))
     return
   }
   formSubmitting.value = true
@@ -398,19 +400,19 @@ async function handleFormSubmit() {
         description: formState.description,
         trigger_type: formState.trigger_type,
       })
-      message.success('工作流更新成功')
+      message.success(t('workflowsPage.updateSuccess'))
     } else {
       await workflowApi.create(projectId.value, {
         name: formState.name,
         description: formState.description,
         trigger_type: formState.trigger_type,
       })
-      message.success('工作流创建成功')
+      message.success(t('workflowsPage.createSuccess'))
     }
     formModalVisible.value = false
     await loadWorkflows()
   } catch (e: any) {
-    message.error('操作失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.operationFailed') + (e.message || t('workflowsPage.unknownError')))
   } finally {
     formSubmitting.value = false
   }
@@ -419,30 +421,30 @@ async function handleFormSubmit() {
 async function handleDelete(workflow: Workflow) {
   try {
     await workflowApi.delete(projectId.value, workflow.id)
-    message.success('工作流删除成功')
+    message.success(t('workflowsPage.deleteSuccess'))
     await loadWorkflows()
   } catch (e: any) {
-    message.error('删除失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.deleteFailed') + (e.message || t('workflowsPage.unknownError')))
   }
 }
 
 async function handleActivate(workflow: Workflow) {
   try {
     await workflowApi.update(projectId.value, workflow.id, { is_active: true })
-    message.success('工作流已激活')
+    message.success(t('workflowsPage.activateSuccess'))
     await loadWorkflows()
   } catch (e: any) {
-    message.error('激活失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.activateFailed') + (e.message || t('workflowsPage.unknownError')))
   }
 }
 
 async function handleArchive(workflow: Workflow) {
   try {
     await workflowApi.update(projectId.value, workflow.id, { is_active: false })
-    message.success('工作流已归档')
+    message.success(t('workflowsPage.archiveSuccess'))
     await loadWorkflows()
   } catch (e: any) {
-    message.error('归档失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.archiveFailed') + (e.message || t('workflowsPage.unknownError')))
   }
 }
 
@@ -467,10 +469,10 @@ async function handleRunSubmit() {
   runSubmitting.value = true
   try {
     await workflowApi.execute(projectId.value, runningWorkflow.value.id, runFormState.issue_id)
-    message.success('工作流已启动')
+    message.success(t('workflowsPage.runStarted'))
     runModalVisible.value = false
   } catch (e: any) {
-    message.error('运行失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.runFailed') + (e.message || t('workflowsPage.unknownError')))
   } finally {
     runSubmitting.value = false
   }

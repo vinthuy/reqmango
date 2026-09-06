@@ -5,18 +5,18 @@
       <div class="toolbar-left">
         <a-button type="text" @click="goBack" class="toolbar-btn">
           <template #icon><ArrowLeftOutlined /></template>
-          返回
+          {{ t('common.back') }}
         </a-button>
         <a-divider type="vertical" />
         <a-input
           v-model:value="workflowName"
           class="workflow-name-input"
           :bordered="false"
-          placeholder="工作流名称"
+          :placeholder="t('workflowsPage.workflow')"
           @blur="handleNameChange"
         />
         <a-tag :color="workflowDetail?.is_active ? 'green' : 'default'" style="margin-left: 8px;">
-          {{ workflowDetail?.is_active ? '激活' : '草稿' }}
+          {{ workflowDetail?.is_active ? t('workflowsPage.statusActive') : t('workflowsPage.statusDraft') }}
         </a-tag>
       </div>
       <div class="toolbar-center">
@@ -28,25 +28,25 @@
           <a-button @click="zoomIn" :disabled="zoom >= 2">
             <template #icon><ZoomInOutlined /></template>
           </a-button>
-          <a-button @click="zoomReset">重置</a-button>
+          <a-button @click="zoomReset">{{ t('common.reset') }}</a-button>
         </a-button-group>
       </div>
       <div class="toolbar-right">
         <a-button @click="handleSave" :loading="saving">
-          <template #icon><SaveOutlined /></template>
-          保存
-        </a-button>
-        <a-button type="primary" @click="handleRun" :loading="running">
-          <template #icon><CaretRightOutlined /></template>
-          运行
-        </a-button>
+            <template #icon><SaveOutlined /></template>
+            {{ t('common.save') }}
+          </a-button>
+          <a-button type="primary" @click="handleRun" :loading="running">
+            <template #icon><CaretRightOutlined /></template>
+            {{ t('workflowsPage.run') }}
+          </a-button>
       </div>
     </div>
 
     <div class="designer-body">
       <!-- Left Panel: Node Palette -->
       <div class="left-panel">
-        <div class="panel-header">节点面板</div>
+        <div class="panel-header">{{ t('workflowDesigner.nodePanel') }}</div>
         <div class="node-palette">
           <div
             v-for="paletteNode in paletteNodes"
@@ -66,7 +66,7 @@
           </div>
         </div>
         <div class="panel-section">
-          <div class="panel-section-title">节点列表</div>
+          <div class="panel-section-title">{{ t('workflowDesigner.nodeList') }}</div>
           <div class="node-list">
             <div
               v-for="node in canvasNodes"
@@ -79,7 +79,7 @@
               <span class="node-list-name">{{ node.name }}</span>
             </div>
             <div v-if="canvasNodes.length === 0" class="empty-hint">
-              拖拽节点到画布
+              {{ t('workflowDesigner.dragNodeHint') }}
             </div>
           </div>
         </div>
@@ -209,7 +209,7 @@
           <div class="canvas-empty-icon">
             <BranchesOutlined style="font-size: 48px; color: #bbb;" />
           </div>
-          <div class="canvas-empty-text">从左侧面板拖拽节点到画布开始设计工作流</div>
+          <div class="canvas-empty-text">{{ t('workflowDesigner.canvasEmptyHint') }}</div>
         </div>
 
         <!-- Edge context menu -->
@@ -219,7 +219,7 @@
           :style="{ left: edgeContextMenu.x + 'px', top: edgeContextMenu.y + 'px' }"
         >
           <div class="context-menu-item danger" @click="deleteEdgeFromMenu">
-            <DeleteOutlined /> 删除连线
+            <DeleteOutlined /> {{ t('workflowDesigner.deleteEdge') }}
           </div>
         </div>
       </div>
@@ -227,7 +227,7 @@
       <!-- Right Panel: Properties -->
       <div class="right-panel" v-if="selectedNodeId || selectedEdgeId">
         <div class="panel-header">
-          {{ selectedEdgeId ? '连线属性' : '节点属性' }}
+          {{ selectedEdgeId ? t('workflowDesigner.edgeProperties') : t('workflowDesigner.nodeProperties') }}
           <a-button type="text" size="small" @click="clearSelection">
             <template #icon><CloseOutlined /></template>
           </a-button>
@@ -236,21 +236,21 @@
         <!-- Node Properties -->
         <div v-if="selectedNodeId && selectedNode" class="properties-content">
           <div class="prop-section">
-            <div class="prop-label">类型</div>
+            <div class="prop-label">{{ t('workflowDesigner.type') }}</div>
             <a-tag :color="getNodeColor(selectedNode.type)">{{ getNodeTypeName(selectedNode.type) }}</a-tag>
           </div>
           <div class="prop-section">
-            <div class="prop-label">名称</div>
+            <div class="prop-label">{{ t('workflowDesigner.name') }}</div>
             <a-input v-model:value="selectedNode.name" size="small" />
           </div>
 
           <!-- Agent Node Properties -->
           <template v-if="selectedNode.type === 'agent'">
             <div class="prop-section">
-              <div class="prop-label">Agent 成员</div>
+              <div class="prop-label">{{ t('workflowDesigner.agentMember') }}</div>
               <a-select
                 v-model:value="selectedNode.config.agent_member_id"
-                placeholder="选择 Agent"
+                :placeholder="t('workflowDesigner.selectAgent')"
                 size="small"
                 style="width: 100%;"
                 show-search
@@ -262,16 +262,16 @@
               </a-select>
             </div>
             <div class="prop-section">
-              <div class="prop-label">任务描述</div>
+              <div class="prop-label">{{ t('workflowDesigner.taskDescription') }}</div>
               <a-textarea
                 v-model:value="selectedNode.config.task_description"
                 :rows="4"
                 size="small"
-                placeholder="描述此 Agent 需要执行的任务..."
+                :placeholder="t('workflowDesigner.taskDescriptionPlaceholder')"
               />
             </div>
             <div class="prop-section">
-              <div class="prop-label">超时时间（秒）</div>
+              <div class="prop-label">{{ t('workflowDesigner.timeoutSeconds') }}</div>
               <a-input-number
                 v-model:value="selectedNode.config.timeout_seconds"
                 :min="1"
@@ -281,7 +281,7 @@
               />
             </div>
             <div class="prop-section">
-              <div class="prop-label">重试次数</div>
+              <div class="prop-label">{{ t('workflowDesigner.retryCount') }}</div>
               <a-input-number
                 v-model:value="selectedNode.config.retry_count"
                 :min="0"
@@ -295,13 +295,13 @@
           <!-- Condition Node Properties -->
           <template v-if="selectedNode.type === 'condition'">
             <div class="prop-section">
-              <div class="prop-label">条件表达式</div>
+              <div class="prop-label">{{ t('workflowDesigner.conditionExpression') }}</div>
               <a-textarea
                 v-model:value="selectedNode.config.condition_expression"
                 :rows="4"
                 size="small"
                 class="monospace-input"
-                placeholder='例如: output.status === "success"'
+                :placeholder="t('workflowDesigner.conditionPlaceholder')"
               />
             </div>
           </template>
@@ -309,11 +309,11 @@
           <!-- Merge Node Properties -->
           <template v-if="selectedNode.type === 'merge'">
             <div class="prop-section">
-              <div class="prop-label">合并策略</div>
+              <div class="prop-label">{{ t('workflowDesigner.mergeStrategy') }}</div>
               <a-radio-group v-model:value="selectedNode.config.strategy" size="small">
-                <a-radio value="wait_all">等待全部</a-radio>
-                <a-radio value="first_success">首次成功</a-radio>
-                <a-radio value="custom">自定义</a-radio>
+                <a-radio value="wait_all">{{ t('workflowDesigner.waitAll') }}</a-radio>
+                <a-radio value="first_success">{{ t('workflowDesigner.firstSuccess') }}</a-radio>
+                <a-radio value="custom">{{ t('workflowDesigner.custom') }}</a-radio>
               </a-radio-group>
             </div>
           </template>
@@ -321,35 +321,35 @@
           <!-- Notification Node Properties -->
           <template v-if="selectedNode.type === 'notification'">
             <div class="prop-section">
-              <div class="prop-label">通知渠道</div>
+              <div class="prop-label">{{ t('workflowDesigner.notificationChannel') }}</div>
               <a-select
                 v-model:value="selectedNode.config.channel"
                 size="small"
                 style="width: 100%;"
-                placeholder="选择通知渠道"
+                :placeholder="t('workflowDesigner.selectNotificationChannel')"
               >
-                <a-select-option value="email">邮件</a-select-option>
+                <a-select-option value="email">{{ t('workflowDesigner.channelEmail') }}</a-select-option>
                 <a-select-option value="webhook">Webhook</a-select-option>
                 <a-select-option value="slack">Slack</a-select-option>
-                <a-select-option value="feishu">飞书</a-select-option>
+                <a-select-option value="feishu">{{ t('workflowDesigner.channelFeishu') }}</a-select-option>
               </a-select>
             </div>
             <div class="prop-section">
-              <div class="prop-label">接收者</div>
+              <div class="prop-label">{{ t('workflowDesigner.recipients') }}</div>
               <a-textarea
                 v-model:value="selectedNode.config.recipients"
                 :rows="3"
                 size="small"
-                placeholder="每行一个接收者"
+                :placeholder="t('workflowDesigner.recipientsPlaceholder')"
               />
             </div>
             <div class="prop-section">
-              <div class="prop-label">通知模板</div>
+              <div class="prop-label">{{ t('workflowDesigner.notificationTemplate') }}</div>
               <a-textarea
                 v-model:value="selectedNode.config.template"
                 :rows="4"
                 size="small"
-                placeholder="通知消息模板"
+                :placeholder="t('workflowDesigner.notificationTemplatePlaceholder')"
               />
             </div>
           </template>
@@ -357,38 +357,38 @@
           <a-divider />
           <a-button danger block @click="deleteSelectedNode">
             <template #icon><DeleteOutlined /></template>
-            删除节点
+            {{ t('workflowDesigner.deleteNode') }}
           </a-button>
         </div>
 
         <!-- Edge Properties -->
         <div v-if="selectedEdgeId && selectedEdge" class="properties-content">
           <div class="prop-section">
-            <div class="prop-label">标签</div>
-            <a-input v-model:value="selectedEdge.label" size="small" placeholder="连线标签" />
+            <div class="prop-label">{{ t('workflowDesigner.label') }}</div>
+            <a-input v-model:value="selectedEdge.label" size="small" :placeholder="t('workflowDesigner.edgeLabelPlaceholder')" />
           </div>
           <div class="prop-section">
-            <div class="prop-label">条件表达式</div>
+            <div class="prop-label">{{ t('workflowDesigner.conditionExpression') }}</div>
             <a-textarea
               v-model:value="selectedEdge.condition"
               :rows="3"
               size="small"
               class="monospace-input"
-              placeholder="可选的条件表达式"
+              :placeholder="t('workflowDesigner.edgeConditionPlaceholder')"
             />
           </div>
           <div class="prop-section">
-            <div class="prop-label">源节点</div>
+            <div class="prop-label">{{ t('workflowDesigner.sourceNode') }}</div>
             <a-input :value="getNodeNameById(selectedEdge.sourceNodeId)" size="small" disabled />
           </div>
           <div class="prop-section">
-            <div class="prop-label">目标节点</div>
+            <div class="prop-label">{{ t('workflowDesigner.targetNode') }}</div>
             <a-input :value="getNodeNameById(selectedEdge.targetNodeId)" size="small" disabled />
           </div>
           <a-divider />
           <a-button danger block @click="deleteSelectedEdge">
             <template #icon><DeleteOutlined /></template>
-            删除连线
+            {{ t('workflowDesigner.deleteEdge') }}
           </a-button>
         </div>
       </div>
@@ -400,6 +400,7 @@
 import { ref, computed, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
+import { useI18n } from '@/composables/useI18n'
 import {
   ArrowLeftOutlined,
   ZoomInOutlined,
@@ -452,18 +453,19 @@ interface PaletteNodeDef {
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const projectId = computed(() => Number(route.params.id || route.params.projectId))
 const workflowId = computed(() => Number(route.params.workflowId))
 
 // ==================== Palette ====================
 
-const paletteNodes: PaletteNodeDef[] = [
-  { type: 'agent', label: 'Agent 节点', desc: '执行 AI Agent 任务', color: '#1890ff', icon: RobotOutlined },
-  { type: 'condition', label: '条件节点', desc: '条件分支判断', color: '#faad14', icon: ForkOutlined },
-  { type: 'merge', label: '合并节点', desc: '合并多个流程', color: '#52c41a', icon: MergeCellsOutlined },
-  { type: 'notification', label: '通知节点', desc: '发送通知消息', color: '#722ed1', icon: BellOutlined },
-]
+const paletteNodes = computed<PaletteNodeDef[]>(() => [
+  { type: 'agent', label: t('workflowDesigner.agentNode'), desc: t('workflowDesigner.agentNodeDesc'), color: '#1890ff', icon: RobotOutlined },
+  { type: 'condition', label: t('workflowDesigner.conditionNode'), desc: t('workflowDesigner.conditionNodeDesc'), color: '#faad14', icon: ForkOutlined },
+  { type: 'merge', label: t('workflowDesigner.mergeNode'), desc: t('workflowDesigner.mergeNodeDesc'), color: '#52c41a', icon: MergeCellsOutlined },
+  { type: 'notification', label: t('workflowDesigner.notificationNode'), desc: t('workflowDesigner.notificationNodeDesc'), color: '#722ed1', icon: BellOutlined },
+])
 
 // ==================== State ====================
 
@@ -520,31 +522,31 @@ const selectedEdge = computed(() => {
 // ==================== Helpers ====================
 
 function getNodeColor(type: CanvasNode['type']): string {
-  return paletteNodes.find(p => p.type === type)?.color || '#999'
+  return paletteNodes.value.find(p => p.type === type)?.color || '#999'
 }
 
 function getNodeIcon(type: CanvasNode['type']) {
-  return paletteNodes.find(p => p.type === type)?.icon || RobotOutlined
+  return paletteNodes.value.find(p => p.type === type)?.icon || RobotOutlined
 }
 
 function getNodeTypeName(type: CanvasNode['type']): string {
-  const map: Record<string, string> = { agent: 'Agent', condition: '条件', merge: '合并', notification: '通知' }
+  const map: Record<string, string> = { agent: 'Agent', condition: t('workflowDesigner.condition'), merge: t('workflowDesigner.merge'), notification: t('workflowDesigner.notification') }
   return map[type] || type
 }
 
 function getNodeSummary(node: CanvasNode): string {
   if (node.type === 'agent') {
-    return node.config.task_description ? node.config.task_description.substring(0, 40) : '未设置任务'
+    return node.config.task_description ? node.config.task_description.substring(0, 40) : t('workflowDesigner.noTaskSet')
   }
   if (node.type === 'condition') {
-    return node.config.condition_expression ? node.config.condition_expression.substring(0, 40) : '未设置条件'
+    return node.config.condition_expression ? node.config.condition_expression.substring(0, 40) : t('workflowDesigner.noConditionSet')
   }
   if (node.type === 'merge') {
-    const map: Record<string, string> = { wait_all: '等待全部', first_success: '首次成功', custom: '自定义' }
-    return map[node.config.strategy] || '等待全部'
+    const map: Record<string, string> = { wait_all: t('workflowDesigner.waitAll'), first_success: t('workflowDesigner.firstSuccess'), custom: t('workflowDesigner.custom') }
+    return map[node.config.strategy] || t('workflowDesigner.waitAll')
   }
   if (node.type === 'notification') {
-    return node.config.channel ? `渠道: ${node.config.channel}` : '未设置渠道'
+    return node.config.channel ? `${t('workflowDesigner.channel')}: ${node.config.channel}` : t('workflowDesigner.noChannelSet')
   }
   return ''
 }
@@ -790,7 +792,7 @@ function onInputPointClick(nodeId: string) {
     e => e.sourceNodeId === connectingEdge.value!.sourceNodeId && e.targetNodeId === nodeId
   )
   if (exists) {
-    message.warning('已存在相同的连线')
+    message.warning(t('workflowDesigner.duplicateEdge'))
     connectingEdge.value = null
     return
   }
@@ -906,7 +908,7 @@ async function loadWorkflow() {
       }))
     }
   } catch (e: any) {
-    message.error('加载工作流失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.loadWorkflowsFailed') + (e.message || t('workflowsPage.unknownError')))
   }
 }
 
@@ -915,7 +917,7 @@ async function loadAgentMembers() {
     const res = await agentMemberApi.list(projectId.value)
     agentMembers.value = res.data.data || []
   } catch (e: any) {
-    message.error('加载 Agent 列表失败')
+    message.error(t('workflowDesigner.loadAgentListFailed'))
   }
 }
 
@@ -1006,9 +1008,9 @@ async function handleSave() {
       }
     }
 
-    message.success('工作流保存成功')
+    message.success(t('workflowsPage.updateSuccess'))
   } catch (e: any) {
-    message.error('保存失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.operationFailed') + (e.message || t('workflowsPage.unknownError')))
   } finally {
     saving.value = false
   }
@@ -1020,9 +1022,9 @@ async function handleRun() {
   running.value = true
   try {
     await workflowApi.execute(projectId.value, workflowId.value)
-    message.success('工作流已启动运行')
+    message.success(t('workflowsPage.runStarted'))
   } catch (e: any) {
-    message.error('运行失败：' + (e.message || '未知错误'))
+    message.error(t('workflowsPage.runFailed') + (e.message || t('workflowsPage.unknownError')))
   } finally {
     running.value = false
   }
@@ -1063,7 +1065,7 @@ onMounted(async () => {
   // Guard against invalid route params (e.g. NaN from a broken navigation)
   // which would produce failing API calls and an empty canvas.
   if (!Number.isFinite(projectId.value) || !Number.isFinite(workflowId.value)) {
-    message.error('无效的工作流参数，无法加载设计器')
+    message.error(t('workflowDesigner.invalidParams'))
     return
   }
   await Promise.all([loadWorkflow(), loadAgentMembers()])
