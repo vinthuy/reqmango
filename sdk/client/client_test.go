@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 )
 
 type pingResp struct {
@@ -78,5 +79,18 @@ func TestNew_DefaultBaseURL(t *testing.T) {
 	c := New("", "t")
 	if c.baseURL != DefaultBaseURL {
 		t.Fatalf("expected default baseURL, got %q", c.baseURL)
+	}
+}
+
+// TestNew_ClientTimeouts documents the two timeout policies: normal calls run
+// through a 30s-capped client; long-running calls (SSE streams, agent
+// dispatch) run through an uncapped client so the request ctx alone governs.
+func TestNew_ClientTimeouts(t *testing.T) {
+	c := New("", "t")
+	if c.hc.Timeout != 30*time.Second {
+		t.Fatalf("default client timeout = %v, want 30s", c.hc.Timeout)
+	}
+	if c.hcLong.Timeout != 0 {
+		t.Fatalf("long client timeout = %v, want 0 (ctx-governed)", c.hcLong.Timeout)
 	}
 }

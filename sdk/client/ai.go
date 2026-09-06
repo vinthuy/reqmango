@@ -44,7 +44,8 @@ func (c *Client) postSSE(ctx context.Context, path string, query url.Values, bod
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	resp, err := c.hc.Do(req)
+	// hcLong (Timeout: 0) — the 5-minute ctx is the sole governor for streams.
+	resp, err := c.hcLong.Do(req)
 	if err != nil {
 		return fmt.Errorf("request %s: %w", path, err)
 	}

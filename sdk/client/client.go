@@ -20,7 +20,8 @@ const DefaultBaseURL = "http://localhost:8000/api/v1"
 type Client struct {
 	baseURL string // no trailing slash
 	token   string
-	hc      *http.Client
+	hc      *http.Client // 30s cap for normal calls
+	hcLong  *http.Client // no cap: request ctx governs (SSE streams, agent dispatch)
 }
 
 // New creates a client. Empty baseURL uses DefaultBaseURL.
@@ -32,6 +33,7 @@ func New(baseURL, token string) *Client {
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   token,
 		hc:      &http.Client{Timeout: 30 * time.Second},
+		hcLong:  &http.Client{Timeout: 0},
 	}
 }
 
@@ -41,6 +43,12 @@ func (c *Client) BaseURL() string { return c.baseURL }
 // do performs one request. On 2xx with JSON body and non-nil out it decodes
 // into out and returns response headers. On failure it returns *APIError.
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body any, out any) (http.Header, error) {
+	return c.doWith(c.hc, ctx, method, path, query, body, out)
+}
+
+// doWith is do() over a specific http.Client; the only difference between the
+// two paths is the transport client's timeout policy.
+func (c *Client) doWith(hc *http.Client, ctx context.Context, method, path string, query url.Values, body any, out any) (http.Header, error) {
 	u := c.baseURL + path
 	if len(query) > 0 {
 		u += "?" + query.Encode()
@@ -64,7 +72,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := c.hc.Do(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request %s %s: %w", method, path, err)
 	}
@@ -108,6 +116,17 @@ func (c *Client) GetJSON(ctx context.Context, path string, query url.Values, out
 // PostJSON performs POST with a JSON body and decodes the response into out.
 func (c *Client) PostJSON(ctx context.Context, path string, query url.Values, body, out any) (http.Header, error) {
 	return c.do(ctx, http.MethodPost, path, query, body, out)
+}
+
+// doLong routes through hcLong (Timeout: 0) so the request context alone
+// governs how long the exchange may run.
+func (c *Client) doLong(ctx context.Context, method, path string, query url.Values, body any, out any) (http.Header, error) {
+	return c.doWith(c.hcLong, ctx, method, path, query, body, out)
+}
+
+// postJSONLong is PostJSON over hcLong, for long-running POSTs (agent dispatch).
+func (c *Client) postJSONLong(ctx context.Context, path string, query url.Values, body, out any) (http.Header, error) {
+	return c.doLong(ctx, http.MethodPost, path, query, body, out)
 }
 
 // PutJSON performs PUT with a JSON body and decodes the response into out.
