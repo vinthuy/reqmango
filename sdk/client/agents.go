@@ -51,6 +51,9 @@ type AgentActivity struct {
 // DispatchAgent triggers an agent (POST /workspaces/:ws/agents/:id/dispatch).
 // Long-running: uses a 5-minute context timeout.
 func (c *Client) DispatchAgent(ctx context.Context, workspaceID, agentID uint64, task string, issueID, projectID *uint64) (*AgentActivity, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
 	body := map[string]any{"task": task}
 	if issueID != nil {
 		body["issue_id"] = *issueID
