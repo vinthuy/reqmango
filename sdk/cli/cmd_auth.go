@@ -54,13 +54,7 @@ func newAuthLoginCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			apiURL := cmd.Flag("api-url").Value.String()
-			if apiURL == "" {
-				apiURL = cfg.APIURL
-			}
-			if apiURL == "" {
-				apiURL = client.DefaultBaseURL
-			}
+			apiURL := apiURLFor(cmd, cfg)
 
 			if email == "" {
 				email, err = promptLine("Email: ")
@@ -139,13 +133,11 @@ func newAuthStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			apiURL := cfg.APIURL
-			if apiURL == "" {
-				apiURL = client.DefaultBaseURL
-			}
+			apiURL := apiURLFor(cmd, cfg)
+			pat := patFor(cfg)
 			masked := "<none>"
-			if cfg.PAT != "" {
-				masked = cfg.PAT[:min(len(cfg.PAT), len("reqmango_pat_ab3d"))] + "…"
+			if pat != "" {
+				masked = pat[:min(len(pat), len("reqmango_pat_ab3d"))] + "…"
 			}
 			rows := [][]string{
 				{"API URL", apiURL},
@@ -156,8 +148,8 @@ func newAuthStatusCmd() *cobra.Command {
 			}
 			PrintTable(cmd.OutOrStdout(), []string{"Setting", "Value"}, rows)
 
-			if cfg.PAT != "" {
-				cli := client.New(apiURL, cfg.PAT)
+			if pat != "" {
+				cli := client.New(apiURL, pat)
 				me, err := cli.Me(context.Background())
 				if err != nil {
 					if apiErr := client.AsAPIError(err); apiErr != nil && apiErr.StatusCode == 401 {

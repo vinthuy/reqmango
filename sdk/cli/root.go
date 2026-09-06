@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -42,6 +43,30 @@ func configPath(cmd *cobra.Command) (string, error) {
 	return DefaultConfigPath()
 }
 
+// apiURLFor resolves the API base URL:
+// --api-url flag > REQMANGO_API_URL env > config file > client.DefaultBaseURL.
+func apiURLFor(cmd *cobra.Command, cfg *Config) string {
+	if v := cmd.Flag("api-url").Value.String(); v != "" {
+		return v
+	}
+	if v := os.Getenv("REQMANGO_API_URL"); v != "" {
+		return v
+	}
+	if cfg.APIURL != "" {
+		return cfg.APIURL
+	}
+	return client.DefaultBaseURL
+}
+
+// patFor resolves the PAT: the config file wins; REQMANGO_PAT is only a
+// fallback when the config has no PAT (auth login stays authoritative).
+func patFor(cfg *Config) string {
+	if cfg.PAT != "" {
+		return cfg.PAT
+	}
+	return os.Getenv("REQMANGO_PAT")
+}
+
 // setup resolves the config file and builds the API client.
 func setup(cmd *cobra.Command) (*client.Client, *Config, error) {
 	path, err := configPath(cmd)
@@ -52,17 +77,11 @@ func setup(cmd *cobra.Command) (*client.Client, *Config, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	apiURL := cmd.Flag("api-url").Value.String()
-	if apiURL == "" {
-		apiURL = cfg.APIURL
-	}
-	if apiURL == "" {
-		apiURL = client.DefaultBaseURL
-	}
-	if cfg.PAT == "" {
+	pat := patFor(cfg)
+	if pat == "" {
 		return nil, nil, fmt.Errorf("not logged in: run `reqmango auth login` first")
 	}
-	return client.New(apiURL, cfg.PAT), cfg, nil
+	return client.New(apiURLFor(cmd, cfg), pat), cfg, nil
 }
 
 // resolveWorkspace returns --workspace flag > config > error.

@@ -52,12 +52,9 @@ func newWorkspaceCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				apiURL := cmd.Flag("api-url").Value.String()
-				if apiURL == "" {
-					apiURL = cfg.APIURL
-				}
+				apiURL := apiURLFor(cmd, cfg)
 				name := ""
-				if cfg.PAT != "" {
+				if patFor(cfg) != "" {
 					cli := clientFor(cfg, apiURL)
 					ws, err := cli.ListWorkspaces(context.Background())
 					if err == nil {
@@ -82,10 +79,10 @@ func newWorkspaceCmd() *cobra.Command {
 }
 
 // clientFor builds a client from config (helper for commands that only
-// need config access).
+// need config access). The PAT falls back to REQMANGO_PAT.
 func clientFor(cfg *Config, apiURL string) *client.Client {
 	if apiURL == "" {
 		apiURL = client.DefaultBaseURL
 	}
-	return client.New(apiURL, cfg.PAT)
+	return client.New(apiURL, patFor(cfg))
 }
