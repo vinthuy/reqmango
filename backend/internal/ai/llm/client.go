@@ -125,6 +125,7 @@ const (
 	ProviderAnthropic LLMProvider = "anthropic"
 	ProviderOpenAI    LLMProvider = "openai"
 	ProviderDeepSeek  LLMProvider = "deepseek" // OpenAI-compatible
+	ProviderXiaomi    LLMProvider = "xiaomi"   // Anthropic-compatible (api.xiaomimimo.com)
 )
 
 // LLMClient wraps LLM API calls. Supports Anthropic and OpenAI-compatible protocols.
@@ -147,7 +148,7 @@ func NewLLMClient(apiKey, model, baseURL, provider string) *LLMClient {
 	}
 	p := LLMProvider(provider)
 	switch p {
-	case ProviderAnthropic, ProviderOpenAI, ProviderDeepSeek:
+	case ProviderAnthropic, ProviderOpenAI, ProviderDeepSeek, ProviderXiaomi:
 	default:
 		p = ProviderDeepSeek
 	}
@@ -533,6 +534,10 @@ func (c *LLMClient) buildAnthropicRequest(systemPrompt string, messages []Messag
 	bodyBytes, _ := json.Marshal(body)
 	httpReq, _ := http.NewRequest("POST", c.baseURL+"/messages", bytes.NewReader(bodyBytes))
 	httpReq.Header.Set("Content-Type", "application/json")
+	if c.provider == ProviderXiaomi {
+		// MiMo documents Bearer auth; keep x-api-key too for Anthropic-compatible tooling.
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 	httpReq.Header.Set("x-api-key", c.apiKey)
 	httpReq.Header.Set("anthropic-version", "2023-06-01")
 	return httpReq, nil

@@ -2,6 +2,7 @@ package llm
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -166,5 +167,47 @@ func TestNewLLMClient_AnthropicProvider(t *testing.T) {
 	client := NewLLMClient("key", "claude-sonnet-4-6", "https://api.anthropic.com", "anthropic")
 	if client == nil {
 		t.Fatal("NewLLMClient should not return nil")
+	}
+}
+
+func TestNewLLMClient_XiaomiProvider(t *testing.T) {
+	client := NewLLMClient("test-key", "mimo-v2.5", "", "xiaomi")
+	if client == nil {
+		t.Fatal("NewLLMClient should not return nil for xiaomi provider")
+	}
+	if client.provider != ProviderXiaomi {
+		t.Errorf("provider = %q, want %q", client.provider, ProviderXiaomi)
+	}
+}
+
+func TestBuildAnthropicRequest_XiaomiBearerAuth(t *testing.T) {
+	client := NewLLMClient("test-key", "mimo-v2.5", "https://api.xiaomimimo.com/anthropic/v1", "xiaomi")
+	req, err := client.buildAnthropicRequest("system prompt", []Message{
+		{Role: "user", Content: "hello"},
+	}, nil, false)
+	if err != nil {
+		t.Fatalf("buildAnthropicRequest: %v", err)
+	}
+	// Xiaomi provider should set Bearer auth in addition to x-api-key.
+	auth := req.Header.Get("Authorization")
+	if !strings.HasPrefix(auth, "Bearer ") {
+		t.Errorf("Authorization header = %q, want Bearer prefix", auth)
+	}
+	if req.Header.Get("x-api-key") != "test-key" {
+		t.Errorf("x-api-key = %q, want %q", req.Header.Get("x-api-key"), "test-key")
+	}
+}
+
+func TestBuildAnthropicRequest_NonXiaomi_NoBearerAuth(t *testing.T) {
+	client := NewLLMClient("test-key", "claude-sonnet-4-6", "https://api.anthropic.com", "anthropic")
+	req, err := client.buildAnthropicRequest("system prompt", []Message{
+		{Role: "user", Content: "hello"},
+	}, nil, false)
+	if err != nil {
+		t.Fatalf("buildAnthropicRequest: %v", err)
+	}
+	// Non-Xiaomi providers should NOT set Bearer auth.
+	if req.Header.Get("Authorization") != "" {
+		t.Errorf("Authorization header should be empty for anthropic provider, got %q", req.Header.Get("Authorization"))
 	}
 }

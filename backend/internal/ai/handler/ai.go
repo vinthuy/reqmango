@@ -82,6 +82,8 @@ func getBaseURLForProvider(provider string) string {
 		return "https://api.anthropic.com"
 	case "deepseek":
 		return "https://api.deepseek.com/v1"
+	case "xiaomi":
+		return "https://api.xiaomimimo.com/anthropic/v1"
 	default:
 		return "https://api.deepseek.com/v1"
 	}
