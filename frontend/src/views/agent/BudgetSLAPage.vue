@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import {
   message,
 } from 'ant-design-vue'
+import { useI18n } from '@/composables/useI18n'
 import {
   budgetApi,
   slaApi,
@@ -14,6 +15,7 @@ import {
 } from '@/api/workflow'
 
 const route = useRoute()
+const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
 
 const activeTab = ref('budget')
@@ -54,7 +56,7 @@ async function loadBudget() {
     budget.value = res.data
   } catch (err) {
     console.error('Failed to load budget:', err)
-    message.error('加载预算信息失败')
+    message.error(t('budgetSla.loadBudgetFailed'))
   } finally {
     budgetLoading.value = false
   }
@@ -70,7 +72,7 @@ function openEditBudget() {
 
 async function handleUpdateBudget() {
   if (!budgetForm.monthly_budget || budgetForm.monthly_budget <= 0) {
-    message.warning('请输入有效的月度限额')
+    message.warning(t('budgetSla.invalidMonthlyBudget'))
     return
   }
   budgetSaving.value = true
@@ -80,11 +82,11 @@ async function handleUpdateBudget() {
       alert_threshold: budgetForm.alert_threshold,
       auto_block: budgetForm.auto_block,
     })
-    message.success('预算更新成功')
+    message.success(t('budgetSla.budgetUpdateSuccess'))
     showBudgetEdit.value = false
     await loadBudget()
   } catch (err: any) {
-    message.error(err?.response?.data?.message || '更新预算失败')
+    message.error(err?.response?.data?.message || t('budgetSla.budgetUpdateFailed'))
   } finally {
     budgetSaving.value = false
   }
@@ -114,7 +116,7 @@ async function loadSLA() {
     sla.value = res.data
   } catch (err) {
     console.error('Failed to load SLA:', err)
-    message.error('加载SLA配置失败')
+    message.error(t('budgetSla.loadSlaFailed'))
   } finally {
     slaLoading.value = false
   }
@@ -131,11 +133,11 @@ function openEditSLA() {
 
 async function handleUpdateSLA() {
   if (!slaForm.normal_task_max || slaForm.normal_task_max <= 0) {
-    message.warning('请输入有效的普通任务最大时长')
+    message.warning(t('budgetSla.invalidNormalTaskMax'))
     return
   }
   if (slaForm.complex_task_max < slaForm.normal_task_max) {
-    message.warning('复杂任务时长不应小于普通任务时长')
+    message.warning(t('budgetSla.complexTaskMaxLessThanNormal'))
     return
   }
   slaSaving.value = true
@@ -146,11 +148,11 @@ async function handleUpdateSLA() {
       auto_escalation: slaForm.auto_escalation,
       enabled: slaForm.enabled,
     })
-    message.success('SLA配置更新成功')
+    message.success(t('budgetSla.slaUpdateSuccess'))
     showSLAEdit.value = false
     await loadSLA()
   } catch (err: any) {
-    message.error(err?.response?.data?.message || '更新SLA配置失败')
+    message.error(err?.response?.data?.message || t('budgetSla.slaUpdateFailed'))
   } finally {
     slaSaving.value = false
   }
@@ -160,10 +162,10 @@ async function handleToggleSLAEnabled() {
   if (!sla.value) return
   try {
     await slaApi.update(projectId.value, { enabled: !sla.value.enabled })
-    message.success(`SLA已${!sla.value.enabled ? '启用' : '停用'}`)
+    message.success(t('budgetSla.slaToggleSuccess'))
     await loadSLA()
   } catch (err: any) {
-    message.error(err?.response?.data?.message || '更新状态失败')
+    message.error(err?.response?.data?.message || t('budgetSla.statusUpdateFailed'))
   }
 }
 
@@ -173,15 +175,15 @@ const decisionLoading = ref(false)
 const showDecisionDrawer = ref(false)
 const selectedDecision = ref<DecisionRecord | null>(null)
 
-const decisionColumns = [
+const decisionColumns = computed(() => [
   { title: 'Agent', dataIndex: 'agent_name', key: 'agent_name', width: 140 },
-  { title: '节点类型', dataIndex: 'node_type', key: 'node_type', width: 140 },
-  { title: '决策', dataIndex: 'decision', key: 'decision', ellipsis: true },
-  { title: '置信度', dataIndex: 'confidence', key: 'confidence', width: 140 },
-  { title: '关联Issue', dataIndex: 'issue_id', key: 'issue_id', width: 100 },
-  { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
-  { title: '操作', key: 'actions', width: 100 },
-]
+  { title: t('budgetSla.nodeType'), dataIndex: 'node_type', key: 'node_type', width: 140 },
+  { title: t('budgetSla.decision'), dataIndex: 'decision', key: 'decision', ellipsis: true },
+  { title: t('budgetSla.confidence'), dataIndex: 'confidence', key: 'confidence', width: 140 },
+  { title: t('budgetSla.relatedIssue'), dataIndex: 'issue_id', key: 'issue_id', width: 100 },
+  { title: t('budgetSla.createdAt'), dataIndex: 'created_at', key: 'created_at', width: 180 },
+  { title: t('budgetSla.action'), key: 'actions', width: 100 },
+])
 
 function getNodeTypeColor(type: string) {
   const map: Record<string, string> = {
@@ -210,7 +212,7 @@ async function loadDecisions() {
     decisionList.value = res.data.data || []
   } catch (err) {
     console.error('Failed to load decisions:', err)
-    message.error('加载决策记录失败')
+    message.error(t('budgetSla.loadDecisionsFailed'))
   } finally {
     decisionLoading.value = false
   }
@@ -241,12 +243,12 @@ watch(activeTab, (tab) => {
   <div class="budget-sla-page">
     <a-card bordered :body-style="{ padding: '0' }">
       <template #title>
-        <span style="font-size: 16px; font-weight: 600">成本预算 & SLA管理</span>
+        <span style="font-size: 16px; font-weight: 600">{{ t('budgetSla.title') }}</span>
       </template>
 
       <a-tabs v-model:activeKey="activeTab" style="padding: 0 24px">
         <!-- ==================== Tab 1: 成本预算 ==================== -->
-        <a-tab-pane key="budget" tab="成本预算">
+        <a-tab-pane key="budget" :tab="t('budgetSla.tabBudget')">
           <div style="padding: 24px 0">
             <!-- Loading -->
             <div v-if="budgetLoading" style="text-align: center; padding: 60px 0">
@@ -258,16 +260,16 @@ watch(activeTab, (tab) => {
               <a-row :gutter="[24, 24]">
                 <!-- Budget Overview -->
                 <a-col :span="16">
-                  <a-card title="预算概览" :bordered="true" style="border-radius: 8px">
+                  <a-card :title="t('budgetSla.budgetOverview')" :bordered="true" style="border-radius: 8px">
                     <template #extra>
                       <a-button type="primary" size="small" @click="openEditBudget">
-                        编辑
+                        {{ t('budgetSla.edit') }}
                       </a-button>
                     </template>
                     <a-row :gutter="[32, 24]">
                       <a-col :span="8">
                         <a-statistic
-                          title="月度限额"
+                          :title="t('budgetSla.monthlyLimit')"
                           :value="budget.monthly_budget"
                           :precision="2"
                           prefix="$"
@@ -276,7 +278,7 @@ watch(activeTab, (tab) => {
                       </a-col>
                       <a-col :span="8">
                         <a-statistic
-                          title="本月使用"
+                          :title="t('budgetSla.monthlyUsage')"
                           :value="budget.current_cost"
                           :precision="2"
                           prefix="$"
@@ -289,7 +291,7 @@ watch(activeTab, (tab) => {
                       </a-col>
                       <a-col :span="8">
                         <a-statistic
-                          title="剩余可用"
+                          :title="t('budgetSla.remaining')"
                           :value="Math.max(0, budget.monthly_budget - budget.current_cost)"
                           :precision="2"
                           prefix="$"
@@ -303,7 +305,7 @@ watch(activeTab, (tab) => {
                     <!-- Usage Progress -->
                     <div style="margin-bottom: 16px">
                       <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
-                        <span style="font-weight: 500">使用进度</span>
+                        <span style="font-weight: 500">{{ t('budgetSla.usageProgress') }}</span>
                         <span style="color: #666">{{ budgetUsagePercent }}%</span>
                       </div>
                       <a-progress
@@ -317,14 +319,14 @@ watch(activeTab, (tab) => {
 
                     <!-- Threshold & Auto-block Indicators -->
                     <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px">
-                      <span style="color: #666; font-size: 13px">告警阈值:</span>
+                      <span style="color: #666; font-size: 13px">{{ t('budgetSla.alertThreshold') }}:</span>
                       <a-tag color="orange">
                         {{ Math.round(budget.alert_threshold) }}%
                       </a-tag>
                       <a-divider type="vertical" />
-                      <span style="color: #666; font-size: 13px">超限阻断:</span>
+                      <span style="color: #666; font-size: 13px">{{ t('budgetSla.autoBlock') }}:</span>
                       <a-tag :color="budget.auto_block ? 'red' : 'default'">
-                        {{ budget.auto_block ? '已启用' : '已关闭' }}
+                        {{ budget.auto_block ? t('budgetSla.enabled') : t('budgetSla.disabled') }}
                       </a-tag>
                     </div>
 
@@ -344,7 +346,7 @@ watch(activeTab, (tab) => {
                       <div
                         style="position: absolute; top: -4px; bottom: -4px; width: 2px; background: #ff4d4f"
                         :style="{ left: `${budget.alert_threshold}%` }"
-                        :title="`告警阈值: ${Math.round(budget.alert_threshold)}%`"
+                        :title="t('budgetSla.alertThreshold')"
                       />
                     </div>
                   </a-card>
@@ -352,15 +354,15 @@ watch(activeTab, (tab) => {
 
                 <!-- Budget Status -->
                 <a-col :span="8">
-                  <a-card title="预算状态" :bordered="true" style="border-radius: 8px">
+                  <a-card :title="t('budgetSla.budgetStatus')" :bordered="true" style="border-radius: 8px">
                     <div style="text-align: center; padding: 20px 0">
                       <a-badge
                         :status="budgetUsagePercent >= 100 ? 'error' : budgetUsagePercent >= budget.alert_threshold ? 'warning' : 'success'"
-                        :text="budgetUsagePercent >= 100 ? '已超限' : budgetUsagePercent >= budget.alert_threshold ? '接近阈值' : '正常'"
+                        :text="budgetUsagePercent >= 100 ? t('budgetSla.overLimit') : budgetUsagePercent >= budget.alert_threshold ? t('budgetSla.nearThreshold') : t('budgetSla.normal')"
                       />
                       <div style="margin-top: 16px">
                         <a-statistic
-                          title="预算使用率"
+                          :title="t('budgetSla.budgetUsageRate')"
                           :value="budgetUsagePercent"
                           suffix="%"
                           :value-style="{
@@ -374,7 +376,7 @@ watch(activeTab, (tab) => {
                     <a-divider />
                     <div style="font-size: 13px; color: #666">
                       <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
-                        <span>上次重置</span>
+                        <span>{{ t('budgetSla.lastReset') }}</span>
                         <span>{{ formatDateTime(budget.last_reset_at) }}</span>
                       </div>
                     </div>
@@ -385,25 +387,25 @@ watch(activeTab, (tab) => {
 
             <!-- No Budget -->
             <div v-else style="text-align: center; padding: 60px 0; color: #999">
-              暂无预算数据
+              {{ t('budgetSla.noBudgetData') }}
             </div>
           </div>
         </a-tab-pane>
 
         <!-- ==================== Tab 2: SLA配置 ==================== -->
-        <a-tab-pane key="sla" tab="SLA配置">
+        <a-tab-pane key="sla" :tab="t('budgetSla.tabSla')">
           <div style="padding: 24px 0">
             <div v-if="slaLoading" style="text-align: center; padding: 60px 0">
               <a-spin size="large" />
             </div>
 
             <div v-else-if="sla" style="max-width: 720px">
-              <a-card title="SLA执行时限配置" :bordered="true" style="border-radius: 8px">
+              <a-card :title="t('budgetSla.slaConfig')" :bordered="true" style="border-radius: 8px">
                 <template #extra>
                   <a-space>
-                    <a-button type="primary" size="small" @click="openEditSLA">编辑</a-button>
+                    <a-button type="primary" size="small" @click="openEditSLA">{{ t('budgetSla.edit') }}</a-button>
                     <a-button size="small" @click="handleToggleSLAEnabled">
-                      {{ sla.enabled ? '停用' : '启用' }}
+                      {{ sla.enabled ? t('budgetSla.deactivate') : t('budgetSla.activate') }}
                     </a-button>
                   </a-space>
                 </template>
@@ -411,24 +413,24 @@ watch(activeTab, (tab) => {
                 <a-row :gutter="[32, 24]">
                   <a-col :span="12">
                     <a-statistic
-                      title="普通任务最大时长"
+                      :title="t('budgetSla.normalTaskMax')"
                       :value="secondsToHours(sla.normal_task_max)"
-                      suffix="小时"
+                      :suffix="t('budgetSla.hours')"
                       :value-style="{ fontSize: '24px', fontWeight: 600 }"
                     />
                     <div style="color: #999; font-size: 12px; margin-top: 4px">
-                      {{ sla.normal_task_max }} 秒
+                      {{ sla.normal_task_max }} {{ t('budgetSla.seconds') }}
                     </div>
                   </a-col>
                   <a-col :span="12">
                     <a-statistic
-                      title="复杂任务最大时长"
+                      :title="t('budgetSla.complexTaskMax')"
                       :value="secondsToHours(sla.complex_task_max)"
-                      suffix="小时"
+                      :suffix="t('budgetSla.hours')"
                       :value-style="{ fontSize: '24px', fontWeight: 600 }"
                     />
                     <div style="color: #999; font-size: 12px; margin-top: 4px">
-                      {{ sla.complex_task_max }} 秒
+                      {{ sla.complex_task_max }} {{ t('budgetSla.seconds') }}
                     </div>
                   </a-col>
                 </a-row>
@@ -437,16 +439,16 @@ watch(activeTab, (tab) => {
 
                 <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap">
                   <div style="display: flex; align-items: center; gap: 8px">
-                    <span style="color: #666; font-size: 13px">运行状态:</span>
+                    <span style="color: #666; font-size: 13px">{{ t('budgetSla.runningStatus') }}:</span>
                     <a-badge
                       :status="sla.enabled ? 'success' : 'default'"
-                      :text="sla.enabled ? '已启用' : '已停用'"
+                      :text="sla.enabled ? t('budgetSla.enabled') : t('budgetSla.disabled')"
                     />
                   </div>
                   <div style="display: flex; align-items: center; gap: 8px">
-                    <span style="color: #666; font-size: 13px">自动升级:</span>
+                    <span style="color: #666; font-size: 13px">{{ t('budgetSla.autoEscalation') }}:</span>
                     <a-tag :color="sla.auto_escalation ? 'orange' : 'default'">
-                      {{ sla.auto_escalation ? '已启用' : '已关闭' }}
+                      {{ sla.auto_escalation ? t('budgetSla.enabled') : t('budgetSla.disabled') }}
                     </a-tag>
                   </div>
                 </div>
@@ -454,31 +456,31 @@ watch(activeTab, (tab) => {
                 <a-divider />
 
                 <div style="background: #f6f8fa; border-radius: 8px; padding: 16px; font-size: 13px; color: #666; line-height: 1.8">
-                  <div style="font-weight: 600; color: #333; margin-bottom: 8px">SLA说明</div>
+                  <div style="font-weight: 600; color: #333; margin-bottom: 8px">{{ t('budgetSla.slaDescription') }}</div>
                   <ul style="margin: 0; padding-left: 20px">
-                    <li>普通任务超过 <b>{{ secondsToHours(sla.normal_task_max) }} 小时</b> 未完成视为违约</li>
-                    <li>复杂任务超过 <b>{{ secondsToHours(sla.complex_task_max) }} 小时</b> 未完成视为违约</li>
-                    <li v-if="sla.auto_escalation">违约时将自动升级处理</li>
-                    <li v-else>违约时仅记录，不自动升级</li>
+                    <li>{{ t('budgetSla.slaNormalDesc', { hours: secondsToHours(sla.normal_task_max) }) }}</li>
+                    <li>{{ t('budgetSla.slaComplexDesc', { hours: secondsToHours(sla.complex_task_max) }) }}</li>
+                    <li v-if="sla.auto_escalation">{{ t('budgetSla.slaAutoEscalationDesc') }}</li>
+                    <li v-else>{{ t('budgetSla.slaNoEscalationDesc') }}</li>
                   </ul>
                 </div>
               </a-card>
             </div>
 
             <div v-else style="text-align: center; padding: 60px 0; color: #999">
-              暂无SLA配置
+              {{ t('budgetSla.noSlaData') }}
             </div>
           </div>
         </a-tab-pane>
 
         <!-- ==================== Tab 3: 决策记录 ==================== -->
-        <a-tab-pane key="decision" tab="决策记录">
+        <a-tab-pane key="decision" :tab="t('budgetSla.tabDecision')">
           <div style="padding: 24px 0">
             <a-table
               :columns="decisionColumns"
               :data-source="decisionList"
               :loading="decisionLoading"
-              :pagination="{ pageSize: 20, showSizeChanger: true, showTotal: (total: number) => `共 ${total} 条` }"
+              :pagination="{ pageSize: 20, showSizeChanger: true, showTotal: (total: number) => t('budgetSla.totalItems', { total }) }"
               row-key="id"
               size="middle"
             >
@@ -505,7 +507,7 @@ watch(activeTab, (tab) => {
                 </template>
                 <template v-if="column.key === 'actions'">
                   <a-button size="small" type="link" @click="openDecisionDetail(record)">
-                    详情
+                    {{ t('budgetSla.details') }}
                   </a-button>
                 </template>
               </template>
@@ -518,7 +520,7 @@ watch(activeTab, (tab) => {
     <!-- ==================== Budget Edit Modal ==================== -->
     <a-modal
       v-model:open="showBudgetEdit"
-      title="编辑预算配置"
+      :title="t('budgetSla.editBudgetConfig')"
       :confirm-loading="budgetSaving"
       @ok="handleUpdateBudget"
       @cancel="showBudgetEdit = false"
@@ -526,17 +528,17 @@ watch(activeTab, (tab) => {
       :mask-closable="false"
     >
       <a-form layout="vertical" style="margin-top: 16px">
-        <a-form-item label="月度限额 ($)" required>
+        <a-form-item :label="t('budgetSla.monthlyLimit')" required>
           <a-input-number
             v-model:value="budgetForm.monthly_budget"
             :min="1"
             :step="100"
             :precision="2"
             style="width: 100%"
-            placeholder="输入每月预算限额"
+            :placeholder="t('budgetSla.monthlyBudgetPlaceholder')"
           />
         </a-form-item>
-        <a-form-item label="告警阈值 (%)">
+        <a-form-item :label="t('budgetSla.alertThresholdPercent')">
           <a-row :gutter="16" align="middle">
             <a-col :span="18">
               <a-slider
@@ -559,13 +561,13 @@ watch(activeTab, (tab) => {
             </a-col>
           </a-row>
           <div style="color: #999; font-size: 12px; margin-top: 4px">
-            当使用量达到月度限额的 {{ Math.round(budgetForm.alert_threshold) }}% 时触发告警
+            {{ t('budgetSla.alertThresholdHint', { percent: Math.round(budgetForm.alert_threshold) }) }}
           </div>
         </a-form-item>
-        <a-form-item label="超限自动阻断">
+        <a-form-item :label="t('budgetSla.autoBlockLimit')">
           <a-switch v-model:checked="budgetForm.auto_block" />
           <span style="margin-left: 8px; color: #666; font-size: 13px">
-            {{ budgetForm.auto_block ? '已启用 - 超出限额将自动阻止新的Agent执行' : '已关闭' }}
+            {{ budgetForm.auto_block ? t('budgetSla.autoBlockEnabled') : t('budgetSla.disabled') }}
           </span>
         </a-form-item>
       </a-form>
@@ -574,7 +576,7 @@ watch(activeTab, (tab) => {
     <!-- ==================== SLA Edit Modal ==================== -->
     <a-modal
       v-model:open="showSLAEdit"
-      title="编辑SLA配置"
+      :title="t('budgetSla.editSlaConfig')"
       :confirm-loading="slaSaving"
       @ok="handleUpdateSLA"
       @cancel="showSLAEdit = false"
@@ -582,42 +584,42 @@ watch(activeTab, (tab) => {
       :mask-closable="false"
     >
       <a-form layout="vertical" style="margin-top: 16px">
-        <a-form-item label="普通任务最大时长 (秒)" required>
+        <a-form-item :label="t('budgetSla.normalTaskMaxSeconds')" required>
           <a-input-number
             v-model:value="slaForm.normal_task_max"
             :min="60"
             :max="86400"
             :step="300"
             style="width: 100%"
-            placeholder="例如 1800 = 30分钟"
+            :placeholder="t('budgetSla.normalTaskMaxPlaceholder')"
           />
           <div style="color: #999; font-size: 12px; margin-top: 4px">
-            约 {{ secondsToHours(slaForm.normal_task_max) }} 小时
+            {{ t('budgetSla.approxHours', { hours: secondsToHours(slaForm.normal_task_max) }) }}
           </div>
         </a-form-item>
-        <a-form-item label="复杂任务最大时长 (秒)" required>
+        <a-form-item :label="t('budgetSla.complexTaskMaxSeconds')" required>
           <a-input-number
             v-model:value="slaForm.complex_task_max"
             :min="300"
             :max="604800"
             :step="1800"
             style="width: 100%"
-            placeholder="例如 7200 = 2小时"
+            :placeholder="t('budgetSla.complexTaskMaxPlaceholder')"
           />
           <div style="color: #999; font-size: 12px; margin-top: 4px">
-            约 {{ secondsToHours(slaForm.complex_task_max) }} 小时
+            {{ t('budgetSla.approxHours', { hours: secondsToHours(slaForm.complex_task_max) }) }}
           </div>
         </a-form-item>
-        <a-form-item label="自动升级">
+        <a-form-item :label="t('budgetSla.autoEscalation')">
           <a-switch v-model:checked="slaForm.auto_escalation" />
           <span style="margin-left: 8px; color: #666; font-size: 13px">
-            {{ slaForm.auto_escalation ? '已启用 - 违约时自动升级处理' : '已关闭' }}
+            {{ slaForm.auto_escalation ? t('budgetSla.autoEscalationEnabled') : t('budgetSla.disabled') }}
           </span>
         </a-form-item>
-        <a-form-item label="启用SLA监控">
+        <a-form-item :label="t('budgetSla.enableSlaMonitoring')">
           <a-switch v-model:checked="slaForm.enabled" />
           <span style="margin-left: 8px; color: #666; font-size: 13px">
-            {{ slaForm.enabled ? '已启用' : '已停用' }}
+            {{ slaForm.enabled ? t('budgetSla.enabled') : t('budgetSla.disabled') }}
           </span>
         </a-form-item>
       </a-form>
@@ -626,7 +628,7 @@ watch(activeTab, (tab) => {
     <!-- ==================== Decision Detail Drawer ==================== -->
     <a-drawer
       v-model:open="showDecisionDrawer"
-      title="决策详情"
+      :title="t('budgetSla.decisionDetail')"
       placement="right"
       :width="640"
       :destroy-on-close="true"
@@ -634,7 +636,7 @@ watch(activeTab, (tab) => {
       <div v-if="selectedDecision">
         <a-row :gutter="[16, 16]">
           <a-col :span="12">
-            <div style="font-size: 12px; color: #999; margin-bottom: 4px">节点类型</div>
+            <div style="font-size: 12px; color: #999; margin-bottom: 4px">{{ t('budgetSla.nodeType') }}</div>
             <a-tag :color="getNodeTypeColor(selectedDecision.node_type)" style="font-size: 14px; padding: 4px 12px">
               {{ selectedDecision.node_type || '-' }}
             </a-tag>
@@ -644,11 +646,11 @@ watch(activeTab, (tab) => {
             <div style="font-size: 14px; font-weight: 500">{{ selectedDecision.agent_name || '-' }}</div>
           </a-col>
           <a-col :span="12">
-            <div style="font-size: 12px; color: #999; margin-bottom: 4px">关联Issue</div>
+            <div style="font-size: 12px; color: #999; margin-bottom: 4px">{{ t('budgetSla.relatedIssue') }}</div>
             <div style="font-size: 14px; font-weight: 500">{{ selectedDecision.issue_id ? `#${selectedDecision.issue_id}` : '-' }}</div>
           </a-col>
           <a-col :span="12">
-            <div style="font-size: 12px; color: #999; margin-bottom: 4px">关联任务</div>
+            <div style="font-size: 12px; color: #999; margin-bottom: 4px">{{ t('budgetSla.relatedTask') }}</div>
             <div style="font-size: 14px; font-weight: 500">{{ selectedDecision.agent_task_id ? `#${selectedDecision.agent_task_id}` : '-' }}</div>
           </a-col>
         </a-row>
@@ -657,7 +659,7 @@ watch(activeTab, (tab) => {
 
         <!-- Decision -->
         <div v-if="selectedDecision.decision" style="margin-bottom: 20px">
-          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">决策</div>
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">{{ t('budgetSla.decision') }}</div>
           <div style="background: #f5f5f5; border-radius: 6px; padding: 12px; font-size: 13px; line-height: 1.8; white-space: pre-wrap">
             {{ selectedDecision.decision }}
           </div>
@@ -665,7 +667,7 @@ watch(activeTab, (tab) => {
 
         <!-- Reasoning -->
         <div v-if="selectedDecision.reasoning" style="margin-bottom: 20px">
-          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">推理过程</div>
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">{{ t('budgetSla.reasoning') }}</div>
           <div style="background: #f5f5f5; border-radius: 6px; padding: 12px; font-size: 13px; line-height: 1.8; white-space: pre-wrap">
             {{ selectedDecision.reasoning }}
           </div>
@@ -673,7 +675,7 @@ watch(activeTab, (tab) => {
 
         <!-- Thinking -->
         <div v-if="selectedDecision.thinking" style="margin-bottom: 20px">
-          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">思考过程</div>
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">{{ t('budgetSla.thinking') }}</div>
           <div style="background: #f5f5f5; border-radius: 6px; padding: 12px; font-size: 13px; line-height: 1.8; white-space: pre-wrap">
             {{ selectedDecision.thinking }}
           </div>
@@ -681,7 +683,7 @@ watch(activeTab, (tab) => {
 
         <!-- Alternatives Considered -->
         <div v-if="selectedDecision.alternatives && selectedDecision.alternatives.length > 0" style="margin-bottom: 20px">
-          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">考虑的备选方案</div>
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">{{ t('budgetSla.alternatives') }}</div>
           <a-timeline>
             <a-timeline-item
               v-for="(alt, index) in selectedDecision.alternatives"
@@ -695,7 +697,7 @@ watch(activeTab, (tab) => {
 
         <!-- Confidence Score -->
         <div style="margin-bottom: 20px">
-          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">置信度</div>
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">{{ t('budgetSla.confidence') }}</div>
           <div style="background: #f5f5f5; border-radius: 8px; padding: 20px; text-align: center">
             <a-progress
               type="dashboard"
@@ -705,17 +707,17 @@ watch(activeTab, (tab) => {
               :format="(percent: number) => `${percent}%`"
             />
             <div style="margin-top: 8px; font-size: 13px; color: #666">
-              {{ (selectedDecision.confidence || 0) >= 0.9 ? '高置信度' : (selectedDecision.confidence || 0) >= 0.7 ? '中等置信度' : '低置信度' }}
+              {{ (selectedDecision.confidence || 0) >= 0.9 ? t('budgetSla.highConfidence') : (selectedDecision.confidence || 0) >= 0.7 ? t('budgetSla.mediumConfidence') : t('budgetSla.lowConfidence') }}
             </div>
           </div>
         </div>
 
         <!-- Timestamp -->
         <div>
-          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">时间</div>
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">{{ t('budgetSla.time') }}</div>
           <a-timeline>
             <a-timeline-item color="blue">
-              创建时间: {{ formatDateTime(selectedDecision.created_at) }}
+              {{ t('budgetSla.createdAt') }}: {{ formatDateTime(selectedDecision.created_at) }}
             </a-timeline-item>
           </a-timeline>
         </div>

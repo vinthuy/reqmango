@@ -462,15 +462,15 @@ const scheduleForm = reactive({
   day: 1,
 });
 
-const weekDays = [
-  { value: 'mon', label: '周一' },
-  { value: 'tue', label: '周二' },
-  { value: 'wed', label: '周三' },
-  { value: 'thu', label: '周四' },
-  { value: 'fri', label: '周五' },
-  { value: 'sat', label: '周六' },
-  { value: 'sun', label: '周日' },
-];
+const weekDays = computed(() => [
+  { value: 'mon', label: t('automationForm.weekMonday') },
+  { value: 'tue', label: t('automationForm.weekTuesday') },
+  { value: 'wed', label: t('automationForm.weekWednesday') },
+  { value: 'thu', label: t('automationForm.weekThursday') },
+  { value: 'fri', label: t('automationForm.weekFriday') },
+  { value: 'sat', label: t('automationForm.weekSaturday') },
+  { value: 'sun', label: t('automationForm.weekSunday') },
+]);
 
 const conditions = ref<any[]>([]);
 const actions = ref<any[]>([]);

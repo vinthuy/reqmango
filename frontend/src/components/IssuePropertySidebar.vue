@@ -31,7 +31,7 @@
     <div>
       <label class="block text-xs text-gray-500 mb-1">{{ t('issue.state') }}</label>
       <div v-if="issue.approval_status === 'pending'" class="flex items-center gap-2">
-        <div class="relative flex-1" :title="t('approvals.stateDisabledHint') || '该工作项正在审批流程中，请等待审批完成后再进行状态变更'">
+        <div class="relative flex-1" :title="t('approvals.stateDisabledHint')">
           <select
             class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm bg-gray-100 cursor-not-allowed"
             :value="issue.state_id"
@@ -39,9 +39,9 @@
           >
             <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
           </select>
-          <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 cursor-help text-xs" title="该工作项正在审批流程中，请等待审批完成后再进行状态变更">?</span>
+          <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 cursor-help text-xs" :title="t('approvals.stateDisabledHint')">?</span>
         </div>
-        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium whitespace-nowrap">审批中</span>
+        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium whitespace-nowrap">{{ t('approvals.pending') }}</span>
       </div>
       <select
         v-else

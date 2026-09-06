@@ -614,7 +614,7 @@ async function onDragUpdate(columnKey: string | number, newIndex: number, oldInd
     console.error('[kanban] updateIssue failed:', err?.message || err)
     if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
     await loadIssues()
-    showToast('更新失败，已恢复原位')
+    showToast(t('issueKanban.dragRevert'))
     dragLocked.value = true
     setTimeout(() => { dragLocked.value = false }, 500)
   } finally {
@@ -655,7 +655,7 @@ async function onDragAdd(columnKey: string | number, newIndex: number, evt: any,
   } catch (err: any) {
     if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
     await loadIssues()
-    showToast('更新失败，已恢复原位')
+    showToast(t('issueKanban.dragRevert'))
     dragLocked.value = true
     setTimeout(() => { dragLocked.value = false }, 500)
   } finally {

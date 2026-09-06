@@ -258,7 +258,7 @@
               <label class="form-label">{{ t('issueTypePage.customFields') }}</label>
               <div class="field-binding-list">
                 <div v-for="field in boundFields" :key="field.field_id" class="field-binding-item">
-                  <span class="field-name">{{ field.name || `字段 #${field.field_id}` }}</span>
+                  <span class="field-name">{{ field.name || `${t('issueTypePage.field')} #${field.field_id}` }}</span>
                   <label class="field-required-toggle">
                     <input type="checkbox" :checked="field.is_required" @change="toggleFieldRequired(field)" />
                     <span>{{ t('issueTypePage.required') }}</span>
@@ -447,7 +447,7 @@ async function removeField(field: IssueTypeField) {
   
   if (await confirm({
     title: t('issueTypePage.removeFieldTitle'),
-    message: t('issueTypePage.removeFieldConfirm', { name: field.name || `字段 #${field.field_id}` }),
+    message: t('issueTypePage.removeFieldConfirm', { name: field.name || `${t('issueTypePage.field')} #${field.field_id}` }),
     danger: true,
     confirmText: t('issueTypePage.removeBtn')
   })) {

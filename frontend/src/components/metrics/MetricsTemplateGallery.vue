@@ -35,14 +35,17 @@
 
     <!-- Empty -->
     <div v-if="currentTemplates.length === 0" class="flex flex-col items-center justify-center py-12 text-xs text-gray-400">
-      该分类下暂无模板
+      {{ t('metrics.noTemplatesInCategory') }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from '@/composables/useI18n'
 import type { TemplateCategory, MetricTemplate } from '@/types/metrics'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   categories: TemplateCategory[]

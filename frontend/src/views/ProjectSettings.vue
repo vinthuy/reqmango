@@ -199,7 +199,7 @@ const automationTemplates = ref([
     bgClass: 'bg-red-100',
     trigger: 'issue_created',
     conditions: [{ field: 'priority', operator: 'equals', value: 'urgent' }],
-    actions: [{ type: 'add_comment', value: '⚠️ 紧急Bug已创建，请尽快处理！' }]
+    actions: [{ type: 'add_comment', value: t('automationTemplates.commentUrgentBug') }]
   },
   {
     name: 'notifyOnComment',
@@ -207,7 +207,7 @@ const automationTemplates = ref([
     bgClass: 'bg-blue-100',
     trigger: 'comment_added',
     conditions: [],
-    actions: [{ type: 'add_comment', value: '🔔 收到新评论，请及时回复' }]
+    actions: [{ type: 'add_comment', value: t('automationTemplates.commentNewComment') }]
   },
   {
     name: 'setDefaultPriority',
@@ -223,7 +223,7 @@ const automationTemplates = ref([
     bgClass: 'bg-green-100',
     trigger: 'state_changed',
     conditions: [{ field: 'state', operator: 'equals', value: 'done' }],
-    actions: [{ type: 'add_comment', value: '🎉 工作项已完成！' }]
+    actions: [{ type: 'add_comment', value: t('automationTemplates.commentIssueDone') }]
   },
   {
     name: 'remindDueSoon',
@@ -231,7 +231,7 @@ const automationTemplates = ref([
     bgClass: 'bg-purple-100',
     trigger: 'issue_created',
     conditions: [{ field: 'due_date', operator: 'is_not_empty', value: '' }],
-    actions: [{ type: 'add_comment', value: '📅 注意：此工作项有截止日期，请按时完成！' }]
+    actions: [{ type: 'add_comment', value: t('automationTemplates.commentDueSoon') }]
   },
   {
     name: 'archiveOnCancel',
@@ -239,7 +239,7 @@ const automationTemplates = ref([
     bgClass: 'bg-gray-100',
     trigger: 'state_changed',
     conditions: [{ field: 'state', operator: 'equals', value: 'cancelled' }],
-    actions: [{ type: 'add_comment', value: '📋 工作项已取消归档' }]
+    actions: [{ type: 'add_comment', value: t('automationTemplates.commentArchived') }]
   }
 ])
 
@@ -909,10 +909,10 @@ onMounted(async () => {
                 <div class="flex items-center space-x-2 text-sm flex-wrap gap-2">
                   <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-medium">{{ t('settings.trigger') }}: {{ getAutomationTriggerLabel(automation.trigger_type) }}</span>
                   <span v-if="automation.is_inherited && automation.scope && !isAllScope(automation.scope)" class="px-2 py-1 bg-orange-100 text-orange-700 rounded font-medium text-xs">
-                    📂 限定项目
+                    📂 {{ t('automation.scopeLimited') }}
                   </span>
                   <span v-if="automation.trigger_type === 'scheduled' && automation.schedule_config" class="px-2 py-1 bg-cyan-100 text-cyan-700 rounded font-medium text-xs">
-                    ⏱️ 定时
+                    ⏱️ {{ t('automation.scheduledLabel') }}
                   </span>
                 </div>
               </div>

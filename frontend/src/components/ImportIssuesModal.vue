@@ -27,19 +27,19 @@
             <h4 class="text-sm font-medium text-blue-800 mb-2">{{ t('import.csvFormat') }}</h4>
             <p class="text-xs text-blue-700 mb-2">{{ t('import.csvFormatHint') }}</p>
             <ul class="text-xs text-blue-700 space-y-1 list-disc list-inside">
-              <li><code>name</code> / 标题 - 工作项标题（必填）</li>
-              <li><code>description</code> / 描述 - 工作项描述</li>
-              <li><code>priority</code> / 优先级 - urgent/high/medium/low/none</li>
-              <li><code>state</code> / 状态 - 状态名称</li>
-              <li><code>type</code> / 类型 - 工作项类型名称</li>
-              <li><code>assignees</code> / 负责人 - 邮箱，多个用逗号分隔</li>
-              <li><code>labels</code> / 标签 - 标签名，多个用逗号分隔</li>
-              <li><code>start_date</code> / 开始日期 - YYYY-MM-DD</li>
-              <li><code>target_date</code> / 截止日期 - YYYY-MM-DD</li>
-              <li><code>parent_title</code> / 父标题 - 父工作项标题</li>
-              <li><code>module</code> / 模块 - 模块名称</li>
-              <li><code>cycle</code> / 周期 - 周期名称</li>
-              <li><code>estimate</code> / 估点 - 数字</li>
+              <li><code>name</code> / {{ t('import.colTitle') }} - {{ t('import.colTitleHint') }}</li>
+              <li><code>description</code> / {{ t('import.colDescription') }} - {{ t('import.colDescriptionHint') }}</li>
+              <li><code>priority</code> / {{ t('import.colPriority') }} - urgent/high/medium/low/none</li>
+              <li><code>state</code> / {{ t('import.colState') }} - {{ t('import.colStateHint') }}</li>
+              <li><code>type</code> / {{ t('import.colType') }} - {{ t('import.colTypeHint') }}</li>
+              <li><code>assignees</code> / {{ t('import.colAssignees') }} - {{ t('import.colAssigneesHint') }}</li>
+              <li><code>labels</code> / {{ t('import.colLabels') }} - {{ t('import.colLabelsHint') }}</li>
+              <li><code>start_date</code> / {{ t('import.colStartDate') }} - YYYY-MM-DD</li>
+              <li><code>target_date</code> / {{ t('import.colTargetDate') }} - YYYY-MM-DD</li>
+              <li><code>parent_title</code> / {{ t('import.colParentTitle') }} - {{ t('import.colParentTitleHint') }}</li>
+              <li><code>module</code> / {{ t('import.colModule') }} - {{ t('import.colModuleHint') }}</li>
+              <li><code>cycle</code> / {{ t('import.colCycle') }} - {{ t('import.colCycleHint') }}</li>
+              <li><code>estimate</code> / {{ t('import.colEstimate') }} - {{ t('import.colEstimateHint') }}</li>
             </ul>
             <button @click="handleDownloadTemplate" class="mt-3 text-sm text-indigo-600 hover:text-indigo-800 underline">
               {{ t('import.downloadTemplate') }}
@@ -72,16 +72,16 @@
             <h4 class="text-sm font-medium text-green-800 mb-2">{{ t('import.jsonFormat') }}</h4>
             <pre class="text-xs text-green-700 bg-green-100/50 p-3 rounded overflow-x-auto">[
   {
-    "name": "工作项标题",
-    "description": "描述内容",
+    "name": "{{ t('import.exampleTitle') }}",
+    "description": "{{ t('import.exampleDescription') }}",
     "priority": "high",
-    "state_name": "待处理",
-    "type_name": "任务",
+    "state_name": "{{ t('import.exampleState') }}",
+    "type_name": "{{ t('import.exampleType') }}",
     "assignee_emails": ["user@example.com"],
     "label_names": ["bug"],
     "start_date": "2024-01-01",
     "target_date": "2024-01-31",
-    "parent_title": "父工作项标题"
+    "parent_title": "{{ t('import.exampleParentTitle') }}"
   }
 ]</pre>
           </div>
@@ -92,7 +92,7 @@
               v-model="jsonText"
               rows="10"
               class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder='[{"name":"工作项1","priority":"high"},{"name":"工作项2"}]'
+              :placeholder='`[{"name":"${t("import.examplePlaceholderTitle")}","priority":"high"},{"name":"${t("import.examplePlaceholderTitle2")}"}]`'
             ></textarea>
           </div>
         </div>

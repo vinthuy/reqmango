@@ -74,7 +74,7 @@ async function handleUpdate() {
 }
 
 async function handleDelete(release: Release) {
-  if (!(await confirm({ title: t('common.delete'), message: `确定要删除 ${release.name} 吗？`, danger: true, confirmText: t('common.delete') }))) return
+  if (!(await confirm({ title: t('common.delete'), message: t('release.deleteConfirm', { name: release.name }), danger: true, confirmText: t('common.delete') }))) return
   try {
     await releaseApi.delete(props.projectId, release.id)
     await loadReleases()

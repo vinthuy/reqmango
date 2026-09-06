@@ -49,7 +49,7 @@ const providers = [
 const inferenceLevels = [
   { value: 'normal', label: 'Normal' },
   { value: 'advanced', label: 'Advanced' },
-  { value: 'thinking-2', label: 'Thinking-2 (推理增强)' }
+  { value: 'thinking-2', label: t('ai.agentConfig.inferenceThinking2') }
 ]
 
 const serviceLevels = [
@@ -88,7 +88,7 @@ async function loadConfigs() {
       configs.value = [{
         id: 0,
         name: `${aiConfig.provider.toUpperCase()} Workspace Config`,
-        description: '工作空间默认AI配置',
+        description: t('ai.agentConfig.defaultWorkspaceConfig'),
         provider: aiConfig.provider,
         model: aiConfig.model || 'deepseek-chat',
         api_endpoint: aiConfig.api_endpoint || '',
@@ -428,7 +428,7 @@ onMounted(loadConfigs)
               v-model="newConfig.model"
               type="text"
               class="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-sm font-mono"
-              placeholder="模型名称"
+              :placeholder="t('ai.agentConfig.modelName')"
             />
           </div>
           <div>
