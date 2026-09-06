@@ -62,7 +62,8 @@ func (c *Client) DispatchAgent(ctx context.Context, workspaceID, agentID uint64,
 		body["project_id"] = *projectID
 	}
 	var out AgentActivity
-	_, err := c.PostJSON(ctx,
+	// postJSONLong (hcLong, no 30s cap) — the 5-minute ctx governs this call.
+	_, err := c.postJSONLong(ctx,
 		"/workspaces/"+strconv.FormatUint(workspaceID, 10)+"/agents/"+strconv.FormatUint(agentID, 10)+"/dispatch",
 		nil, body, &out)
 	if err != nil {
