@@ -3,12 +3,12 @@ package service
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/testutil"
 )
 
@@ -81,12 +81,15 @@ func TestPATService_Authenticate_Revoked(t *testing.T) {
 	defer sqlDB.Close()
 
 	svc := NewPATService(db)
-	revoked := time.Now().Add(-time.Hour)
+	// A revoked token never matches the service's `revoked_at IS NULL` filter,
+	// so the lookup returns no rows and Authenticate must reject it.
 	mock.ExpectQuery(`SELECT \* FROM "personal_access_tokens" WHERE`).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "token_hash", "expires_at", "revoked_at"}).
-			AddRow(1, 2, HashToken("reqmango_pat_abc"), nil, &revoked))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "token_hash", "expires_at", "revoked_at"}))
 
 	_, err := svc.Authenticate("reqmango_pat_abc")
 	require.Error(t, err)
+	var appErr *common.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, common.ErrUnauthorized, appErr.ErrorCode)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
