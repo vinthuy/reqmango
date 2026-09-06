@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -109,14 +108,9 @@ func newProjectCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var created client.Project
-			body := map[string]any{"name": name, "identifier": identifier}
-			if desc != "" {
-				body["description"] = desc
-			}
-			// POST /projects?workspace_id= returns the bare project object.
-			q := map[string]string{"workspace_id": strconv.FormatUint(wsID, 10)}
-			_, err = cli.PostJSON(context.Background(), "/projects", queryFromMap(q), body, &created)
+			created, err := cli.CreateProject(context.Background(), wsID, &client.ProjectCreateRequest{
+				Name: name, Identifier: identifier, Description: desc,
+			})
 			if err != nil {
 				return err
 			}
@@ -130,13 +124,4 @@ func newProjectCreateCmd() *cobra.Command {
 	cmd.MarkFlagRequired("identifier")
 	cmd.Flags().StringVar(&desc, "desc", "", "description")
 	return cmd
-}
-
-// queryFromMap converts a map to url.Values (helper for direct endpoints).
-func queryFromMap(m map[string]string) url.Values {
-	q := url.Values{}
-	for k, v := range m {
-		q.Set(k, v)
-	}
-	return q
 }

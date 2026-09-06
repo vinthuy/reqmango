@@ -97,10 +97,27 @@ func (c *Client) ListProjects(ctx context.Context, workspaceID uint64) ([]Projec
 }
 
 // GetProject fetches one project by numeric ID.
-// (Route GET /projects/:projectId — confirm in router.go near L596-640 if missing.)
 func (c *Client) GetProject(ctx context.Context, id uint64) (*Project, error) {
 	var out Project
 	if _, err := c.GetJSON(ctx, "/projects/"+strconv.FormatUint(id, 10), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ProjectCreateRequest is the payload for POST /projects.
+type ProjectCreateRequest struct {
+	Name        string `json:"name"`
+	Identifier  string `json:"identifier"`
+	Description string `json:"description,omitempty"`
+}
+
+// CreateProject creates a project in the given workspace.
+func (c *Client) CreateProject(ctx context.Context, workspaceID uint64, req *ProjectCreateRequest) (*Project, error) {
+	q := url.Values{}
+	q.Set("workspace_id", strconv.FormatUint(workspaceID, 10))
+	var out Project
+	if _, err := c.PostJSON(ctx, "/projects", q, req, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
