@@ -108,7 +108,7 @@ reqmango/
 │   │   ├── common/          # 公共工具
 │   │   └── config/          # 配置加载
 │   └── config/              # YAML 配置
-├── mcp-server/              # MCP Server
+├── sdk/                     # MCP Server + CLI（共享 Go 模块）
 ├── frontend/                # Vue 3 前端
 │   └── src/
 │       ├── api/             # API 调用（35 模块）
