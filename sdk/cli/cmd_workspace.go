@@ -13,28 +13,11 @@ import (
 func newWorkspaceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "workspace",
-		Short: "List and switch workspaces",
+		Short: "List, create and switch workspaces",
 	}
 	cmd.AddCommand(
-		&cobra.Command{
-			Use:   "list",
-			Short: "List accessible workspaces",
-			RunE: func(cmd *cobra.Command, args []string) error {
-				cli, _, err := setup(cmd)
-				if err != nil {
-					return err
-				}
-				ws, err := cli.ListWorkspaces(context.Background())
-				if err != nil {
-					return err
-				}
-				rows := make([][]string, 0, len(ws))
-				for _, w := range ws {
-					rows = append(rows, []string{strconv.FormatUint(w.ID, 10), w.Name, w.Slug})
-				}
-				return printResult(cmd, []string{"ID", "Name", "Slug"}, rows, ws)
-			},
-		},
+		newWorkspaceListCmd(),
+		newWorkspaceCreateCmd(),
 		&cobra.Command{
 			Use:   "switch <id>",
 			Short: "Remember the current workspace in the config",
@@ -75,6 +58,56 @@ func newWorkspaceCmd() *cobra.Command {
 			},
 		},
 	)
+	return cmd
+}
+
+func newWorkspaceListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List accessible workspaces",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cli, _, err := setup(cmd)
+			if err != nil {
+				return err
+			}
+			ws, err := cli.ListWorkspaces(context.Background())
+			if err != nil {
+				return err
+			}
+			rows := make([][]string, 0, len(ws))
+			for _, w := range ws {
+				rows = append(rows, []string{strconv.FormatUint(w.ID, 10), w.Name, w.Slug})
+			}
+			return printResult(cmd, []string{"ID", "Name", "Slug"}, rows, ws)
+		},
+	}
+}
+
+func newWorkspaceCreateCmd() *cobra.Command {
+	var name, slug string
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a new workspace",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cli, _, err := setup(cmd)
+			if err != nil {
+				return err
+			}
+			ws, err := cli.CreateWorkspace(context.Background(), client.WorkspaceCreateRequest{
+				Name: name,
+				Slug: slug,
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Created workspace %s (id %d)\n", ws.Name, ws.ID)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&name, "name", "", "workspace name (required)")
+	cmd.MarkFlagRequired("name")
+	cmd.Flags().StringVar(&slug, "slug", "", "URL-friendly slug, max 50 chars (required)")
+	cmd.MarkFlagRequired("slug")
 	return cmd
 }
 

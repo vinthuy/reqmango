@@ -33,19 +33,36 @@ export REQMANGO_API_URL="$API"
 export REQMANGO_PAT="$PAT"
 
 echo "==> workspace discovery + switch"
-WS_ID="$("$BIN/reqmango" --config "$CONFIG" workspace list --output json | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')"
-[ -n "$WS_ID" ] || { echo "FAIL: no workspace found (create one in the UI first)"; exit 1; }
+# `|| true` inside $(): a fresh user's empty list must reach the bootstrap below
+# instead of aborting the script under `set -euo pipefail`.
+WS_ID="$("$BIN/reqmango" --config "$CONFIG" workspace list --output json | grep -o '"id":[[:space:]]*[0-9]*' | head -1 | grep -o '[0-9]*' || true)"
+if [ -z "$WS_ID" ]; then
+  # Fresh user has no workspace — create one via the CLI so the smoke is self-sufficient
+  WS_SLUG="e2e-ws-$(date +%s)"
+  "$BIN/reqmango" --config "$CONFIG" workspace create --name "e2e workspace" --slug "$WS_SLUG" >/dev/null
+  WS_ID="$("$BIN/reqmango" --config "$CONFIG" workspace list --output json | grep -o '"id":[[:space:]]*[0-9]*' | head -1 | grep -o '[0-9]*' || true)"
+  [ -n "$WS_ID" ] || { echo "FAIL: workspace create"; exit 1; }
+  echo "   created workspace $WS_ID"
+fi
 "$BIN/reqmango" --config "$CONFIG" workspace switch "$WS_ID" >/dev/null
 
 echo "==> project list"
-PROJ_ID="$("$BIN/reqmango" --config "$CONFIG" project list --output json | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')"
-[ -n "$PROJ_ID" ] || { echo "FAIL: no project found (create one in the UI first)"; exit 1; }
-IDENT="$("$BIN/reqmango" --config "$CONFIG" project list --output json | grep -o '"identifier": "[^"]*"' | head -1 | sed 's/.*"identifier": "\([^"]*\)"/\1/')"
+PROJ_ID="$("$BIN/reqmango" --config "$CONFIG" project list --output json | grep -o '"id":[[:space:]]*[0-9]*' | head -1 | grep -o '[0-9]*' || true)"
+if [ -z "$PROJ_ID" ]; then
+  # Fresh workspace has no project — create one; the identifier is ours and feeds issue show below
+  IDENT="E2E"
+  "$BIN/reqmango" --config "$CONFIG" project create --name "e2e project" --identifier "$IDENT" >/dev/null
+  PROJ_ID="$("$BIN/reqmango" --config "$CONFIG" project list --output json | grep -o '"id":[[:space:]]*[0-9]*' | head -1 | grep -o '[0-9]*' || true)"
+  [ -n "$PROJ_ID" ] || { echo "FAIL: project create"; exit 1; }
+  echo "   created project $IDENT (id $PROJ_ID)"
+else
+  IDENT="$("$BIN/reqmango" --config "$CONFIG" project list --output json | grep -o '"identifier":[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"identifier": "\([^"]*\)"/\1/')"
+fi
 
 echo "==> issue lifecycle (create/show by code/update)"
 CREATE_OUT="$("$BIN/reqmango" --config "$CONFIG" issue create --project "$PROJ_ID" --title "e2e smoke $(date +%s)" --priority medium --output json)"
-ISSUE_ID="$(echo "$CREATE_OUT" | grep -o '"id": [0-9]*' | head -1 | grep -o '[0-9]*')"
-SEQ="$(echo "$CREATE_OUT" | grep -o '"sequence_id": [0-9]*' | head -1 | grep -o '[0-9]*')"
+ISSUE_ID="$(echo "$CREATE_OUT" | grep -o '"id":[[:space:]]*[0-9]*' | head -1 | grep -o '[0-9]*')"
+SEQ="$(echo "$CREATE_OUT" | grep -o '"sequence_id":[[:space:]]*[0-9]*' | head -1 | grep -o '[0-9]*')"
 [ -n "$ISSUE_ID" ] || { echo "FAIL: issue create"; exit 1; }
 "$BIN/reqmango" --config "$CONFIG" issue show "$IDENT-$SEQ" >/dev/null
 "$BIN/reqmango" --config "$CONFIG" issue update "$ISSUE_ID" --priority high >/dev/null
