@@ -116,8 +116,7 @@ func newProjectCreateCmd() *cobra.Command {
 			}
 			// POST /projects?workspace_id= returns the bare project object.
 			q := map[string]string{"workspace_id": strconv.FormatUint(wsID, 10)}
-			hdr, err := cli.PostJSON(context.Background(), "/projects", queryFromMap(q), body, &created)
-			_ = hdr
+			_, err = cli.PostJSON(context.Background(), "/projects", queryFromMap(q), body, &created)
 			if err != nil {
 				return err
 			}

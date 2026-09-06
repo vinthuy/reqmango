@@ -7,7 +7,8 @@ import (
 
 // BearerAuth wraps next and rejects requests whose Authorization header is
 // not "Bearer <pat>" (spec §5.1: HTTP transport is protected by the PAT).
-// Constant-time comparison avoids leaking prefix matches.
+// Comparison is constant-time for equal-length headers; at 160-bit token entropy the
+// length-mismatch timing leak is negligible.
 func BearerAuth(pat string, next http.Handler) http.Handler {
 	want := "Bearer " + pat
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -145,6 +145,6 @@ src/
 | 状态管理 | Pinia |
 | 图表 | Chart.js + ECharts |
 | 富文本 | Tiptap |
-| MCP | 独立 Go 模块 (JSON-RPC 2.0, stdio/SSE) |
+| MCP | sdk/mcp 模块（mcp-go v1.0.0；stdio + streamable HTTP，24 个工具） |
 | 容器化 | Docker Compose（3 服务） + Nginx 反向代理 |
 | 测试 | Go testing + Vitest + Playwright |

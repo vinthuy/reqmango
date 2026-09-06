@@ -81,6 +81,8 @@ reqmango-mcp --http :8080
 # 每个请求必须带 Authorization: Bearer <PAT>，否则 401
 ```
 
+⚠️ 安全：HTTP 模式每个请求都在明文携带全权限 PAT。生产/远程部署必须在前面架 TLS 终结反向代理（如 Nginx），或将地址绑定到回环（127.0.0.1）仅本机使用。绑定非回环地址时二进制会打印警告。
+
 ## 工具清单（24 个）
 
 **核心（19）**：`list_workspaces` `list_projects` `get_project` `create_issue` `list_issues` `get_issue` `update_issue` `search_issues` `add_comment` `list_cycles` `get_cycle_progress` `add_issue_to_cycle` `list_members` `get_states` `get_labels` `list_issue_types` `list_notifications` `list_pages` `get_page`
