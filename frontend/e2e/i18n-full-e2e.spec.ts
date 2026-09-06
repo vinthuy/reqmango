@@ -446,28 +446,17 @@ test.describe('i18n Cross-page Consistency', () => {
   test.beforeAll(async ({ request }) => { await ensureSetup(request) })
 
   test('sidebar navigation labels are consistent in Chinese across pages', async ({ page }) => {
-    async function getSidebarTexts(path: string) {
-      await page.goto(path)
-      await page.waitForLoadState('networkidle').catch(() => {})
-      await switchToZh(page)
-      await page.waitForTimeout(800)
-      const sidebar = page.locator('aside, nav[class*="sidebar"]').first()
-      return sidebar.isVisible({ timeout: 3000 }).catch(() => false)
-        ? await sidebar.innerText().catch(() => '')
-        : ''
-    }
+    test.setTimeout(60000)
+    await goToApp(page, `/workspace/${_wsSlug}`)
+    await switchToZh(page)
+    await page.waitForTimeout(500)
 
-    const pages = [
-      `/workspace/${_wsSlug}`,
-      `/workspace/${_wsSlug}/initiatives`,
-      `/workspace/${_wsSlug}/project/${_projectId}`,
-      `/workspace/${_wsSlug}/settings`,
-    ]
+    const nav = page.locator('nav, aside').first()
+    await expect(nav).toBeVisible({ timeout: 10000 })
+    const text = await nav.innerText()
 
-    for (const p of pages) {
-      const text = await getSidebarTexts(p)
-      // Sidebar text should contain some content (not crashed)
-      expect(text.length >= 0).toBeTruthy()
+    for (const label of ['项目', '战略目标', '设置']) {
+      expect(text).toContain(label)
     }
   })
 
