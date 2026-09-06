@@ -4,8 +4,8 @@
     <header class="bg-white border-b border-gray-200 px-6 py-4">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-xl font-semibold text-gray-800">🤖 Agent Dashboard</h1>
-          <p class="text-sm text-gray-500 mt-0.5">Monitor and manage AI agents</p>
+          <h1 class="text-xl font-semibold text-gray-800">{{ t('ai.dashboard.title') }}</h1>
+          <p class="text-sm text-gray-500 mt-0.5">{{ t('ai.dashboard.subtitle') }}</p>
         </div>
       </div>
     </header>
@@ -16,35 +16,35 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div class="bg-white border border-gray-200 rounded-xl p-4">
             <div class="text-2xl font-bold text-indigo-600">{{ templatesCount }}</div>
-            <div class="text-xs text-gray-500 mt-1">Templates</div>
+            <div class="text-xs text-gray-500 mt-1">{{ t('ai.dashboard.templates') }}</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4">
             <div class="text-2xl font-bold text-blue-600">{{ configsCount }}</div>
-            <div class="text-xs text-gray-500 mt-1">Configs</div>
+            <div class="text-xs text-gray-500 mt-1">{{ t('ai.dashboard.configs') }}</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4">
             <div class="text-2xl font-bold text-purple-600">{{ skillsCount }}</div>
-            <div class="text-xs text-gray-500 mt-1">Skills</div>
+            <div class="text-xs text-gray-500 mt-1">{{ t('ai.dashboard.skills') }}</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4">
             <div class="text-2xl font-bold text-teal-600">{{ tasksCount }}</div>
-            <div class="text-xs text-gray-500 mt-1">Tasks</div>
+            <div class="text-xs text-gray-500 mt-1">{{ t('ai.dashboard.tasks') }}</div>
           </div>
         </div>
 
         <!-- Active Loops -->
         <section class="mb-8">
           <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-semibold text-gray-800">Active Loops</h2>
+            <h2 class="text-lg font-semibold text-gray-800">{{ t('ai.dashboard.activeLoops') }}</h2>
             <router-link
               :to="agentLink('/loops')"
               class="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
             >
-              View All
+              {{ t('ai.dashboard.viewAll') }}
             </router-link>
           </div>
           <div v-if="activeRuns.length === 0" class="text-sm text-gray-400 py-8 text-center border border-gray-200 rounded-xl bg-white">
-            No active loop runs. Start one from the Loops tab.
+            {{ t('ai.dashboard.noActiveLoops') }}
           </div>
           <div v-else class="space-y-3">
             <div
@@ -78,8 +78,8 @@
                 🎭
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Agent Templates</div>
-                <div class="text-sm text-gray-500 mt-1">Manage agent role templates</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.agentTemplates') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.agentTemplatesDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -93,8 +93,8 @@
                 ⚙️
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Model Configs</div>
-                <div class="text-sm text-gray-500 mt-1">Manage AI model configurations</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.modelConfigs') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.modelConfigsDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -107,8 +107,8 @@
               <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xl">
                 🛠�?              </div>
               <div>
-                <div class="font-semibold text-gray-900">Skills</div>
-                <div class="text-sm text-gray-500 mt-1">Manage reusable AI skills</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.skillsTitle') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.skillsDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -122,8 +122,8 @@
                 📋
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Tasks</div>
-                <div class="text-sm text-gray-500 mt-1">Monitor and execute agent tasks</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.tasksTitle') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.tasksDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -136,8 +136,8 @@
               <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center text-white text-xl">
                 🖥�?              </div>
               <div>
-                <div class="font-semibold text-gray-900">Runtimes</div>
-                <div class="text-sm text-gray-500 mt-1">Manage agent runtime environments</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.runtimes') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.runtimesDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -151,8 +151,8 @@
                 🔄
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Loop Configurations</div>
-                <div class="text-sm text-gray-500 mt-1">Create autonomous loops</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.loopConfigs') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.loopConfigsDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -166,8 +166,8 @@
                 📈
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Monitor</div>
-                <div class="text-sm text-gray-500 mt-1">Real-time task monitoring</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.monitor') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.monitorDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -181,8 +181,8 @@
                 📊
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Performance</div>
-                <div class="text-sm text-gray-500 mt-1">Execution efficiency &amp; success analytics</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.performance') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.performanceDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -196,8 +196,8 @@
                 📊
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Agent Sessions</div>
-                <div class="text-sm text-gray-500 mt-1">View execution history</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.sessions') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.sessionsDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -211,8 +211,8 @@
                 🧠
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Memory Management</div>
-                <div class="text-sm text-gray-500 mt-1">Manage agent memory data</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.memory') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.memoryDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -225,8 +225,8 @@
               <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white text-xl">
                 �?              </div>
               <div>
-                <div class="font-semibold text-gray-900">Autopilot Tasks</div>
-                <div class="text-sm text-gray-500 mt-1">Manage scheduled automation tasks</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.autopilot') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.autopilotDesc') }}</div>
               </div>
             </div>
           </router-link>
@@ -240,7 +240,7 @@
                 👨‍💻
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Developer Agent</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.developer') }}</div>
                 <div class="text-sm text-gray-500 mt-1">Generate code, commit &amp; open pull requests</div>
               </div>
             </div>
@@ -255,7 +255,7 @@
                 🧪
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Tester Agent</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.tester') }}</div>
                 <div class="text-sm text-gray-500 mt-1">Generate test cases, execute &amp; report bugs</div>
               </div>
             </div>
@@ -270,7 +270,7 @@
                 🚀
               </div>
               <div>
-                <div class="font-semibold text-gray-900">CI/CD Manager</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.cicd') }}</div>
                 <div class="text-sm text-gray-500 mt-1">Configure pipelines &amp; monitor builds</div>
               </div>
             </div>
@@ -285,7 +285,7 @@
                 🧩
               </div>
               <div>
-                <div class="font-semibold text-gray-900">SDLC Orchestrator</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.sdlc') }}</div>
                 <div class="text-sm text-gray-500 mt-1">End-to-end delivery pipeline</div>
               </div>
             </div>
@@ -300,8 +300,8 @@
                 🛠️
               </div>
               <div>
-                <div class="font-semibold text-gray-900">Tool Calling</div>
-                <div class="text-sm text-gray-500 mt-1">权限、限流、审计、MCP 集成</div>
+                <div class="font-semibold text-gray-900">{{ t('ai.dashboard.tools') }}</div>
+                <div class="text-sm text-gray-500 mt-1">{{ t('ai.dashboard.footer') }}</div>
               </div>
             </div>
           </router-link>
@@ -319,10 +319,12 @@ import { agentTemplateApi } from '@/api/agent-template'
 import { agentConfigApi } from '@/api/agent-config'
 import { skillApi } from '@/api/skill'
 import { agentTaskApi } from '@/api/agent-task'
+import { useI18n } from 'vue-i18n'
 import { useWorkspaceId } from '@/composables/useWorkspaceId'
 import LoopStateBadge from '@/components/agents/LoopStateBadge.vue'
 import BudgetGauge from '@/components/agents/BudgetGauge.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const { getWorkspaceId } = useWorkspaceId()
 
