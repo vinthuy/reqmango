@@ -411,6 +411,27 @@ func registerCoreTools(s *server.MCPServer, cli *client.Client) {
 			return toolResultJSON(out), nil
 		})
 
+	s.AddTool(mcp.NewTool("list_comments",
+		mcp.WithDescription("List comments on an issue"),
+		mcp.WithInteger("issue_id", mcp.Required(), mcp.Description("Issue ID")),
+		mcp.WithInteger("page", mcp.Description("Page number (default 1)")),
+		mcp.WithInteger("page_size", mcp.Description("Page size (default 20)"))),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			var a struct {
+				IssueID  int64 `json:"issue_id"`
+				Page     int   `json:"page"`
+				PageSize int   `json:"page_size"`
+			}
+			if err := decodeArgs(req, &a); err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			comments, total, err := cli.ListComments(ctx, uint64(a.IssueID), a.Page, a.PageSize)
+			if err != nil {
+				return toolAPIError(err), nil
+			}
+			return toolResultJSON(map[string]any{"comments": comments, "total": total}), nil
+		})
+
 	s.AddTool(mcp.NewTool("list_cycles",
 		mcp.WithDescription("List cycles (sprints) of a project"),
 		mcp.WithInteger("project_id", mcp.Required(), mcp.Description("Project ID")),
@@ -423,6 +444,36 @@ func registerCoreTools(s *server.MCPServer, cli *client.Client) {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			out, err := cli.ListCycles(ctx, uint64(a.ProjectID), a.Status, a.Limit, a.Offset)
+			if err != nil {
+				return toolAPIError(err), nil
+			}
+			return toolResultJSON(out), nil
+		})
+
+	s.AddTool(mcp.NewTool("get_cycle",
+		mcp.WithDescription("Get one cycle by ID"),
+		mcp.WithInteger("cycle_id", mcp.Required(), mcp.Description("Cycle ID"))),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			var a cycleIDArgs
+			if err := decodeArgs(req, &a); err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			out, err := cli.GetCycle(ctx, uint64(a.CycleID))
+			if err != nil {
+				return toolAPIError(err), nil
+			}
+			return toolResultJSON(out), nil
+		})
+
+	s.AddTool(mcp.NewTool("get_cycle_burndown",
+		mcp.WithDescription("Get a cycle's burndown chart data (daily progress)"),
+		mcp.WithInteger("cycle_id", mcp.Required(), mcp.Description("Cycle ID"))),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			var a cycleIDArgs
+			if err := decodeArgs(req, &a); err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			out, err := cli.GetCycleBurndown(ctx, uint64(a.CycleID))
 			if err != nil {
 				return toolAPIError(err), nil
 			}

@@ -46,6 +46,42 @@ func TestListProjects_PathAndQuery(t *testing.T) {
 	}
 }
 
+// TestCreateProject_PathAndBody verifies POST /projects with workspace_id query.
+func TestCreateProject_PathAndBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/projects" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("workspace_id") != "2" {
+			t.Errorf("expected workspace_id=2, got %q", r.URL.RawQuery)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		if body["name"] != "Demo" || body["identifier"] != "DEMO" {
+			t.Errorf("unexpected body %v", body)
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]any{
+			"id": 10, "name": "Demo", "identifier": "DEMO", "workspace_id": 2,
+		})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL+"/api/v1", "t")
+	proj, err := c.CreateProject(context.Background(), 2, &ProjectCreateRequest{
+		Name: "Demo", Identifier: "DEMO",
+	})
+	if err != nil {
+		t.Fatalf("CreateProject: %v", err)
+	}
+	if proj.ID != 10 || proj.Identifier != "DEMO" {
+		t.Fatalf("unexpected project %+v", proj)
+	}
+}
+
 // TestListWorkspaces_Decodes verifies JSON decoding of the workspace list shape.
 func TestListWorkspaces_Decodes(t *testing.T) {
 	cases := []struct {
