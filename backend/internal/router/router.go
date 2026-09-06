@@ -218,6 +218,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			auth.GET("/me", authMiddleware, authH.GetCurrentUser)
 		}
 
+		// ---- Personal Access Tokens ----
+		patSvc := service.NewPATService(db)
+		patH := handler.NewPATHandler(patSvc)
+		tokens := v1.Group("/auth/tokens", authMiddleware)
+		{
+			tokens.GET("", patH.List)
+			tokens.POST("", patH.Create)
+			tokens.DELETE("/:id", patH.Revoke)
+		}
+
 		// ---- Workspaces (protected) ----
 		workspaces := v1.Group("/workspaces", authMiddleware)
 		{
