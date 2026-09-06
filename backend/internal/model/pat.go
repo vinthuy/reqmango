@@ -10,7 +10,7 @@ type PersonalAccessToken struct {
 
 	UserID      uint64     `gorm:"not null;index" json:"user_id"`
 	Name        string     `gorm:"size:100;not null" json:"name"`
-	TokenPrefix string     `gorm:"size:20;not null;index" json:"token_prefix"` // 展示用前缀
+	TokenPrefix string     `gorm:"size:20;not null" json:"token_prefix"` // 展示用前缀；迁移未建该索引（无按前缀查询），保持一致
 	TokenHash   string     `gorm:"size:64;not null;uniqueIndex" json:"-"`
 	Scopes      string     `gorm:"type:text;default:''" json:"scopes"` // 预留，首版空
 	LastUsedAt  *time.Time `json:"last_used_at"`

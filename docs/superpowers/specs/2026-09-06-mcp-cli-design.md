@@ -175,7 +175,8 @@ reqmango ask "..." [--issue <id>]
 **client 包统一错误模型**：
 
 - 所有请求走一个 `do(ctx, method, path, query, body, &out)` 核心函数
-- HTTP 4xx/5xx → 解析后端错误体（`{error: {code, message}}`）→ 映射为类型化错误 `*APIError{StatusCode, Code, Message}`
+- HTTP 4xx/5xx → 解析后端错误体（扁平 `{"message": ...}`，见后端错误契约）→ 映射为类型化错误 `*APIError{StatusCode, Message}`（完整响应体保留在 `Body`）
+- 实现说明：原设计稿的 `{error: {code, message}}` 形状以实际后端契约为准做了修正（§7 修订于 2026-09-06 全分支终审）
 - **401 特殊处理**：CLI 打印"PAT 已失效，请运行 `reqmango auth login`"；MCP 将 401 作为工具结果返回（`isError: true`）并附带同样提示
 - 超时：client 默认 30s；`ai_chat`/`dispatch_agent` 等长操作允许 `context.WithTimeout` 延长到 5min
 - MCP 工具执行失败**不**中断协议会话——错误以结构化 tool result 返回给模型，让 AI 自行纠正（如换正确的 project_id）

@@ -13,6 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 
@@ -42,8 +43,13 @@ func main() {
 		h := server.NewStreamableHTTPServer(s,
 			server.WithEndpointPath("/mcp"),
 			server.WithStateful(true),
-			server.WithDisableLocalhostProtection(true), // --http is an explicit opt-in for remote serving
+			// --http is an explicit opt-in for remote serving; the operator MUST terminate TLS in front
+			// (see sdk/README.md) — non-loopback binds print a plaintext warning above.
+			server.WithDisableLocalhostProtection(true),
 		)
+		if isNonLoopback(*httpAddr) {
+			fmt.Fprintf(os.Stderr, "WARNING: serving MCP over plaintext HTTP on %s — every request carries your full-privilege PAT in the clear. Put a TLS-terminating reverse proxy in front of this endpoint, or bind a loopback address (e.g. 127.0.0.1:8080). See sdk/README.md \"HTTP 模式（远程 / CI）\".\n", *httpAddr)
+		}
 		log.Printf("reqmango-mcp listening on %s (endpoint /mcp, Bearer PAT required)", *httpAddr)
 		log.Fatal(http.ListenAndServe(*httpAddr, reqmcp.BearerAuth(pat, h)))
 	}
@@ -52,4 +58,21 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// isNonLoopback reports whether addr binds to a non-loopback interface.
+// A non-loopback bind exposes the plaintext-PAT HTTP endpoint beyond the
+// local machine and must print the plaintext warning.
+func isNonLoopback(addr string) bool {
+	host := addr
+	if h, _, err := net.SplitHostPort(addr); err == nil {
+		host = h
+	}
+	switch host {
+	case "", "0.0.0.0", "::", "[::]":
+		return true
+	case "localhost", "127.0.0.1", "::1":
+		return false
+	}
+	return true
 }

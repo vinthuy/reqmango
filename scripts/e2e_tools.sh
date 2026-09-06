@@ -9,6 +9,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$ROOT/bin"
 mkdir -p "$BIN"
 
+# 必须与 sdk/mcp 依赖的 mcp-go 的 mcp.LATEST_PROTOCOL_VERSION 一致；升级 mcp-go 时同步更新
+MCP_PROTOCOL_VERSION="2026-07-28"
+
 echo "==> building tools binaries"
 (cd "$ROOT/sdk" && go build -o "$BIN/reqmango" ./cmd/reqmango && go build -o "$BIN/reqmango-mcp" ./cmd/reqmango-mcp)
 
@@ -51,12 +54,12 @@ echo "   issue $IDENT-$SEQ (id $ISSUE_ID) OK"
 
 echo "==> mcp stdio handshake (initialize + initialized + tools/list)"
 STDIO_OUT=$(printf '%s\n%s\n%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2026-07-28","clientInfo":{"name":"e2e","version":"1.0.0"},"capabilities":{}}}' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"'"$MCP_PROTOCOL_VERSION"'","clientInfo":{"name":"e2e","version":"1.0.0"},"capabilities":{}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   | "$BIN/reqmango-mcp")
 echo "$STDIO_OUT" | grep -q '"tools"' || { echo "FAIL: stdio tools/list"; echo "$STDIO_OUT"; exit 1; }
-# 只统计 tools/list 响应行的工具名（initialize 响应的 serverInfo.name 不含 "tools" 关键字，会被过滤）
+# 先按含 "tools" 的行过滤出 tools/list 响应行，再统计该行中 "name":"..." 工具名字段个数
 TOOL_COUNT="$(echo "$STDIO_OUT" | grep '"tools"' | grep -o '"name":"[a-z_]*"' | wc -l)"
 [ "$TOOL_COUNT" -ge 24 ] || { echo "FAIL: expected >=24 tools over stdio, got $TOOL_COUNT"; exit 1; }
 echo "   stdio OK ($TOOL_COUNT tools)"
@@ -64,18 +67,23 @@ echo "   stdio OK ($TOOL_COUNT tools)"
 echo "==> mcp streamable HTTP smoke"
 "$BIN/reqmango-mcp" --http :18080 >/dev/null 2>&1 &
 MCP_PID=$!
-trap 'kill $MCP_PID 2>/dev/null || true' EXIT
+cleanup() {
+  kill "$MCP_PID" 2>/dev/null || true
+  # Windows/Git Bash: plain kill often does not terminate the process; taskkill as fallback
+  # (doubled slashes required so Git Bash does not path-mangle them; guarded so POSIX is unaffected)
+  command -v taskkill >/dev/null 2>&1 && taskkill //F //PID "$MCP_PID" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 sleep 1
 # HTTP 模式需要 Authorization: Bearer <PAT>（spec §5.1）
 AUTH_HEADER="Authorization: Bearer $PAT"
-# 先验证无凭据被拒
-if curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:18080/mcp" \
-  -H 'Content-Type: application/json' | grep -q 200; then
-  echo "FAIL: HTTP endpoint accepted a request without Bearer token"; exit 1
-fi
+# 先验证无凭据被拒（必须恰好 401）
+NOAUTH_CODE="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:18080/mcp" \
+  -H 'Content-Type: application/json')"
+[ "$NOAUTH_CODE" = "401" ] || { echo "FAIL: expected 401 without Bearer token, got $NOAUTH_CODE"; exit 1; }
 SID=$(curl -sf -X POST "http://localhost:18080/mcp" -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' -H "$AUTH_HEADER" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2026-07-28","clientInfo":{"name":"e2e","version":"1.0.0"},"capabilities":{}}}' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"'"$MCP_PROTOCOL_VERSION"'","clientInfo":{"name":"e2e","version":"1.0.0"},"capabilities":{}}}' \
   -D - -o /dev/null | tr -d '\r' | sed -n 's/[Mm]cp-Session-Id: //p')
 [ -n "$SID" ] || { echo "FAIL: no session id from HTTP initialize"; exit 1; }
 curl -sf -X POST "http://localhost:18080/mcp" -H 'Content-Type: application/json' \
