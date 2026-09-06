@@ -17,7 +17,7 @@ func newIssueCmd() *cobra.Command {
 		Aliases: []string{"issues"},
 		Short:   "List, show, create, update and search issues",
 	}
-	cmd.AddCommand(newIssueListCmd(), newIssueShowCmd(), newIssueCreateCmd(), newIssueUpdateCmd(), newIssueSearchCmd())
+	cmd.AddCommand(newIssueListCmd(), newIssueShowCmd(), newIssueCreateCmd(), newIssueUpdateCmd(), newIssueSearchCmd(), newIssueCommentCmd(), newIssueCommentsCmd())
 	return cmd
 }
 
@@ -332,4 +332,80 @@ func newIssueSearchCmd() *cobra.Command {
 			return printResult(cmd, []string{"Code", "Name", "ID"}, rows, results)
 		},
 	}
+}
+
+func newIssueCommentCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "comment <id|code> <text>",
+		Short: "Add a comment to an issue",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cli, cfg, err := setup(cmd)
+			if err != nil {
+				return err
+			}
+			ctx := context.Background()
+			wsID, _ := resolveWorkspace(cmd, cfg)
+			id, err := resolveIssueID(ctx, cli, wsID, args[0])
+			if err != nil {
+				return err
+			}
+			c, err := cli.AddComment(ctx, id, args[1], nil)
+			if err != nil {
+				return err
+			}
+			if cmd.Flag("output").Value.String() == "json" {
+				return PrintJSON(cmd.OutOrStdout(), c)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Comment added (id %d) at %s\n", c.ID, c.CreatedAt.Format("2006-01-02 15:04"))
+			return nil
+		},
+	}
+}
+
+func newIssueCommentsCmd() *cobra.Command {
+	var page, pageSize int64
+	cmd := &cobra.Command{
+		Use:   "comments <id|code>",
+		Short: "List comments on an issue",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cli, cfg, err := setup(cmd)
+			if err != nil {
+				return err
+			}
+			ctx := context.Background()
+			wsID, _ := resolveWorkspace(cmd, cfg)
+			id, err := resolveIssueID(ctx, cli, wsID, args[0])
+			if err != nil {
+				return err
+			}
+			comments, total, err := cli.ListComments(ctx, id, int(page), int(pageSize))
+			if err != nil {
+				return err
+			}
+			rows := make([][]string, 0, len(comments))
+			for _, c := range comments {
+				body := c.Body
+				if len(body) > 80 {
+					body = body[:77] + "..."
+				}
+				rows = append(rows, []string{
+					strconv.FormatUint(c.ID, 10),
+					c.CreatedAt.Format("2006-01-02 15:04"),
+					body,
+				})
+			}
+			if err := printResult(cmd, []string{"ID", "Created", "Body"}, rows, comments); err != nil {
+				return err
+			}
+			if cmd.Flag("output").Value.String() != "json" {
+				fmt.Fprintf(cmd.OutOrStdout(), "\nTotal: %d\n", total)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().Int64Var(&page, "page", 1, "page number")
+	cmd.Flags().Int64Var(&pageSize, "page-size", 20, "page size")
+	return cmd
 }
