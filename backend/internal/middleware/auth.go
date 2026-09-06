@@ -8,8 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/i18n"
 	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/backend/internal/service"
 	"gorm.io/gorm"
 )
 
@@ -40,6 +42,25 @@ func AuthMiddleware(db *gorm.DB, secret string) gin.HandlerFunc {
 		}
 
 		tokenStr := parts[1]
+
+		// Personal access tokens take precedence: long-lived credentials
+		// stored as SHA-256 hashes (used by CLI / MCP / CI).
+		if strings.HasPrefix(tokenStr, service.PATPrefix) {
+			patSvc := service.NewPATService(db)
+			user, err := patSvc.Authenticate(tokenStr)
+			if err != nil {
+				if appErr, ok := err.(*common.AppError); ok {
+					c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+				} else {
+					c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid token")})
+				}
+				c.Abort()
+				return
+			}
+			c.Set("currentUser", user)
+			c.Next()
+			return
+		}
 
 		// Parse and validate JWT
 		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
