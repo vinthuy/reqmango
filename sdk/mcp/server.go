@@ -21,5 +21,6 @@ func New(cli *client.Client) *server.MCPServer {
 		server.WithToolCapabilities(false), // required by mcp-go v1.0.0 for tools/list+calls to work at all
 	)
 	registerCoreTools(s, cli)
+	registerAITools(s, cli)
 	return s
 }
