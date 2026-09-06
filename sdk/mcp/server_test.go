@@ -119,11 +119,12 @@ func TestNew_Initialize(t *testing.T) {
 	}
 }
 
-func TestNew_ToolsListInitiallyEmpty(t *testing.T) {
+func TestNew_ToolsListCoreRegistered(t *testing.T) {
 	httpSrv, sessionID := newTestMCPServer(t, client.New("", "reqmango_pat_test"))
 	names := listToolNames(t, httpSrv.URL, sessionID)
-	if len(names) != 0 {
-		t.Fatalf("expected 0 tools before Tasks 11/12, got %v", names)
+	// >=（不是 ==）：Task 12 还会注册 5 个 AI 工具，总数变 24。
+	if len(names) < 19 {
+		t.Fatalf("expected at least 19 core tools registered, got %v", names)
 	}
 }
 

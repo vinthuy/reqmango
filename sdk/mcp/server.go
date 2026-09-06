@@ -20,5 +20,6 @@ func New(cli *client.Client) *server.MCPServer {
 		server.WithInputSchemaValidation(),
 		server.WithToolCapabilities(false), // required by mcp-go v1.0.0 for tools/list+calls to work at all
 	)
+	registerCoreTools(s, cli)
 	return s
 }
