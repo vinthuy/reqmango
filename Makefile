@@ -1,4 +1,4 @@
-﻿.PHONY: up down build logs restart clean dev dev-backend db-shell lint lint-fix test test-backend test-frontend ci coverage
+﻿.PHONY: up down build logs restart clean dev dev-backend db-shell lint lint-fix test test-backend test-frontend ci coverage tools test-tools
 
 # ======== Docker ========
 
@@ -64,6 +64,15 @@ test: test-backend test-frontend
 coverage:
 	cd backend && go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: backend/coverage.html"
+
+# ======== Tools (MCP + CLI) ========
+
+tools:
+	cd sdk && go build -o ../bin/reqmango ./cmd/reqmango
+	cd sdk && go build -o ../bin/reqmango-mcp ./cmd/reqmango-mcp
+
+test-tools:
+	cd sdk && go test ./...
 
 # ======== CI ========
 

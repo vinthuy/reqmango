@@ -27,12 +27,11 @@ reqmango/
 │   ├── Dockerfile            # 多阶段构建（distroless）
 │   └── test_api.sh           # API 测试脚本
 │
-├── mcp-server/              # 独立 MCP Server（Go module）
-│   ├── main.go              # 入口（stdio MCP）
-│   ├── server.go            # JSON-RPC 2.0 协议
-│   ├── client.go            # reqmango REST API 客户端
-│   ├── tools.go             # 34 个 MCP 工具定义
-│   └── go.mod               # 独立模块
+├── sdk/                     # MCP server + CLI 共享模块（github.com/reqmango/tools）
+│   ├── client/              #   共享 API 客户端 + DTO + 错误映射
+│   ├── mcp/                 #   MCP server（mcp-go，24 tools，stdio + HTTP）
+│   ├── cli/                 #   reqmango CLI（cobra）
+│   └── cmd/                 #   两个二进制入口
 │
 ├── frontend/                # Vue 3 前端
 │   ├── src/
@@ -81,7 +80,7 @@ reqmango/
 | `frontend/src/main.ts` | Vue 应用入口 |
 | `frontend/src/router/index.ts` | 前端 26+ 个路由定义 |
 | `frontend/src/api/index.ts` | Axios 实例 + 拦截器 |
-| `mcp-server/main.go` | MCP Server 入口（stdio 传输） |
+| `sdk/cmd/reqmango-mcp/main.go` | MCP Server 二进制入口（stdio + streamable HTTP） |
 
 ---
 

@@ -108,7 +108,7 @@ reqmango/
 │   │   ├── common/          # Utility Functions
 │   │   └── config/          # Configuration Loading
 │   └── config/              # YAML Configuration
-├── mcp-server/              # MCP Server
+├── sdk/                     # MCP Server + CLI (shared Go module)
 ├── frontend/                # Vue 3 Frontend
 │   └── src/
 │       ├── api/             # API Calls (35 modules)
