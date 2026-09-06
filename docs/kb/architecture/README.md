@@ -2,7 +2,7 @@
 
 reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
-**最后更新**: 2026-07-13
+**最后更新**: 2026-08-30
 
 ---
 
@@ -10,16 +10,17 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 | 层级 | 技术 | 状态 |
 |------|------|------|
-| 后端框架 | Go + Gin 1.x | ✅ 主力 |
-| ORM | GORM 2.x | ✅ |
+| 后端框架 | Go 1.24.0 + Gin 1.x | ✅ 主力 |
+| ORM | GORM v1.30.0 | ✅ |
 | 数据库 | PostgreSQL 16+ | ✅ |
-| 认证 | JWT (golang-jwt/v5) | ✅ |
+| 认证 | JWT (golang-jwt/v5.2.1) | ✅ |
 | LLM 集成 | DeepSeek / Anthropic / OpenAI-compatible | ✅ |
-| 前端框架 | Vue 3 + Composition API | ✅ |
+| 前端框架 | Vue 3.4.21 + Composition API | ✅ |
 | 前端构建 | Vite | ✅ |
 | 状态管理 | Pinia | ✅ |
 | CSS | Tailwind CSS | ✅ |
 | 类型系统 | TypeScript | ✅ |
+| E2E 测试 | Playwright 1.61.1 | ✅ |
 
 ---
 
@@ -49,9 +50,9 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 | 层 | 目录 | 职责 |
 |----|------|------|
-| Handler | `internal/handler/` (28) | HTTP 请求绑定，调用 Service，写响应。不含业务逻辑 |
-| Service | `internal/service/` (27) | 纯业务逻辑，跨 Model 操作，返回 AppError |
-| Model | `internal/model/` (28) | GORM 模型定义，表结构映射 |
+| Handler | `internal/handler/` (~70) | HTTP 请求绑定，调用 Service，写响应。不含业务逻辑 |
+| Service | `internal/service/` (~90) | 纯业务逻辑，跨 Model 操作，返回 AppError |
+| Model | `internal/model/` (67) | GORM 模型定义，表结构映射 |
 | DTO | `internal/dto/` | 请求/响应结构体，与 Model 解耦 |
 | Middleware | `internal/middleware/` | JWT 认证、RBAC 鉴权、CORS、日志 |
 | Router | `internal/router/` | 路由注册，挂载中间件和 Handler |
@@ -62,10 +63,10 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 | 层 | 目录 | 职责 |
 |----|------|------|
-| Views | `src/views/` (16) | 页面级组件，对应路由 |
-| Components | `src/components/` (58) | 可复用组件 |
+| Views | `src/views/` (52) | 页面级组件，对应路由 |
+| Components | `src/components/` (~120) | 可复用组件 |
 | Stores | `src/stores/` (3) | Pinia 状态管理 |
-| API | `src/api/` (23) | Axios 封装，后端 API 调用 |
+| API | `src/api/` (41+) | Axios 封装，后端 API 调用 |
 | Types | `src/types/` (21) | TypeScript 类型定义（含 filters.ts） |
 | Composables | `src/composables/` (5) | 组合式函数 (useConfirm, useRQL, useAI, usePermission, useFilters) |
 | Router | `src/router/` | Vue Router 配置 (16 条路由，含 minRoleLevel 守卫) |
@@ -113,6 +114,12 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 | Git Integration（Git 集成） | ✅ | ✅ | GitHub/GitLab 原生集成 + Webhook |
 | Project CustomField Enrollment | ✅ | ✅ | 项目级自定义字段启用/禁用 |
 | Workspace Workflow（工作空间工作流） | ✅ | ✅ | 工作空间级工作流 + 项目级覆盖 |
+| Calendar/Gantt View | ✅ | ✅ | 日历视图 (IssueCalendar.vue) + 甘特图视图 (IssueGantt.vue) |
+| AI Agent 系统 | ✅ | ✅ | Agent Templates/Configs, Skills, Tasks, Loops, Pipelines, Memory, Squads, Autopilot, Developer/Tester Agent, CI/CD, SDLC |
+| 聊天系统 | ✅ | ✅ | Chat, Messages, SSE streaming |
+| 页面版本管理 | ✅ | ✅ | PageVersion, PageTemplate |
+| 审批系统 | ✅ | ✅ | Approval |
+| 工作流可视化 | ✅ | ✅ | Workflow Nodes/Edges/Execute/Runs |
 
 ---
 
@@ -120,14 +127,11 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 | 模块 | 说明 |
 |------|------|
-| FilterBar 统一筛选栏 | 统一筛选入口 + RQL 双向同步 + 语义操作符 + State Group + Group By/Order By |
-| SavedView 增强 | 新增 sort_config / columns / group_by 字段，Views 完整恢复链路 |
+| Bug 修复与 E2E 测试 | 28/41 bugs fixed + 72 个 E2E 测试覆盖 14 个模块 |
 
 ## 未来可扩展
 
-| 模块 | 说明 |
-|------|------|
-| Calendar/Gantt View | 日历/甘特图视图 |
+（暂无）
 
 ---
 

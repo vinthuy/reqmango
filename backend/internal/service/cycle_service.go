@@ -856,6 +856,9 @@ func (s *CycleService) GetBurndown(cycleID uint64) (*response.BurndownData, erro
 	actualRemaining := total - completed
 
 	dailyPoints := s.buildDailyBurndownPoints(cycleID, &cycle, int(total), totalDays, daysElapsed, idealDailyBurn)
+	if dailyPoints == nil {
+		dailyPoints = make([]response.BurndownDayPoint, 0)
+	}
 
 	return &response.BurndownData{
 		CycleID:         cycleID,

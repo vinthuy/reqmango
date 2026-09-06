@@ -1,6 +1,6 @@
 # Frontend Architecture（前端架构）
 
-**最后更新**: 2026-07-04
+**最后更新**: 2026-08-30
 
 ---
 
@@ -26,7 +26,7 @@ frontend/src/
 ├── App.vue
 ├── style.css
 │
-├── api/ (41 模块)
+├── api/ (41+ 模块)
 │   ├── index.ts          — Axios 实例 + JWT 拦截器
 │   ├── ai.ts             — AI Chat SSE / Search / Create
 │   ├── agent.ts, initiative.ts, plugin.ts
@@ -65,7 +65,7 @@ frontend/src/
 │
 ├── router/index.ts — 26 条路由
 
-├── views/ (23 视图)
+├── views/ (52 视图)
 │   ├── Login.vue, Register.vue, Home.vue
 │   ├── Workspace.vue, WorkspaceSettings.vue, WorkspaceOverview.vue
 │   ├── WorkspaceAnalytics.vue, Analytics.vue
@@ -76,9 +76,25 @@ frontend/src/
 │   ├── IntakeForm.vue, WorkflowDetail.vue
 │   ├── Roadmap.vue, Initiatives.vue
 │   ├── Dashboard.vue, PluginManager.vue
+│   ├── ApprovalList.vue, MetricsView.vue
+│   ├── agent/AgentMembersPage.vue, agent/AgentIssuesPage.vue
+│   ├── agent/BudgetSLAPage.vue, agent/WorkflowDesigner.vue
+│   ├── agent/WorkflowsPage.vue
+│   ├── agents/AgentDashboard.vue, agents/AgentTemplateList.vue
+│   ├── agents/AgentConfigList.vue, agents/AgentSessions.vue
+│   ├── agents/AgentTaskList.vue, agents/AgentPerformance.vue
+│   ├── agents/AgentMonitor.vue
+│   ├── agents/LoopList.vue, agents/LoopRunDetail.vue
+│   ├── agents/PipelineBuilder.vue, agents/PipelineRunDetail.vue
+│   ├── agents/SquadList.vue, agents/SquadDetail.vue
+│   ├── agents/SkillList.vue, agents/ToolManager.vue
+│   ├── agents/RuntimeList.vue, agents/MemoryList.vue
+│   ├── agents/AutopilotList.vue
+│   ├── agents/DeveloperAgent.vue, agents/TesterAgent.vue
+│   ├── agents/SDLCManager.vue, agents/CICDManager.vue
 │
 
-├── components/ (92 组件)
+├── components/ (~120 组件)
 │   ├── Agent: AgentAuditLog.vue, AgentSelector.vue, AgentList.vue, AgentActivityLog.vue
 │   ├── AI: AIChatSidebar.vue, AICreateDialog.vue, AISettingsPanel.vue,
 │   │        AICopilot.vue, AIChartRenderer.vue, AIResultActions.vue
@@ -196,6 +212,17 @@ const api = axios.create({ baseURL: '/api/v1' })
 - Props: `defineProps<T>()`
 - Emits: `defineEmits<T>()`
 - 状态管理: 页面级用 local ref，跨组件用 Pinia store
+
+---
+
+## 国际化（i18n）
+
+前端支持中英文双语言：
+
+- `locales/zh-CN.json` — 中文语言包
+- `locales/en-US.json` — 英文语言包
+- `composables/useI18n.ts` — 国际化组合式函数
+- `components/LanguageSwitcher.vue` — 语言切换组件
 
 ---
 

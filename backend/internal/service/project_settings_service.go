@@ -290,6 +290,19 @@ func (s *ProjectSettingsService) DeleteWorkspaceState(workspaceID, stateID uint6
 		return common.BadRequest("Cannot delete the default state")
 	}
 
+	// Find the default workspace state to migrate issues
+	var defaultState model.State
+	if err := tx.Where("workspace_id = ? AND project_id IS NULL AND is_default = ?", workspaceID, true).First(&defaultState).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to find default workspace state")
+	}
+
+	// Migrate issues using this state to the default state
+	if err := tx.Model(&model.Issue{}).Where("state_id = ?", stateID).Update("state_id", defaultState.ID).Error; err != nil {
+		tx.Rollback()
+		return common.Internal("Failed to migrate issues to default state")
+	}
+
 	result := tx.Where("id = ? AND workspace_id = ? AND project_id IS NULL", stateID, workspaceID).Delete(&model.State{})
 	if result.RowsAffected == 0 {
 		tx.Rollback()

@@ -1,6 +1,6 @@
-﻿# Project Layout（项目目录结构）
+# Project Layout（项目目录结构）
 
-**最后更新**: 2026-07-03
+**最后更新**: 2026-08-30
 
 ---
 
@@ -13,10 +13,10 @@ reqmango/
 │   ├── internal/            # 内部代码
 │   │   ├── common/          # 公共工具（错误码、常量、分页）
 │   │   ├── config/          # 配置加载（Viper + 环境变量）
-│   │   ├── model/           # GORM 数据模型（36 文件）
-│   │   ├── dto/             # 请求/响应 DTO（47 文件）
-│   │   ├── service/         # 业务逻辑（36 文件）
-│   │   ├── handler/         # HTTP 处理器（38 文件）
+│   │   ├── model/           # GORM 数据模型（67 文件）
+│   │   ├── dto/             # 请求/响应 DTO（~67 文件: request ~37 + response ~27）
+│   │   ├── service/         # 业务逻辑（~90 文件）
+│   │   ├── handler/         # HTTP 处理器（~70 文件）
 │   │   ├── rql/             # RQL 查询语言引擎（9 文件）
 │   │   ├── middleware/      # 中间件（Auth/Authz/CORS/Lang/Log/RateLimit）
 │   │   ├── i18n/            # 后端国际化 (en/zh JSON)
@@ -36,16 +36,16 @@ reqmango/
 │
 ├── frontend/                # Vue 3 前端
 │   ├── src/
-│   │   ├── api/             # 36 个 API 模块
-│   │   ├── types/           # 22 个 TypeScript 类型文件（含 filters.ts）
+│   │   ├── api/             # 41+ 个 API 模块
+│   │   ├── types/           # 30+ 个 TypeScript 类型文件（含 filters.ts）
 │   │   ├── stores/          # Pinia 状态管理（Auth/Cycle/Module）
-│   │   ├── composables/     # 6 个组合式函数（含 useFilters.ts）
-│   │   ├── views/           # 18 个页面级路由组件
-│   │   ├── components/      # 79 个可复用组件（含 FilterBar.vue）
-│   │   ├── router/          # 20 个路由定义
+│   │   ├── composables/     # 14 个组合式函数（含 useFilters.ts）
+│   │   ├── views/           # 52 个页面级路由组件
+│   │   ├── components/      # ~120 个可复用组件（含 FilterBar.vue）
+│   │   ├── router/          # 26+ 个路由定义
 │   │   └── locales/         # 前端 i18n (en-US / zh-CN，含 filter.* 命名空间)
-│   ├── e2e/                 # Playwright E2E 测试（5 文件）
-│   ├── tests/               # Vitest 单元测试（6 文件）
+│   ├── e2e/                 # Playwright E2E 测试（24 文件）
+│   ├── tests/               # Vitest 单元测试（6 文件）+ src/__tests__/（13 文件）
 │   ├── index.html / vite.config.ts / tailwind.config.js
 │   ├── nginx.conf / Dockerfile
 │   └── package.json
@@ -79,7 +79,7 @@ reqmango/
 | `backend/internal/seed/seed_rbac.go` | RBAC 种子数据（55 权限 + 3 角色） |
 | `backend/config/config.yaml` | 默认配置 |
 | `frontend/src/main.ts` | Vue 应用入口 |
-| `frontend/src/router/index.ts` | 前端 20 个路由定义 |
+| `frontend/src/router/index.ts` | 前端 26+ 个路由定义 |
 | `frontend/src/api/index.ts` | Axios 实例 + 拦截器 |
 | `mcp-server/main.go` | MCP Server 入口（stdio 传输） |
 
@@ -136,7 +136,7 @@ src/
 
 | 层 | 技术 |
 |----|------|
-| 后端框架 | Go 1.22 + Gin |
+| 后端框架 | Go 1.24.0 + Gin |
 | ORM | GORM (PostgreSQL 16) |
 | 鉴权 | RBAC 自定义角色 + 细粒度权限（resource:action） |
 | 认证 | JWT (golang-jwt/v5) + bcrypt |

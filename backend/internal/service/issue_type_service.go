@@ -259,6 +259,15 @@ func (s *IssueTypeService) Delete(typeID uint64) error {
 		return common.NotFound("Issue type not found")
 	}
 
+	// Check if any issues are using this type
+	var count int64
+	if err := s.db.Model(&model.Issue{}).Where("issue_type_id = ?", typeID).Count(&count).Error; err != nil {
+		return common.Internal("Failed to check issue type usage")
+	}
+	if count > 0 {
+		return common.BadRequest("Cannot delete issue type that is in use by issues")
+	}
+
 	// Clean up join table entries
 	s.db.Where("type_id = ?", typeID).Delete(&model.IssueTypeField{})
 

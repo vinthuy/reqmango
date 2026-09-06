@@ -1,6 +1,6 @@
 # Notifications（通知系统）设计
 
-**最后更新**: 2026-06-25
+**最后更新**: 2026-08-30
 
 ## 概述
 
@@ -46,6 +46,8 @@ type Notification struct {
 
 ## 通知类型与优先级
 
+系统支持 9 种通知类型，通过 SSE (Server-Sent Events) 实时推送到前端，辅以 REST API 轮询作为降级方案。
+
 | Type | 用途 | 示例 |
 |------|------|------|
 | info | 一般信息 | "新成员加入项目" |
@@ -60,16 +62,17 @@ type Notification struct {
 | high | 重要通知 |
 | urgent | 需要立即关注 |
 
-## 集成点（后续计划）
+## 集成点
 
-当前通知通过 API 手动创建。后续将在以下事件自动触发：
+notification_service 已实现 9 种通知类型 + 提醒机制，覆盖以下自动触发场景：
 - Issue 分配（assignee 变更） → 通知被分配人
 - State 变更 → 通知关注者
 - Comment 回复 → 通知被回复人
 - Cycle 开始/结束 → 通知项目成员
+- 以及更多业务事件通知
 
 ## 设计决策
 
-1. **REST 轮询而非 WebSocket**：初始实现使用 REST API + 前端轮询，简化架构。后续可升级为 WebSocket 实时推送
+1. **SSE 实时推送**：已升级为 SSE (Server-Sent Events) 实时推送。sse_hub.go 实现了连接管理，支持 9 种通知类型实时推送到前端。
 2. **通知不删除而是标记已读**：保留通知历史，用户可通过"全部已读"清理未读状态
 3. **Bulk Create 端点**：支持一条内容发送给多个接收者，避免 N 次单独请求

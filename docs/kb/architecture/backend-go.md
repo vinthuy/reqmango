@@ -1,6 +1,6 @@
 # Go Backend Architecture（Go 后端架构）
 
-**最后更新**: 2026-07-04
+**最后更新**: 2026-08-30
 
 ---
 
@@ -16,7 +16,7 @@ backend/
 │   │   ├── error_codes.go          # 错误码定义（含 i18n 消息）
 │   │   ├── errors.go              # AppError 类型
 │   │   └── pagination.go          # 分页辅助
-│   ├── model/                      # GORM 模型（44 个文件）
+│   ├── model/                      # GORM 模型（67 个文件）
 │   │   ├── base.go                # BaseModel 嵌入结构（ID/CreatedAt/UpdatedAt/DeletedAt）
 │   │   ├── user.go                # User（含 IsSuperuser、GetID、IsSuper 方法）
 │   │   ├── workspace.go           # Workspace, WorkspaceMember
@@ -90,7 +90,7 @@ backend/
 │   │       ├── role.go
 │   │       ├── dashboard.go, plugin.go, search_template.go, saved_report.go
 │   │       └── corresponding request files
-│   ├── service/                    # 业务逻辑（45 个源文件 + 6 个测试文件）
+│   ├── service/                    # 业务逻辑（~90 个文件，含测试）
 │   │   ├── auth_service.go            # JWT 签发与验证
 │   │   ├── workspace_service.go       # Workspace CRUD + 成员
 │   │   ├── project_service.go         # Project CRUD + 成员 + 统计 + 归档
@@ -103,6 +103,7 @@ backend/
 │   │   ├── comment_service.go         # Comment CRUD + 回复 + 解决
 │   │   ├── relation_service.go        # RelationType CRUD + Issue 关联管理
 │   │   ├── workflow_service.go        # Workflow CRUD + 转换验证
+│   │   ├── workflow_executor.go       # Workflow 执行引擎
 │   │   ├── attachment_service.go      # Attachment CRUD
 │   │   ├── estimate_service.go        # 3 种估算模式管理
 │   │   ├── time_track_service.go      # 工时记录
@@ -111,8 +112,19 @@ backend/
 │   │   ├── webhook_service.go         # Webhook 发送 + HMAC-SHA256 签名
 │   │   ├── slack_service.go           # Slack 通知格式化 + 发送
 │   │   ├── github_service.go          # GitHub Issues 同步 + Webhook 接收
+│   │   ├── git_service.go             # Git 集成服务
 │   │   ├── ai_service.go              # AI 对话/搜索/创建/分析/图表/分诊
+│   │   ├── chat_service.go            # AI Chat 服务
+│   │   ├── chat_debouncer.go          # Chat 防抖处理
 │   │   ├── agent_service.go           # AI Agent CRUD + Dispatch/Triage/Assign
+│   │   ├── agent_config_service.go    # Agent 配置管理
+│   │   ├── agent_member_service.go    # Agent 成员管理
+│   │   ├── agent_template_service.go  # Agent 模板管理
+│   │   ├── agent_task_service.go      # Agent 任务调度
+│   │   ├── agent_sla_service.go       # Agent SLA 管理
+│   │   ├── agent_performance_service.go # Agent 性能监控
+│   │   ├── agent_decision_service.go  # Agent 决策引擎
+│   │   ├── agent_cost_budget_service.go # Agent 成本预算
 │   │   ├── mcp_service.go             # MCP Server 配置 + 连接管理
 │   │   ├── automation_service.go      # 自动化规则 CRUD + 触发执行
 │   │   ├── saved_view_service.go      # 视图预设管理
@@ -128,17 +140,99 @@ backend/
 │   │   ├── initiative_service.go        # Initiative CRUD + 搜索
 │   │   ├── release_service.go           # Release + Roadmap + 搜索
 │   │   ├── role_service.go              # RBAC 角色 + 权限查询（8 方法）
+│   │   ├── approval_service.go          # 审批流程管理
 │   │   ├── report_service.go            # 报表生成 + 图表数据
+│   │   ├── metric_service.go            # 指标/图表服务
 │   │   ├── plugin_service.go            # Plugin 管理
 │   │   ├── search_template_service.go   # SearchTemplate CRUD
 │   │   ├── saved_report_service.go      # SavedReport 管理
 │   │   ├── dashboard_service.go         # Dashboard CRUD + Widget
 │   │   ├── field_permission_service.go  # 字段权限管理
+│   │   ├── context_payload_service.go   # 上下文载荷服务
+│   │   ├── squad_service.go             # Squad 协作组管理
+│   │   ├── developer_agent_service.go   # 开发者 Agent 服务
+│   │   ├── tester_agent_service.go      # 测试 Agent 服务
+│   │   ├── cicd_service.go              # CI/CD 流水线管理
+│   │   ├── sdlc_service.go              # SDLC 生命周期管理
+│   │   ├── autopilot_service.go         # 自动驾驶 Agent 服务
+│   │   ├── memory_service.go            # Agent 记忆管理
+│   │   ├── skill_service.go             # Agent 技能管理
+│   │   ├── skill_presets.go             # 技能预设配置
+│   │   ├── runtime_service.go           # Agent 运行时管理
+│   │   ├── tool_service.go              # Agent 工具管理
+│   │   ├── issue_agent_service.go       # Issue Agent 服务
 │   │   ├── sse_hub.go                   # SSE 实时事件中心
-│   │   ├── llm_client.go                # LLM 客户端（DeepSeek/Anthropic）
-│   │   └── *_test.go                    # 6 个测试文件
-│   ├── handler/                    # HTTP Handler（46 个文件）
-│   │   └── 每个 service 对应一个 handler + sse_handler.go + role_handler.go + project_issue_type_handler.go + field_permission_handler.go + intake_handler.go
+│   │   └── *_test.go                    # 测试文件
+│   ├── handler/                    # HTTP Handler（~70 个文件，含测试）
+│   │   ├── auth_handler.go             # 认证
+│   │   ├── workspace_handler.go        # Workspace
+│   │   ├── project_handler.go          # Project
+│   │   ├── issue_handler.go            # Issue
+│   │   ├── cycle_handler.go            # Cycle
+│   │   ├── module_handler.go           # Module
+│   │   ├── page_handler.go             # Page
+│   │   ├── page_template_handler.go    # PageTemplate
+│   │   ├── page_version_handler.go     # PageVersion
+│   │   ├── comment_handler.go          # Comment
+│   │   ├── relation_handler.go         # Relation
+│   │   ├── workflow_handler.go         # Workflow
+│   │   ├── attachment_handler.go       # Attachment
+│   │   ├── estimate_handler.go         # Estimate
+│   │   ├── time_track_handler.go       # TimeTrack
+│   │   ├── recurrence_handler.go       # Recurrence
+│   │   ├── notification_handler.go     # Notification
+│   │   ├── webhook_handler.go          # Webhook
+│   │   ├── slack_handler.go            # Slack
+│   │   ├── github_handler.go           # GitHub
+│   │   ├── ai_handler.go               # AI
+│   │   ├── agent_handler.go            # Agent
+│   │   ├── agent_config_handler.go     # Agent 配置
+│   │   ├── agent_member_handler.go     # Agent 成员
+│   │   ├── agent_template_handler.go   # Agent 模板
+│   │   ├── agent_task_handler.go       # Agent 任务
+│   │   ├── agent_budget_sla_handler.go # Agent 预算/SLA
+│   │   ├── agent_performance_handler.go # Agent 性能
+│   │   ├── mcp_handler.go              # MCP
+│   │   ├── automation_handler.go       # Automation
+│   │   ├── saved_view_handler.go       # SavedView
+│   │   ├── custom_field_handler.go     # CustomField
+│   │   ├── conditional_field_handler.go # ConditionalField
+│   │   ├── project_settings_handler.go # ProjectSettings
+│   │   ├── project_page_tab_handler.go # ProjectPageTab
+│   │   ├── project_update_handler.go   # ProjectUpdate
+│   │   ├── project_template_handler.go # ProjectTemplate
+│   │   ├── work_item_template_handler.go # WorkItemTemplate
+│   │   ├── issue_type_handler.go       # IssueType
+│   │   ├── type_template_handler.go    # TypeTemplate
+│   │   ├── initiative_handler.go       # Initiative
+│   │   ├── release_handler.go          # Release
+│   │   ├── role_handler.go             # RBAC 角色
+│   │   ├── field_permission_handler.go # 字段权限
+│   │   ├── approval_handler.go         # 审批
+│   │   ├── report_handler.go           # 报表
+│   │   ├── metric_handler.go           # 指标
+│   │   ├── plugin_handler.go           # Plugin
+│   │   ├── search_template_handler.go  # SearchTemplate
+│   │   ├── saved_report_handler.go     # SavedReport
+│   │   ├── dashboard_handler.go        # Dashboard
+│   │   ├── project_issue_type_handler.go # 项目问题类型
+│   │   ├── intake_handler.go           # Intake 公开提交
+│   │   ├── chat_handler.go             # Chat
+│   │   ├── git_integration_handler.go  # Git 集成
+│   │   ├── git_webhook_handler.go      # Git Webhook
+│   │   ├── squad_handler.go            # Squad 协作组
+│   │   ├── developer_agent_handler.go  # 开发者 Agent
+│   │   ├── tester_agent_handler.go     # 测试 Agent
+│   │   ├── cicd_handler.go             # CI/CD
+│   │   ├── sdlc_handler.go             # SDLC
+│   │   ├── autopilot_handler.go        # 自动驾驶 Agent
+│   │   ├── memory_handler.go           # Agent 记忆
+│   │   ├── skill_handler.go            # Agent 技能
+│   │   ├── runtime_handler.go          # Agent 运行时
+│   │   ├── tool_handler.go             # Agent 工具
+│   │   ├── issue_agent_handler.go      # Issue Agent
+│   │   ├── sse_handler.go              # SSE 端点
+│   │   └── *_test.go                   # 测试文件
 │   ├── rql/                        # RQL 查询语言引擎（10 文件：7 源文件 + 3 测试）
 │   │   ├── lexer.go               # 词法分析（tokenize）
 │   │   ├── parser.go              # 语法分析（AST 构建）
@@ -172,7 +266,7 @@ Router ──→ Middleware Chain ──→ Handler ──→ Service ──→ 
     │           │                    │            │
     │     Auth/CORS/Lang             │            └── DB 操作
     │     Logger/RateLimit           └── DTO 绑定 + HTTP 响应
-    └── Gin 路由树（80+ 端点）
+    └── Gin 路由树（580+ 端点）
 ```
 
 ### Handler 层
@@ -268,7 +362,7 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 
 ## API 路由总览
 
-所有路由前缀 `/api/v1`，80+ 端点：
+所有路由前缀 `/api/v1`，580+ 端点：
 
 | 路由组 | 资源 |
 |--------|------|
