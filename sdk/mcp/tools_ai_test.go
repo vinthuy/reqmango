@@ -10,15 +10,15 @@ import (
 	"github.com/reqmango/tools/client"
 )
 
-func TestAITools_ToolCountIs24(t *testing.T) {
+func TestAITools_ToolCountIs27(t *testing.T) {
 	srv := backend(t, map[string]http.HandlerFunc{})
 	httpSrv, sessionID := newTestMCPServer(t, client.New(srv.URL+"/api/v1", "reqmango_pat_test"))
 
 	names := listToolNames(t, httpSrv.URL, sessionID)
-	if len(names) != 24 {
-		t.Fatalf("expected 24 tools total, got %d: %v", len(names), names)
+	if len(names) != 27 {
+		t.Fatalf("expected 27 tools total, got %d: %v", len(names), names)
 	}
-	for _, w := range []string{"ai_search", "ai_chat", "list_agents", "dispatch_agent", "get_agent_task"} {
+	for _, w := range []string{"ai_search", "ai_chat", "list_agents", "dispatch_agent", "get_agent_task", "get_cycle", "get_cycle_burndown", "list_comments"} {
 		if !contains(names, w) {
 			t.Errorf("missing tool %s", w)
 		}
