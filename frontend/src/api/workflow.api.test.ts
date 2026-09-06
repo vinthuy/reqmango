@@ -19,12 +19,15 @@ vi.mock('./index', () => ({
   },
 }))
 
-import workflowApi, {
-  listWorkflows, createWorkflow, updateWorkflow, deleteWorkflow,
-  addTransition, updateTransition, deleteTransition,
-  listAutomations, createAutomation, updateAutomation, deleteAutomation,
-  listStateTransitions, createStateTransition,
-  listAutomationTemplates, toggleAutomationRule,
+import {
+  workflowApi,
+  listWorkspaceWorkflows, listWorkspaceAutomations,
+  createWorkspaceAutomation, updateWorkspaceAutomation, deleteWorkspaceAutomation,
+  createWorkspaceWorkflow, deleteWorkspaceWorkflow,
+  addWorkspaceTransition, deleteWorkspaceTransition,
+  listStateTransitions, createStateTransition, updateStateTransition, deleteStateTransition,
+  listAutomationRules, toggleAutomationRule, listAutomationTemplates,
+  budgetApi, slaApi, decisionApi,
 } from './workflow'
 
 beforeEach(() => {
@@ -32,98 +35,196 @@ beforeEach(() => {
 })
 
 describe('Workflow CRUD API', () => {
-  it('listWorkflows should GET', async () => {
+  it('workflowApi.list should GET', async () => {
     mockGet.mockResolvedValue({ data: [] })
-    await listWorkflows(1)
+    await workflowApi.list(1)
     expect(mockGet).toHaveBeenCalledWith('/projects/1/workflows')
   })
 
-  it('createWorkflow should POST', async () => {
+  it('workflowApi.create should POST', async () => {
     mockPost.mockResolvedValue({ data: { id: 1, name: 'Default' } })
-    await createWorkflow(1, { name: 'Default' })
+    await workflowApi.create(1, { name: 'Default' })
     expect(mockPost).toHaveBeenCalledWith('/projects/1/workflows', { name: 'Default' })
   })
 
-  it('updateWorkflow should PUT', async () => {
+  it('workflowApi.get should GET', async () => {
+    mockGet.mockResolvedValue({ data: { id: 5 } })
+    await workflowApi.get(1, 5)
+    expect(mockGet).toHaveBeenCalledWith('/projects/1/workflows/5')
+  })
+
+  it('workflowApi.update should PUT', async () => {
     mockPut.mockResolvedValue({ data: { id: 5 } })
-    await updateWorkflow(1, 5, { name: 'Updated' })
+    await workflowApi.update(1, 5, { name: 'Updated' })
     expect(mockPut).toHaveBeenCalledWith('/projects/1/workflows/5', { name: 'Updated' })
   })
 
-  it('deleteWorkflow should DELETE', async () => {
+  it('workflowApi.delete should DELETE', async () => {
     mockDelete.mockResolvedValue({ data: null })
-    await deleteWorkflow(1, 5)
+    await workflowApi.delete(1, 5)
     expect(mockDelete).toHaveBeenCalledWith('/projects/1/workflows/5')
   })
 })
 
-describe('Transition API', () => {
-  it('addTransition should POST', async () => {
+describe('Workflow Run API', () => {
+  it('workflowApi.execute should POST', async () => {
     mockPost.mockResolvedValue({ data: { id: 1 } })
-    await addTransition(1, 5, { source_state_id: 1, target_state_id: 2 })
-    expect(mockPost).toHaveBeenCalledWith('/projects/1/workflows/5/transitions', { source_state_id: 1, target_state_id: 2 })
+    await workflowApi.execute(1, 5, 10)
+    expect(mockPost).toHaveBeenCalledWith('/projects/1/workflows/5/execute', { issue_id: 10 })
   })
 
-  it('updateTransition should PUT', async () => {
-    mockPut.mockResolvedValue({ data: { id: 10 } })
-    await updateTransition(1, 5, 10, { name: 'T' })
-    expect(mockPut).toHaveBeenCalledWith('/projects/1/workflows/5/transitions/10', { name: 'T' })
+  it('workflowApi.listRuns should GET', async () => {
+    mockGet.mockResolvedValue({ data: [] })
+    await workflowApi.listRuns(1, 5)
+    expect(mockGet).toHaveBeenCalledWith('/projects/1/workflows/5/runs')
   })
 
-  it('deleteTransition should DELETE', async () => {
-    mockDelete.mockResolvedValue({ data: null })
-    await deleteTransition(1, 5, 10)
-    expect(mockDelete).toHaveBeenCalledWith('/projects/1/workflows/5/transitions/10')
+  it('workflowApi.getRun should GET', async () => {
+    mockGet.mockResolvedValue({ data: { id: 7 } })
+    await workflowApi.getRun(1, 5, 7)
+    expect(mockGet).toHaveBeenCalledWith('/projects/1/workflows/5/runs/7')
+  })
+
+  it('workflowApi.cancelRun should POST', async () => {
+    mockPost.mockResolvedValue({ data: null })
+    await workflowApi.cancelRun(1, 5, 7)
+    expect(mockPost).toHaveBeenCalledWith('/projects/1/workflows/5/runs/7/cancel')
   })
 })
 
-describe('Automation API', () => {
-  it('listAutomations should GET', async () => {
-    mockGet.mockResolvedValue({ data: [] })
-    await listAutomations(1)
-    expect(mockGet).toHaveBeenCalledWith('/projects/1/automations')
-  })
-
-  it('createAutomation should POST', async () => {
+describe('Workflow Node/Edge API', () => {
+  it('workflowApi.addNode should POST', async () => {
     mockPost.mockResolvedValue({ data: { id: 1 } })
-    await createAutomation(1, { name: 'Auto Assign' })
-    expect(mockPost).toHaveBeenCalledWith('/projects/1/automations', { name: 'Auto Assign' })
+    await workflowApi.addNode(1, 5, { agent_id: 3, name: 'N' })
+    expect(mockPost).toHaveBeenCalledWith('/projects/1/workflows/5/nodes', { agent_id: 3, name: 'N' })
   })
 
-  it('updateAutomation should PUT', async () => {
-    mockPut.mockResolvedValue({ data: { id: 5 } })
-    await updateAutomation(1, 5, { is_enabled: false })
-    expect(mockPut).toHaveBeenCalledWith('/projects/1/automations/5', { is_enabled: false })
+  it('workflowApi.updateNode should PUT', async () => {
+    mockPut.mockResolvedValue({ data: { id: 9 } })
+    await workflowApi.updateNode(1, 5, 9, { name: 'Updated' })
+    expect(mockPut).toHaveBeenCalledWith('/projects/1/workflows/5/nodes/9', { name: 'Updated' })
   })
 
-  it('deleteAutomation should DELETE', async () => {
+  it('workflowApi.deleteNode should DELETE', async () => {
     mockDelete.mockResolvedValue({ data: null })
-    await deleteAutomation(1, 5)
-    expect(mockDelete).toHaveBeenCalledWith('/projects/1/automations/5')
+    await workflowApi.deleteNode(1, 5, 9)
+    expect(mockDelete).toHaveBeenCalledWith('/projects/1/workflows/5/nodes/9')
   })
 
-  it('toggleAutomationRule should PUT', async () => {
-    mockPut.mockResolvedValue({ data: { id: 5, is_enabled: false } })
-    await toggleAutomationRule(1, 5, false)
-    expect(mockPut).toHaveBeenCalledWith('/projects/1/automations/5', { is_enabled: false })
+  it('workflowApi.addEdge should POST', async () => {
+    mockPost.mockResolvedValue({ data: { id: 1 } })
+    await workflowApi.addEdge(1, 5, { source_node_id: 1, target_node_id: 2 })
+    expect(mockPost).toHaveBeenCalledWith('/projects/1/workflows/5/edges', { source_node_id: 1, target_node_id: 2 })
+  })
+
+  it('workflowApi.updateEdge should PUT', async () => {
+    mockPut.mockResolvedValue({ data: { id: 9 } })
+    await workflowApi.updateEdge(1, 5, 9, { condition: 'always' })
+    expect(mockPut).toHaveBeenCalledWith('/projects/1/workflows/5/edges/9', { condition: 'always' })
+  })
+
+  it('workflowApi.deleteEdge should DELETE', async () => {
+    mockDelete.mockResolvedValue({ data: null })
+    await workflowApi.deleteEdge(1, 5, 9)
+    expect(mockDelete).toHaveBeenCalledWith('/projects/1/workflows/5/edges/9')
+  })
+})
+
+describe('Workspace-level API', () => {
+  it('listWorkspaceWorkflows should GET', async () => {
+    mockGet.mockResolvedValue({ data: [] })
+    await listWorkspaceWorkflows(1)
+    expect(mockGet).toHaveBeenCalledWith('/workspaces/1/workflows')
+  })
+
+  it('listWorkspaceAutomations should GET', async () => {
+    mockGet.mockResolvedValue({ data: [] })
+    await listWorkspaceAutomations(1)
+    expect(mockGet).toHaveBeenCalledWith('/workspaces/1/automations')
+  })
+
+  it('createWorkspaceAutomation should POST', async () => {
+    mockPost.mockResolvedValue({ data: { id: 1 } })
+    await createWorkspaceAutomation(1, { name: 'Auto Assign' })
+    expect(mockPost).toHaveBeenCalledWith('/workspaces/1/automations', { name: 'Auto Assign' })
+  })
+
+  it('updateWorkspaceAutomation should PUT', async () => {
+    mockPut.mockResolvedValue({ data: { id: 5 } })
+    await updateWorkspaceAutomation(1, 5, { is_enabled: false })
+    expect(mockPut).toHaveBeenCalledWith('/workspaces/1/automations/5', { is_enabled: false })
+  })
+
+  it('deleteWorkspaceAutomation should DELETE', async () => {
+    mockDelete.mockResolvedValue({ data: null })
+    await deleteWorkspaceAutomation(1, 5)
+    expect(mockDelete).toHaveBeenCalledWith('/workspaces/1/automations/5')
+  })
+
+  it('createWorkspaceWorkflow should POST', async () => {
+    mockPost.mockResolvedValue({ data: { id: 1 } })
+    await createWorkspaceWorkflow(1, { name: 'Default' })
+    expect(mockPost).toHaveBeenCalledWith('/workspaces/1/workflows', { name: 'Default' })
+  })
+
+  it('deleteWorkspaceWorkflow should DELETE', async () => {
+    mockDelete.mockResolvedValue({ data: null })
+    await deleteWorkspaceWorkflow(1, 5)
+    expect(mockDelete).toHaveBeenCalledWith('/workspaces/1/workflows/5')
+  })
+
+  it('addWorkspaceTransition should POST', async () => {
+    mockPost.mockResolvedValue({ data: { id: 1 } })
+    await addWorkspaceTransition(1, 5, { source_node_id: 1, target_node_id: 2 })
+    expect(mockPost).toHaveBeenCalledWith('/workspaces/1/workflows/5/edges', { source_node_id: 1, target_node_id: 2 })
+  })
+
+  it('deleteWorkspaceTransition should DELETE', async () => {
+    mockDelete.mockResolvedValue({ data: null })
+    await deleteWorkspaceTransition(1, 5, 9)
+    expect(mockDelete).toHaveBeenCalledWith('/workspaces/1/workflows/5/edges/9')
   })
 })
 
 describe('State Transitions API', () => {
   it('listStateTransitions should GET', async () => {
     mockGet.mockResolvedValue({ data: [] })
-    await listStateTransitions(1, 1)
-    expect(mockGet).toHaveBeenCalledWith('/projects/1/workflows/1/transitions')
+    await listStateTransitions(1, 5)
+    expect(mockGet).toHaveBeenCalledWith('/projects/1/workflows/5/transitions')
   })
 
   it('createStateTransition should POST', async () => {
     mockPost.mockResolvedValue({ data: { id: 1 } })
-    await createStateTransition(1, 1, { source_state_id: 1, target_state_id: 2 })
-    expect(mockPost).toHaveBeenCalledWith('/projects/1/workflows/1/transitions', { source_state_id: 1, target_state_id: 2 })
+    await createStateTransition(1, 5, { source_state_id: 1, target_state_id: 2 })
+    expect(mockPost).toHaveBeenCalledWith('/projects/1/workflows/5/transitions', { source_state_id: 1, target_state_id: 2 })
+  })
+
+  it('updateStateTransition should PUT', async () => {
+    mockPut.mockResolvedValue({ data: { id: 9 } })
+    await updateStateTransition(1, 5, 9, { name: 'T' })
+    expect(mockPut).toHaveBeenCalledWith('/projects/1/workflows/5/transitions/9', { name: 'T' })
+  })
+
+  it('deleteStateTransition should DELETE', async () => {
+    mockDelete.mockResolvedValue({ data: null })
+    await deleteStateTransition(1, 5, 9)
+    expect(mockDelete).toHaveBeenCalledWith('/projects/1/workflows/5/transitions/9')
   })
 })
 
-describe('Templates API', () => {
+describe('Automation Rules API', () => {
+  it('listAutomationRules should GET', async () => {
+    mockGet.mockResolvedValue({ data: [] })
+    await listAutomationRules(1)
+    expect(mockGet).toHaveBeenCalledWith('/projects/1/automation-rules')
+  })
+
+  it('toggleAutomationRule should PUT', async () => {
+    mockPut.mockResolvedValue({ data: { id: 5, is_enabled: false } })
+    await toggleAutomationRule(1, 5, false)
+    expect(mockPut).toHaveBeenCalledWith('/projects/1/automation-rules/5', { is_enabled: false })
+  })
+
   it('listAutomationTemplates should GET', async () => {
     mockGet.mockResolvedValue({ data: [] })
     await listAutomationTemplates()
@@ -131,9 +232,45 @@ describe('Templates API', () => {
   })
 })
 
+describe('Budget API', () => {
+  it('budgetApi.get should GET', async () => {
+    mockGet.mockResolvedValue({ data: { id: 1 } })
+    await budgetApi.get(1)
+    expect(mockGet).toHaveBeenCalledWith('/projects/1/budget')
+  })
+
+  it('budgetApi.update should PUT', async () => {
+    mockPut.mockResolvedValue({ data: { id: 1 } })
+    await budgetApi.update(1, { monthly_budget: 100 })
+    expect(mockPut).toHaveBeenCalledWith('/projects/1/budget', { monthly_budget: 100 })
+  })
+})
+
+describe('SLA API', () => {
+  it('slaApi.get should GET', async () => {
+    mockGet.mockResolvedValue({ data: { id: 1 } })
+    await slaApi.get(1)
+    expect(mockGet).toHaveBeenCalledWith('/projects/1/sla')
+  })
+
+  it('slaApi.update should PUT', async () => {
+    mockPut.mockResolvedValue({ data: { id: 1 } })
+    await slaApi.update(1, { normal_task_max: 300 })
+    expect(mockPut).toHaveBeenCalledWith('/projects/1/sla', { normal_task_max: 300 })
+  })
+})
+
+describe('Decision API', () => {
+  it('decisionApi.list should GET with limit param', async () => {
+    mockGet.mockResolvedValue({ data: [] })
+    await decisionApi.list(1)
+    expect(mockGet).toHaveBeenCalledWith('/projects/1/decisions', { params: { limit: 100 } })
+  })
+})
+
 describe('workflowApi export', () => {
   it('should have expected method count', () => {
-    // 17 exported methods
-    expect(Object.keys(workflowApi).length).toBeGreaterThanOrEqual(15)
+    // 15 methods: list/create/get/update/delete/execute/listRuns/getRun/cancelRun + 3 node + 3 edge
+    expect(Object.keys(workflowApi).length).toBe(15)
   })
 })
