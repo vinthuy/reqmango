@@ -25,6 +25,21 @@ func (c *Client) ListWorkspaces(ctx context.Context) ([]Workspace, error) {
 	return out, nil
 }
 
+// WorkspaceCreateRequest is the payload for POST /workspaces.
+type WorkspaceCreateRequest struct {
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+// CreateWorkspace creates a new workspace and returns it.
+func (c *Client) CreateWorkspace(ctx context.Context, req WorkspaceCreateRequest) (*Workspace, error) {
+	var out Workspace
+	if _, err := c.PostJSON(ctx, "/workspaces", nil, req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // UserLite is the embedded user shape in member/issue responses.
 type UserLite struct {
 	ID          uint64 `json:"id"`
