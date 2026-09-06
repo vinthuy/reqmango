@@ -1,4 +1,4 @@
-﻿.PHONY: up down build logs restart clean dev dev-backend db-shell lint lint-fix test test-backend test-frontend ci coverage tools test-tools
+﻿.PHONY: up down build logs restart clean dev dev-backend db-shell lint lint-fix test test-backend test-frontend ci coverage tools test-tools test-python test-node
 
 # ======== Docker ========
 
@@ -73,6 +73,12 @@ tools:
 
 test-tools:
 	cd sdk && go test ./...
+
+test-python:
+	cd sdk/python && python -m pytest
+
+test-node:
+	cd sdk/node && npm test
 
 # ======== CI ========
 
