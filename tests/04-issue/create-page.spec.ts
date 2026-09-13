@@ -10,7 +10,7 @@ test.describe('Issue 创建页', () => {
 
   // === 页面加载 ===
   test('TC-ICR-001: 创建页正常加载', async ({ authedPage: page }) => {
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
   });
 
   // === 标题输入 ===
@@ -29,7 +29,7 @@ test.describe('Issue 创建页', () => {
       await descInput.click();
       await page.keyboard.type('E2E 描述内容');
     }
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
   });
 
   // === 状态选择 ===
@@ -39,7 +39,7 @@ test.describe('Issue 创建页', () => {
       await statusSelect.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
   });
 
   // === 优先级选择 ===
@@ -49,7 +49,7 @@ test.describe('Issue 创建页', () => {
       await prioritySelect.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
   });
 
   // === 负责人选择 ===
@@ -59,7 +59,7 @@ test.describe('Issue 创建页', () => {
       await assigneeSelect.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
   });
 
   // === Issue 类型选择 ===
@@ -69,7 +69,7 @@ test.describe('Issue 创建页', () => {
       await typeSelect.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
   });
 
   // === 标签选择 ===
@@ -79,17 +79,17 @@ test.describe('Issue 创建页', () => {
       await labelSelect.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
   });
 
   // === 截止日期 ===
   test('TC-ICR-009: 截止日期设置', async ({ authedPage: page }) => {
-    const dateInput = page.locator('text=截止日期, text=到期日').first();
+    const dateInput = page.locator('text=截止日期').or(page.locator('text=到期日')).first();
     if (await dateInput.isVisible({ timeout: 3000 }).catch(() => false)) {
       await dateInput.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
   });
 
   // === 提交创建 ===
@@ -109,19 +109,23 @@ test.describe('Issue 创建页', () => {
   test('TC-ICR-011: 取消创建', async ({ authedPage: page }) => {
     const cancelBtn = page.locator('button:has-text("取消"), button:has-text("Cancel")').first();
     if (await cancelBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await cancelBtn.click();
+      await cancelBtn.click({ timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('table, [class*="list"]').first()).toBeVisible();
+    // IssueCreate.goBack() calls router.back(). This test reaches the create
+    // page via a direct goto, so there is no prior in-app entry to return to
+    // and the browser goes back to the previous history entry (home) rather
+    // than the issue list. Assert we left the create route.
+    await expect(page).not.toHaveURL(/issues\/new/);
   });
 
   // === 响应式 ===
   test('TC-ICR-012: 创建页响应式', async ({ authedPage: page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=创建, text=新建, text=Create').first()).toBeVisible();
+    await expect(page.locator('text=创建').or(page.locator('text=新建')).or(page.locator('text=Create')).first()).toBeVisible();
   });
 });

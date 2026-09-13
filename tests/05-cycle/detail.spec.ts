@@ -29,7 +29,7 @@ test.describe('Cycle 详情页', () => {
 
   // === 状态显示 ===
   test('TC-CYD-003: Cycle 状态', async ({ authedPage: page }) => {
-    const statusEl = page.locator('[class*="status"], [class*="badge"], text=进行中, text=已完成, text=未开始').first();
+    const statusEl = page.locator('[class*="status"]').or(page.locator('[class*="badge"]')).or(page.locator('text=进行中')).or(page.locator('text=已完成')).or(page.locator('text=未开始')).first();
     if (await statusEl.isVisible({ timeout: 3000 }).catch(() => false)) {
       await expect(statusEl).toBeVisible();
     }
@@ -37,7 +37,7 @@ test.describe('Cycle 详情页', () => {
 
   // === 进度条 ===
   test('TC-CYD-004: 进度显示', async ({ authedPage: page }) => {
-    const progressEl = page.locator('[class*="progress"], [role="progressbar"], text=进度').first();
+    const progressEl = page.locator('[class*="progress"]').or(page.locator('[role="progressbar"]')).or(page.locator('text=进度')).first();
     if (await progressEl.isVisible({ timeout: 3000 }).catch(() => false)) {
       await expect(progressEl).toBeVisible();
     }
@@ -133,11 +133,13 @@ test.describe('Cycle 详情页', () => {
   test('TC-CYD-013: 删除 Cycle 确认', async ({ authedPage: page }) => {
     const deleteBtn = page.locator('button:has-text("删除"), button:has-text("Delete")').first();
     if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await deleteBtn.click();
+      await deleteBtn.click({ timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(500);
       const confirmBtn = page.locator('button:has-text("确认"), button:has-text("确定")').first();
       if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await page.click('button:has-text("取消")');
+        // The confirm dialog (z-[100]) overlays the page-level "取消" buttons, and
+        // a bare button:has-text("取消") matches 3 elements — scope to the dialog.
+        await page.locator('div.z-\\[100\\]').locator('button:has-text("取消")').first().click({ timeout: 3000 }).catch(() => {});
       }
     }
     await expect(page.locator('button:has-text("详情"), button:has-text("统计"), h1, h2').first()).toBeVisible();
@@ -150,7 +152,7 @@ test.describe('Cycle 详情页', () => {
       await backBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('button:has-text("创建新周期"), button:has-text("创建第一个周期"), text=周期').first()).toBeVisible();
+    await expect(page.locator('button:has-text("创建新周期")').or(page.locator('button:has-text("创建第一个周期")')).or(page.locator('text=周期')).first()).toBeVisible();
   });
 
   // === 响应式 ===

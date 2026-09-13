@@ -244,7 +244,7 @@ describe('IssueTabRelations', () => {
     expect(tables.length).toBe(2)
 
     // Check group headers
-    const groupHeaders = wrapper.findAll('.text-xs.font-semibold')
+    const groupHeaders = wrapper.findAll('[data-test="relation-group-header"]')
     expect(groupHeaders.length).toBe(2)
     expect(groupHeaders[0].text()).toContain('blocks')
     expect(groupHeaders[1].text()).toContain('relates_to')

@@ -13,13 +13,14 @@ test.describe('Issue 看板视图', () => {
 
   // === 看板加载 ===
   test('TC-KAN-001: 看板视图正常加载', async ({ authedPage: page }) => {
-    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo"), h3:has-text("待办")')).toBeVisible();
+    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo"), h3:has-text("待办")').first()).toBeVisible();
   });
 
   // === 状态列显示 ===
   test('TC-KAN-002: 所有状态列显示', async ({ authedPage: page }) => {
-    const columns = page.locator('[class*="column"], [class*="Column"], [class*="lane"]');
-    const count = await columns.count();
+    // Columns are rendered as a state heading plus a card list, so count the
+    // column headings rather than a (non-existent) column container class.
+    const count = await page.locator('h3').count();
     expect(count).toBeGreaterThanOrEqual(2);
   });
 
@@ -40,7 +41,7 @@ test.describe('Issue 看板视图', () => {
         await page.waitForTimeout(300);
       }
     }
-    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")')).toBeVisible();
+    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")').first()).toBeVisible();
   });
 
   // === 快速创建 ===
@@ -56,7 +57,7 @@ test.describe('Issue 看板视图', () => {
         await page.waitForTimeout(1000);
       }
     }
-    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")')).toBeVisible();
+    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")').first()).toBeVisible();
   });
 
   // === 卡片详情 ===
@@ -80,7 +81,7 @@ test.describe('Issue 看板视图', () => {
       await filterBtn.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")')).toBeVisible();
+    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")').first()).toBeVisible();
   });
 
   // === 搜索 ===
@@ -91,7 +92,7 @@ test.describe('Issue 看板视图', () => {
       await page.waitForTimeout(1000);
       await searchInput.clear();
     }
-    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")')).toBeVisible();
+    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")').first()).toBeVisible();
   });
 
   // === 列头操作 ===
@@ -105,7 +106,7 @@ test.describe('Issue 看板视图', () => {
         await page.keyboard.press('Escape');
       }
     }
-    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")')).toBeVisible();
+    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")').first()).toBeVisible();
   });
 
   // === 视图切换回列表 ===
@@ -118,16 +119,16 @@ test.describe('Issue 看板视图', () => {
   // === 空列显示 ===
   test('TC-KAN-011: 空列正确显示', async ({ authedPage: page }) => {
     // 看板应该显示所有状态列，即使某些列没有 Issue
-    await expect(page.locator('[class*="column"], [class*="Column"], [class*="lane"]').first()).toBeVisible();
+    expect(await page.locator('h3').count()).toBeGreaterThanOrEqual(2);
   });
 
   // === 响应式 ===
   test('TC-KAN-012: 看板响应式布局', async ({ authedPage: page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")')).toBeVisible();
+    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")').first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")')).toBeVisible();
+    await expect(page.locator('h3:has-text("Backlog"), h3:has-text("Todo")').first()).toBeVisible();
   });
 });

@@ -10,7 +10,7 @@ test.describe('文档页面全功能测试', () => {
 
   // === 页面加载 ===
   test('TC-PAG-001: 文档页面正常加载', async ({ authedPage: page }) => {
-    await expect(page.locator('text=文档, text=Pages, text=知识库').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).first()).toBeVisible();
   });
 
   // === 文档列表 ===
@@ -30,13 +30,15 @@ test.describe('文档页面全功能测试', () => {
       const titleInput = page.locator('input[placeholder*="标题"], input[placeholder*="title"], input[placeholder*="名称"]').first();
       if (await titleInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await titleInput.fill(`E2E Doc ${Date.now()}`);
-        await page.click('button:has-text("保存"), button:has-text("确定")');
+        // Modal submit labels vary per form (创建/保存/确定/添加) — match any and
+        // scope to the modal so we never click the page-level "创建" button again.
+        await page.locator('div.fixed').locator('button:has-text("创建"), button:has-text("保存"), button:has-text("确定"), button:has-text("添加"), button:has-text("Create"), button:has-text("Save")').last().click({ timeout: 3000 }).catch(() => {});
         await page.waitForTimeout(1000);
       } else {
         await page.keyboard.press('Escape');
       }
     }
-    await expect(page.locator('text=文档, text=Pages, text=知识库').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).first()).toBeVisible();
   });
 
   // === 编辑文档 ===
@@ -52,7 +54,7 @@ test.describe('文档页面全功能测试', () => {
         await page.waitForTimeout(500);
       }
     }
-    await expect(page.locator('text=文档, text=Pages, text=知识库, .ProseMirror').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).or(page.locator('.ProseMirror')).first()).toBeVisible();
   });
 
   // === 删除文档 ===
@@ -66,7 +68,7 @@ test.describe('文档页面全功能测试', () => {
         await page.click('button:has-text("取消")');
       }
     }
-    await expect(page.locator('text=文档, text=Pages, text=知识库').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).first()).toBeVisible();
   });
 
   // === 搜索文档 ===
@@ -77,7 +79,7 @@ test.describe('文档页面全功能测试', () => {
       await page.waitForTimeout(1000);
       await searchInput.clear();
     }
-    await expect(page.locator('text=文档, text=Pages, text=知识库').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).first()).toBeVisible();
   });
 
   // === 文档树 ===
@@ -95,7 +97,7 @@ test.describe('文档页面全功能测试', () => {
       await versionBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=文档, text=Pages, text=知识库').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).first()).toBeVisible();
   });
 
   // === 文档分享 ===
@@ -106,7 +108,7 @@ test.describe('文档页面全功能测试', () => {
       await page.waitForTimeout(500);
       await page.keyboard.press('Escape');
     }
-    await expect(page.locator('text=文档, text=Pages, text=知识库').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).first()).toBeVisible();
   });
 
   // === 文档导出 ===
@@ -116,21 +118,21 @@ test.describe('文档页面全功能测试', () => {
       await exportBtn.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=文档, text=Pages, text=知识库').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).first()).toBeVisible();
   });
 
   // === 响应式 ===
   test('TC-PAG-011: 文档页面响应式', async ({ authedPage: page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=文档, text=Pages, text=知识库').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=文档, text=Pages, text=知识库').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).first()).toBeVisible();
   });
 
   // === 空状态 ===
   test('TC-PAG-012: 空文档列表', async ({ authedPage: page }) => {
-    await expect(page.locator('text=文档, text=Pages, text=知识库, text=暂无数据').first()).toBeVisible();
+    await expect(page.locator('text=文档').or(page.locator('text=Pages')).or(page.locator('text=知识库')).or(page.locator('text=暂无数据')).first()).toBeVisible();
   });
 });

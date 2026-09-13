@@ -836,9 +836,10 @@ func (s *ToolService) GetCallLogs(wid uint64) ([]response.ToolCallLogResponse, e
 
 // ==================== RegisterBuiltinTools ====================
 
-// RegisterBuiltinTools registers built-in tools. If wid > 0, registers only for that workspace;
-// if wid == 0, registers for every workspace in the database.
-func (s *ToolService) RegisterBuiltinTools(wid uint64) error {
+// RegisterBuiltinTools registers built-in tools. Built-in tools are global
+// (workspace_id IS NULL) and shared across all workspaces; per-workspace access
+// control is handled via ToolPermission. Registration is idempotent by name.
+func (s *ToolService) RegisterBuiltinTools(_ uint64) error {
 	builtins := []struct {
 		Name        string
 		Description string
@@ -853,27 +854,19 @@ func (s *ToolService) RegisterBuiltinTools(wid uint64) error {
 		{"list_pr_commits", "列出 GitHub PR 的 commits", "code", "function"},
 		{"create_pr_review", "在 GitHub PR 上创建 review", "code", "function"},
 	}
-	// Collect target workspace IDs
-	var wids []uint64
-	if wid != 0 {
-		wids = []uint64{wid}
-	} else {
-		s.db.Model(&model.Workspace{}).Pluck("id", &wids)
-	}
-	for _, w := range wids {
-		for _, b := range builtins {
-			var count int64
-			s.db.Model(&model.Tool{}).Where("name = ? AND workspace_id = ?", b.Name, w).Count(&count)
-			if count == 0 {
-				s.db.Create(&model.Tool{
-					Name:        b.Name,
-					Description: b.Description,
-					Category:    b.Category,
-					ToolType:    b.ToolType,
-					IsBuiltin:   true,
-					Status:      "active",
-					WorkspaceID: &w,
-				})
+	for _, b := range builtins {
+		var count int64
+		s.db.Model(&model.Tool{}).Where("name = ?", b.Name).Count(&count)
+		if count == 0 {
+			if err := s.db.Create(&model.Tool{
+				Name:        b.Name,
+				Description: b.Description,
+				Category:    b.Category,
+				ToolType:    b.ToolType,
+				IsBuiltin:   true,
+				Status:      "active",
+			}).Error; err != nil {
+				return err
 			}
 		}
 	}

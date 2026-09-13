@@ -72,7 +72,7 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     console.log('--- Step 1: List workflows ---')
     const list1 = await request.get(`${API}/projects/15/workflows`, { headers: H })
     expect(list1.status()).toBe(200)
-    const wfs1 = await list1.json()
+    const wfs1 = (await list1.json()).data || []
     console.log(`Existing workflows: ${wfs1.length}`)
     for (const w of wfs1) {
       console.log(`  [${w.id}] ${w.name} active=${w.is_active} transitions=${w.transitions?.length || 0}`)

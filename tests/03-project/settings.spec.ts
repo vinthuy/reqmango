@@ -1,7 +1,20 @@
 import { test, expect } from '../fixtures/auth';
 
+// Regression: ?tab=settings|pages|dashboards rendered blank content because
+// Project.vue's tab redirect watcher did not fire on the initial activeTab
+// value. Fixed by adding a once-on-projectId watcher (see Project.vue).
+test.describe('项目页 tab 深链回归', () => {
+  test('TC-DEEP-001: ?tab=settings 深链跳转到独立路由', async ({ authedPage: page }) => {
+    await page.goto('/workspace/qa-test/project/2347?tab=settings');
+    // The client-side watcher should redirect to the real settings route
+    await page.waitForURL(/\/project\/2347\/settings/, { timeout: 10000 });
+    await expect(page.locator('h1').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
+  });
+});
+
 test.describe('项目设置页', () => {
-  const SETTINGS_URL = '/workspace/qa-test/project/2347?tab=settings';
+  const SETTINGS_URL = '/workspace/qa-test/project/2347/settings';
 
   test.beforeEach(async ({ authedPage: page }) => {
     await page.goto(SETTINGS_URL);
@@ -10,7 +23,7 @@ test.describe('项目设置页', () => {
 
   // === 页面加载 ===
   test('TC-SET-001: 设置页正常加载', async ({ authedPage: page }) => {
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === Issue 类型管理 ===
@@ -20,7 +33,7 @@ test.describe('项目设置页', () => {
       await typeTab.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   test('TC-SET-003: 创建 Issue 类型', async ({ authedPage: page }) => {
@@ -42,7 +55,7 @@ test.describe('项目设置页', () => {
         await page.keyboard.press('Escape');
       }
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 状态管理 ===
@@ -52,7 +65,7 @@ test.describe('项目设置页', () => {
       await stateTab.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   test('TC-SET-005: 创建状态', async ({ authedPage: page }) => {
@@ -74,7 +87,7 @@ test.describe('项目设置页', () => {
         await page.keyboard.press('Escape');
       }
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 标签管理 ===
@@ -84,7 +97,7 @@ test.describe('项目设置页', () => {
       await labelTab.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   test('TC-SET-007: 创建标签', async ({ authedPage: page }) => {
@@ -106,7 +119,7 @@ test.describe('项目设置页', () => {
         await page.keyboard.press('Escape');
       }
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 成员管理 ===
@@ -116,7 +129,7 @@ test.describe('项目设置页', () => {
       await memberTab.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 项目基本信息 ===
@@ -134,7 +147,7 @@ test.describe('项目设置页', () => {
       await descInput.click();
       await page.waitForTimeout(300);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 自动化规则 ===
@@ -144,7 +157,7 @@ test.describe('项目设置页', () => {
       await autoTab.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 工作流管理 ===
@@ -154,7 +167,7 @@ test.describe('项目设置页', () => {
       await workflowTab.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === Webhook 配置 ===
@@ -164,7 +177,7 @@ test.describe('项目设置页', () => {
       await webhookTab.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 估算点配置 ===
@@ -174,7 +187,7 @@ test.describe('项目设置页', () => {
       await estimateTab.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 保存设置 ===
@@ -184,7 +197,7 @@ test.describe('项目设置页', () => {
       await saveBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 取消操作 ===
@@ -194,7 +207,7 @@ test.describe('项目设置页', () => {
       await cancelBtn.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === Tab 切换 ===
@@ -207,12 +220,12 @@ test.describe('项目设置页', () => {
       await tabs.nth(0).click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 危险操作确认 ===
   test('TC-SET-018: 删除项目确认', async ({ authedPage: page }) => {
-    const dangerZone = page.locator('text=危险区域, text=Danger Zone').first();
+    const dangerZone = page.locator('text=危险区域').or(page.locator('text=Danger Zone')).first();
     if (await dangerZone.isVisible({ timeout: 3000 }).catch(() => false)) {
       const deleteBtn = page.locator('button:has-text("删除项目")').first();
       if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -221,17 +234,17 @@ test.describe('项目设置页', () => {
         await page.click('button:has-text("取消")');
       }
     }
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 响应式 ===
   test('TC-SET-019: 设置页响应式', async ({ authedPage: page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=项目设置, text=Settings').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).first()).toBeVisible();
   });
 
   // === 页面导航 ===
@@ -241,6 +254,6 @@ test.describe('项目设置页', () => {
       await backBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=项目设置, text=Settings, table').first()).toBeVisible();
+    await expect(page.locator('text=配置项目级设置').or(page.locator('text=Configure project-level settings')).or(page.locator('table')).first()).toBeVisible();
   });
 });

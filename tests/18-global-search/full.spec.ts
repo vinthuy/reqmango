@@ -98,7 +98,7 @@ test.describe('全局搜索全功能测试', () => {
     if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
       await searchInput.fill('zzznonexistent999');
       await page.waitForTimeout(1500);
-      const noResult = page.locator('text=无结果, text=没有找到, text=No results').first();
+      const noResult = page.locator('text=无结果').or(page.locator('text=没有找到')).or(page.locator('text=No results')).first();
       if (await noResult.isVisible({ timeout: 3000 }).catch(() => false)) {
         await expect(noResult).toBeVisible();
       }
@@ -112,7 +112,7 @@ test.describe('全局搜索全功能测试', () => {
     if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
       await searchInput.click();
       await page.waitForTimeout(500);
-      const history = page.locator('[class*="history"], [class*="recent"], text=最近搜索').first();
+      const history = page.locator('[class*="history"]').or(page.locator('[class*="recent"]')).or(page.locator('text=最近搜索')).first();
       if (await history.isVisible({ timeout: 2000 }).catch(() => false)) {
         await expect(history).toBeVisible();
       }

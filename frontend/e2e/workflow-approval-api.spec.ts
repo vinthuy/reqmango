@@ -117,7 +117,7 @@ test.describe('审批功能 - API测试', () => {
     const workflowsResponse = await request.get(`http://localhost:8000/api/v1/projects/${project.id}/workflows`, {
       headers: { Authorization: `Bearer ${authToken}` },
     })
-    const workflows = await workflowsResponse.json()
+    const workflows = (await workflowsResponse.json()).data || []
     const workflow = workflows.find((w: any) => w.name === 'Default Workflow')
     
     const transitionResponse = await request.post(`http://localhost:8000/api/v1/projects/${project.id}/workflows/${workflow.id}/transitions`, {

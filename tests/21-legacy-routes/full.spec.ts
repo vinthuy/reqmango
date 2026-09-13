@@ -18,7 +18,9 @@ test.describe('旧版兼容路由', () => {
       const nameInput = page.locator('input[placeholder*="名称"], input[placeholder*="name"]').first();
       if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await nameInput.fill(`E2E Field ${Date.now()}`);
-        await page.click('button:has-text("保存"), button:has-text("确定")');
+        // Modal submit labels vary per form (创建/保存/确定/添加) — match any and
+        // scope to the modal so we never click the page-level "创建" button again.
+        await page.locator('div.fixed').locator('button:has-text("创建"), button:has-text("保存"), button:has-text("确定"), button:has-text("添加"), button:has-text("Create"), button:has-text("Save")').last().click({ timeout: 3000 }).catch(() => {});
         await page.waitForTimeout(1000);
       } else {
         await page.keyboard.press('Escape');

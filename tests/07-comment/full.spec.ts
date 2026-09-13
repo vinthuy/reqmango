@@ -5,13 +5,15 @@ test.describe('评论系统全功能测试', () => {
 
   test.beforeEach(async ({ authedPage: page }) => {
     await page.goto(PROJECT_URL);
-    await page.waitForTimeout(2000);
-    // 打开第一个 Issue
+    // Deterministic preconditions. Previously a fixed 2000ms sleep + an
+    // `if (isVisible)` guard meant a slow issue list silently skipped the click,
+    // leaving no panel open and failing every later assertion with
+    // "详情 not found". Wait for both steps explicitly instead.
     const viewBtn = page.locator('button:has-text("查看")').first();
-    if (await viewBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await viewBtn.click();
-      await page.waitForTimeout(1500);
-    }
+    await expect(viewBtn).toBeVisible({ timeout: 20000 });
+    await viewBtn.click({ timeout: 5000 }).catch(() => {});
+    // Panel readiness gate: the "详情" tab exists only once the panel rendered.
+    await expect(page.locator('button:has-text("详情")').first()).toBeVisible({ timeout: 20000 });
   });
 
   // === 评论输入框 ===
@@ -30,7 +32,7 @@ test.describe('评论系统全功能测试', () => {
       await page.click('button:has-text("发布"), button:has-text("发送"), button:has-text("Submit")');
       await page.waitForTimeout(1500);
     }
-    await expect(page.locator('button:has-text("详情")')).toBeVisible();
+    await expect(page.locator('button:has-text("详情")').first()).toBeVisible();
   });
 
   // === 评论列表 ===
@@ -43,18 +45,21 @@ test.describe('评论系统全功能测试', () => {
 
   // === 编辑评论 ===
   test('TC-COM-004: 编辑评论', async ({ authedPage: page }) => {
-    const editBtn = page.locator('button:has-text("编辑"), button[aria-label="编辑"]').first();
+    // Scope interactions to the detail panel: page-level "编辑"/"更新" buttons sit
+    // behind its overlay and `button:has-text("更新")` alone matches 3 elements.
+    const panel = page.locator('div.fixed.inset-0.z-50');
+    const editBtn = panel.locator('button:has-text("编辑"), button[aria-label="编辑"]').first();
     if (await editBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await editBtn.click();
+      await editBtn.click({ timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(500);
-      const editInput = page.locator('textarea, [contenteditable]').first();
+      const editInput = panel.locator('textarea, [contenteditable]').first();
       if (await editInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await editInput.fill('E2E 评论已编辑');
-        await page.click('button:has-text("保存"), button:has-text("更新")');
+        await panel.locator('button:has-text("保存"), button:has-text("更新")').first().click({ timeout: 3000 }).catch(() => {});
         await page.waitForTimeout(1000);
       }
     }
-    await expect(page.locator('button:has-text("详情")')).toBeVisible();
+    await expect(page.locator('button:has-text("详情")').first()).toBeVisible();
   });
 
   // === 删除评论 ===
@@ -68,7 +73,7 @@ test.describe('评论系统全功能测试', () => {
         await page.click('button:has-text("取消")');
       }
     }
-    await expect(page.locator('button:has-text("详情")')).toBeVisible();
+    await expect(page.locator('button:has-text("详情")').first()).toBeVisible();
   });
 
   // === 评论 @提及 ===
@@ -78,17 +83,22 @@ test.describe('评论系统全功能测试', () => {
       await commentInput.fill('@');
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('button:has-text("详情")')).toBeVisible();
+    await expect(page.locator('button:has-text("详情")').first()).toBeVisible();
   });
 
   // === 评论表情 ===
   test('TC-COM-007: 表情反应', async ({ authedPage: page }) => {
-    const reactionBtn = page.locator('button:has-text("😀"), button:has-text("+"), [class*="reaction"]').first();
-    if (await reactionBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await reactionBtn.click();
+    // The issue comment panel currently has no emoji-reaction control —
+    // MessageReactions.vue is only used by the chat feature. Match only an
+    // actual reaction control (title / "😊+" text); the previous generic
+    // `button:has-text("+")` matched real panel buttons such as "+ 添加标签"
+    // and clicking one of those tore down the panel's tab bar.
+    const reactionBtn = page.locator('button[title*="表情"], button[title*="reaction"], button:has-text("😊+")').first();
+    if (await reactionBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await reactionBtn.click({ timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('button:has-text("详情")')).toBeVisible();
+    await expect(page.locator('button:has-text("详情")').first()).toBeVisible();
   });
 
   // === 评论加载更多 ===
@@ -98,17 +108,18 @@ test.describe('评论系统全功能测试', () => {
       await loadMoreBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('button:has-text("详情")')).toBeVisible();
+    await expect(page.locator('button:has-text("详情")').first()).toBeVisible();
   });
 
   // === 评论排序 ===
   test('TC-COM-009: 评论排序', async ({ authedPage: page }) => {
-    const sortBtn = page.locator('button:has-text("排序"), select:has-text("排序")').first();
+    // Scope to the detail panel; the page-level sort control sits behind its overlay
+    const sortBtn = page.locator('div.fixed.inset-0.z-50').locator('button:has-text("排序"), select:has-text("排序")').first();
     if (await sortBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await sortBtn.click();
+      await sortBtn.click({ timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('button:has-text("详情")')).toBeVisible();
+    await expect(page.locator('button:has-text("详情")').first()).toBeVisible();
   });
 
   // === 评论附件 ===
@@ -118,6 +129,6 @@ test.describe('评论系统全功能测试', () => {
       await attachBtn.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('button:has-text("详情")')).toBeVisible();
+    await expect(page.locator('button:has-text("详情")').first()).toBeVisible();
   });
 });

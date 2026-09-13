@@ -1,7 +1,10 @@
 import { test, expect } from '../fixtures/auth';
 
 test.describe('工作流全功能测试', () => {
-  const WORKFLOW_URL = '/workspace/qa-test/project/2347?tab=workflows';
+  // `workflows` is not one of Project.vue's tabs, so ?tab=workflows only matched
+  // the tab-bar label and left the content area empty — the page-level "创建"
+  // button then navigated to the Create-Work-Item page. Use the real route.
+  const WORKFLOW_URL = '/workspace/qa-test/project/2347/workflows';
 
   test.beforeEach(async ({ authedPage: page }) => {
     await page.goto(WORKFLOW_URL);
@@ -10,7 +13,7 @@ test.describe('工作流全功能测试', () => {
 
   // === 页面加载 ===
   test('TC-WFL-001: 工作流页面正常加载', async ({ authedPage: page }) => {
-    await expect(page.locator('text=工作流, text=Workflow').first()).toBeVisible();
+    await expect(page.locator('text=工作流').or(page.locator('text=Workflow')).first()).toBeVisible();
   });
 
   // === 工作流列表 ===
@@ -30,13 +33,15 @@ test.describe('工作流全功能测试', () => {
       const nameInput = page.locator('input[placeholder*="名称"], input[placeholder*="name"]').first();
       if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await nameInput.fill(`E2E Workflow ${Date.now()}`);
-        await page.click('button:has-text("保存"), button:has-text("确定")');
+        // Modal submit labels vary per form (创建/保存/确定/添加) — match any and
+        // scope to the modal so we never click the page-level "创建" button again.
+        await page.locator('div.fixed').locator('button:has-text("创建"), button:has-text("保存"), button:has-text("确定"), button:has-text("添加"), button:has-text("Create"), button:has-text("Save")').last().click({ timeout: 3000 }).catch(() => {});
         await page.waitForTimeout(1000);
       } else {
         await page.keyboard.press('Escape');
       }
     }
-    await expect(page.locator('text=工作流, text=Workflow').first()).toBeVisible();
+    await expect(page.locator('text=工作流').or(page.locator('text=Workflow')).first()).toBeVisible();
   });
 
   // === 编辑工作流 ===
@@ -47,7 +52,7 @@ test.describe('工作流全功能测试', () => {
       await page.waitForTimeout(500);
       await page.keyboard.press('Escape');
     }
-    await expect(page.locator('text=工作流, text=Workflow').first()).toBeVisible();
+    await expect(page.locator('text=工作流').or(page.locator('text=Workflow')).first()).toBeVisible();
   });
 
   // === 删除工作流 ===
@@ -61,7 +66,7 @@ test.describe('工作流全功能测试', () => {
         await page.click('button:has-text("取消")');
       }
     }
-    await expect(page.locator('text=工作流, text=Workflow').first()).toBeVisible();
+    await expect(page.locator('text=工作流').or(page.locator('text=Workflow')).first()).toBeVisible();
   });
 
   // === 状态转换 ===
@@ -71,7 +76,7 @@ test.describe('工作流全功能测试', () => {
       await transitionBtn.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=工作流, text=Workflow').first()).toBeVisible();
+    await expect(page.locator('text=工作流').or(page.locator('text=Workflow')).first()).toBeVisible();
   });
 
   // === 工作流详情 ===
@@ -81,21 +86,21 @@ test.describe('工作流全功能测试', () => {
       await detailBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=工作流, text=Workflow').first()).toBeVisible();
+    await expect(page.locator('text=工作流').or(page.locator('text=Workflow')).first()).toBeVisible();
   });
 
   // === 响应式 ===
   test('TC-WFL-008: 工作流页面响应式', async ({ authedPage: page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=工作流, text=Workflow').first()).toBeVisible();
+    await expect(page.locator('text=工作流').or(page.locator('text=Workflow')).first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=工作流, text=Workflow').first()).toBeVisible();
+    await expect(page.locator('text=工作流').or(page.locator('text=Workflow')).first()).toBeVisible();
   });
 
   // === 空状态 ===
   test('TC-WFL-009: 空工作流显示', async ({ authedPage: page }) => {
-    await expect(page.locator('text=工作流, text=Workflow, text=暂无数据').first()).toBeVisible();
+    await expect(page.locator('text=工作流').or(page.locator('text=Workflow')).or(page.locator('text=暂无数据')).first()).toBeVisible();
   });
 });

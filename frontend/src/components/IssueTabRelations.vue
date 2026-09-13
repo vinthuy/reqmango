@@ -67,7 +67,7 @@
       <div class="flex items-center justify-between px-3 py-2 border-b bg-gray-50/50" :style="{ borderColor: group.color + '30' }">
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: group.color }"></span>
-          <span class="text-xs font-semibold text-gray-700">{{ group.typeName }}</span>
+          <span data-test="relation-group-header" class="text-xs font-semibold text-gray-700">{{ group.typeName }}</span>
           <span class="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-full">{{ group.items.length }}</span>
         </div>
         <button

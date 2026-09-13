@@ -108,7 +108,7 @@ test.describe('通知中心全功能测试', () => {
     if (await notifIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
       await notifIcon.click();
       await page.waitForTimeout(500);
-      const emptyState = page.locator('text=暂无通知, text=No notifications, text=没有通知').first();
+      const emptyState = page.locator('text=暂无通知').or(page.locator('text=No notifications')).or(page.locator('text=没有通知')).first();
       if (await emptyState.isVisible({ timeout: 2000 }).catch(() => false)) {
         await expect(emptyState).toBeVisible();
       }

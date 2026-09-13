@@ -523,6 +523,17 @@ const workspaceId = ref(0)
 const projectId = ref(0)
 const slug = ref('')
 
+// Deep-links like ?tab=settings|pages|dashboards set activeTab on initial
+// load, but the watcher on activeTab only fires on *changes* (not the
+// initial value), and there are no template blocks for those tab ids.
+// Redirect to the real route once projectId is resolved (ref goes 0 → real id).
+watch(projectId, (id) => {
+  const tab = activeTab.value
+  if (id && (tab === 'settings' || tab === 'pages' || tab === 'dashboards')) {
+    router.push(`/workspace/${slug.value}/project/${id}/${tab}`)
+  }
+}, { once: true })
+
 const pageTabs = ref<ProjectPageTab[]>([])
 const issueTypes = ref<any[]>([])
 const states = ref<any[]>([])

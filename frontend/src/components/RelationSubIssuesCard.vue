@@ -277,7 +277,11 @@ function submitQuickCreate() {
   if (!name) return
   quickCreating.value = false
   quickName.value = ''
-  emit('quick-create', name, selectedTypeId.value || undefined)
+  if (selectedTypeId.value) {
+    emit('quick-create', name, selectedTypeId.value)
+  } else {
+    emit('quick-create', name)
+  }
 }
 
 function cancelQuickCreate() {

@@ -11,6 +11,10 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     video: 'retain-on-failure',
+    // Bound individual actions so a target that never becomes actionable fails
+    // fast and clearly instead of falling back to the whole test timeout.
+    actionTimeout: 10000,
+    navigationTimeout: 30000,
   },
   projects: [
     {

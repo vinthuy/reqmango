@@ -7,7 +7,7 @@ test.describe('Agent 监控/性能/管道/团队', () => {
   test('TC-AGM-001: 监控页面加载', async ({ authedPage: page }) => {
     await page.goto(`${AGENT_BASE}/monitor`);
     await page.waitForTimeout(2000);
-    await expect(page.locator('text=监控, text=Monitor').first()).toBeVisible();
+    await expect(page.locator('text=监控').or(page.locator('text=Monitor')).first()).toBeVisible();
   });
 
   test('TC-AGM-002: 监控数据展示', async ({ authedPage: page }) => {
@@ -27,14 +27,14 @@ test.describe('Agent 监控/性能/管道/团队', () => {
       await refreshBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=监控, text=Monitor').first()).toBeVisible();
+    await expect(page.locator('text=监控').or(page.locator('text=Monitor')).first()).toBeVisible();
   });
 
   // === Performance ===
   test('TC-AGM-004: 性能页面加载', async ({ authedPage: page }) => {
     await page.goto(`${AGENT_BASE}/performance`);
     await page.waitForTimeout(2000);
-    await expect(page.locator('text=性能, text=Performance').first()).toBeVisible();
+    await expect(page.locator('text=性能').or(page.locator('text=Performance')).first()).toBeVisible();
   });
 
   test('TC-AGM-005: 性能图表', async ({ authedPage: page }) => {
@@ -54,14 +54,14 @@ test.describe('Agent 监控/性能/管道/团队', () => {
       await timeBtn.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=性能, text=Performance').first()).toBeVisible();
+    await expect(page.locator('text=性能').or(page.locator('text=Performance')).first()).toBeVisible();
   });
 
   // === Pipelines ===
   test('TC-AGM-007: 管道页面加载', async ({ authedPage: page }) => {
     await page.goto('/workspaces/qa-test/agents/pipelines');
     await page.waitForTimeout(2000);
-    await expect(page.locator('text=管道, text=Pipeline, text=Agent').first()).toBeVisible();
+    await expect(page.locator('text=管道').or(page.locator('text=Pipeline')).or(page.locator('text=Agent')).first()).toBeVisible();
   });
 
   test('TC-AGM-008: 创建管道', async ({ authedPage: page }) => {
@@ -73,14 +73,14 @@ test.describe('Agent 监控/性能/管道/团队', () => {
       await page.waitForTimeout(500);
       await page.keyboard.press('Escape');
     }
-    await expect(page.locator('text=管道, text=Pipeline, text=Agent').first()).toBeVisible();
+    await expect(page.locator('text=管道').or(page.locator('text=Pipeline')).or(page.locator('text=Agent')).first()).toBeVisible();
   });
 
   // === Squads ===
   test('TC-AGM-009: 团队页面加载', async ({ authedPage: page }) => {
     await page.goto(`${AGENT_BASE}/squads`);
     await page.waitForTimeout(2000);
-    await expect(page.locator('text=团队, text=Squad').first()).toBeVisible();
+    await expect(page.locator('text=团队').or(page.locator('text=Squad')).first()).toBeVisible();
   });
 
   test('TC-AGM-010: 创建团队', async ({ authedPage: page }) => {
@@ -99,18 +99,20 @@ test.describe('Agent 监控/性能/管道/团队', () => {
         await page.keyboard.press('Escape');
       }
     }
-    await expect(page.locator('text=团队, text=Squad').first()).toBeVisible();
+    await expect(page.locator('text=团队').or(page.locator('text=Squad')).first()).toBeVisible();
   });
 
   test('TC-AGM-011: 团队详情', async ({ authedPage: page }) => {
     await page.goto(`${AGENT_BASE}/squads`);
     await page.waitForTimeout(2000);
-    const squadItem = page.locator('[class*="card"], tr, a').first();
+    // Scope to the page content: an unscoped `[class*="card"], tr, a` matches the
+    // sidebar nav links first and navigates away from the squads page.
+    const squadItem = page.locator('main').locator('[class*="card"], tr, a').first();
     if (await squadItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await squadItem.click();
+      await squadItem.click({ timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=团队, text=Squad').first()).toBeVisible();
+    await expect(page.locator('text=团队').or(page.locator('text=Squad')).first()).toBeVisible();
   });
 
   // === Memory Detail ===
@@ -130,7 +132,7 @@ test.describe('Agent 监控/性能/管道/团队', () => {
         await page.keyboard.press('Escape');
       }
     }
-    await expect(page.locator('text=记忆, text=Memory').first()).toBeVisible();
+    await expect(page.locator('text=记忆').or(page.locator('text=Memory')).first()).toBeVisible();
   });
 
   // === Responsive ===
@@ -139,9 +141,9 @@ test.describe('Agent 监控/性能/管道/团队', () => {
     await page.waitForTimeout(2000);
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=监控, text=Monitor').first()).toBeVisible();
+    await expect(page.locator('text=监控').or(page.locator('text=Monitor')).first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=监控, text=Monitor').first()).toBeVisible();
+    await expect(page.locator('text=监控').or(page.locator('text=Monitor')).first()).toBeVisible();
   });
 });

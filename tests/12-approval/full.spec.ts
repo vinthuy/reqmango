@@ -1,7 +1,11 @@
 import { test, expect } from '../fixtures/auth';
 
 test.describe('审批全功能测试', () => {
-  const APPROVAL_URL = '/workspace/qa-test/project/2347?tab=approvals';
+  // The approvals list is a WORKSPACE-level route (views/ApprovalList.vue).
+  // `?tab=approvals` is not one of Project.vue's tabs, so that URL rendered the
+  // project page with no approval content and every assertion here failed.
+  // tests/12-approval/approval-flow.spec.ts already used the correct route.
+  const APPROVAL_URL = '/workspace/qa-test/approvals';
 
   test.beforeEach(async ({ authedPage: page }) => {
     await page.goto(APPROVAL_URL);
@@ -10,7 +14,7 @@ test.describe('审批全功能测试', () => {
 
   // === 页面加载 ===
   test('TC-APR-001: 审批页面正常加载', async ({ authedPage: page }) => {
-    await expect(page.locator('text=审批, text=Approval, text=待审批').first()).toBeVisible();
+    await expect(page.locator('text=审批').or(page.locator('text=Approval')).or(page.locator('text=待审批')).first()).toBeVisible();
   });
 
   // === 审批列表 ===
@@ -28,7 +32,7 @@ test.describe('审批全功能测试', () => {
       await detailBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=审批, text=Approval, text=待审批').first()).toBeVisible();
+    await expect(page.locator('text=审批').or(page.locator('text=Approval')).or(page.locator('text=待审批')).first()).toBeVisible();
   });
 
   // === 批准操作 ===
@@ -42,7 +46,7 @@ test.describe('审批全功能测试', () => {
         await page.click('button:has-text("取消")');
       }
     }
-    await expect(page.locator('text=审批, text=Approval, text=待审批').first()).toBeVisible();
+    await expect(page.locator('text=审批').or(page.locator('text=Approval')).or(page.locator('text=待审批')).first()).toBeVisible();
   });
 
   // === 拒绝操作 ===
@@ -56,7 +60,7 @@ test.describe('审批全功能测试', () => {
         await page.click('button:has-text("取消")');
       }
     }
-    await expect(page.locator('text=审批, text=Approval, text=待审批').first()).toBeVisible();
+    await expect(page.locator('text=审批').or(page.locator('text=Approval')).or(page.locator('text=待审批')).first()).toBeVisible();
   });
 
   // === 筛选 ===
@@ -66,21 +70,21 @@ test.describe('审批全功能测试', () => {
       await filterBtn.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=审批, text=Approval, text=待审批').first()).toBeVisible();
+    await expect(page.locator('text=审批').or(page.locator('text=Approval')).or(page.locator('text=待审批')).first()).toBeVisible();
   });
 
   // === 响应式 ===
   test('TC-APR-007: 审批页面响应式', async ({ authedPage: page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=审批, text=Approval, text=待审批').first()).toBeVisible();
+    await expect(page.locator('text=审批').or(page.locator('text=Approval')).or(page.locator('text=待审批')).first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=审批, text=Approval, text=待审批').first()).toBeVisible();
+    await expect(page.locator('text=审批').or(page.locator('text=Approval')).or(page.locator('text=待审批')).first()).toBeVisible();
   });
 
   // === 空状态 ===
   test('TC-APR-008: 空审批列表', async ({ authedPage: page }) => {
-    await expect(page.locator('text=审批, text=Approval, text=待审批, text=暂无数据').first()).toBeVisible();
+    await expect(page.locator('text=审批').or(page.locator('text=Approval')).or(page.locator('text=待审批')).or(page.locator('text=暂无数据')).first()).toBeVisible();
   });
 });

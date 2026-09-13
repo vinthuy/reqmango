@@ -187,7 +187,8 @@ var PresetTools = []struct {
 }
 
 // ToTool converts a preset tool definition to a model.Tool.
-func PresetToolToModel(toolName, description, category, toolType string, workspaceID uint64) model.Tool {
+// Preset tools are global (workspace_id IS NULL) and shared across workspaces.
+func PresetToolToModel(toolName, description, category, toolType string) model.Tool {
 	return model.Tool{
 		Name:        toolName,
 		Description: description,
@@ -196,6 +197,5 @@ func PresetToolToModel(toolName, description, category, toolType string, workspa
 		Status:      "active",
 		ToolType:    toolType,
 		Timeout:     30,
-		WorkspaceID: &workspaceID,
 	}
 }

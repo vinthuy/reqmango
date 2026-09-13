@@ -495,6 +495,51 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | 🟠 中 | 13 | 3 | 10 |
 | 🔵 低 | 8 | 0 | 8 |
 | 🆕 UAT | 7 | 7 | 0 |
-| **总计** | **41** | **28** | **13** |
+| **总计** | **45** | **29** | **16** |
 
-> 修复率：**68.3%**（28/41）
+> 修复率：**64.4%**（29/45）
+
+---
+
+## 🆕 本轮 E2E 测试新增缺陷（2026-09-12）
+
+> 由全量端到端覆盖测试（`tests/` 360 用例 + `frontend/e2e` 1200 次执行 + vitest 822 用例）
+> 结合源码审计发现。4 个产品缺陷中有 1 个已修复并带回归用例。
+
+### BUG-46 项目页 `?tab=settings|pages|dashboards` 深链渲染空白内容区 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/src/views/Project.vue:457-473` |
+| **类型** | 产品缺陷 |
+| **影响** | 通过深链 / 书签 / 刷新进入 `?tab=settings`（`pages`、`dashboards` 同理），项目页正常渲染头部与标签栏，但**内容区完全空白**，也不会跳转到对应的独立路由页面 |
+| **原因** | `activeTab` 初值来自 query → `watch(activeTab, …)` 仅在变化时触发 → 不触发；模板无 `settings/pages/dashboards` 内容块 |
+| **修复** | 在 `projectId` ref 后新增一次性 watcher：`watch(projectId, id => { if (id && (tab === …)) router.push(…) }, { once: true })` |
+| **回归用例** | `TC-DEEP-001`（`tests/03-project/settings.spec.ts`） |
+
+### BUG-47 `DELETE /workspaces/{ws}/settings/states/{id}` 返回 500
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | 后端（待定位 handler） |
+| **类型** | 接口缺陷 |
+| **影响** | 删除工作空间级状态返回 HTTP 500（`workspace-settings-e2e.spec.ts` 期望 200/204） |
+| **复现** | `DELETE http://localhost:8000/api/v1/workspaces/qa-test/settings/states/{id}` |
+
+### BUG-48 ~~`GET /projects/{id}/workflows` 返回对象而非数组~~ → 已确认为测试侧缺陷 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/e2e/workflow-automation-ui.spec.ts`、`workflow-approval-api.spec.ts` |
+| **类型** | 测试缺陷 |
+| **影响** | 测试直接对 `response.json()` 调用 `.find()` / `for...of`，报 `not iterable` |
+| **原因** | 后端统一返回 `{"data":[...]}` 包裹格式，测试未提取 `.data` |
+| **修复** | `(await response.json()).data \|\| []`（2 处） |
+
+### BUG-49 `WorkflowManager.vue` 工作流转换表单缺少审批转换字段
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/src/components/agent/WorkflowManager.vue`（转换表单 ~行 31-36） |
+| **类型** | 功能缺口 |
+| **影响** | 新增转换表单缺少 `rule_type`（allow/approval）、`approver_ids`、`role_allowed` 字段，用户无法从 UI 创建审批类转换；只能通过 API 创建 |

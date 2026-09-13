@@ -164,7 +164,7 @@ describe('AISettingsPanel', () => {
 
   describe('test connection', () => {
     it('should show success result on OK response', async () => {
-      mockPost.mockResolvedValue({})
+      mockPost.mockResolvedValue({ data: { ok: true } })
       const wrapper = mount(AISettingsPanel, {
         props: { workspaceId: 1 },
       })

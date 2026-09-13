@@ -8,7 +8,7 @@ test.describe('工作空间设置页', () => {
 
   // === 页面加载 ===
   test('TC-WST-001: 设置页正常加载', async ({ authedPage: page }) => {
-    await expect(page.locator('text=设置, text=Settings, text=工作空间设置').first()).toBeVisible();
+    await expect(page.locator('text=设置').or(page.locator('text=Settings')).or(page.locator('text=工作空间设置')).first()).toBeVisible();
   });
 
   // === 基本信息 ===
@@ -26,7 +26,7 @@ test.describe('工作空间设置页', () => {
       await nameInput.click();
       await page.waitForTimeout(300);
     }
-    await expect(page.locator('text=设置, text=Settings, text=工作空间设置').first()).toBeVisible();
+    await expect(page.locator('text=设置').or(page.locator('text=Settings')).or(page.locator('text=工作空间设置')).first()).toBeVisible();
   });
 
   // === 成员管理 ===
@@ -36,7 +36,7 @@ test.describe('工作空间设置页', () => {
       await memberTab.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=设置, text=Settings, text=工作空间设置').first()).toBeVisible();
+    await expect(page.locator('text=设置').or(page.locator('text=Settings')).or(page.locator('text=工作空间设置')).first()).toBeVisible();
   });
 
   // === 邀请成员 ===
@@ -47,7 +47,7 @@ test.describe('工作空间设置页', () => {
       await page.waitForTimeout(500);
       await page.keyboard.press('Escape');
     }
-    await expect(page.locator('text=设置, text=Settings, text=工作空间设置').first()).toBeVisible();
+    await expect(page.locator('text=设置').or(page.locator('text=Settings')).or(page.locator('text=工作空间设置')).first()).toBeVisible();
   });
 
   // === 保存设置 ===
@@ -57,16 +57,16 @@ test.describe('工作空间设置页', () => {
       await saveBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=设置, text=Settings, text=工作空间设置').first()).toBeVisible();
+    await expect(page.locator('text=设置').or(page.locator('text=Settings')).or(page.locator('text=工作空间设置')).first()).toBeVisible();
   });
 
   // === 响应式 ===
   test('TC-WST-007: 设置页响应式', async ({ authedPage: page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=设置, text=Settings, text=工作空间设置').first()).toBeVisible();
+    await expect(page.locator('text=设置').or(page.locator('text=Settings')).or(page.locator('text=工作空间设置')).first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=设置, text=Settings, text=工作空间设置').first()).toBeVisible();
+    await expect(page.locator('text=设置').or(page.locator('text=Settings')).or(page.locator('text=工作空间设置')).first()).toBeVisible();
   });
 });

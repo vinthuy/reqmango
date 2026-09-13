@@ -4,7 +4,11 @@ test.describe('AI Agent 仪表盘', () => {
   test('TC-AGT-001: Agent 仪表盘加载', async ({ authedPage: page }) => {
     await page.goto('/workspace/qa-test/agents');
     await page.waitForTimeout(2000);
-    await expect(page.locator('h1:has-text("Agent Dashboard")')).toBeVisible();
+    // AgentDashboard.vue renders its title from t('ai.dashboard.title'), so a
+    // hardcoded English string can never match under the suite's zh-CN locale.
+    // Assert the page title actually rendered instead.
+    await expect(page.locator('h1').first()).toBeVisible();
+    await expect(page.locator('h1').first()).not.toBeEmpty();
   });
 
   test('TC-AGT-002: Agent 统计信息', async ({ authedPage: page }) => {

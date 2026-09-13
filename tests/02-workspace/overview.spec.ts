@@ -8,7 +8,7 @@ test.describe('工作空间概览页', () => {
 
   // === 页面加载 ===
   test('TC-WOV-001: 概览页正常加载', async ({ authedPage: page }) => {
-    await expect(page.locator('text=概览, text=Overview, text=工作空间').first()).toBeVisible();
+    await expect(page.locator('text=概览').or(page.locator('text=Overview')).or(page.locator('text=工作空间')).first()).toBeVisible();
   });
 
   // === 项目列表 ===
@@ -39,9 +39,9 @@ test.describe('工作空间概览页', () => {
   test('TC-WOV-005: 概览页响应式', async ({ authedPage: page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=概览, text=Overview, text=工作空间').first()).toBeVisible();
+    await expect(page.locator('text=概览').or(page.locator('text=Overview')).or(page.locator('text=工作空间')).first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=概览, text=Overview, text=工作空间').first()).toBeVisible();
+    await expect(page.locator('text=概览').or(page.locator('text=Overview')).or(page.locator('text=工作空间')).first()).toBeVisible();
   });
 });

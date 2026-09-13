@@ -80,3 +80,13 @@ temp_multica/
 
 # Go tool binaries (sdk Makefile target)
 /bin/
+
+# E2E run artifacts (local only)
+.e2e-admin-token
+test-artifacts/
+tests/playwright-report/
+/playwright-report/
+/e2e_tests_results.json
+/tests_final*.json
+/frontend_e2e*.json
+/verify_fixes.json

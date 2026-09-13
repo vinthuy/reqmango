@@ -10,7 +10,7 @@ test.describe('仪表盘全功能测试', () => {
 
   // === 页面加载 ===
   test('TC-DAS-001: 仪表盘正常加载', async ({ authedPage: page }) => {
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 
   // === Widget 显示 ===
@@ -44,7 +44,7 @@ test.describe('仪表盘全功能测试', () => {
       await page.waitForTimeout(500);
       await page.keyboard.press('Escape');
     }
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 
   // === Widget 删除 ===
@@ -58,7 +58,7 @@ test.describe('仪表盘全功能测试', () => {
         await page.click('button:has-text("取消")');
       }
     }
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 
   // === 刷新数据 ===
@@ -68,7 +68,7 @@ test.describe('仪表盘全功能测试', () => {
       await refreshBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 
   // === 时间范围选择 ===
@@ -78,7 +78,7 @@ test.describe('仪表盘全功能测试', () => {
       await timeFilter.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 
   // === 导出 ===
@@ -88,7 +88,7 @@ test.describe('仪表盘全功能测试', () => {
       await exportBtn.click();
       await page.waitForTimeout(500);
     }
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 
   // === Widget 拖拽排序 ===
@@ -101,22 +101,22 @@ test.describe('仪表盘全功能测试', () => {
         await page.waitForTimeout(300);
       }
     }
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 
   // === 响应式 ===
   test('TC-DAS-011: 仪表盘响应式', async ({ authedPage: page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.waitForTimeout(500);
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 
   // === 空状态 ===
   test('TC-DAS-012: 空仪表盘显示', async ({ authedPage: page }) => {
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览, text=暂无数据').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).or(page.locator('text=暂无数据')).first()).toBeVisible();
   });
 
   // === Widget 类型选择 ===
@@ -140,7 +140,7 @@ test.describe('仪表盘全功能测试', () => {
       await refreshBtn.click();
       await page.waitForTimeout(1000);
     }
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 
   // === 全屏模式 ===
@@ -151,6 +151,6 @@ test.describe('仪表盘全功能测试', () => {
       await page.waitForTimeout(500);
       await page.keyboard.press('Escape');
     }
-    await expect(page.locator('text=仪表盘, text=Dashboard, text=概览').first()).toBeVisible();
+    await expect(page.locator('text=仪表盘').or(page.locator('text=Dashboard')).or(page.locator('text=概览')).first()).toBeVisible();
   });
 });
