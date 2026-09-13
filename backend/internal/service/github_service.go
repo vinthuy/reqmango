@@ -100,9 +100,6 @@ func (s *GitHubService) List(workspaceID uint64) ([]GitHubResponse, error) {
 	for i, c := range conns {
 		res[i] = s.toResponse(&c)
 	}
-	if res == nil {
-		res = []GitHubResponse{}
-	}
 	return res, nil
 }
 
@@ -311,7 +308,7 @@ func (s *GitHubService) fetchIssuesFromGitHub(owner, repo, token string) ([]GitH
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -532,7 +529,7 @@ func (s *GitHubService) GetBranchSHA(owner, repo, branch, token string) (string,
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == 404 {
 		return "", common.NotFound(fmt.Sprintf("Branch '%s' not found in %s/%s", branch, owner, repo))
@@ -576,7 +573,7 @@ func (s *GitHubService) CreateBranch(owner, repo, baseBranch, newBranch, token, 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == 422 {
 		return nil, common.BadRequest(fmt.Sprintf("Branch '%s' already exists or SHA is invalid", newBranch))
@@ -617,7 +614,7 @@ func (s *GitHubService) CommitFile(owner, repo, branch, path, content, commitMes
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
 		return nil, fmt.Errorf("GitHub commitFile error %d: %s", resp.StatusCode, string(respBody))
@@ -676,7 +673,7 @@ func (s *GitHubService) CreatePullRequest(owner, repo, baseBranch, headBranch, t
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 201 {
 		return nil, fmt.Errorf("GitHub createPullRequest error %d: %s", resp.StatusCode, string(respBody))

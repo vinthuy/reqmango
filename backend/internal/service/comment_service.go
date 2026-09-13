@@ -58,7 +58,7 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 				message := fmt.Sprintf("工作项 #%d 收到新评论", issue.SequenceID)
 				issueIDPtr := issueID
 				projectIDPtr := issue.ProjectID
-				s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_commented", title, message, recipientIDs, &authorID, &projectIDPtr, &issueIDPtr)
+				_ = s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_commented", title, message, recipientIDs, &authorID, &projectIDPtr, &issueIDPtr)
 				for _, rid := range recipientIDs {
 					SSE.NotifyUser(rid, "issue_commented", title, message)
 				}
@@ -80,7 +80,7 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 				msg := fmt.Sprintf("你在工作项 #%d 的评论中被 @%s 提及", issue.SequenceID, c.Author.Username)
 				issueIDPtr := issueID
 				projectIDPtr := issue.ProjectID
-				s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_mentioned", title, msg, mentionIDs, &authorID, &projectIDPtr, &issueIDPtr)
+				_ = s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_mentioned", title, msg, mentionIDs, &authorID, &projectIDPtr, &issueIDPtr)
 			}
 
 			if s.agentClient != nil {
@@ -88,7 +88,7 @@ func (s *CommentService) Create(issueID, authorID uint64, body string, parentID 
 				s.db.Where("workspace_id = ? AND name IN ? AND status = 'active'", issue.Project.WorkspaceID, mentioned).Find(&agents)
 				for _, agent := range agents {
 					go func(a model.Agent) {
-						s.agentClient.HandleMention(a.WorkspaceID, a.ID, c.ID, authorID, body, issue.Name, &issueID)
+						_ = s.agentClient.HandleMention(a.WorkspaceID, a.ID, c.ID, authorID, body, issue.Name, &issueID)
 					}(agent)
 				}
 			}
@@ -160,7 +160,9 @@ func (s *CommentService) ListByIssue(issueID uint64, page, pageSize int) ([]mode
 		Order("created_at ASC").Limit(pageSize).Offset(offset).Find(&comments).Error; err != nil {
 		return nil, 0, common.Internal("Failed to list comments")
 	}
-	if comments == nil { comments = []model.Comment{} }
+	if comments == nil {
+		comments = []model.Comment{}
+	}
 	return comments, total, nil
 }
 
@@ -202,7 +204,7 @@ func (s *CommentService) Update(id, userID uint64, body string) (*model.Comment,
 					msg := fmt.Sprintf("你在工作项 #%d 的评论中被 @%s 提及", issue.SequenceID, c.Author.Username)
 					issueIDPtr := c.IssueID
 					projectIDPtr := issue.ProjectID
-					s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_mentioned", title, msg, mentionIDs, &userID, &projectIDPtr, &issueIDPtr)
+					_ = s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_mentioned", title, msg, mentionIDs, &userID, &projectIDPtr, &issueIDPtr)
 				}
 
 				if s.agentClient != nil {
@@ -210,7 +212,7 @@ func (s *CommentService) Update(id, userID uint64, body string) (*model.Comment,
 					s.db.Where("workspace_id = ? AND name IN ? AND status = 'active'", issue.Project.WorkspaceID, mentioned).Find(&agents)
 					for _, agent := range agents {
 						go func(a model.Agent) {
-							s.agentClient.HandleMention(a.WorkspaceID, a.ID, c.ID, userID, body, issue.Name, &c.IssueID)
+							_ = s.agentClient.HandleMention(a.WorkspaceID, a.ID, c.ID, userID, body, issue.Name, &c.IssueID)
 						}(agent)
 					}
 				}

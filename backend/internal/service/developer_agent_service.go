@@ -430,7 +430,7 @@ func (s *DeveloperAgentService) runWorkflow(jobID uint64, runCtx developerRunCon
 
 	ghFiles := make([]GitHubFileInput, 0, len(files))
 	for _, f := range files {
-		ghFiles = append(ghFiles, GitHubFileInput{Path: f.Path, Content: f.Content, Mode: f.Mode})
+		ghFiles = append(ghFiles, GitHubFileInput(f))
 	}
 	commitSHA, committedCount, commitErr := s.gh.CommitFiles(conn.RepoOwner, conn.RepoName, branchName, commitMessage, conn.AccessToken, ghFiles)
 	if commitErr != nil && committedCount == 0 {

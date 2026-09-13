@@ -72,19 +72,13 @@ func makeBuiltinTool(t *testing.T, db *gorm.DB, wid uint64, name string) *model.
 	return tool
 }
 
-func clearRateLimiter() {
-	globalRateLimiter.store.Range(func(key, _ interface{}) bool {
-		globalRateLimiter.store.Delete(key)
-		return true
-	})
-}
-
 func resetRateLimiter() {
 	globalRateLimiter.store.Range(func(key, _ interface{}) bool {
 		globalRateLimiter.store.Delete(key)
 		return true
 	})
 }
+
 // ==================== Rate Limiter Tests ====================
 
 func TestRateLimiter_SlidingWindowBasic(t *testing.T) {
@@ -140,6 +134,7 @@ func TestRateLimiter_DBToolRateLimit(t *testing.T) {
 	}
 	assert.False(t, svc.checkRateLimit(tool.ID, user.ID, tool.RateLimit), "3rd call should be rate limited")
 }
+
 // ==================== Permission Tests ====================
 
 func TestPermissionStep1_NotWorkspaceMember(t *testing.T) {
@@ -235,10 +230,10 @@ func TestPermissionStep3_WhitelistAllow(t *testing.T) {
 	agentID := uint64(42)
 	// Create a whitelist (Allowed=true) for this agent
 	tp := model.ToolPermission{
-		WorkspaceID:    ws.ID,
-		ToolID:         tool.ID,
+		WorkspaceID:     ws.ID,
+		ToolID:          tool.ID,
 		AgentTemplateID: &agentID,
-		Allowed:        true,
+		Allowed:         true,
 	}
 	require.NoError(t, db.Create(&tp).Error)
 

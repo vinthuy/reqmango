@@ -423,7 +423,7 @@ func (h *PageHandler) ConvertToIssue(c *gin.Context) {
 	}
 
 	var req request.PageConvertRequest
-	c.ShouldBindJSON(&req)
+	_ = c.ShouldBindJSON(&req)
 
 	issue, svcErr := h.svc.ConvertToIssue(pageID, projectID, h.getUserID(c), req.IssueTypeID)
 	if svcErr != nil {

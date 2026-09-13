@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,14 +19,14 @@ func NewAgentCostBudgetService(db *gorm.DB) *AgentCostBudgetService {
 
 // BudgetResponse represents the budget configuration in API response.
 type BudgetResponse struct {
-	ID             uint64   `json:"id"`
-	ProjectID      uint64   `json:"project_id"`
-	MonthlyBudget  float64  `json:"monthly_budget"`
-	CurrentCost    float64  `json:"current_cost"`
-	AlertThreshold float64  `json:"alert_threshold"`
-	AutoBlock      bool     `json:"auto_block"`
-	LastResetAt    *string  `json:"last_reset_at"`
-	BudgetUsage    float64  `json:"budget_usage"` // percentage
+	ID             uint64  `json:"id"`
+	ProjectID      uint64  `json:"project_id"`
+	MonthlyBudget  float64 `json:"monthly_budget"`
+	CurrentCost    float64 `json:"current_cost"`
+	AlertThreshold float64 `json:"alert_threshold"`
+	AutoBlock      bool    `json:"auto_block"`
+	LastResetAt    *string `json:"last_reset_at"`
+	BudgetUsage    float64 `json:"budget_usage"` // percentage
 }
 
 // UpdateBudgetRequest represents the request to update budget configuration.
@@ -63,9 +64,9 @@ func (s *AgentCostBudgetService) Get(projectID uint64) (*BudgetResponse, error) 
 			LastResetAt    *time.Time `json:"last_reset_at"`
 		}{
 			ProjectID:      projectID,
-			MonthlyBudget:  100.0,   // $100 default
+			MonthlyBudget:  100.0, // $100 default
 			CurrentCost:    0,
-			AlertThreshold: 80.0,    // 80% default
+			AlertThreshold: 80.0, // 80% default
 			AutoBlock:      false,
 		}
 		err = s.db.Table("agent_cost_budgets").Create(&budget).Error
@@ -171,7 +172,7 @@ func (s *AgentCostBudgetService) CheckBudget(projectID uint64, estimatedCost flo
 	// Check alert threshold
 	usage := (newCost / budget.MonthlyBudget) * 100
 	if usage >= budget.AlertThreshold {
-		return true, "AI budget usage is above " + string(rune(int('0'+int(budget.AlertThreshold)/10))) + "% threshold.", nil
+		return true, fmt.Sprintf("AI budget usage is above %g%% threshold.", budget.AlertThreshold), nil
 	}
 
 	return true, "", nil
@@ -188,7 +189,7 @@ func (s *AgentCostBudgetService) RecordCost(projectID uint64, cost float64) erro
 func (s *AgentCostBudgetService) ResetMonthly() error {
 	return s.db.Table("agent_cost_budgets").
 		Updates(map[string]interface{}{
-			"current_cost": 0,
+			"current_cost":  0,
 			"last_reset_at": time.Now(),
 		}).Error
 }

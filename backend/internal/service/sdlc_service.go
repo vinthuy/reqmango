@@ -108,10 +108,10 @@ func (s *SDLCService) checkWorkspaceAdmin(workspaceID, callerID uint64) error {
 
 // SDLCWorkflowCreate captures the inputs for a new SDLC pipeline run.
 type SDLCWorkflowCreate struct {
-	Title       string          `json:"title" binding:"required"`
-	Requirement string          `json:"requirement"`
-	ProjectID   *uint64         `json:"project_id"`
-	SquadID     *uint64         `json:"squad_id"`
+	Title       string  `json:"title" binding:"required"`
+	Requirement string  `json:"requirement"`
+	ProjectID   *uint64 `json:"project_id"`
+	SquadID     *uint64 `json:"squad_id"`
 	// Stages optionally restricts which canonical stages run. Stage keys not
 	// in this list are marked skipped. Empty = run all stages.
 	Stages []string `json:"stages"`
@@ -872,8 +872,8 @@ func stubStageOutput(stage *model.SDLCStage, wf *model.SDLCWorkflow, prior map[s
 		}
 	case "requirement_design":
 		return map[string]interface{}{
-			"prd_doc":      fmt.Sprintf("# %s PRD\n## 目标\n实现 %s 的核心能力。", title, title),
-			"tech_design":  fmt.Sprintf("技术方案：%s 采用分层架构。", title),
+			"prd_doc":     fmt.Sprintf("# %s PRD\n## 目标\n实现 %s 的核心能力。", title, title),
+			"tech_design": fmt.Sprintf("技术方案：%s 采用分层架构。", title),
 		}
 	case "dispatch_feature":
 		return map[string]interface{}{
@@ -900,10 +900,10 @@ func stubStageOutput(stage *model.SDLCStage, wf *model.SDLCWorkflow, prior map[s
 		}
 	case "development":
 		return map[string]interface{}{
-			"branch":      fmt.Sprintf("feature/%s", slugify(title)),
-			"commit_sha":  fakeID("commit"),
-			"pr_url":      fmt.Sprintf("https://github.com/example/repo/pull/%s", fakeID("pr")),
-			"pr_number":   42,
+			"branch":     fmt.Sprintf("feature/%s", slugify(title)),
+			"commit_sha": fakeID("commit"),
+			"pr_url":     fmt.Sprintf("https://github.com/example/repo/pull/%s", fakeID("pr")),
+			"pr_number":  42,
 		}
 	case "code_review":
 		return map[string]interface{}{
@@ -925,9 +925,9 @@ func stubStageOutput(stage *model.SDLCStage, wf *model.SDLCWorkflow, prior map[s
 		}
 	case "deploy":
 		return map[string]interface{}{
-			"deploy_url":       fmt.Sprintf("https://app.example.com/%s", slugify(title)),
-			"release_version":  fmt.Sprintf("v1.0.0-%s", fakeID("release")),
-			"deploy_status":    "success",
+			"deploy_url":      fmt.Sprintf("https://app.example.com/%s", slugify(title)),
+			"release_version": fmt.Sprintf("v1.0.0-%s", fakeID("release")),
+			"deploy_status":   "success",
 		}
 	}
 	return map[string]interface{}{

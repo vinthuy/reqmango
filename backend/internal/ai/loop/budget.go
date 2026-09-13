@@ -27,13 +27,13 @@ type BudgetController struct {
 
 func NewBudgetController(maxTokens int, maxCost float64, maxIterations int, maxDuration time.Duration) *BudgetController {
 	return &BudgetController{
-		MaxTokens:      maxTokens,
-		MaxCost:        maxCost,
-		MaxIterations:  maxIterations,
-		MaxDuration:    maxDuration,
-		StartTime:      time.Now(),
-		LastMetrics:    make(map[string]float64),
-		MaxNoProgress:  3,
+		MaxTokens:     maxTokens,
+		MaxCost:       maxCost,
+		MaxIterations: maxIterations,
+		MaxDuration:   maxDuration,
+		StartTime:     time.Now(),
+		LastMetrics:   make(map[string]float64),
+		MaxNoProgress: 3,
 	}
 }
 

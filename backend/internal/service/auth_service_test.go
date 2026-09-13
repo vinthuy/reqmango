@@ -4,16 +4,16 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAuthService_Register_Valid(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	cfg := &config.Config{SecretKey: "test-secret"}
 	svc := NewAuthService(db, cfg)

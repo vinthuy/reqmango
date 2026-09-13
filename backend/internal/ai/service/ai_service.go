@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -29,9 +30,9 @@ type MemoryServiceInterface interface {
 
 // AIService provides AI-powered features on top of the existing services.
 type AIService struct {
-	db       *gorm.DB
-	llm      *llm.LLMClient
-	memSvc   MemoryServiceInterface
+	db     *gorm.DB
+	llm    *llm.LLMClient
+	memSvc MemoryServiceInterface
 }
 
 // NewAIService creates an AIService.
@@ -360,7 +361,7 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 	} else {
 		systemPrompt += "\n\n当前为 Ask 模式：回答用户问题，展示数据。如需操作请建议用户切换到 Build 模式。"
 	}
-	
+
 	// Retrieve relevant memories and inject into system prompt
 	if s.memSvc != nil {
 		memories, _ := s.retrieveRelevantMemories(ctx, actx)
@@ -402,6 +403,8 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 
 	outCh := make(chan llm.StreamEvent, 64)
 	var finalResponse strings.Builder
+	// #nosec G118 -- deliberate: the final memory write must outlive the request
+	// context, which is already cancelled once the client disconnects.
 	go func() {
 		defer close(outCh)
 		emit := func(evt llm.StreamEvent) bool {
@@ -506,9 +509,9 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 // retrieveRelevantMemories retrieves relevant memories based on context
 func (s *AIService) retrieveRelevantMemories(ctx context.Context, actx *AIContext) ([]*model.MemoryEntry, error) {
 	filters := map[string]interface{}{
-		"project_id":   actx.ProjectID,
-		"memory_type":  model.MemoryShortTerm,
-		"limit":        5,
+		"project_id":  actx.ProjectID,
+		"memory_type": model.MemoryShortTerm,
+		"limit":       5,
 	}
 	if actx.IssueID > 0 {
 		filters["issue_id"] = actx.IssueID
@@ -519,7 +522,7 @@ func (s *AIService) retrieveRelevantMemories(ctx context.Context, actx *AIContex
 // saveConversationMemory saves the conversation result as a memory entry
 func (s *AIService) saveConversationMemory(ctx context.Context, actx *AIContext, question, answer string, toolResults []llm.ToolResult) {
 	contextKey := fmt.Sprintf("chat_%d", actx.ProjectID)
-	
+
 	var issueID *uint64
 	if actx.IssueID > 0 {
 		contextKey = fmt.Sprintf("issue_%d", actx.IssueID)
@@ -544,7 +547,7 @@ func (s *AIService) saveConversationMemory(ctx context.Context, actx *AIContext,
 	}
 
 	go func() {
-		s.memSvc.CreateMemory(ctx, entry)
+		_, _ = s.memSvc.CreateMemory(ctx, entry)
 	}()
 }
 
@@ -1708,7 +1711,7 @@ func (s *AIService) toolWebSearch(args map[string]interface{}) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("web_search failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024))
 	if err != nil {
@@ -1792,9 +1795,16 @@ func getUintArg(args map[string]interface{}, key string, defaultVal uint64) uint
 	if v, ok := args[key]; ok {
 		switch n := v.(type) {
 		case float64:
+			// Reject values that cannot round-trip into a uint64 instead of wrapping.
+			if n < 0 || n > math.MaxUint64 {
+				return defaultVal
+			}
 			return uint64(n)
 		case json.Number:
-			val, _ := n.Int64()
+			val, err := n.Int64()
+			if err != nil || val < 0 {
+				return defaultVal
+			}
 			return uint64(val)
 		}
 	}

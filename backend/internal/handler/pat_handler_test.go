@@ -19,7 +19,7 @@ import (
 
 func TestPATHandler_List(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	mock.ExpectQuery(`SELECT \* FROM "personal_access_tokens" WHERE`).
 		WithArgs(uint64(1)).
@@ -45,7 +45,7 @@ func TestPATHandler_List(t *testing.T) {
 
 func TestPATHandler_Create(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	mock.ExpectQuery(`INSERT INTO "personal_access_tokens"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
@@ -68,7 +68,7 @@ func TestPATHandler_Create(t *testing.T) {
 
 func TestPATHandler_Revoke(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	mock.ExpectExec(`UPDATE "personal_access_tokens" SET`).
 		WillReturnResult(sqlmock.NewResult(0, 1))

@@ -100,12 +100,12 @@ func (s *IssueAgentService) Assign(issueID uint64, req AssignRequest) (*model.Ag
 
 	// 3. Create AgentTask (workspace_id is NOT NULL)
 	task := &model.AgentTask{
-		Title:      fmt.Sprintf("Issue #%d", issueID),
-		Status:     "enqueue",
-		Priority:   req.Priority,
-		IssueID:    &issueID,
+		Title:       fmt.Sprintf("Issue #%d", issueID),
+		Status:      "enqueue",
+		Priority:    req.Priority,
+		IssueID:     &issueID,
 		WorkspaceID: issue.WorkspaceID,
-		ProjectID:  &issue.ProjectID,
+		ProjectID:   &issue.ProjectID,
 	}
 	if err := s.db.Create(task).Error; err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (s *IssueAgentService) Assign(issueID uint64, req AssignRequest) (*model.Ag
 	s.db.Model(&model.Issue{}).Where("id = ?", issueID).Update("agent_task_id", task.ID)
 
 	// 5. Record decision
-	s.decisionSvc.Record(&AgentDecisionRecord{
+	_ = s.decisionSvc.Record(&AgentDecisionRecord{
 		AgentID:     req.AgentID,
 		IssueID:     &issueID,
 		AgentTaskID: &task.ID,
@@ -125,7 +125,7 @@ func (s *IssueAgentService) Assign(issueID uint64, req AssignRequest) (*model.Ag
 	})
 
 	// 6. Record cost
-	s.budgetSvc.RecordCost(issue.ProjectID, 0.001)
+	_ = s.budgetSvc.RecordCost(issue.ProjectID, 0.001)
 
 	return task, nil
 }

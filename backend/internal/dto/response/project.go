@@ -43,20 +43,20 @@ type ProjectMemberResponse struct {
 
 // ProjectStatistics represents project statistics.
 type ProjectStatistics struct {
-	ProjectID      uint64         `json:"project_id"`
-	ProjectName    string         `json:"project_name"`
-	TotalIssues    int64          `json:"total_issues"`
-	CompletedIssues int64         `json:"completed_issues"`
-	ActiveMembers  int64          `json:"active_members"`
-	States         map[string]int `json:"states"`
-	Priorities     map[string]int `json:"priorities"`
+	ProjectID       uint64         `json:"project_id"`
+	ProjectName     string         `json:"project_name"`
+	TotalIssues     int64          `json:"total_issues"`
+	CompletedIssues int64          `json:"completed_issues"`
+	ActiveMembers   int64          `json:"active_members"`
+	States          map[string]int `json:"states"`
+	Priorities      map[string]int `json:"priorities"`
 }
 
 // IssuesSummary represents issue counts by state group.
 type IssuesSummary struct {
-	ProjectID   uint64            `json:"project_id"`
-	ProjectName string            `json:"project_name"`
-	Issues      map[string]int    `json:"issues"` // todo, started, completed, cancelled
+	ProjectID   uint64         `json:"project_id"`
+	ProjectName string         `json:"project_name"`
+	Issues      map[string]int `json:"issues"` // todo, started, completed, cancelled
 }
 
 // ProjectSubscriberResponse represents a project subscriber.

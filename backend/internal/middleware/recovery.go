@@ -21,7 +21,7 @@ func Recovery() gin.HandlerFunc {
 				response := map[string]string{
 					"message": "Internal server error",
 				}
-				json.NewEncoder(c.Writer).Encode(response)
+				_ = json.NewEncoder(c.Writer).Encode(response)
 			}
 		}()
 

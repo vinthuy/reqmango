@@ -14,8 +14,8 @@ import (
 
 // PageService handles page business logic.
 type PageService struct {
-	db              *gorm.DB
-	versionSvc      *PageVersionService
+	db         *gorm.DB
+	versionSvc *PageVersionService
 }
 
 // NewPageService creates a new PageService.
@@ -302,10 +302,10 @@ func (s *PageService) ConvertToIssue(pageID, projectID, userID uint64, issueType
 
 	// Create issue from page content
 	issue := &model.Issue{
-		Name:          p.Title,
+		Name:            p.Title,
 		DescriptionHTML: p.Content,
-		ProjectID:     p.ProjectID,
-		WorkspaceID:   p.WorkspaceID,
+		ProjectID:       p.ProjectID,
+		WorkspaceID:     p.WorkspaceID,
 	}
 	issue.CreatedByID = &userID
 

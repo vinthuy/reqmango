@@ -51,37 +51,59 @@ func (s *WebhookService) Create(projectID, workspaceID uint64, req *struct {
 		return nil, err
 	}
 	events := req.Events
-	if events == "" { events = "issue_created,issue_updated,state_changed" }
+	if events == "" {
+		events = "issue_created,issue_updated,state_changed"
+	}
 	w := &model.Webhook{Name: req.Name, URL: req.URL, Secret: req.Secret, Events: events, IsActive: true, ProjectID: projectID, WorkspaceID: workspaceID}
-	if err := s.db.Create(w).Error; err != nil { return nil, common.Internal("Failed to create webhook") }
+	if err := s.db.Create(w).Error; err != nil {
+		return nil, common.Internal("Failed to create webhook")
+	}
 	return w, nil
 }
 
 func (s *WebhookService) Update(id uint64, req *struct {
-	Name, URL, Secret, Events *string; IsActive *bool
+	Name, URL, Secret, Events *string
+	IsActive                  *bool
 }, callerID uint64) (*model.Webhook, error) {
 	var w model.Webhook
-	if s.db.First(&w, id).Error != nil { return nil, common.NotFound("Webhook not found") }
+	if s.db.First(&w, id).Error != nil {
+		return nil, common.NotFound("Webhook not found")
+	}
 	if err := s.checkProjectAdmin(w.ProjectID, callerID); err != nil {
 		return nil, err
 	}
 	u := map[string]interface{}{}
-	if req.Name != nil { u["name"] = *req.Name }
-	if req.URL != nil { u["url"] = *req.URL }
-	if req.Secret != nil && *req.Secret != "" { u["secret"] = *req.Secret }
-	if req.Events != nil { u["events"] = *req.Events }
-	if req.IsActive != nil { u["is_active"] = *req.IsActive }
-	s.db.Model(&w).Updates(u); s.db.First(&w, id)
+	if req.Name != nil {
+		u["name"] = *req.Name
+	}
+	if req.URL != nil {
+		u["url"] = *req.URL
+	}
+	if req.Secret != nil && *req.Secret != "" {
+		u["secret"] = *req.Secret
+	}
+	if req.Events != nil {
+		u["events"] = *req.Events
+	}
+	if req.IsActive != nil {
+		u["is_active"] = *req.IsActive
+	}
+	s.db.Model(&w).Updates(u)
+	s.db.First(&w, id)
 	return &w, nil
 }
 
 func (s *WebhookService) Delete(id, callerID uint64) error {
 	var w model.Webhook
-	if s.db.First(&w, id).Error != nil { return common.NotFound("Webhook not found") }
+	if s.db.First(&w, id).Error != nil {
+		return common.NotFound("Webhook not found")
+	}
 	if err := s.checkProjectAdmin(w.ProjectID, callerID); err != nil {
 		return err
 	}
-	if s.db.Delete(&model.Webhook{}, id).RowsAffected == 0 { return common.NotFound("Webhook not found") }
+	if s.db.Delete(&model.Webhook{}, id).RowsAffected == 0 {
+		return common.NotFound("Webhook not found")
+	}
 	return nil
 }
 
@@ -90,7 +112,9 @@ func (s *WebhookService) Fire(projectID uint64, event string, payload map[string
 	var webhooks []model.Webhook
 	s.db.Where("project_id = ? AND is_active = ?", projectID, true).Find(&webhooks)
 	for _, w := range webhooks {
-		if !strings.Contains(w.Events, event) { continue }
+		if !strings.Contains(w.Events, event) {
+			continue
+		}
 		go s.send(w, event, payload)
 	}
 }
@@ -122,7 +146,7 @@ func (s *WebhookService) send(w model.Webhook, event string, payload map[string]
 			}
 			return
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return
 		}

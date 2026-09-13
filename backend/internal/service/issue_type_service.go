@@ -138,9 +138,6 @@ func (s *IssueTypeService) List(workspaceID uint64, projectID *uint64) ([]respon
 		for i, t := range types {
 			result[i] = *s.buildResponse(t, false)
 		}
-		if result == nil {
-			result = []response.IssueTypeResponse{}
-		}
 		return result, nil
 	}
 
@@ -185,9 +182,6 @@ func (s *IssueTypeService) List(workspaceID uint64, projectID *uint64) ([]respon
 	result := make([]response.IssueTypeResponse, len(types))
 	for i, t := range types {
 		result[i] = *s.buildResponse(t, t.ProjectID == nil)
-	}
-	if result == nil {
-		result = []response.IssueTypeResponse{}
 	}
 	return result, nil
 }

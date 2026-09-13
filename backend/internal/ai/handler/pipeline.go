@@ -109,7 +109,7 @@ func (h *AgentPipelineHandler) Update(c *gin.Context) {
 		PipelineDef json.RawMessage `json:"pipeline_def"`
 		Status      *string         `json:"status"`
 	}
-	c.ShouldBindJSON(&req)
+	_ = c.ShouldBindJSON(&req)
 	updates := map[string]interface{}{}
 	if req.Name != nil {
 		updates["name"] = *req.Name

@@ -44,15 +44,15 @@ function issueUrl(issueId: number) {
 // =====================================================================
 test.describe('A. Page Structure & Navigation', () => {
 
-  test('A1: Page loads with 6 tab buttons visible', async ({ page, request }) => {
+  test('A1: Page loads with 8 tab buttons visible', async ({ page, request }) => {
     await login(page, request)
     await page.goto(issueUrl(ISSUE_ID), { waitUntil: 'networkidle', timeout: 30000 })
 
     const tabs = page.locator('[data-test="tab-btn"]')
-    await expect(tabs).toHaveCount(6)
+    await expect(tabs).toHaveCount(8)
 
-    const labels = (await tabs.allTextContents()).map((s) => s.trim())
-    expect(labels).toEqual(['详情', '关联', '附件', 'Git 集成', '工时', '动态'])
+    const labels = (await tabs.allTextContents()).map((s) => s.trim().replace(/\s*\d+$/, ''))
+    expect(labels).toEqual(['详情', '关联', '附件', 'Git 集成', '工时', '动态', '🤖 AI', '聊天'])
   })
 
   test('A2: Default active tab is "Details"', async ({ page, request }) => {
@@ -70,21 +70,21 @@ test.describe('A. Page Structure & Navigation', () => {
 
     const tabs = page.locator('[data-test="tab-btn"]')
 
-    // Click "关联" tab
-    await tabs.nth(1).click()
-    await expect(tabs.nth(1)).toHaveClass(/border-indigo-500/)
+    // Jump between tabs by label so the test does not depend on tab order.
+    await tabs.filter({ hasText: '关联' }).click()
+    await expect(tabs.filter({ hasText: '关联' })).toHaveClass(/border-indigo-500/)
 
-    // Click "附件" tab
-    await tabs.nth(2).click()
-    await expect(tabs.nth(2)).toHaveClass(/border-indigo-500/)
+    await tabs.filter({ hasText: '附件' }).click()
+    await expect(tabs.filter({ hasText: '附件' })).toHaveClass(/border-indigo-500/)
 
-    // Click "工时" tab
-    await tabs.nth(3).click()
-    await expect(tabs.nth(3)).toHaveClass(/border-indigo-500/)
+    await tabs.filter({ hasText: 'Git 集成' }).click()
+    await expect(tabs.filter({ hasText: 'Git 集成' })).toHaveClass(/border-indigo-500/)
 
-    // Click "动态" tab
-    await tabs.nth(4).click()
-    await expect(tabs.nth(4)).toHaveClass(/border-indigo-500/)
+    await tabs.filter({ hasText: '工时' }).click()
+    await expect(tabs.filter({ hasText: '工时' })).toHaveClass(/border-indigo-500/)
+
+    await tabs.filter({ hasText: '动态' }).click()
+    await expect(tabs.filter({ hasText: '动态' })).toHaveClass(/border-indigo-500/)
   })
 
   test('A4: Header renders back button, type badge, issue ID, and save button', async ({ page, request }) => {
@@ -271,12 +271,13 @@ test.describe('E. Relations Tab', () => {
     expect(pageText).toContain('关联')
   })
 
-  test('E2: Sub-issues panel is visible in Details tab', async ({ page, request }) => {
+  test('E2: Sub-issues card is visible in Relations tab', async ({ page, request }) => {
     await login(page, request)
     await page.goto(issueUrl(ISSUE_ID), { waitUntil: 'networkidle', timeout: 30000 })
 
-    const pageText = await page.textContent('body')
-    expect(pageText).toContain('子工作项')
+    // Sub-issues live in the Relations tab (RelationSubIssuesCard), not the Details tab.
+    await page.locator('[data-test="tab-btn"]').filter({ hasText: '关联' }).click()
+    await expect(page.locator('[data-test="add-subissue"]')).toBeVisible({ timeout: 15000 })
   })
 
   test('E3: Relations tab shows relation content', async ({ page, request }) => {
@@ -295,11 +296,16 @@ test.describe('E. Relations Tab', () => {
     await login(page, request)
     await page.goto(issueUrl(ISSUE_ID), { waitUntil: 'networkidle', timeout: 30000 })
 
-    const pageText = await page.textContent('body')
-    expect(pageText).toContain('子工作项')
+    await page.locator('[data-test="tab-btn"]').filter({ hasText: '关联' }).click()
+    const card = page.locator('div.border-green-200').first()
+    await expect(card).toBeVisible({ timeout: 15000 })
 
-    const hasEmptyState = pageText?.includes('暂无子工作项')
-    console.log(`Sub-issues empty: ${hasEmptyState}`)
+    const cardText = (await card.textContent()) || ''
+    // The card header shows the sub-issue title and, when populated, a completed/total badge.
+    expect(cardText).toContain('子工作项')
+    const hasCount = /\d+\s*\/\s*\d+/.test(cardText)
+    const hasEmptyState = cardText.includes('暂无子工作项')
+    console.log(`Sub-issues progress badge: ${hasCount}, empty state: ${hasEmptyState}`)
   })
 
   test('E5: Relation type cards render for each type with linked issues', async ({ page, request }) => {
@@ -371,7 +377,7 @@ test.describe('F. Remaining Tabs', () => {
     await page.goto(issueUrl(ISSUE_ID), { waitUntil: 'networkidle', timeout: 30000 })
 
     const tabs = page.locator('[data-test="tab-btn"]')
-    await tabs.nth(2).click() // "附件"
+    await tabs.filter({ hasText: '附件' }).click()
     await page.waitForTimeout(1000)
 
     // Page should not crash
@@ -384,7 +390,7 @@ test.describe('F. Remaining Tabs', () => {
     await page.goto(issueUrl(ISSUE_ID), { waitUntil: 'networkidle', timeout: 30000 })
 
     const tabs = page.locator('[data-test="tab-btn"]')
-    await tabs.nth(3).click() // "工时"
+    await tabs.filter({ hasText: '工时' }).click()
     await page.waitForTimeout(1000)
 
     const bodyText = await page.textContent('body')
@@ -396,7 +402,7 @@ test.describe('F. Remaining Tabs', () => {
     await page.goto(issueUrl(ISSUE_ID), { waitUntil: 'networkidle', timeout: 30000 })
 
     const tabs = page.locator('[data-test="tab-btn"]')
-    await tabs.nth(4).click() // "动态"
+    await tabs.filter({ hasText: '动态' }).click()
     await page.waitForTimeout(2000)
 
     const bodyText = await page.textContent('body')
@@ -530,26 +536,26 @@ test.describe('I. Full User Flow', () => {
     console.log('Step 1: Page loaded')
 
     const tabs = page.locator('[data-test="tab-btn"]')
-    await expect(tabs).toHaveCount(6)
-    console.log('Step 2: 6 tabs visible')
+    await expect(tabs).toHaveCount(8)
+    console.log('Step 2: 8 tabs visible')
 
-    await tabs.nth(1).click()
+    await tabs.filter({ hasText: '关联' }).click()
     await page.waitForTimeout(1000)
     console.log('Step 3: Relations tab loaded')
 
-    await tabs.nth(2).click()
+    await tabs.filter({ hasText: '附件' }).click()
     await page.waitForTimeout(500)
     console.log('Step 4: Attachments tab loaded')
 
-    await tabs.nth(4).click()
+    await tabs.filter({ hasText: '工时' }).click()
     await page.waitForTimeout(500)
     console.log('Step 5: Time Tracking tab loaded')
 
-    await tabs.nth(5).click()
+    await tabs.filter({ hasText: '动态' }).click()
     await page.waitForTimeout(1000)
     console.log('Step 6: Activity tab loaded')
 
-    await tabs.nth(0).click()
+    await tabs.filter({ hasText: '详情' }).click()
     await page.waitForTimeout(500)
 
     console.log('=== Full user flow completed successfully ===')

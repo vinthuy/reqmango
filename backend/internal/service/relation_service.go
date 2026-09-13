@@ -63,16 +63,23 @@ func (s *RelationService) ListTypes(workspaceID uint64) ([]response.RelationType
 	for i, t := range types {
 		result[i] = response.RelationTypeResponse{ID: t.ID, Name: t.Name, InwardName: t.InwardName, OutwardName: t.OutwardName, WorkspaceID: t.WorkspaceID, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt}
 	}
-	if result == nil { result = []response.RelationTypeResponse{} }
 	return result, nil
 }
 
 func (s *RelationService) UpdateType(id, userID uint64, req request.RelationTypeUpdate) (*response.RelationTypeResponse, error) {
 	var t model.RelationType
-	if err := s.db.First(&t, id).Error; err != nil { return nil, common.NotFound("Relation type not found") }
-	if req.Name != nil { t.Name = *req.Name }
-	if req.InwardName != nil { t.InwardName = *req.InwardName }
-	if req.OutwardName != nil { t.OutwardName = *req.OutwardName }
+	if err := s.db.First(&t, id).Error; err != nil {
+		return nil, common.NotFound("Relation type not found")
+	}
+	if req.Name != nil {
+		t.Name = *req.Name
+	}
+	if req.InwardName != nil {
+		t.InwardName = *req.InwardName
+	}
+	if req.OutwardName != nil {
+		t.OutwardName = *req.OutwardName
+	}
 	t.UpdatedByID = &userID
 	s.db.Save(&t)
 	return &response.RelationTypeResponse{ID: t.ID, Name: t.Name, InwardName: t.InwardName, OutwardName: t.OutwardName, WorkspaceID: t.WorkspaceID, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt}, nil
@@ -80,8 +87,12 @@ func (s *RelationService) UpdateType(id, userID uint64, req request.RelationType
 
 func (s *RelationService) DeleteType(id, callerID uint64) error {
 	var t model.RelationType
-	if err := s.db.First(&t, id).Error; err != nil { return common.NotFound("Relation type not found") }
-	if err := s.checkWorkspaceAdmin(t.WorkspaceID, callerID); err != nil { return err }
+	if err := s.db.First(&t, id).Error; err != nil {
+		return common.NotFound("Relation type not found")
+	}
+	if err := s.checkWorkspaceAdmin(t.WorkspaceID, callerID); err != nil {
+		return err
+	}
 	s.db.Where("relation_type_id = ?", id).Delete(&model.IssueRelation{})
 	return s.db.Delete(&t).Error
 }
@@ -90,19 +101,31 @@ func (s *RelationService) DeleteType(id, callerID uint64) error {
 
 func (s *RelationService) CreateRelation(issueID, callerID uint64, req request.IssueRelationCreate) (*response.IssueRelationResponse, error) {
 	var issue model.Issue
-	if err := s.db.First(&issue, issueID).Error; err != nil { return nil, common.NotFound("Issue not found") }
-	if err := s.checkProjectMembership(issue.ProjectID, callerID); err != nil { return nil, err }
+	if err := s.db.First(&issue, issueID).Error; err != nil {
+		return nil, common.NotFound("Issue not found")
+	}
+	if err := s.checkProjectMembership(issue.ProjectID, callerID); err != nil {
+		return nil, err
+	}
 	var related model.Issue
-	if err := s.db.Preload("Project").First(&related, req.RelatedIssueID).Error; err != nil { return nil, common.NotFound("Related issue not found") }
+	if err := s.db.Preload("Project").First(&related, req.RelatedIssueID).Error; err != nil {
+		return nil, common.NotFound("Related issue not found")
+	}
 	var rt model.RelationType
-	if err := s.db.First(&rt, req.RelationTypeID).Error; err != nil { return nil, common.NotFound("Relation type not found") }
+	if err := s.db.First(&rt, req.RelationTypeID).Error; err != nil {
+		return nil, common.NotFound("Relation type not found")
+	}
 
 	var count int64
 	s.db.Model(&model.IssueRelation{}).Where("issue_id = ? AND related_issue_id = ? AND relation_type_id = ?", issueID, req.RelatedIssueID, req.RelationTypeID).Count(&count)
-	if count > 0 { return nil, common.Conflict("Relation already exists") }
+	if count > 0 {
+		return nil, common.Conflict("Relation already exists")
+	}
 
 	r := model.IssueRelation{IssueID: issueID, RelatedIssueID: req.RelatedIssueID, RelationTypeID: req.RelationTypeID, Comment: req.Comment}
-	if err := s.db.Create(&r).Error; err != nil { return nil, common.Internal("Failed to create relation") }
+	if err := s.db.Create(&r).Error; err != nil {
+		return nil, common.Internal("Failed to create relation")
+	}
 
 	// Record activity on both issues
 	relName := rt.OutwardName
@@ -111,7 +134,7 @@ func (s *RelationService) CreateRelation(issueID, callerID uint64, req request.I
 
 	resp := &response.IssueRelationResponse{
 		ID: r.ID, IssueID: r.IssueID, RelatedIssueID: r.RelatedIssueID, RelationTypeID: r.RelationTypeID, Comment: r.Comment,
-		Direction: "outbound",
+		Direction:    "outbound",
 		RelationName: rt.Name, InwardName: rt.InwardName, OutwardName: rt.OutwardName,
 		RelatedName: related.Name, RelatedSeqID: related.SequenceID, RelatedProject: related.Project.Identifier,
 		RelationType: &response.RelationTypeLite{
@@ -153,7 +176,7 @@ func (s *RelationService) listRelationsByDirection(issueID uint64, direction str
 	if direction == "inbound" || direction == "both" {
 		var inbound []model.IssueRelation
 		if err := s.db.Preload("RelationType").
-			Preload("Issue.State").       // The source issue (who relates to me)
+			Preload("Issue.State"). // The source issue (who relates to me)
 			Preload("Issue.IssueType").
 			Preload("Issue.AssigneeLinks.User").
 			Where("related_issue_id = ?", issueID).Find(&inbound).Error; err != nil {
@@ -249,9 +272,13 @@ func (s *RelationService) DeleteRelation(relationID, callerID uint64) error {
 	if err := s.db.Preload("RelationType").Preload("Issue").Preload("RelatedIssue").First(&rel, relationID).Error; err != nil {
 		return common.NotFound("Relation not found")
 	}
-	if err := s.checkProjectMembership(rel.Issue.ProjectID, callerID); err != nil { return err }
+	if err := s.checkProjectMembership(rel.Issue.ProjectID, callerID); err != nil {
+		return err
+	}
 	result := s.db.Delete(&model.IssueRelation{}, relationID)
-	if result.RowsAffected == 0 { return common.NotFound("Relation not found") }
+	if result.RowsAffected == 0 {
+		return common.NotFound("Relation not found")
+	}
 
 	// Record activity on both issues
 	relName := rel.RelationType.OutwardName

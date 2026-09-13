@@ -4,6 +4,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"time"
 
@@ -11,7 +13,12 @@ import (
 )
 
 func main() {
-	secret := "change-me-in-production-use-a-long-random-string"
+	// Never hardcode a signing key here: this helper must use the same SECRET_KEY
+	// the server is configured with, or it would hand out forgeable tokens.
+	secret := os.Getenv("SECRET_KEY")
+	if secret == "" {
+		log.Fatal("SECRET_KEY is not set; export the same value the server uses")
+	}
 	userID := uint64(4)
 	expiresAt := time.Now().Add(24 * time.Hour)
 

@@ -39,13 +39,13 @@ func (h *ProjectPageTabHandler) List(c *gin.Context) {
 }
 
 type createTabRequest struct {
-	Name       string `json:"name" binding:"required"`
-	Icon       string `json:"icon"`
-	TabType    string `json:"tab_type"`
-	RouteKey   string `json:"route_key"`
-	TargetType string `json:"target_type"`
+	Name       string  `json:"name" binding:"required"`
+	Icon       string  `json:"icon"`
+	TabType    string  `json:"tab_type"`
+	RouteKey   string  `json:"route_key"`
+	TargetType string  `json:"target_type"`
 	TargetID   *uint64 `json:"target_id"`
-	TargetURL  string `json:"target_url"`
+	TargetURL  string  `json:"target_url"`
 }
 
 // Create adds a new page tab.
@@ -63,16 +63,16 @@ func (h *ProjectPageTabHandler) Create(c *gin.Context) {
 	}
 	userID := middleware.GetUserID(c)
 	tab := &model.ProjectPageTab{
-		ProjectID: projectID,
-		OwnerID:   userID,
-		Name:      req.Name,
-		Icon:      req.Icon,
-		TabType:   req.TabType,
-		RouteKey:  req.RouteKey,
+		ProjectID:  projectID,
+		OwnerID:    userID,
+		Name:       req.Name,
+		Icon:       req.Icon,
+		TabType:    req.TabType,
+		RouteKey:   req.RouteKey,
 		TargetType: req.TargetType,
-		TargetID:  req.TargetID,
-		TargetURL: req.TargetURL,
-		Visible:   true,
+		TargetID:   req.TargetID,
+		TargetURL:  req.TargetURL,
+		Visible:    true,
 	}
 	if tab.TabType == "" {
 		tab.TabType = "custom"

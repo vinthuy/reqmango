@@ -210,7 +210,7 @@ func (e *WorkflowExecutor) executeNode(runID uint64, node *WorkflowNodeResponse,
 				"cost":         cost,
 			})
 
-		e.decisionSvc.Record(&AgentDecisionRecord{
+		_ = e.decisionSvc.Record(&AgentDecisionRecord{
 			AgentID:       node.AgentID,
 			WorkflowRunID: &runID,
 			NodeType:      node.NodeType,
@@ -259,11 +259,11 @@ func (e *WorkflowExecutor) executeNode(runID uint64, node *WorkflowNodeResponse,
 
 	// Record cost against the project budget
 	if cost > 0 && projectID > 0 {
-		e.budgetSvc.RecordCost(projectID, cost)
+		_ = e.budgetSvc.RecordCost(projectID, cost)
 	}
 
 	// Record decision audit
-	e.decisionSvc.Record(&AgentDecisionRecord{
+	_ = e.decisionSvc.Record(&AgentDecisionRecord{
 		AgentID:       node.AgentID,
 		WorkflowRunID: &runID,
 		NodeType:      node.NodeType,
@@ -352,7 +352,7 @@ func (e *WorkflowExecutor) executeConditionNode(runID uint64, node *WorkflowNode
 			"output_context": outputCtxJSON,
 		})
 
-	e.decisionSvc.Record(&AgentDecisionRecord{
+	_ = e.decisionSvc.Record(&AgentDecisionRecord{
 		AgentID:       node.AgentID,
 		WorkflowRunID: &runID,
 		NodeType:      node.NodeType,

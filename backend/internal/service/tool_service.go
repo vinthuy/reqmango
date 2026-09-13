@@ -291,14 +291,14 @@ func (s *ToolService) Delete(id uint64) error {
 
 func (s *ToolService) executeCreateIssue(params json.RawMessage) (interface{}, error) {
 	var input struct {
-		WorkspaceID   uint64 `json:"workspace_id"`
-		ProjectID     uint64 `json:"project_id"`
-		Name          string `json:"name"`
-		Description   string `json:"description"`
-		Priority      string `json:"priority"`
-		StateID       *uint64 `json:"state_id"`
-		IssueTypeID   *uint64 `json:"issue_type_id"`
-		ParentID      *uint64 `json:"parent_id"`
+		WorkspaceID uint64  `json:"workspace_id"`
+		ProjectID   uint64  `json:"project_id"`
+		Name        string  `json:"name"`
+		Description string  `json:"description"`
+		Priority    string  `json:"priority"`
+		StateID     *uint64 `json:"state_id"`
+		IssueTypeID *uint64 `json:"issue_type_id"`
+		ParentID    *uint64 `json:"parent_id"`
 	}
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, common.BadRequest("Invalid params")
@@ -307,14 +307,14 @@ func (s *ToolService) executeCreateIssue(params json.RawMessage) (interface{}, e
 		return nil, common.BadRequest("workspace_id, project_id, and name are required")
 	}
 	issue := model.Issue{
-		Name:          input.Name,
+		Name:            input.Name,
 		DescriptionHTML: input.Description,
-		Priority:      input.Priority,
-		ProjectID:     input.ProjectID,
-		WorkspaceID:   input.WorkspaceID,
-		StateID:       derefUint64(input.StateID),
-		IssueTypeID:   input.IssueTypeID,
-		ParentID:      input.ParentID,
+		Priority:        input.Priority,
+		ProjectID:       input.ProjectID,
+		WorkspaceID:     input.WorkspaceID,
+		StateID:         derefUint64(input.StateID),
+		IssueTypeID:     input.IssueTypeID,
+		ParentID:        input.ParentID,
 	}
 	if issue.Priority == "" {
 		issue.Priority = "none"
@@ -368,11 +368,11 @@ func (s *ToolService) executeUpdateIssue(params json.RawMessage) (interface{}, e
 
 func (s *ToolService) executeListIssues(params json.RawMessage) (interface{}, error) {
 	var input struct {
-		ProjectID   uint64 `json:"project_id"`
-		StateID     *uint64 `json:"state_id"`
-		Priority    string `json:"priority"`
-		AssigneeID  *uint64 `json:"assignee_id"`
-		Limit       int    `json:"limit"`
+		ProjectID  uint64  `json:"project_id"`
+		StateID    *uint64 `json:"state_id"`
+		Priority   string  `json:"priority"`
+		AssigneeID *uint64 `json:"assignee_id"`
+		Limit      int     `json:"limit"`
 	}
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, common.BadRequest("Invalid params")
@@ -420,7 +420,7 @@ func githubJSON(method, url string, body interface{}) (map[string]interface{}, e
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	raw, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
@@ -706,7 +706,7 @@ func (s *ToolService) executeAPITool(tool *model.Tool, params json.RawMessage) (
 	if err != nil {
 		return nil, fmt.Errorf("API request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

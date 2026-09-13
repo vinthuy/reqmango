@@ -130,9 +130,8 @@ func (h *WorkflowHandler) ExecuteWorkflow(c *gin.Context) {
 		IssueID *uint64 `json:"issue_id"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		// Allow empty body
-	}
+	// The body is optional: an empty or malformed body simply means no issue_id.
+	_ = c.ShouldBindJSON(&req)
 
 	run, err := h.workflowSvc.ExecuteWorkflow(workflowID, req.IssueID)
 	if err != nil {
@@ -142,7 +141,7 @@ func (h *WorkflowHandler) ExecuteWorkflow(c *gin.Context) {
 
 	// Execute in background with the invoking user's identity (for agent permission checks)
 	userID := middleware.GetUserID(c)
-	go h.executor.Execute(run.ID, userID)
+	go func() { _ = h.executor.Execute(run.ID, userID) }()
 
 	c.JSON(http.StatusAccepted, run)
 }

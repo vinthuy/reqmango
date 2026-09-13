@@ -11,18 +11,18 @@ import (
 // Supports hierarchical levels (L0-L5) via Level + ParentTypeID fields.
 type IssueType struct {
 	BaseModel
-	Name               string          `gorm:"type:varchar(100);not null" json:"name"`
-	Color              string          `gorm:"type:varchar(20);default:'#6366F1'" json:"color"`
-	Icon               string          `gorm:"type:varchar(50);default:'circle'" json:"icon"`
-	Description        string          `gorm:"type:text" json:"description"`
-	Level              int             `gorm:"default:0" json:"level"`           // L0-L5, 0=top-level (Epic)
-	ParentTypeID       *uint64         `gorm:"index" json:"parent_type_id"`    // parent type in hierarchy
+	Name                string          `gorm:"type:varchar(100);not null" json:"name"`
+	Color               string          `gorm:"type:varchar(20);default:'#6366F1'" json:"color"`
+	Icon                string          `gorm:"type:varchar(50);default:'circle'" json:"icon"`
+	Description         string          `gorm:"type:text" json:"description"`
+	Level               int             `gorm:"default:0" json:"level"`                   // L0-L5, 0=top-level (Epic)
+	ParentTypeID        *uint64         `gorm:"index" json:"parent_type_id"`              // parent type in hierarchy
 	AllowedChildTypeIDs JSONUint64Array `gorm:"type:jsonb" json:"allowed_child_type_ids"` // [2, 3, 5] — allowed child type IDs
-	IsDefault          bool            `gorm:"default:false" json:"is_default"`
-	Sequence           int             `gorm:"default:1" json:"sequence"`
-	IsActive           bool            `gorm:"default:true" json:"is_active"`
-	ProjectID          *uint64         `gorm:"index" json:"project_id"`
-	WorkspaceID        uint64          `gorm:"not null;index" json:"workspace_id"`
+	IsDefault           bool            `gorm:"default:false" json:"is_default"`
+	Sequence            int             `gorm:"default:1" json:"sequence"`
+	IsActive            bool            `gorm:"default:true" json:"is_active"`
+	ProjectID           *uint64         `gorm:"index" json:"project_id"`
+	WorkspaceID         uint64          `gorm:"not null;index" json:"workspace_id"`
 
 	// Relationships
 	Workspace  Workspace        `gorm:"foreignKey:WorkspaceID" json:"-"`

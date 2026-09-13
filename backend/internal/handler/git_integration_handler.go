@@ -47,17 +47,17 @@ func (h *GitIntegrationHandler) CreateIntegration(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":              integration.ID,
-		"project_id":      integration.ProjectID,
-		"provider":        integration.Provider,
-		"repo_url":        integration.RepoURL,
-		"repo_name":       integration.RepoName,
-		"active":          integration.Active,
-		"sync_prs":        integration.SyncPRs,
-		"sync_commits":    integration.SyncCommits,
-		"sync_branches":   integration.SyncBranches,
-		"created_at":      integration.CreatedAt,
-		"updated_at":      integration.UpdatedAt,
+		"id":            integration.ID,
+		"project_id":    integration.ProjectID,
+		"provider":      integration.Provider,
+		"repo_url":      integration.RepoURL,
+		"repo_name":     integration.RepoName,
+		"active":        integration.Active,
+		"sync_prs":      integration.SyncPRs,
+		"sync_commits":  integration.SyncCommits,
+		"sync_branches": integration.SyncBranches,
+		"created_at":    integration.CreatedAt,
+		"updated_at":    integration.UpdatedAt,
 	})
 }
 
@@ -79,17 +79,17 @@ func (h *GitIntegrationHandler) GetIntegration(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":              integration.ID,
-		"project_id":      integration.ProjectID,
-		"provider":        integration.Provider,
-		"repo_url":        integration.RepoURL,
-		"repo_name":       integration.RepoName,
-		"active":          integration.Active,
-		"sync_prs":        integration.SyncPRs,
-		"sync_commits":    integration.SyncCommits,
-		"sync_branches":   integration.SyncBranches,
-		"created_at":      integration.CreatedAt,
-		"updated_at":      integration.UpdatedAt,
+		"id":            integration.ID,
+		"project_id":    integration.ProjectID,
+		"provider":      integration.Provider,
+		"repo_url":      integration.RepoURL,
+		"repo_name":     integration.RepoName,
+		"active":        integration.Active,
+		"sync_prs":      integration.SyncPRs,
+		"sync_commits":  integration.SyncCommits,
+		"sync_branches": integration.SyncBranches,
+		"created_at":    integration.CreatedAt,
+		"updated_at":    integration.UpdatedAt,
 	})
 }
 
@@ -117,17 +117,17 @@ func (h *GitIntegrationHandler) UpdateIntegration(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":              integration.ID,
-		"project_id":      integration.ProjectID,
-		"provider":        integration.Provider,
-		"repo_url":        integration.RepoURL,
-		"repo_name":       integration.RepoName,
-		"active":          integration.Active,
-		"sync_prs":        integration.SyncPRs,
-		"sync_commits":    integration.SyncCommits,
-		"sync_branches":   integration.SyncBranches,
-		"created_at":      integration.CreatedAt,
-		"updated_at":      integration.UpdatedAt,
+		"id":            integration.ID,
+		"project_id":    integration.ProjectID,
+		"provider":      integration.Provider,
+		"repo_url":      integration.RepoURL,
+		"repo_name":     integration.RepoName,
+		"active":        integration.Active,
+		"sync_prs":      integration.SyncPRs,
+		"sync_commits":  integration.SyncCommits,
+		"sync_branches": integration.SyncBranches,
+		"created_at":    integration.CreatedAt,
+		"updated_at":    integration.UpdatedAt,
 	})
 }
 

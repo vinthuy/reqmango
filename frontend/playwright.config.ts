@@ -5,7 +5,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Defaulting to the CPU count spawns one worker per core *per browser project*
+  // (12+ parallel browsers against a single backend + vite preview), which made the
+  // dev servers starve and produced timeout-only failures. Two workers keeps the
+  // suite honest locally; CI stays serial.
+  workers: process.env.CI ? 1 : 2,
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:5173',

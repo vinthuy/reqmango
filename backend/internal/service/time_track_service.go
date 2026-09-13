@@ -22,10 +22,10 @@ func (s *TimeTrackService) Start(issueID, userID uint64, req *request.TimeTrackS
 		Updates(map[string]interface{}{"ended_at": gorm.Expr("NOW()"), "duration": gorm.Expr("EXTRACT(EPOCH FROM NOW() - started_at)")})
 
 	t := &model.TimeTrack{
-		IssueID:   issueID,
-		UserID:    userID,
+		IssueID:     issueID,
+		UserID:      userID,
 		Description: req.Description,
-		StartedAt: time.Now(),
+		StartedAt:   time.Now(),
 	}
 	if err := s.db.Create(t).Error; err != nil {
 		return nil, common.Internal("Failed to start timer")
@@ -86,7 +86,9 @@ func (s *TimeTrackService) Summary(issueID uint64) (*response.TimeTrackSummary, 
 // Delete removes a time entry.
 func (s *TimeTrackService) Delete(id, userID uint64) error {
 	r := s.db.Where("id = ? AND user_id = ?", id, userID).Delete(&model.TimeTrack{})
-	if r.RowsAffected == 0 { return common.NotFound("Time entry not found") }
+	if r.RowsAffected == 0 {
+		return common.NotFound("Time entry not found")
+	}
 	return r.Error
 }
 

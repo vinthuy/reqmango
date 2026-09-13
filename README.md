@@ -48,9 +48,10 @@ psql -U postgres -c "CREATE DATABASE reqmango;"
 cd backend
 
 # Create environment configuration file
+# SECRET_KEY signs JWTs -- generate it with: openssl rand -hex 32
 cat > .env << EOF
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/reqmango?sslmode=disable
-SECRET_KEY=change-me-in-production-use-a-long-random-string
+SECRET_KEY=$(openssl rand -hex 32)
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 PORT=8000
 DEBUG=true

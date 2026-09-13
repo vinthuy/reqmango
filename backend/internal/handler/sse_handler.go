@@ -40,7 +40,7 @@ func (h *SSEHandler) Connect(c *gin.Context) {
 	defer service.SSE.Unregister(client)
 
 	// Send connected event
-	fmt.Fprintf(c.Writer, "event: connected\ndata: {\"message\":\"SSE connected\"}\n\n")
+	_, _ = fmt.Fprintf(c.Writer, "event: connected\ndata: {\"message\":\"SSE connected\"}\n\n")
 	c.Writer.Flush()
 
 	ctx := c.Request.Context()
@@ -49,8 +49,10 @@ func (h *SSEHandler) Connect(c *gin.Context) {
 		case <-ctx.Done():
 			return
 		case msg, ok := <-client.Ch:
-			if !ok { return }
-			io.WriteString(c.Writer, msg)
+			if !ok {
+				return
+			}
+			_, _ = io.WriteString(c.Writer, msg)
 			c.Writer.Flush()
 		}
 	}

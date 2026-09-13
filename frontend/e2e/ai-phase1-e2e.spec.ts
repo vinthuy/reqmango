@@ -157,24 +157,20 @@ test.describe('AI Phase 1 — Agent Automation + Unified Copilot + Result Action
     await page.goto(BASE + '/workspace/reqmango-dev/project/15')
     await page.waitForTimeout(3000)
 
-    // Open AI Copilot via FAB button
-    const fab = page.locator('button[title*="AI"]').first()
-    if (await fab.isVisible().catch(() => false)) {
-      await fab.click()
-      await page.waitForTimeout(1000)
+    // Open the copilot the same way the other passing tests do.
+    await page.keyboard.press('Control+KeyJ')
+    await page.waitForTimeout(1000)
 
-      // Switch to Create tab
-      const createTab = page.locator('button:has-text("Create"), button:has-text("创建")').first()
-      if (await createTab.isVisible().catch(() => false)) {
-        await createTab.click()
-        await page.waitForTimeout(500)
-      }
+    // Tab buttons expose their label through the title attribute; matching on text
+    // would also hit the disabled submit button of the active panel.
+    const createTab = page.locator('button[title="创建"], button[title="Create"]').first()
+    await expect(createTab).toBeVisible({ timeout: 10000 })
+    await createTab.click()
 
-      const body = await page.textContent('body')
-      console.log(`Create mode visible: ${body?.includes('Generate Preview') || body?.includes('生成预览') || body?.includes('Preview') || body?.includes('预览')}`)
-    } else {
-      console.log('AI FAB button not found')
-    }
+    // Create mode shows its own "generate preview" action.
+    await expect(
+      page.locator('button:has-text("生成预览"), button:has-text("Generate Preview")').first()
+    ).toBeVisible({ timeout: 10000 })
   })
 
   test('AI08: AI Copilot quick action buttons visible', async ({ page, request }) => {

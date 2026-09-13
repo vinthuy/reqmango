@@ -61,9 +61,9 @@ func (s *PageVersionService) Restore(pageID uint64, versionNumber int, userID ui
 
 	// Update the page with version content
 	updates := map[string]interface{}{
-		"title":       v.Title,
-		"content":     v.Content,
-		"content_json": v.ContentJSON,
+		"title":         v.Title,
+		"content":       v.Content,
+		"content_json":  v.ContentJSON,
 		"updated_by_id": userID,
 	}
 	if err := s.db.Model(&model.Page{}).Where("id = ?", pageID).Updates(updates).Error; err != nil {

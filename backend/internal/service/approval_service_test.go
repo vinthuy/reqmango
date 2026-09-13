@@ -23,7 +23,8 @@ func newApprovalTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 
 func TestApprovalService_Create_Success(t *testing.T) {
 	db, mock := newApprovalTestDB(t)
-	defer db.DB()
+	sqlDB, _ := db.DB()
+	defer func() { _ = sqlDB.Close() }()
 
 	// Mock: count existing pending approvals = 0
 	mock.ExpectQuery(`SELECT count`).
@@ -67,7 +68,8 @@ func TestApprovalService_Create_Success(t *testing.T) {
 
 func TestApprovalService_Create_DuplicatePending(t *testing.T) {
 	db, mock := newApprovalTestDB(t)
-	defer db.DB()
+	sqlDB, _ := db.DB()
+	defer func() { _ = sqlDB.Close() }()
 
 	mock.ExpectQuery(`SELECT count`).
 		WithArgs(uint64(1), "pending").
@@ -80,7 +82,8 @@ func TestApprovalService_Create_DuplicatePending(t *testing.T) {
 
 func TestApprovalService_Decide_Approve(t *testing.T) {
 	db, mock := newApprovalTestDB(t)
-	defer db.DB()
+	sqlDB, _ := db.DB()
+	defer func() { _ = sqlDB.Close() }()
 
 	// Mock: get approval
 	approverIDs := `[2,3]`
@@ -119,7 +122,8 @@ func TestApprovalService_Decide_Approve(t *testing.T) {
 
 func TestApprovalService_Decide_NotInApprovers(t *testing.T) {
 	db, mock := newApprovalTestDB(t)
-	defer db.DB()
+	sqlDB, _ := db.DB()
+	defer func() { _ = sqlDB.Close() }()
 
 	approverIDs := `[2,3]`
 	mock.ExpectQuery(`SELECT .* FROM "approvals"`).
@@ -134,7 +138,8 @@ func TestApprovalService_Decide_NotInApprovers(t *testing.T) {
 
 func TestApprovalService_Cancel_Success(t *testing.T) {
 	db, mock := newApprovalTestDB(t)
-	defer db.DB()
+	sqlDB, _ := db.DB()
+	defer func() { _ = sqlDB.Close() }()
 
 	mock.ExpectQuery(`SELECT .* FROM "approvals"`).
 		WithArgs(uint64(1), 1).
@@ -160,7 +165,8 @@ func TestApprovalService_Cancel_Success(t *testing.T) {
 
 func TestApprovalService_Cancel_NotRequester(t *testing.T) {
 	db, mock := newApprovalTestDB(t)
-	defer db.DB()
+	sqlDB, _ := db.DB()
+	defer func() { _ = sqlDB.Close() }()
 
 	mock.ExpectQuery(`SELECT .* FROM "approvals"`).
 		WithArgs(uint64(1), 1).

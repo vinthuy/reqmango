@@ -5,10 +5,10 @@ import (
 )
 
 type CycleAutomation struct {
-	AutoAddEnabled bool   `gorm:"default:false" json:"auto_add_enabled"`
-	AutoAddRQL     string `gorm:"size:1000" json:"auto_add_rql"`
-	AutoCloseEnabled bool `gorm:"default:false" json:"auto_close_enabled"`
-	AutoProgressEnabled bool `gorm:"default:false" json:"auto_progress_enabled"`
+	AutoAddEnabled      bool   `gorm:"default:false" json:"auto_add_enabled"`
+	AutoAddRQL          string `gorm:"size:1000" json:"auto_add_rql"`
+	AutoCloseEnabled    bool   `gorm:"default:false" json:"auto_close_enabled"`
+	AutoProgressEnabled bool   `gorm:"default:false" json:"auto_progress_enabled"`
 }
 
 // Cycle represents an iteration/sprint cycle.

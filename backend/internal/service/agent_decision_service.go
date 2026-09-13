@@ -33,18 +33,18 @@ type AgentDecisionRecord struct {
 
 // AgentDecisionResponse represents a decision record in API response.
 type AgentDecisionResponse struct {
-	ID            uint64   `json:"id"`
-	AgentID       uint64   `json:"agent_id"`
-	AgentName     string   `json:"agent_name"`
-	IssueID       *uint64  `json:"issue_id"`
-	AgentTaskID   *uint64  `json:"agent_task_id"`
-	WorkflowRunID *uint64  `json:"workflow_run_id"`
-	NodeType      string   `json:"node_type"`
-	Thinking      string   `json:"thinking"`
-	Decision      string   `json:"decision"`
-	Reasoning     string   `json:"reasoning"`
-	Alternatives  []string `json:"alternatives"`
-	Confidence    float64  `json:"confidence"`
+	ID            uint64    `json:"id"`
+	AgentID       uint64    `json:"agent_id"`
+	AgentName     string    `json:"agent_name"`
+	IssueID       *uint64   `json:"issue_id"`
+	AgentTaskID   *uint64   `json:"agent_task_id"`
+	WorkflowRunID *uint64   `json:"workflow_run_id"`
+	NodeType      string    `json:"node_type"`
+	Thinking      string    `json:"thinking"`
+	Decision      string    `json:"decision"`
+	Reasoning     string    `json:"reasoning"`
+	Alternatives  []string  `json:"alternatives"`
+	Confidence    float64   `json:"confidence"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 
@@ -116,7 +116,7 @@ func (s *AgentDecisionService) ListByIssue(issueID uint64) ([]AgentDecisionRespo
 
 		// Parse alternatives
 		if r.Alternatives != nil {
-			json.Unmarshal(r.Alternatives, &resp.Alternatives)
+			_ = json.Unmarshal(r.Alternatives, &resp.Alternatives)
 		}
 
 		result = append(result, resp)
@@ -177,7 +177,7 @@ func (s *AgentDecisionService) ListByTask(taskID uint64) ([]AgentDecisionRespons
 
 		// Parse alternatives
 		if r.Alternatives != nil {
-			json.Unmarshal(r.Alternatives, &resp.Alternatives)
+			_ = json.Unmarshal(r.Alternatives, &resp.Alternatives)
 		}
 
 		result = append(result, resp)
@@ -243,7 +243,7 @@ func (s *AgentDecisionService) ListByProject(projectID uint64, limit int) ([]Age
 		resp.AgentName = agentName
 
 		if r.Alternatives != nil {
-			json.Unmarshal(r.Alternatives, &resp.Alternatives)
+			_ = json.Unmarshal(r.Alternatives, &resp.Alternatives)
 		}
 
 		result = append(result, resp)

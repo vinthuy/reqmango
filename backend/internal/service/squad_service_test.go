@@ -25,7 +25,7 @@ func TestCancelExecution_RemovesFromStore(t *testing.T) {
 	// CancelExecution will: call cancel func, delete from store, then try DB (panic).
 	// Use recover to handle the expected panic from nil DB access.
 	func() {
-		defer func() { recover() }() // swallow expected panic from nil db
+		defer func() { _ = recover() }() // swallow expected panic from nil db
 		_ = svc.CancelExecution(1)
 	}()
 	assert.True(t, called, "cancel func should have been called")

@@ -43,12 +43,12 @@ func TestStateMachine_InvalidTransitions(t *testing.T) {
 		from LoopState
 		to   LoopState
 	}{
-		{StateIdle, StateCompleted},   // cannot go straight to completed
-		{StateIdle, StateActing},      // must go through planning
-		{StatePlanning, StateIdle},    // no backward
-		{StateCompleted, StateIdle},   // terminal cannot transition
-		{StateFailed, StatePlanning},  // terminal cannot transition
-		{StateActing, StatePlanning},  // no backward
+		{StateIdle, StateCompleted},  // cannot go straight to completed
+		{StateIdle, StateActing},     // must go through planning
+		{StatePlanning, StateIdle},   // no backward
+		{StateCompleted, StateIdle},  // terminal cannot transition
+		{StateFailed, StatePlanning}, // terminal cannot transition
+		{StateActing, StatePlanning}, // no backward
 	}
 	for _, pair := range invalidPairs {
 		t.Run(string(pair.from)+" -> "+string(pair.to), func(t *testing.T) {
@@ -115,13 +115,13 @@ func TestStateMachine_MultipleLoops(t *testing.T) {
 	finish := []LoopState{StateCompleted}
 
 	for _, to := range loop1 {
-		sm.Transition(to)
+		_ = sm.Transition(to)
 	}
 	for _, to := range loop2 {
-		sm.Transition(to)
+		_ = sm.Transition(to)
 	}
 	for _, to := range finish {
-		sm.Transition(to)
+		_ = sm.Transition(to)
 	}
 
 	if sm.Current() != StateCompleted {

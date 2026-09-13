@@ -111,7 +111,7 @@ func (h *AgentLoopHandler) Update(c *gin.Context) {
 		LoopDef     json.RawMessage `json:"loop_def"`
 		Status      *string         `json:"status"`
 	}
-	c.ShouldBindJSON(&req)
+	_ = c.ShouldBindJSON(&req)
 	loop, err := h.svc.UpdateLoop(wsID, id, req.Name, req.Description, req.LoopDef, req.Status)
 	if err != nil {
 		if ae, ok := err.(*common.AppError); ok {

@@ -19,8 +19,12 @@ import (
 // msg returns a translated message for the given i18n key.
 func msg(c *gin.Context, key, fallback string) string {
 	lang := i18n.DetectLanguage(c.GetHeader("Accept-Language"))
-	if ql := c.Query("lang"); ql != "" { lang = ql }
-	if translated := i18n.T(lang, key); translated != key { return translated }
+	if ql := c.Query("lang"); ql != "" {
+		lang = ql
+	}
+	if translated := i18n.T(lang, key); translated != key {
+		return translated
+	}
 	return fallback
 }
 
@@ -131,7 +135,11 @@ func GetCurrentUser(c *gin.Context) *model.User {
 // GetUserID extracts the current user's ID from the Gin context.
 func GetUserID(c *gin.Context) uint64 {
 	user, exists := c.Get("currentUser")
-	if !exists { return 0 }
-	if u, ok := user.(*model.User); ok { return u.ID }
+	if !exists {
+		return 0
+	}
+	if u, ok := user.(*model.User); ok {
+		return u.ID
+	}
 	return 0
 }

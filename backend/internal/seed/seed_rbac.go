@@ -153,7 +153,7 @@ func SeedRBACData(db *gorm.DB) {
 				permsToAdd = append(permsToAdd, model.Permission{BaseModel: model.BaseModel{ID: pid}})
 			}
 		}
-		db.Model(&dr.role).Association("Permissions").Replace(permsToAdd)
+		_ = db.Model(&dr.role).Association("Permissions").Replace(permsToAdd)
 	}
 
 	fmt.Println("RBAC seed complete: 3 default roles with granular permissions")

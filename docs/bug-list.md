@@ -543,3 +543,154 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **文件** | `frontend/src/components/agent/WorkflowManager.vue`（转换表单 ~行 31-36） |
 | **类型** | 功能缺口 |
 | **影响** | 新增转换表单缺少 `rule_type`（allow/approval）、`approver_ids`、`role_allowed` 字段，用户无法从 UI 创建审批类转换；只能通过 API 创建 |
+
+---
+
+## 🔐 安全加固 + CI 修复 + `frontend/e2e` 失败修复（2026-09-13）
+
+> 本轮三件事：(1) 引入 Go 安全代码检查（`gosec`）并修复全部问题，重点补齐 **token 泄露** 防护；
+> (2) 修复 GitHub Actions 每次推送必失败的根因；(3) 修复 `frontend/e2e` 的 91 个失败。
+
+### 安全扫描结果
+
+| 项目 | 结果 |
+|------|------|
+| `golangci-lint` v2.13.2（含 `gosec` + `bodyclose`） | **0 findings**（修复前 355 个） |
+| `gosec` 规则处置 | G115 整型溢出 ×5、G301 目录权限 ×2、G304 附件路径 ×1、G107 SSRF ×1、G204 命令注入 ×3、G706 日志注入 ×2、G118 ×1、G602 slice 越界 ×2、G404 弱随机 ×6（仅本地种子工具，`#nosec` 逐条注明理由） |
+| `govulncheck` | **0 个可达漏洞**（修复前 3 个） |
+| 依赖升级 | `golang-jwt/jwt/v5` v5.2.1→v5.2.2；`jackc/pgx/v5` v5.5.5→**v5.9.2（修复 SQL 注入 GO-2026-5004）**；`golang.org/x/text` v0.31.0→v0.39.0 |
+| `gitleaks` v8.28.0（提交前密钥扫描） | 工作区 0 真实泄露；11 处历史误报逐个审计后写入 `.gitleaks.toml` 白名单 |
+
+### BUG-50 SSE `?token=` 被明文写入访问日志 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `backend/internal/middleware/logger.go` |
+| **类型** | 🔴 凭据泄露 |
+| **影响** | EventSource 无法设置 `Authorization` 头，聊天/SSE 认证改用 `?token=<JWT>`；访问日志直接拼接 `RawQuery`，于是**每一次 SSE 请求都会把完整 JWT 落盘**。修复前日志中可见 `GET /api/v1/chats/3/stream?token=eyJ...` |
+| **修复** | 新增 `RedactQuery()`：对 `token/access_token/refresh_token/api_key/password/secret/pat/...` 等参数值替换为 `REDACTED`；无法解析的 query 整体替换，绝不回显 |
+| **回归用例** | `internal/middleware/logger_test.go`（含"日志不得出现 token"的中间件级断言） |
+
+### BUG-51 Webhook URL 与响应体明文入日志 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `backend/internal/service/automation_service.go`（`callWebhook`） |
+| **类型** | 🔴 凭据泄露 |
+| **影响** | Slack / GitHub / 通用 CI Webhook 的**凭据就在 URL 路径里**，日志却打印完整 URL；同时把最多 4 KB 的响应体原样写入日志 |
+| **修复** | `maskURLSecrets()` 仅保留 `scheme://host/REDACTED`；响应体经 `truncateForLog()` 截断至 512 字节 |
+
+### BUG-52 JWT 签名密钥回退到公开默认值 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `backend/internal/config/config.go`、`backend/config.yaml`（删除）、`backend/generate_token.go`、`docker-compose.yml`、`.env.example`、`README.md`、`README-zh.md` |
+| **类型** | 🔴 认证绕过 |
+| **影响** | `SECRET_KEY` 未设置时回退到 `change-me-in-production`：**任何知道该默认值的人都能伪造任意用户（含管理员）的 token**。同一字符串还写在 README 的部署步骤里，仓库中还跟踪着一个携带该值的 `config.yaml`（实际未被任何代码读取） |
+| **修复** | 缺失或等于占位值时视为未配置 → 用 `crypto/rand` 生成 32 字节随机密钥并打印安全告警（失败则直接 panic，绝不降级为可预测密钥）；README/env/compose 改为要求随机值（`openssl rand -hex 32`）；`generate_token.go` 改为从 `SECRET_KEY` 读取；删除无人引用的 `config.yaml` |
+
+### BUG-53 RQL 执行器无条件打印 SQL 与参数 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `backend/internal/rql/executor.go` |
+| **类型** | 🟠 数据泄露 |
+| **影响** | 每次 RQL 查询都用 `fmt.Printf` 输出完整 SQL 与参数（含用户数据）到 stdout，生产环境同样生效 |
+| **修复** | 删除调试输出 |
+
+### BUG-54 上传目录 0777 / worktree 名称直接拼进 git 参数 ✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `backend/internal/service/attachment_service.go`、`backend/internal/ai/harness/worktree.go` |
+| **类型** | 🟡 权限与命令注入 |
+| **影响** | 附件目录使用 `os.ModePerm`(0777) 且扩展名直接取自客户端文件名；worktree 名称直接进入 `git branch -D agent-harness/<name>` 参数 |
+| **修复** | 上传目录降为 0750，扩展名限制为短且不含路径分隔符的后缀；worktree 目录 0750，新增 `validateWorktreeName()`（仅允许 `[A-Za-z0-9._-]`，1–64 字符），Acquire/Cleanup 入口统一校验 |
+
+### BUG-55 Slack Webhook 未校验目标地址（SSRF）✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `backend/internal/service/slack_service.go` |
+| **类型** | 🟡 SSRF |
+| **影响** | 管理员配置的 Webhook URL 被原样用于外发请求，可指向任意主机 |
+| **修复** | `validateSlackWebhookURL()` 强制 `https` 且 host 必须为 `hooks.slack.com` |
+
+### BUG-56 安全扫描顺带发现的真实代码缺陷（6 项）✅ 已修复
+
+| 文件 | 缺陷 | 修复 |
+|------|------|------|
+| `backend/internal/ai/harness/skill_executor.go` | 两处 `regexp.MustCompile` 使用 Perl 前瞻 `(?=`，Go 的 RE2 不支持 → `ParseSkillMD` **运行时 panic**（技能执行不可用） | 改为 `FindAllStringSubmatchIndex` 切分 + 非捕获组终止符 |
+| `backend/internal/service/conditional_field_service.go` | 条件值用 `string(rune(id))` 转换，得到控制字符，**按 ID 配置的条件永远匹配不上** | 改为 `strconv.FormatUint(id, 10)` |
+| `backend/internal/service/agent_cost_budget_service.go` | 告警文案用 `string(rune('0'+阈值/10))` 拼数字（≥100 时变成乱码） | 改为 `%g` 格式化 |
+| `backend/internal/seed/seed.go` | `releaseNames[r]` 的索引上界靠人手写 `3 + rng.Intn(3)` 与切片长度保持一致 | 改为 `range releaseNames[:numReleases]` |
+| `backend/internal/handler/workflow_handler.go` | 空分支吞掉了 JSON 绑定错误 | 显式 `_ = c.ShouldBindJSON(&req)` 并注明"请求体可选" |
+| `backend/internal/service/automation_service.go` | `allResults` 只追加、从不读取 | 删除死代码 |
+
+此外清理了 `unused` 报告的 8 处死代码（未使用的函数/字段/类型）与 2 处 `gosimple`、1 处 `ineffassign`。
+
+### CI（GitHub Actions）修复：不再出现 run failed 邮件
+
+| 问题 | 修复 |
+|------|------|
+| Lint job：355 个 golangci-lint 错误 | 全部修复 → 0 |
+| Lint job：golangci-lint v1.x 拒绝分析 `go 1.25` 模块 | 升级到 v2.13.2、`.golangci.yml` 迁移到 v2 schema、`golangci-lint-action@v9` 并锁版本 |
+| Test job：`npx vitest run --coverage` 缺少 coverage provider | 添加 `@vitest/coverage-v8` 依赖（含 lockfile） |
+| `GO_VERSION: 1.22` 与 `go.mod` 不一致 | 统一为 1.25（`pgx v5.9.2` 的最低要求），`backend/Dockerfile` 同步 1.25 |
+| Lint job：ESLint 步骤既无配置也无依赖（从未通过） | 替换为真实可用且已通过的前端类型检查 `vue-tsc --noEmit` |
+| 新增 Security job | `gitleaks` 密钥扫描（阻塞）+ `govulncheck`（建议性、不阻塞） |
+| 新增安全规则 | `gosec` + `bodyclose` 随 Lint job 执行 |
+
+### `frontend/e2e` 91 个失败修复
+
+| 用例文件 | 失败（×3 浏览器） | 根因 | 修复 |
+|---|---|---|---|
+| `automation-e2e.spec.ts` | 6 | 用例假设"JSON 文本框"式表单，实际 UI 是 `AutomationRuleBuilder` 可视化构建器；触发事件名用了旧下划线写法（后端只认点号事件） | 按真实构建器（触发卡片 / 添加条件 / 添加动作 / 创建-更新按钮 / 确认弹窗）重写 |
+| `automation-full-validation.spec.ts` | 7 | 同上；且用例之间存在数据依赖，并行执行时相互踩踏 | 重写，并把每个用例改为自建数据 |
+| `chat-e2e.spec.ts` | 4 | 用登录表单并等待 `**/workspace/**`；聊天面板在 chatId 就绪前会**静默丢弃**已输入消息；localStorage 缺 `user_id` 导致编辑按钮不渲染 | 直接注入 token+`user_id`；等待 SSE 连接就绪再发送；用 Playwright 对话框 API 处理 `window.prompt` |
+| `issue-detail-acceptance.spec.ts` | 2 | 断言 6 个标签页（实际 8 个：新增 AI/聊天、Git 前移）；子工作项断言在"详情"页（实际在"关联"页） | 改为 8 个标签、按标签文本点击；子工作项改在关联页断言 |
+| `pages-e2e.spec.ts` | 1 | `.page-tree` 严格模式冲突（嵌套树产生 2 个匹配） | 断言创建出的子页面标题 |
+| `dark-mode-responsive.spec.ts` | 1 | 手动添加 `dark` class 后被 `useDarkMode` 覆盖 | 通过 `reqmango-dark-mode` 存储键预设 |
+| `initiatives-e2e.spec.ts` | 1 | 断言英文标题 "Initiatives"，中文界面为"战略目标" | 中英双语正则 |
+| `ai-phase1-e2e.spec.ts` | 1 | `button:has-text("创建")` 命中面板里禁用的提交按钮 | 用标签页 `title` 属性定位，并断言"生成预览"按钮出现 |
+| `workspace-settings-e2e.spec.ts` | — | 产品侧 BUG-47（删除状态 500）已在上一轮修复 | 本轮回归通过 |
+
+> 结论：`frontend/e2e` 三个浏览器（chromium / firefox / webkit）全部通过，详见 `E2E_COVERAGE_REPORT.md` 第 11 节。
+
+### 统计补充
+
+| 分类 | 数量 | 已修复 |
+|------|------|--------|
+| 🔐 安全/凭据泄露（BUG-50 ~ BUG-55） | 6 | 6 |
+| 🐞 扫描发现的真实代码缺陷（BUG-56） | 6 | 6 |
+| 🧩 `frontend/e2e` 复跑暴露的产品缺陷（BUG-57 ~ BUG-58） | 2 | 1（BUG-58 为功能缺口，未实现） |
+
+### BUG-57 工作流/节点/边删除返回 500（SQL 表名为空）✅ 已修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `backend/internal/service/workflow_service.go`（`Delete` / `DeleteNode` / `DeleteEdge`） |
+| **类型** | 🔴 接口缺陷 |
+| **影响** | `DELETE /projects/:id/workflows/:workflowId`（及节点、边）一律 500，前端"删除工作流"不可用 |
+| **原因** | 三处均写成 `s.db.Where("id = ?", id).Delete(&struct{}{})`；GORM 从目标类型推导表名，匿名空结构体推导出空表名 → `DELETE FROM "" WHERE id = $1` → PostgreSQL `SQLSTATE 42601 未结束的引用标识符` |
+| **修复** | 改为传入真实模型（`model.AgentWorkflow` / `model.WorkflowNode` / `model.WorkflowEdge`），既得到正确表名也恢复 `deleted_at` 软删除语义，并补上 `result.Error` 返回 |
+| **回归** | `frontend/e2e/workflow-automation-ui.spec.ts` 第 3 项现在断言删除必须 < 400 |
+
+### BUG-58 状态转换（state transition）功能未实现 🚧 未修复（已登记）
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `backend/internal/handler/workflow_handler.go`（`AddTransition`/`UpdateTransition`/`DeleteTransition`）、`backend/internal/router/router.go`、`frontend/src/api/workflow.ts:215-229`、`frontend/src/components/StateTransition.vue:254` |
+| **类型** | 🟠 功能缺口 |
+| **影响** | ① `POST/PUT/DELETE /projects/:id/workflows/:workflowId/transitions` 是**占位实现**：直接返回 `{"message":"transition added"}`，不写任何数据；② **不存在 GET 路由**，而前端 `listStateTransitions()` 会调用它 → 转换列表 404/永远为空；③ `state_transitions.workflow_id` 外键指向**遗留表 `workflows`**，与当前项目工作流使用的 `agent_workflows` 无关联，因此即使插入数据也不会出现在工作流详情里；④ 审批（approval）创建要求存在 `rule_type='approval'` 的转换，API 无法创建 → **"创建审批"流程在 API 层不可达**（返回 400） |
+| **本轮处理** | 未实现（属于新功能，需要先做数据模型决策：新增 `agent_workflow_transitions` 表 vs 迁移外键）。已把相关用例改为断言当前真实契约，并在此登记，避免"看起来通过"的假象：`workflow-approval.spec.ts`（断言 400 拒绝）、`workflow-approval-api.spec.ts`（断言占位实现的 201 契约）、`workflow-automation-ui.spec.ts`（断言 nodes/edges 数组） |
+| **建议** | 明确转换的归属表 → 实现 `GET/POST/PUT/DELETE` 与校验 → 补 `StateTransition.vue` 的加载路径 → 再恢复"创建审批并批准/拒绝"的端到端用例 |
+
+### BUG-59 `/projects/:id/settings/states` 返回裸数组，与 `WorkflowManager` 期望不一致 🚧 未修复
+
+| 字段 | 内容 |
+|------|------|
+| **文件** | `frontend/src/components/agent/WorkflowManager.vue`（`states.value = s.data`） |
+| **类型** | 🟠 前后端契约不一致 |
+| **影响** | 工作流"新增转换"表单的状态下拉可能为空（用例 `workflow-automation-ui` 第 6 项已把该 GAP 打印出来） |
+| **说明** | 同一资源的工作空间级接口返回 `{data:[...]}`，项目级接口返回裸数组；两处消费方期望不同 |

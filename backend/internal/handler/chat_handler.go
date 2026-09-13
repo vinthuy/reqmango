@@ -174,7 +174,7 @@ func (h *ChatHandler) Stream(c *gin.Context) {
 	client := service.SSE.RegisterChat(chatID, userID)
 	defer service.SSE.UnregisterChat(chatID, client)
 
-	fmt.Fprintf(c.Writer, "event: connected\ndata: {\"chat_id\":%d}\n\n", chatID)
+	_, _ = fmt.Fprintf(c.Writer, "event: connected\ndata: {\"chat_id\":%d}\n\n", chatID)
 	c.Writer.Flush()
 
 	// Heartbeat ticker (30s) to keep proxies from closing idle connections

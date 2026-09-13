@@ -303,19 +303,19 @@ func (h *PluginHandler) TestExecute(c *gin.Context) {
 
 	// Build a test payload
 	testPayload := map[string]interface{}{
-		"event_type":    "test.execute",
-		"workspace_id":  workspaceID,
-		"actor_id":      user.ID,
-		"message":       "This is a test execution",
-		"timestamp":     "now",
+		"event_type":   "test.execute",
+		"workspace_id": workspaceID,
+		"actor_id":     user.ID,
+		"message":      "This is a test execution",
+		"timestamp":    "now",
 	}
 
 	payloadBytes, _ := json.Marshal(testPayload)
 	c.JSON(http.StatusOK, gin.H{
-		"message":       "Test payload would be dispatched",
-		"plugin_id":     p.ID,
-		"plugin_slug":   p.Slug,
-		"plugin_type":   p.Type,
-		"payload":       string(payloadBytes),
+		"message":     "Test payload would be dispatched",
+		"plugin_id":   p.ID,
+		"plugin_slug": p.Slug,
+		"plugin_type": p.Type,
+		"payload":     string(payloadBytes),
 	})
 }

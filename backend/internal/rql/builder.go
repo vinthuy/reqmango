@@ -9,7 +9,7 @@ import (
 
 type QueryBuilder struct {
 	conditions []string
-	args      []interface{}
+	args       []interface{}
 }
 
 func NewQueryBuilder() *QueryBuilder {
@@ -113,22 +113,22 @@ func (b *QueryBuilder) buildNotExpr(expr *NotExpr) (string, []interface{}, error
 
 func (b *QueryBuilder) mapFieldName(field string) string {
 	mapping := map[string]string{
-		"id":           "id",
-		"sequence_id":  "sequence_id",
-		"name":         "name",
-		"description":  "description",
-		"state":        "state_id",
-		"priority":      "priority",
-		"assignee":     "assignee_id",
-		"reporter":     "reporter_id",
-		"label":        "label_id",
-		"cycle":        "cycle_id",
-		"module":       "module_id",
-		"created_at":   "created_at",
-		"updated_at":   "updated_at",
-		"due_date":     "due_date",
-		"start_date":   "start_date",
-		"end_date":     "end_date",
+		"id":          "id",
+		"sequence_id": "sequence_id",
+		"name":        "name",
+		"description": "description",
+		"state":       "state_id",
+		"priority":    "priority",
+		"assignee":    "assignee_id",
+		"reporter":    "reporter_id",
+		"label":       "label_id",
+		"cycle":       "cycle_id",
+		"module":      "module_id",
+		"created_at":  "created_at",
+		"updated_at":  "updated_at",
+		"due_date":    "due_date",
+		"start_date":  "start_date",
+		"end_date":    "end_date",
 	}
 
 	if mapped, ok := mapping[field]; ok {

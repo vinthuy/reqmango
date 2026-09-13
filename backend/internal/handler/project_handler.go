@@ -14,7 +14,7 @@ import (
 )
 
 type ProjectHandler struct {
-	svc        *service.ProjectService
+	svc         *service.ProjectService
 	templateSvc *service.ProjectTemplateService
 }
 

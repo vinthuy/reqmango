@@ -29,8 +29,8 @@ type IssueTypeTemplateField struct {
 	IsRequired     bool   `gorm:"default:false" json:"is_required"`
 	Sequence       int    `gorm:"default:1" json:"sequence"`
 
-	Template  IssueTypeTemplate `gorm:"foreignKey:TemplateTypeID;constraint:OnDelete:CASCADE" json:"-"`
-	Field     CustomField       `gorm:"foreignKey:FieldID;constraint:OnDelete:CASCADE" json:"-"`
+	Template IssueTypeTemplate `gorm:"foreignKey:TemplateTypeID;constraint:OnDelete:CASCADE" json:"-"`
+	Field    CustomField       `gorm:"foreignKey:FieldID;constraint:OnDelete:CASCADE" json:"-"`
 }
 
 func (IssueTypeTemplateField) TableName() string {

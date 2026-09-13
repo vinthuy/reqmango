@@ -63,7 +63,7 @@ func TestSquadStartExecution_PanicRecovery(t *testing.T) {
 	}()
 
 	// Ensure new columns exist (cancelled_at, cancel_reason)
-	db.AutoMigrate(&model.SquadExecution{})
+	_ = db.AutoMigrate(&model.SquadExecution{})
 
 	svc := NewSquadService(db)
 	svc.SetAgentExecutor(&panickingAgent{})

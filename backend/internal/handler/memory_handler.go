@@ -249,14 +249,14 @@ func (h *MemoryHandler) UpdateMemory(c *gin.Context) {
 	}
 
 	var req struct {
-		Content     *string              `json:"content"`
-		MemoryType  *string              `json:"memory_type"`
-		Scope       *string              `json:"scope"`
-		Tags        *[]string            `json:"tags"`
+		Content     *string                 `json:"content"`
+		MemoryType  *string                 `json:"memory_type"`
+		Scope       *string                 `json:"scope"`
+		Tags        *[]string               `json:"tags"`
 		Metadata    *map[string]interface{} `json:"metadata"`
-		Embedding   *[]float64           `json:"embedding"`
-		ContextKey  *string              `json:"context_key"`
-		ContextName *string              `json:"context_name"`
+		Embedding   *[]float64              `json:"embedding"`
+		ContextKey  *string                 `json:"context_key"`
+		ContextName *string                 `json:"context_name"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -515,10 +515,10 @@ func (h *MemoryHandler) PruneMemories(c *gin.Context) {
 	}
 
 	var req struct {
-		MaxDays   *int     `json:"max_days"`
-		MinScore  *float64 `json:"min_score"`
-		Expired   *bool    `json:"expired"`
-		LowRelevance *bool `json:"low_relevance"`
+		MaxDays      *int     `json:"max_days"`
+		MinScore     *float64 `json:"min_score"`
+		Expired      *bool    `json:"expired"`
+		LowRelevance *bool    `json:"low_relevance"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {

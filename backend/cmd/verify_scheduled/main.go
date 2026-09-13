@@ -271,7 +271,7 @@ func main() {
 			ContextJSON:  string(ctxJSON),
 			ActionsTaken: `["自动评论: 定时任务验证通过"]`,
 			Status:       "success",
-			Duration:     rand.Int63n(500) + 50,
+			Duration:     rand.Int63n(500) + 50, // #nosec G404 -- simulated execution latency for local verification data
 			ExecutedAt:   now.Add(-2 * time.Minute),
 		})
 		fmt.Printf("  [success] 规则 #%d '%s'\n", ruleID, rule.Name)
@@ -292,7 +292,7 @@ func main() {
 			ActionsTaken: `[]`,
 			Status:       "skipped",
 			Error:        "Conditions not met",
-			Duration:     rand.Int63n(100) + 10,
+			Duration:     rand.Int63n(100) + 10, // #nosec G404 -- simulated execution latency for local verification data
 			ExecutedAt:   now.Add(-10 * time.Minute),
 		})
 		fmt.Printf("  [skipped] 规则 #%d '%s'\n", ruleID, rule.Name)
@@ -312,7 +312,7 @@ func main() {
 			ActionsTaken: `[]`,
 			Status:       "failed",
 			Error:        "no matching issues found in project scope",
-			Duration:     rand.Int63n(300) + 20,
+			Duration:     rand.Int63n(300) + 20, // #nosec G404 -- simulated execution latency for local verification data
 			ExecutedAt:   now.Add(-5 * time.Minute),
 		})
 		fmt.Printf("  [failed]  规则 #%d '%s'\n", ruleID, rule.Name)

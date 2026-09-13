@@ -117,22 +117,22 @@ func (s *AutopilotService) CreateTask(wid, callerID uint64, req request.Autopilo
 	}
 
 	task := &model.AutopilotTask{
-		WorkspaceID:    wid,
-		ProjectID:      req.ProjectID,
-		Name:           req.Name,
-		Description:    req.Description,
-		TriggerType:    req.TriggerType,
-		CronExpression: req.CronExpression,
-		TaskType:       req.TaskType,
-		AgentTemplateID: req.AgentTemplateID,
-		AgentConfigID:   req.AgentConfigID,
-		InputData:       normalizeAutopilotJSON(req.InputData, "{}"),
-		Config:          normalizeAutopilotJSON(req.Config, "{}"),
+		WorkspaceID:        wid,
+		ProjectID:          req.ProjectID,
+		Name:               req.Name,
+		Description:        req.Description,
+		TriggerType:        req.TriggerType,
+		CronExpression:     req.CronExpression,
+		TaskType:           req.TaskType,
+		AgentTemplateID:    req.AgentTemplateID,
+		AgentConfigID:      req.AgentConfigID,
+		InputData:          normalizeAutopilotJSON(req.InputData, "{}"),
+		Config:             normalizeAutopilotJSON(req.Config, "{}"),
 		NotificationConfig: normalizeAutopilotJSON(req.NotificationConfig, "{}"),
-		TimeoutSeconds:  req.TimeoutSeconds,
-		RetryCount:      req.RetryCount,
-		Status:          autopilotTaskActive,
-		Enabled:         req.Enabled,
+		TimeoutSeconds:     req.TimeoutSeconds,
+		RetryCount:         req.RetryCount,
+		Status:             autopilotTaskActive,
+		Enabled:            req.Enabled,
 	}
 	if req.TriggerType == "webhook" {
 		task.TriggerURL = fmt.Sprintf("/api/v1/autopilot/webhook/%s", generateWebhookToken())
@@ -542,7 +542,7 @@ func generateWebhookToken() string {
 // normalizeAutopilotJSON marshals a map to JSONB, defaulting to fallback when
 // nil/empty so the column never stores SQL NULL.
 func normalizeAutopilotJSON(in map[string]interface{}, fallback string) json.RawMessage {
-	if in == nil || len(in) == 0 {
+	if len(in) == 0 {
 		return json.RawMessage(fallback)
 	}
 	b, _ := json.Marshal(in)
@@ -766,10 +766,10 @@ func stubAutopilotTaskOutput(task *model.AutopilotTask) map[string]interface{} {
 		}
 	case "sync", "sync_issues":
 		return map[string]interface{}{
-			"synced":     42,
-			"created":    5,
-			"updated":    37,
-			"source":     "external-tracker",
+			"synced":  42,
+			"created": 5,
+			"updated": 37,
+			"source":  "external-tracker",
 		}
 	case "backup":
 		return map[string]interface{}{
@@ -778,9 +778,9 @@ func stubAutopilotTaskOutput(task *model.AutopilotTask) map[string]interface{} {
 		}
 	case "notify", "notification":
 		return map[string]interface{}{
-			"notified":  8,
-			"channels":  []string{"email", "slack"},
-			"message":   fmt.Sprintf("通知：%s", name),
+			"notified": 8,
+			"channels": []string{"email", "slack"},
+			"message":  fmt.Sprintf("通知：%s", name),
 		}
 	default:
 		return map[string]interface{}{

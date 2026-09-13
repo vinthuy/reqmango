@@ -12,12 +12,12 @@ import (
 
 // DashboardService handles dashboard business logic.
 type DashboardService struct {
-	db              *gorm.DB
+	db *gorm.DB
 	// Lazily initialized services for widget data rendering
-	reportSvc       *ReportService
-	savedReportSvc  *SavedReportService
-	cycleSvc        *CycleService
-	issueSvc        *IssueService
+	reportSvc      *ReportService
+	savedReportSvc *SavedReportService
+	cycleSvc       *CycleService
+	issueSvc       *IssueService
 }
 
 // NewDashboardService creates a new DashboardService.
@@ -705,8 +705,8 @@ func (s *DashboardService) renderSavedReportWidget(projectID uint64, w *model.Da
 
 	// Enrich with metadata
 	type enrichedSavedReport struct {
-		ChartType      string `json:"chart_type"`
-		SavedReportID  uint64 `json:"saved_report_id"`
+		ChartType       string `json:"chart_type"`
+		SavedReportID   uint64 `json:"saved_report_id"`
 		SavedReportName string `json:"saved_report_name"`
 		*ReportResponse
 	}

@@ -8,7 +8,7 @@ type RecurrenceRule struct {
 
 	IssueID   uint64     `gorm:"not null;uniqueIndex" json:"issue_id"`
 	Frequency string     `gorm:"size:20;not null" json:"frequency"` // daily | weekly | monthly | cron
-	Interval  int        `gorm:"default:1" json:"interval"`          // every N periods
+	Interval  int        `gorm:"default:1" json:"interval"`         // every N periods
 	CronExpr  *string    `gorm:"size:100" json:"cron_expr"`
 	NextRun   time.Time  `gorm:"not null" json:"next_run"`
 	EndDate   *time.Time `json:"end_date"`

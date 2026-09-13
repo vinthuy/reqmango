@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/reqmango/backend/internal/common"
@@ -47,19 +48,26 @@ func (s *AttachmentService) Get(attachmentID uint64) (*model.Attachment, error) 
 
 func (s *AttachmentService) Create(issueID, uploaderID uint64, file io.Reader, fileName, mimeType string, fileSize int64) (*model.Attachment, error) {
 	fileID := uuid.New().String()
-	ext := filepath.Ext(fileName)
+	// The extension is the only part of the client-supplied name that reaches the
+	// path. Keep it short and separator-free so it can never escape uploadsDir.
+	ext := filepath.Ext(filepath.Base(fileName))
+	if len(ext) > 12 || strings.ContainsAny(ext, `/\`) {
+		ext = ""
+	}
 	newFileName := fileID + ext
 	filePath := filepath.Join(uploadsDir, newFileName)
 
-	if err := os.MkdirAll(uploadsDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(uploadsDir, 0o750); err != nil {
 		return nil, common.Internal("Failed to create uploads directory")
 	}
 
+	// #nosec G304 -- filePath is uploadsDir + a server-generated UUID + the
+	// sanitized extension above, so client input cannot influence the directory.
 	destFile, err := os.Create(filePath)
 	if err != nil {
 		return nil, common.Internal("Failed to create file")
 	}
-	defer destFile.Close()
+	defer func() { _ = destFile.Close() }()
 
 	if _, err := io.Copy(destFile, file); err != nil {
 		return nil, common.Internal("Failed to save file")

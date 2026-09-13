@@ -10,7 +10,9 @@ import (
 
 // AgentPerformanceHandler exposes agent task performance analytics endpoints
 // (PRD P4-010: 执行效率统计、成功率分析、报表).
-type AgentPerformanceHandler struct{ svc *service.AgentPerformanceService }
+type AgentPerformanceHandler struct {
+	svc *service.AgentPerformanceService
+}
 
 func NewAgentPerformanceHandler(svc *service.AgentPerformanceService) *AgentPerformanceHandler {
 	return &AgentPerformanceHandler{svc: svc}

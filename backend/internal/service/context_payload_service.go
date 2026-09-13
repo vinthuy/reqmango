@@ -18,10 +18,10 @@ func NewContextPayloadService(db *gorm.DB) *ContextPayloadService {
 
 // ContextPayload represents the context passed between workflow nodes.
 type ContextPayload struct {
-	IssueContext  *IssueContext  `json:"issue_context,omitempty"`
-	Documents     []DocumentRef  `json:"documents,omitempty"`
-	AgentOutputs  []AgentOutput  `json:"agent_outputs,omitempty"`
-	SharedData    map[string]interface{} `json:"shared_data,omitempty"`
+	IssueContext *IssueContext          `json:"issue_context,omitempty"`
+	Documents    []DocumentRef          `json:"documents,omitempty"`
+	AgentOutputs []AgentOutput          `json:"agent_outputs,omitempty"`
+	SharedData   map[string]interface{} `json:"shared_data,omitempty"`
 }
 
 // IssueContext represents issue-related context.
@@ -39,11 +39,11 @@ type IssueContext struct {
 
 // DocumentRef represents a reference to a document.
 type DocumentRef struct {
-	ID         uint64 `json:"id"`
-	Title      string `json:"title"`
-	Type       string `json:"type"` // wiki, requirement, design, test
-	TokenCount int    `json:"token_count"`
-	Summary    string `json:"summary,omitempty"` // for compressed docs
+	ID          uint64 `json:"id"`
+	Title       string `json:"title"`
+	Type        string `json:"type"` // wiki, requirement, design, test
+	TokenCount  int    `json:"token_count"`
+	Summary     string `json:"summary,omitempty"` // for compressed docs
 	FullContent string `json:"full_content,omitempty"`
 }
 
@@ -110,7 +110,7 @@ func (s *ContextPayloadService) BuildNodeInput(workflowRunID, nodeID uint64, edg
 	}
 
 	if run.Context != nil {
-		json.Unmarshal(run.Context, ctx)
+		_ = json.Unmarshal(run.Context, ctx)
 	}
 
 	// Get outputs from previous nodes

@@ -18,10 +18,10 @@ import (
 
 // AgentService manages AI agents and their actions.
 type AgentService struct {
-	db      *gorm.DB
-	llm     *llm.LLMClient
-	aiSvc   *AIService
-	memSvc  MemoryServiceInterface
+	db       *gorm.DB
+	llm      *llm.LLMClient
+	aiSvc    *AIService
+	memSvc   MemoryServiceInterface
 	skillSvc SkillExecutorInterface
 }
 
@@ -134,33 +134,33 @@ func (s *AgentService) GetByID(agentID uint64) (*model.Agent, error) {
 }
 
 type AgentCreateRequest struct {
-	Name               string                  `json:"name" binding:"required"`
-	Avatar             string                  `json:"avatar"`
-	AgentType          string                  `json:"agent_type"`
-	Capabilities       []string                `json:"capabilities"`
-	Status             string                  `json:"status"`
-	ModelOverride      *string                 `json:"model_override"`
-	SystemPrompt       *string                 `json:"system_prompt"`
-	
+	Name          string   `json:"name" binding:"required"`
+	Avatar        string   `json:"avatar"`
+	AgentType     string   `json:"agent_type"`
+	Capabilities  []string `json:"capabilities"`
+	Status        string   `json:"status"`
+	ModelOverride *string  `json:"model_override"`
+	SystemPrompt  *string  `json:"system_prompt"`
+
 	// Permission fields
-	PermissionMode     *string                 `json:"permission_mode"`
-	Visibility         *string                 `json:"visibility"`
-	InvocationTargets  []model.AgentInvocationTarget `json:"invocation_targets"`
+	PermissionMode    *string                       `json:"permission_mode"`
+	Visibility        *string                       `json:"visibility"`
+	InvocationTargets []model.AgentInvocationTarget `json:"invocation_targets"`
 }
 
 type AgentUpdateRequest struct {
-	Name               *string                 `json:"name"`
-	Avatar             *string                 `json:"avatar"`
-	AgentType          *string                 `json:"agent_type"`
-	Capabilities       *[]string               `json:"capabilities"`
-	Status             *string                 `json:"status"`
-	ModelOverride      *string                 `json:"model_override"`
-	SystemPrompt       *string                 `json:"system_prompt"`
-	
+	Name          *string   `json:"name"`
+	Avatar        *string   `json:"avatar"`
+	AgentType     *string   `json:"agent_type"`
+	Capabilities  *[]string `json:"capabilities"`
+	Status        *string   `json:"status"`
+	ModelOverride *string   `json:"model_override"`
+	SystemPrompt  *string   `json:"system_prompt"`
+
 	// Permission fields (owner-only)
-	PermissionMode     *string                 `json:"permission_mode"`
-	Visibility         *string                 `json:"visibility"`
-	InvocationTargets  *[]model.AgentInvocationTarget `json:"invocation_targets"`
+	PermissionMode    *string                        `json:"permission_mode"`
+	Visibility        *string                        `json:"visibility"`
+	InvocationTargets *[]model.AgentInvocationTarget `json:"invocation_targets"`
 }
 
 // Create creates a new agent.
@@ -464,7 +464,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	s.recordActivity(agent, ctx.IssueID, "dispatch", summary, task, userID)
 
 	// Record heartbeat to mark agent as online
-	s.RecordHeartbeat(agent.ID)
+	_ = s.RecordHeartbeat(agent.ID)
 
 	// Save task result as memory after completion
 	if s.memSvc != nil && resp.Content != "" {
@@ -521,7 +521,7 @@ func (s *AgentService) saveAgentTaskMemory(ctx context.Context, agent *model.Age
 	}
 
 	go func() {
-		s.memSvc.CreateMemory(ctx, entry)
+		_, _ = s.memSvc.CreateMemory(ctx, entry)
 	}()
 }
 
@@ -927,9 +927,9 @@ func (s *AgentService) getToolCallStats(workspaceID uint64) (response.ToolCallSt
 
 	// Top tools (by call count)
 	var topTools []struct {
-		ToolID     uint64
-		ToolName   string
-		CallCount  int64
+		ToolID      uint64
+		ToolName    string
+		CallCount   int64
 		SuccessRate float64
 	}
 	s.db.Raw(`
@@ -945,9 +945,9 @@ func (s *AgentService) getToolCallStats(workspaceID uint64) (response.ToolCallSt
 
 	for _, tt := range topTools {
 		stats.TopTools = append(stats.TopTools, response.ToolCallFrequency{
-			ToolName:   tt.ToolName,
-			ToolID:     tt.ToolID,
-			CallCount:  tt.CallCount,
+			ToolName:    tt.ToolName,
+			ToolID:      tt.ToolID,
+			CallCount:   tt.CallCount,
 			SuccessRate: tt.SuccessRate,
 		})
 	}
@@ -967,10 +967,10 @@ func (s *AgentService) getSkillUsageStats(workspaceID uint64) (response.SkillUsa
 
 	// Top skills (by execution count)
 	var topSkills []struct {
-		SkillID      uint64
-		SkillName    string
+		SkillID        uint64
+		SkillName      string
 		ExecutionCount int64
-		AvgDurationMs int64
+		AvgDurationMs  int64
 	}
 	s.db.Raw(`
 		SELECT sel.skill_id, s.name as skill_name, COUNT(sel.id) as execution_count,
@@ -985,10 +985,10 @@ func (s *AgentService) getSkillUsageStats(workspaceID uint64) (response.SkillUsa
 
 	for _, ts := range topSkills {
 		stats.TopSkills = append(stats.TopSkills, response.SkillUsageFrequency{
-			SkillName:    ts.SkillName,
-			SkillID:      ts.SkillID,
+			SkillName:      ts.SkillName,
+			SkillID:        ts.SkillID,
 			ExecutionCount: ts.ExecutionCount,
-			AvgDurationMs: ts.AvgDurationMs,
+			AvgDurationMs:  ts.AvgDurationMs,
 		})
 	}
 
@@ -1066,7 +1066,7 @@ func (s *AgentService) detectSkillFromTask(ctx context.Context, template model.A
 	// Parse available skills from template
 	var skillIDs []uint64
 	if template.AvailableSkills != nil {
-		json.Unmarshal(template.AvailableSkills, &skillIDs)
+		_ = json.Unmarshal(template.AvailableSkills, &skillIDs)
 	}
 
 	if len(skillIDs) == 0 {
@@ -1083,7 +1083,7 @@ func (s *AgentService) detectSkillFromTask(ctx context.Context, template model.A
 		// Check if task keywords match skill tags
 		var tags []string
 		if skill.Tags != nil {
-			json.Unmarshal(skill.Tags, &tags)
+			_ = json.Unmarshal(skill.Tags, &tags)
 		}
 
 		for _, tag := range tags {
@@ -1108,7 +1108,7 @@ func (s *AgentService) filterToolsByCapabilities(agent *model.Agent) []llm.Tool 
 
 	var caps []string
 	if agent.Capabilities != nil {
-		json.Unmarshal(agent.Capabilities, &caps)
+		_ = json.Unmarshal(agent.Capabilities, &caps)
 	}
 
 	if len(caps) == 0 {

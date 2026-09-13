@@ -788,7 +788,7 @@ func (h *IssueHandler) Export(c *gin.Context) {
 	if format == "csv" {
 		c.Header("Content-Type", "text/csv; charset=utf-8")
 		c.Header("Content-Disposition", "attachment; filename=issues.csv")
-		c.Writer.Write([]byte("\xef\xbb\xbf"))
+		_, _ = c.Writer.Write([]byte("\xef\xbb\xbf"))
 		writer := csv.NewWriter(c.Writer)
 		if err := writer.Write([]string{"标题", "描述", "优先级", "状态", "类型", "负责人", "标签", "开始日期", "截止日期", "父标题"}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to write CSV header"})
@@ -832,7 +832,7 @@ func (h *IssueHandler) ImportCSV(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "请上传 CSV 文件"})
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	result, svcErr := h.svc.ImportFromCSV(projectID, workspaceID, user.ID, file)
 	if svcErr != nil {
@@ -853,11 +853,11 @@ func (h *IssueHandler) ExportCSVTemplate(c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename=issue_import_template.csv")
 
 	// Write BOM for Excel compatibility
-	c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
+	_, _ = c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
 
 	// Write header
-	c.Writer.Write([]byte("name,description,priority,state,type,assignees,labels,start_date,target_date,parent_title,module,cycle,estimate\n"))
-	c.Writer.Write([]byte("示例工作项,这是一个示例描述,high,待处理,Bug,user@example.com,标签1,2024-01-01,2024-01-15,,示例模块,,3\n"))
+	_, _ = c.Writer.Write([]byte("name,description,priority,state,type,assignees,labels,start_date,target_date,parent_title,module,cycle,estimate\n"))
+	_, _ = c.Writer.Write([]byte("示例工作项,这是一个示例描述,high,待处理,Bug,user@example.com,标签1,2024-01-01,2024-01-15,,示例模块,,3\n"))
 
 	c.Status(http.StatusOK)
 }

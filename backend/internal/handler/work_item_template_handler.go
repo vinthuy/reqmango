@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
-	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -126,12 +125,4 @@ func (h *WorkItemTemplateHandler) GetDefault(c *gin.Context) {
 		return
 	}
 	common.RespondOK(c, r)
-}
-
-func (h *WorkItemTemplateHandler) getCurrentUserID(c *gin.Context) uint64 {
-	u, _ := c.Get("currentUser")
-	if u, ok := u.(*model.User); ok {
-		return u.ID
-	}
-	return 0
 }

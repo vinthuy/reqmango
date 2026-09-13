@@ -3,8 +3,10 @@ package service
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/reqmango/backend/internal/common"
@@ -77,9 +79,6 @@ func (s *SlackService) List(workspaceID uint64) ([]SlackResponse, error) {
 	res := make([]SlackResponse, len(conns))
 	for i, c := range conns {
 		res[i] = s.toResponse(&c)
-	}
-	if res == nil {
-		res = []SlackResponse{}
 	}
 	return res, nil
 }
@@ -277,15 +276,15 @@ func (s *SlackService) sendToSlack(webhookURL string, notif *SlackNotification) 
 	payload := map[string]interface{}{
 		"attachments": []map[string]interface{}{
 			{
-				"color":  color,
-				"title":  title,
+				"color": color,
+				"title": title,
 				"fields": []map[string]interface{}{
 					{"title": "Issue", "value": notif.IssueName, "short": true},
 					{"title": "Event", "value": notif.Event, "short": true},
 					{"title": "User", "value": notif.User, "short": true},
 				},
-				"footer":     "ReqMan",
-				"ts":         time.Now().Unix(),
+				"footer": "ReqMan",
+				"ts":     time.Now().Unix(),
 			},
 		},
 	}
@@ -295,11 +294,15 @@ func (s *SlackService) sendToSlack(webhookURL string, notif *SlackNotification) 
 	}
 
 	body, _ := json.Marshal(payload)
+	if err := validateSlackWebhookURL(webhookURL); err != nil {
+		return err
+	}
+	// #nosec G107 -- webhookURL is restricted to https://hooks.slack.com by validateSlackWebhookURL above.
 	resp, err := http.Post(webhookURL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("Slack webhook returned %d", resp.StatusCode)
@@ -308,6 +311,23 @@ func (s *SlackService) sendToSlack(webhookURL string, notif *SlackNotification) 
 }
 
 // ======== Helpers ========
+
+// validateSlackWebhookURL restricts outbound Slack notifications to an https
+// hooks.slack.com endpoint. The URL is admin-supplied and is used verbatim in an
+// outbound request, so without this check it could be pointed at any host (SSRF).
+func validateSlackWebhookURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid Slack webhook URL: %w", err)
+	}
+	if parsed.Scheme != "https" {
+		return errors.New("Slack webhook URL must use https")
+	}
+	if parsed.Host != "hooks.slack.com" {
+		return fmt.Errorf("Slack webhook URL must point at hooks.slack.com, got %q", parsed.Host)
+	}
+	return nil
+}
 
 func (s *SlackService) toResponse(conn *model.SlackConnection) SlackResponse {
 	return SlackResponse{

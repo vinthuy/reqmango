@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -31,12 +31,12 @@ func (s *EstimateService) UpdateSettings(projectID, workspaceID uint64, mode mod
 	err := s.db.Where("project_id = ?", projectID).First(&settings).Error
 	if err == gorm.ErrRecordNotFound {
 		settings = model.ProjectEstimateSettings{
-			ProjectID:   projectID,
-			WorkspaceID: workspaceID,
-			Mode:        mode,
-			PointsEnabled:  mode == model.EstimateModePoints,
+			ProjectID:         projectID,
+			WorkspaceID:       workspaceID,
+			Mode:              mode,
+			PointsEnabled:     mode == model.EstimateModePoints,
 			CategoriesEnabled: mode == model.EstimateModeCategories,
-			TimeEnabled:    mode == model.EstimateModeTime,
+			TimeEnabled:       mode == model.EstimateModeTime,
 		}
 		err = s.db.Create(&settings).Error
 	} else {
@@ -163,10 +163,10 @@ func (s *EstimateService) CreateDefaultPoints(projectID, workspaceID uint64) ([]
 }
 
 func (s *EstimateService) BulkCreatePoints(projectID, workspaceID uint64, points []struct {
-	Name       string `json:"name"`
-	Value      int    `json:"value"`
-	IsDefault  bool   `json:"is_default"`
-	Sequence   int    `json:"sequence"`
+	Name      string `json:"name"`
+	Value     int    `json:"value"`
+	IsDefault bool   `json:"is_default"`
+	Sequence  int    `json:"sequence"`
 }) ([]model.EstimatePoint, error) {
 	var estimatePoints []model.EstimatePoint
 	for _, p := range points {

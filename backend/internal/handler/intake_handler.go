@@ -19,17 +19,23 @@ func NewIntakeHandler(db *gorm.DB) *IntakeHandler { return &IntakeHandler{db: db
 func (h *IntakeHandler) Submit(c *gin.Context) {
 	projectID, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
 	var req struct {
-		Name        string `json:"name" binding:"required"`
-		Description string `json:"description"`
-		Priority    string `json:"priority"`
+		Name        string  `json:"name" binding:"required"`
+		Description string  `json:"description"`
+		Priority    string  `json:"priority"`
 		TypeID      *uint64 `json:"type_id"`
-		Submitter   string `json:"submitter"`
+		Submitter   string  `json:"submitter"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"message":err.Error()}); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"message": err.Error()})
+		return
+	}
 
 	// Find workspace + default state
 	var project model.Project
-	if h.db.First(&project, projectID).Error != nil { c.JSON(404, gin.H{"message":"Project not found"}); return }
+	if h.db.First(&project, projectID).Error != nil {
+		c.JSON(404, gin.H{"message": "Project not found"})
+		return
+	}
 	var defaultState model.State
 	if err := h.db.Where("project_id = ? AND is_default = ?", projectID, true).First(&defaultState).Error; err != nil {
 		// Fallback: use first available state
@@ -42,7 +48,9 @@ func (h *IntakeHandler) Submit(c *gin.Context) {
 	intakeSource := "form"
 	intakeStatus := "pending"
 	priority := req.Priority
-	if priority == "" { priority = "none" }
+	if priority == "" {
+		priority = "none"
+	}
 
 	issue := &model.Issue{
 		Name: req.Name, DescriptionHTML: req.Description,
@@ -51,8 +59,11 @@ func (h *IntakeHandler) Submit(c *gin.Context) {
 		IntakeSource: &intakeSource, IntakeStatus: &intakeStatus,
 		IssueTypeID: req.TypeID,
 	}
-	if err := h.db.Create(issue).Error; err != nil { c.JSON(500, gin.H{"message":"Failed to submit"}); return }
-	c.JSON(201, gin.H{"id":issue.ID, "name":issue.Name, "status":"pending", "message":"Submitted for review"})
+	if err := h.db.Create(issue).Error; err != nil {
+		c.JSON(500, gin.H{"message": "Failed to submit"})
+		return
+	}
+	c.JSON(201, gin.H{"id": issue.ID, "name": issue.Name, "status": "pending", "message": "Submitted for review"})
 }
 
 // ListPending handles GET /api/v1/projects/:projectId/intake — list pending intake items.
@@ -71,15 +82,25 @@ func (h *IntakeHandler) Triage(c *gin.Context) {
 		Assignee *uint64 `json:"assignee_id"`
 		StateID  *uint64 `json:"state_id"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"message":err.Error()}); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"message": err.Error()})
+		return
+	}
 
 	var issue model.Issue
-	if h.db.First(&issue, issueID).Error != nil { c.JSON(404, gin.H{"message":"Issue not found"}); return }
+	if h.db.First(&issue, issueID).Error != nil {
+		c.JSON(404, gin.H{"message": "Issue not found"})
+		return
+	}
 
 	status := req.Action
-	if status == "accept" { status = "accepted" }
+	if status == "accept" {
+		status = "accepted"
+	}
 	updates := map[string]interface{}{"intake_status": status}
-	if req.StateID != nil { updates["state_id"] = *req.StateID }
+	if req.StateID != nil {
+		updates["state_id"] = *req.StateID
+	}
 	if err := h.db.Model(&issue).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update issue"})
 		return
@@ -90,5 +111,5 @@ func (h *IntakeHandler) Triage(c *gin.Context) {
 			return
 		}
 	}
-	c.JSON(200, gin.H{"message":"Triage "+req.Action+" completed", "issue_id":issueID})
+	c.JSON(200, gin.H{"message": "Triage " + req.Action + " completed", "issue_id": issueID})
 }

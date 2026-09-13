@@ -93,6 +93,10 @@ if (Wait-Port -Port 5432 -TimeoutSec 30 -Name 'PostgreSQL') {
 Write-Stage '2/8 启动 Go 后端 (:8000)'
 $backendOut = Join-Path $Artifacts 'backend.out.log'
 $backendErr = Join-Path $Artifacts 'backend.err.log'
+# 全量套件在几十秒内会发出远超生产默认值（500 次/分钟）的请求，若不放开限流，
+# 后端会返回 HTTP 429，导致大量"假失败"（实测 4 worker 下出现过 1880 次 429）。
+$env:RATE_LIMIT_REQUESTS = '200000'
+$env:RATE_LIMIT_WINDOW_SEC = '60'
 $backendProc = Start-Process -FilePath 'go' `
   -ArgumentList 'run', './cmd/server/' `
   -WorkingDirectory $Backend `

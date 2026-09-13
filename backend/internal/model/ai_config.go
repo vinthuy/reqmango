@@ -9,10 +9,10 @@ import (
 
 // AIConfig stores workspace-level AI configuration.
 type AIConfig struct {
-	ID           uint64         `gorm:"primaryKey" json:"id"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	ID        uint64         `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
 	Provider    string `gorm:"size:20;default:deepseek" json:"provider"`
 	Model       string `gorm:"size:50;default:deepseek-chat" json:"model"`
@@ -48,11 +48,11 @@ type AIMessage struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
-	ThreadID   uint64           `gorm:"not null;index" json:"thread_id"`
-	Role       string           `gorm:"size:20;not null" json:"role"`
-	Content    string           `gorm:"type:text;not null" json:"content"`
-	ToolCalls  json.RawMessage  `gorm:"type:jsonb;column:tool_calls" json:"tool_calls,omitempty"`
-	ToolName   *string          `gorm:"size:50" json:"tool_name,omitempty"`
+	ThreadID  uint64          `gorm:"not null;index" json:"thread_id"`
+	Role      string          `gorm:"size:20;not null" json:"role"`
+	Content   string          `gorm:"type:text;not null" json:"content"`
+	ToolCalls json.RawMessage `gorm:"type:jsonb;column:tool_calls" json:"tool_calls,omitempty"`
+	ToolName  *string         `gorm:"size:50" json:"tool_name,omitempty"`
 }
 
 func (AIMessage) TableName() string { return "ai_messages" }

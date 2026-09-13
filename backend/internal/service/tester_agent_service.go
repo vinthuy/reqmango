@@ -48,14 +48,14 @@ type TestExecutor interface {
 
 // TestCaseGenerationRequest bundles the inputs handed to the generator.
 type TestCaseGenerationRequest struct {
-	WorkspaceID         uint64
-	ProjectID           *uint64
-	IssueID             *uint64
-	Title               string
-	RequirementText     string
-	AcceptanceCriteria  string
-	TestScope           string // unit | integration | e2e
-	ExtraContext        map[string]interface{}
+	WorkspaceID        uint64
+	ProjectID          *uint64
+	IssueID            *uint64
+	Title              string
+	RequirementText    string
+	AcceptanceCriteria string
+	TestScope          string // unit | integration | e2e
+	ExtraContext       map[string]interface{}
 }
 
 // TestExecutionRequest bundles the inputs handed to the executor.
@@ -78,11 +78,11 @@ type TestCase struct {
 
 // TestResult describes the outcome of executing a single test case.
 type TestResult struct {
-	CaseID    string `json:"case_id"`
-	Name      string `json:"name"`
-	Status    string `json:"status"` // passed | failed | skipped
-	DurationMs int64 `json:"duration_ms"`
-	Error     string `json:"error,omitempty"`
+	CaseID     string `json:"case_id"`
+	Name       string `json:"name"`
+	Status     string `json:"status"` // passed | failed | skipped
+	DurationMs int64  `json:"duration_ms"`
+	Error      string `json:"error,omitempty"`
 }
 
 // NewTesterAgentService creates a new TesterAgentService.
@@ -128,44 +128,44 @@ func (s *TesterAgentService) checkWorkspaceAdmin(workspaceID, callerID uint64) e
 
 // TesterJobCreate captures the inputs for a new Tester Agent run.
 type TesterJobCreate struct {
-	Title               string          `json:"title" binding:"required"`
-	RequirementText     string          `json:"requirement_text"`
-	AcceptanceCriteria  string          `json:"acceptance_criteria"`
-	TestScope           string          `json:"test_scope"`
-	ProjectID           *uint64         `json:"project_id"`
-	IssueID             *uint64         `json:"issue_id"`
-	Cases               []TestCase      `json:"cases"`        // optional: pre-generated cases to execute
-	InputContext        json.RawMessage `json:"input_context"` // optional: extra context
+	Title              string          `json:"title" binding:"required"`
+	RequirementText    string          `json:"requirement_text"`
+	AcceptanceCriteria string          `json:"acceptance_criteria"`
+	TestScope          string          `json:"test_scope"`
+	ProjectID          *uint64         `json:"project_id"`
+	IssueID            *uint64         `json:"issue_id"`
+	Cases              []TestCase      `json:"cases"`         // optional: pre-generated cases to execute
+	InputContext       json.RawMessage `json:"input_context"` // optional: extra context
 }
 
 // TesterJobResponse is the API representation of a TesterJob.
 type TesterJobResponse struct {
-	ID                  uint64          `json:"id"`
-	WorkspaceID         uint64          `json:"workspace_id"`
-	ProjectID           *uint64         `json:"project_id,omitempty"`
-	IssueID             *uint64         `json:"issue_id,omitempty"`
-	AgentTaskID         *uint64         `json:"agent_task_id,omitempty"`
-	Title               string          `json:"title"`
-	RequirementText     string          `json:"requirement_text"`
-	AcceptanceCriteria  string          `json:"acceptance_criteria"`
-	TestScope           string          `json:"test_scope"`
-	InputContext        json.RawMessage `json:"input_context"`
-	GeneratedCases      json.RawMessage `json:"generated_cases"`
-	TestResults         json.RawMessage `json:"test_results"`
-	TotalCases          int             `json:"total_cases"`
-	PassCount           int             `json:"pass_count"`
-	FailCount           int             `json:"fail_count"`
-	SkipCount           int             `json:"skip_count"`
-	BugIssueIDs         json.RawMessage `json:"bug_issue_ids"`
-	Status              string          `json:"status"`
-	Progress            int             `json:"progress"`
-	CurrentStep         *string         `json:"current_step,omitempty"`
-	ErrorMessage        *string         `json:"error_message,omitempty"`
-	StartedAt           *time.Time      `json:"started_at,omitempty"`
-	CompletedAt         *time.Time      `json:"completed_at,omitempty"`
-	CancelledAt         *time.Time      `json:"cancelled_at,omitempty"`
-	CreatedAt           time.Time       `json:"created_at"`
-	UpdatedAt           time.Time       `json:"updated_at"`
+	ID                 uint64          `json:"id"`
+	WorkspaceID        uint64          `json:"workspace_id"`
+	ProjectID          *uint64         `json:"project_id,omitempty"`
+	IssueID            *uint64         `json:"issue_id,omitempty"`
+	AgentTaskID        *uint64         `json:"agent_task_id,omitempty"`
+	Title              string          `json:"title"`
+	RequirementText    string          `json:"requirement_text"`
+	AcceptanceCriteria string          `json:"acceptance_criteria"`
+	TestScope          string          `json:"test_scope"`
+	InputContext       json.RawMessage `json:"input_context"`
+	GeneratedCases     json.RawMessage `json:"generated_cases"`
+	TestResults        json.RawMessage `json:"test_results"`
+	TotalCases         int             `json:"total_cases"`
+	PassCount          int             `json:"pass_count"`
+	FailCount          int             `json:"fail_count"`
+	SkipCount          int             `json:"skip_count"`
+	BugIssueIDs        json.RawMessage `json:"bug_issue_ids"`
+	Status             string          `json:"status"`
+	Progress           int             `json:"progress"`
+	CurrentStep        *string         `json:"current_step,omitempty"`
+	ErrorMessage       *string         `json:"error_message,omitempty"`
+	StartedAt          *time.Time      `json:"started_at,omitempty"`
+	CompletedAt        *time.Time      `json:"completed_at,omitempty"`
+	CancelledAt        *time.Time      `json:"cancelled_at,omitempty"`
+	CreatedAt          time.Time       `json:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
 // ======== CRUD ========

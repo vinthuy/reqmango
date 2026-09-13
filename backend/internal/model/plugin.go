@@ -6,8 +6,8 @@ import "encoding/json"
 type Plugin struct {
 	BaseModel
 
-	Name        string `gorm:"size:100;not null" json:"name"`
-	Slug        string `gorm:"size:100;not null;index" json:"slug"`
+	Name        string  `gorm:"size:100;not null" json:"name"`
+	Slug        string  `gorm:"size:100;not null;index" json:"slug"`
 	Description *string `gorm:"size:500" json:"description"`
 	Author      string  `gorm:"size:100" json:"author"`
 	Version     string  `gorm:"size:20;default:1.0.0" json:"version"`
@@ -29,7 +29,7 @@ type Plugin struct {
 	// e.g. ["issue.created", "issue.updated", "comment.created"]
 	SubscribedEvents json.RawMessage `gorm:"type:jsonb" json:"subscribed_events"`
 
-	Enabled       bool `gorm:"default:false" json:"enabled"`
+	Enabled       bool   `gorm:"default:false" json:"enabled"`
 	WorkspaceID   uint64 `gorm:"not null;index" json:"workspace_id"`
 	InstalledByID uint64 `gorm:"not null" json:"installed_by_id"`
 
@@ -46,13 +46,13 @@ func (Plugin) TableName() string {
 type PluginEventLog struct {
 	BaseModel
 
-	PluginID    uint64 `gorm:"not null;index" json:"plugin_id"`
-	EventType   string  `gorm:"size:50;not null" json:"event_type"`
-	Status      string  `gorm:"size:20;default:success" json:"status"` // success | error
-	RequestBody string  `gorm:"type:text" json:"request_body"`
+	PluginID     uint64 `gorm:"not null;index" json:"plugin_id"`
+	EventType    string `gorm:"size:50;not null" json:"event_type"`
+	Status       string `gorm:"size:20;default:success" json:"status"` // success | error
+	RequestBody  string `gorm:"type:text" json:"request_body"`
 	ResponseBody string `gorm:"type:text" json:"response_body"`
-	StatusCode  int     `json:"status_code"`
-	DurationMs  int64   `json:"duration_ms"`
+	StatusCode   int    `json:"status_code"`
+	DurationMs   int64  `json:"duration_ms"`
 
 	// Relationships
 	Plugin Plugin `gorm:"foreignKey:PluginID" json:"-"`

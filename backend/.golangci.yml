@@ -1,19 +1,45 @@
+version: "2"
+
 linters:
+  # standard = errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
   enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
+    # Security
+    - gosec      # G101 hardcoded credentials, G107/G204 SSRF & command injection, G115 integer overflow, ...
+    - bodyclose  # leaked HTTP response bodies (connection and credential reuse)
+    # Hygiene
+    - misspell
+    #
+    # Not enabled deliberately:
+    #   errorlint / nilerr would flag several hundred pre-existing intentional
+    #   patterns (`err.(*common.AppError)` assertions, graceful degradation that
+    #   returns nil after a non-nil error). Converting those is a behavioural
+    #   refactor of its own and does not belong in a security-hardening change.
+  settings:
+    gosec:
+      # All gosec rules stay enabled. A finding is either fixed or annotated inline
+      # with `#nosec Gxxx -- <reason>` so every suppression is reviewable.
+      confidence: low
+    staticcheck:
+      # v2 folds staticcheck + gosimple + stylecheck + quickfix into one linter.
+      # Keep the correctness families (SA*, S*) that CI has always enforced and
+      # leave the purely stylistic ones (ST*, QF*) out.
+      checks:
+        - all
+        - -ST1*
+        - -ST2*
+        - -QF1*
+  exclusions:
+    generated: lax
+
+formatters:
+  enable:
     - gofmt
     - goimports
-    - misspell
 
 run:
   timeout: 5m
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0

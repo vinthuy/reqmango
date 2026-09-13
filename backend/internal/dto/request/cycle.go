@@ -5,10 +5,10 @@ package request
 type CycleCreateRequest struct {
 	Name                string  `json:"name" binding:"required,min=1,max=255"`
 	Description         *string `json:"description"`
-	StartDate           string  `json:"start_date" binding:"required"`   // RFC3339 date
-	EndDate             *string `json:"end_date"`                         // RFC3339 date, nullable
+	StartDate           string  `json:"start_date" binding:"required"` // RFC3339 date
+	EndDate             *string `json:"end_date"`                      // RFC3339 date, nullable
 	Timezone            string  `json:"timezone"`
-	ProjectID           uint64  `json:"-"`                                // Set from URL path by handler
+	ProjectID           uint64  `json:"-"` // Set from URL path by handler
 	AutoAddEnabled      bool    `json:"auto_add_enabled"`
 	AutoAddRQL          string  `json:"auto_add_rql"`
 	AutoCloseEnabled    bool    `json:"auto_close_enabled"`
@@ -19,8 +19,8 @@ type CycleCreateRequest struct {
 type CycleUpdateRequest struct {
 	Name                *string `json:"name"`
 	Description         *string `json:"description"`
-	StartDate           *string `json:"start_date"`   // RFC3339 date
-	EndDate             *string `json:"end_date"`     // RFC3339 date
+	StartDate           *string `json:"start_date"` // RFC3339 date
+	EndDate             *string `json:"end_date"`   // RFC3339 date
 	AutoAddEnabled      *bool   `json:"auto_add_enabled"`
 	AutoAddRQL          *string `json:"auto_add_rql"`
 	AutoCloseEnabled    *bool   `json:"auto_close_enabled"`

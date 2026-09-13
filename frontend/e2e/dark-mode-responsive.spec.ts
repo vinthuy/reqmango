@@ -1,4 +1,4 @@
-﻿/**
+/**
  * E2E Tests — Dark Mode & Responsive Layout
  * 测试暗色模式切换、侧边栏、多分辨率适配
  */
@@ -370,9 +370,12 @@ test.describe('Dark Mode Readability', () => {
 
   test('AI chart in dark mode should adapt colors', async ({ page }) => {
     await loginViaStorage(page, token)
+    // The app owns the `dark` class: useDarkMode re-applies it from
+    // localStorage on mount, so the preference must be stored before load
+    // instead of toggling the class by hand.
+    await page.evaluate(() => localStorage.setItem('reqmango-dark-mode', 'true'))
     await page.goto('/')
-    await page.evaluate(() => document.documentElement.classList.add('dark'))
-    await page.waitForTimeout(300)
+    await page.waitForTimeout(500)
 
     // Check that AIChartRenderer responds to dark class
     const isDark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
@@ -440,10 +443,10 @@ test.describe('Sidebar + Dark Mode Combined', () => {
     await page.goto('/')
     await page.waitForTimeout(1000)
 
-    // Sidebar should still be visible
-    const sidebar = page.locator('[class*="h-screen"]').first()
-    const stillVisible = await sidebar.isVisible({ timeout: 2000 }).catch(() => false)
-    expect(stillVisible).toBe(true)
+    // Sidebar should still be visible. Use the same selector as the passing sidebar
+    // cases: a bare [class*="h-screen"] can match a hidden wrapper first.
+    const sidebar = page.locator('[class*="flex-col h-screen"]').first()
+    await expect(sidebar).toBeVisible({ timeout: 5000 })
 
     // Expand back if we collapsed
     if (wasCollapsed && await collapseBtn.isVisible({ timeout: 2000 }).catch(() => false)) {

@@ -53,8 +53,12 @@ func (s *TypeTemplateService) Create(workspaceID, userID uint64, req request.Typ
 		ParentTypeID: req.ParentTypeID,
 		WorkspaceID:  workspaceID,
 	}
-	if t.Color == "" { t.Color = "#6366F1" }
-	if t.Icon == ""  { t.Icon = "circle" }
+	if t.Color == "" {
+		t.Color = "#6366F1"
+	}
+	if t.Icon == "" {
+		t.Icon = "circle"
+	}
 	t.CreatedByID = &userID
 	if err := s.db.Create(&t).Error; err != nil {
 		return nil, common.Internal("Failed to create type template")
@@ -72,7 +76,6 @@ func (s *TypeTemplateService) List(workspaceID uint64) ([]response.TypeTemplateR
 	for i, t := range templates {
 		result[i] = *s.buildResponse(t)
 	}
-	if result == nil { result = []response.TypeTemplateResponse{} }
 	return result, nil
 }
 
@@ -89,12 +92,24 @@ func (s *TypeTemplateService) Update(id, userID uint64, req request.TypeTemplate
 	if err := s.db.First(&t, id).Error; err != nil {
 		return nil, common.NotFound("Type template not found")
 	}
-	if req.Name != nil { t.Name = *req.Name }
-	if req.Color != nil { t.Color = *req.Color }
-	if req.Icon != nil { t.Icon = *req.Icon }
-	if req.Description != nil { t.Description = *req.Description }
-	if req.Level != nil { t.Level = *req.Level }
-	if req.ParentTypeID != nil { t.ParentTypeID = req.ParentTypeID }
+	if req.Name != nil {
+		t.Name = *req.Name
+	}
+	if req.Color != nil {
+		t.Color = *req.Color
+	}
+	if req.Icon != nil {
+		t.Icon = *req.Icon
+	}
+	if req.Description != nil {
+		t.Description = *req.Description
+	}
+	if req.Level != nil {
+		t.Level = *req.Level
+	}
+	if req.ParentTypeID != nil {
+		t.ParentTypeID = req.ParentTypeID
+	}
 	t.UpdatedByID = &userID
 	if err := s.db.Save(&t).Error; err != nil {
 		return nil, common.Internal("Failed to update type template")

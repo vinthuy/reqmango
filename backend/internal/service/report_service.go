@@ -33,9 +33,9 @@ type ReportRequest struct {
 
 // ReportV2Request V2 报表请求 — 显式指定 x_axis (维度) 和 y_axis (指标)
 type ReportV2Request struct {
-	XAxis    string `json:"x_axis"`              // 维度: state, priority, assignee, type, label, cycle, module, created_day, created_week, created_month, completed_day, completed_week, completed_month, updated_day, updated_week, updated_month
-	YAxis    string `json:"y_axis"`              // 指标: count, avg_processing_time, current_retention, created_vs_resolved
-	Interval string `json:"interval,omitempty"`  // 仅用于时间轴: day, week, month (默认 week)
+	XAxis    string `json:"x_axis"`             // 维度: state, priority, assignee, type, label, cycle, module, created_day, created_week, created_month, completed_day, completed_week, completed_month, updated_day, updated_week, updated_month
+	YAxis    string `json:"y_axis"`             // 指标: count, avg_processing_time, current_retention, created_vs_resolved
+	Interval string `json:"interval,omitempty"` // 仅用于时间轴: day, week, month (默认 week)
 	RQL      string `json:"rql,omitempty"`
 	DateFrom string `json:"date_from,omitempty"`
 	DateTo   string `json:"date_to,omitempty"`
@@ -298,13 +298,8 @@ func (s *ReportService) resolveYAxisJoin(yAxis string) string {
 
 // v2CreatedVsResolved 处理 created_vs_resolved 指标：需要两个独立查询
 func (s *ReportService) v2CreatedVsResolved(projectID uint64, xAxis string, req *ReportV2Request, ids []uint64) (*ReportResponse, error) {
-	// created_vs_resolved 需要时间轴作为 X 轴
-	// 解析 x_axis 以获取时间列和格式
-	_, _, timeColumn := s.resolveXAxis(xAxis, req.Interval)
-	if timeColumn == "" {
-		// 非时间轴不支持 created_vs_resolved，回退到 created_at week
-		timeColumn = "created_at"
-	}
+	// created_vs_resolved 需要时间轴作为 X 轴。
+	// created/resolved 的时间列由下方 x_axis 前缀直接决定。
 
 	// 确定 TO_CHAR 格式
 	var dateFormat string
@@ -459,17 +454,6 @@ func (s *ReportService) getFilteredIssueIDs(projectID uint64, rqlQuery string) (
 		ids[i] = issue.ID
 	}
 	return ids, nil
-}
-
-// applyIssueFilter 应用 Issue ID 过滤
-func (s *ReportService) applyIssueFilter(query *gorm.DB, ids []uint64) *gorm.DB {
-	if ids == nil {
-		return query // 全量
-	}
-	if len(ids) == 0 {
-		return query.Where("1 = 0") // 无结果
-	}
-	return query.Where("issues.id IN ?", ids)
 }
 
 // ========================
@@ -688,7 +672,7 @@ func (s *ReportService) getIssueDates(projectID uint64, ids []uint64, dateFrom, 
 	}
 	result := make([]issueDates, len(rows))
 	for i, r := range rows {
-		result[i] = issueDates{CreatedAt: r.CreatedAt, CompletedAt: r.CompletedAt}
+		result[i] = issueDates(r)
 	}
 	return result, nil
 }

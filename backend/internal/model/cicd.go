@@ -117,11 +117,11 @@ type BuildRecord struct {
 	Trigger BuildTrigger `gorm:"size:20;not null;default:manual" json:"trigger"`
 
 	// Source references
-	Branch     string  `gorm:"size:120" json:"branch"`
-	CommitSHA  string  `gorm:"size:64" json:"commit_sha"`
-	IssueID    *uint64 `gorm:"index" json:"issue_id,omitempty"`
-	AgentTaskID *uint64 `gorm:"index" json:"agent_task_id,omitempty"`
-	TriggeredByID uint64 `gorm:"column:triggered_by_id" json:"triggered_by_id"`
+	Branch        string  `gorm:"size:120" json:"branch"`
+	CommitSHA     string  `gorm:"size:64" json:"commit_sha"`
+	IssueID       *uint64 `gorm:"index" json:"issue_id,omitempty"`
+	AgentTaskID   *uint64 `gorm:"index" json:"agent_task_id,omitempty"`
+	TriggeredByID uint64  `gorm:"column:triggered_by_id" json:"triggered_by_id"`
 
 	// Provider-side identifiers
 	ExternalBuildID string `gorm:"size:128" json:"external_build_id"`

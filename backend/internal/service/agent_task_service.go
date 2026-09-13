@@ -15,9 +15,9 @@ import (
 )
 
 type AgentTaskService struct {
-	db            *gorm.DB
-	toolSvc       *ToolService
-	presenceSvc   model.AgentPresenceInterface
+	db          *gorm.DB
+	toolSvc     *ToolService
+	presenceSvc model.AgentPresenceInterface
 }
 
 func NewAgentTaskService(db *gorm.DB) *AgentTaskService {
@@ -53,7 +53,7 @@ func (s *AgentTaskService) updateAgentPresence(taskID, agentID uint64, status st
 	if s.presenceSvc == nil {
 		return
 	}
-	go s.presenceSvc.UpdatePresenceOnTaskStateChange(agentID, taskID, status)
+	go func() { _ = s.presenceSvc.UpdatePresenceOnTaskStateChange(agentID, taskID, status) }()
 }
 
 func (s *AgentTaskService) Create(wid uint64, callerID uint64, req request.AgentTaskCreate) (*response.AgentTaskResponse, error) {
@@ -61,20 +61,20 @@ func (s *AgentTaskService) Create(wid uint64, callerID uint64, req request.Agent
 		return nil, err
 	}
 	task := model.AgentTask{
-		Title:            req.Title,
-		Description:      req.Description,
-		Status:           "enqueue",
-		Priority:         req.Priority,
-		Progress:         0,
-		TaskType:         req.TaskType,
-		InputData:        req.InputData,
-		AgentTemplateID:  req.AgentTemplateID,
-		AgentConfigID:    req.AgentConfigID,
-		WorkspaceID:      wid,
-		ProjectID:        req.ProjectID,
-		IssueID:          req.IssueID,
-		EnqueuedAt:       time.Now(),
-		EstimatedTime:    req.EstimatedTime,
+		Title:           req.Title,
+		Description:     req.Description,
+		Status:          "enqueue",
+		Priority:        req.Priority,
+		Progress:        0,
+		TaskType:        req.TaskType,
+		InputData:       req.InputData,
+		AgentTemplateID: req.AgentTemplateID,
+		AgentConfigID:   req.AgentConfigID,
+		WorkspaceID:     wid,
+		ProjectID:       req.ProjectID,
+		IssueID:         req.IssueID,
+		EnqueuedAt:      time.Now(),
+		EstimatedTime:   req.EstimatedTime,
 	}
 
 	if err := s.db.Create(&task).Error; err != nil {
@@ -259,14 +259,14 @@ func (s *AgentTaskService) executeTaskTool(taskID, wid uint64, inputData json.Ra
 
 	result, err := s.toolSvc.Call(wid, callReq)
 	if err != nil {
-		s.AddLog(taskID, "error", fmt.Sprintf("Tool execution failed: %v", err), nil)
+		_ = s.AddLog(taskID, "error", fmt.Sprintf("Tool execution failed: %v", err), nil)
 		// Mark task as failed if tool execution fails
-		s.Fail(taskID, request.AgentTaskFail{ErrorInfo: fmt.Sprintf("Tool execution failed: %v", err)})
+		_, _ = s.Fail(taskID, request.AgentTaskFail{ErrorInfo: fmt.Sprintf("Tool execution failed: %v", err)})
 		return
 	}
 
 	// Log tool execution result
-	s.AddLog(taskID, "info", fmt.Sprintf("Tool executed: %s", result.ToolName), nil)
+	_ = s.AddLog(taskID, "info", fmt.Sprintf("Tool executed: %s", result.ToolName), nil)
 
 	// Update task with output
 	outputBytes, _ := json.Marshal(result.OutputResult)
@@ -277,7 +277,7 @@ func (s *AgentTaskService) executeTaskTool(taskID, wid uint64, inputData json.Ra
 		OutputData: outputBytes,
 		ActualTime: int(result.DurationMs),
 	}
-	s.Complete(taskID, completeReq)
+	_, _ = s.Complete(taskID, completeReq)
 }
 
 func (s *AgentTaskService) Complete(id uint64, req request.AgentTaskComplete) (*response.AgentTaskResponse, error) {
@@ -324,7 +324,7 @@ func (s *AgentTaskService) Fail(id uint64, req request.AgentTaskFail) (*response
 
 	task.Status = "failed"
 	task.ErrorInfo = &req.ErrorInfo
-	
+
 	// Set failure reason based on error info
 	if req.FailureReason != "" {
 		task.FailureReason = model.TaskFailureReason(req.FailureReason)
@@ -345,7 +345,7 @@ func (s *AgentTaskService) Fail(id uint64, req request.AgentTaskFail) (*response
 			task.FailureReason = model.FailureReasonAgentError
 		}
 	}
-	
+
 	now := time.Now()
 	task.CompletedAt = &now
 
@@ -380,22 +380,22 @@ func (s *AgentTaskService) Retry(id uint64) (*response.AgentTaskResponse, error)
 	}
 
 	retryTask := model.AgentTask{
-		Title:            task.Title,
-		Description:      task.Description,
-		Status:           "enqueue",
-		Priority:         task.Priority,
-		Progress:         0,
-		TaskType:         task.TaskType,
-		InputData:        task.InputData,
-		AgentTemplateID:  task.AgentTemplateID,
-		AgentConfigID:    task.AgentConfigID,
-		WorkspaceID:      task.WorkspaceID,
-		ProjectID:        task.ProjectID,
-		IssueID:          task.IssueID,
-		EnqueuedAt:       time.Now(),
-		EstimatedTime:    task.EstimatedTime,
-		RetryOfTaskID:    &task.ID,
-		Attribution:      task.Attribution, // Inherit attribution from original
+		Title:           task.Title,
+		Description:     task.Description,
+		Status:          "enqueue",
+		Priority:        task.Priority,
+		Progress:        0,
+		TaskType:        task.TaskType,
+		InputData:       task.InputData,
+		AgentTemplateID: task.AgentTemplateID,
+		AgentConfigID:   task.AgentConfigID,
+		WorkspaceID:     task.WorkspaceID,
+		ProjectID:       task.ProjectID,
+		IssueID:         task.IssueID,
+		EnqueuedAt:      time.Now(),
+		EstimatedTime:   task.EstimatedTime,
+		RetryOfTaskID:   &task.ID,
+		Attribution:     task.Attribution, // Inherit attribution from original
 	}
 
 	if err := s.db.Create(&retryTask).Error; err != nil {
@@ -421,22 +421,22 @@ func (s *AgentTaskService) Rerun(id uint64) (*response.AgentTaskResponse, error)
 	}
 
 	rerunTask := model.AgentTask{
-		Title:            task.Title,
-		Description:      task.Description,
-		Status:           "enqueue",
-		Priority:         task.Priority,
-		Progress:         0,
-		TaskType:         task.TaskType,
-		InputData:        task.InputData,
-		AgentTemplateID:  task.AgentTemplateID,
-		AgentConfigID:    task.AgentConfigID,
-		WorkspaceID:      task.WorkspaceID,
-		ProjectID:        task.ProjectID,
-		IssueID:          task.IssueID,
-		EnqueuedAt:       time.Now(),
-		EstimatedTime:    task.EstimatedTime,
-		RerunOfTaskID:    &task.ID,
-		Attribution:      task.Attribution, // Inherit attribution from original
+		Title:           task.Title,
+		Description:     task.Description,
+		Status:          "enqueue",
+		Priority:        task.Priority,
+		Progress:        0,
+		TaskType:        task.TaskType,
+		InputData:       task.InputData,
+		AgentTemplateID: task.AgentTemplateID,
+		AgentConfigID:   task.AgentConfigID,
+		WorkspaceID:     task.WorkspaceID,
+		ProjectID:       task.ProjectID,
+		IssueID:         task.IssueID,
+		EnqueuedAt:      time.Now(),
+		EstimatedTime:   task.EstimatedTime,
+		RerunOfTaskID:   &task.ID,
+		Attribution:     task.Attribution, // Inherit attribution from original
 	}
 
 	if err := s.db.Create(&rerunTask).Error; err != nil {

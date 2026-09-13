@@ -47,7 +47,7 @@ func newWgtRow(id, dashID uint64, wtype, title string, sortOrder int) *sqlmock.R
 
 func TestDashboardService_Create(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 	mock.ExpectQuery(`INSERT INTO`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
@@ -60,7 +60,7 @@ func TestDashboardService_Create(t *testing.T) {
 
 func TestDashboardService_Create_DefaultColumns(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 	mock.ExpectQuery(`INSERT INTO`).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(2))
@@ -73,7 +73,7 @@ func TestDashboardService_Create_DefaultColumns(t *testing.T) {
 
 func TestDashboardService_Create_WithIsDefault(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 	mock.ExpectExec(`UPDATE`).WillReturnResult(sqlmock.NewResult(0, 0))
@@ -87,7 +87,7 @@ func TestDashboardService_Create_WithIsDefault(t *testing.T) {
 
 func TestDashboardService_Get_NotFound(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 	// GORM adds deleted_at IS NULL, so query doesn't match 15-column row
@@ -101,7 +101,7 @@ func TestDashboardService_Get_NotFound(t *testing.T) {
 
 func TestDashboardService_Delete(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 	// GORM soft-delete = UPDATE "saved_dashboards" SET "deleted_at"=$1
@@ -117,7 +117,7 @@ func TestDashboardService_Delete(t *testing.T) {
 
 func TestDashboardService_Delete_NotFound(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 	mock.ExpectExec(`UPDATE`).WithArgs(sqlmock.AnyArg(), uint64(999), uint64(1), uint64(2)).WillReturnResult(sqlmock.NewResult(0, 0))
@@ -129,7 +129,7 @@ func TestDashboardService_Delete_NotFound(t *testing.T) {
 
 func TestDashboardService_SetDefault(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 	// GORM First = SELECT ... WHERE id=$1 AND project_id=$2 AND owner_id=$3 ... LIMIT $4
@@ -148,7 +148,7 @@ func TestDashboardService_SetDefault(t *testing.T) {
 
 func TestDashboardService_Duplicate(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 
@@ -175,7 +175,7 @@ func TestDashboardService_Duplicate(t *testing.T) {
 
 func TestDashboardService_AddWidget(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 
@@ -190,7 +190,7 @@ func TestDashboardService_AddWidget(t *testing.T) {
 
 func TestDashboardService_UpdateWidget(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 
@@ -208,7 +208,7 @@ func TestDashboardService_UpdateWidget(t *testing.T) {
 
 func TestDashboardService_DeleteWidget(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 
@@ -224,7 +224,7 @@ func TestDashboardService_DeleteWidget(t *testing.T) {
 
 func TestDashboardService_DeleteWidget_NotFound(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 
@@ -239,7 +239,7 @@ func TestDashboardService_DeleteWidget_NotFound(t *testing.T) {
 
 func TestDashboardService_ReorderWidgets(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewDashboardService(db)
 
@@ -257,7 +257,7 @@ func TestDashboardService_ReorderWidgets(t *testing.T) {
 
 func TestDashboardService_HelperConversions(t *testing.T) {
 	db, _, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	_ = NewDashboardService(db)
 
 	assert.Equal(t, json.RawMessage("{}"), normalizeJSON(nil))
@@ -268,7 +268,7 @@ func TestDashboardService_HelperConversions(t *testing.T) {
 
 func TestDashboardService_ResponseConversion(t *testing.T) {
 	db, _, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	_ = NewDashboardService(db)
 
 	t.Run("dashboardToResponse", func(t *testing.T) {

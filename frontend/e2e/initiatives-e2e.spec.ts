@@ -174,7 +174,7 @@ test.describe('Initiatives UI Pages', () => {
 
   test('initiatives page loads with header and view toggle', async ({ page }) => {
     await goToApp(page, `/workspace/${_wsSlug}/initiatives`)
-    await expect(page.locator('h1')).toContainText('Initiatives')
+    await expect(page.locator('h1')).toContainText(/Initiatives|战略目标/)
     // View toggle buttons exist
     await expect(page.locator('button:has-text("列表")').or(page.locator('button:has-text("List")'))).toBeVisible({ timeout: 5000 })
     await expect(page.locator('button:has-text("路线图")').or(page.locator('button:has-text("Roadmap")'))).toBeVisible({ timeout: 5000 })

@@ -14,7 +14,7 @@ import (
 
 func TestPATService_Create(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewPATService(db)
 	mock.ExpectQuery(`INSERT INTO "personal_access_tokens"`).
@@ -31,7 +31,7 @@ func TestPATService_Create(t *testing.T) {
 
 func TestPATService_List(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewPATService(db)
 	mock.ExpectQuery(`SELECT \* FROM "personal_access_tokens" WHERE`).
@@ -46,7 +46,7 @@ func TestPATService_List(t *testing.T) {
 
 func TestPATService_Revoke_NotFound(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewPATService(db)
 	mock.ExpectExec(`UPDATE "personal_access_tokens"`).
@@ -59,7 +59,7 @@ func TestPATService_Revoke_NotFound(t *testing.T) {
 
 func TestPATService_Authenticate_Valid(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewPATService(db)
 	mock.ExpectQuery(`SELECT \* FROM "personal_access_tokens" WHERE`).
@@ -78,7 +78,7 @@ func TestPATService_Authenticate_Valid(t *testing.T) {
 
 func TestPATService_Authenticate_Revoked(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	svc := NewPATService(db)
 	// A revoked token never matches the service's `revoked_at IS NULL` filter,

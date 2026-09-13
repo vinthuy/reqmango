@@ -202,9 +202,7 @@ func (r *PipelineRunner) runFanOut(ctx context.Context, config PipelineConfig, i
 	}
 	wg.Wait()
 
-	for _, r := range execResults {
-		results = append(results, r)
-	}
+	results = append(results, execResults...)
 
 	// Step 3: Run reviewer if present
 	if reviewer != nil {
@@ -264,9 +262,7 @@ func (r *PipelineRunner) runTournament(ctx context.Context, config PipelineConfi
 		}(i, exec)
 	}
 	wg.Wait()
-	for _, r := range execResults {
-		results = append(results, r)
-	}
+	results = append(results, execResults...)
 
 	// Judge picks the winner
 	if judge != nil {

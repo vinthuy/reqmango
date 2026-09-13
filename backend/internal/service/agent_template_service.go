@@ -35,7 +35,7 @@ func (s *AgentTemplateService) checkWorkspaceAdmin(workspaceID, callerID uint64)
 
 // validateSkillIDs validates that all referenced skill IDs exist in the workspace.
 func (s *AgentTemplateService) validateSkillIDs(wid uint64, skillsJSON json.RawMessage) error {
-	if skillsJSON == nil || len(skillsJSON) == 0 {
+	if len(skillsJSON) == 0 {
 		return nil
 	}
 
@@ -189,20 +189,20 @@ func (s *AgentTemplateService) toResponse(t *model.AgentTemplate) *response.Agen
 	}
 
 	return &response.AgentTemplateResponse{
-		ID:               t.ID,
-		Name:             t.Name,
-		Description:      t.Description,
-		IsPreset:         t.IsPreset,
-		Icon:             t.Icon,
-		SystemPrompt:     t.SystemPrompt,
-		AvailableSkills:  t.AvailableSkills,
-		AvailableTools:   t.AvailableTools,
-		DefaultConfig:    t.DefaultConfig,
-		Version:          t.Version,
-		Status:           t.Status,
-		WorkspaceID:      workspaceID,
-		CreatedAt:        t.CreatedAt,
-		UpdatedAt:        t.UpdatedAt,
+		ID:              t.ID,
+		Name:            t.Name,
+		Description:     t.Description,
+		IsPreset:        t.IsPreset,
+		Icon:            t.Icon,
+		SystemPrompt:    t.SystemPrompt,
+		AvailableSkills: t.AvailableSkills,
+		AvailableTools:  t.AvailableTools,
+		DefaultConfig:   t.DefaultConfig,
+		Version:         t.Version,
+		Status:          t.Status,
+		WorkspaceID:     workspaceID,
+		CreatedAt:       t.CreatedAt,
+		UpdatedAt:       t.UpdatedAt,
 	}
 }
 

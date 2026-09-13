@@ -15,8 +15,8 @@ type Module struct {
 	IsArchived  bool       `gorm:"default:false" json:"is_archived"`
 
 	// Relationships
-	Project    Project        `gorm:"foreignKey:ProjectID" json:"-"`
-	IssueLinks []ModuleIssue  `gorm:"foreignKey:ModuleID" json:"-"`
+	Project    Project       `gorm:"foreignKey:ProjectID" json:"-"`
+	IssueLinks []ModuleIssue `gorm:"foreignKey:ModuleID" json:"-"`
 }
 
 func (Module) TableName() string {

@@ -34,8 +34,8 @@ func TestNormalizeBucket(t *testing.T) {
 		{"day", "day"},
 		{"week", "week"},
 		{"month", "month"},
-		{"YEAR", "day"},       // unsupported falls back to day
-		{"hour", "day"},       // unsupported falls back to day
+		{"YEAR", "day"}, // unsupported falls back to day
+		{"hour", "day"}, // unsupported falls back to day
 	}
 	for _, tt := range tests {
 		t.Run("bucket_"+tt.in, func(t *testing.T) {

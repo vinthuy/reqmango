@@ -95,13 +95,13 @@ func (r *LoopRunner) Run(ctx context.Context) ([]IterationRecord, string, error)
 	for !r.stateMachine.IsTerminal() {
 		// Check budget before each iteration
 		if ok, reason := r.budget.CanContinue(); !ok {
-			r.stateMachine.Transition(StateFailed)
+			_ = r.stateMachine.Transition(StateFailed)
 			return r.iterations, fmt.Sprintf("budget_exhausted: %s", reason), nil
 		}
 
 		select {
 		case <-ctx.Done():
-			r.stateMachine.Transition(StateFailed)
+			_ = r.stateMachine.Transition(StateFailed)
 			return r.iterations, "cancelled", ctx.Err()
 		default:
 		}
@@ -118,7 +118,7 @@ func (r *LoopRunner) Run(ctx context.Context) ([]IterationRecord, string, error)
 
 		if err != nil {
 			log.Printf("[LoopRunner] executor error: %v", err)
-			r.stateMachine.Transition(StateFailed)
+			_ = r.stateMachine.Transition(StateFailed)
 			return r.iterations, "executor_error", err
 		}
 
@@ -173,18 +173,18 @@ func (r *LoopRunner) Run(ctx context.Context) ([]IterationRecord, string, error)
 
 		switch decision {
 		case DecideStop:
-			r.stateMachine.Transition(StateCompleted)
+			_ = r.stateMachine.Transition(StateCompleted)
 			return r.iterations, "goal_achieved", nil
 		case DecideEscalate:
-			r.stateMachine.Transition(StateFailed)
+			_ = r.stateMachine.Transition(StateFailed)
 			return r.iterations, fmt.Sprintf("escalated: %s", reasoning), nil
 		case DecideWait:
-			r.stateMachine.Transition(StateWaiting)
+			_ = r.stateMachine.Transition(StateWaiting)
 			time.Sleep(30 * time.Second)
-			r.stateMachine.Transition(StateActing)
+			_ = r.stateMachine.Transition(StateActing)
 		default:
 			// DecideContinue: loop back to acting
-			r.stateMachine.Transition(StateActing)
+			_ = r.stateMachine.Transition(StateActing)
 		}
 	}
 

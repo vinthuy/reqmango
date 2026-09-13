@@ -576,14 +576,14 @@ func (s *MemoryService) UpdateRelevance(ctx context.Context, id, workspaceID uin
 func tokenize(text string) []string {
 	text = strings.ToLower(text)
 	var tokens []string
-	
+
 	// Split by whitespace first
 	words := strings.Fields(text)
-	
+
 	for _, w := range words {
 		var cleaned string
 		var hasChinese bool
-		
+
 		for _, c := range w {
 			// Check if it's a Chinese character
 			if c >= '\u4e00' && c <= '\u9fff' {
@@ -595,12 +595,12 @@ func tokenize(text string) []string {
 				cleaned += string(c)
 			}
 		}
-		
+
 		if !hasChinese && cleaned != "" {
 			tokens = append(tokens, cleaned)
 		}
 	}
-	
+
 	return tokens
 }
 

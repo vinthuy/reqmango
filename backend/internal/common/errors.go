@@ -159,11 +159,11 @@ func RespondCreated(c *gin.Context, data interface{}) {
 // The caller should return HTTP 409 with the transition_id so the frontend can
 // open the approval submit dialog.
 type ApprovalRequiredError struct {
-	TransitionID   uint64
-	WorkflowID     uint64
-	WorkflowName   string
-	SourceStateID  uint64
-	TargetStateID  uint64
+	TransitionID    uint64
+	WorkflowID      uint64
+	WorkflowName    string
+	SourceStateID   uint64
+	TargetStateID   uint64
 	SourceStateName string
 	TargetStateName string
 }
@@ -174,11 +174,11 @@ func (e *ApprovalRequiredError) Error() string {
 
 func NewApprovalRequiredError(transitionID, workflowID uint64, workflowName, sourceStateName, targetStateName string, sourceStateID, targetStateID uint64) *ApprovalRequiredError {
 	return &ApprovalRequiredError{
-		TransitionID:   transitionID,
-		WorkflowID:     workflowID,
-		WorkflowName:   workflowName,
-		SourceStateID:  sourceStateID,
-		TargetStateID:  targetStateID,
+		TransitionID:    transitionID,
+		WorkflowID:      workflowID,
+		WorkflowName:    workflowName,
+		SourceStateID:   sourceStateID,
+		TargetStateID:   targetStateID,
 		SourceStateName: sourceStateName,
 		TargetStateName: targetStateName,
 	}

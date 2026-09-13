@@ -76,12 +76,12 @@ type ChatResponse struct {
 // ==================== Anthropic API Types ====================
 
 type anthropicRequest struct {
-	Model     string         `json:"model"`
-	MaxTokens int            `json:"max_tokens"`
-	Messages  []anthropicMsg `json:"messages"`
-	System    string         `json:"system,omitempty"`
+	Model     string          `json:"model"`
+	MaxTokens int             `json:"max_tokens"`
+	Messages  []anthropicMsg  `json:"messages"`
+	System    string          `json:"system,omitempty"`
 	Tools     []anthropicTool `json:"tools,omitempty"`
-	Stream    bool           `json:"stream"`
+	Stream    bool            `json:"stream"`
 }
 
 type anthropicMsg struct {
@@ -111,9 +111,9 @@ type anthropicStreamEvent struct {
 }
 
 type anthropicDelta struct {
-	Type         string `json:"type"`
-	Text         string `json:"text,omitempty"`
-	PartialJSON  string `json:"partial_json,omitempty"`
+	Type        string `json:"type"`
+	Text        string `json:"text,omitempty"`
+	PartialJSON string `json:"partial_json,omitempty"`
 }
 
 // ==================== LLMClient ====================
@@ -222,7 +222,7 @@ func (c *LLMClient) GenerateEmbedding(ctx context.Context, text string) ([]float
 	if err != nil {
 		return nil, fmt.Errorf("embedding API request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read embedding response: %w", err)
@@ -274,7 +274,7 @@ func (c *LLMClient) ChatSync(ctx context.Context, systemPrompt string, messages 
 	if err != nil {
 		return nil, fmt.Errorf("API 连接失败 (%s): %w。请检查网络连接或API密钥配置", c.baseURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -351,7 +351,7 @@ func (c *LLMClient) ChatStream(ctx context.Context, systemPrompt string, message
 	}
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -396,7 +396,7 @@ func (c *LLMClient) ChatSyncWithTools(ctx context.Context, systemPrompt string, 
 			return nil, fmt.Errorf("API 连接失败 (%s): %w。请检查网络连接或API密钥配置", c.baseURL, err)
 		}
 		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("read response: %w", err)
 		}
@@ -484,10 +484,10 @@ func (c *LLMClient) buildOpenAIRequest(systemPrompt string, messages []Message, 
 	}
 
 	body := map[string]interface{}{
-		"model":     c.model,
+		"model":      c.model,
 		"max_tokens": 4096,
-		"messages":  openaiMsgs,
-		"stream":    stream,
+		"messages":   openaiMsgs,
+		"stream":     stream,
 	}
 	if len(tools) > 0 {
 		openaiTools := make([]map[string]interface{}, len(tools))
@@ -520,7 +520,7 @@ func (c *LLMClient) buildAnthropicRequest(systemPrompt string, messages []Messag
 	}
 	anthropicTools := make([]anthropicTool, len(tools))
 	for i, t := range tools {
-		anthropicTools[i] = anthropicTool{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema}
+		anthropicTools[i] = anthropicTool(t)
 	}
 
 	body := anthropicRequest{
@@ -552,7 +552,7 @@ func (c *LLMClient) doRequest(ctx context.Context, req *http.Request) (*http.Res
 
 func (c *LLMClient) readOpenAISSE(body io.ReadCloser, ch chan<- StreamEvent) {
 	defer close(ch)
-	defer body.Close()
+	defer func() { _ = body.Close() }()
 
 	scanner := bufio.NewScanner(body)
 	var currentToolID, currentToolName string
@@ -646,7 +646,7 @@ func (c *LLMClient) readOpenAISSE(body io.ReadCloser, ch chan<- StreamEvent) {
 
 func (c *LLMClient) readAnthropicSSE(body io.ReadCloser, ch chan<- StreamEvent) {
 	defer close(ch)
-	defer body.Close()
+	defer func() { _ = body.Close() }()
 
 	scanner := bufio.NewScanner(body)
 	var currentToolID, currentToolName string

@@ -10,7 +10,9 @@ import (
 	"github.com/reqmango/backend/internal/service"
 )
 
-type FieldPermissionHandler struct{ svc *service.FieldPermissionService }
+type FieldPermissionHandler struct {
+	svc *service.FieldPermissionService
+}
 
 func NewFieldPermissionHandler(svc *service.FieldPermissionService) *FieldPermissionHandler {
 	return &FieldPermissionHandler{svc: svc}

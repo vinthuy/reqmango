@@ -20,9 +20,9 @@ type User struct {
 	LastActive      *time.Time `json:"last_active"`
 
 	// Relationships
-	Workspaces      []WorkspaceMember `gorm:"foreignKey:UserID" json:"-"`
-	Projects        []ProjectMember   `gorm:"foreignKey:UserID" json:"-"`
-	AssignedIssues  []IssueAssignee   `gorm:"foreignKey:UserID" json:"-"`
+	Workspaces     []WorkspaceMember `gorm:"foreignKey:UserID" json:"-"`
+	Projects       []ProjectMember   `gorm:"foreignKey:UserID" json:"-"`
+	AssignedIssues []IssueAssignee   `gorm:"foreignKey:UserID" json:"-"`
 }
 
 func (User) TableName() string {

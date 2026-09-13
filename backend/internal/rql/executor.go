@@ -147,11 +147,8 @@ func (e *GORMExecutor) Execute(db *gorm.DB, node Node, ctx *QueryContext) (*gorm
 	// 使用 rawCondition 统一构建 WHERE 子句
 	cond, err := e.buildRawCondition(node, ctx)
 	if err != nil {
-		fmt.Printf("[RQL EXECUTOR ERROR] %v\n", err)
 		return db, err
 	}
-
-	fmt.Printf("[RQL EXECUTOR] SQL: %s | Args: %v | Joins: %v\n", cond.SQL, cond.Args, cond.Joins)
 
 	// 应用 JOIN
 	for _, join := range cond.Joins {

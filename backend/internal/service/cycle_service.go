@@ -216,12 +216,12 @@ func (s *CycleService) Create(workspaceID, userID uint64, req *request.CycleCrea
 	}
 
 	cycle := &model.Cycle{
-		Name:                req.Name,
-		Description:         req.Description,
-		StartDate:           startDate,
-		EndDate:             endDate,
-		ProjectID:           req.ProjectID,
-		WorkspaceID:         workspaceID,
+		Name:        req.Name,
+		Description: req.Description,
+		StartDate:   startDate,
+		EndDate:     endDate,
+		ProjectID:   req.ProjectID,
+		WorkspaceID: workspaceID,
 		CycleAutomation: model.CycleAutomation{
 			AutoAddEnabled:      req.AutoAddEnabled,
 			AutoAddRQL:          req.AutoAddRQL,

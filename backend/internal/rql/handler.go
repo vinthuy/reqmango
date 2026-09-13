@@ -11,13 +11,13 @@ import (
 )
 
 type RQLHandler struct {
-	db          *gorm.DB
+	db         *gorm.DB
 	rqlService *RQLService
 }
 
 func NewRQLHandler(db *gorm.DB) *RQLHandler {
 	return &RQLHandler{
-		db:          db,
+		db:         db,
 		rqlService: NewRQLService(),
 	}
 }

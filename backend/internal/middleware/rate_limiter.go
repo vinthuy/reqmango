@@ -12,15 +12,15 @@ import (
 
 // RateLimiter implements a per-key token bucket rate limiter.
 type RateLimiter struct {
-	mu       sync.Mutex
-	buckets  map[string]*bucket
-	limit    int           // max requests per window
-	window   time.Duration // time window
+	mu              sync.Mutex
+	buckets         map[string]*bucket
+	limit           int           // max requests per window
+	window          time.Duration // time window
 	cleanupInterval time.Duration
 }
 
 type bucket struct {
-	tokens   int
+	tokens     int
 	lastRefill time.Time
 }
 
@@ -30,11 +30,13 @@ func NewRateLimiter(limit int, windowSec int) *RateLimiter {
 	if limit <= 0 {
 		return &RateLimiter{limit: 0}
 	}
-	if windowSec <= 0 { windowSec = 60 }
+	if windowSec <= 0 {
+		windowSec = 60
+	}
 	rl := &RateLimiter{
-		buckets:  make(map[string]*bucket),
-		limit:    limit,
-		window:   time.Duration(windowSec) * time.Second,
+		buckets:         make(map[string]*bucket),
+		limit:           limit,
+		window:          time.Duration(windowSec) * time.Second,
 		cleanupInterval: 5 * time.Minute,
 	}
 	go rl.cleanup()
@@ -84,14 +86,18 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 		refill := int(float64(rl.limit) * elapsed.Seconds() / rl.window.Seconds())
 		if refill > 0 {
 			b.tokens += refill
-			if b.tokens > rl.limit { b.tokens = rl.limit }
+			if b.tokens > rl.limit {
+				b.tokens = rl.limit
+			}
 			b.lastRefill = time.Now()
 		}
 
 		b.tokens--
 		allowed := b.tokens >= 0
 		remaining := b.tokens
-		if remaining < 0 { remaining = 0 }
+		if remaining < 0 {
+			remaining = 0
+		}
 
 		// Set rate limit headers
 		c.Header("X-RateLimit-Limit", strconv.Itoa(rl.limit))
@@ -115,7 +121,9 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 // Skipper allows skipping rate limiting for certain paths.
 func RateLimitSkipper(paths ...string) gin.HandlerFunc {
 	skip := make(map[string]bool, len(paths))
-	for _, p := range paths { skip[p] = true }
+	for _, p := range paths {
+		skip[p] = true
+	}
 	return func(c *gin.Context) {
 		if skip[c.Request.URL.Path] {
 			c.Next()

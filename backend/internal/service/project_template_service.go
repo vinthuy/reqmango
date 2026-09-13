@@ -77,9 +77,6 @@ func (s *ProjectTemplateService) List(workspaceID uint64) ([]response.ProjectTem
 	for i, t := range templates {
 		result[i] = *s.buildResponse(t)
 	}
-	if result == nil {
-		result = []response.ProjectTemplateResponse{}
-	}
 	return result, nil
 }
 

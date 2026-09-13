@@ -163,6 +163,9 @@ test.describe('AI Chart Generation', () => {
     const res = await request.post(`${BASE_API}/projects/${projectId}/ai/chart`, {
       data: { query: '按状态分布饼图' },
       headers: { Authorization: `Bearer ${token}` },
+      // The endpoint proxies the configured LLM, which regularly needs more than the
+      // 10s action timeout, so allow a realistic budget before failing.
+      timeout: 60000,
     })
     // 200 = success, 500 = AI key issue (expected), 429 = rate limit (expected)
     expect([200, 500, 429]).toContain(res.status())

@@ -59,7 +59,7 @@ func (s *RoleService) Create(req *request.CreateRoleRequest) (*response.RoleResp
 	if len(req.Permissions) > 0 {
 		var perms []model.Permission
 		s.db.Where("id IN ?", req.Permissions).Find(&perms)
-		s.db.Model(&role).Association("Permissions").Replace(perms)
+		_ = s.db.Model(&role).Association("Permissions").Replace(perms)
 	}
 	s.db.Preload("Permissions").First(&role, role.ID)
 	resp := response.ToRoleResponse(&role)
@@ -93,7 +93,7 @@ func (s *RoleService) Update(id uint64, req *request.UpdateRoleRequest) (*respon
 		if len(req.Permissions) > 0 {
 			s.db.Where("id IN ?", req.Permissions).Find(&perms)
 		}
-		s.db.Model(&role).Association("Permissions").Replace(perms)
+		_ = s.db.Model(&role).Association("Permissions").Replace(perms)
 	}
 	s.db.Preload("Permissions").First(&role, id)
 	resp := response.ToRoleResponse(&role)
@@ -110,7 +110,7 @@ func (s *RoleService) Delete(id uint64) error {
 		return common.Forbidden("Cannot delete system roles")
 	}
 	// Remove all permissions first
-	s.db.Model(&role).Association("Permissions").Clear()
+	_ = s.db.Model(&role).Association("Permissions").Clear()
 	return s.db.Delete(&role).Error
 }
 

@@ -16,7 +16,7 @@ type Workflow struct {
 	IsActive    bool    `gorm:"default:true" json:"is_active"`
 
 	// Relationships
-	Project     Project          `gorm:"foreignKey:ProjectID" json:"-"`
+	Project     Project           `gorm:"foreignKey:ProjectID" json:"-"`
 	Transitions []StateTransition `gorm:"foreignKey:WorkflowID" json:"transitions,omitempty"`
 }
 
@@ -58,7 +58,7 @@ type WorkflowNode struct {
 	Config        json.RawMessage `gorm:"type:jsonb" json:"config"`
 	ContextConfig json.RawMessage `gorm:"type:jsonb" json:"context_config"`
 	SortOrder     int             `gorm:"default:0" json:"sort_order"`
-	Timeout       int             `gorm:"default:1800" json:"timeout"` // seconds
+	Timeout       int             `gorm:"default:1800" json:"timeout"`               // seconds
 	RetryPolicy   string          `gorm:"size:20;default:retry" json:"retry_policy"` // retry|skip|abort
 	MaxRetries    int             `gorm:"default:3" json:"max_retries"`
 }
@@ -102,8 +102,8 @@ type WorkflowRun struct {
 	ErrorInfo   string          `gorm:"type:text" json:"error_info"`
 
 	// Relationships
-	Workflow AgentWorkflow  `gorm:"foreignKey:WorkflowID" json:"-"`
-	Issue    *Issue         `gorm:"foreignKey:IssueID" json:"-"`
+	Workflow AgentWorkflow     `gorm:"foreignKey:WorkflowID" json:"-"`
+	Issue    *Issue            `gorm:"foreignKey:IssueID" json:"-"`
 	NodeRuns []WorkflowNodeRun `gorm:"foreignKey:WorkflowRunID" json:"node_runs,omitempty"`
 }
 
@@ -130,7 +130,7 @@ type WorkflowNodeRun struct {
 	RetryCount    int             `gorm:"default:0" json:"retry_count"`
 
 	// Relationships
-	WorkflowRun WorkflowRun `gorm:"foreignKey:WorkflowRunID" json:"-"`
+	WorkflowRun WorkflowRun  `gorm:"foreignKey:WorkflowRunID" json:"-"`
 	Node        WorkflowNode `gorm:"foreignKey:NodeID" json:"-"`
 	AgentTask   *AgentTask   `gorm:"foreignKey:AgentTaskID" json:"-"`
 }

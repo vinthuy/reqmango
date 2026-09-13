@@ -22,7 +22,7 @@ type ProjectPageTab struct {
 	RouteKey string `gorm:"size:50" json:"route_key"`
 
 	// For custom tabs: optional target (saved_view_id or external URL)
-	TargetType string `gorm:"size:20" json:"target_type"` // "saved_view" | "url" | ""
+	TargetType string  `gorm:"size:20" json:"target_type"` // "saved_view" | "url" | ""
 	TargetID   *uint64 `json:"target_id"`                  // saved_view_id when target_type=saved_view
 	TargetURL  string  `gorm:"size:500" json:"target_url"` // external URL when target_type=url
 

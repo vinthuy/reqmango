@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
@@ -192,12 +191,4 @@ func (h *ReleaseHandler) ListMilestones(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, milestones)
-}
-
-func formatReleaseDate(t *time.Time) *string {
-	if t == nil {
-		return nil
-	}
-	s := t.Format(time.RFC3339)
-	return &s
 }

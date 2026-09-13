@@ -126,7 +126,7 @@ func (h *SquadHandler) StartExecution(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "Invalid body"})
 		return
 	}
-	
+
 	// Get current user from context
 	currentUser, exists := c.Get("currentUser")
 	if exists {
@@ -134,7 +134,7 @@ func (h *SquadHandler) StartExecution(c *gin.Context) {
 			req.UserID = user.ID
 		}
 	}
-	
+
 	resp, e := h.svc.StartExecution(squadID, req)
 	if h.respond(c, e) {
 		return

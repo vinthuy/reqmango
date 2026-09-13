@@ -21,11 +21,11 @@ type RolePermission struct {
 // FieldPermission represents a field-level permission rule.
 type FieldPermission struct {
 	BaseModel
-	Resource     string `gorm:"size:100;not null;index" json:"resource"`
-	FieldName    string `gorm:"size:100;not null" json:"field_name"`
-	RoleID       uint64 `gorm:"index" json:"role_id"`
-	CanRead      bool   `gorm:"default:true" json:"can_read"`
-	CanWrite     bool   `gorm:"default:false" json:"can_write"`
-	ProjectID    uint64 `gorm:"index" json:"project_id"`
-	WorkspaceID  uint64 `gorm:"index" json:"workspace_id"`
+	Resource    string `gorm:"size:100;not null;index" json:"resource"`
+	FieldName   string `gorm:"size:100;not null" json:"field_name"`
+	RoleID      uint64 `gorm:"index" json:"role_id"`
+	CanRead     bool   `gorm:"default:true" json:"can_read"`
+	CanWrite    bool   `gorm:"default:false" json:"can_write"`
+	ProjectID   uint64 `gorm:"index" json:"project_id"`
+	WorkspaceID uint64 `gorm:"index" json:"workspace_id"`
 }

@@ -190,10 +190,10 @@ func main() {
 				ContextJSON:  string(ctxJSON),
 				ActionsTaken: string(actionsJSON),
 				Status:       "success",
-				Duration:     rand.Int63n(300) + 100, // 100-400ms
+				Duration:     rand.Int63n(300) + 100, // #nosec G404 -- simulated webhook latency for local seed data
 				ExecutedAt:   now.Add(-1 * time.Hour),
 			})
-			fmt.Printf("  [日志] 规则 #%d: success (HTTP 200, %dms)\n", rule.ID, rand.Int63n(300)+100)
+			fmt.Printf("  [日志] 规则 #%d: success (HTTP 200, %dms)\n", rule.ID, rand.Int63n(300)+100) // #nosec G404 -- simulated webhook latency for local seed data
 			totalLogsCreated++
 
 			// 失败记录 (超时)

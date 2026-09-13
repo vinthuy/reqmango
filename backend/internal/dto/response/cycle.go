@@ -11,12 +11,12 @@ type CycleResponse struct {
 	ID                  uint64       `json:"id"`
 	Name                string       `json:"name"`
 	Description         *string      `json:"description"`
-	Status              string       `json:"status"`           // computed: upcoming|active|completed|cancelled
-	Progress            float64      `json:"progress"`          // 0-100
+	Status              string       `json:"status"`   // computed: upcoming|active|completed|cancelled
+	Progress            float64      `json:"progress"` // 0-100
 	TotalIssues         int64        `json:"total_issues"`
 	CompletedIssues     int64        `json:"completed_issues"`
-	StartDate           string       `json:"start_date"`        // "2006-01-02"
-	EndDate             *string      `json:"end_date"`          // "2006-01-02", nullable
+	StartDate           string       `json:"start_date"` // "2006-01-02"
+	EndDate             *string      `json:"end_date"`   // "2006-01-02", nullable
 	ProjectID           uint64       `json:"project_id"`
 	WorkspaceID         uint64       `json:"workspace_id"`
 	OwnedBy             *UserLite    `json:"owned_by"`
@@ -35,7 +35,7 @@ type CycleResponse struct {
 type CycleLite struct {
 	ID        uint64  `json:"id"`
 	Name      string  `json:"name"`
-	StartDate string `json:"start_date"`
+	StartDate string  `json:"start_date"`
 	EndDate   *string `json:"end_date"`
 }
 
@@ -73,7 +73,7 @@ type IssueStats struct {
 
 // DateRange represents a date range.
 type DateRange struct {
-	StartDate string `json:"start_date"`
+	StartDate string  `json:"start_date"`
 	EndDate   *string `json:"end_date"`
 }
 

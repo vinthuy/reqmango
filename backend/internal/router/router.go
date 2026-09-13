@@ -94,7 +94,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 	// Seed agent registry
 	reg := registry.NewRegistry(db)
-	reg.SeedDefaults(nil)
+	_ = reg.SeedDefaults(nil)
 
 	// AgentClient adapter (now calls local AgentService instead of HTTP proxy)
 	agentClient := client.NewAgentClient(agentSvc)

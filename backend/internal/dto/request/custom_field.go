@@ -50,7 +50,7 @@ type IssueCustomFieldValueUpdate struct {
 
 // BulkCustomFieldValueUpdate request for batch-updating custom field values.
 type BulkCustomFieldValueUpdate struct {
-	IssueID uint64                           `json:"issue_id"`
+	IssueID uint64                            `json:"issue_id"`
 	Values  []IssueCustomFieldValueUpdateItem `json:"values"`
 }
 

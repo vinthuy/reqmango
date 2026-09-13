@@ -14,7 +14,7 @@ import (
 
 // SkillExecutor executes SKILL.md formatted skills.
 type SkillExecutor struct {
-	db          *gorm.DB
+	db           *gorm.DB
 	toolExecutor ToolExecutor
 }
 
@@ -25,44 +25,50 @@ type ToolExecutor interface {
 
 func NewSkillExecutor(db *gorm.DB, toolExecutor ToolExecutor) *SkillExecutor {
 	return &SkillExecutor{
-		db:          db,
+		db:           db,
 		toolExecutor: toolExecutor,
 	}
 }
 
 // SkillStep represents a step in a skill execution.
 type SkillStep struct {
-	Step     int    `json:"step"`
-	Action   string `json:"action"`
-	Tool     string `json:"tool,omitempty"`
-	Input    map[string]interface{} `json:"input,omitempty"`
-	Output   interface{} `json:"output,omitempty"`
-	Error    string `json:"error,omitempty"`
-	Status   string `json:"status"` // "pending", "running", "completed", "failed"
+	Step   int                    `json:"step"`
+	Action string                 `json:"action"`
+	Tool   string                 `json:"tool,omitempty"`
+	Input  map[string]interface{} `json:"input,omitempty"`
+	Output interface{}            `json:"output,omitempty"`
+	Error  string                 `json:"error,omitempty"`
+	Status string                 `json:"status"` // "pending", "running", "completed", "failed"
 }
 
 // ExecuteSkillResult contains the result of skill execution.
 type ExecuteSkillResult struct {
-	SkillID    uint64        `json:"skill_id"`
-	SkillName  string        `json:"skill_name"`
-	Steps      []SkillStep   `json:"steps"`
-	FinalResult string       `json:"final_result"`
-	Error      string        `json:"error,omitempty"`
-	TokensUsed int           `json:"tokens_used"`
+	SkillID     uint64      `json:"skill_id"`
+	SkillName   string      `json:"skill_name"`
+	Steps       []SkillStep `json:"steps"`
+	FinalResult string      `json:"final_result"`
+	Error       string      `json:"error,omitempty"`
+	TokensUsed  int         `json:"tokens_used"`
 }
 
 // ParseSkillMD parses a SKILL.md string into structured steps.
 func ParseSkillMD(skillMD string) ([]SkillStep, error) {
 	var steps []SkillStep
-	stepNum := 0
 
-	// Split by step markers (## Step X or ### Step X)
-	stepRegex := regexp.MustCompile(`#{2,3}\s*Step\s*(\d+)[^\n]*\n(.+?)(?=\n#{2,3}\s*Step|$)`)
-	matches := stepRegex.FindAllStringSubmatch(skillMD, -1)
+	// Split by step markers (## Step X or ### Step X). Go's RE2 engine has no
+	// lookahead support, so the headings are located first and each step body is
+	// sliced out up to the start of the next heading.
+	headingRegex := regexp.MustCompile(`(?m)^#{2,3}[ \t]*Step[ \t]*(\d+)[^\n]*$`)
+	headings := headingRegex.FindAllStringSubmatchIndex(skillMD, -1)
 
-	for _, match := range matches {
-		stepNum, _ = strconv.Atoi(match[1])
-		content := strings.TrimSpace(match[2])
+	for i, heading := range headings {
+		stepNum, _ := strconv.Atoi(skillMD[heading[2]:heading[3]])
+
+		contentEnd := len(skillMD)
+		if i+1 < len(headings) {
+			contentEnd = headings[i+1][0]
+		}
+		content := strings.TrimSpace(skillMD[heading[1]:contentEnd])
 
 		step := SkillStep{
 			Step:   stepNum,
@@ -70,7 +76,9 @@ func ParseSkillMD(skillMD string) ([]SkillStep, error) {
 		}
 
 		// Extract tool calls
-		toolRegex := regexp.MustCompile(`\*\*Tool:\*\*\s*(\w+)\s*\n\*\*Input:\*\*\s*([\s\S]*?)(?=\n\*\*|$)`)
+		// The "\n**" / end-of-text terminator is consumed by a non-capturing
+		// group instead of a lookahead, which leaves the captured input identical.
+		toolRegex := regexp.MustCompile(`\*\*Tool:\*\*\s*(\w+)\s*\n\*\*Input:\*\*\s*([\s\S]*?)(?:\n\*\*|$)`)
 		toolMatch := toolRegex.FindStringSubmatch(content)
 		if len(toolMatch) > 0 {
 			step.Tool = toolMatch[1]
@@ -90,9 +98,9 @@ func ParseSkillMD(skillMD string) ([]SkillStep, error) {
 	if len(steps) == 0 {
 		// If no steps found, treat the entire content as one step
 		steps = append(steps, SkillStep{
-			Step:     1,
-			Action:   skillMD,
-			Status:   "pending",
+			Step:   1,
+			Action: skillMD,
+			Status: "pending",
 		})
 	}
 

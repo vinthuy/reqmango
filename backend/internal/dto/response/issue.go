@@ -4,53 +4,53 @@ import "time"
 
 // IssueResponse is the full issue representation.
 type IssueResponse struct {
-	ID                uint64     `json:"id"`
-	Name              string     `json:"name"`
-	DescriptionHTML   string     `json:"description_html"`
-	DescriptionJSON   *string    `json:"description_json"`
-	Priority          string     `json:"priority"`
-	SequenceID        int        `json:"sequence_id"`
-	SortOrder         float64    `json:"sort_order"`
-	StartDate         *time.Time `json:"start_date"`
-	TargetDate        *time.Time `json:"target_date"`
-	CompletedAt       *time.Time `json:"completed_at"`
-	IsDraft           bool       `json:"is_draft"`
-	ArchivedAt        *time.Time `json:"archived_at"`
+	ID              uint64     `json:"id"`
+	Name            string     `json:"name"`
+	DescriptionHTML string     `json:"description_html"`
+	DescriptionJSON *string    `json:"description_json"`
+	Priority        string     `json:"priority"`
+	SequenceID      int        `json:"sequence_id"`
+	SortOrder       float64    `json:"sort_order"`
+	StartDate       *time.Time `json:"start_date"`
+	TargetDate      *time.Time `json:"target_date"`
+	CompletedAt     *time.Time `json:"completed_at"`
+	IsDraft         bool       `json:"is_draft"`
+	ArchivedAt      *time.Time `json:"archived_at"`
 
-	ProjectID         uint64        `json:"project_id"`
-	Project           *ProjectLite  `json:"project"`
-	WorkspaceID       uint64        `json:"workspace_id"`
-	StateID           uint64        `json:"state_id"`
-	StateName         string        `json:"state_name"`
-	StateGroup        string        `json:"state_group"`
+	ProjectID   uint64       `json:"project_id"`
+	Project     *ProjectLite `json:"project"`
+	WorkspaceID uint64       `json:"workspace_id"`
+	StateID     uint64       `json:"state_id"`
+	StateName   string       `json:"state_name"`
+	StateGroup  string       `json:"state_group"`
 
-	ParentID          *uint64       `json:"parent_id"`
-	Depth             int           `json:"depth"`
-	Assignees         []UserLite    `json:"assignees"`
-	Labels            []uint64      `json:"labels"`
-	LabelDetails      []LabelLite   `json:"label_details"`
-	SubIssuesCount    int64         `json:"sub_issues_count"`
-	LinkCount         int           `json:"link_count"`
-	AttachmentCount   int           `json:"attachment_count"`
+	ParentID        *uint64     `json:"parent_id"`
+	Depth           int         `json:"depth"`
+	Assignees       []UserLite  `json:"assignees"`
+	Labels          []uint64    `json:"labels"`
+	LabelDetails    []LabelLite `json:"label_details"`
+	SubIssuesCount  int64       `json:"sub_issues_count"`
+	LinkCount       int         `json:"link_count"`
+	AttachmentCount int         `json:"attachment_count"`
 
-	EstimatePointID   *uint64       `json:"estimate_point_id"`
-	CycleID           *uint64       `json:"cycle_id"`
-	ModuleIDs         []uint64      `json:"module_ids"`
-	ReleaseID         *uint64       `json:"release_id"`
-	ExternalID        *string       `json:"external_id"`
-	ExternalSource    *string       `json:"external_source"`
-	CoverImageURL     *string       `json:"cover_image_url"`
+	EstimatePointID *uint64  `json:"estimate_point_id"`
+	CycleID         *uint64  `json:"cycle_id"`
+	ModuleIDs       []uint64 `json:"module_ids"`
+	ReleaseID       *uint64  `json:"release_id"`
+	ExternalID      *string  `json:"external_id"`
+	ExternalSource  *string  `json:"external_source"`
+	CoverImageURL   *string  `json:"cover_image_url"`
 
-	IssueType         *IssueTypeLite    `json:"issue_type,omitempty"`
-	Parent            *RelatedIssueLite `json:"parent,omitempty"`
-	SubIssues         []SubIssueLite    `json:"sub_issues"`
+	IssueType *IssueTypeLite    `json:"issue_type,omitempty"`
+	Parent    *RelatedIssueLite `json:"parent,omitempty"`
+	SubIssues []SubIssueLite    `json:"sub_issues"`
 
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-	CreatedByID       *uint64        `json:"created_by_id"`
-	UpdatedByID       *uint64        `json:"updated_by_id"`
-	DeletedAt         *time.Time     `json:"deleted_at"`
-	IsDeleted         bool           `json:"is_deleted"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	CreatedByID *uint64    `json:"created_by_id"`
+	UpdatedByID *uint64    `json:"updated_by_id"`
+	DeletedAt   *time.Time `json:"deleted_at"`
+	IsDeleted   bool       `json:"is_deleted"`
 }
 
 // IssueLite is a compact issue representation.
@@ -66,17 +66,17 @@ type IssueLite struct {
 
 // IssueActivityResponse represents an issue activity entry.
 type IssueActivityResponse struct {
-	ID               uint64     `json:"id"`
-	IssueID          *uint64    `json:"issue_id"`
-	Verb             string     `json:"verb"`
-	Field            *string    `json:"field"`
-	OldValue         *string    `json:"old_value"`
-	NewValue         *string    `json:"new_value"`
-	Comment          *string    `json:"comment"`
-	ActorID          *uint64    `json:"actor_id"`
-	ActorDisplayName string     `json:"actor_display_name"`
-	ActorAvatar      string     `json:"actor_avatar"`
-	CreatedAt        time.Time  `json:"created_at"`
+	ID               uint64    `json:"id"`
+	IssueID          *uint64   `json:"issue_id"`
+	Verb             string    `json:"verb"`
+	Field            *string   `json:"field"`
+	OldValue         *string   `json:"old_value"`
+	NewValue         *string   `json:"new_value"`
+	Comment          *string   `json:"comment"`
+	ActorID          *uint64   `json:"actor_id"`
+	ActorDisplayName string    `json:"actor_display_name"`
+	ActorAvatar      string    `json:"actor_avatar"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 // IssueSearchResult represents a search result.
@@ -91,10 +91,10 @@ type IssueSearchResult struct {
 
 // BulkUpdateResultResponse represents the result of a bulk update operation.
 type BulkUpdateResultResponse struct {
-	SuccessCount int             `json:"success_count"`
-	FailedCount  int             `json:"failed_count"`
+	SuccessCount int              `json:"success_count"`
+	FailedCount  int              `json:"failed_count"`
 	FailedItems  []BulkFailedItem `json:"failed_items"`
-	UpdatedItems []IssueResponse `json:"updated_items"`
+	UpdatedItems []IssueResponse  `json:"updated_items"`
 }
 
 // BulkFailedItem represents a failed item in bulk operations.
@@ -105,17 +105,17 @@ type BulkFailedItem struct {
 
 // BulkDeleteResultResponse represents the result of a bulk delete operation.
 type BulkDeleteResultResponse struct {
-	SuccessCount int             `json:"success_count"`
-	FailedCount  int             `json:"failed_count"`
+	SuccessCount int              `json:"success_count"`
+	FailedCount  int              `json:"failed_count"`
 	FailedItems  []BulkFailedItem `json:"failed_items"`
 }
 
 // BulkCopyMoveResultResponse represents the result of a bulk copy or move operation.
 type BulkCopyMoveResultResponse struct {
-	SuccessCount int             `json:"success_count"`
-	FailedCount  int             `json:"failed_count"`
+	SuccessCount int              `json:"success_count"`
+	FailedCount  int              `json:"failed_count"`
 	FailedItems  []BulkFailedItem `json:"failed_items"`
-	Results      []IssueResponse `json:"results"`
+	Results      []IssueResponse  `json:"results"`
 }
 
 // RelatedIssueLite is used for the parent issue reference in issue detail responses.
@@ -171,10 +171,10 @@ type ProjectLite struct {
 
 // ImportResult is the result of a bulk import operation.
 type ImportResult struct {
-	SuccessCount int            `json:"success_count"`
-	FailCount    int            `json:"fail_count"`
-	Errors       []ImportError  `json:"errors"`
-	ImportedIDs  []uint64       `json:"imported_ids"`
+	SuccessCount int           `json:"success_count"`
+	FailCount    int           `json:"fail_count"`
+	Errors       []ImportError `json:"errors"`
+	ImportedIDs  []uint64      `json:"imported_ids"`
 }
 
 // ImportError represents an error for a specific row in the import.

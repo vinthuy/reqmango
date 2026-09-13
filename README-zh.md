@@ -48,9 +48,10 @@ psql -U postgres -c "CREATE DATABASE reqmango;"
 cd backend
 
 # 创建环境配置文件
+# SECRET_KEY 用于签发 JWT，请用 openssl rand -hex 32 生成随机值
 cat > .env << EOF
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/reqmango?sslmode=disable
-SECRET_KEY=change-me-in-production-use-a-long-random-string
+SECRET_KEY=$(openssl rand -hex 32)
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 PORT=8000
 DEBUG=true

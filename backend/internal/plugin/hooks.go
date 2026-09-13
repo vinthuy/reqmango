@@ -15,22 +15,22 @@ import (
 
 // EventType constants for system events that plugins can subscribe to.
 const (
-	EventIssueCreated  = "issue.created"
-	EventIssueUpdated  = "issue.updated"
-	EventIssueDeleted  = "issue.deleted"
+	EventIssueCreated   = "issue.created"
+	EventIssueUpdated   = "issue.updated"
+	EventIssueDeleted   = "issue.deleted"
 	EventCommentCreated = "comment.created"
-	EventCycleStarted  = "cycle.started"
-	EventCycleEnded    = "cycle.ended"
+	EventCycleStarted   = "cycle.started"
+	EventCycleEnded     = "cycle.ended"
 )
 
 // EventPayload carries data about a system event for plugin consumption.
 type EventPayload struct {
-	EventType  string          `json:"event_type"`
-	WorkspaceID uint64         `json:"workspace_id"`
-	ProjectID  *uint64         `json:"project_id,omitempty"`
-	ActorID    uint64          `json:"actor_id"`
-	Data       json.RawMessage `json:"data"`
-	Timestamp  time.Time       `json:"timestamp"`
+	EventType   string          `json:"event_type"`
+	WorkspaceID uint64          `json:"workspace_id"`
+	ProjectID   *uint64         `json:"project_id,omitempty"`
+	ActorID     uint64          `json:"actor_id"`
+	Data        json.RawMessage `json:"data"`
+	Timestamp   time.Time       `json:"timestamp"`
 }
 
 // HookManager dispatches events to enabled plugins.
@@ -116,7 +116,7 @@ func (m *HookManager) executeHTTP(p model.Plugin, body []byte) (status, respBody
 	// Parse config once
 	var cfg map[string]interface{}
 	if p.Config != nil {
-		json.Unmarshal(p.Config, &cfg)
+		_ = json.Unmarshal(p.Config, &cfg)
 	}
 
 	entrypoint := p.EntryPoint
@@ -164,7 +164,7 @@ func (m *HookManager) executeHTTP(p model.Plugin, body []byte) (status, respBody
 	if err != nil {
 		return "error", err.Error(), 0
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read response body (limited size)
 	buf := make([]byte, 4096)

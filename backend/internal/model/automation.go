@@ -31,9 +31,9 @@ func (AutomationRule) TableName() string {
 type AutomationRuleOverride struct {
 	BaseModel
 
-	RuleID     uint64  `gorm:"not null;index" json:"rule_id"`
-	ProjectID  uint64  `gorm:"not null;index" json:"project_id"`
-	IsEnabled  *bool   `json:"is_enabled"`
+	RuleID      uint64  `gorm:"not null;index" json:"rule_id"`
+	ProjectID   uint64  `gorm:"not null;index" json:"project_id"`
+	IsEnabled   *bool   `json:"is_enabled"`
 	CreatedByID *uint64 `json:"created_by_id"`
 	UpdatedByID *uint64 `json:"updated_by_id"`
 }

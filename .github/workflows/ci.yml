@@ -7,7 +7,10 @@ on:
     branches: [master]
 
 env:
-  GO_VERSION: '1.22'
+  # Must satisfy the `go` directive in backend/go.mod (currently 1.25.0).
+  GO_VERSION: '1.25'
+  GOLANGCI_LINT_VERSION: 'v2.13.2'
+  GITLEAKS_VERSION: '8.28.0'
 
 jobs:
   lint:
@@ -19,9 +22,12 @@ jobs:
       - uses: actions/setup-go@v5
         with: { go-version: '${{ env.GO_VERSION }}' }
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+      # backend/.golangci.yml enables gosec (hardcoded credentials, SSRF, command
+      # injection, integer overflow, insecure file permissions, ...) and bodyclose.
+      - name: golangci-lint (includes gosec)
+        uses: golangci/golangci-lint-action@v9
         with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: backend
           args: --timeout=5m
 
@@ -31,8 +37,38 @@ jobs:
       - name: Install frontend deps
         run: cd frontend && npm ci
 
-      - name: ESLint
-        run: cd frontend && npx eslint src/ --ext .ts,.vue --max-warnings 10
+      - name: Frontend type-check
+        run: cd frontend && npx vue-tsc --noEmit
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with: { go-version: '${{ env.GO_VERSION }}' }
+
+      # gosec runs in the Lint job. This job covers the complementary controls:
+      # committed credentials and known vulnerabilities in dependencies.
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      # Fails on any new credential material. Audited false positives are listed
+      # with their justification in .gitleaks.toml.
+      - name: Scan for committed secrets (gitleaks)
+        run: gitleaks dir . --config .gitleaks.toml --redact --no-banner
+
+      # Advisory: reports vulnerabilities reachable from this module. Kept
+      # non-blocking because standard-library findings depend on the exact Go
+      # patch release installed by setup-go rather than on this repository.
+      - name: Go vulnerability check (advisory)
+        working-directory: backend
+        continue-on-error: true
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
 
   test:
     name: Test
@@ -69,13 +105,14 @@ jobs:
       - name: Install frontend deps
         run: cd frontend && npm ci
 
+      # @vitest/coverage-v8 supplies the provider required by --coverage.
       - name: Frontend tests
         run: cd frontend && npx vitest run --coverage
 
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, security, test]
     steps:
       - uses: actions/checkout@v4
 

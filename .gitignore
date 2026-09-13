@@ -90,3 +90,9 @@ tests/playwright-report/
 /tests_final*.json
 /frontend_e2e*.json
 /verify_fixes.json
+
+# Local tooling (lint binaries, scratch scripts, raw lint output)
+.tools/
+
+# Frontend coverage output (vitest --coverage)
+frontend/coverage/

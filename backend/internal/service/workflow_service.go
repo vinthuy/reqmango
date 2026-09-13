@@ -12,10 +12,10 @@ import (
 
 // WorkflowService manages workflow definitions and execution.
 type WorkflowService struct {
-	db         *gorm.DB
-	contextSvc *ContextPayloadService
+	db          *gorm.DB
+	contextSvc  *ContextPayloadService
 	decisionSvc *AgentDecisionService
-	budgetSvc  *AgentCostBudgetService
+	budgetSvc   *AgentCostBudgetService
 }
 
 // NewWorkflowService creates a new WorkflowService.
@@ -35,18 +35,18 @@ func NewWorkflowService(
 
 // WorkflowResponse represents a workflow in API response.
 type WorkflowResponse struct {
-	ID            uint64  `json:"id"`
-	Name          string  `json:"name"`
-	Description   string  `json:"description"`
-	ProjectID     uint64  `json:"project_id"`
-	WorkspaceID   uint64  `json:"workspace_id"`
-	Version       int     `json:"version"`
-	IsActive      bool    `json:"is_active"`
-	TriggerType   string  `json:"trigger_type"`
-	NodeCount     int     `json:"node_count"`
-	EdgeCount     int     `json:"edge_count"`
-	CreatedAt     string  `json:"created_at"`
-	UpdatedAt     string  `json:"updated_at"`
+	ID          uint64 `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ProjectID   uint64 `json:"project_id"`
+	WorkspaceID uint64 `json:"workspace_id"`
+	Version     int    `json:"version"`
+	IsActive    bool   `json:"is_active"`
+	TriggerType string `json:"trigger_type"`
+	NodeCount   int    `json:"node_count"`
+	EdgeCount   int    `json:"edge_count"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 // WorkflowDetail represents a workflow with full details.
@@ -58,76 +58,76 @@ type WorkflowDetail struct {
 
 // WorkflowNodeResponse represents a workflow node in API response.
 type WorkflowNodeResponse struct {
-	ID            uint64  `json:"id"`
-	WorkflowID    uint64  `json:"workflow_id"`
-	AgentID       uint64  `json:"agent_id"`
-	AgentName     string  `json:"agent_name"`
-	NodeType      string  `json:"node_type"`
-	Name          string  `json:"name"`
-	Config        json.RawMessage `json:"config"`
-	SortOrder     int     `json:"sort_order"`
-	Timeout       int     `json:"timeout"`
-	RetryPolicy   string  `json:"retry_policy"`
-	MaxRetries    int     `json:"max_retries"`
+	ID          uint64          `json:"id"`
+	WorkflowID  uint64          `json:"workflow_id"`
+	AgentID     uint64          `json:"agent_id"`
+	AgentName   string          `json:"agent_name"`
+	NodeType    string          `json:"node_type"`
+	Name        string          `json:"name"`
+	Config      json.RawMessage `json:"config"`
+	SortOrder   int             `json:"sort_order"`
+	Timeout     int             `json:"timeout"`
+	RetryPolicy string          `json:"retry_policy"`
+	MaxRetries  int             `json:"max_retries"`
 }
 
 // WorkflowEdgeResponse represents a workflow edge in API response.
 type WorkflowEdgeResponse struct {
-	ID             uint64  `json:"id"`
-	WorkflowID     uint64  `json:"workflow_id"`
-	SourceNodeID   uint64  `json:"source_node_id"`
-	TargetNodeID   uint64  `json:"target_node_id"`
-	Condition      string  `json:"condition"`
+	ID             uint64          `json:"id"`
+	WorkflowID     uint64          `json:"workflow_id"`
+	SourceNodeID   uint64          `json:"source_node_id"`
+	TargetNodeID   uint64          `json:"target_node_id"`
+	Condition      string          `json:"condition"`
 	ContextMapping json.RawMessage `json:"context_mapping"`
 }
 
 // CreateWorkflowRequest represents the request to create a workflow.
 type CreateWorkflowRequest struct {
-	Name          string  `json:"name" binding:"required"`
-	Description   string  `json:"description"`
-	TriggerType   string  `json:"trigger_type"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	TriggerType string `json:"trigger_type"`
 }
 
 // UpdateWorkflowRequest represents the request to update a workflow.
 type UpdateWorkflowRequest struct {
-	Name          *string `json:"name"`
-	Description   *string `json:"description"`
-	IsActive      *bool   `json:"is_active"`
-	TriggerType   *string `json:"trigger_type"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	IsActive    *bool   `json:"is_active"`
+	TriggerType *string `json:"trigger_type"`
 }
 
 // CreateNodeRequest represents the request to create a workflow node.
 type CreateNodeRequest struct {
-	AgentID       uint64  `json:"agent_id" binding:"required"`
-	NodeType      string  `json:"node_type"`
-	Name          string  `json:"name" binding:"required"`
-	Config        json.RawMessage `json:"config"`
-	SortOrder     int     `json:"sort_order"`
-	Timeout       int     `json:"timeout"`
-	RetryPolicy   string  `json:"retry_policy"`
-	MaxRetries    int     `json:"max_retries"`
+	AgentID     uint64          `json:"agent_id" binding:"required"`
+	NodeType    string          `json:"node_type"`
+	Name        string          `json:"name" binding:"required"`
+	Config      json.RawMessage `json:"config"`
+	SortOrder   int             `json:"sort_order"`
+	Timeout     int             `json:"timeout"`
+	RetryPolicy string          `json:"retry_policy"`
+	MaxRetries  int             `json:"max_retries"`
 }
 
 // CreateEdgeRequest represents the request to create a workflow edge.
 type CreateEdgeRequest struct {
-	SourceNodeID   uint64  `json:"source_node_id" binding:"required"`
-	TargetNodeID   uint64  `json:"target_node_id" binding:"required"`
-	Condition      string  `json:"condition"`
+	SourceNodeID   uint64          `json:"source_node_id" binding:"required"`
+	TargetNodeID   uint64          `json:"target_node_id" binding:"required"`
+	Condition      string          `json:"condition"`
 	ContextMapping json.RawMessage `json:"context_mapping"`
 }
 
 // WorkflowRunResponse represents a workflow run in API response.
 type WorkflowRunResponse struct {
-	ID            uint64  `json:"id"`
-	WorkflowID    uint64  `json:"workflow_id"`
-	IssueID       *uint64 `json:"issue_id"`
-	Status        string  `json:"status"`
-	StartedAt     *string `json:"started_at"`
-	CompletedAt   *string `json:"completed_at"`
-	TotalTokens   int     `json:"total_tokens"`
-	TotalCost     float64 `json:"total_cost"`
-	ErrorInfo     string  `json:"error_info"`
-	CreatedAt     string  `json:"created_at"`
+	ID          uint64  `json:"id"`
+	WorkflowID  uint64  `json:"workflow_id"`
+	IssueID     *uint64 `json:"issue_id"`
+	Status      string  `json:"status"`
+	StartedAt   *string `json:"started_at"`
+	CompletedAt *string `json:"completed_at"`
+	TotalTokens int     `json:"total_tokens"`
+	TotalCost   float64 `json:"total_cost"`
+	ErrorInfo   string  `json:"error_info"`
+	CreatedAt   string  `json:"created_at"`
 }
 
 // WorkflowRunDetail represents a workflow run with node runs.
@@ -156,14 +156,14 @@ type WorkflowNodeRunResponse struct {
 // ListByProject returns all workflows for a project.
 func (s *WorkflowService) ListByProject(projectID uint64) ([]WorkflowResponse, error) {
 	var workflows []struct {
-		ID          uint64 `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		ProjectID   uint64 `json:"project_id"`
-		WorkspaceID uint64 `json:"workspace_id"`
-		Version     int    `json:"version"`
-		IsActive    bool   `json:"is_active"`
-		TriggerType string `json:"trigger_type"`
+		ID          uint64    `json:"id"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		ProjectID   uint64    `json:"project_id"`
+		WorkspaceID uint64    `json:"workspace_id"`
+		Version     int       `json:"version"`
+		IsActive    bool      `json:"is_active"`
+		TriggerType string    `json:"trigger_type"`
 		CreatedAt   time.Time `json:"created_at"`
 		UpdatedAt   time.Time `json:"updated_at"`
 	}
@@ -219,13 +219,13 @@ func (s *WorkflowService) Create(projectID uint64, req CreateWorkflowRequest) (*
 	s.db.Raw("SELECT workspace_id FROM projects WHERE id = ?", projectID).Scan(&workspaceID)
 
 	workflow := &model.AgentWorkflow{
-		Name:         req.Name,
-		Description:  req.Description,
-		ProjectID:    projectID,
-		WorkspaceID:  workspaceID,
-		Version:      1,
-		IsActive:     true,
-		TriggerType:  req.TriggerType,
+		Name:        req.Name,
+		Description: req.Description,
+		ProjectID:   projectID,
+		WorkspaceID: workspaceID,
+		Version:     1,
+		IsActive:    true,
+		TriggerType: req.TriggerType,
 	}
 
 	if err := s.db.Create(workflow).Error; err != nil {
@@ -262,14 +262,14 @@ func (s *WorkflowService) GetByNodeID(nodeID uint64) (*WorkflowDetail, error) {
 // Get returns a workflow with full details.
 func (s *WorkflowService) Get(workflowID uint64) (*WorkflowDetail, error) {
 	var workflow struct {
-		ID          uint64 `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		ProjectID   uint64 `json:"project_id"`
-		WorkspaceID uint64 `json:"workspace_id"`
-		Version     int    `json:"version"`
-		IsActive    bool   `json:"is_active"`
-		TriggerType string `json:"trigger_type"`
+		ID          uint64    `json:"id"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		ProjectID   uint64    `json:"project_id"`
+		WorkspaceID uint64    `json:"workspace_id"`
+		Version     int       `json:"version"`
+		IsActive    bool      `json:"is_active"`
+		TriggerType string    `json:"trigger_type"`
 		CreatedAt   time.Time `json:"created_at"`
 		UpdatedAt   time.Time `json:"updated_at"`
 	}
@@ -306,15 +306,15 @@ func (s *WorkflowService) Get(workflowID uint64) (*WorkflowDetail, error) {
 
 	// Get nodes
 	var nodes []struct {
-		ID        uint64 `json:"id"`
-		AgentID   uint64 `json:"agent_id"`
-		NodeType  string `json:"node_type"`
-		Name      string `json:"name"`
-		Config    []byte `json:"config"`
-		SortOrder int    `json:"sort_order"`
-		Timeout   int    `json:"timeout"`
+		ID          uint64 `json:"id"`
+		AgentID     uint64 `json:"agent_id"`
+		NodeType    string `json:"node_type"`
+		Name        string `json:"name"`
+		Config      []byte `json:"config"`
+		SortOrder   int    `json:"sort_order"`
+		Timeout     int    `json:"timeout"`
 		RetryPolicy string `json:"retry_policy"`
-		MaxRetries int    `json:"max_retries"`
+		MaxRetries  int    `json:"max_retries"`
 	}
 
 	s.db.Raw(`
@@ -406,11 +406,14 @@ func (s *WorkflowService) Update(workflowID uint64, req UpdateWorkflowRequest) e
 
 // Delete soft-deletes a workflow.
 func (s *WorkflowService) Delete(workflowID uint64) error {
-	result := s.db.Where("id = ?", workflowID).Delete(&struct{}{})
+	// The model (not an anonymous struct) supplies both the table name and the
+	// soft-delete column: `Delete(&struct{}{})` produced `DELETE FROM "" ...`,
+	// which PostgreSQL rejects with SQLSTATE 42601 (HTTP 500).
+	result := s.db.Where("id = ?", workflowID).Delete(&model.AgentWorkflow{})
 	if result.RowsAffected == 0 {
 		return errors.New("workflow not found")
 	}
-	return nil
+	return result.Error
 }
 
 // AddNode adds a node to a workflow.
@@ -492,11 +495,12 @@ func (s *WorkflowService) UpdateNode(nodeID uint64, req CreateNodeRequest) error
 
 // DeleteNode deletes a workflow node.
 func (s *WorkflowService) DeleteNode(nodeID uint64) error {
-	result := s.db.Where("id = ?", nodeID).Delete(&struct{}{})
+	// See Delete: the model supplies the table name and soft-delete column.
+	result := s.db.Where("id = ?", nodeID).Delete(&model.WorkflowNode{})
 	if result.RowsAffected == 0 {
 		return errors.New("node not found")
 	}
-	return nil
+	return result.Error
 }
 
 // AddEdge adds an edge to a workflow.
@@ -535,9 +539,9 @@ func (s *WorkflowService) AddEdge(workflowID uint64, req CreateEdgeRequest) (*Wo
 // UpdateEdge updates a workflow edge.
 func (s *WorkflowService) UpdateEdge(edgeID uint64, req CreateEdgeRequest) error {
 	updates := map[string]interface{}{
-		"source_node_id": req.SourceNodeID,
-		"target_node_id": req.TargetNodeID,
-		"condition":      req.Condition,
+		"source_node_id":  req.SourceNodeID,
+		"target_node_id":  req.TargetNodeID,
+		"condition":       req.Condition,
 		"context_mapping": req.ContextMapping,
 	}
 
@@ -554,11 +558,12 @@ func (s *WorkflowService) UpdateEdge(edgeID uint64, req CreateEdgeRequest) error
 
 // DeleteEdge deletes a workflow edge.
 func (s *WorkflowService) DeleteEdge(edgeID uint64) error {
-	result := s.db.Where("id = ?", edgeID).Delete(&struct{}{})
+	// See Delete: the model supplies the table name and soft-delete column.
+	result := s.db.Where("id = ?", edgeID).Delete(&model.WorkflowEdge{})
 	if result.RowsAffected == 0 {
 		return errors.New("edge not found")
 	}
-	return nil
+	return result.Error
 }
 
 // GetRuns returns all runs for a workflow.
@@ -777,12 +782,12 @@ func (s *WorkflowService) ExecuteWorkflow(workflowID uint64, issueID *uint64) (*
 	}
 
 	return &WorkflowRunResponse{
-		ID:          run.ID,
-		WorkflowID:  workflowID,
-		IssueID:     issueID,
-		Status:      "pending",
-		StartedAt:   ptrString(now.Format(time.RFC3339)),
-		CreatedAt:   run.CreatedAt.Format(time.RFC3339),
+		ID:         run.ID,
+		WorkflowID: workflowID,
+		IssueID:    issueID,
+		Status:     "pending",
+		StartedAt:  ptrString(now.Format(time.RFC3339)),
+		CreatedAt:  run.CreatedAt.Format(time.RFC3339),
 	}, nil
 }
 

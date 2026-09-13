@@ -82,8 +82,8 @@ type MCPTool struct {
 }
 
 type MCPExecuteRequest struct {
-	ToolName    string                 `json:"tool_name" binding:"required"`
-	Arguments   map[string]interface{} `json:"arguments"`
+	ToolName  string                 `json:"tool_name" binding:"required"`
+	Arguments map[string]interface{} `json:"arguments"`
 }
 
 // ======== CRUD ========
@@ -96,9 +96,6 @@ func (s *MCPService) List(workspaceID uint64) ([]MCPResponse, error) {
 	res := make([]MCPResponse, len(configs))
 	for i, c := range configs {
 		res[i] = s.toResponse(&c)
-	}
-	if res == nil {
-		res = []MCPResponse{}
 	}
 	return res, nil
 }
@@ -310,7 +307,7 @@ func (s *MCPService) fetchToolsFromServer(serverURL, apiKey string) ([]MCPTool, 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -355,7 +352,7 @@ func (s *MCPService) callToolOnServer(serverURL, apiKey, toolName string, args m
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -407,7 +404,7 @@ func (s *MCPService) SyncTools(workspaceID, configID, callerID uint64) (int, int
 	if err != nil {
 		return 0, 0, common.Internal("MCP server unreachable: " + err.Error())
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, _ := io.ReadAll(resp.Body)
 	var parsed mcpListToolsResp
 	if err := json.Unmarshal(raw, &parsed); err != nil {

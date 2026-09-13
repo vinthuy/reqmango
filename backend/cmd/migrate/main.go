@@ -57,21 +57,23 @@ func main() {
 			log.Fatal("migrate: force requires version number")
 		}
 		var ver int
-		fmt.Sscanf(os.Args[2], "%d", &ver)
+		_, _ = fmt.Sscanf(os.Args[2], "%d", &ver)
 		err = m.Force(ver)
 	case "steps":
 		if len(os.Args) < 3 {
 			log.Fatal("migrate: steps requires number")
 		}
 		var n int
-		fmt.Sscanf(os.Args[2], "%d", &n)
+		_, _ = fmt.Sscanf(os.Args[2], "%d", &n)
 		err = m.Steps(n)
 	default:
+		// #nosec G706 -- cmd comes from os.Args and %q escapes control characters.
 		log.Fatalf("migrate: unknown command %q (use: up, down, version, force, steps)", cmd)
 	}
 
 	if err != nil && err != migrate.ErrNoChange {
-		log.Fatalf("migrate: %s failed: %v", cmd, err)
+		// #nosec G706 -- cmd comes from os.Args and %q escapes control characters.
+		log.Fatalf("migrate: %q failed: %v", cmd, err)
 	}
 	fmt.Printf("migrate %s: OK\n", cmd)
 }

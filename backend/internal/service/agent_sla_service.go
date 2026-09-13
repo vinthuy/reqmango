@@ -60,8 +60,8 @@ func (s *AgentSLAService) Get(projectID uint64) (*SLAResponse, error) {
 			Enabled        bool   `json:"enabled"`
 		}{
 			ProjectID:      projectID,
-			NormalTaskMax:  1800,  // 30 minutes
-			ComplexTaskMax: 7200,  // 2 hours
+			NormalTaskMax:  1800, // 30 minutes
+			ComplexTaskMax: 7200, // 2 hours
 			AutoEscalation: true,
 			Enabled:        true,
 		}
@@ -111,11 +111,11 @@ func (s *AgentSLAService) Update(projectID uint64, req UpdateSLARequest) error {
 	if result.RowsAffected == 0 {
 		// Create if not exists
 		sla := map[string]interface{}{
-			"project_id":      projectID,
+			"project_id":       projectID,
 			"normal_task_max":  1800,
 			"complex_task_max": 7200,
-			"auto_escalation": true,
-			"enabled":         true,
+			"auto_escalation":  true,
+			"enabled":          true,
 		}
 		for k, v := range updates {
 			sla[k] = v
@@ -186,8 +186,8 @@ func (s *AgentSLAService) StartMonitoring() {
 // checkRunningTasks checks all running tasks for SLA breach.
 func (s *AgentSLAService) checkRunningTasks() {
 	var tasks []struct {
-		ID        uint64 `json:"id"`
-		ProjectID uint64 `json:"project_id"`
+		ID        uint64     `json:"id"`
+		ProjectID uint64     `json:"project_id"`
 		StartedAt *time.Time `json:"started_at"`
 	}
 

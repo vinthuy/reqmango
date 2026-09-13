@@ -16,7 +16,7 @@ import (
 
 func TestAuthMiddleware_PAT_Valid(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -45,7 +45,7 @@ func TestAuthMiddleware_PAT_Valid(t *testing.T) {
 
 func TestAuthMiddleware_PAT_Invalid(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

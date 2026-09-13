@@ -10,8 +10,8 @@ type WorkspaceCreateRequest struct {
 
 // WorkspaceUpdateRequest is the request body for updating a workspace.
 type WorkspaceUpdateRequest struct {
-	Name    string `json:"name"`
-	LogoURL string `json:"logo_url"`
+	Name     string `json:"name"`
+	LogoURL  string `json:"logo_url"`
 	Timezone string `json:"timezone"`
 }
 

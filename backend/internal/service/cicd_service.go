@@ -64,12 +64,12 @@ type CICDProviderStatus struct {
 
 // CICDStage describes one stage of a pipeline.
 type CICDStage struct {
-	Name        string         `json:"name"`
-	Status      string         `json:"status"` // pending | running | success | failed | skipped
-	DurationMs  int64          `json:"duration_ms"`
-	StartedAt   *time.Time     `json:"started_at,omitempty"`
-	CompletedAt *time.Time     `json:"completed_at,omitempty"`
-	LogURL      string         `json:"log_url,omitempty"`
+	Name        string     `json:"name"`
+	Status      string     `json:"status"` // pending | running | success | failed | skipped
+	DurationMs  int64      `json:"duration_ms"`
+	StartedAt   *time.Time `json:"started_at,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	LogURL      string     `json:"log_url,omitempty"`
 }
 
 // NewCICDService creates a new CICDService. When provider is nil a stub
@@ -166,30 +166,30 @@ type BuildTriggerRequest struct {
 
 // BuildRecordResponse is the API representation of a BuildRecord.
 type BuildRecordResponse struct {
-	ID             uint64          `json:"id"`
-	WorkspaceID    uint64          `json:"workspace_id"`
-	ProjectID      *uint64         `json:"project_id,omitempty"`
-	CICDConfigID   uint64          `json:"cicd_config_id"`
-	CICDConfigName string          `json:"cicd_config_name,omitempty"`
-	Trigger        string          `json:"trigger"`
-	Branch         string          `json:"branch"`
-	CommitSHA      string          `json:"commit_sha"`
-	IssueID        *uint64         `json:"issue_id,omitempty"`
-	AgentTaskID    *uint64         `json:"agent_task_id,omitempty"`
-	TriggeredByID  uint64          `json:"triggered_by_id"`
-	ExternalBuildID string        `json:"external_build_id"`
-	BuildURL       string          `json:"build_url"`
-	Stages         json.RawMessage `json:"stages"`
-	Status         string          `json:"status"`
-	Progress       int             `json:"progress"`
-	CurrentStage   *string         `json:"current_stage,omitempty"`
-	ErrorMessage   *string         `json:"error_message,omitempty"`
-	StartedAt      *time.Time      `json:"started_at,omitempty"`
-	CompletedAt    *time.Time      `json:"completed_at,omitempty"`
-	CancelledAt    *time.Time      `json:"cancelled_at,omitempty"`
-	DurationMs     int64           `json:"duration_ms"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	ID              uint64          `json:"id"`
+	WorkspaceID     uint64          `json:"workspace_id"`
+	ProjectID       *uint64         `json:"project_id,omitempty"`
+	CICDConfigID    uint64          `json:"cicd_config_id"`
+	CICDConfigName  string          `json:"cicd_config_name,omitempty"`
+	Trigger         string          `json:"trigger"`
+	Branch          string          `json:"branch"`
+	CommitSHA       string          `json:"commit_sha"`
+	IssueID         *uint64         `json:"issue_id,omitempty"`
+	AgentTaskID     *uint64         `json:"agent_task_id,omitempty"`
+	TriggeredByID   uint64          `json:"triggered_by_id"`
+	ExternalBuildID string          `json:"external_build_id"`
+	BuildURL        string          `json:"build_url"`
+	Stages          json.RawMessage `json:"stages"`
+	Status          string          `json:"status"`
+	Progress        int             `json:"progress"`
+	CurrentStage    *string         `json:"current_stage,omitempty"`
+	ErrorMessage    *string         `json:"error_message,omitempty"`
+	StartedAt       *time.Time      `json:"started_at,omitempty"`
+	CompletedAt     *time.Time      `json:"completed_at,omitempty"`
+	CancelledAt     *time.Time      `json:"cancelled_at,omitempty"`
+	DurationMs      int64           `json:"duration_ms"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
 // ======== Config CRUD ========
@@ -214,14 +214,14 @@ func (s *CICDService) CreateConfig(wid, callerID uint64, req CICDConfigCreate) (
 		defaultBranch = "main"
 	}
 	cfg := model.CICDConfig{
-		WorkspaceID:  wid,
-		ProjectID:    req.ProjectID,
-		Name:         req.Name,
-		Provider:     provider,
-		APIEndpoint:  req.APIEndpoint,
-		ProjectSlug:  req.ProjectSlug,
+		WorkspaceID:   wid,
+		ProjectID:     req.ProjectID,
+		Name:          req.Name,
+		Provider:      provider,
+		APIEndpoint:   req.APIEndpoint,
+		ProjectSlug:   req.ProjectSlug,
 		DefaultBranch: defaultBranch,
-		AuthTokenRef: req.AuthTokenRef,
+		AuthTokenRef:  req.AuthTokenRef,
 		TriggerEvents: normalizeStringArray(req.TriggerEvents),
 		ExtraConfig:   normalizeCICDJSON(req.ExtraConfig, "{}"),
 		Enabled:       true,
@@ -380,17 +380,17 @@ func (s *CICDService) TriggerBuild(wid, callerID uint64, req BuildTriggerRequest
 		}
 	}
 	build := model.BuildRecord{
-		WorkspaceID:    wid,
-		ProjectID:      req.ProjectID,
-		CICDConfigID:   cfg.ID,
-		Trigger:        trigger,
-		Branch:         branch,
-		CommitSHA:      req.CommitSHA,
-		IssueID:        req.IssueID,
-		AgentTaskID:    req.AgentTaskID,
-		TriggeredByID:  callerID,
-		Stages:         json.RawMessage("[]"),
-		Status:         model.BuildPending,
+		WorkspaceID:   wid,
+		ProjectID:     req.ProjectID,
+		CICDConfigID:  cfg.ID,
+		Trigger:       trigger,
+		Branch:        branch,
+		CommitSHA:     req.CommitSHA,
+		IssueID:       req.IssueID,
+		AgentTaskID:   req.AgentTaskID,
+		TriggeredByID: callerID,
+		Stages:        json.RawMessage("[]"),
+		Status:        model.BuildPending,
 	}
 	if err := s.db.Create(&build).Error; err != nil {
 		return nil, common.Internal("Failed to create build record")
@@ -810,10 +810,8 @@ func (p *stubCICDProvider) Trigger(ctx context.Context, cfg *model.CICDConfig, r
 	if cfg == nil {
 		return "", "", errors.New("config is required")
 	}
-	if cfg.APIEndpoint == "" {
-		// Without an endpoint the stub still produces a fake build id so
-		// the workflow remains observable.
-	}
+	// Without an endpoint the stub still produces a fake build id so the
+	// workflow remains observable.
 	if p.callCount == nil {
 		p.callCount = make(map[string]int)
 	}

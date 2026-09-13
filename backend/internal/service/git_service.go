@@ -98,9 +98,9 @@ func (s *GitService) LinkIssueToGit(issueID uint64, gitType, gitID, gitURL, gitT
 	var existing model.GitIssueLink
 	if err := s.db.Where("issue_id = ? AND git_type = ? AND git_id = ?", issueID, gitType, gitID).First(&existing).Error; err == nil {
 		return s.db.Model(&existing).Updates(map[string]interface{}{
-			"git_url":  gitURL,
-			"git_title": gitTitle,
-			"git_state": gitState,
+			"git_url":    gitURL,
+			"git_title":  gitTitle,
+			"git_state":  gitState,
 			"git_author": gitAuthor,
 			"git_branch": gitBranch,
 		}).Error
@@ -153,7 +153,7 @@ func (s *GitService) HandlePushEvent(projectID uint64, commits []map[string]inte
 				author = fmt.Sprintf("%v", authorMap["name"])
 			}
 
-			s.LinkIssueToGit(issue.ID, "commit", commitURL, commitURL, message, "pushed", author, "", integration.ID)
+			_ = s.LinkIssueToGit(issue.ID, "commit", commitURL, commitURL, message, "pushed", author, "", integration.ID)
 
 			if sc["action"] == "fixes" || sc["action"] == "closes" {
 				s.db.Model(&issue).Update("state_id", s.getCompletedStateID(projectID))
@@ -198,7 +198,7 @@ func (s *GitService) HandlePullRequestEvent(projectID uint64, pr map[string]inte
 			continue
 		}
 
-		s.LinkIssueToGit(issue.ID, "pull_request", prID, prURL, prTitle, prState, prAuthor, prBranch, integration.ID)
+		_ = s.LinkIssueToGit(issue.ID, "pull_request", prID, prURL, prTitle, prState, prAuthor, prBranch, integration.ID)
 
 		if prState == "closed" && pr["merged"] == true {
 			s.db.Model(&issue).Update("state_id", s.getCompletedStateID(projectID))
@@ -214,7 +214,7 @@ func parseSequenceID(key string) uint64 {
 		return 0
 	}
 	var seqID uint64
-	fmt.Sscanf(parts[1], "%d", &seqID)
+	_, _ = fmt.Sscanf(parts[1], "%d", &seqID)
 	return seqID
 }
 

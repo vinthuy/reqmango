@@ -7,51 +7,51 @@ import (
 type EstimateMode string
 
 const (
-	EstimateModePoints    EstimateMode = "points"
+	EstimateModePoints     EstimateMode = "points"
 	EstimateModeCategories EstimateMode = "categories"
-	EstimateModeTime      EstimateMode = "time"
+	EstimateModeTime       EstimateMode = "time"
 )
 
 type EstimatePoint struct {
 	BaseModel
-	Name       string       `gorm:"size:100;not null" json:"name"`
-	Value      int          `json:"value"`
-	Mode       EstimateMode `gorm:"size:20;default:points" json:"mode"`
-	IsDefault  bool         `gorm:"default:false" json:"is_default"`
-	Sequence   int          `gorm:"default:1" json:"sequence"`
-	ProjectID  uint64       `gorm:"not null;index" json:"project_id"`
-	WorkspaceID uint64      `gorm:"not null;index" json:"workspace_id"`
+	Name        string       `gorm:"size:100;not null" json:"name"`
+	Value       int          `json:"value"`
+	Mode        EstimateMode `gorm:"size:20;default:points" json:"mode"`
+	IsDefault   bool         `gorm:"default:false" json:"is_default"`
+	Sequence    int          `gorm:"default:1" json:"sequence"`
+	ProjectID   uint64       `gorm:"not null;index" json:"project_id"`
+	WorkspaceID uint64       `gorm:"not null;index" json:"workspace_id"`
 }
 
 type EstimateCategory struct {
 	BaseModel
-	Name       string       `gorm:"size:100;not null" json:"name"`
-	Mode       EstimateMode `gorm:"size:20;default:categories" json:"mode"`
-	IsDefault  bool         `gorm:"default:false" json:"is_default"`
-	Sequence   int          `gorm:"default:1" json:"sequence"`
-	ProjectID  uint64       `gorm:"not null;index" json:"project_id"`
-	WorkspaceID uint64      `gorm:"not null;index" json:"workspace_id"`
+	Name        string       `gorm:"size:100;not null" json:"name"`
+	Mode        EstimateMode `gorm:"size:20;default:categories" json:"mode"`
+	IsDefault   bool         `gorm:"default:false" json:"is_default"`
+	Sequence    int          `gorm:"default:1" json:"sequence"`
+	ProjectID   uint64       `gorm:"not null;index" json:"project_id"`
+	WorkspaceID uint64       `gorm:"not null;index" json:"workspace_id"`
 }
 
 type EstimateTime struct {
 	BaseModel
-	Name       string       `gorm:"size:100;not null" json:"name"`
-	Minutes    int          `json:"minutes"`
-	Mode       EstimateMode `gorm:"size:20;default:time" json:"mode"`
-	IsDefault  bool         `gorm:"default:false" json:"is_default"`
-	Sequence   int          `gorm:"default:1" json:"sequence"`
-	ProjectID  uint64       `gorm:"not null;index" json:"project_id"`
-	WorkspaceID uint64      `gorm:"not null;index" json:"workspace_id"`
+	Name        string       `gorm:"size:100;not null" json:"name"`
+	Minutes     int          `json:"minutes"`
+	Mode        EstimateMode `gorm:"size:20;default:time" json:"mode"`
+	IsDefault   bool         `gorm:"default:false" json:"is_default"`
+	Sequence    int          `gorm:"default:1" json:"sequence"`
+	ProjectID   uint64       `gorm:"not null;index" json:"project_id"`
+	WorkspaceID uint64       `gorm:"not null;index" json:"workspace_id"`
 }
 
 type ProjectEstimateSettings struct {
 	BaseModel
-	ProjectID      uint64       `gorm:"not null;unique;index" json:"project_id"`
-	WorkspaceID    uint64       `gorm:"not null;index" json:"workspace_id"`
-	Mode           EstimateMode `gorm:"size:20;default:points" json:"mode"`
-	PointsEnabled  bool         `gorm:"default:true" json:"points_enabled"`
-	CategoriesEnabled bool      `gorm:"default:false" json:"categories_enabled"`
-	TimeEnabled    bool         `gorm:"default:false" json:"time_enabled"`
+	ProjectID         uint64       `gorm:"not null;unique;index" json:"project_id"`
+	WorkspaceID       uint64       `gorm:"not null;index" json:"workspace_id"`
+	Mode              EstimateMode `gorm:"size:20;default:points" json:"mode"`
+	PointsEnabled     bool         `gorm:"default:true" json:"points_enabled"`
+	CategoriesEnabled bool         `gorm:"default:false" json:"categories_enabled"`
+	TimeEnabled       bool         `gorm:"default:false" json:"time_enabled"`
 }
 
 func (e *EstimatePoint) CreatedAtTime() time.Time {

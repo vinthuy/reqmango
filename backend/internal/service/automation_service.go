@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
+	neturl "net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -676,13 +678,14 @@ func (e *DefaultActionExecutor) handleCallWebhook(action Action, ctxData map[str
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[Webhook] Call failed: url=%s method=%s err=%v", url, method, err)
+		log.Printf("[Webhook] Call failed: url=%s method=%s err=%v", maskURLSecrets(url), method, err)
 		return fmt.Errorf("webhook call failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	log.Printf("[Webhook] Called: url=%s method=%s status=%d response=%s", url, method, resp.StatusCode, string(respBody))
+	log.Printf("[Webhook] Called: url=%s method=%s status=%d response=%s",
+		maskURLSecrets(url), method, resp.StatusCode, truncateForLog(string(respBody), 512))
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("webhook returned status %d: %s", resp.StatusCode, string(respBody))
@@ -1055,8 +1058,6 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 	rules = matchedRules
 	log.Printf("[Automation] Found %d matching rules for event %s", len(rules), event.Type)
 
-	var allResults []string
-
 	for _, rule := range rules {
 		// 解析条件
 		var conditions []Condition
@@ -1087,8 +1088,6 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 		if err != nil {
 			log.Printf("[Automation] Failed to execute actions for rule %d: %v", rule.ID, err)
 		}
-
-		allResults = append(allResults, results...)
 
 		// 更新规则执行计数
 		s.db.Model(&rule).Update("execution_count", gorm.Expr("execution_count + 1"))
@@ -1207,15 +1206,49 @@ func (s *AutomationService) GetProjectExecutionHistory(projectID uint64, limit i
 	return executions, total, nil
 }
 
+// maskURLSecrets removes the credentialed parts of a URL before it is written to
+// a log. Webhook endpoints (Slack, GitHub, generic CI hooks) embed their token in
+// the path, so logging the raw URL would persist a live credential.
+func maskURLSecrets(rawURL string) string {
+	parsed, err := neturl.Parse(rawURL)
+	if err != nil {
+		return "REDACTED"
+	}
+	masked := parsed.Scheme + "://" + parsed.Host + "/REDACTED"
+	if parsed.RawQuery != "" {
+		masked += "?REDACTED"
+	}
+	return masked
+}
+
+// truncateForLog bounds how much of a remote response body reaches the log.
+func truncateForLog(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "...(truncated)"
+}
+
 // Helper functions
 
 func toUint64(v interface{}) (uint64, bool) {
 	switch val := v.(type) {
 	case float64:
+		// Guard the conversion: a negative or out-of-range float would otherwise
+		// wrap around into a huge (and wrong) ID.
+		if val < 0 || val > math.MaxUint64 {
+			return 0, false
+		}
 		return uint64(val), true
 	case int:
+		if val < 0 {
+			return 0, false
+		}
 		return uint64(val), true
 	case int64:
+		if val < 0 {
+			return 0, false
+		}
 		return uint64(val), true
 	case uint64:
 		return val, true
@@ -1255,23 +1288,23 @@ type AutomationUpdateRequest struct {
 }
 
 type AutomationResponse struct {
-	ID             uint64  `json:"id"`
-	Name           string  `json:"name"`
-	Description    string  `json:"description"`
-	ProjectID      uint64  `json:"project_id"`
-	WorkspaceID    uint64  `json:"workspace_id"`
-	TriggerType    string  `json:"trigger_type"`
-	Conditions     string  `json:"conditions"`
-	Actions        string  `json:"actions"`
-	IsEnabled      bool    `json:"is_enabled"`
-	IsInherited    bool    `json:"is_inherited"`
-	Sequence       int     `json:"sequence"`
-	ExecutionCount int     `json:"execution_count"`
-	Scope          string  `json:"scope,omitempty"`
-	ScheduleConfig string  `json:"schedule_config,omitempty"`
+	ID              uint64  `json:"id"`
+	Name            string  `json:"name"`
+	Description     string  `json:"description"`
+	ProjectID       uint64  `json:"project_id"`
+	WorkspaceID     uint64  `json:"workspace_id"`
+	TriggerType     string  `json:"trigger_type"`
+	Conditions      string  `json:"conditions"`
+	Actions         string  `json:"actions"`
+	IsEnabled       bool    `json:"is_enabled"`
+	IsInherited     bool    `json:"is_inherited"`
+	Sequence        int     `json:"sequence"`
+	ExecutionCount  int     `json:"execution_count"`
+	Scope           string  `json:"scope,omitempty"`
+	ScheduleConfig  string  `json:"schedule_config,omitempty"`
 	LastTriggeredAt *string `json:"last_triggered_at,omitempty"`
-	CreatedAt      string  `json:"created_at"`
-	UpdatedAt      string  `json:"updated_at"`
+	CreatedAt       string  `json:"created_at"`
+	UpdatedAt       string  `json:"updated_at"`
 }
 
 // ======== CRUD 方法（保留原有 API 兼容性）========
@@ -1326,9 +1359,6 @@ func (s *AutomationService) List(projectID uint64) ([]AutomationResponse, error)
 			}
 		}
 		res[i] = s.toResponseWithInherited(&r, isInherited)
-	}
-	if res == nil {
-		res = []AutomationResponse{}
 	}
 	return res, nil
 }
@@ -1522,9 +1552,6 @@ func (s *AutomationService) ListWorkspace(workspaceID uint64) ([]AutomationRespo
 	res := make([]AutomationResponse, len(rules))
 	for i, r := range rules {
 		res[i] = s.toResponse(&r)
-	}
-	if res == nil {
-		res = []AutomationResponse{}
 	}
 	return res, nil
 }
@@ -1870,9 +1897,6 @@ func matchCronExpression(cron string, now time.Time) bool {
 	for i, part := range parts {
 		if part == "*" {
 			continue
-		}
-		if val, err := fmt.Sscanf(part, "%d", new(int)); err == nil && val == 1 {
-			// simple single value match handled below
 		}
 		// For simplicity, only support single-value or wildcard matches for now
 		if part != "*" {

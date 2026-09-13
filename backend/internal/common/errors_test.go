@@ -9,14 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func setupTestContext() *gin.Context {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest("GET", "/", nil)
-	return c
-}
-
 func TestNewError_Basic(t *testing.T) {
 	err := NewError(ErrBadRequest, "Bad input")
 	if err.Code != 400 {

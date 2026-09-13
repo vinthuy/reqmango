@@ -19,23 +19,23 @@ type SkillExecutor interface {
 
 // SkillExecutionResult contains the result of skill execution.
 type SkillExecutionResult struct {
-	SkillID    uint64
-	SkillName  string
-	Steps      []SkillStep
+	SkillID     uint64
+	SkillName   string
+	Steps       []SkillStep
 	FinalResult string
-	Error      string
-	TokensUsed int
+	Error       string
+	TokensUsed  int
 }
 
 // SkillStep represents a step in a skill execution.
 type SkillStep struct {
-	Step     int
-	Action   string
-	Tool     string
-	Input    map[string]interface{}
-	Output   interface{}
-	Error    string
-	Status   string
+	Step   int
+	Action string
+	Tool   string
+	Input  map[string]interface{}
+	Output interface{}
+	Error  string
+	Status string
 }
 
 type SkillService struct {
@@ -209,7 +209,7 @@ func (s *SkillService) Execute(ctx context.Context, id uint64, req request.Skill
 	s.db.Save(log)
 
 	// Increment usage count
-	s.IncrementUsage(id)
+	_ = s.IncrementUsage(id)
 
 	return s.toExecutionResponse(result), nil
 }
@@ -221,10 +221,10 @@ func (s *SkillService) executeLocal(skill *model.Skill, params map[string]interf
 		SkillName: skill.Name,
 		Steps: []SkillStep{
 			{
-				Step:     1,
-				Action:   "Skill executed successfully",
-				Status:   "completed",
-				Output:   params,
+				Step:   1,
+				Action: "Skill executed successfully",
+				Status: "completed",
+				Output: params,
 			},
 		},
 		FinalResult: "Skill executed successfully with parameters",
@@ -255,23 +255,23 @@ func (s *SkillService) toExecutionResponse(result *SkillExecutionResult) *respon
 	steps := make([]response.SkillStepResponse, 0, len(result.Steps))
 	for _, step := range result.Steps {
 		steps = append(steps, response.SkillStepResponse{
-			Step:     step.Step,
-			Action:   step.Action,
-			Tool:     step.Tool,
-			Input:    step.Input,
-			Output:   step.Output,
-			Error:    step.Error,
-			Status:   step.Status,
+			Step:   step.Step,
+			Action: step.Action,
+			Tool:   step.Tool,
+			Input:  step.Input,
+			Output: step.Output,
+			Error:  step.Error,
+			Status: step.Status,
 		})
 	}
 
 	return &response.SkillExecutionResponse{
-		SkillID:    result.SkillID,
-		SkillName:  result.SkillName,
-		Steps:      steps,
+		SkillID:     result.SkillID,
+		SkillName:   result.SkillName,
+		Steps:       steps,
 		FinalResult: result.FinalResult,
-		Error:      result.Error,
-		TokensUsed: result.TokensUsed,
+		Error:       result.Error,
+		TokensUsed:  result.TokensUsed,
 	}
 }
 
@@ -359,17 +359,17 @@ func (s *SkillService) ListExecutionLogs(params SkillExecutionLogQueryParams) ([
 
 func (s *SkillService) toExecutionLogResponse(log *model.SkillExecutionLog) response.SkillExecutionLogResponse {
 	return response.SkillExecutionLogResponse{
-		ID:          log.ID,
-		SkillID:     log.SkillID,
-		WorkspaceID: log.WorkspaceID,
-		InputParams: log.InputParams,
+		ID:           log.ID,
+		SkillID:      log.SkillID,
+		WorkspaceID:  log.WorkspaceID,
+		InputParams:  log.InputParams,
 		OutputResult: log.OutputResult,
-		Status:      log.Status,
+		Status:       log.Status,
 		ErrorMessage: log.ErrorMessage,
-		TokensUsed:  log.TokensUsed,
-		DurationMs:  log.DurationMs,
-		CreatedAt:   log.CreatedAt,
-		UpdatedAt:   log.UpdatedAt,
+		TokensUsed:   log.TokensUsed,
+		DurationMs:   log.DurationMs,
+		CreatedAt:    log.CreatedAt,
+		UpdatedAt:    log.UpdatedAt,
 	}
 }
 

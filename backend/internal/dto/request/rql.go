@@ -6,8 +6,8 @@ type RQLSearchRequest struct {
 	Entity    string `json:"entity" binding:"required,oneof=issue cycle module"`
 	ProjectID uint64 `json:"project_id" binding:"required"`
 	RQL       string `json:"rql" binding:"required"`
-	Page     int    `json:"page"`
-	PageSize int    `json:"page_size"`
+	Page      int    `json:"page"`
+	PageSize  int    `json:"page_size"`
 }
 
 type RQLSearchResponse struct {

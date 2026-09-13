@@ -298,9 +298,9 @@ func TestPageVersionService_SaveAndRestore(t *testing.T) {
 
 	// Update twice to create 2 versions
 	c1 := "updated v1"
-	svc.Update(page.ID, projID, userID, &request.PageUpdateRequest{Content: &c1})
+	_, _ = svc.Update(page.ID, projID, userID, &request.PageUpdateRequest{Content: &c1})
 	c2 := "updated v2"
-	svc.Update(page.ID, projID, userID, &request.PageUpdateRequest{Content: &c2})
+	_, _ = svc.Update(page.ID, projID, userID, &request.PageUpdateRequest{Content: &c2})
 
 	// List versions
 	versions, err := vs.List(page.ID)
@@ -411,7 +411,7 @@ func TestPageService_ConvertToIssue(t *testing.T) {
 
 func BenchmarkPageService_GetTree(b *testing.B) {
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	db.AutoMigrate(&model.User{}, &model.Workspace{}, &model.Project{}, &model.Page{})
+	_ = db.AutoMigrate(&model.User{}, &model.Workspace{}, &model.Project{}, &model.Page{})
 
 	user := &model.User{DisplayName: "B", Email: "b@b.com"}
 	db.Create(user)
@@ -430,7 +430,7 @@ func BenchmarkPageService_GetTree(b *testing.B) {
 			child, _ := svc.Create(&request.PageCreateRequest{Title: fmt.Sprintf("Child %d-%d", i, j), ParentID: &parentID}, proj.ID, ws.ID, user.ID)
 			for k := 0; k < 2; k++ {
 				gParentID := child.ID
-				svc.Create(&request.PageCreateRequest{Title: fmt.Sprintf("Leaf %d-%d-%d", i, j, k), ParentID: &gParentID}, proj.ID, ws.ID, user.ID)
+				_, _ = svc.Create(&request.PageCreateRequest{Title: fmt.Sprintf("Leaf %d-%d-%d", i, j, k), ParentID: &gParentID}, proj.ID, ws.ID, user.ID)
 			}
 		}
 	}

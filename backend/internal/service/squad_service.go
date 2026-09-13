@@ -36,8 +36,8 @@ type AgentDispatchResult struct {
 }
 
 type SquadService struct {
-	db         *gorm.DB
-	agentSvc   AgentExecutorInterface
+	db          *gorm.DB
+	agentSvc    AgentExecutorInterface
 	cancelStore sync.Map // executionID -> context.CancelFunc
 }
 
@@ -260,7 +260,7 @@ func (s *SquadService) executeAsync(executionID uint64, squad model.Squad, userI
 		var cfg struct {
 			TimeoutSeconds int `json:"timeout_seconds"`
 		}
-		json.Unmarshal(squad.Config.ToRawMessage(), &cfg)
+		_ = json.Unmarshal(squad.Config.ToRawMessage(), &cfg)
 		if cfg.TimeoutSeconds > 0 {
 			timeout = time.Duration(cfg.TimeoutSeconds) * time.Second
 		}
@@ -437,7 +437,7 @@ func (s *SquadService) executeSubtaskWithRetry(ctx context.Context, executionID 
 		var cfg struct {
 			MaxRetries int `json:"max_retries"`
 		}
-		json.Unmarshal(squad.Config.ToRawMessage(), &cfg)
+		_ = json.Unmarshal(squad.Config.ToRawMessage(), &cfg)
 		if cfg.MaxRetries > 0 {
 			maxRetries = cfg.MaxRetries
 		}

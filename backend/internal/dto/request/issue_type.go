@@ -6,26 +6,26 @@ type IssueTypeCreate struct {
 	Color        string  `json:"color"`
 	Icon         string  `json:"icon"`
 	Description  string  `json:"description"`
-	Level        int     `json:"level"`           // hierarchy level 0-5
-	ParentTypeID *uint64 `json:"parent_type_id"`  // parent type in hierarchy
+	Level        int     `json:"level"`          // hierarchy level 0-5
+	ParentTypeID *uint64 `json:"parent_type_id"` // parent type in hierarchy
 	IsDefault    bool    `json:"is_default"`
 	Sequence     int     `json:"sequence"`
-	ProjectID    *uint64 `json:"project_id"`      // nil = workspace-shared
+	ProjectID    *uint64 `json:"project_id"` // nil = workspace-shared
 }
 
 // IssueTypeUpdate request for updating an issue type.
 type IssueTypeUpdate struct {
-	Name               *string `json:"name"`
-	Color              *string `json:"color"`
-	Icon               *string `json:"icon"`
-	Description        *string `json:"description"`
-	Level              *int    `json:"level"`
-	ParentTypeID       *uint64 `json:"parent_type_id"`
+	Name                *string  `json:"name"`
+	Color               *string  `json:"color"`
+	Icon                *string  `json:"icon"`
+	Description         *string  `json:"description"`
+	Level               *int     `json:"level"`
+	ParentTypeID        *uint64  `json:"parent_type_id"`
 	AllowedChildTypeIDs []uint64 `json:"allowed_child_type_ids"`
-	IsDefault          *bool   `json:"is_default"`
-	Sequence           *int    `json:"sequence"`
-	IsActive           *bool   `json:"is_active"`
-	ProjectID          *uint64 `json:"project_id"`
+	IsDefault           *bool    `json:"is_default"`
+	Sequence            *int     `json:"sequence"`
+	IsActive            *bool    `json:"is_active"`
+	ProjectID           *uint64  `json:"project_id"`
 }
 
 // IssueTypeDisable request for toggling active status.

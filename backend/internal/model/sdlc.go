@@ -83,8 +83,8 @@ type SDLCWorkflow struct {
 	CancelledAt  *time.Time `json:"cancelled_at,omitempty"`
 
 	// Relationships
-	Workspace Workspace `gorm:"foreignKey:WorkspaceID" json:"-"`
-	Project   *Project  `gorm:"foreignKey:ProjectID" json:"-"`
+	Workspace Workspace   `gorm:"foreignKey:WorkspaceID" json:"-"`
+	Project   *Project    `gorm:"foreignKey:ProjectID" json:"-"`
 	Stages    []SDLCStage `gorm:"foreignKey:WorkflowID" json:"stages,omitempty"`
 }
 

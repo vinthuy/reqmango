@@ -4,16 +4,16 @@ import "encoding/json"
 
 // Info describes a plugin available in the catalog (not yet installed).
 type Info struct {
-	Slug        string          `json:"slug"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Author      string          `json:"author"`
-	Version     string          `json:"version"`
-	Type        string          `json:"type"`
-	IconURL     string          `json:"icon_url"`
-	EntryPoint  string          `json:"entry_point"`
-	ConfigSchema json.RawMessage `json:"config_schema"`
-	SubscribedEvents []string    `json:"subscribed_events"`
+	Slug             string          `json:"slug"`
+	Name             string          `json:"name"`
+	Description      string          `json:"description"`
+	Author           string          `json:"author"`
+	Version          string          `json:"version"`
+	Type             string          `json:"type"`
+	IconURL          string          `json:"icon_url"`
+	EntryPoint       string          `json:"entry_point"`
+	ConfigSchema     json.RawMessage `json:"config_schema"`
+	SubscribedEvents []string        `json:"subscribed_events"`
 }
 
 // BuiltinCatalog returns all available built-in plugins.

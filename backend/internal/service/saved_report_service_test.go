@@ -31,7 +31,7 @@ func newReportRow(id uint64, name, reportType, groupBy, chartType string, projec
 
 func TestSavedReportService_List(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	svc := NewSavedReportService(db)
 
 	mock.ExpectQuery(`SELECT \* FROM "saved_reports" WHERE`).
@@ -47,7 +47,7 @@ func TestSavedReportService_List(t *testing.T) {
 
 func TestSavedReportService_List_Empty(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	svc := NewSavedReportService(db)
 
 	mock.ExpectQuery(`SELECT \* FROM "saved_reports" WHERE`).
@@ -64,7 +64,7 @@ func TestSavedReportService_List_Empty(t *testing.T) {
 
 func TestSavedReportService_Create(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	svc := NewSavedReportService(db)
 
 	req := &request.SavedReportCreateRequest{
@@ -92,7 +92,7 @@ func TestSavedReportService_Create(t *testing.T) {
 
 func TestSavedReportService_Create_Validation(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	svc := NewSavedReportService(db)
 
 	_, err := svc.Create(1, &request.SavedReportCreateRequest{Name: "", ReportType: "distribution"})
@@ -110,7 +110,7 @@ func TestSavedReportService_Create_Validation(t *testing.T) {
 
 func TestSavedReportService_Update(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	svc := NewSavedReportService(db)
 
 	newName := "Updated Report"
@@ -133,7 +133,7 @@ func TestSavedReportService_Update(t *testing.T) {
 
 func TestSavedReportService_Update_NotFound(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	svc := NewSavedReportService(db)
 
 	newName := "X"
@@ -151,7 +151,7 @@ func TestSavedReportService_Update_NotFound(t *testing.T) {
 
 func TestSavedReportService_Delete(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	svc := NewSavedReportService(db)
 
 	// GORM soft-delete = UPDATE (single statement, no transaction)
@@ -165,7 +165,7 @@ func TestSavedReportService_Delete(t *testing.T) {
 
 func TestSavedReportService_Delete_NotFound(t *testing.T) {
 	db, mock, sqlDB := testutil.NewMockDB(t)
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 	svc := NewSavedReportService(db)
 
 	mock.ExpectExec(`UPDATE "saved_reports" SET "deleted_at"=`).

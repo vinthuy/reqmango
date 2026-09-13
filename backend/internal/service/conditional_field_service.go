@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"github.com/reqmango/backend/internal/common"
@@ -205,22 +206,24 @@ func (s *ConditionalFieldService) evaluateCondition(conditionType, operator stri
 	var fieldValue string
 	var listValues []string
 
+	// Numeric identifiers are compared against the condition values as decimal
+	// strings (the format the API and the rule editor use).
 	switch conditionType {
 	case "type":
 		if issueTypeID != nil {
-			fieldValue = strings.TrimSpace(strings.ToLower(string(rune(*issueTypeID))))
+			fieldValue = strconv.FormatUint(*issueTypeID, 10)
 		}
 	case "state":
-		fieldValue = strings.TrimSpace(strings.ToLower(string(rune(stateID))))
+		fieldValue = strconv.FormatUint(stateID, 10)
 	case "priority":
 		fieldValue = strings.TrimSpace(strings.ToLower(priority))
 	case "assignee":
 		for _, id := range assigneeIDs {
-			listValues = append(listValues, strings.TrimSpace(strings.ToLower(string(rune(id)))))
+			listValues = append(listValues, strconv.FormatUint(id, 10))
 		}
 	case "label":
 		for _, id := range labelIDs {
-			listValues = append(listValues, strings.TrimSpace(strings.ToLower(string(rune(id)))))
+			listValues = append(listValues, strconv.FormatUint(id, 10))
 		}
 	}
 

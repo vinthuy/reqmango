@@ -15,13 +15,13 @@ import (
 
 // DatabaseToolExecutor executes tools using database lookups and HTTP calls.
 type DatabaseToolExecutor struct {
-	db           *gorm.DB
+	db               *gorm.DB
 	functionRegistry *FunctionRegistry
 }
 
 func NewDatabaseToolExecutor(db *gorm.DB) *DatabaseToolExecutor {
 	return &DatabaseToolExecutor{
-		db:           db,
+		db:               db,
 		functionRegistry: NewFunctionRegistry(),
 	}
 }
@@ -117,9 +117,7 @@ func (e *DatabaseToolExecutor) recordToolCallLog(tool *model.Tool, input json.Ra
 	// Save log (fire and forget)
 	go func() {
 		defer func() {
-			if r := recover(); r != nil {
-				// Panic recovery to prevent crash
-			}
+			_ = recover() // Panic recovery to prevent crash
 		}()
 		if e.db == nil {
 			return
@@ -162,7 +160,7 @@ func (e *DatabaseToolExecutor) executeAPI(ctx context.Context, tool *model.Tool,
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -231,7 +231,7 @@ func (s *MetricService) RenderChart(projectID, chartID uint64) (*RenderResponse,
 
 	var filtersMap map[string]interface{}
 	if chart.Filters != "" && chart.Filters != "{}" {
-		json.Unmarshal([]byte(chart.Filters), &filtersMap)
+		_ = json.Unmarshal([]byte(chart.Filters), &filtersMap)
 		if rql, ok := filtersMap["rql"].(string); ok && rql != "" {
 			reportReq.RQL = rql
 		} else if conds, ok := filtersMap["conditions"].([]interface{}); ok && len(conds) > 0 {
@@ -247,7 +247,7 @@ func (s *MetricService) RenderChart(projectID, chartID uint64) (*RenderResponse,
 
 	var config ChartConfig
 	if chart.Config != "" && chart.Config != "{}" {
-		json.Unmarshal([]byte(chart.Config), &config)
+		_ = json.Unmarshal([]byte(chart.Config), &config)
 	}
 
 	var refLines []ReferenceLineData
@@ -325,7 +325,7 @@ func (s *MetricService) RenderChartData(projectID uint64, req *CreateChartReques
 	var config ChartConfig
 	if req.Config != nil {
 		configJSON, _ := json.Marshal(req.Config)
-		json.Unmarshal(configJSON, &config)
+		_ = json.Unmarshal(configJSON, &config)
 	}
 
 	chartType := req.ChartType

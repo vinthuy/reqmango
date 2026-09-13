@@ -20,27 +20,27 @@ type ModuleResponse struct {
 
 type ModuleTreeNode struct {
 	ModuleResponse
-	Children         []*ModuleTreeNode `json:"children"`
-	TotalIssues      int64             `json:"total_issues"`
-	CompletedIssues  int64             `json:"completed_issues"`
-	Progress         int               `json:"progress"`
+	Children        []*ModuleTreeNode `json:"children"`
+	TotalIssues     int64             `json:"total_issues"`
+	CompletedIssues int64             `json:"completed_issues"`
+	Progress        int               `json:"progress"`
 }
 
 type ModuleProgress struct {
-	ModuleID     uint64 `json:"module_id"`
-	ModuleName   string `json:"module_name"`
-	TotalIssues  int64  `json:"total_issues"`
-	Completed    int64  `json:"completed"`
-	Progress     int    `json:"progress"`
+	ModuleID    uint64 `json:"module_id"`
+	ModuleName  string `json:"module_name"`
+	TotalIssues int64  `json:"total_issues"`
+	Completed   int64  `json:"completed"`
+	Progress    int    `json:"progress"`
 }
 
 type ModuleStatistics struct {
-	ModuleID      uint64            `json:"module_id"`
-	ModuleName    string            `json:"module_name"`
-	TotalIssues   int64             `json:"total_issues"`
-	ActiveIssues  int64             `json:"active_issues"`
-	Completed     int64             `json:"completed"`
-	Cancelled     int64             `json:"cancelled"`
-	ByPriority    map[string]int64  `json:"by_priority"`
-	ByState       map[string]int64  `json:"by_state"`
+	ModuleID     uint64           `json:"module_id"`
+	ModuleName   string           `json:"module_name"`
+	TotalIssues  int64            `json:"total_issues"`
+	ActiveIssues int64            `json:"active_issues"`
+	Completed    int64            `json:"completed"`
+	Cancelled    int64            `json:"cancelled"`
+	ByPriority   map[string]int64 `json:"by_priority"`
+	ByState      map[string]int64 `json:"by_state"`
 }

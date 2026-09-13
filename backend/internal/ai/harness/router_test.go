@@ -148,7 +148,7 @@ func TestModelRouter_EstimateTokens(t *testing.T) {
 	r := NewModelRouter()
 	tests := []struct {
 		stageType StageType
-		wantMin  int
+		wantMin   int
 	}{
 		{StagePlanner, 2000},
 		{StageExecutor, 4000},

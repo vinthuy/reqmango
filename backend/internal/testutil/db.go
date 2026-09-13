@@ -27,7 +27,7 @@ func NewMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, *sql.DB) {
 		Logger:                 logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		sqlDB.Close()
+		_ = sqlDB.Close()
 		t.Fatalf("gorm.Open: %v", err)
 	}
 

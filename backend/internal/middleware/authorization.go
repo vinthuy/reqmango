@@ -41,8 +41,8 @@ func RequirePermission(db *gorm.DB, requiredPerm string, scope string) gin.Handl
 
 		if !hasPermissionDB(db, userID, workspaceID, projectID, requiredPerm) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error":     "Permission denied",
-				"required":  requiredPerm,
+				"error":    "Permission denied",
+				"required": requiredPerm,
 			})
 			return
 		}
@@ -100,7 +100,7 @@ func parseContextID(c *gin.Context, key string) uint64 {
 func hasPermissionDB(db *gorm.DB, userID, workspaceID, projectID uint64, requiredPerm string) bool {
 	// Get user's role level from workspace member
 	var member struct {
-		Role     int
+		Role         int
 		CustomRoleID *uint64
 	}
 	if err := db.Raw("SELECT role, custom_role_id FROM workspace_members WHERE user_id = ? AND workspace_id = ? LIMIT 1",

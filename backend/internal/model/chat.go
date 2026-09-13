@@ -36,8 +36,8 @@ type Message struct {
 	CreatedAt  time.Time       `json:"created_at"`
 
 	// Relationships
-	Chat       *Message           `gorm:"foreignKey:ReplyToID" json:"-"`
-	Reactions  []MessageReaction  `gorm:"foreignKey:MessageID" json:"reactions"`
+	Chat      *Message          `gorm:"foreignKey:ReplyToID" json:"-"`
+	Reactions []MessageReaction `gorm:"foreignKey:MessageID" json:"reactions"`
 }
 
 func (Message) TableName() string { return "messages" }

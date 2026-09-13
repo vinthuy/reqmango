@@ -1,10 +1,10 @@
 package request
 
 type WorkflowCreate struct {
-	Name         string    `json:"name" binding:"required"`
-	Description  string    `json:"description"`
-	IssueTypeID  *uint64   `json:"issue_type_id"`
-	IssueTypeIDs []uint64  `json:"issue_type_ids"`
+	Name         string   `json:"name" binding:"required"`
+	Description  string   `json:"description"`
+	IssueTypeID  *uint64  `json:"issue_type_id"`
+	IssueTypeIDs []uint64 `json:"issue_type_ids"`
 }
 
 type WorkflowUpdate struct {

@@ -58,7 +58,7 @@ func TestIsTerminalWorkflowStatus(t *testing.T) {
 
 func TestWorkflowProgress(t *testing.T) {
 	assert.Equal(t, 0, workflowProgress(0, 11))
-	assert.Equal(t, 9, workflowProgress(1, 11))  // 1/11*100 = 9
+	assert.Equal(t, 9, workflowProgress(1, 11)) // 1/11*100 = 9
 	assert.Equal(t, 100, workflowProgress(11, 11))
 	assert.Equal(t, 100, workflowProgress(12, 11)) // capped
 	assert.Equal(t, 0, workflowProgress(1, 0))     // div-by-zero guard

@@ -1,0 +1,35 @@
+# gitleaks configuration.
+#
+# The default rule set is extended (never replaced) and only audited false
+# positives are allowlisted. Every entry below is a placeholder that carries no
+# authority:
+#
+#   scripts/test/*.ps1, backend/test_*.ps1
+#       Local QA scripts with a hardcoded development JWT (sub=1, exp 2026-07-25,
+#       signed with a throwaway local secret). Expired and non-deployable.
+#   sdk/client/auth_test.go, docs/superpowers/plans/2026-09-06-mcp-cli-plan.md
+#       "reqmango_pat_ab3d" is the *display prefix* of a personal access token,
+#       used as sample output. The secret part of a PAT is never rendered.
+#
+# Anything else that gitleaks reports should be treated as a real finding.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Audited placeholder credentials in local test scripts"
+paths = [
+  '''scripts/test/.*\.ps1$''',
+  '''backend/test_.*\.ps1$''',
+]
+
+[[allowlists]]
+description = "Personal access token display prefix in fixtures and docs (not a secret)"
+paths = [
+  '''sdk/client/auth_test\.go$''',
+  '''docs/superpowers/plans/2026-09-06-mcp-cli-plan\.md$''',
+]
+regexTarget = "line"
+regexes = [
+  '''reqmango_pat_[0-9a-f]{4}''',
+]

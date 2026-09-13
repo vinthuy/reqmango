@@ -155,7 +155,7 @@ func TestCalculateTextSimilarity(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &MemoryService{}
 			result := svc.CalculateTextSimilarity(tt.text1, tt.text2)
-			
+
 			// For exact matches, check with tolerance
 			if tt.expected == 1.0 || tt.expected == 0.0 {
 				if result < tt.expected-0.0001 || result > tt.expected+0.0001 {
@@ -174,34 +174,34 @@ func TestCalculateTextSimilarity(t *testing.T) {
 // TestExtractSummary tests the extractSummary function
 func TestExtractSummary(t *testing.T) {
 	tests := []struct {
-		name     string
-		content  string
-		query    string
-		maxLen   int
+		name    string
+		content string
+		query   string
+		maxLen  int
 	}{
 		{
-			name:     "short content",
-			content:  "short content",
-			query:    "short",
-			maxLen:   15,
+			name:    "short content",
+			content: "short content",
+			query:   "short",
+			maxLen:  15,
 		},
 		{
-			name:     "keyword in middle",
-			content:  "this is a long content with keyword in the middle somewhere",
-			query:    "keyword",
-			maxLen:   150,
+			name:    "keyword in middle",
+			content: "this is a long content with keyword in the middle somewhere",
+			query:   "keyword",
+			maxLen:  150,
 		},
 		{
-			name:     "keyword not found",
-			content:  "this is a long content without the search term",
-			query:    "missing",
-			maxLen:   150,
+			name:    "keyword not found",
+			content: "this is a long content without the search term",
+			query:   "missing",
+			maxLen:  150,
 		},
 		{
-			name:     "chinese content",
-			content:  "这是一段很长的中文内容，其中包含关键词搜索测试，需要提取摘要",
-			query:    "关键词",
-			maxLen:   150,
+			name:    "chinese content",
+			content: "这是一段很长的中文内容，其中包含关键词搜索测试，需要提取摘要",
+			query:   "关键词",
+			maxLen:  150,
 		},
 	}
 

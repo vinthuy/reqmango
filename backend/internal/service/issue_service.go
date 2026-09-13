@@ -744,7 +744,7 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 				message := fmt.Sprintf("工作项 #%d 状态从 %s 变为 %s", issue.SequenceID, oldState.Name, newState.Name)
 				issueIDPtr := issueID
 				projectIDPtr := issue.ProjectID
-				s.notificationSvc.TriggerNotificationsBulk(tx, "issue_state_changed", title, message, ids, &userID, &projectIDPtr, &issueIDPtr)
+				_ = s.notificationSvc.TriggerNotificationsBulk(tx, "issue_state_changed", title, message, ids, &userID, &projectIDPtr, &issueIDPtr)
 			}
 		}
 	}
@@ -1135,7 +1135,7 @@ func (s *IssueService) AddAssignee(issueID, userID, actorID uint64) error {
 		message := fmt.Sprintf("您被分配到工作项 #%d: %s", issue.SequenceID, issue.Name)
 		issueIDPtr := issueID
 		projectIDPtr := issue.ProjectID
-		s.notificationSvc.TriggerNotification(s.db, "issue_assigned", title, message, userID, &actorID, &projectIDPtr, &issueIDPtr)
+		_ = s.notificationSvc.TriggerNotification(s.db, "issue_assigned", title, message, userID, &actorID, &projectIDPtr, &issueIDPtr)
 	}
 
 	// Automation trigger: issue.assigned
@@ -1660,14 +1660,14 @@ func (s *IssueService) BuildIssueResponse(issue *model.Issue) (*response.IssueRe
 				parent.StateGroup = parentIssue.State.Group
 			}
 			if parentIssue.IssueType.ID != 0 {
-			parent.IssueType = &response.IssueTypeLite{
-				ID:                  parentIssue.IssueType.ID,
-				Name:                parentIssue.IssueType.Name,
-				Color:               parentIssue.IssueType.Color,
-				Icon:                parentIssue.IssueType.Icon,
-				Level:               parentIssue.IssueType.Level,
-				AllowedChildTypeIDs: parentIssue.IssueType.AllowedChildTypeIDs,
-			}
+				parent.IssueType = &response.IssueTypeLite{
+					ID:                  parentIssue.IssueType.ID,
+					Name:                parentIssue.IssueType.Name,
+					Color:               parentIssue.IssueType.Color,
+					Icon:                parentIssue.IssueType.Icon,
+					Level:               parentIssue.IssueType.Level,
+					AllowedChildTypeIDs: parentIssue.IssueType.AllowedChildTypeIDs,
+				}
 			}
 			for _, link := range parentIssue.AssigneeLinks {
 				if link.User.ID != 0 {
@@ -2477,10 +2477,6 @@ func (s *IssueService) ExportIssues(projectID uint64) ([]ExportIssueItem, error)
 		result = append(result, item)
 	}
 	return result, nil
-}
-
-func parseInt64(s string) (uint64, error) {
-	return strconv.ParseUint(strings.TrimSpace(s), 10, 64)
 }
 
 func (s *IssueService) validateMandatoryCustomFields(projectID, workspaceID, issueTypeID uint64, cfValues map[uint64]interface{}) error {

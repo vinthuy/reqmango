@@ -5,12 +5,12 @@ import "encoding/json"
 // SprintGuardianPreset returns the pre-configured Loop definition for the Sprint Guardian.
 func SprintGuardianPreset() json.RawMessage {
 	def := map[string]interface{}{
-		"name":        "sprint-guardian",
-		"description": "Sprint 自主守护Agent — 每日检查、自动调整、风险预警",
-		"version":     "1.0",
-		"goal":        "Sprint进度偏差 < 10% AND 无人过载",
-		"max_iterations": 3,
-		"max_tokens":     30000,
+		"name":             "sprint-guardian",
+		"description":      "Sprint 自主守护Agent — 每日检查、自动调整、风险预警",
+		"version":          "1.0",
+		"goal":             "Sprint进度偏差 < 10% AND 无人过载",
+		"max_iterations":   3,
+		"max_tokens":       30000,
 		"max_duration_sec": 3600,
 		"trigger": map[string]interface{}{
 			"type":     "cron",

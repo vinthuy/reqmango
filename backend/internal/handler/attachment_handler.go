@@ -16,18 +16,18 @@ import (
 const maxFileSize = 10 * 1024 * 1024
 
 var allowedMIMETypes = map[string]bool{
-	"image/jpeg": true,
-	"image/png":  true,
-	"image/gif":  true,
-	"image/webp": true,
-	"application/pdf": true,
-	"application/docx": true,
-	"application/xlsx": true,
-	"application/pptx": true,
-	"text/plain": true,
-	"text/csv":   true,
-	"text/markdown": true,
-	"application/json": true,
+	"image/jpeg":               true,
+	"image/png":                true,
+	"image/gif":                true,
+	"image/webp":               true,
+	"application/pdf":          true,
+	"application/docx":         true,
+	"application/xlsx":         true,
+	"application/pptx":         true,
+	"text/plain":               true,
+	"text/csv":                 true,
+	"text/markdown":            true,
+	"application/json":         true,
 	"application/octet-stream": true,
 }
 
@@ -139,7 +139,7 @@ func (h *AttachmentHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
 		return
 	}
-	defer srcFile.Close()
+	defer func() { _ = srcFile.Close() }()
 
 	attachment, err := h.attachmentService.Create(issueID, uploaderID, srcFile, file.Filename, file.Header.Get("Content-Type"), file.Size)
 	if err != nil {

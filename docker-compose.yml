@@ -1,4 +1,4 @@
-﻿services:
+services:
   db:
     image: postgres:16-alpine
     container_name: reqmango-db
@@ -25,7 +25,9 @@
       - "${API_PORT:-8000}:8000"
     environment:
       DATABASE_URL: "postgres://${DB_USER:-reqmango}:${DB_PASSWORD:-reqmango}@db:5432/${DB_NAME:-reqmango}?sslmode=disable"
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      # SECRET_KEY signs JWTs. Do not use a public default here: leave it unset and
+      # the backend generates a random key, or set it in .env (openssl rand -hex 32).
+      SECRET_KEY: ${SECRET_KEY:-}
       ACCESS_TOKEN_EXPIRE_MINUTES: "${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}"
       PORT: "8000"
       DEBUG: "${DEBUG:-false}"

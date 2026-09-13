@@ -27,7 +27,11 @@ async function apiGet(token: string, path: string) {
 
 // ── 测试套件 ──
 test.describe('ReqMango Pages E2E Tests', () => {
-  
+  // Every case below drives the same fixed project's page tree (create / edit /
+  // delete / archive), so they must not interleave: running them in parallel made
+  // P03/P04 operate on pages another case had just removed.
+  test.describe.configure({ mode: 'serial' })
+
   // 测试目标：ReqMango 核心平台 (project 15), workspace reqmango-dev
   let testProject: { id: number } = { id: 15 }
   let testWorkspace: { slug: string } = { slug: 'reqmango-dev' }
@@ -149,17 +153,21 @@ test.describe('ReqMango Pages E2E Tests', () => {
     await page.waitForTimeout(500)
 
     // Fill child page title
+    const childTitle = `Child Page ${Date.now()}`
     const titleInput = page.locator('input[placeholder="Page title"]')
-    await titleInput.fill(`Child Page ${Date.now()}`)
+    await titleInput.fill(childTitle)
 
     // Create
     const createBtn = page.locator('button:has-text("Create")')
     await createBtn.click()
     await page.waitForTimeout(2000)
 
-    // Child page should appear in tree (indented)
-    const childPages = page.locator('.page-tree')
-    await expect(childPages).not.toBeEmpty()
+    // The child page must appear nested inside the tree. Assert on the created
+    // title rather than on the container: a nested tree renders its own
+    // .page-tree element, so the container locator is ambiguous.
+    await expect(
+      page.locator('.page-tree').first().getByText(childTitle).first()
+    ).toBeVisible({ timeout: 10000 })
   })
 
   // ── Test 5: Delete page ──

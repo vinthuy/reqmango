@@ -182,7 +182,7 @@ func SeedDemoData(db *gorm.DB) {
 		return
 	}
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404 -- demo-data generator, not a security context
 
 	// ============================================================
 	// 1. USERS — 25 diverse users
@@ -826,10 +826,11 @@ func SeedDemoData(db *gorm.DB) {
 	// 6. RELEASES — 3-5 per project
 	// ============================================================
 	for _, proj := range projects {
-		numReleases := 3 + rng.Intn(3)
 		releaseNames := []string{"v1.0.0", "v1.1.0", "v1.2.0", "v2.0.0", "v2.1.0"}
 		releaseStatuses := []string{"planned", "in_progress", "released", "cancelled"}
-		for r := 0; r < numReleases; r++ {
+		// 3..5 releases, always within bounds of releaseNames.
+		numReleases := 3 + rng.Intn(len(releaseNames)-2)
+		for r, releaseName := range releaseNames[:numReleases] {
 			descs := []string{
 				"主要功能版本发布",
 				"包含多个Bug修复和改进",
@@ -843,9 +844,9 @@ func SeedDemoData(db *gorm.DB) {
 				relDatePtr = &releaseDate
 			}
 			rel := model.Release{
-				Name:        releaseNames[r],
+				Name:        releaseName,
 				Description: descs[rng.Intn(len(descs))],
-				Version:     releaseNames[r],
+				Version:     releaseName,
 				Status:      releaseStatuses[rng.Intn(len(releaseStatuses))],
 				ReleaseDate: relDatePtr,
 				ProjectID:   proj.ID,
@@ -1510,38 +1511,38 @@ func SeedAutomationRulesForAllWorkspaces(db *gorm.DB) {
 				Scope:       "all",
 			},
 			{
-				Name:        "自动归档已完成任务",
-				Description: "状态变更为已完成超过7天的任务自动归档",
-				WorkspaceID: ws.ID,
-				TriggerType: "scheduled",
-				Conditions:  `[]`,
-				Actions:     `[{"type":"comment","value":"Scheduled: 可在此配置自动归档逻辑"}]`,
-				IsEnabled:   false, // disabled by default — needs schedule_config
-				Sequence:    2,
-				Scope:       "all",
+				Name:           "自动归档已完成任务",
+				Description:    "状态变更为已完成超过7天的任务自动归档",
+				WorkspaceID:    ws.ID,
+				TriggerType:    "scheduled",
+				Conditions:     `[]`,
+				Actions:        `[{"type":"comment","value":"Scheduled: 可在此配置自动归档逻辑"}]`,
+				IsEnabled:      false, // disabled by default — needs schedule_config
+				Sequence:       2,
+				Scope:          "all",
 				ScheduleConfig: `{"frequency":"daily","time":"02:00"}`,
 			},
 			{
-			Name:        "Bug自动评论",
-			Description: "当创建 Bug 类型工作项时自动添加评论提醒",
-			WorkspaceID: ws.ID,
-			TriggerType: "issue.created",
-			Conditions:  `[{"field":"issue_type","operator":"equals","value":"Bug"}]`,
-			Actions:     `[{"type":"add_comment","value":"[自动化] Bug 已创建，请及时处理"}]`,
+				Name:        "Bug自动评论",
+				Description: "当创建 Bug 类型工作项时自动添加评论提醒",
+				WorkspaceID: ws.ID,
+				TriggerType: "issue.created",
+				Conditions:  `[{"field":"issue_type","operator":"equals","value":"Bug"}]`,
+				Actions:     `[{"type":"add_comment","value":"[自动化] Bug 已创建，请及时处理"}]`,
 				IsEnabled:   true,
 				Sequence:    3,
 				Scope:       "all",
 			},
 			{
-				Name:        "长期未更新提醒",
-				Description: "每周一检查超过14天未更新的进行中任务，发送提醒",
-				WorkspaceID: ws.ID,
-				TriggerType: "scheduled",
-				Conditions:  `[]`,
-				Actions:     `[{"type":"comment","value":"Scheduled: 可在此配置过期任务提醒逻辑"}]`,
-				IsEnabled:   false,
-				Sequence:    4,
-				Scope:       "all",
+				Name:           "长期未更新提醒",
+				Description:    "每周一检查超过14天未更新的进行中任务，发送提醒",
+				WorkspaceID:    ws.ID,
+				TriggerType:    "scheduled",
+				Conditions:     `[]`,
+				Actions:        `[{"type":"comment","value":"Scheduled: 可在此配置过期任务提醒逻辑"}]`,
+				IsEnabled:      false,
+				Sequence:       4,
+				Scope:          "all",
 				ScheduleConfig: `{"frequency":"weekly","time":"09:00","days":["mon"]}`,
 			},
 			{
@@ -1867,11 +1868,11 @@ func seedSkills(db *gorm.DB, wsID uint64) {
 
 ## Step 3: 生成改进建议
 提供具体的改进建议和优化方案。`,
-			Parameters: []byte(`[{"name":"code","type":"string","required":true,"description":"要审查的代码"},{"name":"language","type":"string","required":true,"description":"代码语言"}]`),
-			Tags:       []byte(`["code","review","quality"]`),
-			UsageCount: 12,
-			IsShared:   true,
-			IsPreset:   true,
+			Parameters:  []byte(`[{"name":"code","type":"string","required":true,"description":"要审查的代码"},{"name":"language","type":"string","required":true,"description":"代码语言"}]`),
+			Tags:        []byte(`["code","review","quality"]`),
+			UsageCount:  12,
+			IsShared:    true,
+			IsPreset:    true,
 			WorkspaceID: wsID,
 		},
 		{
@@ -1889,11 +1890,11 @@ func seedSkills(db *gorm.DB, wsID uint64) {
 
 ## Step 3: 生成需求文档
 输出结构化的需求文档。`,
-			Parameters: []byte(`[{"name":"input","type":"string","required":true,"description":"原始需求文本"}]`),
-			Tags:       []byte(`["requirement","analysis","document"]`),
-			UsageCount: 8,
-			IsShared:   true,
-			IsPreset:   true,
+			Parameters:  []byte(`[{"name":"input","type":"string","required":true,"description":"原始需求文本"}]`),
+			Tags:        []byte(`["requirement","analysis","document"]`),
+			UsageCount:  8,
+			IsShared:    true,
+			IsPreset:    true,
 			WorkspaceID: wsID,
 		},
 		{
@@ -1910,11 +1911,11 @@ func seedSkills(db *gorm.DB, wsID uint64) {
 
 ## Step 3: 生成文档
 按大纲生成完整的Markdown文档。`,
-			Parameters: []byte(`[{"name":"content","type":"string","required":true,"description":"原始内容"},{"name":"format","type":"string","required":false,"description":"输出格式","default":"markdown"}]`),
-			Tags:       []byte(`["documentation","generation"]`),
-			UsageCount: 5,
-			IsShared:   true,
-			IsPreset:   true,
+			Parameters:  []byte(`[{"name":"content","type":"string","required":true,"description":"原始内容"},{"name":"format","type":"string","required":false,"description":"输出格式","default":"markdown"}]`),
+			Tags:        []byte(`["documentation","generation"]`),
+			UsageCount:  5,
+			IsShared:    true,
+			IsPreset:    true,
 			WorkspaceID: wsID,
 		},
 		{
@@ -1932,11 +1933,11 @@ func seedSkills(db *gorm.DB, wsID uint64) {
 
 ## Step 3: 建议优先级
 根据影响范围和紧急程度建议优先级。`,
-			Parameters: []byte(`[{"name":"title","type":"string","required":true,"description":"问题标题"},{"name":"description","type":"string","required":true,"description":"问题描述"}]`),
-			Tags:       []byte(`["issue","classification","triage"]`),
-			UsageCount: 15,
-			IsShared:   true,
-			IsPreset:   true,
+			Parameters:  []byte(`[{"name":"title","type":"string","required":true,"description":"问题标题"},{"name":"description","type":"string","required":true,"description":"问题描述"}]`),
+			Tags:        []byte(`["issue","classification","triage"]`),
+			UsageCount:  15,
+			IsShared:    true,
+			IsPreset:    true,
 			WorkspaceID: wsID,
 		},
 		{
@@ -1954,11 +1955,11 @@ func seedSkills(db *gorm.DB, wsID uint64) {
 
 ## Step 3: 生成优化方案
 提供具体的优化代码和建议。`,
-			Parameters: []byte(`[{"name":"code","type":"string","required":true,"description":"要优化的代码"},{"name":"language","type":"string","required":true,"description":"代码语言"}]`),
-			Tags:       []byte(`["code","optimization","performance"]`),
-			UsageCount: 3,
-			IsShared:   true,
-			IsPreset:   true,
+			Parameters:  []byte(`[{"name":"code","type":"string","required":true,"description":"要优化的代码"},{"name":"language","type":"string","required":true,"description":"代码语言"}]`),
+			Tags:        []byte(`["code","optimization","performance"]`),
+			UsageCount:  3,
+			IsShared:    true,
+			IsPreset:    true,
 			WorkspaceID: wsID,
 		},
 		{
@@ -1975,11 +1976,11 @@ func seedSkills(db *gorm.DB, wsID uint64) {
 
 ## Step 3: 生成纪要
 生成结构化的会议纪要文档。`,
-			Parameters: []byte(`[{"name":"transcript","type":"string","required":true,"description":"会议记录文本"}]`),
-			Tags:       []byte(`["meeting","minutes","summary"]`),
-			UsageCount: 2,
-			IsShared:   true,
-			IsPreset:   true,
+			Parameters:  []byte(`[{"name":"transcript","type":"string","required":true,"description":"会议记录文本"}]`),
+			Tags:        []byte(`["meeting","minutes","summary"]`),
+			UsageCount:  2,
+			IsShared:    true,
+			IsPreset:    true,
 			WorkspaceID: wsID,
 		},
 	}
@@ -2003,31 +2004,31 @@ func seedRuntimes(db *gorm.DB, wsID uint64) {
 	now := time.Now()
 	runtimes := []model.Runtime{
 		{
-			Name:         "本地开发环境",
-			RuntimeType:  "local_daemon",
-			RuntimeMode:  "pull",
-			Status:       "online",
-			Health:       "online",
-			Capacity:     4,
-			CurrentLoad:  1,
-			Version:      "1.2.0",
-			HostInfo:     []byte(`{"os":"windows","cpu":"Intel i7-12700","memory":"32GB","disk":"512GB SSD"}`),
+			Name:          "本地开发环境",
+			RuntimeType:   "local_daemon",
+			RuntimeMode:   "pull",
+			Status:        "online",
+			Health:        "online",
+			Capacity:      4,
+			CurrentLoad:   1,
+			Version:       "1.2.0",
+			HostInfo:      []byte(`{"os":"windows","cpu":"Intel i7-12700","memory":"32GB","disk":"512GB SSD"}`),
 			LastHeartbeat: &now,
-			WorkspaceID:  wsID,
+			WorkspaceID:   wsID,
 		},
 		{
-			Name:         "云端推理集群",
-			RuntimeType:  "cloud",
-			RuntimeMode:  "push",
-			Status:       "online",
-			Health:       "online",
-			Capacity:     16,
-			CurrentLoad:  5,
-			Version:      "2.0.1",
-			HostInfo:     []byte(`{"provider":"aliyun","region":"cn-shanghai","gpu":"A100","memory":"64GB"}`),
+			Name:          "云端推理集群",
+			RuntimeType:   "cloud",
+			RuntimeMode:   "push",
+			Status:        "online",
+			Health:        "online",
+			Capacity:      16,
+			CurrentLoad:   5,
+			Version:       "2.0.1",
+			HostInfo:      []byte(`{"provider":"aliyun","region":"cn-shanghai","gpu":"A100","memory":"64GB"}`),
 			LastHeartbeat: &now,
-			Endpoint:     strPtr("wss://ai-cluster.example.com/ws"),
-			WorkspaceID:  wsID,
+			Endpoint:      strPtr("wss://ai-cluster.example.com/ws"),
+			WorkspaceID:   wsID,
 		},
 	}
 
@@ -2078,10 +2079,10 @@ func seedSquads(db *gorm.DB, wsID, adminID uint64) {
 			role = "leader"
 		}
 		db.Create(&model.SquadMember{
-			SquadID:  squad1.ID,
-			AgentID:  agent.ID,
-			Role:     role,
-			Status:   "active",
+			SquadID: squad1.ID,
+			AgentID: agent.ID,
+			Role:    role,
+			Status:  "active",
 		})
 	}
 
@@ -2108,10 +2109,10 @@ func seedSquads(db *gorm.DB, wsID, adminID uint64) {
 				role = "leader"
 			}
 			db.Create(&model.SquadMember{
-				SquadID:  squad2.ID,
-				AgentID:  agents[i].ID,
-				Role:     role,
-				Status:   "active",
+				SquadID: squad2.ID,
+				AgentID: agents[i].ID,
+				Role:    role,
+				Status:  "active",
 			})
 		}
 	}
@@ -2368,36 +2369,36 @@ func seedAgentSessions(db *gorm.DB, wsID uint64) {
 
 	sessions := []model.AgentSession{
 		{
-			ID:           "sess-001",
-			WorkspaceID:  wsID,
-			AgentType:    "builtin",
-			AgentRef:     strPtr("Triage Agent"),
-			Status:       "completed",
-			ModelUsed:    strPtr("deepseek-chat"),
-			InputSummary: strPtr("分析Issue #101的类型和优先级"),
+			ID:            "sess-001",
+			WorkspaceID:   wsID,
+			AgentType:     "builtin",
+			AgentRef:      strPtr("Triage Agent"),
+			Status:        "completed",
+			ModelUsed:     strPtr("deepseek-chat"),
+			InputSummary:  strPtr("分析Issue #101的类型和优先级"),
 			OutputSummary: strPtr("Bug, High Priority, Backend Team"),
-			TokensInput:  450,
-			TokensOutput: 120,
-			CostUSD:      0.002,
-			ToolsCalled:  []byte(`["analyze_issue","search_assignee"]`),
-			StartedAt:    time.Now().Add(-2 * time.Hour),
-			CompletedAt:  timePtr(time.Now().Add(-2*time.Hour + 15*time.Second)),
+			TokensInput:   450,
+			TokensOutput:  120,
+			CostUSD:       0.002,
+			ToolsCalled:   []byte(`["analyze_issue","search_assignee"]`),
+			StartedAt:     time.Now().Add(-2 * time.Hour),
+			CompletedAt:   timePtr(time.Now().Add(-2*time.Hour + 15*time.Second)),
 		},
 		{
-			ID:           "sess-002",
-			WorkspaceID:  wsID,
-			AgentType:    "builtin",
-			AgentRef:     strPtr("Summary Agent"),
-			Status:       "completed",
-			ModelUsed:    strPtr("deepseek-chat"),
-			InputSummary: strPtr("汇总Sprint 3进度"),
+			ID:            "sess-002",
+			WorkspaceID:   wsID,
+			AgentType:     "builtin",
+			AgentRef:      strPtr("Summary Agent"),
+			Status:        "completed",
+			ModelUsed:     strPtr("deepseek-chat"),
+			InputSummary:  strPtr("汇总Sprint 3进度"),
 			OutputSummary: strPtr("完成率78%，剩余5个任务"),
-			TokensInput:  800,
-			TokensOutput: 350,
-			CostUSD:      0.005,
-			ToolsCalled:  []byte(`["list_issues","analyze_sprint"]`),
-			StartedAt:    time.Now().Add(-24 * time.Hour),
-			CompletedAt:  timePtr(time.Now().Add(-24*time.Hour + 45*time.Second)),
+			TokensInput:   800,
+			TokensOutput:  350,
+			CostUSD:       0.005,
+			ToolsCalled:   []byte(`["list_issues","analyze_sprint"]`),
+			StartedAt:     time.Now().Add(-24 * time.Hour),
+			CompletedAt:   timePtr(time.Now().Add(-24*time.Hour + 45*time.Second)),
 		},
 		{
 			ID:           "sess-003",

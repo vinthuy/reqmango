@@ -149,9 +149,6 @@ func (s *CustomFieldService) List(workspaceID uint64, projectID *uint64, issueTy
 	for i, f := range fields {
 		result[i] = *s.buildResponse(f)
 	}
-	if result == nil {
-		result = []response.CustomFieldResponse{}
-	}
 	return result, nil
 }
 
@@ -218,8 +215,8 @@ func (s *CustomFieldService) ListWorkspaceFieldsWithEnrollment(workspaceID, proj
 	for i, f := range fields {
 		resp := s.buildResponse(f)
 		result[i] = map[string]interface{}{
-			"field":       resp,
-			"is_enabled":  enrollmentMap[f.ID],
+			"field":      resp,
+			"is_enabled": enrollmentMap[f.ID],
 		}
 	}
 	return result, nil
@@ -405,7 +402,9 @@ func (s *CustomFieldService) SetIssueValue(issueID uint64, req request.IssueCust
 
 	// Record activity: "changed custom field X from A to B"
 	oldStr := ""
-	if oldExists { oldStr = old.Value }
+	if oldExists {
+		oldStr = old.Value
+	}
 	fieldLabel := field.Name
 	s.db.Create(&model.IssueActivity{
 		IssueID:  &issueID,
@@ -483,9 +482,6 @@ func (s *CustomFieldService) ListIssueValues(issueID uint64) ([]response.IssueCu
 			FieldType: v.Field.FieldType,
 		}
 	}
-	if result == nil {
-		result = []response.IssueCustomFieldValueResponse{}
-	}
 	return result, nil
 }
 
@@ -553,11 +549,6 @@ func (s *CustomFieldService) GetIssueFieldsWithValues(issueID uint64) (*response
 	s.db.Where("issue_id = ?", issueID).Find(&values)
 	for _, v := range values {
 		valueMap[v.FieldID] = v.Value
-	}
-
-	type fieldWithVal struct {
-		response.CustomFieldResponse
-		Value string `json:"value"`
 	}
 
 	resp := &response.IssueCustomFieldsResponse{

@@ -80,6 +80,11 @@ async function goToPluginsTab(page: any) {
 }
 
 test.describe('Plugin System E2E', () => {
+  // The "install a plugin" case establishes the state every later case relies on
+  // (installed list, action buttons, config/logs modals), so the file must run in
+  // order inside a single worker instead of being fanned out across workers.
+  test.describe.configure({ mode: 'serial' })
+
   test.beforeAll(async ({ request }) => {
     await ensureSetup(request)
   })

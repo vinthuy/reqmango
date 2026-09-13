@@ -18,12 +18,11 @@ import (
 
 // AIHandler handles AI endpoints.
 type AIHandler struct {
-	svc        *service.AIService
-	defaultLLM *llm.LLMClient
-	db         *gorm.DB
-	cfgAPIKey  string
-	cfgModel   string
-	cfgBaseURL string
+	svc         *service.AIService
+	db          *gorm.DB
+	cfgAPIKey   string
+	cfgModel    string
+	cfgBaseURL  string
 	cfgProvider string
 }
 
@@ -197,7 +196,7 @@ func (h *AIHandler) Chat(c *gin.Context) {
 	streamCh, err := svc.Chat(c.Request.Context(), &req, actx)
 	if err != nil {
 		data, _ := json.Marshal(llm.StreamEvent{Type: "error", Error: err.Error()})
-		fmt.Fprintf(c.Writer, "data: %s\n\n", data)
+		_, _ = fmt.Fprintf(c.Writer, "data: %s\n\n", data)
 		c.Writer.Flush()
 		return
 	}
@@ -208,7 +207,7 @@ func (h *AIHandler) Chat(c *gin.Context) {
 			return false
 		}
 		data, _ := json.Marshal(evt)
-		fmt.Fprintf(w, "data: %s\n\n", data)
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", data)
 		return true
 	})
 }
@@ -462,7 +461,7 @@ func (h *AIHandler) TestAIConfig(c *gin.Context) {
 		APIKey   string `json:"api_key"`
 	}
 	// Body is optional – may contain a new key to test before saving
-	c.ShouldBindJSON(&req)
+	_ = c.ShouldBindJSON(&req)
 
 	apiKey := cfg.APIKey
 	if req.APIKey != "" {
