@@ -340,19 +340,82 @@ func (h *WorkflowHandler) DeleteWorkspaceWorkflow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "workspace workflow deleted"})
 }
 
-// --- State transition methods (backward compatibility) ---
+// --- State transition methods ---
 
-// AddTransition adds a state transition to a workflow.
+// ListTransitions returns the state transitions attached to a workflow.
+func (h *WorkflowHandler) ListTransitions(c *gin.Context) {
+	workflowID, err := strconv.ParseUint(c.Param("workflowId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workflow ID"})
+		return
+	}
+
+	transitions, err := h.workflowSvc.ListTransitions(workflowID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, transitions)
+}
+
+// AddTransition creates a new state transition for a workflow.
 func (h *WorkflowHandler) AddTransition(c *gin.Context) {
-	c.JSON(http.StatusCreated, gin.H{"message": "transition added"})
+	workflowID, err := strconv.ParseUint(c.Param("workflowId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workflow ID"})
+		return
+	}
+
+	var req service.AddTransitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	transition, err := h.workflowSvc.AddTransition(workflowID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, transition)
 }
 
 // UpdateTransition updates a state transition.
 func (h *WorkflowHandler) UpdateTransition(c *gin.Context) {
+	transitionID, err := strconv.ParseUint(c.Param("transitionId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transition ID"})
+		return
+	}
+
+	var req service.UpdateTransitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.workflowSvc.UpdateTransition(transitionID, req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "transition updated"})
 }
 
 // DeleteTransition deletes a state transition.
 func (h *WorkflowHandler) DeleteTransition(c *gin.Context) {
+	transitionID, err := strconv.ParseUint(c.Param("transitionId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transition ID"})
+		return
+	}
+
+	if err := h.workflowSvc.DeleteTransition(transitionID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "transition deleted"})
 }

@@ -5,13 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"time"
 
+	"github.com/reqmango/backend/internal/randutil"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+// rng is backed by crypto/rand so the tooling never needs a math/rand suppression.
+var rng = randutil.New()
 
 type AutomationRule struct {
 	ID              uint64     `gorm:"primaryKey" json:"id"`
@@ -190,10 +193,10 @@ func main() {
 				ContextJSON:  string(ctxJSON),
 				ActionsTaken: string(actionsJSON),
 				Status:       "success",
-				Duration:     rand.Int63n(300) + 100, // #nosec G404 -- simulated webhook latency for local seed data
+				Duration:     rng.Int63n(300) + 100,
 				ExecutedAt:   now.Add(-1 * time.Hour),
 			})
-			fmt.Printf("  [日志] 规则 #%d: success (HTTP 200, %dms)\n", rule.ID, rand.Int63n(300)+100) // #nosec G404 -- simulated webhook latency for local seed data
+			fmt.Printf("  [日志] 规则 #%d: success (HTTP 200, %dms)\n", rule.ID, rng.Int63n(300)+100)
 			totalLogsCreated++
 
 			// 失败记录 (超时)

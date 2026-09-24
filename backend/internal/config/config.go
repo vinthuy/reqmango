@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/viper"
+	"gorm.io/gorm/logger"
 )
 
 // insecureDefaultSecretKey is the placeholder shipped by older configs and docs.
@@ -20,6 +22,7 @@ type Config struct {
 	AccessTokenExpireMin int
 	Port                 string
 	Debug                bool
+	DBLogLevelSetting    string
 	AIAPIKey             string
 	AIProvider           string
 	AIModel              string
@@ -46,6 +49,7 @@ func Load() *Config {
 		AccessTokenExpireMin: getEnvInt("ACCESS_TOKEN_EXPIRE_MINUTES", 10080),
 		Port:                 getEnv("PORT", "8000"),
 		Debug:                getEnvBool("DEBUG", true),
+		DBLogLevelSetting:    getEnv("DB_LOG_LEVEL", ""),
 		AIAPIKey:             getEnv("AI_API_KEY", getEnv("DEEPSEEK_API_KEY", "")),
 		AIProvider:           getEnv("AI_PROVIDER", "deepseek"),
 		AIModel:              getEnv("AI_MODEL", "deepseek-chat"),
@@ -80,6 +84,29 @@ func resolveSecretKey() string {
 		"be invalidated again on restart. Set SECRET_KEY to a long random value (e.g. `openssl rand -hex 32`) " +
 		"before deploying.")
 	return hex.EncodeToString(key)
+}
+
+// DBLogLevel translates the configured database log verbosity into a GORM level.
+//
+// DB_LOG_LEVEL (silent|error|warn|info) wins; otherwise verbose SQL logging follows
+// DEBUG. The default is deliberately quiet: GORM's Info level prints every statement
+// together with its parameters, which both floods the log (tens of MB per E2E run)
+// and persists user data.
+func (c *Config) DBLogLevel() logger.LogLevel {
+	switch strings.ToLower(strings.TrimSpace(c.DBLogLevelSetting)) {
+	case "silent":
+		return logger.Silent
+	case "error":
+		return logger.Error
+	case "warn", "warning":
+		return logger.Warn
+	case "info":
+		return logger.Info
+	}
+	if c.Debug {
+		return logger.Info
+	}
+	return logger.Warn
 }
 
 func getEnv(key, fallback string) string {

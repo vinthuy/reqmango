@@ -1068,6 +1068,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workflows.POST("", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.CreateWorkflow)
 			workflows.PUT("/:workflowId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateWorkflow)
 			workflows.DELETE("/:workflowId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.DeleteWorkflow)
+			workflows.GET("/:workflowId/transitions", workflowH.ListTransitions)
 			workflows.POST("/:workflowId/transitions", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.AddTransition)
 			workflows.PUT("/:workflowId/transitions/:transitionId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateTransition)
 			workflows.DELETE("/:workflowId/transitions/:transitionId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.DeleteTransition)

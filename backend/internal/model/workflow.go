@@ -16,8 +16,11 @@ type Workflow struct {
 	IsActive    bool    `gorm:"default:true" json:"is_active"`
 
 	// Relationships
-	Project     Project           `gorm:"foreignKey:ProjectID" json:"-"`
-	Transitions []StateTransition `gorm:"foreignKey:WorkflowID" json:"transitions,omitempty"`
+	Project Project `gorm:"foreignKey:ProjectID" json:"-"`
+	// Transitions relationship removed: it caused AutoMigrate to create
+	// fk_workflows_transitions (state_transitions.workflow_id → workflows.id)
+	// on every start, which prevented inserting transitions for agent workflows.
+	// The FK is now managed via migration 000021 only.
 }
 
 func (Workflow) TableName() string {

@@ -52,8 +52,9 @@ type WorkflowResponse struct {
 // WorkflowDetail represents a workflow with full details.
 type WorkflowDetail struct {
 	WorkflowResponse
-	Nodes []WorkflowNodeResponse `json:"nodes"`
-	Edges []WorkflowEdgeResponse `json:"edges"`
+	Nodes       []WorkflowNodeResponse    `json:"nodes"`
+	Edges       []WorkflowEdgeResponse    `json:"edges"`
+	Transitions []StateTransitionResponse `json:"transitions"`
 }
 
 // WorkflowNodeResponse represents a workflow node in API response.
@@ -114,6 +115,51 @@ type CreateEdgeRequest struct {
 	TargetNodeID   uint64          `json:"target_node_id" binding:"required"`
 	Condition      string          `json:"condition"`
 	ContextMapping json.RawMessage `json:"context_mapping"`
+}
+
+// StateTransitionResponse represents a state transition in API response.
+type StateTransitionResponse struct {
+	ID                   uint64  `json:"id"`
+	Name                 string  `json:"name"`
+	Description          *string `json:"description"`
+	WorkflowID           uint64  `json:"workflow_id"`
+	SourceStateID        uint64  `json:"source_state_id"`
+	TargetStateID        uint64  `json:"target_state_id"`
+	IsAuto               bool    `json:"is_auto"`
+	RuleType             string  `json:"rule_type"`
+	ApproverIDs          *string `json:"approver_ids"`
+	RoleAllowed          string  `json:"role_allowed"`
+	ApproveTargetStateID *uint64 `json:"approve_target_state_id"`
+	RejectTargetStateID  *uint64 `json:"reject_target_state_id"`
+	ApprovalMode         string  `json:"approval_mode"`
+	ProjectID            *uint64 `json:"project_id"`
+	WorkspaceID          uint64  `json:"workspace_id"`
+}
+
+// AddTransitionRequest is the payload for creating a state transition.
+type AddTransitionRequest struct {
+	Name                 string  `json:"name" binding:"required"`
+	SourceStateID        uint64  `json:"source_state_id" binding:"required"`
+	TargetStateID        uint64  `json:"target_state_id" binding:"required"`
+	RuleType             string  `json:"rule_type"` // allow | approval
+	ApproverIDs          *string `json:"approver_ids"`
+	RoleAllowed          string  `json:"role_allowed"`
+	ApproveTargetStateID *uint64 `json:"approve_target_state_id"`
+	RejectTargetStateID  *uint64 `json:"reject_target_state_id"`
+	ApprovalMode         string  `json:"approval_mode"` // any | all
+}
+
+// UpdateTransitionRequest is the payload for updating a state transition.
+type UpdateTransitionRequest struct {
+	Name                 *string `json:"name"`
+	SourceStateID        *uint64 `json:"source_state_id"`
+	TargetStateID        *uint64 `json:"target_state_id"`
+	RuleType             *string `json:"rule_type"`
+	ApproverIDs          *string `json:"approver_ids"`
+	RoleAllowed          *string `json:"role_allowed"`
+	ApproveTargetStateID *uint64 `json:"approve_target_state_id"`
+	RejectTargetStateID  *uint64 `json:"reject_target_state_id"`
+	ApprovalMode         *string `json:"approval_mode"`
 }
 
 // WorkflowRunResponse represents a workflow run in API response.
@@ -369,6 +415,12 @@ func (s *WorkflowService) Get(workflowID uint64) (*WorkflowDetail, error) {
 		})
 	}
 
+	// Get transitions
+	transitions, err := s.ListTransitions(workflowID)
+	if err == nil {
+		detail.Transitions = transitions
+	}
+
 	return detail, nil
 }
 
@@ -564,6 +616,137 @@ func (s *WorkflowService) DeleteEdge(edgeID uint64) error {
 		return errors.New("edge not found")
 	}
 	return result.Error
+}
+
+// ---------------------------------------------------------------------------
+// State transitions
+// ---------------------------------------------------------------------------
+
+// ListTransitions returns all state transitions attached to a workflow.
+func (s *WorkflowService) ListTransitions(workflowID uint64) ([]StateTransitionResponse, error) {
+	var transitions []model.StateTransition
+	if err := s.db.Where("workflow_id = ? AND deleted_at IS NULL", workflowID).
+		Order("id ASC").Find(&transitions).Error; err != nil {
+		return nil, err
+	}
+
+	result := make([]StateTransitionResponse, len(transitions))
+	for i, t := range transitions {
+		result[i] = s.toTransitionResponse(&t)
+	}
+	return result, nil
+}
+
+// AddTransition creates a new state transition for a workflow.
+func (s *WorkflowService) AddTransition(workflowID uint64, req AddTransitionRequest) (*StateTransitionResponse, error) {
+	// Resolve the project and workspace from the owning workflow.
+	var workflow model.AgentWorkflow
+	if err := s.db.First(&workflow, workflowID).Error; err != nil {
+		return nil, errors.New("workflow not found")
+	}
+
+	ruleType := req.RuleType
+	if ruleType == "" {
+		ruleType = "allow"
+	}
+	approvalMode := req.ApprovalMode
+	if approvalMode == "" {
+		approvalMode = "any"
+	}
+
+	transition := model.StateTransition{
+		Name:                 req.Name,
+		WorkflowID:           workflowID,
+		SourceStateID:        req.SourceStateID,
+		TargetStateID:        req.TargetStateID,
+		RuleType:             ruleType,
+		ApproverIDs:          req.ApproverIDs,
+		RoleAllowed:          req.RoleAllowed,
+		ApproveTargetStateID: req.ApproveTargetStateID,
+		RejectTargetStateID:  req.RejectTargetStateID,
+		ApprovalMode:         approvalMode,
+		ProjectID:            &workflow.ProjectID,
+		WorkspaceID:          workflow.WorkspaceID,
+	}
+
+	if err := s.db.Create(&transition).Error; err != nil {
+		return nil, err
+	}
+
+	resp := s.toTransitionResponse(&transition)
+	return &resp, nil
+}
+
+// UpdateTransition updates a state transition.
+func (s *WorkflowService) UpdateTransition(transitionID uint64, req UpdateTransitionRequest) error {
+	updates := map[string]interface{}{}
+
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.SourceStateID != nil {
+		updates["source_state_id"] = *req.SourceStateID
+	}
+	if req.TargetStateID != nil {
+		updates["target_state_id"] = *req.TargetStateID
+	}
+	if req.RuleType != nil {
+		updates["rule_type"] = *req.RuleType
+	}
+	if req.ApproverIDs != nil {
+		updates["approver_ids"] = *req.ApproverIDs
+	}
+	if req.RoleAllowed != nil {
+		updates["role_allowed"] = *req.RoleAllowed
+	}
+	if req.ApproveTargetStateID != nil {
+		updates["approve_target_state_id"] = *req.ApproveTargetStateID
+	}
+	if req.RejectTargetStateID != nil {
+		updates["reject_target_state_id"] = *req.RejectTargetStateID
+	}
+	if req.ApprovalMode != nil {
+		updates["approval_mode"] = *req.ApprovalMode
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	result := s.db.Model(&model.StateTransition{}).Where("id = ?", transitionID).Updates(updates)
+	if result.RowsAffected == 0 {
+		return errors.New("transition not found")
+	}
+	return result.Error
+}
+
+// DeleteTransition deletes a state transition.
+func (s *WorkflowService) DeleteTransition(transitionID uint64) error {
+	result := s.db.Where("id = ?", transitionID).Delete(&model.StateTransition{})
+	if result.RowsAffected == 0 {
+		return errors.New("transition not found")
+	}
+	return result.Error
+}
+
+func (s *WorkflowService) toTransitionResponse(t *model.StateTransition) StateTransitionResponse {
+	return StateTransitionResponse{
+		ID:                   t.ID,
+		Name:                 t.Name,
+		Description:          t.Description,
+		WorkflowID:           t.WorkflowID,
+		SourceStateID:        t.SourceStateID,
+		TargetStateID:        t.TargetStateID,
+		IsAuto:               t.IsAuto,
+		RuleType:             t.RuleType,
+		ApproverIDs:          t.ApproverIDs,
+		RoleAllowed:          t.RoleAllowed,
+		ApproveTargetStateID: t.ApproveTargetStateID,
+		RejectTargetStateID:  t.RejectTargetStateID,
+		ApprovalMode:         t.ApprovalMode,
+		ProjectID:            t.ProjectID,
+		WorkspaceID:          t.WorkspaceID,
+	}
 }
 
 // GetRuns returns all runs for a workflow.

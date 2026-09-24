@@ -44,9 +44,12 @@ type StateTransition struct {
 	ProjectID            *uint64 `json:"project_id"`
 	WorkspaceID          uint64  `gorm:"not null" json:"workspace_id"`
 
-	Workflow    Workflow `gorm:"foreignKey:WorkflowID" json:"-"`
-	SourceState State    `gorm:"foreignKey:SourceStateID" json:"-"`
-	TargetState State    `gorm:"foreignKey:TargetStateID" json:"-"`
+	// Workflow relationship removed: AutoMigrate re-created the FK
+	// fk_workflows_transitions pointing at the legacy `workflows` table on every
+	// start, which prevented inserting transitions for agent workflows.  The FK
+	// is now managed via migration 000021 only.
+	SourceState State `gorm:"foreignKey:SourceStateID" json:"-"`
+	TargetState State `gorm:"foreignKey:TargetStateID" json:"-"`
 }
 
 func (StateTransition) TableName() string {

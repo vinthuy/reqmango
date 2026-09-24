@@ -517,14 +517,17 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **修复** | 在 `projectId` ref 后新增一次性 watcher：`watch(projectId, id => { if (id && (tab === …)) router.push(…) }, { once: true })` |
 | **回归用例** | `TC-DEEP-001`（`tests/03-project/settings.spec.ts`） |
 
-### BUG-47 `DELETE /workspaces/{ws}/settings/states/{id}` 返回 500
+### BUG-47 `DELETE /workspaces/{ws}/settings/states/{id}` 返回 500 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
-| **文件** | 后端（待定位 handler） |
+| **文件** | `backend/internal/service/project_settings_service.go`（`DeleteWorkspaceState`） |
 | **类型** | 接口缺陷 |
 | **影响** | 删除工作空间级状态返回 HTTP 500（`workspace-settings-e2e.spec.ts` 期望 200/204） |
 | **复现** | `DELETE http://localhost:8000/api/v1/workspaces/qa-test/settings/states/{id}` |
+| **原因** | 工作空间若没有 `is_default` 的默认状态，`First(&defaultState)` 报 `ErrRecordNotFound` 后被当成内部错误直接 500 |
+| **修复** | 改为 `defaultStateFound := tx.Where(... is_default = true).First(&defaultState).Error == nil`，未找到则跳过状态迁移（`project_settings_service.go:298`） |
+| **验证** | `workspace-settings-e2e.spec.ts` 全部通过（本轮三浏览器复跑）；`golangci-lint`/`go test` 均通过 |
 
 ### BUG-48 ~~`GET /projects/{id}/workflows` 返回对象而非数组~~ → 已确认为测试侧缺陷 ✅ 已修复
 

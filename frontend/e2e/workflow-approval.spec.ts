@@ -62,42 +62,87 @@ test.describe('工作流审批功能', () => {
     console.log('项目审批列表:', data)
   })
 
-  // NOTE (BUG-58): state-transition management for agent workflows is not
-  // implemented — POST/PUT/DELETE /workflows/:id/transitions answer with canned
-  // messages, there is no GET, and `state_transitions` still references the legacy
-  // `workflows` table. No approval-type transition can therefore be created through
-  // the API, so the happy path (create approval → approve/reject) is unreachable.
-  // This case pins the documented behaviour: the request is rejected, not crashed.
-  test('API - 缺少合法审批转换时创建审批返回 400（BUG-58）', async ({ request }) => {
+  // Full happy path: create an approval-type transition, create an issue,
+  // submit an approval request, then approve it — verifying the issue state
+  // changes as expected.
+  test('API - 创建审批并批准（端到端）', async ({ request }) => {
+    const H = { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' }
+
+    // 1. Get states
     const statesResponse = await request.get(`http://localhost:8000/api/v1/projects/${projectId}/settings/states`, {
-      headers: { Authorization: `Bearer ${authToken}` },
+      headers: H,
     })
     const statesBody = await statesResponse.json()
-    const states = statesBody.data || statesBody
-    const stateId = Array.isArray(states) && states.length > 0 ? states[0].id : undefined
+    const states = Array.isArray(statesBody) ? statesBody : (statesBody.data || [])
+    expect(states.length).toBeGreaterThanOrEqual(2)
 
-    const issueResponse = await request.post(`http://localhost:8000/api/v1/issues?project_id=${projectId}&workspace_id=${workspaceId}`, {
-      headers: { Authorization: `Bearer ${authToken}` },
+    const fromState = states[0]
+    const toState = states.find((s: any) => s.id !== fromState.id) || states[1]
+
+    // 2. Create a workflow with an approval transition
+    const workflowRes = await request.post(`http://localhost:8000/api/v1/projects/${projectId}/workflows`, {
+      headers: H,
+      data: { name: `[E2E 审批] ${Date.now()}` },
+    })
+    expect(workflowRes.ok()).toBeTruthy()
+    const workflow = await workflowRes.json()
+
+    const transRes = await request.post(`http://localhost:8000/api/v1/projects/${projectId}/workflows/${workflow.id}/transitions`, {
+      headers: H,
       data: {
-        name: 'API测试审批工作项',
-        description_html: '<p>测试审批API</p>',
+        name: '审批流转',
+        source_state_id: fromState.id,
+        target_state_id: toState.id,
+        rule_type: 'approval',
+        approver_ids: '[1]',
+        approve_target_state_id: toState.id,
+        reject_target_state_id: fromState.id,
+        approval_mode: 'any',
+      },
+    })
+    expect(transRes.ok()).toBeTruthy()
+    const transition = await transRes.json()
+    console.log('创建审批转换:', transition.id)
+
+    // 3. Create an issue in the source state
+    const issueRes = await request.post(`http://localhost:8000/api/v1/issues?project_id=${projectId}&workspace_id=${workspaceId}`, {
+      headers: H,
+      data: {
+        name: 'API测试审批工作项-端到端',
+        description_html: '<p>测试审批端到端</p>',
         priority: 'medium',
-        state_id: stateId,
+        state_id: fromState.id,
       },
     })
-    expect(issueResponse.ok()).toBeTruthy()
-    const issue = await issueResponse.json()
+    expect(issueRes.ok()).toBeTruthy()
+    const issue = await issueRes.json()
 
-    const approvalResponse = await request.post(`http://localhost:8000/api/v1/issues/${issue.id}/approvals`, {
-      headers: { Authorization: `Bearer ${authToken}` },
+    // 4. Create an approval request
+    const approvalRes = await request.post(`http://localhost:8000/api/v1/issues/${issue.id}/approvals`, {
+      headers: H,
       data: {
-        transition_id: 1,
-        approver_ids: [1],
-        reason: 'API测试审批',
+        transition_id: transition.id,
+        request_note: '端到端测试审批',
       },
     })
-    expect(approvalResponse.status()).toBe(400)
-    console.log('审批创建按预期被拒绝（无合法审批转换）:', approvalResponse.status())
+    expect(approvalRes.ok()).toBeTruthy()
+    const approval = await approvalRes.json()
+    expect(approval).toHaveProperty('id')
+    expect(approval.status).toBe('pending')
+    console.log('创建审批成功:', approval.id)
+
+    // 5. Approve the request
+    const decideRes = await request.post(`http://localhost:8000/api/v1/approvals/${approval.id}/decide`, {
+      headers: H,
+      data: { decision: 'approved', note: '端到端测试批准' },
+    })
+    expect(decideRes.ok()).toBeTruthy()
+    console.log('审批批准成功')
+
+    // Cleanup
+    await request.delete(`http://localhost:8000/api/v1/projects/${projectId}/workflows/${workflow.id}`, {
+      headers: H,
+    })
   })
 
   test('审批中心页面 - 查看待审批列表', async ({ page }) => {

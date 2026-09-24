@@ -92,20 +92,22 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     console.log('\n--- Step 3: Add transition ---')
     const trans = await request.post(`${API}/projects/15/workflows/${wf.id}/transitions`, {
       headers: H,
-      data: { from_state_id: 85, to_state_id: 86, description: 'Backlog→Todo' },
+      data: { name: 'Backlog→Todo', source_state_id: 85, target_state_id: 86 },
     })
     expect(trans.status()).toBe(201)
-    console.log('Transition endpoint response:', JSON.stringify(await trans.json()))
+    const transData = await trans.json()
+    expect(transData).toHaveProperty('id')
+    expect(transData.rule_type).toBe('allow') // default
+    console.log('Created transition:', transData.id, transData.name)
 
-    // NOTE (BUG-58): the transition endpoints are placeholders — POST answers 201 with a
-    // canned message, persists nothing, and there is no GET endpoint, so a workflow
-    // detail can never expose transitions. Assert the real contract (nodes/edges are
-    // returned as arrays) instead of asserting data that cannot exist.
+    // The GET endpoint now returns transitions in the workflow detail.
     const wfDetail = await request.get(`${API}/projects/15/workflows/${wf.id}`, { headers: H })
     const detail = await wfDetail.json()
     expect(Array.isArray(detail.nodes)).toBe(true)
     expect(Array.isArray(detail.edges)).toBe(true)
-    console.log(`Workflow detail: ${detail.nodes.length} nodes, ${detail.edges.length} edges (transitions: not implemented, see BUG-58)`)
+    expect(Array.isArray(detail.transitions)).toBe(true)
+    expect(detail.transitions.length).toBeGreaterThanOrEqual(1)
+    console.log(`Workflow detail: ${detail.nodes.length} nodes, ${detail.edges.length} edges, ${detail.transitions.length} transitions`)
 
     // Step 4: Cleanup (WorkflowManager.confirmDel) — workflow deletion must succeed.
     console.log('\n--- Step 4: Delete workflow (cleanup) ---')
@@ -189,9 +191,9 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     const tr = await request.post(`${API}/projects/15/workflows/${wf.id}/transitions`, {
       headers: H,
       data: {
-        from_state_id: 85, to_state_id: 86,
+        name: 'Requires admin approval',
+        source_state_id: 85, target_state_id: 86,
         rule_type: 'approval', approver_ids: '49',
-        description: 'Requires admin approval',
       },
     })
     expect(tr.status()).toBe(201)

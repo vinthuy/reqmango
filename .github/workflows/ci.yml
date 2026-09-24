@@ -109,10 +109,107 @@ jobs:
       - name: Frontend tests
         run: cd frontend && npx vitest run --coverage
 
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: reqmango
+          POSTGRES_PASSWORD: reqmango
+          POSTGRES_DB: reqmango_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with: { go-version: '${{ env.GO_VERSION }}' }
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Install frontend deps
+        run: cd frontend && npm ci
+
+      - name: Install Playwright Chromium
+        run: cd frontend && npx playwright install chromium --with-deps
+
+      - name: Build frontend
+        run: cd frontend && npx vite build
+
+      - name: Build backend
+        working-directory: backend
+        run: go build -o ../backend-server ./cmd/server
+
+      # The server auto-migrates and seeds demo data (admin@reqmango.com,
+      # reqmango-dev workspace, CORE project). Raise the rate limit so the
+      # E2E suite's burst traffic doesn't get 429-rejected.
+      - name: Start backend
+        env:
+          DATABASE_URL: postgres://reqmango:reqmango@localhost:5432/reqmango_test?sslmode=disable
+          RATE_LIMIT_REQUESTS: '200000'
+          SECRET_KEY: ci-e2e-secret-key-not-for-production
+          DEBUG: 'false'
+        run: |
+          cd backend
+          ../backend-server &
+          # Wait for the backend to be ready (seed can take ~30 s on first run).
+          for i in $(seq 1 60); do
+            curl -s http://localhost:8000/api/v1/workspaces >/dev/null 2>&1 && break
+            sleep 2
+          done
+          echo "backend ready after $((i*2))s"
+
+      # vite preview proxies /api to :8000 (see frontend/vite.config.ts).
+      - name: Start frontend preview
+        run: |
+          cd frontend
+          npx vite preview --port 5173 --strictPort &
+          sleep 3
+          echo "preview started"
+
+      - name: Generate E2E test token
+        run: |
+          TOKEN=$(curl -s http://localhost:5173/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@reqmango.com","password":"demo1234"}' \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+          echo "TEST_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          echo "token generated ($(echo $TOKEN | wc -c) chars)"
+
+      - name: Run Playwright E2E tests (chromium)
+        working-directory: frontend
+        env:
+          CI: 'true'
+        run: npx playwright test --project=chromium
+
+      - name: Upload test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: frontend/test-results/
+          retention-days: 3
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, security, test]
+    needs: [lint, security, test, e2e]
     steps:
       - uses: actions/checkout@v4
 

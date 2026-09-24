@@ -3,11 +3,11 @@ package seed
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/backend/internal/randutil"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -30,6 +30,7 @@ func SeedAll(db *gorm.DB) {
 	SeedAutomationRulesForAllWorkspaces(db)
 	SeedWebhookDemoExecutionLogs(db)
 	SeedAIData(db)
+	SeedE2EFixtures(db)
 
 	fmt.Println("=== Data initialization complete ===")
 }
@@ -182,7 +183,7 @@ func SeedDemoData(db *gorm.DB) {
 		return
 	}
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404 -- demo-data generator, not a security context
+	rng := randutil.New()
 
 	// ============================================================
 	// 1. USERS — 25 diverse users
@@ -1302,7 +1303,7 @@ func SeedConfigData(db *gorm.DB) {
 }
 
 // weightedRandom picks an index based on weights
-func weightedRandom(weights []int, rng *rand.Rand) int {
+func weightedRandom(weights []int, rng *randutil.RNG) int {
 	total := 0
 	for _, w := range weights {
 		total += w
@@ -2428,3 +2429,132 @@ func intPtr(i int) *int              { return &i }
 
 // Ensure json is used
 var _ = json.Marshal
+
+// SeedE2EFixtures ensures the workspace, project, and user required by the
+// tests/ Playwright suite exist on a fresh database. It is idempotent and pins
+// the project id to 2347 so that every spec's hardcoded URL stays valid.
+//
+// The fixtures are: workspace slug "qa-test", user qa_tester@reqmango.com
+// (password Test@12345), project identifier "QAT" (id 2347), and the default
+// state set that most specs expect.
+func SeedE2EFixtures(db *gorm.DB) {
+	// 1. User qa_tester (password Test@12345)
+	var user model.User
+	if db.Where("email = ?", "qa_tester@reqmango.com").First(&user).Error != nil {
+		hash, _ := bcrypt.GenerateFromPassword([]byte("Test@12345"), bcrypt.DefaultCost)
+		user = model.User{
+			Email:        "qa_tester@reqmango.com",
+			Username:     "qa_tester",
+			DisplayName:  "QA Tester",
+			PasswordHash: string(hash),
+			IsActive:     true,
+			IsSuperuser:  true,
+		}
+		if err := db.Create(&user).Error; err != nil {
+			fmt.Printf("  WARN: failed to create qa_tester: %v\n", err)
+			return
+		}
+	}
+
+	// 2. Workspace qa-test
+	var ws model.Workspace
+	if db.Where("slug = ?", "qa-test").First(&ws).Error != nil {
+		ws = model.Workspace{
+			Name:     "QA Test",
+			Slug:     "qa-test",
+			OwnerID:  user.ID,
+			Timezone: "UTC",
+		}
+		if err := db.Create(&ws).Error; err != nil {
+			fmt.Printf("  WARN: failed to create qa-test workspace: %v\n", err)
+			return
+		}
+	}
+
+	// 3. Project QAT with fixed id 2347
+	var project model.Project
+	if db.Where("workspace_id = ? AND identifier = ?", ws.ID, "QAT").First(&project).Error != nil {
+		// Advance the sequence past the desired id to avoid future collisions.
+		db.Exec(`SELECT setval('projects_id_seq', GREATEST((SELECT COALESCE(MAX(id),0) FROM projects), 2347))`)
+		project = model.Project{
+			Name:        "QAT",
+			Identifier:  "QAT",
+			WorkspaceID: ws.ID,
+			Description: strPtr("E2E test project (seeded for tests/ suite)"),
+			Color:       "#6366F1",
+		}
+		// Force the id to 2347 so every spec's hardcoded URL stays valid.
+		project.ID = 2347
+		if err := db.Create(&project).Error; err != nil {
+			fmt.Printf("  WARN: failed to create QAT project (id 2347): %v\n", err)
+			return
+		}
+	}
+
+	// 4. Ensure qa_tester is admin of the workspace and project
+	var wsMember model.WorkspaceMember
+	if db.Where("workspace_id = ? AND user_id = ?", ws.ID, user.ID).First(&wsMember).Error != nil {
+		db.Create(&model.WorkspaceMember{
+			WorkspaceID: ws.ID, UserID: user.ID, Role: common.RoleAdmin, IsActive: true,
+		})
+	}
+	var projMember model.ProjectMember
+	if db.Where("project_id = ? AND user_id = ?", project.ID, user.ID).First(&projMember).Error != nil {
+		db.Create(&model.ProjectMember{
+			ProjectID: project.ID, UserID: user.ID, Role: common.RoleAdmin, IsActive: true,
+		})
+	}
+
+	// 5. Create default states for the project (required by issue specs)
+	var stateCount int64
+	db.Model(&model.State{}).Where("project_id = ?", project.ID).Count(&stateCount)
+	if stateCount == 0 {
+		type stateDef struct{ name, group string }
+		defs := []stateDef{
+			{"待处理", "backlog"},
+			{"待办", "unstarted"},
+			{"进行中", "started"},
+			{"评审中", "started"},
+			{"已完成", "completed"},
+			{"已取消", "cancelled"},
+		}
+		for i, s := range defs {
+			db.Create(&model.State{
+				Name:        s.name,
+				Group:       s.group,
+				ProjectID:   &project.ID,
+				WorkspaceID: ws.ID,
+				Sequence:    i + 1,
+				IsDefault:   i == 0,
+			})
+		}
+	}
+
+	// 6. Create default issue types for the project
+	var typeCount int64
+	db.Model(&model.IssueType{}).Where("project_id = ?", project.ID).Count(&typeCount)
+	if typeCount == 0 {
+		typeDefs := []struct {
+			name, icon string
+			seq        int
+		}{
+			{"Epic", "🎯", 1},
+			{"Feature", "✨", 2},
+			{"Story", "📖", 3},
+			{"Bug", "🐛", 4},
+			{"Task", "📋", 5},
+			{"Spike", "🔬", 6},
+		}
+		for _, td := range typeDefs {
+			db.Create(&model.IssueType{
+				Name:        td.name,
+				Icon:        td.icon,
+				ProjectID:   &project.ID,
+				WorkspaceID: ws.ID,
+				Sequence:    td.seq,
+			})
+		}
+	}
+
+	fmt.Println("E2E fixtures ensured (qa-test workspace, project 2347, qa_tester user)")
+}

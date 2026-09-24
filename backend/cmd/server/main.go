@@ -21,8 +21,12 @@ import (
 func main() {
 	cfg := config.Load()
 
+	// GORM's Info level logs every statement *with its parameters*, which is handy
+	// while debugging but produced ~80 MB of log in a 20 minute E2E run and wrote
+	// user data to disk. Verbose output is therefore opt-in: DEBUG=true (or an
+	// explicit DB_LOG_LEVEL), otherwise only warnings and errors are emitted.
 	db, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(cfg.DBLogLevel()),
 	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
