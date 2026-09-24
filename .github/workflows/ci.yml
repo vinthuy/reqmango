@@ -148,6 +148,18 @@ jobs:
         working-directory: backend
         run: go build -o ../backend-server ./cmd/server
 
+      # The database is owned by the POSTGRES_USER. Grant extra permissions
+      # so GORM's AutoMigrate (which uses ALTER TABLE) succeeds.
+      - name: Grant database permissions
+        run: |
+          PGPASSWORD=reqmango psql -h localhost -U reqmango -d reqmango_test -c "
+            ALTER DATABASE reqmango_test OWNER TO reqmango;
+            ALTER SCHEMA public OWNER TO reqmango;
+            GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO reqmango;
+            GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO reqmango;
+            GRANT ALL PRIVILEGES ON SCHEMA public TO reqmango;
+          "
+
       # The server auto-migrates and seeds demo data (admin@reqmango.com,
       # reqmango-dev workspace, CORE project). Raise the rate limit so the
       # E2E suite's burst traffic doesn't get 429-rejected.
@@ -157,11 +169,12 @@ jobs:
           RATE_LIMIT_REQUESTS: '200000'
           SECRET_KEY: ci-e2e-secret-key-not-for-production
           DEBUG: 'false'
+          DB_LOG_LEVEL: 'warn'
         run: |
           cd backend
           ../backend-server &
-          # Wait for the backend to be ready (seed can take ~30 s on first run).
-          for i in $(seq 1 60); do
+          # Wait for the backend to be ready (seed can take ~60 s on first run).
+          for i in $(seq 1 120); do
             curl -s http://localhost:8000/api/v1/workspaces >/dev/null 2>&1 && break
             sleep 2
           done
