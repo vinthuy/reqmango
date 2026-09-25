@@ -1,0 +1,125 @@
+﻿{
+    "defects":  [
+                    {
+                        "Id":  "DEF-03",
+                        "Item":  "P2-2",
+                        "Sev":  "P1",
+                        "Status":  "open",
+                        "Note":  "RuleBuilder missing dispatch_agent"
+                    },
+                    {
+                        "Id":  "DEF-02",
+                        "Item":  "P2-6",
+                        "Sev":  "P1",
+                        "Status":  "open",
+                        "Note":  "AIService.Analyze ignores actx.IssueID"
+                    }
+                ],
+    "workspace_id":  1,
+    "project_id":  4,
+    "summary":  {
+                    "skip":  0,
+                    "pass":  17,
+                    "fail":  1,
+                    "partial":  1
+                },
+    "results":  [
+                    {
+                        "Id":  "P1-1",
+                        "Status":  "PASS",
+                        "Note":  "sidebar has no Agents primary; advanced /agents link present"
+                    },
+                    {
+                        "Id":  "P1-2",
+                        "Status":  "PASS",
+                        "Note":  "Ask|Build + IssueDetail Ctrl+J + context wired"
+                    },
+                    {
+                        "Id":  "P1-3",
+                        "Status":  "PASS",
+                        "Note":  "Ask readonly hint present"
+                    },
+                    {
+                        "Id":  "P1-7-ui",
+                        "Status":  "PASS",
+                        "Note":  "TriagePanel shows toast on error"
+                    },
+                    {
+                        "Id":  "DEF-03",
+                        "Status":  "FAIL",
+                        "Note":  "AutomationRuleBuilder missing dispatch_agent"
+                    },
+                    {
+                        "Id":  "DEF-01",
+                        "Status":  "PASS",
+                        "Note":  "templates section always renderable"
+                    },
+                    {
+                        "Id":  "DEF-06",
+                        "Status":  "PASS",
+                        "Note":  "AutomationManager dotted triggers"
+                    },
+                    {
+                        "Id":  "DEF-07",
+                        "Status":  "PASS",
+                        "Note":  "FE unassign DELETE .../assign-agent"
+                    },
+                    {
+                        "Id":  "P2-1",
+                        "Status":  "PASS",
+                        "Note":  "ensure-pm 4 agents idempotent n=4"
+                    },
+                    {
+                        "Id":  "P1-4",
+                        "Status":  "PASS",
+                        "Note":  "assign/status/unassign OK issue=6382 agent=请求分诊"
+                    },
+                    {
+                        "Id":  "P1-6",
+                        "Status":  "PASS",
+                        "Note":  "agents/activity reachable"
+                    },
+                    {
+                        "Id":  "P1-8",
+                        "Status":  "PASS",
+                        "Note":  "duplicate-check OK hits=1"
+                    },
+                    {
+                        "Id":  "P1-5",
+                        "Status":  "PASS",
+                        "Note":  "agents API + CommentList mention wiring n=8"
+                    },
+                    {
+                        "Id":  "P1-7",
+                        "Status":  "PASS",
+                        "Note":  "intake pending list API OK"
+                    },
+                    {
+                        "Id":  "P2-2",
+                        "Status":  "PASS",
+                        "Note":  "rule id=18826 issue.created + dispatch_agent"
+                    },
+                    {
+                        "Id":  "P2-3",
+                        "Status":  "PASS",
+                        "Note":  "issue #6383 hist=0 actHit=True"
+                    },
+                    {
+                        "Id":  "P2-4",
+                        "Status":  "PASS",
+                        "Note":  "intake submit id=6384 status=pending"
+                    },
+                    {
+                        "Id":  "P2-5",
+                        "Status":  "PASS",
+                        "Note":  "sprint-plan OK cycle=0 + UI"
+                    },
+                    {
+                        "Id":  "P2-6",
+                        "Status":  "PARTIAL",
+                        "Note":  "analyze+labels OK but Analyze ignores IssueID (DEF-02)"
+                    }
+                ],
+    "api":  "http://localhost:8000/api/v1",
+    "ran_at":  "2026-09-25T20:00:51"
+}

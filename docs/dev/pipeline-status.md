@@ -8,7 +8,7 @@
 
 | 功能 | Spec | Design | Plan | Implement | 备注 |
 |------|------|--------|------|-----------|------|
-| AI 项目管理（Plane 路径） | ✅ | ✅ | ✅ P1+P2；✅ B1+C1 计划 | 🔄 P1–2 验收中；下一增量 B1+C1 | [设计](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [验收](acceptance/2026-09-25-ai-pm-phase1-2.md) · [B1+C1计划](../superpowers/plans/2026-09-25-ai-automation-and-project-summary.md) |
+| AI 项目管理（Plane 路径） | ✅ | ✅ | ✅ P1+P2；🔄 B1+C1 实施中 | ✅ P1–2 有条件通过；B1+C1 on `feature/ai-b1-c1` | [设计](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [验收](acceptance/2026-09-25-ai-pm-phase1-2.md) · [B1+C1计划](../superpowers/plans/2026-09-25-ai-automation-and-project-summary.md) |
 
 ---
 
