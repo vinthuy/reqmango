@@ -78,10 +78,7 @@ const projectNavItems = computed(() => {
     { label: t('project.tab.reports'), path: '', query: { tab: 'reports' } },
     { label: t('project.tab.pages'), path: '/pages', query: { tab: undefined } },
     { label: t('project.tab.dashboards'), path: '/dashboards', query: { tab: undefined } },
-    { label: t('project.tab.agentMembers'), path: '/agent-members', query: { tab: undefined } },
-    { label: t('project.tab.workflows'), path: '/workflows', query: { tab: undefined } },
-    { label: t('project.tab.agentIssues'), path: '/agent-issues', query: { tab: undefined } },
-    { label: t('project.tab.budgetSla'), path: '/budget-sla', query: { tab: undefined } },
+    // Agent console tabs demoted from primary nav (deep links still work via advanced console)
     { label: t('project.tab.settings'), path: '/settings', query: { tab: undefined } },
   ] as { label: string; path: string; query: { tab?: string } }[]
 })
