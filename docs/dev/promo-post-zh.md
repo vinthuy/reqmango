@@ -9,10 +9,10 @@
 
 | 平台 | 状态 | 入口 |
 |------|------|------|
-| V2EX · 分享创造 | **已发**（可补编 Jira 段） | https://www.v2ex.com/t/1244811 |
-| 掘金 | 待发（用下方完整成稿） | https://juejin.cn/editor/drafts/new |
-| 开源中国 · 开源资讯/软件 | 待发 | https://www.oschina.net |
-| 思否 SegmentFault | 待发 | https://segmentfault.com/write |
+| V2EX · 分享创造 | **已发** + 楼主补充（Jira/类型/工作流/自动化 + 掘金链接） | https://www.v2ex.com/t/1244811 |
+| 掘金 | **已发（审核中）** | https://juejin.cn/spost/7689019584239009811 |
+| 开源中国 | 待登录后发 | https://www.oschina.net |
+| 思否 SegmentFault | 待登录后发 | https://segmentfault.com/write |
 | GitCode 项目动态 / README | 持续 | https://gitcode.com/yongfeng9m-/reqmanpy |
 | 博客园 / CSDN | 可选（转载同文 + 原文链接） | — |
 
