@@ -15,18 +15,20 @@ A modern project management platform supporting work item management, custom fie
 
 | Layer | Technology |
 |-------|------------|
-| Backend | Go 1.21+ + Gin + GORM |
-| Database | PostgreSQL 16+ |
-| Frontend | Vue 3 + TypeScript + Vite + Pinia + Tailwind CSS |
+| Backend | Go 1.25+ + Gin + GORM |
+| Database | PostgreSQL 18+ |
+| Frontend | Vue 3.5+ + TypeScript 5+ + Vite 6+ + Pinia 3+ + Tailwind CSS 4+ |
 | Authentication | JWT (golang-jwt/v5) |
+| Security | bluemonday XSS sanitization, rate limiting, RBAC |
+| i18n | English + Chinese (backend & frontend) |
 
 ## Quick Start
 
 ### Prerequisites
 
-- Go 1.21+
-- PostgreSQL 16+
-- Node.js 18+
+- Go 1.25+
+- PostgreSQL 18+
+- Node.js 20+
 
 ### 1. Clone the Project
 
@@ -136,12 +138,16 @@ reqmango/
 | Automation | Trigger → Condition → Action rule engine |
 | Relations | Custom relation types (Blocks/Relates/Duplicates) |
 | Hierarchy System | Up to 6 levels of work item hierarchy + Type validation |
+| RQL Query Language | SQL-like filtering with field validation and injection protection |
 | Advanced Search | Multi-field AND combination filtering |
-| API | 90+ RESTful endpoints |
+| Notifications | Real-time notification system with unread counts |
+| XSS Security | bluemonday HTML sanitization for all user content |
+| API | 100+ RESTful endpoints with JWT authentication |
 
 ## API Documentation
 
-See architecture documents in the [docs/kb/architecture/](docs/kb/architecture/) directory.
+- [API Reference](docs/API.md) - Complete endpoint documentation
+- [Architecture Documents](docs/kb/architecture/) - System design docs
 
 ## Architecture Documents
 
