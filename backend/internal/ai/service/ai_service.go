@@ -973,8 +973,92 @@ type AIBottleneck struct {
 	StateName   string `json:"state_name"`
 }
 
-// Analyze generates an AI-powered analysis of the project.
+// Analyze generates an AI-powered analysis of the project, or of a single issue
+// when actx.IssueID is set (Issue AI Tab / DEF-02).
 func (s *AIService) Analyze(ctx context.Context, actx *AIContext) (*AIAnalyzeResponse, error) {
+	if actx.IssueID > 0 {
+		return s.analyzeIssue(ctx, actx)
+	}
+	return s.analyzeProject(ctx, actx)
+}
+
+func (s *AIService) analyzeIssue(ctx context.Context, actx *AIContext) (*AIAnalyzeResponse, error) {
+	var issue model.Issue
+	q := s.db.Where("id = ?", actx.IssueID)
+	if actx.ProjectID > 0 {
+		q = q.Where("project_id = ?", actx.ProjectID)
+	}
+	if err := q.First(&issue).Error; err != nil {
+		return nil, fmt.Errorf("get issue: %w", err)
+	}
+
+	var stateName string
+	if issue.StateID > 0 {
+		var state model.State
+		if s.db.First(&state, issue.StateID).Error == nil {
+			stateName = state.Name
+		}
+	}
+
+	desc := issue.DescriptionHTML
+	if len(desc) > 2000 {
+		desc = desc[:2000] + "…"
+	}
+	issueName := issue.Name
+	if actx.IssueName != "" {
+		issueName = actx.IssueName
+	}
+
+	analyzePrompt := fmt.Sprintf(`你是一个高级项目管理分析师。请针对下面这一条工作项给出聚焦分析（不要做整个项目的泛泛总结）。
+
+## 工作项
+- ID: %d
+- 标题: %s
+- 优先级: %s
+- 状态: %s
+- 描述:
+%s
+
+请用中文输出 JSON：
+{
+  "summary": "对该工作项的简洁总结（80字以内）",
+  "insights": ["洞察1", "洞察2", "洞察3"],
+  "recommendations": ["建议1", "建议2"]
+}
+
+关注：范围是否清晰、风险/阻塞、下一步可执行动作。`,
+		issue.ID, issueName, issue.Priority, stateName, desc)
+
+	content, err := s.llm.Complete(ctx, "你是一个高级项目管理分析师。请输出严格的 JSON 格式，不要添加任何 markdown 标记。", analyzePrompt)
+	if err != nil {
+		return nil, fmt.Errorf("AI analysis failed: %w", err)
+	}
+
+	var parsed struct {
+		Summary         string   `json:"summary"`
+		Insights        []string `json:"insights"`
+		Recommendations []string `json:"recommendations"`
+	}
+	result := AIAnalyzeResponse{}
+	if err := json.Unmarshal([]byte(content), &parsed); err != nil {
+		result.Summary = content[:minX(len(content), 200)]
+		result.Insights = []string{}
+	} else {
+		result.Summary = parsed.Summary
+		result.Insights = append([]string{}, parsed.Insights...)
+		result.Insights = append(result.Insights, parsed.Recommendations...)
+	}
+	result.Stats = map[string]interface{}{
+		"issue_id":   issue.ID,
+		"issue_name": issueName,
+		"priority":   issue.Priority,
+		"state":      stateName,
+		"scope":      "issue",
+	}
+	return &result, nil
+}
+
+func (s *AIService) analyzeProject(ctx context.Context, actx *AIContext) (*AIAnalyzeResponse, error) {
 	stats, err := s.getProjectStats(actx.ProjectID)
 	if err != nil {
 		return nil, fmt.Errorf("get stats: %w", err)
@@ -1055,6 +1139,7 @@ func (s *AIService) Analyze(ctx context.Context, actx *AIContext) (*AIAnalyzeRes
 		"progress_pct":   int(progressPct),
 		"active_members": stats.ActiveMembers,
 		"issues_summary": summary,
+		"scope":          "project",
 	}
 	return &result, nil
 }

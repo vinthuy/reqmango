@@ -26,11 +26,53 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
+            <button
+              @click="runProjectSummary"
+              :disabled="projectSummarizing"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-indigo-200 text-indigo-700 text-xs font-medium rounded-md hover:bg-indigo-50 transition disabled:opacity-50"
+              data-test="project-ai-summary"
+            >
+              {{ projectSummarizing ? t('common.loading') : t('project.aiSummary') }}
+            </button>
             <button @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition shadow-sm">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               {{ t('project.create') }}
             </button>
           </div>
+        </div>
+
+        <!-- C1: Project AI summary panel -->
+        <div
+          v-if="projectSummary || projectSummaryError"
+          class="mb-3 rounded-lg border border-indigo-100 bg-indigo-50/60 dark:bg-indigo-950/30 dark:border-indigo-900 p-4"
+          data-test="project-ai-summary-panel"
+        >
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <h3 class="text-sm font-semibold text-indigo-900 dark:text-indigo-100">{{ t('project.aiSummary') }}</h3>
+            <div class="flex items-center gap-2 shrink-0">
+              <button
+                v-if="projectSummary"
+                @click="saveProjectSummaryAsPage"
+                :disabled="projectSummarySaving"
+                class="px-2.5 py-1 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+              >{{ projectSummarySaving ? t('common.loading') : t('project.aiSummarySavePage') }}</button>
+              <button @click="clearProjectSummary" class="text-xs text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+          </div>
+          <p v-if="projectSummaryError" class="text-sm text-red-600">{{ projectSummaryError }}</p>
+          <template v-else-if="projectSummary">
+            <p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{{ projectSummary.summary }}</p>
+            <ul v-if="projectSummary.insights?.length" class="mt-2 space-y-1">
+              <li class="text-xs font-medium text-gray-500">{{ t('project.aiSummaryInsights') }}</li>
+              <li v-for="(ins, i) in projectSummary.insights" :key="i" class="text-sm text-gray-700 dark:text-gray-300 pl-2">• {{ ins }}</li>
+            </ul>
+            <ul v-if="projectSummary.bottlenecks?.length" class="mt-2 space-y-1">
+              <li class="text-xs font-medium text-gray-500">{{ t('project.aiSummaryRisks') }}</li>
+              <li v-for="b in projectSummary.bottlenecks" :key="b.issue_id" class="text-sm text-gray-700 dark:text-gray-300 pl-2">
+                • #{{ b.issue_id }} {{ b.issue_name }} ({{ b.days_in_state }}d / {{ b.state_name }})
+              </li>
+            </ul>
+          </template>
         </div>
 
         <!-- 标签页导航 - horizontal pills -->
@@ -318,6 +360,8 @@ import AICopilot from '@/components/AICopilot.vue'
 import CommandPalette from '@/components/CommandPalette.vue'
 import PageTabConfig from '@/components/PageTabConfig.vue'
 import MetricsView from '@/views/MetricsView.vue'
+import { analyzeWithAI } from '@/api/ai'
+import { createPage } from '@/api/page'
 import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
 import { useModuleStore } from '@/stores/module'
@@ -330,6 +374,66 @@ const toast = useToast()
 
 const workspace = ref<Workspace | null>(null)
 const project = ref<ProjectResponse | null>(null)
+
+const projectSummarizing = ref(false)
+const projectSummarySaving = ref(false)
+const projectSummaryError = ref('')
+const projectSummary = ref<{
+  summary?: string
+  insights?: string[]
+  bottlenecks?: Array<{ issue_id: number; issue_name: string; days_in_state: number; state_name: string }>
+} | null>(null)
+
+const projectSummaryMarkdown = computed(() => {
+  if (!projectSummary.value) return ''
+  const insights = (projectSummary.value.insights || []).map((i) => `- ${i}`).join('\n')
+  const risks = (projectSummary.value.bottlenecks || []).map(
+    (b) => `- #${b.issue_id} ${b.issue_name} (${b.days_in_state}d / ${b.state_name})`,
+  ).join('\n')
+  return [
+    `# ${project.value?.name || 'Project'} — ${t('project.aiSummary')}`,
+    '',
+    projectSummary.value.summary || '',
+    insights ? `\n## ${t('project.aiSummaryInsights')}\n${insights}` : '',
+    risks ? `\n## ${t('project.aiSummaryRisks')}\n${risks}` : '',
+  ].filter(Boolean).join('\n')
+})
+
+async function runProjectSummary() {
+  if (!projectId.value) return
+  projectSummarizing.value = true
+  projectSummaryError.value = ''
+  projectSummary.value = null
+  try {
+    // issue_id=0 → project-scoped analyze (DEF-02 keeps issue-scoped when id > 0)
+    projectSummary.value = await analyzeWithAI(projectId.value, 0)
+  } catch (e: any) {
+    projectSummaryError.value = e?.response?.data?.message || e.message || t('project.aiSummaryFailed')
+  } finally {
+    projectSummarizing.value = false
+  }
+}
+
+async function saveProjectSummaryAsPage() {
+  if (!projectSummary.value || !projectId.value || !workspaceId.value) return
+  projectSummarySaving.value = true
+  try {
+    await createPage(projectId.value, workspaceId.value, {
+      title: `${project.value?.name || 'Project'} — ${t('project.aiSummary')}`,
+      content: projectSummaryMarkdown.value,
+    })
+    toast.success(t('project.aiSummarySaveSuccess'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e.message || t('project.aiSummarySaveFailed'))
+  } finally {
+    projectSummarySaving.value = false
+  }
+}
+
+function clearProjectSummary() {
+  projectSummary.value = null
+  projectSummaryError.value = ''
+}
 const loading = ref(false)
 const activeTab = ref((route.query.tab as string) || 'issues')
 const issueView = ref<'list' | 'kanban' | 'tree' | 'calendar' | 'gantt'>((route.query.view as any) || 'list')
