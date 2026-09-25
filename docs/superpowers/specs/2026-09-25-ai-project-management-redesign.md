@@ -269,9 +269,19 @@ Ask 模式禁止静默写操作；若模型想写，UI 提示「切换到 Build�
 3. Cycle「一键总结」入口。  
 4. Issue AI Tab 真正调用 analyze / suggest-labels（不再只会打开空 Copilot）。
 
-### Phase 3 — 超 Plane（明确后置）
+### 已取消作产品方向 — 原「Phase 3 超 Plane」
 
-Harness、Loop、对抗评审、多 Agent 流水线 —— 仅在 Phase 1–2 验收通过且叙事稳定后启动。
+Harness、Loop、对抗评审、多 Agent 流水线：**不再作为下一阶段目标**（代码可保留降权，不排期、不讲产品故事）。
+
+### 下一增量 — AI 自动化 + Capture（已定 B1 + C1）
+
+| 代号 | 内容 | 计划 |
+|------|------|------|
+| **验收** | Phase 1–2 手测清单 | `docs/dev/acceptance/2026-09-25-ai-pm-phase1-2.md` |
+| **B1** | 更多 AI 自动化模板（分诊 / 风险 / Spec 等）+ trigger 卫生 | `docs/superpowers/plans/2026-09-25-ai-automation-and-project-summary.md` |
+| **C1** | 项目级 AI 总结 → 存 Page（Cycle 总结已有） | 同上 |
+
+不做：B2 自然语言配规则、C2 Dashboard 定时 AI 报表（可另开）。
 
 ---
 
@@ -281,6 +291,7 @@ Harness、Loop、对抗评审、多 Agent 流水线 —— 仅在 Phase 1–2 �
 
 - 替换 Plane 的全部集成（Slack bot、Marketplace）。  
 - 删除 Harness/Loop 代码（仅产品降权）。  
+- **以 Harness/Loop/对抗评审/多 Agent 流水线作为下一产品阶段**（已取消）。  
 - 以 IDE/MCP 安装转化率作为本阶段 KPI。
 
 ### 风险
@@ -304,10 +315,10 @@ Harness、Loop、对抗评审、多 Agent 流水线 —— 仅在 Phase 1–2 �
 
 ## 12. 下一步
 
-1. Phase 1 已实施并推远程（见 `plans/2026-09-25-ai-project-management-phase1.md`）。  
-2. **现行实施计划**：`docs/superpowers/plans/2026-09-25-ai-project-management-phase2.md` — Tasks 1–5 已接线；手测验收与合并前复核待完成。  
-3. 管线：`docs/dev/pipeline-status.md` / `docs/dev/active/README.md`（Implement：Phase2 进行中）。  
-4. Phase 1 / Phase 2 手测可并行；合并前建议完成两侧验收清单。
+1. **执行** Phase 1–2 验收：`docs/dev/acceptance/2026-09-25-ai-pm-phase1-2.md`。  
+2. **实施** B1+C1：`docs/superpowers/plans/2026-09-25-ai-automation-and-project-summary.md`。  
+3. 原 Phase 3（Harness/Loop）**已取消**作产品方向。  
+4. 管线：`docs/dev/pipeline-status.md` / `docs/dev/active/README.md`。
 
 ---
 

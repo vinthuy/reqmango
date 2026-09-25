@@ -8,7 +8,7 @@
 
 | 功能 | Spec | Design | Plan | Implement | 备注 |
 |------|------|--------|------|-----------|------|
-| AI 项目管理重设计（对标 Plane AI） | ✅ | ✅ | ✅ Phase1+2 | 🔄 Phase1 已推远程；Phase2 Tasks 1–5 已接线（手测验收待完成） | [设计](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [Phase1](../superpowers/plans/2026-09-25-ai-project-management-phase1.md) · [Phase2](../superpowers/plans/2026-09-25-ai-project-management-phase2.md) |
+| AI 项目管理（Plane 路径） | ✅ | ✅ | ✅ P1+P2；✅ B1+C1 计划 | 🔄 P1–2 验收中；下一增量 B1+C1 | [设计](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [验收](acceptance/2026-09-25-ai-pm-phase1-2.md) · [B1+C1计划](../superpowers/plans/2026-09-25-ai-automation-and-project-summary.md) |
 
 ---
 
@@ -32,7 +32,7 @@ CustomField / Workflow / Automation / IssueType / Comments / Notifications / Att
 | 文档 | 状态 |
 |------|------|
 | `docs/AI_AGENT_PRD.md`（Multica / 全 SDLC） | Superseded |
-| `docs/superpowers/specs/2026-07-18-reqmango-agent-platform-design.md`（Harness/Loop 主叙事） | Demoted → Phase 3+ |
+| `docs/superpowers/specs/2026-07-18-reqmango-agent-platform-design.md`（Harness/Loop 主叙事） | Demoted；**非**下一产品阶段 |
 | MCP/CLI 分发作为增长主路径 | 非当前 AI 产品排期 |
 
 ---
