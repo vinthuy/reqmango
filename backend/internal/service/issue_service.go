@@ -3292,3 +3292,55 @@ func (s *IssueService) ListWatchers(issueID uint64) ([]uint64, error) {
 	}
 	return userIDs, nil
 }
+
+// CheckDuplicates finds similar issues in the same project (soft-deleted excluded via GORM).
+func (s *IssueService) CheckDuplicates(projectID uint64, name, description string, limit int) (*response.DuplicateCheckResponse, error) {
+	name = strings.TrimSpace(name)
+	description = strings.TrimSpace(description)
+	result := &response.DuplicateCheckResponse{Duplicates: []response.DuplicateIssueItem{}}
+	if len([]rune(name)) < duplicateMinNameLenRunes {
+		return result, nil
+	}
+	if limit <= 0 || limit > duplicateCheckLimit {
+		limit = duplicateCheckLimit
+	}
+
+	pattern := "%" + escapeLike(name) + "%"
+	var issues []model.Issue
+	q := s.db.Model(&model.Issue{}).
+		Where("project_id = ?", projectID).
+		Where("archived_at IS NULL").
+		Where("name ILIKE ? OR COALESCE(description_stripped, '') ILIKE ?", pattern, pattern).
+		Order("updated_at DESC").
+		Limit(duplicateCandidateLimit)
+	if err := q.Find(&issues).Error; err != nil {
+		return nil, common.Internal("Database error")
+	}
+
+	candidates := make([]scoredDuplicate, len(issues))
+	for i, issue := range issues {
+		candidates[i] = scoredDuplicate{
+			ID:         issue.ID,
+			SequenceID: issue.SequenceID,
+			Name:       issue.Name,
+			Priority:   issue.Priority,
+			StateID:    issue.StateID,
+		}
+	}
+	ranked := rankDuplicates(name, description, candidates)
+	if len(ranked) > limit {
+		ranked = ranked[:limit]
+	}
+	for _, item := range ranked {
+		stateID := item.StateID
+		result.Duplicates = append(result.Duplicates, response.DuplicateIssueItem{
+			ID:         item.ID,
+			SequenceID: item.SequenceID,
+			Name:       item.Name,
+			Priority:   item.Priority,
+			StateID:    &stateID,
+			Similarity: item.Similarity,
+		})
+	}
+	return result, nil
+}

@@ -89,6 +89,21 @@ type IssueSearchResult struct {
 	WorkspaceSlug     string `json:"workspace_slug"`
 }
 
+// DuplicateIssueItem is a similar existing issue for create-time warnings.
+type DuplicateIssueItem struct {
+	ID         uint64  `json:"id"`
+	SequenceID int     `json:"sequence_id"`
+	Name       string  `json:"name"`
+	Priority   string  `json:"priority"`
+	StateID    *uint64 `json:"state_id,omitempty"`
+	Similarity float64 `json:"similarity,omitempty"`
+}
+
+// DuplicateCheckResponse wraps similar issues found for a draft title/description.
+type DuplicateCheckResponse struct {
+	Duplicates []DuplicateIssueItem `json:"duplicates"`
+}
+
 // BulkUpdateResultResponse represents the result of a bulk update operation.
 type BulkUpdateResultResponse struct {
 	SuccessCount int              `json:"success_count"`

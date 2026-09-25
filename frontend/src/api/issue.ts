@@ -578,6 +578,38 @@ export async function getIssueChildren(issueId: number): Promise<TreeIssueRespon
   return response.data || []
 }
 
+/** Similar issue found by pre-create duplicate check (warn-only). */
+export interface DuplicateIssueItem {
+  id: number
+  sequence_id: number
+  name: string
+  priority: string
+  state_id?: number
+  similarity?: number
+}
+
+export interface DuplicateCheckResult {
+  duplicates: DuplicateIssueItem[]
+}
+
+/**
+ * Check for similar issues before create (warn-only; never blocks create).
+ */
+export async function checkDuplicates(
+  projectId: number,
+  data: { name: string; description?: string },
+  limit = 5
+): Promise<DuplicateCheckResult> {
+  const response = await api.post(
+    `/projects/${projectId}/issues/duplicate-check?limit=${limit}`,
+    {
+      name: data.name,
+      description: data.description || '',
+    }
+  )
+  return response.data || { duplicates: [] }
+}
+
 export const issueApi = {
   // CRUD
   createIssue,
@@ -606,6 +638,9 @@ export const issueApi = {
   // Tree
   listTreeIssues,
   getIssueChildren,
+
+  // Duplicate check (pre-create warn-only)
+  checkDuplicates,
   
   // Bulk
   bulkUpdateIssues,

@@ -1110,6 +1110,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		v1.GET("/projects/:projectId/sla", authMiddleware, slaH.Get)
 		v1.PUT("/projects/:projectId/sla", authMiddleware, middleware.RequirePermission(db, "workflow:manage", "project"), slaH.Update)
 		v1.GET("/projects/:projectId/decisions", authMiddleware, decisionH.ListByProject)
+		// ---- Issue duplicate check (pre-create warn-only) ----
+		v1.POST("/projects/:projectId/issues/duplicate-check", authMiddleware, issueH.CheckDuplicates)
+		v1.GET("/projects/:projectId/issues/duplicate-check", authMiddleware, issueH.CheckDuplicates)
 		// ---- Decision Records ----
 		issues.GET("/:issueId/decisions", decisionH.ListByIssue)
 		v1.GET("/agent-tasks/:taskId/decisions", authMiddleware, decisionH.ListByTask)

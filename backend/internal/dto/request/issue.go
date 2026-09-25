@@ -89,6 +89,12 @@ type MergeDuplicatesRequest struct {
 	KeepSourceAssignees bool     `json:"keep_source_assignees"`
 }
 
+// DuplicateCheckRequest is the request body for pre-create duplicate detection.
+type DuplicateCheckRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 // ImportIssueItem represents a single issue item for import (JSON format).
 type ImportIssueItem struct {
 	Name           string   `json:"name"`

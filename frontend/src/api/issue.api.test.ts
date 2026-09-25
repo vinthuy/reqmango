@@ -29,7 +29,7 @@ import {
   listIssuePages, addIssuePage, removeIssuePage,
   bulkConvertIssueType, bulkCopyIssues, bulkMoveIssues, mergeIssues,
   getFlowMetrics, generateAIComment,
-  listTreeIssues, getIssueChildren,
+  listTreeIssues, getIssueChildren, checkDuplicates,
   issueApi,
 } from './issue'
 
@@ -339,6 +339,19 @@ describe('tree view API', () => {
     expect(mockGet).toHaveBeenCalledWith('/issues/42/children')
     expect(result).toHaveLength(1)
   })
+
+  it('checkDuplicates should POST to duplicate-check', async () => {
+    mockPost.mockResolvedValue({
+      data: { duplicates: [{ id: 9, sequence_id: 3, name: 'Fix login', priority: 'high' }] },
+    })
+    const result = await checkDuplicates(1, { name: 'Fix login bug', description: 'mobile' })
+    expect(mockPost).toHaveBeenCalledWith(
+      '/projects/1/issues/duplicate-check?limit=5',
+      { name: 'Fix login bug', description: 'mobile' }
+    )
+    expect(result.duplicates).toHaveLength(1)
+    expect(result.duplicates[0].id).toBe(9)
+  })
 })
 
 // ==================== Flow Metrics & AI ====================
@@ -367,7 +380,7 @@ describe('issueApi export', () => {
       'createIssue', 'listIssues', 'getIssue', 'updateIssue', 'deleteIssue',
       'archiveIssue', 'restoreIssue', 'getIssueActivities', 'getIssueStatistics',
       'searchIssues', 'downloadImportTemplate', 'exportIssues',
-      'listTreeIssues', 'getIssueChildren',
+      'listTreeIssues', 'getIssueChildren', 'checkDuplicates',
       'bulkUpdateIssues', 'bulkDeleteIssues', 'importIssuesJSON', 'importIssuesCSV',
       'addIssueAssignee', 'removeIssueAssignee',
       'addIssueLabel', 'removeIssueLabel',

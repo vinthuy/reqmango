@@ -1225,3 +1225,53 @@ func (h *IssueHandler) MergeDuplicates(c *gin.Context) {
 
 	c.JSON(http.StatusOK, result)
 }
+
+// CheckDuplicates handles POST|GET /projects/:projectId/issues/duplicate-check
+// Permission: same as list issues (project member). Warn-only; never blocks create.
+func (h *IssueHandler) CheckDuplicates(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil || projectID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid projectId"})
+		return
+	}
+
+	if !user.IsSuperuser {
+		var member model.ProjectMember
+		if err := h.svc.DB().Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, user.ID, true).First(&member).Error; err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"message": "Access denied: you are not a member of this project"})
+			return
+		}
+	}
+
+	var req request.DuplicateCheckRequest
+	if c.Request.Method == http.MethodPost {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+			return
+		}
+	} else {
+		req.Name = c.Query("name")
+		req.Description = c.Query("description")
+	}
+
+	limit := 5
+	if v := c.Query("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			limit = n
+		}
+	}
+
+	result, svcErr := h.svc.CheckDuplicates(projectID, req.Name, req.Description, limit)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}

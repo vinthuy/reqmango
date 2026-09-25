@@ -59,6 +59,23 @@
             :placeholder="t('issue.titlePlaceholder')"
             ref="titleInput"
           />
+          <div
+            v-if="duplicates.length > 0"
+            class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          >
+            <p class="font-medium mb-1">{{ t('issue.duplicateWarning') }}</p>
+            <ul class="space-y-1">
+              <li v-for="dup in duplicates" :key="dup.id">
+                <router-link
+                  :to="issueLink(dup.id)"
+                  class="text-amber-800 underline hover:text-amber-950"
+                  target="_blank"
+                >
+                  #{{ dup.sequence_id }} {{ dup.name }}
+                </router-link>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <!-- 描述 -->
@@ -182,14 +199,14 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
         </svg>
-        {{ saving ? t('issue.creating') : t('issue.create') }}
+        {{ saving ? t('issue.creating') : (duplicates.length > 0 ? t('issue.createAnyway') : t('issue.create')) }}
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import { useRoute, useRouter } from 'vue-router'
@@ -205,6 +222,7 @@ import type { ModuleResponse } from '@/types/module'
 import type { User } from '@/types'
 import * as issueTypeApi from '@/api/issue-type'
 import * as issueApi from '@/api/issue'
+import type { DuplicateIssueItem } from '@/api/issue'
 import * as stateApi from '@/api/project-settings'
 import * as cycleApi from '@/api/cycle'
 import * as moduleApi from '@/api/module'
@@ -268,6 +286,44 @@ const formData = ref({
   target_date: ''
 })
 const selectedLabelIds = ref<number[]>([])
+const duplicates = ref<DuplicateIssueItem[]>([])
+let duplicateTimer: ReturnType<typeof setTimeout> | null = null
+
+function issueLink(issueId: number) {
+  if (slug.value) {
+    return `/workspace/${slug.value}/project/${projectId.value}/issues/${issueId}`
+  }
+  return `/workspaces/${workspaceId.value}/projects/${projectId.value}/issues/${issueId}`
+}
+
+async function runDuplicateCheck() {
+  const name = formData.value.name.trim()
+  if (!projectId.value || name.length < 2) {
+    duplicates.value = []
+    return
+  }
+  try {
+    const result = await issueApi.checkDuplicates(projectId.value, {
+      name,
+      description: formData.value.description || '',
+    })
+    duplicates.value = result.duplicates || []
+  } catch {
+    duplicates.value = []
+  }
+}
+
+watch(
+  () => formData.value.name,
+  () => {
+    if (duplicateTimer) clearTimeout(duplicateTimer)
+    duplicateTimer = setTimeout(runDuplicateCheck, 400)
+  }
+)
+
+onBeforeUnmount(() => {
+  if (duplicateTimer) clearTimeout(duplicateTimer)
+})
 
 // 计算属性
 const canSubmit = computed(() => {
