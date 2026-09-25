@@ -49,7 +49,7 @@
       >
         <button
           v-for="(m, i) in mentionResults"
-          :key="m.id"
+          :key="`${m.kind || 'member'}-${m.id}`"
           class="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-indigo-50 transition-colors text-left"
           :class="{ 'bg-indigo-50': i === mentionIndex }"
           @mousedown.prevent="insertMention(m)"
@@ -58,7 +58,11 @@
             :style="{ backgroundColor: avatarColor(m.id) }"
           >{{ getInitial(m.display_name || m.username || '?') }}</span>
           <span class="text-gray-800 font-medium truncate">{{ m.display_name || m.username }}</span>
-          <span v-if="m.username" class="text-xs text-gray-400 ml-auto">@{{ m.username }}</span>
+          <span
+            v-if="m.kind === 'agent'"
+            class="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 font-medium shrink-0"
+          >AI</span>
+          <span v-else-if="m.username" class="text-xs text-gray-400 ml-auto">@{{ m.username }}</span>
         </button>
       </div>
     </Teleport>
@@ -227,6 +231,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import commentApi from '@/api/comment'
 import api from '@/api'
+import { agentApi } from '@/api/agent'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from '@/composables/useI18n'
@@ -234,7 +239,7 @@ import type { Comment, CommentCreate } from '@/types/comment'
 
 const AVATAR_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
 
-const props = defineProps<{ issueId: number; isAdmin?: boolean; projectId?: number }>()
+const props = defineProps<{ issueId: number; isAdmin?: boolean; projectId?: number; workspaceId?: number }>()
 
 const { confirm } = useConfirm()
 const authStore = useAuthStore()
@@ -256,22 +261,54 @@ const editingId = ref<number | null>(null)
 const editText = ref('')
 const editSaving = ref(false)
 
-// @Mention state
-interface Member { id: number; display_name: string; username?: string }
-const members = ref<Member[]>([])
+// @Mention state — members + agents (backend HandleMention matches agent `name`)
+interface MentionCandidate {
+  id: number
+  display_name: string
+  username?: string
+  kind?: 'member' | 'agent'
+}
+const members = ref<MentionCandidate[]>([])
+const agents = ref<MentionCandidate[]>([])
 const mentionActive = ref(false)
 const mentionQuery = ref('')
-const mentionResults = ref<Member[]>([])
+const mentionResults = ref<MentionCandidate[]>([])
 const mentionIndex = ref(0)
 const mentionTarget = ref<'main' | 'reply' | 'edit'>('main')
 const mentionTextarea = ref<HTMLTextAreaElement | null>(null)
+
+const allMentionCandidates = computed(() => [...members.value, ...agents.value])
 
 // Load members for @mention
 async function loadMembers() {
   if (!props.projectId) return
   try {
     const resp = await api.get(`/projects/${props.projectId}/members`)
-    members.value = (resp.data || []).map((m: any) => m.user || m).filter(Boolean)
+    members.value = (resp.data || []).map((m: any) => {
+      const u = m.user || m
+      return {
+        id: u.id,
+        display_name: u.display_name || u.username || '',
+        username: u.username,
+        kind: 'member' as const,
+      }
+    }).filter((m: MentionCandidate) => m.id)
+  } catch { /* */ }
+}
+
+async function loadAgents() {
+  if (!props.workspaceId) return
+  try {
+    const list = await agentApi.list(props.workspaceId)
+    agents.value = (list || [])
+      .filter((a: any) => a.status === 'active')
+      .map((a: any) => ({
+        id: a.id,
+        display_name: a.name,
+        // Backend parseMentions + HandleMention looks up agents by `name`
+        username: a.name,
+        kind: 'agent' as const,
+      }))
   } catch { /* */ }
 }
 
@@ -296,7 +333,7 @@ function detectMention(value: string, target: 'main' | 'reply' | 'edit', textare
     mentionIndex.value = 0
 
     const q = atMatch[1].toLowerCase()
-    mentionResults.value = members.value
+    mentionResults.value = allMentionCandidates.value
       .filter(m => {
         const name = (m.display_name || '').toLowerCase()
         const uname = (m.username || '').toLowerCase()
@@ -309,15 +346,19 @@ function detectMention(value: string, target: 'main' | 'reply' | 'edit', textare
   }
 }
 
-function insertMention(member: Member) {
+function insertMention(member: MentionCandidate) {
   if (!mentionTextarea.value) return
   const ta = mentionTextarea.value
   const cursorPos = ta.selectionStart || 0
   const textBefore = ta.value.substring(0, cursorPos)
   const textAfter = ta.value.substring(cursorPos)
   const atIdx = textBefore.lastIndexOf('@')
-  const newText = textBefore.substring(0, atIdx) + '@' + (member.username || member.display_name) + ' ' + textAfter
-  const newCursor = atIdx + (member.username || member.display_name).length + 2
+  // Agents: insert name (backend matches Agent.name); members: username || display_name
+  const mentionName = member.kind === 'agent'
+    ? (member.display_name || member.username || '')
+    : (member.username || member.display_name || '')
+  const newText = textBefore.substring(0, atIdx) + '@' + mentionName + ' ' + textAfter
+  const newCursor = atIdx + mentionName.length + 2
 
   if (mentionTarget.value === 'main') newComment.value = newText
   else if (mentionTarget.value === 'reply') replyText.value = newText
@@ -528,7 +569,14 @@ function formatFullDate(timeStr: string): string {
 }
 
 onMounted(() => loadComments())
-watch(() => props.projectId, (id) => { if (id) loadMembers() }, { immediate: true })
+watch(
+  () => [props.projectId, props.workspaceId] as const,
+  () => {
+    loadMembers()
+    loadAgents()
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>

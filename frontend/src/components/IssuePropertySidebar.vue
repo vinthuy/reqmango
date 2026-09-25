@@ -163,14 +163,30 @@
     <div class="pt-3 border-t border-gray-100" :class="{ 'pointer-events-none opacity-60': isLocked }">
       <label class="block text-xs text-gray-500 mb-1">{{ t('agent.title') }}</label>
       <AgentSelector v-model="localAgentId" :workspace-id="workspaceId" />
-      <button
-        v-if="localAgentId"
-        @click="$emit('dispatch-agent', localAgentId)"
-        :disabled="agentDispatching"
-        class="mt-2 w-full px-3 py-1.5 text-xs font-medium rounded-md bg-violet-500 hover:bg-violet-600 text-white disabled:opacity-50 transition-colors"
-      >
-        {{ agentDispatching ? t('agent.dispatching') : t('agent.dispatchAgent') }}
-      </button>
+      <div v-if="agentStatus?.agent_id" class="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500">
+        <span class="font-medium text-violet-700">{{ agentStatus.agent_name }}</span>
+        <span
+          v-if="agentStatus.task_status"
+          class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600"
+        >{{ agentStatus.task_status }}</span>
+      </div>
+      <div class="mt-2 space-y-1.5">
+        <button
+          @click="emitAssign"
+          :disabled="!hasAgentSelected || agentAssigning"
+          class="w-full px-3 py-1.5 text-xs font-medium rounded-md bg-violet-500 hover:bg-violet-600 text-white disabled:opacity-50 transition-colors"
+        >
+          {{ agentAssigning ? t('agent.assigning') : t('agent.assignAgent') }}
+        </button>
+        <button
+          v-if="hasAgentSelected"
+          @click="$emit('dispatch-agent', localAgentId)"
+          :disabled="agentDispatching"
+          class="w-full px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+        >
+          {{ agentDispatching ? t('agent.dispatching') : t('agent.dispatchAgent') }}
+        </button>
+      </div>
     </div>
 
     <!-- Custom Fields -->
@@ -236,10 +252,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import AgentSelector from '@/components/AgentSelector.vue'
 import LabelSelector from '@/components/LabelSelector.vue'
+import type { AgentStatus } from '@/api/issue-agent'
 
 interface StateOption { id: number; name: string }
 interface MemberOption { id: number; display_name: string }
@@ -265,6 +282,8 @@ const props = defineProps<{
   customFields: CustomFieldEntry[]
   workspaceId: number
   agentDispatching?: boolean
+  agentAssigning?: boolean
+  agentStatus?: AgentStatus | null
   labels?: Array<{ id: number; name: string; color: string }>
   relationSummary?: {
     total: number
@@ -287,12 +306,35 @@ const emit = defineEmits<{
   (e: 'update:targetDate', date: string): void
   (e: 'update:customField', fieldId: number, value: string): void
   (e: 'dispatch-agent', agentId: string): void
+  (e: 'assign-agent', agentId: string): void
+  (e: 'unassign-agent'): void
   (e: 'update:labels', labelIds: number[]): void
 }>()
 
 // Local agent model to bind AgentSelector v-model
 const localAgentId = ref('')
-watch(() => props.issue, () => { localAgentId.value = '' })
+const syncingAgent = ref(false)
+const hasAgentSelected = computed(() => !!localAgentId.value && localAgentId.value.startsWith('agent:'))
+
+watch(() => props.agentStatus, (status) => {
+  syncingAgent.value = true
+  localAgentId.value = status?.agent_id ? `agent:${status.agent_id}` : ''
+  nextTick(() => { syncingAgent.value = false })
+}, { immediate: true })
+
+watch(localAgentId, (val, oldVal) => {
+  if (syncingAgent.value) return
+  if (val && val.startsWith('agent:')) {
+    emit('assign-agent', val)
+  } else if (oldVal && oldVal.startsWith('agent:') && (!val || !val.startsWith('agent:'))) {
+    emit('unassign-agent')
+  }
+})
+
+function emitAssign() {
+  if (!hasAgentSelected.value) return
+  emit('assign-agent', localAgentId.value)
+}
 
 const { t } = useI18n()
 

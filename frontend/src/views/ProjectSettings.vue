@@ -21,6 +21,7 @@ import WebhookManager from '@/components/WebhookManager.vue'
 import GitIntegrationSettings from '@/components/GitIntegrationSettings.vue'
 import AutomationRuleBuilder from '@/components/AutomationRuleBuilder.vue'
 import AutomationExecutionLog from '@/components/AutomationExecutionLog.vue'
+import TriagePanel from '@/components/TriagePanel.vue'
 import relationApi from '@/api/relation'
 
 const { confirm } = useConfirm()
@@ -132,6 +133,7 @@ const menuItems = computed(() => [
   { id: 'custom-fields', label: t('settings.customFields'), icon: '🔧' },
   { id: 'workflows', label: t('settings.workflows'), icon: '⚙️' },
   { id: 'automations', label: t('settings.automations'), icon: '🤖' },
+  { id: 'triage', label: t('settings.triage'), icon: '🏥' },
   { id: 'delete', label: t('settings.deleteProject'), icon: '🗑️' },
 ])
 
@@ -539,6 +541,14 @@ async function handleRemoveSubscriber(userId: number) {
 
 function goBack() {
   router.push(`/workspace/${slug.value}/project/${projectId.value}`)
+}
+
+function copyIntakeFormLink() {
+  const url = `${window.location.origin}/intake/${projectId.value}`
+  navigator.clipboard.writeText(url).then(
+    () => toast.success(t('settings.intakeLinkCopied')),
+    () => toast.info(url),
+  )
 }
 
 onMounted(async () => {
@@ -949,6 +959,11 @@ onMounted(async () => {
             </div>
           </div>
           </div>
+        </div>
+
+        <!-- Intake Triage -->
+        <div v-if="!loading && activeSection === 'triage'" class="bg-white rounded-lg border border-gray-200">
+          <TriagePanel :project-id="projectId" @show-form="copyIntakeFormLink" />
         </div>
 
         <!-- Delete Project -->

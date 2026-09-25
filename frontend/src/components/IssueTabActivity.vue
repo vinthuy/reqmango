@@ -98,8 +98,18 @@
     </div>
 
     <!-- Automation execution history -->
-    <div v-if="!loading && groupedActivities.length > 0" class="mt-8 pt-6 border-t border-gray-200">
+    <div v-if="!loading" class="mt-8 pt-6 border-t border-gray-200">
       <AutomationHistory :issue-id="props.issueId" />
+    </div>
+
+    <!-- Agent audit log for this issue -->
+    <div v-if="!loading && workspaceId" class="mt-8 pt-6 border-t border-gray-200">
+      <details class="group" open>
+        <summary class="text-sm font-semibold text-gray-700 cursor-pointer select-none mb-3">
+          {{ t('agent.sectionTitle') }}
+        </summary>
+        <AgentAuditLog :workspace-id="workspaceId" :issue-id="issueId" />
+      </details>
     </div>
   </div>
 </template>
@@ -109,6 +119,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { getIssueActivities } from '@/api/issue'
 import AutomationHistory from '@/components/AutomationHistory.vue'
+import AgentAuditLog from '@/components/AgentAuditLog.vue'
 
 const { t } = useI18n()
 
@@ -127,6 +138,7 @@ interface Activity {
 
 const props = defineProps<{
   issueId: number
+  workspaceId?: number
 }>()
 
 const loading = ref(true)

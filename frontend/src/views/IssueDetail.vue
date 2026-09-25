@@ -90,6 +90,7 @@
           <IssueTabActivity
             v-else-if="activeTab === 'activity'"
             :issue-id="issueId"
+            :workspace-id="workspaceId"
           />
           <!-- AI Tab -->
           <div v-else-if="activeTab === 'ai'" class="space-y-4">
@@ -141,6 +142,8 @@
           :custom-fields="customFieldEntries"
           :workspace-id="workspaceId"
           :agent-dispatching="agentDispatching"
+          :agent-assigning="agentAssigning"
+          :agent-status="agentStatus"
           :labels="projectLabels"
           :relation-summary="relationSidebarSummary"
           @update:state="(id: any) => handleStateChange(id)"
@@ -153,6 +156,8 @@
           @update:target-date="(d: any) => instantUpdate('target_date', d + 'T00:00:00Z')"
           @update:labels="handleLabelsUpdate"
           @update:custom-field="updateCustomField"
+          @assign-agent="(id: string) => assignAgent(id)"
+          @unassign-agent="unassignAgent"
           @dispatch-agent="(id: string) => dispatchAgent(id)"
         />
       </div>
@@ -164,6 +169,9 @@
       :project-id="projectId"
       :workspace-id="workspaceId"
       :project-name="projectIdentifier"
+      :issue-id="issueId"
+      :issue-label="issueCopilotLabel"
+      view="issue_detail"
       @close="showAICopilot = false"
     />
   </div>
@@ -184,6 +192,8 @@ import { releaseApi } from '@/api/release'
 import projectApi from '@/api/project'
 import api from '@/api'
 import { agentApi } from '@/api/agent'
+import { issueAgentApi, type AgentStatus } from '@/api/issue-agent'
+import type { Agent } from '@/types/agent'
 import { useConfirm } from '@/composables/useConfirm'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
 import IssueDetailHeader from '@/components/IssueDetailHeader.vue'
@@ -228,8 +238,18 @@ const isWatching = ref(false)
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
+const agentAssigning = ref(false)
+const agentStatus = ref<AgentStatus | null>(null)
+const workspaceAgents = ref<Agent[]>([])
 const showAICopilot = ref(false)
 const activeApproval = ref<ApprovalResponse | null>(null)
+const issueCopilotLabel = computed(() => {
+  if (!issue.value) return ''
+  const seq = issue.value.sequence_id
+  const name = issue.value.name || ''
+  const prefix = projectIdentifier.value ? `${projectIdentifier.value}-` : '#'
+  return seq ? `${prefix}${seq} ${name}`.trim() : name
+})
 const currentUserId = computed(() => {
   // Prefer localStorage 'user_id' (matches existing convention in this file),
   // then fall back to the 'user' JSON blob, then 0.
@@ -242,10 +262,21 @@ const currentUserId = computed(() => {
   return 0
 })
 
-// v1: empty mention candidates list (the @mention picker will still work but
-// show no suggestions until project members/agents are wired in a follow-up).
-// This keeps the chat usable for plain text + agent @mentions resolved server-side.
-const chatMentionCandidates = computed(() => [] as { id: number; name: string; type: 'user' | 'agent' }[])
+const chatMentionCandidates = computed(() => {
+  const users = (projectMembers.value || []).map((m: any) => ({
+    id: m.id,
+    name: m.display_name || m.username || `User #${m.id}`,
+    type: 'user' as const,
+  }))
+  const agents = workspaceAgents.value
+    .filter((a) => a.status === 'active')
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      type: 'agent' as const,
+    }))
+  return [...users, ...agents]
+})
 const showSubmitDialog = ref(false)
 const showDecisionDialog = ref(false)
 const submitDialogData = ref<{ transitionId: number; fromStateName: string; approveStateName: string; approverNames: string[]; workflowName?: string }>({
@@ -321,6 +352,8 @@ onMounted(async () => {
       loadCustomFields(),
       loadLabels(),
       loadWatchers(),
+      loadAgentStatus(),
+      loadWorkspaceAgents(),
     ])
     // Load active approval if pending
     await loadActiveApproval()
@@ -328,6 +361,26 @@ onMounted(async () => {
     console.error('Failed to load issue:', error)
   }
 })
+
+async function loadAgentStatus() {
+  try {
+    const res = await issueAgentApi.getStatus(issueId)
+    agentStatus.value = res.data
+  } catch (error) {
+    console.error('Failed to load agent status:', error)
+    agentStatus.value = null
+  }
+}
+
+async function loadWorkspaceAgents() {
+  if (!workspaceId.value) return
+  try {
+    workspaceAgents.value = await agentApi.list(workspaceId.value)
+  } catch (error) {
+    console.error('Failed to load agents:', error)
+    workspaceAgents.value = []
+  }
+}
 
 async function loadStates() {
   try {
@@ -666,10 +719,39 @@ async function handleToggleWatch() {
   }
 }
 
-// Agent dispatch
+// Agent assign / unassign / dispatch
+async function assignAgent(agentSelectorId: string) {
+  if (!agentSelectorId || !agentSelectorId.startsWith('agent:')) return
+  const agentId = parseInt(agentSelectorId.replace('agent:', ''), 10)
+  if (!agentId) return
+  agentAssigning.value = true
+  try {
+    await issueAgentApi.assign(issueId, { agent_id: agentId })
+    await loadAgentStatus()
+    toast.success(t('agent.assignSuccess'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || t('common.error'))
+  } finally {
+    agentAssigning.value = false
+  }
+}
+
+async function unassignAgent() {
+  agentAssigning.value = true
+  try {
+    await issueAgentApi.unassign(issueId)
+    await loadAgentStatus()
+    toast.success(t('agent.unassignSuccess'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || t('common.error'))
+  } finally {
+    agentAssigning.value = false
+  }
+}
+
 async function dispatchAgent(agentSelectorId: string) {
   if (!agentSelectorId || !agentSelectorId.startsWith('agent:')) return
-  const agentId = parseInt(agentSelectorId.replace('agent:', ''))
+  const agentId = parseInt(agentSelectorId.replace('agent:', ''), 10)
   if (!agentId) return
   agentDispatching.value = true
   try {
@@ -679,6 +761,7 @@ async function dispatchAgent(agentSelectorId: string) {
       project_id: projectId.value,
     })
     toast.success(t('agent.dispatch'))
+    await loadAgentStatus()
   } catch (e: any) {
     toast.error(e?.response?.data?.message || e?.message || 'Failed to dispatch agent')
   } finally {

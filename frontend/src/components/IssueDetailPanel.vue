@@ -110,6 +110,7 @@
                 <IssueTabActivity
                   v-else-if="activeTab === 'activity'"
                   :issue-id="issue.id"
+                  :workspace-id="workspaceId"
                 />
               </div>
             </div>
@@ -127,6 +128,8 @@
                 :custom-fields="customFieldEntries"
                 :workspace-id="workspaceId"
                 :agent-dispatching="agentDispatching"
+                :agent-assigning="agentAssigning"
+                :agent-status="agentStatus"
                 :labels="projectLabels"
                 :relation-summary="relationSidebarSummary"
                 @update:state="handleStateChange"
@@ -139,6 +142,8 @@
                 @update:target-date="(d: any) => quickUpdate('target_date', d + 'T00:00:00Z')"
                 @update:labels="handleLabelsUpdate"
                 @update:custom-field="updateCustomField"
+                @assign-agent="assignAgent"
+                @unassign-agent="unassignAgent"
                 @dispatch-agent="dispatchAgent"
               />
             </div>
@@ -182,6 +187,7 @@ import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import { agentApi } from '@/api/agent'
+import { issueAgentApi, type AgentStatus } from '@/api/issue-agent'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
 import IssueTabDetails from '@/components/IssueTabDetails.vue'
@@ -228,6 +234,8 @@ const projectIdentifier = ref('')
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
+const agentAssigning = ref(false)
+const agentStatus = ref<AgentStatus | null>(null)
 const saving = ref(false)
 const projectLabels = ref<Array<{ id: number; name: string; color: string }>>([])
 const showSubmitDialog = ref(false)
@@ -287,6 +295,7 @@ watch(() => [props.issueId, props.visible] as const, async ([id, vis]) => {
         loadMembers(),
         loadCustomFields(),
         loadLabels(),
+        loadAgentStatus(id as number),
       ])
       await loadActiveApproval()
     } catch (e) {
@@ -298,8 +307,18 @@ watch(() => [props.issueId, props.visible] as const, async ([id, vis]) => {
   } else if (!vis) {
     issue.value = null
     activeApproval.value = null
+    agentStatus.value = null
   }
 }, { immediate: true })
+
+async function loadAgentStatus(id: number) {
+  try {
+    const res = await issueAgentApi.getStatus(id)
+    agentStatus.value = res.data
+  } catch {
+    agentStatus.value = null
+  }
+}
 
 async function loadStates() {
   try { stateOptions.value = await stateApi.listStates(props.projectId) } catch { /* */ }
@@ -502,6 +521,36 @@ async function handleLabelsUpdate(labelIds: number[]) {
   await quickUpdate('label_ids', labelIds)
 }
 
+async function assignAgent(agentSelectorId: string) {
+  if (!agentSelectorId || !agentSelectorId.startsWith('agent:') || !issue.value) return
+  const agentId = parseInt(agentSelectorId.replace('agent:', ''), 10)
+  if (!agentId) return
+  agentAssigning.value = true
+  try {
+    await issueAgentApi.assign(issue.value.id, { agent_id: agentId })
+    await loadAgentStatus(issue.value.id)
+    toast.success(t('agent.assignSuccess'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || t('common.error'))
+  } finally {
+    agentAssigning.value = false
+  }
+}
+
+async function unassignAgent() {
+  if (!issue.value) return
+  agentAssigning.value = true
+  try {
+    await issueAgentApi.unassign(issue.value.id)
+    await loadAgentStatus(issue.value.id)
+    toast.success(t('agent.unassignSuccess'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || t('common.error'))
+  } finally {
+    agentAssigning.value = false
+  }
+}
+
 async function dispatchAgent(agentSelectorId: string) {
   if (!agentSelectorId || !agentSelectorId.startsWith('agent:')) return
   const agentId = parseInt(agentSelectorId.replace('agent:', ''))
@@ -514,6 +563,7 @@ async function dispatchAgent(agentSelectorId: string) {
       project_id: props.projectId,
     })
     toast.success(t('agent.dispatch'))
+    if (issue.value) await loadAgentStatus(issue.value.id)
   } catch (e: any) {
     toast.error(e?.response?.data?.message || e?.message || 'Failed to dispatch agent')
   } finally { agentDispatching.value = false }

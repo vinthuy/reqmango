@@ -100,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { agentApi } from '@/api/agent'
 import type { Agent, AgentActivity } from '@/types/agent'
@@ -183,7 +183,11 @@ async function fetchActivities() {
     }
     if (filterAgentId.value) params.agent_id = parseInt(filterAgentId.value)
     if (filterAction.value) params.action = filterAction.value
-    activities.value = await agentApi.listWorkspaceActivity(props.workspaceId, params)
+    let list = await agentApi.listWorkspaceActivity(props.workspaceId, params)
+    if (props.issueId != null) {
+      list = (list || []).filter((act) => act.issue_id === props.issueId)
+    }
+    activities.value = list || []
   } catch (e) {
     console.error('Failed to fetch activities', e)
   } finally {
@@ -210,6 +214,10 @@ function refresh() {
 
 onMounted(() => {
   fetchAgents()
+  fetchActivities()
+})
+
+watch(() => [props.workspaceId, props.issueId] as const, () => {
   fetchActivities()
 })
 </script>
