@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Discussions (ideas & Q&A)
+    url: https://github.com/vinthuy/reqmango/discussions
+    about: Product ideas and open questions — prefer Discussions over feature issues when unsure.
+  - name: Good first issues list
+    url: https://github.com/vinthuy/reqmango/blob/master/docs/dev/good-first-issues.md
+    about: Curated starter tasks with file paths and acceptance criteria.

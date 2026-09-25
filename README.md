@@ -123,7 +123,10 @@ reqmango/
 
 ## Contributing
 
-Issues and pull requests are welcome.
+We welcome Issues and Pull Requests — especially small, focused changes.
+
+- [Contributing guide](CONTRIBUTING.md) · [中文](CONTRIBUTING-zh.md)
+- [Good first issues](docs/dev/good-first-issues.md) (curated starter tasks)
 
 ## License
 
