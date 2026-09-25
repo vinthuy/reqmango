@@ -516,14 +516,14 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | 🟠 中 | 13 | 13 | 0 |
 | 🔵 低 | 8 | 8 | 0 |
 | 🆕 UAT | 7 | 7 | 0 |
-| 🆕 E2E | 4 | 3 | 1 |
-| **总计** | **52** | **51** | **1** |
+| 🆕 E2E | 4 | 4 | 0 |
+| **总计** | **52** | **52** | **0** |
 
-> 修复率：**98.1%**（51/52）
+> 修复率：**100%**（52/52）
 >
-> 最近更新：2026-09-25（批量修复 20 项 + 代码审查修复 6 项 + 最终修复 25 项）
+> 最近更新：2026-09-25（批量修复 20 项 + 代码审查修复 6 项 + 最终修复 26 项）
 >
-> 剩余未修复：BUG-58 状态转换功能（需新功能开发）
+> 🎉 所有已知 Bug 已修复！
 
 ---
 
@@ -706,15 +706,14 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **修复** | 改为传入真实模型（`model.AgentWorkflow` / `model.WorkflowNode` / `model.WorkflowEdge`），既得到正确表名也恢复 `deleted_at` 软删除语义，并补上 `result.Error` 返回 |
 | **回归** | `frontend/e2e/workflow-automation-ui.spec.ts` 第 3 项现在断言删除必须 < 400 |
 
-### BUG-58 状态转换（state transition）功能未实现 🚧 未修复（已登记）
+### BUG-58 状态转换（state transition）功能未实现 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
 | **文件** | `backend/internal/handler/workflow_handler.go`（`AddTransition`/`UpdateTransition`/`DeleteTransition`）、`backend/internal/router/router.go`、`frontend/src/api/workflow.ts:215-229`、`frontend/src/components/StateTransition.vue:254` |
 | **类型** | 🟠 功能缺口 |
 | **影响** | ① `POST/PUT/DELETE /projects/:id/workflows/:workflowId/transitions` 是**占位实现**：直接返回 `{"message":"transition added"}`，不写任何数据；② **不存在 GET 路由**，而前端 `listStateTransitions()` 会调用它 → 转换列表 404/永远为空；③ `state_transitions.workflow_id` 外键指向**遗留表 `workflows`**，与当前项目工作流使用的 `agent_workflows` 无关联，因此即使插入数据也不会出现在工作流详情里；④ 审批（approval）创建要求存在 `rule_type='approval'` 的转换，API 无法创建 → **"创建审批"流程在 API 层不可达**（返回 400） |
-| **本轮处理** | 未实现（属于新功能，需要先做数据模型决策：新增 `agent_workflow_transitions` 表 vs 迁移外键）。已把相关用例改为断言当前真实契约，并在此登记，避免"看起来通过"的假象：`workflow-approval.spec.ts`（断言 400 拒绝）、`workflow-approval-api.spec.ts`（断言占位实现的 201 契约）、`workflow-automation-ui.spec.ts`（断言 nodes/edges 数组） |
-| **建议** | 明确转换的归属表 → 实现 `GET/POST/PUT/DELETE` 与校验 → 补 `StateTransition.vue` 的加载路径 → 再恢复"创建审批并批准/拒绝"的端到端用例 |
+| **修复** | ① 工作流处理器已实现真实的 CRUD 操作（非占位）；② 添加工作空间级 GET 路由；③ 迁移 `000021_drop_legacy_workflow_fk` 移除旧外键约束；④ 服务层 `AddTransition`/`UpdateTransition`/`DeleteTransition` 已实现完整数据库操作 |
 
 ### BUG-59 `/projects/:id/settings/states` 返回裸数组，与 `WorkflowManager` 期望不一致 ✅ 已修复
 
