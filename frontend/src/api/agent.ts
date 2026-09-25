@@ -22,6 +22,13 @@ export function invalidateAgentCache(workspaceId?: number) {
   }
 }
 
+/** Idempotently ensure the four out-of-box PM agents exist for a workspace. */
+export async function ensurePMAgents(workspaceId: number): Promise<Agent[]> {
+  const res = await api.post(`/workspaces/${workspaceId}/agents/ensure-pm`)
+  invalidateListCache(workspaceId)
+  return res.data?.agents ?? res.data ?? []
+}
+
 export const agentApi = {
   list(workspaceId: number): Promise<Agent[]> {
     const cached = _listCache.get(workspaceId)
@@ -83,4 +90,6 @@ export const agentApi = {
   rateActivity(workspaceId: number, activityId: number, rating: 1 | -1): Promise<void> {
     return api.patch(`/workspaces/${workspaceId}/agents/activity/${activityId}/feedback`, { rating })
   },
+
+  ensurePMAgents,
 }

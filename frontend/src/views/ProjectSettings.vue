@@ -5,6 +5,7 @@ import { workspaceApi } from '@/api/workspace'
 import { projectApi } from '@/api/project'
 import { workflowApi } from '@/api/workflow'
 import { automationApi } from '@/api/automation'
+import { ensurePMAgents } from '@/api/agent'
 import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
@@ -194,12 +195,28 @@ async function loadData() {
 }
 
 // ===== Automation Templates =====
+const TRIAGE_AGENT_NAME = '请求分诊'
+const installingPMAgents = ref(false)
+
 const automationTemplates = ref([
+  {
+    name: 'intakeTriage',
+    icon: '🏥',
+    bgClass: 'bg-teal-100',
+    trigger: 'issue.created',
+    conditions: [],
+    actions: [{
+      type: 'dispatch_agent',
+      value: null as number | null,
+      field: '请对此工作项做分诊：建议类型/优先级/标签，并指出可能重复项。只输出建议。',
+    }],
+    requiresPMAgents: true,
+  },
   {
     name: 'autoAssignBugs',
     icon: '🐛',
     bgClass: 'bg-red-100',
-    trigger: 'issue_created',
+    trigger: 'issue.created',
     conditions: [{ field: 'priority', operator: 'equals', value: 'urgent' }],
     actions: [{ type: 'add_comment', value: t('automationTemplates.commentUrgentBug') }]
   },
@@ -207,7 +224,7 @@ const automationTemplates = ref([
     name: 'notifyOnComment',
     icon: '💬',
     bgClass: 'bg-blue-100',
-    trigger: 'comment_added',
+    trigger: 'comment.added',
     conditions: [],
     actions: [{ type: 'add_comment', value: t('automationTemplates.commentNewComment') }]
   },
@@ -215,7 +232,7 @@ const automationTemplates = ref([
     name: 'setDefaultPriority',
     icon: '⚡',
     bgClass: 'bg-amber-100',
-    trigger: 'issue_created',
+    trigger: 'issue.created',
     conditions: [],
     actions: [{ type: 'set_priority', value: 'medium' }]
   },
@@ -223,7 +240,7 @@ const automationTemplates = ref([
     name: 'autoCloseOnDone',
     icon: '✅',
     bgClass: 'bg-green-100',
-    trigger: 'state_changed',
+    trigger: 'issue.state_changed',
     conditions: [{ field: 'state', operator: 'equals', value: 'done' }],
     actions: [{ type: 'add_comment', value: t('automationTemplates.commentIssueDone') }]
   },
@@ -231,7 +248,7 @@ const automationTemplates = ref([
     name: 'remindDueSoon',
     icon: '⏰',
     bgClass: 'bg-purple-100',
-    trigger: 'issue_created',
+    trigger: 'issue.created',
     conditions: [{ field: 'due_date', operator: 'is_not_empty', value: '' }],
     actions: [{ type: 'add_comment', value: t('automationTemplates.commentDueSoon') }]
   },
@@ -239,20 +256,54 @@ const automationTemplates = ref([
     name: 'archiveOnCancel',
     icon: '📦',
     bgClass: 'bg-gray-100',
-    trigger: 'state_changed',
+    trigger: 'issue.state_changed',
     conditions: [{ field: 'state', operator: 'equals', value: 'cancelled' }],
     actions: [{ type: 'add_comment', value: t('automationTemplates.commentArchived') }]
   }
 ])
 
+function triggerTypeLabelKey(trigger: string): string {
+  return trigger.replace(/\./g, '_')
+}
+
+async function installPMAgents() {
+  if (!workspaceId.value || installingPMAgents.value) return
+  installingPMAgents.value = true
+  try {
+    await ensurePMAgents(workspaceId.value)
+    toast.success(t('automationTemplates.installPMAgentsDone'))
+  } catch (e: any) {
+    console.error('Failed to install PM agents:', e)
+    toast.error(e?.response?.data?.message || t('automationTemplates.createFailed'))
+  } finally {
+    installingPMAgents.value = false
+  }
+}
+
 async function applyTemplate(template: any) {
   try {
+    let actions = template.actions.map((a: any) => ({ ...a }))
+    if (template.requiresPMAgents) {
+      if (!workspaceId.value) {
+        toast.error(t('automationTemplates.createFailed'))
+        return
+      }
+      const agents = await ensurePMAgents(workspaceId.value)
+      const triage = agents.find((a) => a.name === TRIAGE_AGENT_NAME)
+      if (!triage?.id) {
+        toast.error(t('automationTemplates.createFailed'))
+        return
+      }
+      actions = actions.map((a: any) =>
+        a.type === 'dispatch_agent' ? { ...a, value: triage.id } : a
+      )
+    }
     const data = {
       name: t(`automationTemplates.${template.name}`),
       description: t(`automationTemplates.${template.name}Desc`),
       trigger_type: JSON.stringify({ type: template.trigger }),
       conditions: template.conditions.length > 0 ? JSON.stringify(template.conditions) : undefined,
-      actions: JSON.stringify(template.actions)
+      actions: JSON.stringify(actions)
     }
     await automationApi.create(projectId.value, data)
     await loadData()
@@ -888,7 +939,16 @@ onMounted(async () => {
         <div v-if="!loading && activeSection === 'automations'" class="space-y-6">
           <div class="flex items-center justify-between">
             <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.automations') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.automationsDesc') }}</p></div>
-            <button @click="handleAddAutomation" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createAutomation') }}</button>
+            <div class="flex items-center gap-2">
+              <button
+                @click="installPMAgents"
+                :disabled="installingPMAgents"
+                class="bg-white text-teal-700 border border-teal-200 px-4 py-2 rounded-lg hover:bg-teal-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ installingPMAgents ? '…' : t('automationTemplates.installPMAgents') }}
+              </button>
+              <button @click="handleAddAutomation" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createAutomation') }}</button>
+            </div>
           </div>
           <div class="space-y-4">
             <div v-for="automation in automations" :key="automation.id" class="bg-white rounded-xl border border-gray-200 p-4" :class="{ 'opacity-60': automation.is_inherited }">
@@ -949,7 +1009,7 @@ onMounted(async () => {
                   </div>
                 </div>
                 <div class="flex items-center space-x-2 text-xs text-gray-400">
-                  <span class="px-2 py-0.5 bg-gray-100 rounded">{{ t(`settings.triggerTypes.${template.trigger}`) }}</span>
+                  <span class="px-2 py-0.5 bg-gray-100 rounded">{{ t(`settings.triggerTypes.${triggerTypeLabelKey(template.trigger)}`) }}</span>
                   <span>{{ template.actions.length }} {{ t('settings.actions') }}</span>
                 </div>
                 <div class="mt-3 pt-3 border-t border-gray-100">
