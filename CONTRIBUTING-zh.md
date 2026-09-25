@@ -4,15 +4,34 @@
 
 [English](CONTRIBUTING.md)
 
+## 国内共建主场 / 国际镜像
+
+| | 地址 | 用途 |
+|---|---|---|
+| **GitCode（主场）** | https://gitcode.com/yongfeng9m-/reqmanpy | 中文 Issue / PR、日常讨论 |
+| **GitHub（镜像）** | https://github.com/vinthuy/reqmango | 国际可见度；与主场同一套源码与叙事 |
+
+两套仓库**不是**两个产品。请只认上面这一句定位。
+
 ## 开始之前
 
 1. 先读 [README-zh.md](README-zh.md) 的一句话定位。
 2. **小步 PR**，避免一次性大重构。
-3. 先看 [Issues](https://github.com/vinthuy/reqmango/issues) 和 [good first issues 清单](docs/dev/good-first-issues.md)，避免重复开工。
+3. 先看主场 Issues，并参考 [good first issues 清单](docs/dev/good-first-issues.md)，避免重复开工。
 
 ## 快速环境
 
 ### Docker（推荐）
+
+```bash
+# 国内推荐从 GitCode 克隆
+git clone https://gitcode.com/yongfeng9m-/reqmanpy.git reqmango
+cd reqmango
+cp .env.example .env
+docker compose up --build
+```
+
+国际镜像：
 
 ```bash
 git clone https://github.com/vinthuy/reqmango.git
@@ -46,13 +65,13 @@ docker compose up --build
 
 ## 流程
 
-1. Fork，从 `master` 拉分支。
+1. Fork **GitCode 主场**（国内）或 GitHub 镜像（国际），从 `master` 拉分支。
 2. 只做与 Issue 相关的改动。
 3. 本地验证：
    - 前端：`cd frontend && npx vitest run`（动到类型时再跑 `npx vue-tsc --noEmit`）
    - 后端：`cd backend && go test ./internal/...`
    - 手动走一遍复现路径或主流程
-4. 按 PR 模板提 PR，并关联 Issue。
+4. 按 PR 模板提 PR，并关联 Issue（优先提到你克隆的那一侧；维护者会同步双远程）。
 
 CI 见 `.github/workflows/ci.yml`，请保持绿色。
 
@@ -69,6 +88,10 @@ CI 见 `.github/workflows/ci.yml`，请保持绿色。
 - 无说明的破坏性 API 变更
 - 无功能需求的依赖大升级
 - 提交密钥、真实 `.env`、大体积二进制
+
+## 维护者
+
+双远程同步说明：[docs/dev/dual-remote.md](docs/dev/dual-remote.md)
 
 ## License
 

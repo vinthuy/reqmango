@@ -3,14 +3,16 @@
 **自建项目管理：新需求先分诊，再进待办。**  
 提交后先给出类型、优先级与疑似重复建议，拿不准的才由人决定。
 
-[English](README.md)
+[English](README.md) · [贡献指南](CONTRIBUTING-zh.md) · [GitCode 国内主场](https://gitcode.com/yongfeng9m-/reqmanpy) · [GitHub 国际镜像](https://github.com/vinthuy/reqmango)
 
 ---
 
 ## 一条命令试用
 
 ```bash
-git clone https://github.com/vinthuy/reqmango.git
+# 国内推荐 GitCode 主场
+git clone https://gitcode.com/yongfeng9m-/reqmanpy.git reqmango
+# 国际镜像: git clone https://github.com/vinthuy/reqmango.git
 cd reqmango
 cp .env.example .env
 docker compose up --build
@@ -127,6 +129,7 @@ reqmango/
 
 - [贡献指南](CONTRIBUTING-zh.md) · [English](CONTRIBUTING.md)
 - [适合新手的任务清单](docs/dev/good-first-issues.md)
+- **国内共建主场：** [GitCode](https://gitcode.com/yongfeng9m-/reqmanpy) · **国际镜像：** [GitHub](https://github.com/vinthuy/reqmango) — 同一套源码与产品叙事（[双远程说明](docs/dev/dual-remote.md)）
 
 ## License
 
