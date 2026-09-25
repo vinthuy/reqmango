@@ -3,7 +3,7 @@
 **Self-hosted project management where new requests are triaged first.**  
 Type, priority, and likely duplicates are suggested before work lands in the backlog — you only decide the uncertain ones.
 
-[中文文档](README-zh.md)
+[中文文档](README-zh.md) · [Contributing](CONTRIBUTING.md) · [国内共建主场 GitCode](https://gitcode.com/yongfeng9m-/reqmanpy) · [GitHub mirror](https://github.com/vinthuy/reqmango)
 
 ---
 
@@ -11,6 +11,7 @@ Type, priority, and likely duplicates are suggested before work lands in the bac
 
 ```bash
 git clone https://github.com/vinthuy/reqmango.git
+# China: git clone https://gitcode.com/yongfeng9m-/reqmanpy.git reqmango
 cd reqmango
 cp .env.example .env
 docker compose up --build
@@ -127,6 +128,7 @@ We welcome Issues and Pull Requests — especially small, focused changes.
 
 - [Contributing guide](CONTRIBUTING.md) · [中文](CONTRIBUTING-zh.md)
 - [Good first issues](docs/dev/good-first-issues.md) (curated starter tasks)
+- **CN collaboration hub:** [GitCode](https://gitcode.com/yongfeng9m-/reqmanpy) · **International mirror:** [GitHub](https://github.com/vinthuy/reqmango) — same code, same product story ([dual-remote](docs/dev/dual-remote.md))
 
 ## License
 
