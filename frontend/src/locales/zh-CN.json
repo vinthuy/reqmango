@@ -3479,7 +3479,23 @@
     }
   },
   "intake": {
-    "yourName": "您的姓名"
+    "yourName": "您的姓名",
+    "title": "分诊",
+    "desc": "审查和管理入口工作项",
+    "pendingCount": "{count} 待处理",
+    "formLink": "+ 入口表单链接",
+    "loading": "加载中...",
+    "empty": "暂无待分诊项",
+    "emptyHint": "分享入口表单链接以接收提交",
+    "pendingBadge": "待处理",
+    "aiLabel": "🤖 AI：",
+    "possibleDuplicates": "⚠ 可能重复：#{ids}",
+    "accept": "接受",
+    "reject": "拒绝",
+    "analyzing": "...",
+    "analyzeFailed": "AI 分析失败",
+    "loadFailed": "加载入口队列失败",
+    "actionFailed": "操作失败"
   },
   "issueType": {
     "workItemTypes": "工作项类型",

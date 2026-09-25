@@ -2,22 +2,22 @@
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900">Triage</h2>
-        <p class="text-sm text-gray-500 mt-1">Review and manage incoming work items</p>
+        <h2 class="text-lg font-semibold text-gray-900">{{ t('intake.title') }}</h2>
+        <p class="text-sm text-gray-500 mt-1">{{ t('intake.desc') }}</p>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-sm text-gray-500">{{ items.length }} pending</span>
+        <span class="text-sm text-gray-500">{{ t('intake.pendingCount', { count: items.length }) }}</span>
         <button @click="$emit('showForm')" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">
-          + Intake Form Link
+          {{ t('intake.formLink') }}
         </button>
       </div>
     </div>
 
-    <div v-if="loading" class="text-center py-8 text-gray-400">Loading...</div>
+    <div v-if="loading" class="text-center py-8 text-gray-400">{{ t('intake.loading') }}</div>
 
     <div v-else-if="items.length === 0" class="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-      <p class="text-gray-500">No items to triage</p>
-      <p class="text-xs text-gray-400 mt-1">Share the intake form link to receive submissions</p>
+      <p class="text-gray-500">{{ t('intake.empty') }}</p>
+      <p class="text-xs text-gray-400 mt-1">{{ t('intake.emptyHint') }}</p>
     </div>
 
     <div v-else class="space-y-3">
@@ -26,7 +26,7 @@
           <div class="flex-1">
             <div class="flex items-center gap-2 mb-1">
               <span class="text-sm font-medium text-gray-900">{{ item.name }}</span>
-              <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded">Pending</span>
+              <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded">{{ t('intake.pendingBadge') }}</span>
             </div>
             <p v-if="item.description_html && item.description_html !== '<p></p>'" class="text-xs text-gray-500 line-clamp-2" v-html="item.description_html"></p>
             <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
@@ -37,20 +37,22 @@
           <!-- AI Suggestion -->
           <div v-if="aiResults[item.id]" class="mt-2 p-2 bg-indigo-50 rounded text-xs">
             <div class="flex items-center gap-2 mb-1">
-              <span class="font-medium text-indigo-700">🤖 AI:</span>
+              <span class="font-medium text-indigo-700">{{ t('intake.aiLabel') }}</span>
               <span class="text-indigo-600">{{ aiResults[item.id].suggested_type }}</span>
               <span :class="'px-1 rounded text-white '+(aiResults[item.id].suggested_priority==='urgent'?'bg-red-500':'bg-amber-500')">{{ aiResults[item.id].suggested_priority }}</span>
             </div>
             <div class="text-gray-600">{{ aiResults[item.id].summary }}</div>
-            <div v-if="aiResults[item.id].has_duplicates" class="text-amber-600 mt-1">⚠ Possible duplicates: #{{ aiResults[item.id].duplicate_ids?.join(', #') }}</div>
+            <div v-if="aiResults[item.id].has_duplicates" class="text-amber-600 mt-1">
+              {{ t('intake.possibleDuplicates', { ids: aiResults[item.id].duplicate_ids?.join(', #') }) }}
+            </div>
           </div>
 
           <div class="flex items-center gap-2 ml-4">
             <button @click="analyzeAI(item.id)" class="px-2 py-1.5 text-xs border border-indigo-300 text-indigo-600 rounded hover:bg-indigo-50" :disabled="analyzing[item.id]">
-              {{ analyzing[item.id] ? '...' : '🤖' }}
+              {{ analyzing[item.id] ? t('intake.analyzing') : '🤖' }}
             </button>
-            <button @click="triage(item.id, 'accept')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700">Accept</button>
-            <button @click="triage(item.id, 'reject')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded hover:bg-red-600">Reject</button>
+            <button @click="triage(item.id, 'accept')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700">{{ t('intake.accept') }}</button>
+            <button @click="triage(item.id, 'reject')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded hover:bg-red-600">{{ t('intake.reject') }}</button>
           </div>
         </div>
       </div>
@@ -62,9 +64,11 @@
 import { ref, onMounted } from 'vue'
 import api from '@/api'
 import { useToast } from '@/composables/useToast'
+import { useI18n } from '@/composables/useI18n'
 
 const props = defineProps<{ projectId: number }>()
 const toast = useToast()
+const { t, locale } = useI18n()
 defineEmits<{ (e: 'showForm'): void }>()
 
 const items = ref<any[]>([])
@@ -78,7 +82,7 @@ async function analyzeAI(issueId: number) {
     const r = await api.post(`/projects/${props.projectId}/intake/${issueId}/ai-analyze`)
     aiResults.value[issueId] = r.data
   } catch (e: any) {
-    toast.error(e?.response?.data?.message || e?.message || 'AI analyze failed')
+    toast.error(e?.response?.data?.message || e?.message || t('intake.analyzeFailed'))
   } finally { analyzing.value[issueId] = false }
 }
 
@@ -88,7 +92,7 @@ async function load() {
   loading.value = true
   try { const r = await api.get(`/projects/${props.projectId}/intake`); items.value = r.data || [] }
   catch (e: any) {
-    toast.error(e?.response?.data?.message || e?.message || 'Failed to load intake')
+    toast.error(e?.response?.data?.message || e?.message || t('intake.loadFailed'))
   }
   finally { loading.value = false }
 }
@@ -97,8 +101,10 @@ async function triage(issueId: number, action: string) {
   try {
     await api.post(`/projects/${props.projectId}/intake/${issueId}/triage`, { action })
     load()
-  } catch (e: any) { toast.error(e.response?.data?.message || 'Failed') }
+  } catch (e: any) { toast.error(e.response?.data?.message || t('intake.actionFailed')) }
 }
 
-function formatDate(d: string) { return new Date(d).toLocaleDateString() }
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US')
+}
 </script>
