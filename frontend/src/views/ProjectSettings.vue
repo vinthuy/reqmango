@@ -186,8 +186,12 @@ async function loadData() {
     ])
     states.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value?.data) ? results[0].value.data : (Array.isArray(results[0].value) ? results[0].value : [])) : []
     labels.value = results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : []) : []
-    workflows.value = results[2].status === 'fulfilled' ? (Array.isArray(results[2].value) ? results[2].value : []) : []
-    automations.value = results[3].status === 'fulfilled' ? (Array.isArray(results[3].value) ? results[3].value : []) : []
+    workflows.value = results[2].status === 'fulfilled'
+      ? (Array.isArray(results[2].value) ? results[2].value : (Array.isArray((results[2].value as any)?.data) ? (results[2].value as any).data : []))
+      : []
+    automations.value = results[3].status === 'fulfilled'
+      ? (Array.isArray(results[3].value) ? results[3].value : (Array.isArray((results[3].value as any)?.data) ? (results[3].value as any).data : []))
+      : []
     members.value = results[4].status === 'fulfilled' ? (Array.isArray(results[4].value) ? results[4].value : (results[4].value?.data || [])) : []
   } catch (e: any) {
     console.error('Failed to load data:', e)

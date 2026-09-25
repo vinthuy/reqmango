@@ -110,7 +110,12 @@ export interface CreateEdgeRequest {
 
 export const workflowApi = {
   list(projectId: number) {
-    return apiClient.get<{ data: Workflow[] }>(`/projects/${projectId}/workflows`)
+    return apiClient.get<{ data: Workflow[] }>(`/projects/${projectId}/workflows`).then((r) => {
+      const body = r.data as any
+      if (Array.isArray(body)) return body as Workflow[]
+      if (Array.isArray(body?.data)) return body.data as Workflow[]
+      return [] as Workflow[]
+    })
   },
 
   create(projectId: number, data: CreateWorkflowRequest) {

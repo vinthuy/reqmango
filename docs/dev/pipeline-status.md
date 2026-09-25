@@ -8,6 +8,7 @@
 
 | 功能 | Spec | Design | Plan | Implement | 备注 |
 |------|------|--------|------|-----------|------|
+| 产品化主路径（原生 PM） | ✅ | — | ✅ QA checklist | ✅ PASS（CORE-01 已修） | [验收](acceptance/2026-09-25-product-core-qa.md) |
 | AI 项目管理（Plane 路径） | ✅ | ✅ | ✅ P1+P2+B1+C1+B2+C2 | ✅ 通过（含发布前手测） | [设计](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [预检](acceptance/2026-09-25-release-preflight.md) · KB ✅ · **下一阶段=存量质量** |
 
 ---

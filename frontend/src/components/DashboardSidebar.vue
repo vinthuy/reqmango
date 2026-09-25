@@ -4,7 +4,7 @@
       <h3 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{{ t('dashboard.customAnalytics') }}</h3>
       <button @click="$emit('create')"
         class="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-        :title="t('dashboard.createFirst')">
+        :title="t('dashboard.addWidget')">
         <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>

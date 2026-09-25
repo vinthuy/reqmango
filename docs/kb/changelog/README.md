@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-09-25 — 产品化主路径验收 + 工作流/仪表盘修复
+
+**类型**: QA + Fix
+
+**变更内容**:
+- 原生 PM 主路径手测通过（工作空间/工作项/周期/工作流/自动化/度量/仪表盘/文档）
+- **CORE-01**：工作流列表解包 `{data}`；仪表盘首次进入自动加载 widget_data
+- TopBar 已移除 Agent 平台主导航（Stage A）
+- 验收：`docs/dev/acceptance/2026-09-25-product-core-qa.md`
+
+**影响文件**:
+- `frontend/src/api/workflow.ts`, `views/ProjectSettings.vue`, `composables/useDashboard.ts`, `components/DashboardSidebar.vue`, `components/TopBar.vue`
+
+---
+
 ## 2026-09-25 — AI 项目管理路径（B1+C1+B2+C2）同步
 
 **类型**: Feature + Documentation

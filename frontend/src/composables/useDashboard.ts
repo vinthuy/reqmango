@@ -33,6 +33,13 @@ export function useDashboard(projectId: number) {
         if (def) currentId.value = def.id
         else if (dashboards.value.length > 0) currentId.value = dashboards.value[0].id
       }
+      if (currentId.value) {
+        // load widget payload without toggling loading (already true)
+        const full: DashboardFullResponse = await dashboardApi.getDashboardFull(projectId, currentId.value)
+        const idx = dashboards.value.findIndex((d) => d.id === currentId.value)
+        if (idx >= 0) dashboards.value[idx] = full.dashboard
+        widgetData.value = full.widget_data
+      }
     } catch (e) {
       console.error('Failed to load dashboards', e)
     } finally {
