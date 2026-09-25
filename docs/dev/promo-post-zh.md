@@ -1,6 +1,18 @@
-# 发帖成稿（V2EX / Linux.do）
+# 发帖成稿（国内平台）
 
-> 主推 **GitCode**；GitHub 只作镜像一句带过。`docs/assets/demo.gif` 已就位，可直接贴走查 + 仓库链接（论坛若支持外链图，用 GitHub raw）。
+> 主推 **GitCode**；GitHub 只作国际镜像一句带过。  
+> **不投 Linux.do。** 优先国内开发者常去的平台。
+
+## 渠道状态
+
+| 平台 | 状态 | 入口 |
+|------|------|------|
+| V2EX · 分享创造 | **已发** | https://www.v2ex.com/t/1244811 |
+| 掘金 | 待发 | https://juejin.cn/editor/drafts/new |
+| 开源中国 · 开源资讯/软件 | 待发 | https://www.oschina.net |
+| 思否 SegmentFault | 待发 | https://segmentfault.com/write |
+| GitCode 项目动态 / README | 持续 | https://gitcode.com/yongfeng9m-/reqmanpy |
+| 博客园 / CSDN | 可选（转载同文 + 原文链接） | — |
 
 ---
 
@@ -61,7 +73,8 @@ MIT。小步 PR 最欢迎；Agent 控制台大重构请先开 Discussion，默�
 ## 发帖检查
 
 - [x] 动图已上传（README + raw 链接）
-- [ ] 克隆地址是 GitCode
-- [ ] 只贴 2～3 个 Issue，不要贴整表
+- [x] V2EX 已发
+- [ ] 下一篇优先 **掘金**（标签：开源 / 项目管理 / Docker / Vue）
+- [ ] 克隆地址写 GitCode
 - [ ] 不求 star、不对比喷竞品
-- [ ] 发完后在 GitCode 钉一条「欢迎领 GFI」（token 就绪后跑 `scripts/create-gitcode-gfi-issues.mjs`）
+- [ ] 文末可加一句：讨论优先回 GitCode Issue

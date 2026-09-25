@@ -1,0 +1,38 @@
+自建需求系统：进来先分诊，拿不准的才进待办
+
+---
+
+团队里最烦的不是「缺看板」，是需求从群里/邮件/口头涌进来时，类型、优先级、是否重复全靠人肉分。
+
+Reqmango 是开源的**自建项目管理**：新需求先走 Intake 分诊（类型 / 优先级 / 疑似重复建议），拿不准的再人工处理；AI 嵌在 Issue / Intake / Cycle 里，数据在自己的机器上。
+
+**一键试用：**
+
+```bash
+git clone https://gitcode.com/yongfeng9m-/reqmanpy.git reqmango
+cd reqmango
+cp .env.example .env
+docker compose up --build
+```
+
+浏览器打开 http://localhost  
+账号：`demo@example.com` / `demo1234`  
+（可选）.env 里配 `AI_API_KEY` 后重启，才能看到 AI 分诊建议。
+
+**演示：** Intake 提交 → 分诊队列接受/拒绝  
+https://raw.githubusercontent.com/vinthuy/reqmango/master/docs/assets/demo.gif
+
+**一分钟走查：** 登录 → 项目设置 → 分诊 →「入口表单链接」提交一条需求 → 回到队列点接受/拒绝。
+
+**欢迎共建：**
+
+国内主场：https://gitcode.com/yongfeng9m-/reqmanpy  
+国际镜像：https://github.com/vinthuy/reqmango
+
+- 筛选芯片 i18n：https://github.com/vinthuy/reqmango/issues/3
+- Compose 首启说明：https://github.com/vinthuy/reqmango/issues/9
+- 欢迎总览：https://github.com/vinthuy/reqmango/issues/13
+
+贡献指南：https://gitcode.com/yongfeng9m-/reqmanpy/blob/master/CONTRIBUTING-zh.md
+
+MIT。小步 PR 最欢迎。
