@@ -3502,7 +3502,12 @@
     "weekly": "周",
     "monthly": "月",
     "savedReport": "已保存报表",
-    "selectReport": "选择报表"
+    "selectReport": "选择报表",
+    "aiSummary": "AI 项目摘要",
+    "aiSummaryEmpty": "暂无摘要，点击刷新生成。",
+    "aiSummaryInsights": "洞察",
+    "aiSummaryBottlenecks": "瓶颈",
+    "aiSummaryRefresh": "刷新摘要"
   },
   "plugin": {
     "title": "插件管理",

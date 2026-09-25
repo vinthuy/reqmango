@@ -58,6 +58,7 @@
             @add="showAddWidget = true"
             @configure="openConfig"
             @delete-widget="handleDeleteWidget"
+            @refresh="loadWidgetData"
           />
         </template>
 
@@ -132,6 +133,7 @@ const {
   loadDashboards, selectDashboard, createDashboard,
   updateDashboardMeta, deleteCurrentDashboard, duplicateCurrentDashboard,
   addWidgetToCurrent, updateWidgetOnCurrent, deleteWidgetOnCurrent,
+  loadWidgetData,
 } = useDashboard(projectId.value)
 
 const gridRef = ref()
@@ -152,6 +154,7 @@ const widgetTypes = computed(() => [
   { type: 'table' as WidgetType, label: t('dashboard.table'), icon: 'M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' },
   { type: 'recent_list' as WidgetType, label: t('dashboard.recentList'), icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
   { type: 'saved_report' as WidgetType, label: t('dashboard.savedReport'), icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { type: 'ai_summary' as WidgetType, label: t('dashboard.aiSummary'), icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
 ])
 
 onMounted(() => {
@@ -223,12 +226,18 @@ async function handleAddWidget(widgetType: WidgetType) {
     table: t('dashboard.table'),
     recent_list: t('dashboard.recentList'),
     saved_report: t('dashboard.savedReport'),
+    ai_summary: t('dashboard.aiSummary'),
   }
+  let config: Record<string, unknown> = { metric: 'total', label: t('dashboard.totalIssues') }
+  if (widgetType === 'burndown') config = { cycle_id: null }
+  else if (widgetType === 'recent_list') config = { limit: 10 }
+  else if (widgetType === 'saved_report') config = { saved_report_id: null }
+  else if (widgetType === 'ai_summary') config = {}
   const data: WidgetCreate = {
     widget_type: widgetType,
     title: titleMap[widgetType],
-    config: widgetType === 'burndown' ? { cycle_id: null } : (widgetType === 'recent_list' ? { limit: 10 } : (widgetType === 'saved_report' ? { saved_report_id: null } : { metric: 'total', label: t('dashboard.totalIssues') })),
-    position: { x: 0, y: 0, w: 4, h: 3 },
+    config,
+    position: { x: 0, y: 0, w: widgetType === 'ai_summary' ? 6 : 4, h: widgetType === 'ai_summary' ? 4 : 3 },
   }
   await addWidgetToCurrent(data)
   showAddWidget.value = false

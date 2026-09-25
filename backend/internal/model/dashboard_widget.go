@@ -7,7 +7,7 @@ type DashboardWidget struct {
 	BaseModel
 
 	DashboardID uint64 `gorm:"not null;index" json:"dashboard_id"`
-	// WidgetType: number_card | bar_chart | pie_chart | doughnut_chart | line_chart | burndown | table | recent_list | saved_report
+	// WidgetType: number_card | bar_chart | pie_chart | doughnut_chart | line_chart | burndown | table | recent_list | saved_report | ai_summary
 	WidgetType string `gorm:"size:30;not null" json:"widget_type"`
 	Title      string `gorm:"size:100" json:"title"`
 	// Description is an optional tooltip/help text
