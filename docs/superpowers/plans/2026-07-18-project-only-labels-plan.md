@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 工作项标签回归纯项目级（对齐 Plane），移除工作空间标签的全部前后端实现与遗留数据，并顺带修复重名无约束、跨项目挂标签、报表标签路径三个缺陷。
+**Goal:** 工作项标签回归纯项目级（），移除工作空间标签的全部前后端实现与遗留数据，并顺带修复重名无约束、跨项目挂标签、报表标签路径三个缺陷。
 
 **Architecture:** 单表 `labels` 保留，`project_id` 变 NOT NULL；删除 5 条工作空间标签路由/handler/service；项目标签查询去继承；启动时清理 `project_id IS NULL` 遗留行并建 `(project_id, name)` 部分唯一索引。前端删除 WorkspaceSettings 标签区块、ProjectSettings 去继承徽章。
 
@@ -311,7 +311,7 @@ git commit -m "feat(labels): required project_id, duplicate-name 409, cross-proj
 在 `if err := db.AutoMigrate(` 语句**之前**（`fmt.Println("Database connected")` 之后）插入：
 
 ```go
-	// Purge legacy workspace-level labels so project_id can become NOT NULL (project-only labels, aligned with Plane)
+	// Purge legacy workspace-level labels so project_id can become NOT NULL (project-only labels, project-scoped)
 	db.Exec(`DELETE FROM issue_labels WHERE label_id IN (SELECT id FROM labels WHERE project_id IS NULL)`)
 	db.Exec(`DELETE FROM labels WHERE project_id IS NULL`)
 ```
@@ -331,7 +331,7 @@ git commit -m "feat(labels): required project_id, duplicate-name 409, cross-proj
 `backend/migrations/000009_project_only_labels.up.sql`：
 
 ```sql
--- Work item labels become project-only (aligned with Plane): purge workspace-level labels
+-- Work item labels become project-only (project-scoped): purge workspace-level labels
 DELETE FROM issue_labels WHERE label_id IN (SELECT id FROM labels WHERE project_id IS NULL);
 DELETE FROM labels WHERE project_id IS NULL;
 ALTER TABLE labels ALTER COLUMN project_id SET NOT NULL;

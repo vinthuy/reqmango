@@ -1,4 +1,4 @@
-# Workflow Approval Design (Plane AI Style)
+# Workflow Approval Design (异步审批)
 
 > Date: 2026-07-19
 > Status: Draft
@@ -6,7 +6,7 @@
 
 ## 1. Overview
 
-Reference: Plane AI's asynchronous approval flow pattern.
+Reference: asynchronous approval flow pattern.
 
 This feature replaces the current "permission-check only" approval logic with a complete asynchronous approval workflow:
 

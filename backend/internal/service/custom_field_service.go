@@ -113,11 +113,11 @@ func (s *CustomFieldService) List(workspaceID uint64, projectID *uint64, issueTy
 	query := s.db.Model(&model.CustomField{}).Where("workspace_id = ?", workspaceID)
 
 	if projectID != nil {
-		// Three-way union (Plane v3-style Import model coexists with legacy flows):
+		// Three-way union (workspace-type Import model coexists with legacy flows):
 		//   1. Project-private fields (project_id = ?)
 		//   2. Workspace-level fields explicitly enrolled by the project (legacy)
 		//   3. Workspace-level fields attached to a type the project has imported
-		//      via the Plane v3 Import model (fields "follow" the type)
+		//      via the workspace-type Import model (fields "follow" the type)
 		query = query.Where(`project_id = ?
 			OR (project_id IS NULL AND EXISTS (
 				SELECT 1 FROM project_custom_field_enrollments

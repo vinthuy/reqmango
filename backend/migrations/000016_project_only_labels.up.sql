@@ -1,4 +1,4 @@
--- Work item labels become project-only (aligned with Plane): purge workspace-level labels
+-- Work item labels become project-only: purge workspace-level labels
 DELETE FROM issue_labels WHERE label_id IN (SELECT id FROM labels WHERE project_id IS NULL);
 DELETE FROM labels WHERE project_id IS NULL;
 ALTER TABLE labels ALTER COLUMN project_id SET NOT NULL;

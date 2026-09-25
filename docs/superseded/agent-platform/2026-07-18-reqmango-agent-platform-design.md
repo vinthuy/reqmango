@@ -4,9 +4,9 @@
 > **日期**: 2026-07-18
 > **作者**: vinthuy
 > **状态**: **Demoted — 基础设施 / 远期（2026-09-25）**  
-> **说明**: 产品主路径已改为对标 Plane AI 的项目管理 AI，见  
+> **说明**: 产品主路径已改为面向日常项目管理的 AI 的项目管理 AI，见  
 > [`2026-09-25-ai-project-management-redesign.md`](./2026-09-25-ai-project-management-redesign.md)。  
-> 本文中的 Harness / Loop / Marketplace 等保留为 **Phase 3+ 超 Plane 能力** 与后端参考，**不再指导当前排期**。
+> 本文中的 Harness / Loop / Marketplace 等保留为 **Phase 3+ 后续编排增强 能力** 与后端参考，**不再指导当前排期**。
 
 ---
 
@@ -33,11 +33,11 @@
 
 ### 1.1 背景
 
-Reqmango 当前拥有 22 项 AI 能力和较为完整的项目管理功能体系。但在 AI Agent 领域，Atlassian Jira Agent (Rovo) 已于 2026 年 5 月 GA，每日处理 500 万+ MCP 工具调用；Plane AI 以开源 AI-Native 定位快速追赶。市场正从"AI 辅助功能"向"AI Agent 平台"范式迁移。
+Reqmango 当前拥有 22 项 AI 能力和较为完整的项目管理功能体系。但在 AI Agent 领域，Atlassian Jira Agent (Rovo) 已于 2026 年 5 月 GA，每日处理 500 万+ MCP 工具调用；日常项目管理 AI 以开源 AI-Native 定位快速追赶。市场正从"AI 辅助功能"向"AI Agent 平台"范式迁移。
 
 ### 1.2 核心洞察
 
-| 维度 | Jira Agent | Plane AI | **Reqmango 机会** |
+| 维度 | Jira Agent | 日常项目管理 AI | **Reqmango 机会** |
 |------|-----------|----------|-------------------|
 | Agent 协作 | 单Agent调度 | 单Agent事件触发 | **多Agent编排 (Harness)** |
 | 自主执行 | 无闭环 | 无闭环 | **自主Loop工程** |
@@ -99,7 +99,7 @@ Reqmango 当前拥有 22 项 AI 能力和较为完整的项目管理功能体系
 6. **Agent不能完全自主** — Assign Issue 需用户确认 (ROVO-115)
 7. **JSM不支持** — Agent 分配和 @mention 在 Jira Service Management 不工作 (JSDCLOUD-18577)
 
-### 2.2 Plane AI — 深度分析
+### 2.2 日常项目管理 AI — 深度分析
 
 **当前状态**: Beta，自托管对等
 
@@ -137,7 +137,7 @@ t   │      └──────────┘    自托管Agent编排
 度   │  │  (当前)   │    RQL,AI Sprint Planning
     │  └──────────┘
     │      ┌──────────┐
-低  ┤      │  Plane   │  ← Beta, Auto-triage
+低  ┤      │    │  ← Beta, Auto-triage
     │      │   AI     │    开源MCP Server
     │      └──────────┘
     └──────────────────────────────────────
@@ -167,8 +167,8 @@ t   │      └──────────┘    自托管Agent编排
 ### 3.3 竞争护城河
 
 **短期护城河 (Phase 1-2)**:
-- Harness 多Agent编排 (Jira 和 Plane 都没有)
-- Loop 自主闭环 (Jira 和 Plane 都没有)
+- Harness 多Agent编排 (Jira 和 都没有)
+- Loop 自主闭环 (Jira 和 都没有)
 - 对抗性验证 (行业首创)
 
 **中期护城河 (Phase 3-4)**:
@@ -860,7 +860,7 @@ if 连续3次迭代后 metrics 无改善:
 
 1. **复用现有能力**: AI Sprint Planning (容量建议+风险分析) 已实现
 2. **复用触发器**: AutomationRule 5种触发器已可用
-3. **差异化最强**: Jira/Plane 都没有自主Sprint管理Agent
+3. **差异化最强**: Jira/都没有自主Sprint管理Agent
 4. **价值最直观**: 从"人工盯Sprint"到"Agent自主盯Sprint"
 5. **Loop 最自然**: Sprint 的自然周期 (每日→检查→调整) 就是 Loop
 
@@ -1473,7 +1473,7 @@ frontend/src/
 - [AI Phase 1 Requirements](docs/specs/ai-phase1-requirements.md)
 - [Reqmango PRD](docs/kb/PRD.en.md)
 - [Atlassian Agents in Jira](https://www.atlassian.com/blog/rovo/ai-agents-in-jira)
-- [Plane AI](https://plane.so/ai)
+- 日常项目管理 AI
 - [Claude Code Dynamic Workflows](https://claude.com/blog/a-harness-for-every-task-dynamic-workflows-in-claude-code)
 
 ---

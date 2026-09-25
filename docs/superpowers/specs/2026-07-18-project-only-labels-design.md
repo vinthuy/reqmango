@@ -1,4 +1,4 @@
-# 工作项标签纯项目级（对齐 Plane）设计
+# 工作项标签纯项目级（）设计
 
 日期：2026-07-18
 状态：已批准（用户确认设计 + 修复范围"一起修"）
@@ -7,7 +7,7 @@
 
 当前仓库的工作项标签是 GitLab 式两级模型：`labels.project_id IS NULL` 表示工作空间级标签，被该空间所有项目继承（项目设置里只读展示，`is_inherited=true`）；`project_id` 非空表示项目私有标签。
 
-用户要求：**工作项标签回归纯项目级，与 Plane 的设计理念一致，移除工作空间标签。**（Plane 中 issue label 严格属于单个项目，工作空间层面没有可继承的 issue 标签。）
+用户要求：**工作项标签回归纯项目级，与 设计理念一致，移除工作空间标签。**（中 issue label 严格属于单个项目，工作空间层面没有可继承的 issue 标签。）
 
 现存数据经查证：`project_id IS NULL` 的标签共 9 条，全部是 E2E 测试残留（名称形如 "E2E Inherit Label <timestamp>"），零工作项挂载，可直接硬删，不存在真实数据迁移问题。
 
@@ -91,5 +91,5 @@
 ## 不做的事（Out of Scope）
 
 - states、issue types、custom fields 的工作空间级/继承机制一律不动
-- 不引入 Plane 的 "Project Labels"（给项目本身打标签的工作空间级功能）
+- 不引入  "Project Labels"（给项目本身打标签的工作空间级功能）
 - 前端 `is_inherited` 相关的 Label 之外用法（states 仍在用）不动

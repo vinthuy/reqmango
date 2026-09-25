@@ -33,7 +33,7 @@ func main() {
 	}
 	fmt.Println("Database connected")
 
-	// Purge legacy workspace-level labels so project_id can become NOT NULL (project-only labels, aligned with Plane)
+	// Purge legacy workspace-level labels so project_id can become NOT NULL (project-only labels, project-scoped)
 	db.Exec(`DELETE FROM issue_labels WHERE label_id IN (SELECT id FROM labels WHERE project_id IS NULL)`)
 	db.Exec(`DELETE FROM labels WHERE project_id IS NULL`)
 	// GORM AutoMigrate does not tighten nullability on existing columns; enforce explicitly

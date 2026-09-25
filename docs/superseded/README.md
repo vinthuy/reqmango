@@ -9,9 +9,9 @@
 
 ### agent-platform/ — Agent 平台 / Harness·Loop 叙事（2026-09-26 归档）
 
-产品方向改为「原生 PM + Plane 路径 AI」后，下列文档**废止排期指导**：
+产品方向改为「原生 PM + 原生 AI 项目管理路径 AI」后，下列文档**废止排期指导**：
 
-- Multica / 全 SDLC Agent PRD
+- 独立 Agent 平台 / 全 SDLC Agent PRD
 - Agent-Project Integration PRD/ARCH/Plan
 - Harness / Loop 设计与实施计划
 

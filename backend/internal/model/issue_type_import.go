@@ -2,7 +2,7 @@ package model
 
 // IssueTypeImport records a project's reference to a workspace-level issue type.
 //
-// Plane v3-style "Import" model: a project imports workspace-level types
+// workspace-type "Import" model: a project imports workspace-level types
 // by reference (link) rather than making independent copies. The project holds
 // a reference to the workspace type, so any workspace admin update is
 // automatically reflected in every project that imported it.

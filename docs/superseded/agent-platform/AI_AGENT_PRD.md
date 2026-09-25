@@ -4,8 +4,8 @@
 > **日期**: 2026-07-24  
 > **作者**: AI Agent  
 > **状态**: **Superseded（2026-09-25）**  
-> **废止原因**: Multica / 全 SDLC Agent 平台叙事已丢弃。现行设计见  
-> [`docs/superpowers/specs/2026-09-25-ai-project-management-redesign.md`](./superpowers/specs/2026-09-25-ai-project-management-redesign.md)（对标 Plane AI 的项目管理 AI）。  
+> **废止原因**: 独立 Agent 平台 / 全 SDLC Agent 平台叙事已丢弃。现行设计见  
+> [`docs/superpowers/specs/2026-09-25-ai-project-management-redesign.md`](./superpowers/specs/2026-09-25-ai-project-management-redesign.md)（面向日常项目管理的 AI 的项目管理 AI）。  
 > 本文仅作历史参考，**不得作为排期依据**。
 
 ---
@@ -16,7 +16,7 @@
 
 **当前问题**：AI 能力仅限于被动问答和辅助生成，未能真正融入软件开发全流程。
 
-**解决方案**：（历史）曾借鉴 Multica 的"Agent as Teammates"理念……**已废止**。请改用 Plane AI 对齐的「AI 项目管理」设计。
+**解决方案**：（历史）曾借鉴 独立 Agent 平台 的"Agent as Teammates"理念……**已废止**。请改用 日常项目管理 AI 对齐的「AI 项目管理」设计。
 
 ### 1.2 核心目标
 
@@ -1097,7 +1097,7 @@ func (m *MemoryService) Add(memoryType string, content string, metadata map[stri
 
 ## 17. 参考文档
 
-- [Multica GitHub Repository](https://gitcode.com/GitHub_Trending/mu/multica.git)
+- 独立 Agent 平台 GitHub Repository
 - [ReqMango 现有 AI 能力](backend/internal/ai/)
 - [OpenAI Function Calling Documentation](https://platform.openai.com/docs/guides/gpt/function-calling)
 

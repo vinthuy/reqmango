@@ -1,13 +1,13 @@
 # Superseded — Agent 平台叙事（已废止）
 
-本目录存放 **Harness / Loop / Multica 式 Agent 控制台** 相关设计与 PRD。  
+本目录存放 **Harness / Loop / 独立 Agent 控制台式 Agent 控制台** 相关设计与 PRD。  
 它们描述的是历史或远期基础设施方向，**不再指导产品排期**。
 
 ## 当前产品真相
 
 | 主题 | 文档 |
 |------|------|
-| 产品方向（Plane 路径 AI PM） | [kb/PRD.md](../../kb/PRD.md) · [2026-09-25 redesign](../../superpowers/specs/2026-09-25-ai-project-management-redesign.md) |
+| 产品方向（原生 AI 项目管理路径 AI PM） | [kb/PRD.md](../../kb/PRD.md) · [2026-09-25 redesign](../../superpowers/specs/2026-09-25-ai-project-management-redesign.md) |
 | 原生 PM + 核心定制验收 | [product-core-qa](../../dev/acceptance/2026-09-25-product-core-qa.md) |
 | 降级 backlog（代码清理） | [agent-platform-demotion](../../dev/debt/2026-09-25-agent-platform-demotion.md) |
 
@@ -15,7 +15,7 @@
 
 | 文件 | 原路径 | 废止原因 |
 |------|--------|----------|
-| `AI_AGENT_PRD.md` | `docs/AI_AGENT_PRD.md` | Multica / 全 SDLC Agent 主叙事废止 |
+| `AI_AGENT_PRD.md` | `docs/AI_AGENT_PRD.md` | 独立 Agent 平台 / 全 SDLC Agent 主叙事废止 |
 | `PRD-Agent-Project-Integration.md` | `docs/PRD-Agent-Project-Integration.md` | Agent-as-teammate 产品化已降级 |
 | `ARCH-Agent-Project-Integration.md` | `docs/ARCH-Agent-Project-Integration.md` | 同上 |
 | `agent-project-integration-plan.md` | `docs/agent-project-integration-plan.md` | 同上 |

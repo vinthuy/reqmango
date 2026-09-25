@@ -8,12 +8,12 @@
 
 **Tech Stack:** Vue 3、现有 Automation + AI API。
 
-**Spec / Direction:** `docs/superpowers/specs/2026-09-25-ai-project-management-redesign.md`（§9 已取消 Phase3 超 Plane；本 plan = 下一增量）  
+**Spec / Direction:** `docs/superpowers/specs/2026-09-25-ai-project-management-redesign.md`（§9 已取消 Phase3 后续编排增强；本 plan = 下一增量）  
 **Acceptance:** `docs/dev/acceptance/2026-09-25-ai-pm-phase1-2.md`（先跑通再合本 plan 大功能，或并行修验收缺陷）
 
 ## Global Constraints
 
-- 禁止 Multica / MCP / Agent 市场 / Loop 控制台叙事。  
+- 禁止 独立 Agent 平台 / MCP / Agent 市场 / Loop 控制台叙事。  
 - 自动化模板 trigger 必须点分：`issue.created` 等。  
 - AI 写操作：模板动作以 `dispatch_agent` / `add_comment` 为主；无用户确认不静默改大量业务字段。  
 - C1：总结可存 Page；不强制定时调度（定时留给以后）。  

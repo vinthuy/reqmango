@@ -28,7 +28,7 @@ func (s *IssueTypeService) ResolveWorkspaceID(projectID uint64) (uint64, error) 
 
 // buildResponse converts an IssueType model to its API response shape.
 // isImported indicates the project has explicitly imported this workspace-level
-// type via the Plane v3-style Import model (only meaningful in project context).
+// type via the workspace-type Import model (only meaningful in project context).
 func (s *IssueTypeService) buildResponse(t model.IssueType, isImported bool) *response.IssueTypeResponse {
 	return &response.IssueTypeResponse{
 		ID:                  t.ID,
@@ -125,7 +125,7 @@ func (s *IssueTypeService) Create(workspaceID, userID uint64, req request.IssueT
 //     (project_id IS NULL). IsImported is always false (no project context).
 //   - project scope (projectID != nil): returns project-private types plus
 //     workspace-level types that the project has explicitly imported via the
-//     Plane v3-style Import model. Legacy auto-inherit is removed — workspace
+//     workspace-type Import model. Legacy auto-inherit is removed — workspace
 //     types are only visible when imported.
 func (s *IssueTypeService) List(workspaceID uint64, projectID *uint64) ([]response.IssueTypeResponse, error) {
 	if projectID == nil {
@@ -438,7 +438,7 @@ func (s *IssueTypeService) ListFields(typeID uint64, projectID ...uint64) ([]res
 	return result, nil
 }
 
-// ==================== Plane v3-style Import Model ====================
+// ==================== workspace-type Import Model ====================
 
 // ListImportable returns workspace-level types that the project has NOT yet
 // imported. These are candidates for the Import dialog in the project UI.
@@ -469,7 +469,7 @@ func (s *IssueTypeService) ListImportable(workspaceID, projectID uint64) ([]resp
 	return result, nil
 }
 
-// ImportType records a project's reference to a workspace-level type (Plane v3
+// ImportType records a project's reference to a workspace-level type (workspace-type
 // Import model). After import, custom fields attached to the type become
 // visible in the project automatically — no separate enrollment required.
 func (s *IssueTypeService) ImportType(projectID, workspaceTypeID uint64) error {
@@ -516,7 +516,7 @@ func (s *IssueTypeService) UnimportType(projectID, workspaceTypeID uint64) error
 }
 
 // IsImported reports whether the project has explicitly imported the given
-// workspace-level type via the Plane v3-style Import model.
+// workspace-level type via the workspace-type Import model.
 func (s *IssueTypeService) IsImported(projectID, workspaceTypeID uint64) bool {
 	var count int64
 	s.db.Model(&model.IssueTypeImport{}).

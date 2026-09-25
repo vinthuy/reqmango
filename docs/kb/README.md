@@ -4,9 +4,9 @@ KB 是 reqmango 系统的**唯一真相来源**，始终描述系统当前的实
 
 **最后更新**: 2026-09-26
 
-**产品方向**: 原生项目管理 + Plane 路径 AI（Intake / Analyze / 自动化 / 仪表盘摘要）。  
+**产品方向**: 原生项目管理 + 原生 AI 项目管理路径 AI（Intake / Analyze / 自动化 / 仪表盘摘要）。  
 **核心门禁**: 自定义工作项类型 · 自定义字段 · 自定义工作流 · 自动化规则。  
-**废止**: Harness / Loop / Multica Agent 控制台产品化 → [superseded/agent-platform](../superseded/agent-platform/README.md)
+**废止**: Harness / Loop / 独立 Agent 平台 Agent 控制台产品化 → [superseded/agent-platform](../superseded/agent-platform/README.md)
 
 ---
 

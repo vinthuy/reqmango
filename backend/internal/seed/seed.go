@@ -1488,7 +1488,7 @@ func SeedRelationTypesForAllWorkspaces(db *gorm.DB) {
 
 // SeedAutomationRulesForAllWorkspaces creates built-in automation rules for
 // every workspace that has no automation rules yet. These are sensible defaults
-// inspired by Plane AI's built-in automations.
+// inspired by built-in automations.
 func SeedAutomationRulesForAllWorkspaces(db *gorm.DB) {
 	var workspaces []model.Workspace
 	db.Find(&workspaces)

@@ -9,7 +9,7 @@
 **变更内容**:
 - KB PRD v5.0：产品方向、核心定制 P0 门禁、废止 Agent 平台排期
 - 架构总览 / docs 首页 / active / pipeline / debt Stage B 同步
-- **归档** Harness·Loop·Multica 相关 PRD/设计/计划 → docs/superseded/agent-platform/（原路径留 stub）
+- **归档** Harness·Loop·Agent 平台 相关 PRD/设计/计划 → docs/superseded/agent-platform/（原路径留 stub）
 - redesign 规格标注 CANONICAL + 已验收
 
 **影响文件**:
@@ -54,7 +54,7 @@
 **类型**: Feature + Documentation
 
 **变更内容**:
-- **产品方向**：对标项目管理 AI（Plane 路径）；Harness/Loop/多 Agent 流水线**不作**下一阶段主叙事
+- **产品方向**：对标项目管理 AI（原生 AI 项目管理路径）；Harness/Loop/多 Agent 流水线**不作**下一阶段主叙事
 - **B1**：自动化 AI 模板（分诊/风险/Spec）+ `dispatch_agent`；触发点分事件
 - **C1**：项目级 Analyze → 可存 Page（`Project.vue`）
 - **B2**：`POST .../ai/automation-preview` NL→规则草稿，确认后才落库

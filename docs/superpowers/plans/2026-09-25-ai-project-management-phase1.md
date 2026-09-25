@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把 AI 从「Agent 控制台」收成 Plane 式项目管理日常面：Ask/Build Sidecar、Issue 指派 Agent、@mention、审计、Intake 分诊、创建前去重。
+**Goal:** 把 AI 从「Agent 控制台」收成 项目管理日常面：Ask/Build Sidecar、Issue 指派 Agent、@mention、审计、Intake 分诊、创建前去重。
 
 **Architecture:** 以前端接线与轻量 API 增量为主；复用现有 `ai/chat|create`、`issue_agent`、`comment` mention、`intake` analyze、`AgentAuditLog`/`TriagePanel` 组件。不删 Harness/Loop 代码，只退出默认导航。
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 对标 Plane AI 项目管理主路径；禁止引入 Multica / MCP 分发 / Agent 市场叙事到 UI 文案。
+- 面向日常项目管理的 AI 项目管理主路径；禁止引入 独立 Agent 平台 / MCP 分发 / Agent 市场叙事到 UI 文案。
 - 默认侧栏不得再把 `/agents` 控制台当主入口；高级入口文案须含「实验」或「高级」。
 - Build/Create：**无用户确认不得落库写操作**。
 - Ask 模式：工具层禁止静默 create/update（若已有防护则加固文案与前端切换提示）。

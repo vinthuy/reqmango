@@ -20,7 +20,7 @@ export interface IssueType {
   updated_at: string
   fields?: IssueTypeField[]
   is_inherited?: boolean  // true = structurally a workspace-level type (project_id IS NULL)
-  is_imported?: boolean  // true = project has explicitly imported this workspace type (Plane v3 Import model)
+  is_imported?: boolean  // true = project has explicitly imported this workspace type (workspace-type Import model)
 }
 
 export interface IssueTypeField {

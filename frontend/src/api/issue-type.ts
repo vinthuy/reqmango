@@ -103,7 +103,7 @@ export async function removeFieldFromIssueType(typeId: number, fieldId: number):
   await api.delete(`/issue-types/${typeId}/fields/${fieldId}`)
 }
 
-// ==================== Plane v3-style Import Model ====================
+// ==================== workspace-type Import Model ====================
 // Project references a workspace-level type by link (not copy). After import,
 // custom fields attached to the type are visible in the project automatically.
 

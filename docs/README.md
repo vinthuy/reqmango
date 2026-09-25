@@ -13,8 +13,8 @@ reqmango 项目管理平台的文档中心。
 
 | 做 | 不做 |
 |----|------|
-| 原生 PM（Issue / Cycle / 类型·字段·工作流·自动化） | Harness / Loop / Multica Agent 控制台产品化 |
-| Plane 路径 AI（Intake / Analyze / 自动化预览 / 仪表盘摘要） | 默认暴露 `/agents*`（需高级解锁） |
+| 原生 PM（Issue / Cycle / 类型·字段·工作流·自动化） | Harness / Loop / 独立 Agent 平台 Agent 控制台产品化 |
+| 原生 AI 项目管理路径 AI（Intake / Analyze / 自动化预览 / 仪表盘摘要） | 默认暴露 `/agents*`（需高级解锁） |
 
 - PRD：[kb/PRD.md](kb/PRD.md)
 - 设计真相：[superpowers/specs/2026-09-25-ai-project-management-redesign.md](superpowers/specs/2026-09-25-ai-project-management-redesign.md)

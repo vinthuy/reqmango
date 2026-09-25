@@ -1,8 +1,8 @@
-# Workflow Approval Implementation Plan (Plane AI Style)
+# Workflow Approval Implementation Plan (异步审批)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the existing "permission-check only" approval logic with a complete asynchronous approval workflow (Plane AI style) that supports submission, approver decision (approve/reject with independent target states), notifications, and audit trail.
+**Goal:** Replace the existing "permission-check only" approval logic with a complete asynchronous approval workflow (异步审批) that supports submission, approver decision (approve/reject with independent target states), notifications, and audit trail.
 
 **Architecture:** New `approvals` + `approval_records` tables track approval lifecycle. `issues` table gains `approval_status` + `active_approval_id` to mark the virtual "pending approval" state. `state_transitions` table gains `approve_target_state_id` + `reject_target_state_id`. Backend `approval_service` is the single source of truth; `issue_service` is refactored to return `approval_required` instead of blocking. Frontend adds TopBar badge, approval list page, issue detail banner, and workflow config UI.
 

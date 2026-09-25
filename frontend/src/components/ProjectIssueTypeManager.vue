@@ -96,7 +96,7 @@
       </div>
     </div>
 
-    <!-- Import modal (Plane v3-style: project references workspace type by link) -->
+    <!-- Import modal (workspace-type: project references workspace type by link) -->
     <div v-if="showImportModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showImportModal = false">
       <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -171,7 +171,7 @@ const typeFieldsLoading = ref(false)
 const showFieldBindModal = ref(false)
 const availableFields = ref<any[]>([])
 
-// Plane v3-style Import model state
+// workspace-type Import model state
 const showImportModal = ref(false)
 const importableTypes = ref<IssueType[]>([])
 const importableLoading = ref(false)
@@ -192,7 +192,7 @@ async function loadTypes() {
   finally { loading.value = false }
 }
 
-// ==================== Plane v3-style Import Model ====================
+// ==================== workspace-type Import Model ====================
 
 async function openImportModal() {
   showImportModal.value = true

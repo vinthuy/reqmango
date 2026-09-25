@@ -76,7 +76,6 @@ backend-go/uploads/
 .superpowers/
 
 # Temporary projects
-temp_multica/
 
 # Go tool binaries (sdk Makefile target)
 /bin/

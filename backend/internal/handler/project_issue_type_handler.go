@@ -133,7 +133,7 @@ func (h *ProjectIssueTypeHandler) Reorder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Issue types reordered"})
 }
 
-// ==================== Plane v3-style Import Model ====================
+// ==================== workspace-type Import Model ====================
 
 // ListImportable handles GET /projects/:projectId/issue-types/importable
 // Returns workspace-level types the project has NOT yet imported.
@@ -167,7 +167,7 @@ func (h *ProjectIssueTypeHandler) ListImportable(c *gin.Context) {
 }
 
 // ImportType handles POST /projects/:projectId/issue-types/:typeId/import
-// Records a project's reference to a workspace-level type (Plane v3 Import).
+// Records a project's reference to a workspace-level type (workspace-type Import).
 func (h *ProjectIssueTypeHandler) ImportType(c *gin.Context) {
 	projectID, err := h.getProjectID(c)
 	if err != nil {

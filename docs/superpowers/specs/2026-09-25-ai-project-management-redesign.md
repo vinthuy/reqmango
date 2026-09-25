@@ -1,15 +1,15 @@
-# AI 项目管理重新设计（对标 Plane AI）
+# AI 项目管理重新设计（面向日常项目管理的 AI）
 
 > **Status (2026-09-26):** CANONICAL product direction — **implemented & accepted**.  
-> Agent-platform / Harness / Loop / Multica docs moved to [docs/superseded/agent-platform/](../../superseded/agent-platform/README.md).  
+> Agent-platform / Harness / Loop / 独立 Agent 平台 docs moved to [docs/superseded/agent-platform/](../../superseded/agent-platform/README.md).  
 > Core PM customization gate: [product-core-qa](../../dev/acceptance/2026-09-25-product-core-qa.md) §H PASS.
 
 
 > **版本**: v1.0  
 > **日期**: 2026-09-25  
 > **状态**: Approved for planning（产品方向已确认；实施计划另文）  
-> **对标**: [Plane AI](https://plane.so/ai) / [Plane Agents](https://plane.so/agents)  
-> **替代叙事**: 不再以 Multica / MCP 分发 / Agent 控制台作为主产品故事
+> **能力方向**: 工作项生命周期内的 AI（问、建、分诊、指派、总结）  
+> **替代叙事**: 不再以独立 Agent 平台 / MCP 分发 / Agent 控制台作为主产品故事
 
 ---
 
@@ -19,11 +19,11 @@
 
 Reqmango 已具备大量 AI/Agent 后端能力（Copilot、Ask/Build、创建预览、Intake 分诊 API、Issue↔Agent、Page AI、Harness/Loop 等），但产品叙事曾偏向：
 
-- Multica 式「Agent 平台 / SDLC 自动化」
+- 独立 Agent 控制台式「Agent 平台 / SDLC 自动化」
 - 侧栏「AI Agents」超大控制台（Loop、Pipeline、Squad、Developer Agent…）
 - MCP/CLI/SDK 分发作为增长主路径
 
-这些与用户日常 **项目管理** 路径脱节。Plane AI 的卖点是：**在工作项生命周期里用 AI**（问、建、分诊、指派、总结），而不是另开一套 Agent IDE。
+这些与用户日常 **项目管理** 路径脱节。我们要做的是：**在工作项生命周期里用 AI**（问、建、分诊、指派、总结），而不是另开一套 Agent IDE。
 
 ### 1.2 产品命题
 
@@ -34,14 +34,14 @@ Reqmango 已具备大量 AI/Agent 后端能力（Copilot、Ask/Build、创建预
 
 | 丢弃 / 降级 | 说明 |
 |-------------|------|
-| Multica 对标叙事 | `docs/superseded/agent-platform/AI_AGENT_PRD.md` 中 Multica「Agent as Teammates / 全 SDLC」主叙事 **废止**；该文归档为历史，不再指导排期 |
+| 独立 Agent 平台 对标叙事 | `docs/superseded/agent-platform/AI_AGENT_PRD.md` 中 独立 Agent 平台「Agent as Teammates / 全 SDLC」主叙事 **废止**；该文归档为历史，不再指导排期 |
 | MCP/CLI 一键分发当 Phase 0 | SDK/MCP 代码可保留，**不作为本设计的交付范围** |
 | 「AI Agents」控制台当主入口 | Dashboard / Loop / Pipeline / Squad / Autopilot / Developer·Tester·CICD·SDLC Agent 等 **退出默认导航** |
-| 以 Harness/Loop 为第一差异化 | 可作后续「超 Plane」能力；**本阶段不对用户讲编排平台** |
+| 以 Harness/Loop 为第一差异化 | 可作后续「后续编排增强」能力；**本阶段不对用户讲编排平台** |
 
-### 1.4 对标范围（Plane AI 主路径）
+### 1.4 纳入范围（日常项目管理 AI 主路径）
 
-| Plane 能力 | 本设计是否纳入 Phase 1–2 |
+| 能力 | 本设计是否纳入 Phase 1–2 |
 |------------|-------------------------|
 | Ask / Build（查 vs 改） | ✅ |
 | Plan → Approve → Execute | ✅（Build / Create） |
@@ -132,7 +132,7 @@ Reqmango 已具备大量 AI/Agent 后端能力（Copilot、Ask/Build、创建预
 
 ## 5. 关键用户流程
 
-### 5.1 Context Sidecar（对齐 Plane）
+### 5.1 Context Sidecar（）
 
 打开 Sidecar 时组装上下文（前端传入 + 后端校验）：
 
@@ -164,7 +164,7 @@ Reqmango 已具备大量 AI/Agent 后端能力（Copilot、Ask/Build、创建预
 
 Ask 模式禁止静默写操作；若模型想写，UI 提示「切换到 Build」。
 
-### 5.3 Assign Agent（对齐 Plane Assign to ship）
+### 5.3 Assign Agent（ Assign to ship）
 
 - Issue 属性：`assignees`（人）与 **`agent_assignee`**（Agent）并列展示。  
 - 指派后：调用已有 `assign-agent` API；侧栏显示状态（idle / running / done / needs_input）。  
@@ -195,7 +195,7 @@ Ask 模式禁止静默写操作；若模型想写，UI 提示「切换到 Build�
 
 ---
 
-## 6. 开箱 Agent（Phase 2，对标 Plane 现成 Agent）
+## 6. 开箱 Agent（Phase 2，面向日常项目管理 现成 Agent）
 
 仅保留 **项目管理** 向，不做代码开发 Agent：
 
@@ -233,7 +233,7 @@ Ask 模式禁止静默写操作；若模型想写，UI 提示「切换到 Build�
 
 | 文档 | 处理 |
 |------|------|
-| `docs/superseded/agent-platform/AI_AGENT_PRD.md` | 文首标注 **Superseded**；Multica 方案不作排期依据 |
+| `docs/superseded/agent-platform/AI_AGENT_PRD.md` | 文首标注 **Superseded**；独立 Agent 平台 方案不作排期依据 |
 | `docs/superseded/agent-platform/2026-07-18-reqmango-agent-platform-design.md` | 标注为 **基础设施/远期**；产品主路径以本文为准 |
 | 本文 | **现行 AI 产品设计** |
 
@@ -256,7 +256,7 @@ Ask 模式禁止静默写操作；若模型想写，UI 提示「切换到 Build�
 
 ## 9. 分阶段交付
 
-### Phase 1 — Plane 日常面（优先，约 1–1.5 周）
+### Phase 1 — 日常项目管理面（优先，约 1–1.5 周）
 
 1. 导航：隐藏默认「AI Agents」；高级入口可选。  
 2. Copilot：Ask/Build 收敛 + 上下文条。  
@@ -274,7 +274,7 @@ Ask 模式禁止静默写操作；若模型想写，UI 提示「切换到 Build�
 3. Cycle「一键总结」入口。  
 4. Issue AI Tab 真正调用 analyze / suggest-labels（不再只会打开空 Copilot）。
 
-### 已取消作产品方向 — 原「Phase 3 超 Plane」
+### 已取消作产品方向 — 原「Phase 3 后续编排增强」
 
 Harness、Loop、对抗评审、多 Agent 流水线：**不再作为下一阶段目标**（代码可保留降权，不排期、不讲产品故事）。
 
@@ -294,7 +294,7 @@ Harness、Loop、对抗评审、多 Agent 流水线：**不再作为下一阶段
 
 ### 非目标
 
-- 替换 Plane 的全部集成（Slack bot、Marketplace）。  
+- 替换第三方项目管理 SaaS 的全部集成（Slack bot、Marketplace）。  
 - 删除 Harness/Loop 代码（仅产品降权）。  
 - **以 Harness/Loop/对抗评审/多 Agent 流水线作为下一产品阶段**（已取消）。  
 - 以 IDE/MCP 安装转化率作为本阶段 KPI。
@@ -327,9 +327,9 @@ Harness、Loop、对抗评审、多 Agent 流水线：**不再作为下一阶段
 
 ---
 
-## 附录 A. Plane 对照速查
+## 附录 A. 能力对照速查
 
-| Plane 文案 | Reqmango Phase 1–2 |
+| 能力意图 | Reqmango Phase 1–2 |
 |------------|---------------------|
 | Talk to build | Build + 预览 |
 | Ask to know | Ask + 上下文 |

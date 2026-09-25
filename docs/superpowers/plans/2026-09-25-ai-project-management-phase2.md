@@ -4,7 +4,7 @@
 
 **Goal:** 把 Phase 1 日常面升级为「触发 + 开箱 Agent」：创建/Intake 可自动分诊、四个项目管理 Agent 可一键安装、Cycle 一键总结、Issue AI Tab 真正调用 analyze / suggest-labels。
 
-**Architecture:** 复用现有 `agents` CRUD、`automation` 事件总线（`issue.created` + `dispatch_agent`）、`ai/analyze|suggest-labels|sprint-plan`、`TriagePanel`。Phase 2 以种子配置、模板接线与前端入口为主；不新建 Agent 控制台，不引入 Multica/MCP 叙事。
+**Architecture:** 复用现有 `agents` CRUD、`automation` 事件总线（`issue.created` + `dispatch_agent`）、`ai/analyze|suggest-labels|sprint-plan`、`TriagePanel`。Phase 2 以种子配置、模板接线与前端入口为主；不新建 Agent 控制台，不引入 Agent 平台/MCP 叙事。
 
 **Tech Stack:** Vue 3 + TypeScript、Go/Gin、现有 Automation EventBus、AgentService、AIService。
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 对标 Plane AI 项目管理；禁止 Multica / MCP 分发 / Agent 市场文案进入默认 UI。
+- 面向日常项目管理的 AI 项目管理；禁止 独立 Agent 平台 / MCP 分发 / Agent 市场文案进入默认 UI。
 - 开箱 Agent **仅项目管理向**（分诊 / 风险 / Sprint 总结 / Spec 草稿）；不做代码开发 Agent。
 - 自动化：`dispatch_agent` 触发后仍须可审计（走现有 Agent activity）；**Intake 提交也要能进事件总线**（今日缺口）。
 - Build/写操作：自动化分诊以「建议评论 / 标签建议 / 指派 Agent」为主；**禁止**自动化静默改业务字段除非用户已启用对应动作模板且文案标明。
@@ -469,7 +469,7 @@ git commit -m "docs: mark AI PM Phase 2 implementation progress"
 | 3 | Intake 提交也会触发自动化 | 3 |
 | 4 | Cycle 详情有一键总结并可存 Page | 4 |
 | 5 | Issue AI Tab 调用 analyze / suggest-labels，不只开空 Copilot | 5 |
-| 6 | 无 Multica/MCP 主叙事回归 | 全局 |
+| 6 | 无 Agent 平台/MCP 主叙事回归 | 全局 |
 
 ---
 

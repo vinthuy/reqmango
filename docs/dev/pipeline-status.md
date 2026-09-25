@@ -18,7 +18,7 @@
 | 功能 | 状态 | 文档 |
 |------|------|------|
 | 产品化主路径（原生 PM + 核心定制门禁） | ✅ PASS | [acceptance](acceptance/2026-09-25-product-core-qa.md) §H |
-| AI 项目管理（Plane 路径 P1–2+B1–C2） | ✅ PASS | [redesign](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [preflight](acceptance/2026-09-25-release-preflight.md) |
+| AI 项目管理（原生 AI 项目管理路径 P1–2+B1–C2） | ✅ PASS | [redesign](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [preflight](acceptance/2026-09-25-release-preflight.md) |
 
 ---
 
@@ -34,7 +34,7 @@
 
 | 文档 | 状态 |
 |------|------|
-| Multica / 全 SDLC Agent PRD | **已归档** → [superseded/agent-platform](../superseded/agent-platform/README.md) |
+| 独立 Agent 平台 / 全 SDLC Agent PRD | **已归档** → [superseded/agent-platform](../superseded/agent-platform/README.md) |
 | Harness / Loop 设计与 Phase 计划 | **已归档** → 同上 |
 | Agent-Project Integration PRD/ARCH | **已归档** → 同上 |
 | MCP/CLI 作为增长主路径 | 非当前 AI 产品排期 |
