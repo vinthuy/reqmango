@@ -987,12 +987,13 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
-            <div v-if="automations.length === 0" class="space-y-4">
-            <div class="text-center text-gray-400 py-4 bg-white rounded-xl border border-gray-200">
+            <div v-if="automations.length === 0" class="text-center text-gray-400 py-4 bg-white rounded-xl border border-gray-200">
               <p class="text-sm">{{ t('settings.noAutomations') }}</p>
               <p class="text-xs mt-1">{{ t('automationTemplates.chooseTemplate') }}</p>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="space-y-3">
+              <h3 class="text-sm font-medium text-gray-700">{{ t('automationTemplates.chooseTemplate') }}</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div
                 v-for="template in automationTemplates"
                 :key="template.name"
@@ -1016,8 +1017,8 @@ onMounted(async () => {
                   <span class="text-xs text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">{{ t('automationTemplates.clickToCreate') }}</span>
                 </div>
               </div>
+              </div>
             </div>
-          </div>
           </div>
         </div>
 

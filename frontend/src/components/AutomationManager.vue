@@ -17,7 +17,7 @@
         <div class="space-y-3">
           <div><label class="block text-sm font-medium mb-1">{{ t('automation.name') }}</label><input v-model="form.name" class="w-full px-3 py-2 border rounded-lg" /></div>
           <div><label class="block text-sm font-medium mb-1">{{ t('automation.description') }}</label><input v-model="form.description" class="w-full px-3 py-2 border rounded-lg" /></div>
-          <div><label class="block text-sm font-medium mb-1">{{ t('automation.trigger') }}</label><select v-model="form.trigger" class="w-full px-3 py-2 border rounded-lg"><option value="issue_created">{{ t('automation.triggers.issue_created') }}</option><option value="issue_updated">{{ t('automation.triggers.issue_updated') }}</option><option value="state_changed">{{ t('automation.triggers.state_changed') }}</option><option value="assignee_changed">{{ t('automation.triggers.assignee_changed') }}</option><option value="comment_added">{{ t('automation.triggers.comment_added') }}</option></select></div>
+          <div><label class="block text-sm font-medium mb-1">{{ t('automation.trigger') }}</label><select v-model="form.trigger" class="w-full px-3 py-2 border rounded-lg"><option value="issue.created">{{ t('automation.triggers.issue_created') }}</option><option value="issue.updated">{{ t('automation.triggers.issue_updated') }}</option><option value="issue.state_changed">{{ t('automation.triggers.state_changed') }}</option><option value="issue.assigned">{{ t('automation.triggers.assignee_changed') }}</option><option value="comment.added">{{ t('automation.triggers.comment_added') }}</option></select></div>
           <div><label class="block text-sm font-medium mb-1">{{ t('automation.conditions') }}</label><textarea v-model="form.conditions" rows="2" class="w-full px-3 py-2 border rounded-lg text-xs font-mono" :placeholder="t('automation.conditionsPlaceholder')"></textarea></div>
           <div><label class="block text-sm font-medium mb-1">{{ t('automation.actions') }}</label><textarea v-model="form.actions" rows="2" class="w-full px-3 py-2 border rounded-lg text-xs font-mono" :placeholder="t('automation.actionsPlaceholder')"></textarea></div>
         </div>
@@ -37,9 +37,9 @@ const { t } = useI18n()
 const { confirm } = useConfirm()
 const automations = ref<any[]>([])
 const showModal = ref(false)
-const form = ref({ name:'', description:'', trigger:'issue_created', conditions:'[]', actions:'[]' })
+const form = ref({ name:'', description:'', trigger:'issue.created', conditions:'[]', actions:'[]' })
 async function load() { try { automations.value = await automationApi.list(props.projectId) } catch(e){ console.error(e) } }
-function openCreate() { form.value = { name:'', description:'', trigger:'issue_created', conditions:'[]', actions:'[]' }; showModal.value = true }
+function openCreate() { form.value = { name:'', description:'', trigger:'issue.created', conditions:'[]', actions:'[]' }; showModal.value = true }
 async function save() { await automationApi.create(props.projectId, { name:form.value.name, description:form.value.description, trigger_type:form.value.trigger, conditions:form.value.conditions, actions:form.value.actions }); showModal.value = false; load() }
 async function confirmDel(a:any) { if(await confirm(t('automation.deleteConfirm'))) { await automationApi.delete(props.projectId, a.id); load() } }
 onMounted(load)

@@ -250,7 +250,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import { useRoute, useRouter } from 'vue-router'
@@ -505,6 +505,17 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to load issue:', error)
   }
+
+  const handleKeydown = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+      e.preventDefault()
+      showAICopilot.value = !showAICopilot.value
+    }
+  }
+  document.addEventListener('keydown', handleKeydown)
+  onUnmounted(() => {
+    document.removeEventListener('keydown', handleKeydown)
+  })
 })
 
 async function loadAgentStatus() {

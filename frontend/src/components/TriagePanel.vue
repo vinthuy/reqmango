@@ -77,8 +77,9 @@ async function analyzeAI(issueId: number) {
   try {
     const r = await api.post(`/projects/${props.projectId}/intake/${issueId}/ai-analyze`)
     aiResults.value[issueId] = r.data
-  } catch (_) {}
-  finally { analyzing.value[issueId] = false }
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || 'AI analyze failed')
+  } finally { analyzing.value[issueId] = false }
 }
 
 onMounted(() => load())
@@ -86,7 +87,9 @@ onMounted(() => load())
 async function load() {
   loading.value = true
   try { const r = await api.get(`/projects/${props.projectId}/intake`); items.value = r.data || [] }
-  catch (_) {}
+  catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || 'Failed to load intake')
+  }
   finally { loading.value = false }
 }
 

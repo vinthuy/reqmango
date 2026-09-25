@@ -53,7 +53,7 @@ export const issueAgentApi = {
   },
 
   unassign(issueId: number) {
-    return apiClient.delete(`/issues/${issueId}/unassign-agent`)
+    return apiClient.delete(`/issues/${issueId}/assign-agent`)
   },
 
   getStatus(issueId: number) {
