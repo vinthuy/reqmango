@@ -31,9 +31,8 @@ Starter tasks for new contributors. Each item is sized for roughly **0.5–3 hou
 | | |
 |---|---|
 | **Area** | frontend / i18n |
-| **Files** | `frontend/src/components/TriagePanel.vue`, `frontend/src/locales/zh-CN.json`, `frontend/src/locales/en-US.json` |
-| **Task** | Replace hardcoded strings (`Triage`, `Accept`, `Reject`, `Loading…`, empty states, toasts) with `t('…')`. Reuse `settings.triage*` where possible; add keys under e.g. `intake.*` for the rest. Wire `useI18n()`. |
-| **Done when** | Switching locale updates Triage UI; no raw keys; zh + en both present. |
+| **Status** | **Done** on `master` (maintainer demo) — GitHub issue #10 closed |
+| **Files** | `frontend/src/components/TriagePanel.vue`, locales under `intake.*` |
 
 ## GFI-04 — PageTabConfig built-in names via locale
 
