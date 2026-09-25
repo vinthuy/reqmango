@@ -3479,7 +3479,23 @@
     }
   },
   "intake": {
-    "yourName": "Your Name"
+    "yourName": "Your Name",
+    "title": "Triage",
+    "desc": "Review and manage incoming work items",
+    "pendingCount": "{count} pending",
+    "formLink": "+ Intake Form Link",
+    "loading": "Loading...",
+    "empty": "No items to triage",
+    "emptyHint": "Share the intake form link to receive submissions",
+    "pendingBadge": "Pending",
+    "aiLabel": "🤖 AI:",
+    "possibleDuplicates": "⚠ Possible duplicates: #{ids}",
+    "accept": "Accept",
+    "reject": "Reject",
+    "analyzing": "...",
+    "analyzeFailed": "AI analyze failed",
+    "loadFailed": "Failed to load intake",
+    "actionFailed": "Failed"
   },
   "issueType": {
     "workItemTypes": "Work Item Types",
