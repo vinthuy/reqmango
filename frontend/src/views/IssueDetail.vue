@@ -93,11 +93,12 @@
             :workspace-id="workspaceId"
           />
           <!-- AI Tab -->
-          <div v-else-if="activeTab === 'ai'" class="space-y-4">
+          <div v-else-if="activeTab === 'ai'" class="space-y-4" data-test="ai-tab">
             <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">🤖 {{ t('ai.title') }}</h3>
                 <button
+                  data-test="ai-open-copilot"
                   @click="showAICopilot = true"
                   class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg flex items-center gap-1.5"
                 >
@@ -108,8 +109,10 @@
                 <button
                   v-for="action in aiActions"
                   :key="action.key"
+                  :data-test="`ai-action-${action.key}`"
+                  :disabled="aiTabLoading && action.key !== 'copilot'"
                   @click="executeAIAction(action.key)"
-                  class="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-left"
+                  class="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span class="text-xl">{{ action.icon }}</span>
                   <div>
@@ -117,6 +120,75 @@
                     <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ action.description }}</div>
                   </div>
                 </button>
+              </div>
+
+              <!-- Results panel -->
+              <div class="mt-4 space-y-3" data-test="ai-results">
+                <p v-if="aiTabLoading" class="text-sm text-indigo-600 dark:text-indigo-300" data-test="ai-loading">
+                  {{ t('ai.tabLoading') }}
+                </p>
+                <p v-else-if="aiTabError" class="text-sm text-red-600" data-test="ai-error">{{ aiTabError }}</p>
+
+                <template v-if="!aiTabLoading && aiAnalyzeResult">
+                  <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3" data-test="ai-analyze-result">
+                    <div v-if="aiAnalyzeResult.summary">
+                      <h4 class="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">{{ t('ai.analysisSummary') }}</h4>
+                      <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ aiAnalyzeResult.summary }}</p>
+                    </div>
+                    <div v-if="aiAnalyzeResult.insights?.length">
+                      <h4 class="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">{{ t('ai.insights') }}</h4>
+                      <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                        <li v-for="(insight, idx) in aiAnalyzeResult.insights" :key="idx">{{ insight }}</li>
+                      </ul>
+                    </div>
+                    <div v-if="aiAnalyzeResult.bottlenecks?.length">
+                      <h4 class="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">{{ t('ai.bottlenecks') }}</h4>
+                      <ul class="space-y-2">
+                        <li
+                          v-for="bn in aiAnalyzeResult.bottlenecks"
+                          :key="bn.issue_id"
+                          class="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 rounded px-2 py-1.5"
+                        >
+                          <span class="font-medium">{{ bn.issue_name }}</span>
+                          <span class="text-xs text-amber-700 dark:text-amber-300 ml-2">
+                            {{ t('ai.daysInState', { days: bn.days_in_state, state: bn.state_name }) }}
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </template>
+
+                <template v-if="!aiTabLoading && labelSuggestionsVisible">
+                  <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-2" data-test="ai-label-suggestions">
+                    <h4 class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ t('ai.suggestedLabelsTitle') }}</h4>
+                    <p v-if="!aiLabelSuggestions.length" class="text-sm text-gray-500" data-test="ai-labels-empty">
+                      {{ t('ai.noLabelSuggestions') }}
+                    </p>
+                    <ul v-else class="space-y-2">
+                      <li
+                        v-for="(item, idx) in aiLabelSuggestions"
+                        :key="labelSuggestionKey(item, idx)"
+                        class="flex items-start justify-between gap-3 text-sm border border-gray-100 dark:border-gray-700 rounded-md px-2 py-2"
+                      >
+                        <div class="min-w-0">
+                          <div class="font-medium text-gray-900 dark:text-gray-100">{{ labelSuggestionName(item) }}</div>
+                          <div v-if="labelSuggestionReason(item)" class="text-xs text-gray-500 mt-0.5">{{ labelSuggestionReason(item) }}</div>
+                        </div>
+                        <button
+                          v-if="labelSuggestionId(item)"
+                          type="button"
+                          class="shrink-0 px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                          :disabled="aiApplyingLabelId === labelSuggestionId(item)"
+                          :data-test="`ai-apply-label-${labelSuggestionId(item)}`"
+                          @click="applySuggestedLabel(labelSuggestionId(item)!)"
+                        >
+                          {{ t('ai.applyToIssue') }}
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                </template>
               </div>
             </div>
           </div>
@@ -210,6 +282,7 @@ import ApprovalDecisionDialog from '@/components/ApprovalDecisionDialog.vue'
 import ApprovalPendingBanner from '@/components/ApprovalPendingBanner.vue'
 import AICopilot from '@/components/AICopilot.vue'
 import approvalApi, { type ApprovalResponse } from '@/api/approval'
+import { analyzeWithAI, suggestLabels } from '@/api/ai'
 
 // Route params
 const route = useRoute()
@@ -242,6 +315,12 @@ const agentAssigning = ref(false)
 const agentStatus = ref<AgentStatus | null>(null)
 const workspaceAgents = ref<Agent[]>([])
 const showAICopilot = ref(false)
+const aiTabLoading = ref(false)
+const aiTabError = ref('')
+const aiAnalyzeResult = ref<any>(null)
+const aiLabelSuggestions = ref<any[]>([])
+const labelSuggestionsVisible = ref(false)
+const aiApplyingLabelId = ref<number | null>(null)
 const activeApproval = ref<ApprovalResponse | null>(null)
 const issueCopilotLabel = computed(() => {
   if (!issue.value) return ''
@@ -309,11 +388,77 @@ const aiActions = computed(() => [
   { key: 'copilot', icon: '🤖', title: t('ai.copilotTitle'), description: t('ai.readyHint') },
 ])
 
-function executeAIAction(action: string) {
+function normalizeLabelSuggestions(res: any): any[] {
+  if (Array.isArray(res)) return res
+  if (Array.isArray(res?.suggested_labels)) return res.suggested_labels
+  if (Array.isArray(res?.labels)) return res.labels
+  return []
+}
+
+function labelSuggestionName(item: any): string {
+  if (typeof item === 'string') return item
+  return item?.label_name || item?.name || String(item?.label_id ?? item?.id ?? '')
+}
+
+function labelSuggestionReason(item: any): string {
+  if (typeof item === 'string') return ''
+  return item?.reason || ''
+}
+
+function labelSuggestionId(item: any): number | null {
+  if (typeof item === 'string') {
+    const found = projectLabels.value.find((l) => l.name === item)
+    return found?.id ?? null
+  }
+  const id = item?.label_id ?? item?.id
+  return typeof id === 'number' && id > 0 ? id : null
+}
+
+function labelSuggestionKey(item: any, idx: number): string | number {
+  return labelSuggestionId(item) ?? (labelSuggestionName(item) || idx)
+}
+
+async function executeAIAction(action: string) {
   if (action === 'copilot') {
     showAICopilot.value = true
-  } else {
-    showAICopilot.value = true
+    return
+  }
+  if (!projectId.value || !issueId) return
+  aiTabLoading.value = true
+  aiTabError.value = ''
+  try {
+    if (action === 'summarize' || action === 'risk') {
+      aiAnalyzeResult.value = await analyzeWithAI(projectId.value, issueId)
+      aiLabelSuggestions.value = []
+      labelSuggestionsVisible.value = false
+    } else if (action === 'suggest') {
+      aiAnalyzeResult.value = null
+      const res = await suggestLabels(projectId.value, issueId, {
+        name: issue.value?.name || `Issue #${issueId}`,
+        description: issue.value?.description_html || issue.value?.description_text || '',
+      })
+      aiLabelSuggestions.value = normalizeLabelSuggestions(res)
+      labelSuggestionsVisible.value = true
+    }
+  } catch (e: any) {
+    aiTabError.value = e?.response?.data?.message || e.message || t('ai.connectionFailed')
+  } finally {
+    aiTabLoading.value = false
+  }
+}
+
+async function applySuggestedLabel(labelId: number) {
+  if (!labelId || !issueId) return
+  aiApplyingLabelId.value = labelId
+  try {
+    await issueApi.addIssueLabel(issueId, labelId)
+    const updated = await issueApi.getIssue(issueId)
+    issue.value = updated
+    toast.success(t('ai.labelApplied'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || t('ai.labelApplyFailed'))
+  } finally {
+    aiApplyingLabelId.value = null
   }
 }
 

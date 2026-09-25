@@ -108,9 +108,15 @@ export async function analyzeWithAI(projectId: number, issueId: number): Promise
 
 /**
  * AI Suggest Labels — 根据内容推荐标签。
+ * Backend requires name (and optional description) in the JSON body.
  */
-export async function suggestLabels(projectId: number, issueId: number): Promise<any> {
-  const res = await api.post(`/projects/${projectId}/ai/suggest-labels?issue_id=${issueId}`)
+export async function suggestLabels(
+  projectId: number,
+  issueId: number,
+  payload?: { name: string; description?: string },
+): Promise<any> {
+  const body = payload ?? { name: `issue-${issueId}`, description: '' }
+  const res = await api.post(`/projects/${projectId}/ai/suggest-labels?issue_id=${issueId}`, body)
   return res.data
 }
 

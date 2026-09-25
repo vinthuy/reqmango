@@ -69,13 +69,14 @@ describe('analyzeWithAI', () => {
 })
 
 describe('suggestLabels', () => {
-  it('should POST to suggest-labels endpoint with issue_id', async () => {
+  it('should POST to suggest-labels endpoint with issue_id and body', async () => {
     mockPost.mockResolvedValue({
       data: { labels: ['bug', 'critical'], confidence: 0.95 },
     })
-    const result = await suggestLabels(1, 42)
+    const result = await suggestLabels(1, 42, { name: 'Login bug', description: 'crashes' })
     expect(mockPost).toHaveBeenCalledWith(
-      '/projects/1/ai/suggest-labels?issue_id=42'
+      '/projects/1/ai/suggest-labels?issue_id=42',
+      { name: 'Login bug', description: 'crashes' },
     )
     expect(result.labels).toContain('bug')
   })

@@ -3,7 +3,11 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
 // Hoisted mocks for API calls
-const { mockGetIssue, mockUpdateIssue, mockListStates, mockListCycles, mockListModules, mockListProjectMembers, mockGetIssueTypes, mockDispatch } = vi.hoisted(() => ({
+const {
+  mockGetIssue, mockUpdateIssue, mockListStates, mockListCycles, mockListModules,
+  mockListProjectMembers, mockGetIssueTypes, mockDispatch, mockAnalyzeWithAI,
+  mockSuggestLabels, mockAddIssueLabel,
+} = vi.hoisted(() => ({
   mockGetIssue: vi.fn().mockResolvedValue({
     id: 42,
     sequence_id: 42,
@@ -35,12 +39,22 @@ const { mockGetIssue, mockUpdateIssue, mockListStates, mockListCycles, mockListM
   mockListProjectMembers: vi.fn().mockResolvedValue([]),
   mockGetIssueTypes: vi.fn().mockResolvedValue([]),
   mockDispatch: vi.fn().mockResolvedValue({}),
+  mockAnalyzeWithAI: vi.fn().mockResolvedValue({
+    summary: 'Healthy enough',
+    insights: ['Insight A'],
+    bottlenecks: [{ issue_id: 7, issue_name: 'Stuck', days_in_state: 5, state_name: 'Doing' }],
+  }),
+  mockSuggestLabels: vi.fn().mockResolvedValue({
+    suggested_labels: [{ label_id: 3, label_name: 'bug', confidence: 0.9, reason: 'crash' }],
+  }),
+  mockAddIssueLabel: vi.fn().mockResolvedValue({ issue_id: 42, label_id: 3, action: 'added' }),
 }))
 
 // Mock all API modules
 vi.mock('@/api/issue', () => ({
   getIssue: (...args: any[]) => mockGetIssue(...args),
   updateIssue: (...args: any[]) => mockUpdateIssue(...args),
+  addIssueLabel: (...args: any[]) => mockAddIssueLabel(...args),
   listWatchers: vi.fn().mockResolvedValue({ watchers: [] }),
   addWatcher: vi.fn().mockResolvedValue({}),
   removeWatcher: vi.fn().mockResolvedValue({}),
@@ -48,6 +62,11 @@ vi.mock('@/api/issue', () => ({
     getIssue: (...args: any[]) => mockGetIssue(...args),
     updateIssue: (...args: any[]) => mockUpdateIssue(...args),
   },
+}))
+
+vi.mock('@/api/ai', () => ({
+  analyzeWithAI: (...args: any[]) => mockAnalyzeWithAI(...args),
+  suggestLabels: (...args: any[]) => mockSuggestLabels(...args),
 }))
 
 vi.mock('@/api/project-settings', () => ({
@@ -78,6 +97,14 @@ vi.mock('@/api/agent', () => ({
   },
 }))
 
+vi.mock('@/components/AICopilot.vue', () => ({
+  default: {
+    template: '<div data-test="mock-aicopilot" v-if="visible">AICopilot</div>',
+    props: ['visible', 'projectId', 'workspaceId', 'projectName', 'issueId', 'issueLabel', 'view'],
+    emits: ['close'],
+  },
+}))
+
 // Mock composables
 vi.mock('@/composables/useI18n', () => ({
   useI18n: () => ({ t: (k: string) => k }),
@@ -85,6 +112,10 @@ vi.mock('@/composables/useI18n', () => ({
 
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn() }),
+}))
+
+vi.mock('@/composables/useConfirm', () => ({
+  useConfirm: () => ({ confirm: vi.fn().mockResolvedValue(true) }),
 }))
 
 // Mock vue-router
@@ -259,5 +290,55 @@ describe('IssueDetail', () => {
     expect(mockUpdateIssue).toHaveBeenCalledWith(42, expect.objectContaining({
       name: 'Test Issue',
     }))
+  })
+
+  async function openAiTab(wrapper: ReturnType<typeof mount>) {
+    await nextTick()
+    await nextTick()
+    const tabBtns = wrapper.findAll('[data-test="tab-btn"]')
+    await tabBtns[6].trigger('click')
+    await nextTick()
+  }
+
+  it('AI summarize calls analyzeWithAI and shows result panel', async () => {
+    const wrapper = mountComponent()
+    await openAiTab(wrapper)
+
+    expect(wrapper.find('[data-test="ai-tab"]').exists()).toBe(true)
+    await wrapper.find('[data-test="ai-action-summarize"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    expect(mockAnalyzeWithAI).toHaveBeenCalledWith(1, 42)
+    expect(wrapper.find('[data-test="ai-analyze-result"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Healthy enough')
+    expect(wrapper.find('[data-test="mock-aicopilot"]').exists()).toBe(false)
+  })
+
+  it('AI suggest calls suggestLabels and lists suggestions', async () => {
+    const wrapper = mountComponent()
+    await openAiTab(wrapper)
+
+    await wrapper.find('[data-test="ai-action-suggest"]').trigger('click')
+    await nextTick()
+    await nextTick()
+
+    expect(mockSuggestLabels).toHaveBeenCalledWith(1, 42, expect.objectContaining({
+      name: 'Test Issue',
+    }))
+    expect(wrapper.find('[data-test="ai-label-suggestions"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('bug')
+  })
+
+  it('AI copilot action opens AICopilot without calling analyze APIs', async () => {
+    const wrapper = mountComponent()
+    await openAiTab(wrapper)
+
+    await wrapper.find('[data-test="ai-action-copilot"]').trigger('click')
+    await nextTick()
+
+    expect(mockAnalyzeWithAI).not.toHaveBeenCalled()
+    expect(mockSuggestLabels).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-test="mock-aicopilot"]').exists()).toBe(true)
   })
 })
