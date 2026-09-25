@@ -305,9 +305,9 @@ Harness、Loop、对抗评审、多 Agent 流水线 —— 仅在 Phase 1–2 �
 ## 12. 下一步
 
 1. Phase 1 已实施并推远程（见 `plans/2026-09-25-ai-project-management-phase1.md`）。  
-2. **现行实施计划**：`docs/superpowers/plans/2026-09-25-ai-project-management-phase2.md`。  
-3. 管线：`docs/dev/pipeline-status.md` / `docs/dev/active/README.md`。  
-4. Phase 1 手测验收与 Phase 2 实施可并行，但 Phase 2 合并前建议完成 Phase 1 八条验收。
+2. **现行实施计划**：`docs/superpowers/plans/2026-09-25-ai-project-management-phase2.md` — Tasks 1–5 已接线；手测验收与合并前复核待完成。  
+3. 管线：`docs/dev/pipeline-status.md` / `docs/dev/active/README.md`（Implement：Phase2 进行中）。  
+4. Phase 1 / Phase 2 手测可并行；合并前建议完成两侧验收清单。
 
 ---
 

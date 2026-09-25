@@ -51,7 +51,7 @@
   3. `Sprint 总结`
   4. `Spec 草稿`
 
-- [ ] **Step 1: 写失败测试（幂等 Ensure）**
+- [x] **Step 1: 写失败测试（幂等 Ensure）**
 
 ```go
 // pm_agents_test.go
@@ -69,7 +69,7 @@ func TestPMAgentDefs_HasFour(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 实现 `PMAgentDefs` + `EnsurePMAgents`**
+- [x] **Step 2: 实现 `PMAgentDefs` + `EnsurePMAgents`**
 
 ```go
 // pm_agents.go — 核心结构（提示词可加长，但必须覆盖 Spec §6 产出）
@@ -132,17 +132,17 @@ func (s *AgentService) EnsurePMAgents(workspaceID, userID uint64) ([]*model.Agen
 
 权限枚举以 `model.AgentPermissionMode` 为准；若无 `public`，用工作区成员可调用的现有模式，并在实现时查 `model/agent.go`。
 
-- [ ] **Step 3: 暴露 `POST /workspaces/:wsParam/agents/ensure-pm`（需登录，workspace 成员）**
+- [x] **Step 3: 暴露 `POST /workspaces/:wsParam/agents/ensure-pm`（需登录，workspace 成员）**
 
 ```go
 // handler: 调 EnsurePMAgents；返回 { agents: [...] }
 ```
 
-- [ ] **Step 4: 工作区创建后调用 Ensure（搜 `WorkspaceService.Create` 成功分支）**
+- [x] **Step 4: 工作区创建后调用 Ensure（搜 `WorkspaceService.Create` 成功分支）**
 
 对**已有**工作区：前端「安装开箱 Agent」按钮可调 ensure-pm（Task 2 UI）；后端创建钩子覆盖新工作区。
 
-- [ ] **Step 5: 跑测**
+- [x] **Step 5: 跑测**
 
 ```bash
 cd backend && go test ./internal/ai/service/ -run "PMAgent" -count=1 -v
@@ -150,7 +150,7 @@ cd backend && go test ./internal/ai/service/ -run "PMAgent" -count=1 -v
 
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/internal/ai/service/pm_agents.go backend/internal/ai/service/pm_agents_test.go backend/internal/ai/handler/agent.go backend/internal/router/router.go
@@ -173,7 +173,7 @@ git commit -m "feat(ai): ensure four out-of-box PM agents per workspace"
 - Consumes: 分诊 Agent id（Ensure 返回中 name=`请求分诊`）
 - Produces: 一键创建自动化规则：`trigger issue.created` + `dispatch_agent`
 
-- [ ] **Step 1: API**
+- [x] **Step 1: API**
 
 ```ts
 // agent.ts
@@ -183,11 +183,11 @@ export async function ensurePMAgents(workspaceId: number): Promise<Agent[]> {
 }
 ```
 
-- [ ] **Step 2: 修正全部模板 trigger 为点分形式**
+- [x] **Step 2: 修正全部模板 trigger 为点分形式**
 
 对照后端 `registerEventHandlers` 列表：`issue.created` | `issue.updated` | `issue.state_changed` | `issue.assigned` | `comment.added` | `scheduled`。
 
-- [ ] **Step 3: 增加模板 `intakeTriage`**
+- [x] **Step 3: 增加模板 `intakeTriage`**
 
 ```ts
 {
@@ -207,7 +207,7 @@ export async function ensurePMAgents(workspaceId: number): Promise<Agent[]> {
 
 `applyTemplate` 若 `requiresPMAgents`：先 `ensurePMAgents(workspaceId)`，再填 `value`。
 
-- [ ] **Step 4: i18n**
+- [x] **Step 4: i18n**
 
 ```json
 // zh-CN automationTemplates
@@ -231,7 +231,7 @@ export async function ensurePMAgents(workspaceId: number): Promise<Agent[]> {
 2. 点「新建即分诊」→ 规则创建且 `trigger_type` JSON 内为 `issue.created`。  
 3. 普通创建 Issue → Agent activity / 评论出现分诊建议（需 LLM 配置）。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit -m "feat(ai): add PM agent install and create-to-triage automation template"
@@ -248,7 +248,7 @@ git commit -m "feat(ai): add PM agent install and create-to-triage automation te
 
 **背景：** `IntakeHandler.Submit` 今日仅 `db.Create(issue)`，**不**发 `issue.created`，导致 Task 2 模板对 Intake 无效。
 
-- [ ] **Step 1: 定位 Issue 创建后如何发事件**
+- [x] **Step 1: 定位 Issue 创建后如何发事件**
 
 在 `issue_service.go` 搜 `runAutomations` / `issue.created`；抽出可复用函数，例如：
 
@@ -264,7 +264,7 @@ func (s *IssueService) NotifyIssueCreated(issue *model.Issue) {
 
 （参数以现有 `runAutomations` 签名为准，勿发明不一致字段名。）
 
-- [ ] **Step 2: Intake Submit 在 Create 成功后调用 Notify**
+- [x] **Step 2: Intake Submit 在 Create 成功后调用 Notify**
 
 ```go
 if err := h.db.Create(issue).Error; err != nil { ... }
@@ -276,7 +276,7 @@ c.JSON(201, issue)
 
 构造函数 `NewIntakeHandler` 增加依赖；`router.go` 接线。
 
-- [ ] **Step 3: 单测或集成断言**
+- [x] **Step 3: 单测或集成断言**
 
 至少：Create 后 publisher 被调用 1 次（mock）；或文档化手测步骤若 DI 难测。
 
@@ -284,7 +284,7 @@ c.JSON(201, issue)
 
 启用「新建即分诊」→ 公网 Intake 表单提交 → pending Issue + Agent 活动。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git commit -m "feat(ai): fire issue.created automations from intake submit"
@@ -304,7 +304,7 @@ git commit -m "feat(ai): fire issue.created automations from intake submit"
 - Consumes: `POST /projects/:projectId/ai/sprint-plan`
 - Produces: 页内结果面板 +「存为 Page」按钮（复用 `createPage` 或跳转 `pages?content=`，对齐 `Project.vue` `handleAISaveAsPage`）
 
-- [ ] **Step 1: UI 按钮**
+- [x] **Step 1: UI 按钮**
 
 在 `CycleDetail.vue` Start/End 旁：
 
@@ -317,7 +317,7 @@ git commit -m "feat(ai): fire issue.created automations from intake submit"
 >{{ summarizing ? t('common.loading') : t('cycle.aiSummary') }}</button>
 ```
 
-- [ ] **Step 2: 调用与展示**
+- [x] **Step 2: 调用与展示**
 
 ```ts
 async function runCycleSummary() {
@@ -335,13 +335,13 @@ async function runCycleSummary() {
 
 渲染 `summary` 文本/结构化字段（按 API 实际响应：读 `AISprintPlanResponse`）。
 
-- [ ] **Step 3（可选加固）: SprintPlan 接受 cycle_id**
+- [x] **Step 3（可选加固）: SprintPlan 接受 cycle_id**
 
 ```go
 // query cycle_id > 0 时：只汇总该 cycle 的 issues / 进度，写入 prompt
 ```
 
-- [ ] **Step 4: 「存为 Page」**
+- [x] **Step 4: 「存为 Page」**
 
 ```ts
 async function saveSummaryAsPage() {
@@ -354,7 +354,7 @@ async function saveSummaryAsPage() {
 
 - [ ] **Step 5: 手测** — 打开 Cycle → 一键总结有返回 → 可存 Page。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit -m "feat(ai): add one-click cycle summary on cycle detail"
@@ -371,7 +371,7 @@ git commit -m "feat(ai): add one-click cycle summary on cycle detail"
 
 **现状：** `executeAIAction` 对所有 key 仅 `showAICopilot = true`。
 
-- [ ] **Step 1: 状态**
+- [x] **Step 1: 状态**
 
 ```ts
 const aiTabLoading = ref(false)
@@ -380,7 +380,7 @@ const aiAnalyzeResult = ref<any>(null)
 const aiLabelSuggestions = ref<any[]>([])
 ```
 
-- [ ] **Step 2: 改 `executeAIAction`**
+- [x] **Step 2: 改 `executeAIAction`**
 
 ```ts
 async function executeAIAction(action: string) {
@@ -407,7 +407,7 @@ async function executeAIAction(action: string) {
 }
 ```
 
-- [ ] **Step 3: AI Tab 面板**
+- [x] **Step 3: AI Tab 面板**
 
 在 AI Tab 按钮列表下方渲染：
 
@@ -416,11 +416,11 @@ async function executeAIAction(action: string) {
 - 标签建议列表 + 「应用到 Issue」可选（调用现有 `addIssueLabel`；无则仅展示）
 - 保留「打开 Copilot」
 
-- [ ] **Step 4: 前端单测（可选）**
+- [x] **Step 4: 前端单测（可选）**
 
 若有 IssueDetail 测试基建则加；否则手测：AI Tab → 总结有数据；建议标签有列表；Copilot 仍可开。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git commit -m "feat(ai): wire issue AI tab to analyze and suggest-labels"
@@ -435,21 +435,30 @@ git commit -m "feat(ai): wire issue AI tab to analyze and suggest-labels"
 - Modify: `docs/dev/active/README.md` — 指向本 plan
 - Modify: Spec §12 下一步改为 Phase 2 计划已就绪 / 实施中
 
-- [ ] **Step 1: 更新管线**
+- [x] **Step 1: 更新管线**
 
 | 功能 | Implement |
 |------|-----------|
-| AI PM Phase 2（触发+开箱） | 🔄 本 plan |
+| AI PM Phase 2（触发+开箱） | 🔄 Tasks 1–5 已接线；手测验收待完成 |
 
-- [ ] **Step 2: 自检本 plan checkbox；缺项记 Phase 3 或 bug list**
+- [x] **Step 2: 自检本 plan checkbox；缺项记 Phase 3 或 bug list**
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
-git commit -m "docs: add AI PM Phase 2 plan and pipeline pointer"
+git commit -m "docs: mark AI PM Phase 2 implementation progress"
 ```
 
 ---
+
+## Phase 2 实施进度备注（2026-09-25）
+
+- Tasks 1–5 代码已合入 `feature/ai-pm-phase2`（commits `14f3f28`…`f0d5343`）。计划内**手测**步骤未勾选。
+- Deferred（非阻塞；可 Phase 3 / chore）:
+  - Ensure：无 DB 级幂等集成测；工作区创建种子失败吞错误；无 `(workspace_id, name)` unique
+  - `AutomationManager` / 部分 e2e 仍用 underscore trigger（本 plan 仅强制 ProjectSettings）
+  - Analyze API 仍为项目级健康；标签建议 Apply 需 `label_id` 或名称匹配
+  - 下方验收清单待人工跑通后再将管线 Implement 标为完成
 
 ## 验收清单（对照 Spec §9 Phase 2）
 
