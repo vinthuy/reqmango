@@ -46,7 +46,7 @@
 
 ---
 
-### BUG-04 RQL assignee_id / cycle_id / module_id / label 按名称匹配数字 ID
+### BUG-04 RQL assignee_id / cycle_id / module_id / label 按名称匹配数字 ID ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -56,10 +56,11 @@
 | **原因** | 字段类型定义为 `"user"/"cycle"/"module"/"label"`，SQL 按 `display_name='5'` 匹配 |
 | **复现** | FilterBar 添加筛选 → assignee_id = 332 → 返回 0 条（已实测确认） |
 | **对比** | `state_id = 1` 正确返回 1 条（state_id 映射为 `"number"` 类型） |
+| **修复** | 新增 `user_id`/`cycle_id`/`module_id`/`label_id` 严格数值字段类型；`label` 恢复名称匹配；`assignee`/`cycle`/`module` 按 JoinTable 区分 ID 与名称匹配 |
 
 ---
 
-### BUG-05 parent_id 自引用未被拦截
+### BUG-05 parent_id 自引用未被拦截 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -68,6 +69,7 @@
 | **影响** | 树视图无限循环、列表返回重复条目 |
 | **原因** | 只校验父 Issue 是否存在，不检查 `parent_id != issueID` 和循环引用 |
 | **复现** | `PUT /api/v1/issues/5048 {"parent_id":5048}` → 200 OK（已实测确认） |
+| **修复** | 检查 `parent_id != issueID`，验证父 Issue 存在 |
 
 ---
 
@@ -83,7 +85,7 @@
 
 ---
 
-### BUG-07 XSS — DescriptionHTML 无清理直接存储和输出
+### BUG-07 XSS — DescriptionHTML 无清理直接存储和输出 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -91,6 +93,7 @@
 | **类型** | 安全漏洞 |
 | **影响** | 存储型 XSS，`<script>alert('XSS')</script>` 可在所有用户浏览器执行 |
 | **原因** | 未使用 bluemonday 等 HTML 清理库，直接存储 `req.DescriptionHTML` |
+| **修复** | 创建 `backend/internal/security/sanitize.go`，使用 bluemonday UGC 策略消毒 |
 
 ---
 
@@ -164,7 +167,7 @@
 
 ---
 
-### BUG-14 注册 TOCTOU 竞态条件
+### BUG-14 注册 TOCTOU 竞态条件 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -172,6 +175,7 @@
 | **类型** | 并发Bug |
 | **影响** | 并发注册相同邮箱 → 返回 500 Internal Error 而非 409 Conflict |
 | **原因** | SELECT COUNT 和 INSERT 之间无事务保护 |
+| **修复** | 改用 insert-then-catch 模式，捕获唯一约束违反返回 409 |
 
 ---
 
@@ -239,7 +243,7 @@
 
 ---
 
-### BUG-20 @mention 不支持中文用户名
+### BUG-20 @mention 不支持中文用户名 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -247,16 +251,18 @@
 | **类型** | 功能Bug |
 | **影响** | `@张三` 无法被正确解析和通知 |
 | **原因** | `isUsernameChar` 只匹配 `[a-zA-Z0-9_-]` |
+| **修复** | 改用 `unicode.IsLetter` / `unicode.IsDigit` 支持所有 Unicode 字符 |
 
 ---
 
-### BUG-21 活动日志显示状态 ID 而非名称
+### BUG-21 活动日志显示状态 ID 而非名称 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
 | **文件** | `backend/internal/service/issue_service.go:583-584` |
 | **类型** | 用户体验 |
 | **影响** | 用户看到 "3 → 5" 而非 "待处理 → 进行中" |
+| **修复** | GetActivities 中预加载状态 ID→名称映射，替换返回值中的 ID |
 
 ---
 
@@ -281,13 +287,14 @@
 
 ---
 
-### BUG-24 RQL LIKE 模式中 `%` `_` 不转义
+### BUG-24 RQL LIKE 模式中 `%` `_` 不转义 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
 | **文件** | `backend/internal/rql/executor.go:424-427` |
 | **类型** | 边界Bug |
 | **影响** | 搜索 "100%" 行为异常 |
+| **修复** | 统一使用 `escapeLikeWildcards()` 函数转义 `%` 和 `_` |
 
 ---
 
@@ -301,7 +308,7 @@
 
 ---
 
-### BUG-26 批量操作静默跳过失败项
+### BUG-26 批量操作静默跳过失败项 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -309,26 +316,29 @@
 | **类型** | 错误处理 |
 | **影响** | 部分成功部分失败不通知调用者 |
 | **原因** | 流程校验失败用 `continue` 跳过 |
+| **修复** | 返回 `BulkFailedItem` 列表，包含失败 ID 和原因 |
 
 ---
 
-### BUG-27 前端 axios 无 timeout / 无统一错误拦截
+### BUG-27 前端 axios 无 timeout / 无统一错误拦截 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
 | **文件** | `frontend/src/api/index.ts:3-8` |
 | **类型** | 用户体验 |
 | **影响** | 请求挂起无反馈；429/5xx 错误静默 |
+| **修复** | 设置 30s timeout；添加 403/500/timeout toast 提示 |
 
 ---
 
-### BUG-28 en-US 翻译缺 18 个 key
+### BUG-28 en-US 翻译缺 18 个 key ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
 | **文件** | `frontend/src/locales/en-US.json`（2228 keys vs zh-CN 2245 keys） |
 | **类型** | i18n |
 | **影响** | 英文界面显示原始 key 名（如 `activity.changedType`） |
+| **修复** | 补齐 zh-CN 缺失的反向 key，添加 metrics2 等新 key |
 
 ---
 
@@ -341,11 +351,12 @@
 
 ---
 
-### BUG-30 Gin 尾斜杠 301 重定向可能导致前端请求失败
+### BUG-30 Gin 尾斜杠 301 重定向可能导致前端请求失败 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
 | **影响** | `GET /api/v1/issues/5048/` → 301 → 如果 axios 不跟随则失败 |
+| **修复** | 路由层设置 `RedirectTrailingSlash(false)` |
 
 ---
 
@@ -363,9 +374,10 @@
 
 ---
 
-### BUG-33 useConfirm promise 路由跳转时永不 resolve
+### BUG-33 useConfirm promise 路由跳转时永不 resolve ✅ 已修复
 
 `frontend/src/composables/useConfirm.ts:13` — 对话框打开时用户导航离开，promise 永久挂起。
+**修复**：添加 `router.afterEach` 安全网 + 测试覆盖。
 
 ---
 
@@ -491,13 +503,16 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | 严重度 | 数量 | 已修复 | 待修复 |
 |--------|------|--------|--------|
 | 🔴 严重 | 8 | 8 | 0 |
-| 🟡 高 | 12 | 10 | 2 |
-| 🟠 中 | 13 | 3 | 10 |
-| 🔵 低 | 8 | 0 | 8 |
+| 🟡 高 | 12 | 12 | 0 |
+| 🟠 中 | 13 | 10 | 3 |
+| 🔵 低 | 8 | 3 | 5 |
 | 🆕 UAT | 7 | 7 | 0 |
-| **总计** | **45** | **29** | **16** |
+| 🆕 E2E | 4 | 3 | 1 |
+| **总计** | **52** | **43** | **9** |
 
-> 修复率：**64.4%**（29/45）
+> 修复率：**82.7%**（43/52）
+>
+> 最近更新：2026-09-25（批量修复 20 项 + 代码审查修复 6 项）
 
 ---
 
@@ -539,13 +554,14 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **原因** | 后端统一返回 `{"data":[...]}` 包裹格式，测试未提取 `.data` |
 | **修复** | `(await response.json()).data \|\| []`（2 处） |
 
-### BUG-49 `WorkflowManager.vue` 工作流转换表单缺少审批转换字段
+### BUG-49 `WorkflowManager.vue` 工作流转换表单缺少审批转换字段 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
 | **文件** | `frontend/src/components/agent/WorkflowManager.vue`（转换表单 ~行 31-36） |
 | **类型** | 功能缺口 |
 | **影响** | 新增转换表单缺少 `rule_type`（allow/approval）、`approver_ids`、`role_allowed` 字段，用户无法从 UI 创建审批类转换；只能通过 API 创建 |
+| **修复** | 补充 approval_mode、approve_target_state_id、reject_target_state_id 字段 |
 
 ---
 
@@ -689,7 +705,7 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **本轮处理** | 未实现（属于新功能，需要先做数据模型决策：新增 `agent_workflow_transitions` 表 vs 迁移外键）。已把相关用例改为断言当前真实契约，并在此登记，避免"看起来通过"的假象：`workflow-approval.spec.ts`（断言 400 拒绝）、`workflow-approval-api.spec.ts`（断言占位实现的 201 契约）、`workflow-automation-ui.spec.ts`（断言 nodes/edges 数组） |
 | **建议** | 明确转换的归属表 → 实现 `GET/POST/PUT/DELETE` 与校验 → 补 `StateTransition.vue` 的加载路径 → 再恢复"创建审批并批准/拒绝"的端到端用例 |
 
-### BUG-59 `/projects/:id/settings/states` 返回裸数组，与 `WorkflowManager` 期望不一致 🚧 未修复
+### BUG-59 `/projects/:id/settings/states` 返回裸数组，与 `WorkflowManager` 期望不一致 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -697,3 +713,4 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **类型** | 🟠 前后端契约不一致 |
 | **影响** | 工作流"新增转换"表单的状态下拉可能为空（用例 `workflow-automation-ui` 第 6 项已把该 GAP 打印出来） |
 | **说明** | 同一资源的工作空间级接口返回 `{data:[...]}`，项目级接口返回裸数组；两处消费方期望不同 |
+| **修复** | 后端统一返回 `{data:[...]}` 格式，前端 9 个组件适配 `r.data?.data ?? r.data` |
