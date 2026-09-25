@@ -99,7 +99,7 @@ frontend/src/
 │   ├── AI: AIChatSidebar.vue, AICreateDialog.vue, AISettingsPanel.vue,
 │   │        AICopilot.vue, AIChartRenderer.vue, AIResultActions.vue
 │   ├── Dashboard: DashboardGrid.vue, DashboardSidebar.vue,
-│   │              WidgetCard.vue, WidgetConfigPanel.vue
+│   │              WidgetCard.vue（含 ai_summary）, WidgetConfigPanel.vue
 │   ├── Palette: CommandPalette.vue
 │   ├── Issue: IssueCard.vue, IssueList.vue, IssueKanban.vue,
 │   │          IssueDetailPanel.vue, SubIssuePanel.vue,
@@ -114,7 +114,8 @@ frontend/src/
 │   │             WorkflowRuleForm.vue, WorkflowRuleList.vue,
 │   │             StateTransition.vue, WorkflowVisualization.vue
 │   ├── Automation: AutomationForm.vue, AutomationList.vue,
-│   │                AutomationManager.vue, AutomationTemplateList.vue
+│   │                AutomationManager.vue, AutomationTemplateList.vue,
+│   │                AutomationRuleBuilder.vue（含 dispatch_agent；NL 草稿预填）
 │   ├── Template: ProjectTemplateManager.vue,
 │   │              WorkItemTemplateManager.vue,
 │   │              WorkspaceIssueTypeManager.vue
@@ -174,7 +175,7 @@ frontend/src/
 | `/workspace/:slug/project/:id/settings` | ProjectSettings | 项目配置 |
 | `.../settings/workflows/:workflowId` | WorkflowDetail | 工作流详情 |
 | `/workspace/:slug/project/:id/analytics` | Analytics | 项目分析 |
-| `/workspace/:slug/project/:id/dashboards` | Dashboard | 仪表盘 |
+| `/workspace/:slug/project/:id/dashboards` | Dashboard | 仪表盘（可加 `ai_summary` 卡片，刷新重拉 Analyze） |
 | `/workspaces/:wid/projects/:pid/issues/:iid` | IssueDetail | 工作项详情 |
 | `/workspaces/:wid/projects/:pid/issues/new` | IssueCreate | 创建工作项 |
 | `/workspaces/:wid/projects/:pid/custom-fields` | CustomFields | 自定义字段 |

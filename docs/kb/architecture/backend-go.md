@@ -146,7 +146,8 @@ backend/
 │   │   ├── plugin_service.go            # Plugin 管理
 │   │   ├── search_template_service.go   # SearchTemplate CRUD
 │   │   ├── saved_report_service.go      # SavedReport 管理
-│   │   ├── dashboard_service.go         # Dashboard CRUD + Widget
+│   │   ├── dashboard_service.go         # Dashboard CRUD + Widget 渲染
+│   │   ├── dashboard_ai_summary.go      # ai_summary widget → 项目级 Analyze
 │   │   ├── field_permission_service.go  # 字段权限管理
 │   │   ├── context_payload_service.go   # 上下文载荷服务
 │   │   ├── squad_service.go             # Squad 协作组管理
@@ -375,8 +376,9 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 | `/projects/:id/issue-types` | 问题类型 CRUD + 字段绑定 |
 | `/projects/:id/workflows` | Workflow CRUD + 规则 |
 | `/projects/:id/releases` | Release + Roadmap |
-| `/projects/:id/ai/` | AI 聊天/搜索/图表/分诊 |
-| `/projects/:id/automations` | 自动化规则 CRUD + 执行 |
+| `/projects/:id/ai/` | 聊天/搜索/图表/分诊；`analyze`（Issue 或项目）；`sprint-plan`；`automation-preview`（NL→规则草稿，不落库） |
+| `/projects/:id/automations` | 自动化规则 CRUD + 执行（含 `dispatch_agent`） |
+| `/projects/:id/dashboards` | Dashboard CRUD + widgets；`GET .../full` 返回 widget_data（含 `ai_summary`） |
 | `/issues/` | CRUD + 搜索 + 批量 + 导入/导出 + 树 + 关联 + 工时 + 周期性 |
 | `/comments/` | CRUD + 回复 + 解决 |
 | `/custom-fields/` | CRUD + 选项 + 条件规则 |

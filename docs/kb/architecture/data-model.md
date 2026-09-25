@@ -257,7 +257,7 @@ User     1──N Notification
 | 表 | 关键字段 | 说明 |
 |----|----------|------|
 | `saved_dashboards` | name, config (JSONB), is_default, project_id | 保存的仪表盘 |
-| `dashboard_widgets` | dashboard_id, widget_type, config (JSONB), position | 仪表盘组件 |
+| `dashboard_widgets` | dashboard_id, widget_type, config (JSONB), position | 仪表盘组件；`widget_type` 含 number_card / 各类 chart / burndown / table / recent_list / saved_report / **ai_summary** |
 | `saved_reports` | name, report_type, filters (JSONB), schedule, project_id | 保存的报表 |
 
 ### 页面扩展 (2 表)

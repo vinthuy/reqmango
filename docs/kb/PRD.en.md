@@ -227,11 +227,14 @@ reqmango AI is an integrated AI assistant that allows users to interact with pro
 
 | Feature | Description |
 |---------|-------------|
-| AI Chat | Ask project questions via conversation |
-| Natural Language Search | Search work items in everyday language |
-| Smart Create | Describe requirements, AI generates work items |
-| Data Analysis | AI analyzes project progress and trends |
-| Context Awareness | AI understands current project/page context |
+| AI Chat | Ask project questions via conversation (Ask read-only / Build write) |
+| Natural Language Search | Search work items with everyday language |
+| Smart Create | Describe needs; AI generates work items |
+| Data Analysis | Issue- or project-level Analyze: summary, insights, bottlenecks |
+| Project summary → Page | One-click project AI summary, optional save as Page |
+| Dashboard AI summary | `ai_summary` widget; load on open, refreshable |
+| Context Awareness | AI understands current project, issue, page context |
+| Out-of-box PM agents | ensure-pm; issue assign / @Agent / activity audit |
 
 ### 9.2 AI Interaction Modes
 
@@ -262,6 +265,8 @@ reqmango supports flexible automation rules to help teams reduce repetitive oper
 | Status Sync | Work item completed | Update related items |
 | Notification | Deadline approaching | Send reminder |
 | Label Management | Specific condition met | Auto-add label |
+| AI triage/risk/spec templates | `issue.created` etc. | `dispatch_agent` (one-click templates) |
+| NL rule setup | User describes intent | `automation-preview` draft → RuleBuilder confirm |
 
 ---
 

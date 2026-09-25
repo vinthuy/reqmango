@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-09-25 — AI 项目管理路径（B1+C1+B2+C2）同步
+
+**类型**: Feature + Documentation
+
+**变更内容**:
+- **产品方向**：对标项目管理 AI（Plane 路径）；Harness/Loop/多 Agent 流水线**不作**下一阶段主叙事
+- **B1**：自动化 AI 模板（分诊/风险/Spec）+ `dispatch_agent`；触发点分事件
+- **C1**：项目级 Analyze → 可存 Page（`Project.vue`）
+- **B2**：`POST .../ai/automation-preview` NL→规则草稿，确认后才落库
+- **C2**：Dashboard widget 类型 `ai_summary`（打开加载 + 刷新；**无**定时出报）
+- KB：模块表补 Dashboard；AI / Automation 能力描述更新；data-model `widget_type`；backend/frontend 入口注明
+
+**影响文件**:
+- `docs/kb/README.md`, `architecture/README.md`, `backend-go.md`, `frontend.md`, `data-model.md`, `PRD.md`
+- 验收：`docs/dev/acceptance/2026-09-25-ai-*.md`
+
+---
+
 ## 2026-07-04 — 搜索API全面补全 + IssueType管理增强 + N+1查询优化
 
 **类型**: Feature + Fix + Enhancement

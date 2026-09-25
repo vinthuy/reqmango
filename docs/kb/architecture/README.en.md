@@ -2,7 +2,7 @@
 
 reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-stack.
 
-**Last Updated**: 2026-07-13
+**Last Updated**: 2026-09-25
 
 ---
 
@@ -90,7 +90,7 @@ reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-s
 | ProjectTemplate | ✅ | ✅ | Project template + Apply |
 | WorkItemTemplate | ✅ | ✅ | Work item creation template |
 | Workflow | ✅ | ✅ | State transitions + approval rules |
-| Automation | ✅ | ✅ | Trigger-Condition-Action |
+| Automation | ✅ | ✅ | Trigger-Condition-Action (dot events); AI templates + `dispatch_agent`; NL `automation-preview` draft then confirm |
 | Comment | ✅ | ✅ | Nested replies + resolve |
 | Notification | ✅ | ✅ | CRUD + read/unread + summary statistics |
 | Saved Views | ✅ | ✅ | JSONB filters/sort/column config + default view |
@@ -100,7 +100,8 @@ reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-s
 | Attachment | ✅ | ✅ | File upload + metadata |
 | Relation | ✅ | ✅ | Custom in/out naming + Issue association |
 | RQL | ✅ | ✅ | Custom DSL search |
-| AI | ✅ | ✅ | Chat SSE + NL Search + Smart Create + Analyze + Page AI + Triage |
+| AI | ✅ | ✅ | Chat SSE + NL Search + Smart Create + Analyze (issue/project) + Page AI + Triage; project summary→Page; Dashboard `ai_summary` |
+| Dashboard | ✅ | ✅ | Widget grid incl. charts/number/burndown/report/list + `ai_summary` (load on open, refresh; no scheduled reports) |
 | Time Tracking | ✅ | ✅ | Start/Stop/List/Summary |
 | Recurring | ✅ | ✅ | daily/weekly/monthly/cron + UI config |
 | Intake & Triage | ✅ | ✅ | Public submission + Accept/Reject + AI analysis |
@@ -113,6 +114,7 @@ reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-s
 | Git Integration | ✅ | ✅ | GitHub/GitLab native integration + Webhook |
 | Project CustomField Enrollment | ✅ | ✅ | Project-level custom field enable/disable |
 | Workspace Workflow | ✅ | ✅ | Workspace-level workflow + project-level override |
+| AI Agent system | ✅ | ✅ | Out-of-box PM agents (ensure-pm) + issue assign/activity; advanced Templates/Loops exist in code but are **not** the product north star |
 
 ---
 

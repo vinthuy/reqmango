@@ -132,7 +132,8 @@ backend/
 │   │   ├── plugin_service.go            # Plugin management
 │   │   ├── search_template_service.go   # SearchTemplate CRUD
 │   │   ├── saved_report_service.go      # SavedReport management
-│   │   ├── dashboard_service.go         # Dashboard CRUD + Widget
+│   │   ├── dashboard_service.go         # Dashboard CRUD + Widget render
+│   │   ├── dashboard_ai_summary.go      # ai_summary widget → project Analyze
 │   │   ├── field_permission_service.go  # Field permission management
 │   │   ├── sse_hub.go                   # SSE real-time event hub
 │   │   ├── llm_client.go                # LLM client (DeepSeek/Anthropic)
@@ -282,8 +283,9 @@ All routes prefixed with `/api/v1`, 80+ endpoints:
 | `/projects/:id/issue-types` | Issue type CRUD + Field binding |
 | `/projects/:id/workflows` | Workflow CRUD + Rules |
 | `/projects/:id/releases` | Release + Roadmap |
-| `/projects/:id/ai/` | AI Chat/Search/Charts/Triage |
-| `/projects/:id/automations` | Automation rule CRUD + Execution |
+| `/projects/:id/ai/` | Chat/Search/Charts/Triage; `analyze`; `sprint-plan`; `automation-preview` (NL draft, no persist) |
+| `/projects/:id/automations` | Automation rule CRUD + execution (incl. `dispatch_agent`) |
+| `/projects/:id/dashboards` | Dashboard CRUD + widgets; `GET .../full` includes `ai_summary` data |
 | `/issues/` | CRUD + Search + Batch + Import/Export + Tree + Relations + Time tracking + Recurrence |
 | `/comments/` | CRUD + Replies + Resolve |
 | `/custom-fields/` | CRUD + Options + Conditional rules |

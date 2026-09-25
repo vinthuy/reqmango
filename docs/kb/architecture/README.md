@@ -2,7 +2,7 @@
 
 reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
-**最后更新**: 2026-08-30
+**最后更新**: 2026-09-25
 
 ---
 
@@ -91,7 +91,7 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 | ProjectTemplate | ✅ | ✅ | 项目模板 + Apply |
 | WorkItemTemplate | ✅ | ✅ | 工作项创建模板 |
 | Workflow（工作流） | ✅ | ✅ | 状态流转 + 审批规则 |
-| Automation（自动化） | ✅ | ✅ | Trigger-Condition-Action |
+| Automation（自动化） | ✅ | ✅ | Trigger-Condition-Action（点分事件）；AI 模板 + `dispatch_agent`；NL `automation-preview` 草稿后确认保存 |
 | Comment（评论） | ✅ | ✅ | 嵌套回复 + resolve |
 | Notification（通知） | ✅ | ✅ | CRUD + 已读/未读 + 摘要统计 |
 | Saved Views（保存视图） | ✅ | ✅ | JSONB 筛选/排序/列配置 + 默认视图 |
@@ -101,7 +101,8 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 | Attachment（附件） | ✅ | ✅ | 文件上传 + 元数据 |
 | Relation（关联类型） | ✅ | ✅ | 自定义 in/out 命名 + Issue 关联 |
 | RQL（查询语言） | ✅ | ✅ | 自定义 DSL 搜索 |
-| AI（智能助手） | ✅ | ✅ | Chat SSE + NL Search + Smart Create + Analyze + Page AI + Triage |
+| AI（智能助手） | ✅ | ✅ | Chat SSE + NL Search + Smart Create + Analyze（Issue/项目）+ Page AI + Triage；项目总结可存 Page；NL→自动化预览；Dashboard `ai_summary` |
+| Dashboard（仪表盘） | ✅ | ✅ | Widget 网格：图表/数字卡/燃尽/报表/列表 + `ai_summary`（打开加载、可刷新；无定时出报） |
 | Time Tracking（工时） | ✅ | ✅ | Start/Stop/List/Summary |
 | Recurring（重复工作项） | ✅ | ✅ | daily/weekly/monthly/cron + UI 配置 |
 | Intake & Triage（接收分诊） | ✅ | ✅ | 公开提交 + Accept/Reject + AI 分析 |
@@ -115,7 +116,7 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 | Project CustomField Enrollment | ✅ | ✅ | 项目级自定义字段启用/禁用 |
 | Workspace Workflow（工作空间工作流） | ✅ | ✅ | 工作空间级工作流 + 项目级覆盖 |
 | Calendar/Gantt View | ✅ | ✅ | 日历视图 (IssueCalendar.vue) + 甘特图视图 (IssueGantt.vue) |
-| AI Agent 系统 | ✅ | ✅ | Agent Templates/Configs, Skills, Tasks, Loops, Pipelines, Memory, Squads, Autopilot, Developer/Tester Agent, CI/CD, SDLC |
+| AI Agent 系统 | ✅ | ✅ | 开箱 PM Agent（ensure-pm）+ Issue 指派/活动；Templates/Skills/Tasks 等高级能力仍在代码中，**非**当前产品主叙事（不做 Harness/Loop 平台化） |
 | 聊天系统 | ✅ | ✅ | Chat, Messages, SSE streaming |
 | 页面版本管理 | ✅ | ✅ | PageVersion, PageTemplate |
 | 审批系统 | ✅ | ✅ | Approval |

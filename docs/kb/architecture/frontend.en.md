@@ -82,7 +82,7 @@ frontend/src/
 │   ├── AI: AIChatSidebar.vue, AICreateDialog.vue, AISettingsPanel.vue,
 │   │        AICopilot.vue, AIChartRenderer.vue, AIResultActions.vue
 │   ├── Dashboard: DashboardGrid.vue, DashboardSidebar.vue,
-│   │              WidgetCard.vue, WidgetConfigPanel.vue
+│   │              WidgetCard.vue (incl. ai_summary), WidgetConfigPanel.vue
 │   ├── Palette: CommandPalette.vue
 │   ├── Issue: IssueCard.vue, IssueList.vue, IssueKanban.vue,
 │   │          IssueDetailPanel.vue, SubIssuePanel.vue,
@@ -157,7 +157,7 @@ frontend/src/
 | `/workspace/:slug/project/:id/settings` | ProjectSettings | Project configuration |
 | `.../settings/workflows/:workflowId` | WorkflowDetail | Workflow detail |
 | `/workspace/:slug/project/:id/analytics` | Analytics | Project analytics |
-| `/workspace/:slug/project/:id/dashboards` | Dashboard | Dashboard |
+| `/workspace/:slug/project/:id/dashboards` | Dashboard | Dashboard (`ai_summary` widget + refresh) |
 | `/workspaces/:wid/projects/:pid/issues/:iid` | IssueDetail | Issue detail |
 | `/workspaces/:wid/projects/:pid/issues/new` | IssueCreate | Create issue |
 | `/workspaces/:wid/projects/:pid/custom-fields` | CustomFields | Custom fields |
