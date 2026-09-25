@@ -100,17 +100,19 @@ function parseIssueTypeIds(ids: string | null | undefined): number[] {
   try { return JSON.parse(ids) } catch { return [] }
 }
 
-async function load() { 
-  try { 
-    const [w, s] = await Promise.all([
-      isWorkspaceMode.value 
+async function load() {
+  try {
+    const [wResult, sResult] = await Promise.allSettled([
+      isWorkspaceMode.value
         ? listWorkspaceWorkflows(props.workspaceId!)
         : workflowApi.list(props.projectId!),
       isWorkspaceMode.value
         ? api.get(`/workspaces/${props.workspaceId}/settings/states`)
         : api.get(`/projects/${props.projectId}/settings/states`)
-    ]); 
-    workflows.value = Array.isArray(w) ? w : (w?.data ?? []); 
+    ]);
+    const w = wResult.status === 'fulfilled' ? wResult.value : [];
+    const s = sResult.status === 'fulfilled' ? sResult.value : null;
+    workflows.value = Array.isArray(w) ? w : (w?.data ?? []);
     const statesBody = s?.data;
     states.value = Array.isArray(statesBody?.data) ? statesBody.data : (Array.isArray(statesBody) ? statesBody : [])
     

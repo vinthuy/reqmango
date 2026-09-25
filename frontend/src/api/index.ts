@@ -1,7 +1,12 @@
 import axios from 'axios'
 import { useToast } from '../composables/useToast'
 
-const toast = useToast()
+// Lazy-initialized toast to avoid module-level side effects in tests
+let _toast: ReturnType<typeof useToast> | null = null
+function getToast() {
+  if (!_toast) _toast = useToast()
+  return _toast
+}
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -39,7 +44,7 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
     if (error.response?.status === 403) {
-      toast.error('Permission denied. You do not have access to this resource.')
+      getToast().error('Permission denied. You do not have access to this resource.')
       return Promise.reject(error)
     }
     if (error.response?.status === 429) {
@@ -48,11 +53,11 @@ api.interceptors.response.use(
     }
     if (error.response?.status >= 500) {
       console.error('Server error:', error.response.data)
-      toast.error('A server error occurred. Please try again later.')
+      getToast().error('A server error occurred. Please try again later.')
     }
     if (error.code === 'ECONNABORTED') {
       console.error('Request timeout')
-      toast.error('Request timed out. Please check your connection and try again.')
+      getToast().error('Request timed out. Please check your connection and try again.')
     }
     return Promise.reject(error)
   }

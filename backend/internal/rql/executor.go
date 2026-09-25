@@ -82,6 +82,7 @@ func NewIssueQueryContext(db *gorm.DB, projectID uint64) *QueryContext {
 			"assignee_id":   {ColumnName: "assignee_id", FieldType: "user_id", JoinTable: "issue_assignees"},
 			"reporter":      {ColumnName: "issues.reporter_id", FieldType: "number"},
 			"label":         {ColumnName: "issues.id", FieldType: "label"},
+			"label_id":      {ColumnName: "label_id", FieldType: "label_id", JoinTable: "issue_labels"},
 			"cycle":         {ColumnName: "issues.id", FieldType: "cycle"},
 			"cycle_id":      {ColumnName: "cycle_id", FieldType: "cycle_id", JoinTable: "issue_cycles"},
 			"module":        {ColumnName: "issues.id", FieldType: "module"},
@@ -359,7 +360,22 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		}, nil
 
 	case "label":
-		// Always match by label_id (numeric ID)
+		// If value is numeric, match by label_id directly; otherwise match by name
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
+		return &rawCondition{
+			SQL:  "issues.id IN (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name = ?)",
+			Args: []interface{}{value},
+		}, nil
+
+	case "label_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("label_id requires a numeric value, got %v", value)
+		}
 		return &rawCondition{
 			SQL:  "issues.id IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
 			Args: []interface{}{value},
@@ -458,7 +474,21 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 			Args: []interface{}{value},
 		}, nil
 	case "label":
-		// Always match by label_id (numeric ID)
+		// If value is numeric, match by label_id directly; otherwise match by name
+		if isNumericValue(value) {
+			return &rawCondition{
+				SQL:  "issues.id NOT IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
+				Args: []interface{}{value},
+			}, nil
+		}
+		return &rawCondition{
+			SQL:  "issues.id NOT IN (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name = ?)",
+			Args: []interface{}{value},
+		}, nil
+	case "label_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("label_id requires a numeric value, got %v", value)
+		}
 		return &rawCondition{
 			SQL:  "issues.id NOT IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
 			Args: []interface{}{value},
@@ -717,7 +747,37 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 		}, nil
 
 	case "label":
-		// Always match by label_id (numeric ID)
+		// If all values are numeric, match by label_id; otherwise match by name
+		if mapping.JoinTable != "" {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il WHERE il.label_id IN (%s))", op, placeholderList),
+				Args: args,
+			}, nil
+		}
+		allNumeric := true
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				allNumeric = false
+				break
+			}
+		}
+		if allNumeric {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il WHERE il.label_id IN (%s))", op, placeholderList),
+				Args: args,
+			}, nil
+		}
+		return &rawCondition{
+			SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name IN (%s))", op, placeholderList),
+			Args: args,
+		}, nil
+
+	case "label_id":
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				return nil, fmt.Errorf("label_id requires numeric values, got %v", v)
+			}
+		}
 		return &rawCondition{
 			SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il WHERE il.label_id IN (%s))", op, placeholderList),
 			Args: args,

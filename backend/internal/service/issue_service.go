@@ -1416,14 +1416,13 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 
 	hasSimpleUpdates := req.Priority != nil || req.StartDate != nil || req.TargetDate != nil || req.SortOrder != nil
 
-	// Verify which issue IDs actually exist before applying any updates.
-	// This ensures we don't silently count non-existent IDs as successes.
+	// Always verify which issue IDs actually exist before applying any updates.
+	// This prevents creating orphaned join-table records for non-existent issues.
 	var existingIDs []uint64
-	var existingIDSet map[uint64]bool
-	if hasSimpleUpdates || req.StateID != nil {
+	existingIDSet := make(map[uint64]bool, len(req.IssueIDs))
+	{
 		var foundIDs []uint64
 		tx.Model(&model.Issue{}).Where("id IN ?", req.IssueIDs).Pluck("id", &foundIDs)
-		existingIDSet = make(map[uint64]bool, len(foundIDs))
 		for _, id := range foundIDs {
 			existingIDSet[id] = true
 		}
@@ -1434,12 +1433,6 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 			if !existingIDSet[id] {
 				failedItems = append(failedItems, response.BulkFailedItem{IssueID: id, Reason: "Issue not found"})
 			}
-		}
-	} else {
-		existingIDs = req.IssueIDs
-		existingIDSet = make(map[uint64]bool, len(req.IssueIDs))
-		for _, id := range req.IssueIDs {
-			existingIDSet[id] = true
 		}
 	}
 
@@ -1503,23 +1496,23 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 		successIDs = existingIDs
 	}
 
-	if req.AssigneeIDs != nil {
-		tx.Where("issue_id IN ?", req.IssueIDs).Delete(&model.IssueAssignee{})
-		for _, issueID := range req.IssueIDs {
+	if req.AssigneeIDs != nil && len(existingIDs) > 0 {
+		tx.Where("issue_id IN ?", existingIDs).Delete(&model.IssueAssignee{})
+		for _, issueID := range existingIDs {
 			for _, aid := range req.AssigneeIDs {
 				tx.Create(&model.IssueAssignee{IssueID: issueID, UserID: aid})
 			}
 		}
 	}
 
-	if req.LabelIDs != nil {
+	if req.LabelIDs != nil && len(existingIDs) > 0 {
 		// Validate labels belong to this project
 		if err := validateLabelsBelongToProject(tx, req.LabelIDs, projectID); err != nil {
 			tx.Rollback()
 			return nil, err
 		}
-		tx.Where("issue_id IN ?", req.IssueIDs).Delete(&model.IssueLabel{})
-		for _, issueID := range req.IssueIDs {
+		tx.Where("issue_id IN ?", existingIDs).Delete(&model.IssueLabel{})
+		for _, issueID := range existingIDs {
 			for _, lid := range req.LabelIDs {
 				tx.Create(&model.IssueLabel{IssueID: issueID, LabelID: lid})
 			}
