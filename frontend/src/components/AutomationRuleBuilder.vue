@@ -275,6 +275,7 @@
                   <option value="unassign">{{ t('automationBuilder.unassign') }}</option>
                   <option value="add_comment">{{ t('automationBuilder.addComment') }}</option>
                   <option value="set_field">{{ t('automationBuilder.setField') }}</option>
+                  <option value="dispatch_agent">{{ t('automationBuilder.dispatchAgent') }}</option>
                   <option value="call_webhook">{{ t('automationBuilder.callWebhook') }}</option>
                   <option value="rollup_to_parent">{{ t('automationBuilder.rollupToParent') }}</option>
                 </select>
@@ -326,6 +327,20 @@
                   rows="3"
                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
                   :placeholder="t('automationBuilder.commentText')"
+                />
+              </div>
+              <div v-if="action.type === 'dispatch_agent'" class="mt-3 space-y-2">
+                <input
+                  v-model="action.value"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  :placeholder="t('automationBuilder.agentIdPlaceholder')"
+                />
+                <input
+                  v-model="action.field"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  :placeholder="t('automationBuilder.agentTaskPlaceholder')"
                 />
               </div>
               <div v-if="action.type === 'set_field'" class="mt-3 space-y-2">
@@ -606,6 +621,7 @@ const isValid = computed(() => {
       if (a.type === 'set_priority' && !a.value) return false
       if (a.type === 'assign_to' && !a.value) return false
       if (a.type === 'add_comment' && !a.value) return false
+      if (a.type === 'dispatch_agent' && !a.value) return false
       if (a.type === 'set_field' && (!a.field || a.value === '' || a.value == null)) return false
       if (a.type === 'call_webhook' && !a.field) return false
       return true
