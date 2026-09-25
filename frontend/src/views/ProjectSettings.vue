@@ -195,7 +195,11 @@ async function loadData() {
 }
 
 // ===== Automation Templates =====
-const TRIAGE_AGENT_NAME = '请求分诊'
+const PM_AGENT = {
+  triage: '请求分诊',
+  risk: '交付风险',
+  spec: 'Spec 草稿',
+} as const
 const installingPMAgents = ref(false)
 
 const automationTemplates = ref([
@@ -211,6 +215,35 @@ const automationTemplates = ref([
       field: '请对此工作项做分诊：建议类型/优先级/标签，并指出可能重复项。只输出建议。',
     }],
     requiresPMAgents: true,
+    agentName: PM_AGENT.triage,
+  },
+  {
+    name: 'riskOnCreate',
+    icon: '⚠️',
+    bgClass: 'bg-orange-100',
+    trigger: 'issue.created',
+    conditions: [{ field: 'priority', operator: 'in', value: ['urgent', 'high'] }],
+    actions: [{
+      type: 'dispatch_agent',
+      value: null as number | null,
+      field: '请分析此高优先级工作项的交付风险：阻塞、依赖、逾期与可执行缓解建议。用评论输出。',
+    }],
+    requiresPMAgents: true,
+    agentName: PM_AGENT.risk,
+  },
+  {
+    name: 'specDraftOnCreate',
+    icon: '📝',
+    bgClass: 'bg-cyan-100',
+    trigger: 'issue.created',
+    conditions: [],
+    actions: [{
+      type: 'dispatch_agent',
+      value: null as number | null,
+      field: '请根据此工作项写需求提纲评论：背景、目标、范围、验收标准。只输出提纲，不擅自改库。',
+    }],
+    requiresPMAgents: true,
+    agentName: PM_AGENT.spec,
   },
   {
     name: 'autoAssignBugs',
@@ -289,13 +322,14 @@ async function applyTemplate(template: any) {
         return
       }
       const agents = await ensurePMAgents(workspaceId.value)
-      const triage = agents.find((a) => a.name === TRIAGE_AGENT_NAME)
-      if (!triage?.id) {
+      const targetName = template.agentName || PM_AGENT.triage
+      const agent = agents.find((a) => a.name === targetName)
+      if (!agent?.id) {
         toast.error(t('automationTemplates.createFailed'))
         return
       }
       actions = actions.map((a: any) =>
-        a.type === 'dispatch_agent' ? { ...a, value: triage.id } : a
+        a.type === 'dispatch_agent' ? { ...a, value: agent.id } : a
       )
     }
     const data = {
