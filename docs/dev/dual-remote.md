@@ -11,8 +11,8 @@ Do **not** run two roadmaps, two READMEs-with-different-stories, or two default 
 
 ## Product sentence (same on both)
 
-- **ZH:** 自建项目管理：新需求先分诊再进待办；AI 嵌在 Issue / Intake / Cycle，数据在自己的机器上。
-- **EN:** Self-hosted project management: triage new requests before they hit the backlog. AI assists Issue / Intake / Cycle — data stays on your machine.
+- **ZH:** 自建项目管理：新需求先分诊再进待办；可自定义工作项类型 / 工作流 / 自动化；AI 嵌在 Issue / Intake / Cycle，数据在自己的机器上。
+- **EN:** Self-hosted project management: triage first; custom issue types, workflows, and automation; AI in Issue / Intake / Cycle — data stays on your machine.
 
 ## Sync workflow
 
