@@ -123,7 +123,10 @@ reqmango/
 
 ## 贡献
 
-欢迎提交 Issue 与 Pull Request。
+欢迎提交 Issue 与 Pull Request，尤其是小而清晰的改动。
+
+- [贡献指南](CONTRIBUTING-zh.md) · [English](CONTRIBUTING.md)
+- [适合新手的任务清单](docs/dev/good-first-issues.md)
 
 ## License
 

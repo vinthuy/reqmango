@@ -1,0 +1,40 @@
+name: Good first issue (propose or claim)
+description: Small scoped task — use for proposing a starter task or claiming one from the list
+title: "[good first] "
+labels: ["good first issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        See the curated list: [docs/dev/good-first-issues.md](https://github.com/vinthuy/reqmango/blob/master/docs/dev/good-first-issues.md).
+        If you are **claiming** an item, put its ID (e.g. GFI-03) in the title.
+  - type: dropdown
+    id: intent
+    attributes:
+      label: Intent
+      options:
+        - Claim an existing good-first item
+        - Propose a new good-first item
+    validations:
+      required: true
+  - type: input
+    id: gfi_id
+    attributes:
+      label: List ID (if claiming)
+      placeholder: GFI-03
+  - type: textarea
+    id: task
+    attributes:
+      label: Task
+      description: What will you change? Name files if known.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - [ ] UI no longer shows raw i18n keys
+        - [ ] zh-CN and en-US both updated
+    validations:
+      required: true
