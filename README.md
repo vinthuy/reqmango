@@ -26,7 +26,7 @@ Open **http://localhost** and sign in:
 
 Optional AI (Intake triage / analyze / labels): set `AI_API_KEY` in `.env`, then restart.
 
-> **Demo clip:** drop a short GIF at [`docs/assets/demo.gif`](docs/assets/demo.gif) after you record Intake triage (submit a vague request → type / priority / duplicate suggestions). Until then, use the walkthrough below.
+![Intake → triage demo](docs/assets/demo.gif)
 
 ### 60-second walkthrough
 

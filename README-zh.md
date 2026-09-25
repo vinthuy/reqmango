@@ -27,7 +27,7 @@ docker compose up --build
 
 可选 AI（Intake 分诊 / 分析 / 标签建议）：在 `.env` 中设置 `AI_API_KEY` 后重启。
 
-> **演示动图：** 录完 Intake 分诊后，把 GIF 放到 [`docs/assets/demo.gif`](docs/assets/demo.gif)。在此之前请按下面步骤手动走一遍。
+![Intake 提交 → 分诊队列](docs/assets/demo.gif)
 
 ### 一分钟走查
 
