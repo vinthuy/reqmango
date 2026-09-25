@@ -44,7 +44,7 @@
                'bg-red-50': line.type === 'removed',
                'bg-gray-50': line.type === 'unchanged'
              }">
-          <span class="inline-block w-8 text-gray-400 text-right mr-3">{{ line.lineNum || '' }}</span>
+          <span class="inline-block w-8 text-gray-400 text-right mr-3">{{ 'lineNum' in line ? line.lineNum : '' }}</span>
           <span v-if="line.type === 'added'" class="text-green-600">+ </span>
           <span v-else-if="line.type === 'removed'" class="text-red-600">- </span>
           <span v-else class="text-gray-400">  </span>
@@ -93,41 +93,104 @@ const diffLines = computed(() => {
   const oldLines = oldContent.value.split('\n')
   const newLines = newContent.value.split('\n')
   const result: DiffLine[] = []
-  
-  const m = oldLines.length
-  const n = newLines.length
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
-  
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (oldLines[i - 1] === newLines[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+
+  if (oldLines.length === 0 && newLines.length === 0) return result
+  if (oldLines.length === 0) {
+    return newLines.map(line => ({ type: 'added' as const, content: line }))
+  }
+  if (newLines.length === 0) {
+    return oldLines.map(line => ({ type: 'removed' as const, content: line }))
+  }
+
+  // Build hash map: line content -> list of indices in oldLines
+  const oldLineMap = new Map<string, number[]>()
+  for (let i = 0; i < oldLines.length; i++) {
+    const line = oldLines[i]
+    if (!oldLineMap.has(line)) {
+      oldLineMap.set(line, [])
+    }
+    oldLineMap.get(line)!.push(i)
+  }
+
+  // Collect all matching (oldIndex, newIndex) pairs
+  const candidates: [number, number][] = []
+  for (let j = 0; j < newLines.length; j++) {
+    const indices = oldLineMap.get(newLines[j])
+    if (indices) {
+      for (const i of indices) {
+        candidates.push([i, j])
       }
     }
   }
-  
-  let i = m
-  let j = n
-  let lineNum = m
-  
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
-      result.unshift({ type: 'unchanged', content: oldLines[i - 1], lineNum: i })
-      i--
-      j--
-      lineNum--
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      result.unshift({ type: 'added', content: newLines[j - 1], lineNum: lineNum + 1 })
-      j--
-    } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
-      result.unshift({ type: 'removed', content: oldLines[i - 1] })
-      i--
-      lineNum--
+
+  // No matching lines: everything is added/removed
+  if (candidates.length === 0) {
+    for (const line of oldLines) {
+      result.push({ type: 'removed', content: line })
     }
+    for (const line of newLines) {
+      result.push({ type: 'added', content: line })
+    }
+    return result
   }
-  
+
+  // Sort candidates by old index then new index
+  candidates.sort((a, b) => a[0] - b[0] || a[1] - b[1])
+
+  // Find longest increasing subsequence on new indices (patience sort)
+  // to obtain the longest common subsequence of lines
+  const tails: number[] = []
+  const tailsIdx: number[] = []
+  const pred: number[] = new Array(candidates.length).fill(-1)
+
+  for (let i = 0; i < candidates.length; i++) {
+    const val = candidates[i][1]
+    let lo = 0, hi = tails.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (tails[mid] < val) lo = mid + 1
+      else hi = mid
+    }
+    tails[lo] = val
+    tailsIdx[lo] = i
+    pred[i] = lo > 0 ? tailsIdx[lo - 1] : -1
+  }
+
+  // Reconstruct the LCS
+  const lcs: [number, number][] = []
+  let k = tailsIdx[tails.length - 1]
+  while (k >= 0) {
+    lcs.unshift(candidates[k])
+    k = pred[k]
+  }
+
+  // Build diff output from the LCS
+  let oldIdx = 0
+  let newIdx = 0
+
+  for (const [matchOld, matchNew] of lcs) {
+    while (oldIdx < matchOld) {
+      result.push({ type: 'removed', content: oldLines[oldIdx] })
+      oldIdx++
+    }
+    while (newIdx < matchNew) {
+      result.push({ type: 'added', content: newLines[newIdx] })
+      newIdx++
+    }
+    result.push({ type: 'unchanged', content: oldLines[matchOld], lineNum: oldIdx + 1 })
+    oldIdx++
+    newIdx++
+  }
+
+  while (oldIdx < oldLines.length) {
+    result.push({ type: 'removed', content: oldLines[oldIdx] })
+    oldIdx++
+  }
+  while (newIdx < newLines.length) {
+    result.push({ type: 'added', content: newLines[newIdx] })
+    newIdx++
+  }
+
   return result
 })
 
