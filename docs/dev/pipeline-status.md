@@ -1,6 +1,6 @@
 # Pipeline Status（功能管线状态）
 
-最后更新：2026-09-25
+最后更新：2026-09-26
 
 ---
 
@@ -8,33 +8,38 @@
 
 | 功能 | Spec | Design | Plan | Implement | 备注 |
 |------|------|--------|------|-----------|------|
-| 产品化主路径（原生 PM） | ✅ | — | ✅ QA checklist | ✅ PASS（含 CF 门禁 CORE-04） | [验收](acceptance/2026-09-25-product-core-qa.md) §H |
-| AI 项目管理（Plane 路径） | ✅ | ✅ | ✅ P1+P2+B1+C1+B2+C2 | ✅ 通过（含发布前手测） | [设计](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [预检](acceptance/2026-09-25-release-preflight.md) · KB ✅ · **下一阶段=存量质量** |
+| 存量质量 | — | — | — | 🔄 | 主路径已 PASS；不新开大功能 |
+| （无新开功能） | | | | | |
 
 ---
 
-## 已走完管线并归档
+## 已完成（近期）
 
-| 功能 | 后端 | Spec | Design | Plan | Implement | Review | KB | 备注 |
-|------|------|------|--------|------|-----------|--------|----|------|
-| Cycle（周期） | Go | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | CRUD + 状态流转 + 进度 + 燃尽图 |
-| Module（模块） | Go | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | CRUD + 树形 + Issue 关联 + 统计 |
-
----
-
-## 已在代码中落地（2026-06 Backlog，文档曾过期）
-
-CustomField / Workflow / Automation / IssueType / Comments / Notifications / Attachments / Estimate 等均已有 handler；详见历史提交与 `docs/bug-list.md`（52/52 已修复）。
+| 功能 | 状态 | 文档 |
+|------|------|------|
+| 产品化主路径（原生 PM + 核心定制门禁） | ✅ PASS | [acceptance](acceptance/2026-09-25-product-core-qa.md) §H |
+| AI 项目管理（Plane 路径 P1–2+B1–C2） | ✅ PASS | [redesign](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [preflight](acceptance/2026-09-25-release-preflight.md) |
 
 ---
 
-## 废止 / 降级
+## 已走完管线并归档（早期）
+
+| 功能 | 备注 |
+|------|------|
+| Cycle / Module | 见历史提交与 KB 模块表 |
+
+---
+
+## 废止 / 降级（勿再排期）
 
 | 文档 | 状态 |
 |------|------|
-| `docs/AI_AGENT_PRD.md`（Multica / 全 SDLC） | Superseded |
-| `docs/superpowers/specs/2026-07-18-reqmango-agent-platform-design.md`（Harness/Loop 主叙事） | Demoted；**非**下一产品阶段 |
-| MCP/CLI 分发作为增长主路径 | 非当前 AI 产品排期 |
+| Multica / 全 SDLC Agent PRD | **已归档** → [superseded/agent-platform](../superseded/agent-platform/README.md) |
+| Harness / Loop 设计与 Phase 计划 | **已归档** → 同上 |
+| Agent-Project Integration PRD/ARCH | **已归档** → 同上 |
+| MCP/CLI 作为增长主路径 | 非当前 AI 产品排期 |
+
+原路径保留 stub 重定向，避免外链断裂。
 
 ---
 
@@ -44,6 +49,5 @@ CustomField / Workflow / Automation / IssueType / Comments / Notifications / Att
 |------|------|
 | ✅ | 完成 |
 | 🔄 | 进行中 |
-| ⏳ | 待开始 |
-| ❌ | 取消 |
+| ❌ | 取消 / 废止 |
 | - | 不适用 |

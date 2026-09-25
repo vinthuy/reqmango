@@ -1,29 +1,37 @@
 # Superseded Documents（历史归档）
 
-本目录存放已被淘汰或取代的文档，仅供历史参考�?
-**这些文档不代表当前系统的状态�?* 查看当前系统请阅�?[kb/](../kb/README.md) 中的知识库文档�?
+本目录存放已淘汰或被取代的文档，**仅供历史参考**。  
+**它们不代表当前系统状态。** 查看现行系统请阅读 [kb/](../kb/README.md)。
+
 ---
 
 ## 目录说明
 
-### python-era/ �?Python/FastAPI 时代 SDD 文档
+### agent-platform/ — Agent 平台 / Harness·Loop 叙事（2026-09-26 归档）
 
-这些文档编写�?2026-06-13 ~ 2026-06-14，基�?Python/FastAPI 后端�?SDD（Schema-Driven Development）流程�?
-**被取代原�?*: 项目�?2026-06-19 决策将后端从 Python/FastAPI 重写�?Go/Gin。这些文档中描述的数据模型（SQLAlchemy）、Schema 定义（Pydantic）、API 路由（FastAPI）不再适用于当前的 Go 后端�?
-包含�?- `spec-old.md` �?旧版实现状态追踪（仅覆�?Python 后端�?- `sdd-issue-*.md` �?Issue 模块 SDD 文档三件�?- `sdd-cycle-*.md` �?Cycle 模块 SDD 文档三件�?- `sdd-module-*.md` �?Module 模块 SDD 文档三件�?- `sdd-issue-custom-fields.md` �?工作项与自定义字段功能文�?- `tech-architecture-old.md` �?旧版技术架构文档（Python 技术栈�?
-### pages-archive/ �?�?pages 目录
+产品方向改为「原生 PM + Plane 路径 AI」后，下列文档**废止排期指导**：
 
-`pages/` 目录中的设计文档已迁移到 [dev/features/](../dev/features/)，此目录为空归档占位�?
+- Multica / 全 SDLC Agent PRD
+- Agent-Project Integration PRD/ARCH/Plan
+- Harness / Loop 设计与实施计划
+
+入口：[agent-platform/README.md](agent-platform/README.md)  
+现行方向：[kb/PRD.md](../kb/PRD.md) · [AI PM redesign](../superpowers/specs/2026-09-25-ai-project-management-redesign.md)
+
+### python-era/ — Python/FastAPI 时代 SDD 文档
+
+编写于 2026-06-13 ~ 2026-06-14，基于 Python/FastAPI 后端的 SDD 流程。
+
+**被取代原因**: 2026-06-19 起后端重写为 Go/Gin。其中的 SQLAlchemy / Pydantic / FastAPI 描述不再适用。
+
+包含：spec-old.md、sdd-issue-*、sdd-cycle-*、sdd-module-*、sdd-issue-custom-fields.md、	ech-architecture-old.md
+
+### pages-archive/
+
+原 pages/ 设计已迁至 [dev/features/](../dev/features/)，此处为空占位。
+
 ---
 
 ## 关于 Tech Architecture
 
-原始 `TECH_ARCHITECTURE.md`（~1500 行）被拆分为 `kb/architecture/` 下的多个专题文档�?- `tech-stack.md`
-- `backend.md`
-- `backend-python.md`
-- `frontend.md`
-- `data-model.md`
-- `api-conventions.md`
-- `project-layout.md`
-
-原始文件保存�?`python-era/tech-architecture-old.md`，包�?Python/FastAPI 时代的完整代码示例（Pydantic Schema、SQLAlchemy Model、FastAPI Router 等）�?
+原始 TECH_ARCHITECTURE.md 已拆分为 kb/architecture/ 下专题文档（	ech-stack、ackend-go、rontend、data-model 等）。完整旧稿见 python-era/tech-architecture-old.md。

@@ -1,11 +1,25 @@
 # reqmango Documentation
 
-reqmango 项目管理平台的文档中心。本文档库分为四大区域：
+reqmango 项目管理平台的文档中心。
 
-- **Knowledge Base（全量知识库）**：描述系统**当前是什么**，是唯一真相来源
-- **Development Pipeline（增量需求开发）**：管理**正在构建什么**，有完整的生命周期
-- **Superpowers（AI 辅助设计）**：AI Agent 生成的设计文档和实现计划
-- **Superseded（历史归档）**：已过时的旧文档，仅供历史参考
+- **Knowledge Base**：系统**当前是什么**（唯一真相来源）
+- **Development Pipeline**：正在构建 / 已验收什么
+- **Superpowers**：设计与实现计划（含已完成、已废止）
+- **Superseded**：历史归档（**不指导排期**）
+
+---
+
+## 现行产品方向（2026-09）
+
+| 做 | 不做 |
+|----|------|
+| 原生 PM（Issue / Cycle / 类型·字段·工作流·自动化） | Harness / Loop / Multica Agent 控制台产品化 |
+| Plane 路径 AI（Intake / Analyze / 自动化预览 / 仪表盘摘要） | 默认暴露 `/agents*`（需高级解锁） |
+
+- PRD：[kb/PRD.md](kb/PRD.md)
+- 设计真相：[superpowers/specs/2026-09-25-ai-project-management-redesign.md](superpowers/specs/2026-09-25-ai-project-management-redesign.md)
+- 验收 PASS：[dev/acceptance/2026-09-25-product-core-qa.md](dev/acceptance/2026-09-25-product-core-qa.md)
+- Agent 旧文档归档：[superseded/agent-platform/](superseded/agent-platform/README.md)
 
 ---
 
@@ -14,41 +28,33 @@ reqmango 项目管理平台的文档中心。本文档库分为四大区域：
 | 想了解…… | 入口 |
 |----------|------|
 | 产品功能定义 | [kb/PRD.md](kb/PRD.md) |
-| 项目目录结构 | [kb/architecture/project-layout.md](kb/architecture/project-layout.md) |
-| Go 后端架构 | [kb/architecture/backend.md](kb/architecture/backend.md) |
-| 前端架构 | [kb/architecture/frontend.md](kb/architecture/frontend.md) |
-| 数据模型总览 | [kb/architecture/data-model.md](kb/architecture/data-model.md) |
+| 架构总览 | [kb/architecture/README.md](kb/architecture/README.md) |
+| Go 后端 | [kb/architecture/backend-go.md](kb/architecture/backend-go.md) |
+| 前端 | [kb/architecture/frontend.md](kb/architecture/frontend.md) |
+| 数据模型 | [kb/architecture/data-model.md](kb/architecture/data-model.md) |
 | API 约定 | [kb/architecture/api-conventions.md](kb/architecture/api-conventions.md) |
-| 系统技术栈 | [kb/architecture/tech-stack.md](kb/architecture/tech-stack.md) |
-| 各功能开发状态 | [pipeline-status.md](dev/pipeline-status.md) |
-| 当前正在开发的功能 | [dev/active/](dev/active/) |
-| 如何开始一个新功能 | [dev/README.md](dev/README.md) |
-| 功能开发模板 | [dev/templates/](dev/templates/) |
-| 已过时的 Python 文档 | [superseded/README.md](superseded/README.md) |
+| 管线状态 | [dev/pipeline-status.md](dev/pipeline-status.md) |
+| 当前焦点 | [dev/active/](dev/active/) |
+| 历史归档 | [superseded/README.md](superseded/README.md) |
 
 ---
 
-## 如何使用本文档库
+## 如何使用
 
-### 场景一：了解系统全貌
+### 了解系统
 
-从 [kb/README.md](kb/README.md) 开始，按顺序阅读架构文档。
+从 [kb/README.md](kb/README.md) 开始。
 
-### 场景二：开发新功能
+### 开发新功能
 
-1. 查看 [dev/pipeline-status.md](dev/pipeline-status.md) 了解当前状态
-2. 阅读相关 KB 架构文档了解现有实现
-3. 从 [dev/templates/](dev/templates/) 复制模板
-4. 按流程在 [dev/features/](dev/features/) 中创建功能文档
-5. 完成后更新 KB 并归档
+1. [pipeline-status.md](dev/pipeline-status.md)
+2. 读相关 KB
+3. 模板：[dev/templates/](dev/templates/)
+4. 完成后更新 KB；**不要**复活已废止的 Agent 平台叙事
 
-### 场景三：AI Agent 工作
+### AI Agent
 
-如果你是 AI Agent：
-1. 先读 [dev/pipeline-status.md](dev/pipeline-status.md) 了解上下文
-2. 读相关 KB 文档了解现有模式
-3. 按 [dev/README.md](dev/README.md) 中的流程创建/更新文档
-4. 实现完成后填写 review 并触发 KB 更新
+先读 pipeline + KB；废止文档仅在 `superseded/`，勿当作排期依据。
 
 ---
 
@@ -57,9 +63,9 @@ reqmango 项目管理平台的文档中心。本文档库分为四大区域：
 | 层 | 当前 | 状态 |
 |----|------|------|
 | 后端 | Go + Gin + GORM + PostgreSQL 16 | 主力 |
-| MCP Server | Go (stdio/SSE) + JSON-RPC 2.0 | 独立模块 |
-| 前端 | Vue 3 + TypeScript + Pinia + Tailwind CSS | 主力 |
-| 遗留后端 | Python + FastAPI + SQLAlchemy | 已淘汰 |
+| MCP | Go (stdio/SSE) | 独立模块 |
+| 前端 | Vue 3 + TypeScript + Pinia + Tailwind | 主力 |
+| 遗留后端 | Python + FastAPI | 已淘汰 → superseded/python-era |
 
 ---
 
@@ -67,19 +73,10 @@ reqmango 项目管理平台的文档中心。本文档库分为四大区域：
 
 ```
 docs/
-├── README.md                         # 你在这里
-├── reqmango-vs-competitor.md         # 竞品对标分析
-├── kb/                               # 全量知识库
-│   ├── PRD.md                        # 产品需求文档
-│   ├── architecture/                 # 架构参考（9 文档）
-│   └── changelog/                    # KB 变更日志
-├── dev/                              # 增量需求开发
-│   ├── features/                     # 功能设计文档
-│   ├── templates/                    # 标准化模板
-│   ├── active/                       # 当前活跃功能
-│   └── archive/                      # 已完成归档
-├── superpowers/                      # AI 辅助设计
-│   ├── plans/                        # 实现计划
-│   └── specs/                        # 设计规范
-└── superseded/                       # 历史已淘汰文档
+├── README.md
+├── kb/                 # 全量知识库（真相）
+├── dev/                # 管线 / 验收 / debt
+├── superpowers/        # 设计与计划（含现行 redesign）
+├── superseded/         # 历史：python-era + agent-platform
+└── assets/             # README 媒体占位
 ```

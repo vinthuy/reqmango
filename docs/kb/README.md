@@ -2,7 +2,11 @@
 
 KB 是 reqmango 系统的**唯一真相来源**，始终描述系统当前的实际状态。
 
-**最后更新**: 2026-09-25
+**最后更新**: 2026-09-26
+
+**产品方向**: 原生项目管理 + Plane 路径 AI（Intake / Analyze / 自动化 / 仪表盘摘要）。  
+**核心门禁**: 自定义工作项类型 · 自定义字段 · 自定义工作流 · 自动化规则。  
+**废止**: Harness / Loop / Multica Agent 控制台产品化 → [superseded/agent-platform](../superseded/agent-platform/README.md)
 
 ---
 
@@ -34,7 +38,7 @@ KB 是 reqmango 系统的**唯一真相来源**，始终描述系统当前的实
 ### 架构层
 - [architecture/README.md](architecture/README.md) — 架构总览 + 模块状态
 - [architecture/project-layout.md](architecture/project-layout.md) — 项目目录结构
-- [architecture/backend.md](architecture/backend.md) — Go 后端架构（67 Model / ~90 Service / ~70 Handler / 580+ 端点，含 RBAC）
+- [architecture/backend-go.md](architecture/backend-go.md) — Go 后端架构
 - [architecture/frontend.md](architecture/frontend.md) — 前端架构（52 views / ~120 components / 41+ API 模块）
 - [architecture/data-model.md](architecture/data-model.md) — 数据模型（37 张表，含 RBAC）
 - [architecture/api-conventions.md](architecture/api-conventions.md) — API 设计约定

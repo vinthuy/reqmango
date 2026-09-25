@@ -2,7 +2,7 @@
 
 reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
-**最后更新**: 2026-09-25
+**最后更新**: 2026-09-26
 
 ---
 
@@ -114,9 +114,9 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 | Quick Create（快速创建） | ✅ | ✅ | 行内快速创建工作项 |
 | Git Integration（Git 集成） | ✅ | ✅ | GitHub/GitLab 原生集成 + Webhook |
 | Project CustomField Enrollment | ✅ | ✅ | 项目级自定义字段启用/禁用 |
-| Workspace Workflow（工作空间工作流） | ✅ | ✅ | 工作空间级工作流 + 项目级覆盖 |
+| Workspace Workflow（工作空间工作流） | ✅ | ✅ | 状态机 CRUD + transitions（CORE-04 已修）；项目可覆盖 |
 | Calendar/Gantt View | ✅ | ✅ | 日历视图 (IssueCalendar.vue) + 甘特图视图 (IssueGantt.vue) |
-| AI Agent 系统 | ✅ | ✅ | 开箱 PM Agent（ensure-pm）+ Issue 指派/活动；Templates/Skills/Tasks 等高级能力仍在代码中，**非**当前产品主叙事（不做 Harness/Loop 平台化） |
+| AI Agent 系统 | ✅ | 🔒 | 开箱 PM Agent + 指派/@Agent；控制台默认隐藏（Stage B）；Harness/Loop **废止产品化** |
 | 聊天系统 | ✅ | ✅ | Chat, Messages, SSE streaming |
 | 页面版本管理 | ✅ | ✅ | PageVersion, PageTemplate |
 | 审批系统 | ✅ | ✅ | Approval |
@@ -128,11 +128,19 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 | 模块 | 说明 |
 |------|------|
-| 存量质量 / 产品化 | 主路径验收 PASS；P2 分析看板状态分布；Stage B 继续藏高级 Agent 控制台 |
+| 存量质量 | 产品主路径与核心定制门禁已 PASS；继续稳定性与数据质量，不新开 AI 大功能 |
+
+## 产品方向备忘
+
+- **现行**：原生 PM + Plane 路径 AI（Intake / Analyze / 自动化预览 / i_summary）
+- **核心门禁**：工作项类型 / 自定义字段 / 工作流（含 workspace 状态机）/ 自动化 — 验收 §H
+- **废止**：Harness / Loop / Multica Agent 控制台产品化 → [superseded/agent-platform](../../superseded/agent-platform/README.md)
+- **Stage B**：/agents* 默认重定向，解锁键 
+m_advanced_agents=1
 
 ## 未来可扩展
 
-（暂无）
+（暂无；不以 Agent 平台产品化为排期）
 
 ---
 

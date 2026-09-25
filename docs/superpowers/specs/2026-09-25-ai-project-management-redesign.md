@@ -1,5 +1,10 @@
 # AI 项目管理重新设计（对标 Plane AI）
 
+> **Status (2026-09-26):** CANONICAL product direction — **implemented & accepted**.  
+> Agent-platform / Harness / Loop / Multica docs moved to [docs/superseded/agent-platform/](../../superseded/agent-platform/README.md).  
+> Core PM customization gate: [product-core-qa](../../dev/acceptance/2026-09-25-product-core-qa.md) §H PASS.
+
+
 > **版本**: v1.0  
 > **日期**: 2026-09-25  
 > **状态**: Approved for planning（产品方向已确认；实施计划另文）  
@@ -29,7 +34,7 @@ Reqmango 已具备大量 AI/Agent 后端能力（Copilot、Ask/Build、创建预
 
 | 丢弃 / 降级 | 说明 |
 |-------------|------|
-| Multica 对标叙事 | `docs/AI_AGENT_PRD.md` 中 Multica「Agent as Teammates / 全 SDLC」主叙事 **废止**；该文归档为历史，不再指导排期 |
+| Multica 对标叙事 | `docs/superseded/agent-platform/AI_AGENT_PRD.md` 中 Multica「Agent as Teammates / 全 SDLC」主叙事 **废止**；该文归档为历史，不再指导排期 |
 | MCP/CLI 一键分发当 Phase 0 | SDK/MCP 代码可保留，**不作为本设计的交付范围** |
 | 「AI Agents」控制台当主入口 | Dashboard / Loop / Pipeline / Squad / Autopilot / Developer·Tester·CICD·SDLC Agent 等 **退出默认导航** |
 | 以 Harness/Loop 为第一差异化 | 可作后续「超 Plane」能力；**本阶段不对用户讲编排平台** |
@@ -228,8 +233,8 @@ Ask 模式禁止静默写操作；若模型想写，UI 提示「切换到 Build�
 
 | 文档 | 处理 |
 |------|------|
-| `docs/AI_AGENT_PRD.md` | 文首标注 **Superseded**；Multica 方案不作排期依据 |
-| `docs/superpowers/specs/2026-07-18-reqmango-agent-platform-design.md` | 标注为 **基础设施/远期**；产品主路径以本文为准 |
+| `docs/superseded/agent-platform/AI_AGENT_PRD.md` | 文首标注 **Superseded**；Multica 方案不作排期依据 |
+| `docs/superseded/agent-platform/2026-07-18-reqmango-agent-platform-design.md` | 标注为 **基础设施/远期**；产品主路径以本文为准 |
 | 本文 | **现行 AI 产品设计** |
 
 ---

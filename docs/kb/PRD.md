@@ -1,28 +1,36 @@
 # reqmango 产品需求文档
 
-> **最后更新**: 2026-07-13
+> **最后更新**: 2026-09-26  
+> **状态**: 现行（KB 真相来源）  
+> **产品方向**: 原生项目管理 + Plane 路径 AI（Intake / Analyze / 自动化 / 仪表盘摘要）。  
+> **非方向**: Harness / Loop / Multica 式 Agent 控制台产品化（已归档，见 [superseded/agent-platform](../superseded/agent-platform/README.md)）。
 
 ---
 
 ## 1. 产品概述
 
-reqmango 是一款现代化的项目管理平台，旨在帮助团队高效地规划、跟踪和交付工作。该平台提供了灵活的工作空间管理、直观的看板视图、强大的自动化能力、AI 智能助手、Git 集成和快速创建功能，让团队能够在一个统一的平台上完成从项目规划到交付的全流程管理。
+reqmango 是一款现代化的项目管理平台：工作空间内管理项目、工作项、周期与文档；用**可定制的类型 / 字段 / 工作流 / 自动化**适配团队流程；AI 嵌在 PM 路径上辅助分诊、分析与规则草稿，而不是独立的 Agent 运营台。
+
+### 1.0 产品方向（2026-09）
+
+| 做 | 不做 |
+|----|------|
+| Issue / Cycle / Module / Pages / Dashboard | 新开 Harness · Loop · 多 Agent 流水线产品化 |
+| **自定义工作项类型、自定义字段、自定义工作流、自动化规则**（验收门禁） | 默认暴露 `/agents/*` 控制台（需 `rm_advanced_agents=1`） |
+| Intake 分诊、Issue/项目 Analyze、NL→自动化预览、`ai_summary` widget | Multica「Agent as Teammates / 全 SDLC」排期 |
+
+权威设计：[AI PM redesign](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · 验收：[product-core-qa](../dev/acceptance/2026-09-25-product-core-qa.md)
 
 ### 1.1 核心价值
 
-- **统一的工作中心**：将项目、工作项、文档和团队协作整合在一个平台
-- **灵活的定制能力**：支持自定义工作项类型、工作流状态、自动化规则
-- **AI 驱动的效率**：通过自然语言与项目数据交互，快速获取洞察
-- **无缝集成**：与 GitHub、GitLab、Slack 等主流工具深度集成
+- **统一的工作中心**：项目、工作项、文档和协作在同一平台
+- **可配置的流程内核**：类型、字段、状态工作流、自动化规则均为一等能力
+- **嵌在工作流里的 AI**：分诊、分析、规则草稿、仪表盘摘要；写入前可预览
+- **无缝集成**：GitHub / Slack 等（按实际落地为准）
 
 ### 1.2 目标用户
 
-本产品面向需要协作管理项目的各类团队，包括但不限于：
-
-- 软件开发团队
-- 产品管理团队
-- 设计和创意团队
-- 跨职能的项目团队
+协作交付的软件 / 产品 / 跨职能团队（管理员配置流程，成员推进工作项）。
 
 ---
 
@@ -34,50 +42,40 @@ reqmango 是一款现代化的项目管理平台，旨在帮助团队高效地�
 flowchart TB
     subgraph Workspace["工作空间层"]
         A[工作空间管理]
-        B[成员管理]
-        C[角色权限]
+        B[成员 / 角色]
+        C[类型 · 字段 · 工作流 · 自动化]
         D[集成配置]
     end
     
     subgraph Project["项目层"]
-        E[项目管理]
+        E[项目]
         F[工作项]
-        G[周期管理]
-        H[模块管理]
-        I[页面文档]
+        G[周期]
+        H[模块]
+        I[页面 / 仪表盘]
     end
     
-    subgraph AI["AI 智能层"]
-        J[AI 聊天助手]
-        K[自然语言搜索]
-        L[智能创建]
-        M[数据分析]
-    end
-    
-    subgraph Automation["自动化层"]
-        N[触发器配置]
-        O[动作执行]
-        P[条件判断]
+    subgraph AI["AI（嵌在 PM）"]
+        J[Copilot Ask/Build]
+        K[Intake / Analyze]
+        L[自动化预览]
+        M[Dashboard 摘要]
     end
     
     Workspace --> Project
     AI --> Project
-    AI --> Workspace
-    Automation --> Project
 ```
 
 ### 2.2 核心功能模块
 
-| 模块 | 功能数量 | 优先级 | 说明 |
-|------|---------|--------|------|
-| 工作空间管理 | 8 | P0 | 基础容器，包含所有其他功能 |
-| 项目管理 | 10 | P0 | 核心工作组织单元 |
-| 工作项管理 | 12 | P0 | 任务、缺陷、需求的载体 |
-| 周期与模块 | 6 | P1 | 迭代规划和功能分组 |
-| 页面文档 | 8 | P1 | 知识管理和协作写作 |
-| AI 智能助手 | 5 | P1 | 自然语言交互能力 |
-| 自动化工作流 | 4 | P2 | 规则驱动的自动化 |
-| 第三方集成 | 6 | P2 | 外部工具连接能力 |
+| 模块 | 优先级 | 说明 |
+|------|--------|------|
+| 工作空间 / 项目 / 工作项 | P0 | 主路径 |
+| **自定义类型 / 字段 / 工作流 / 自动化** | **P0（门禁）** | 商业化必需；见验收 §H |
+| 周期与模块 | P0 | 迭代与功能分组 |
+| 页面 / 仪表盘 / 度量 | P1 | 文档与可视 |
+| AI（Intake / Analyze / 预览 / 摘要） | P1 | 嵌在 PM，非独立平台 |
+| 第三方集成 | P2 | Git / Slack 等 |
 
 ---
 
@@ -751,75 +749,21 @@ erDiagram
 
 ---
 
-## 24. 实施计划
+## 24. 实施与状态（摘要）
 
-### 24.1 开发流程
+主路径与 AI PM（P1–2 + B1–C2）及原生 PM 验收（含核心定制门禁）**已完成**。  
+详细阶段表与 Schema 清单为历史规划，不再作为排期依据；以代码与验收文档为准。
 
-开发流程遵循以下顺序：
-
-```mermaid
-flowchart LR
-    A[1. 定义 Schema] --> B[2. 生成类型]
-    B --> C[3. 创建模型]
-    C --> D[4. 实现 API]
-    D --> E[5. 前端集成]
-    E --> F[6. 测试验证]
-    F --> A
-```
-
-### 24.2 开发阶段划分
-
-| 阶段 | 功能范围 | 主要任务 | 输出 |
-|------|---------|---------|------|
-| Phase 1 | Schema 定义 + 数据库 | Pydantic Schema、GORM Model、迁移脚本 | 数据层完成 |
-| Phase 2 | 基础 API + 认证 | Gin 路由、JWT 认证、权限控制 | API 层完成 |
-| Phase 3 | 前端基础架构 | Vue3 项目初始化、Pinia Store、API 客户端 | 前端框架完成 |
-| Phase 4 | 核心功能开发 | 工作项、项目、周期、模块 CRUD | 核心功能可用 |
-| Phase 5 | AI 功能集成 | AI 聊天、搜索、智能创建 | AI 功能可用 |
-| Phase 6 | 自动化与集成 | Webhook、GitHub/Slack 集成 | 集成完成 |
-| Phase 7 | 测试与优化 | 单元测试、性能优化、文档完善 | 上线准备 |
-
-### 24.3 优先级排序
-
-| 优先级 | 功能 | 依赖关系 | Schema 定义 |
-|--------|------|---------|------------|
-| P0 | Schema 定义 | 无 | UserSchema, WorkspaceSchema, ProjectSchema, IssueSchema |
-| P0 | GORM 模型 | Schema | User, Workspace, Project, Issue, State |
-| P0 | 认证系统（JWT） | User 模型 | AuthSchema, TokenSchema |
-| P0 | 工作空间 API | Workspace 模型 | WorkspaceCreate, WorkspaceUpdate, WorkspaceResponse |
-| P0 | 项目 API | Project 模型 | ProjectCreate, ProjectUpdate, ProjectResponse |
-| P0 | 工作项 CRUD | Issue 模型 | IssueCreate, IssueUpdate, IssueResponse |
-| P0 | 视图系统 | Issue 模型 | ViewSchema, FilterSchema |
-| P1 | 周期管理 | Cycle 模型 | CycleCreate, CycleUpdate, CycleResponse |
-| P1 | 模块管理 | Module 模型 | ModuleCreate, ModuleUpdate, ModuleResponse |
-| P1 | 层级结构 | Epic 模型 | InitiativeSchema, EpicSchema |
-| P1 | Intake 与 Triage | Issue 模型 | IntakeSchema, TriageSchema |
-| P1 | 工作流与审批 | State 模型 | WorkflowSchema, ApprovalSchema |
-| P1 | AI 聊天基础 | Issue 查询 API | AIRequest, AIResponse, AIThread |
-| P1 | AI 工作项创建 | Issue 创建 API | AIAction, AIPlan |
-| P2 | 页面与 Wiki | Page 模型 | PageCreate, PageUpdate, PageResponse |
-| P2 | 自动化规则 | Issue 模型 | AutomationSchema, TriggerSchema |
-| P2 | 时间跟踪 | Issue 模型 | TimeTrackSchema |
-| P2 | 自定义仪表板 | Analytics | DashboardSchema |
-| P2 | Command K 导航 | Search | CommandKSchema |
-| P2 | 第三方集成 | Webhook | IntegrationSchema, WebhookSchema |
-| P3 | 审计与合规 | Audit | AuditLogSchema |
-| P3 | 企业认证 | Auth | SSOSchema, SAMLSchema |
-
-### 24.4 技术实现要点
-
-| 模块 | 关键技术 | 说明 |
-|------|---------|------|
-| Schema 定义 | Pydantic V2 | 使用 `BaseModel` + `ConfigDict(from_attributes=True)` |
-| 数据库模型 | GORM 2.0 | 使用 GORM tag + 嵌入 BaseModel |
-| API 路由 | Gin | 使用 `RouterGroup` + 中间件 |
-| 认证 | JWT | 使用 `golang-jwt/v5` |
-| 类型生成 | openapi-typescript | 从 OpenAPI 自动生成 TypeScript 类型 |
-| 状态管理 | Pinia | 使用 `defineStore` + Composition API |
-| 前端组件 | Vue3 SFC | 使用 `<script setup>` 语法 |
+| 里程碑 | 状态 | 文档 |
+|--------|------|------|
+| 原生 PM 主路径 | ✅ PASS | [product-core-qa](../dev/acceptance/2026-09-25-product-core-qa.md) |
+| AI PM Plane 路径 | ✅ PASS | [redesign](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) |
+| Agent 平台产品化 | ❌ 废止 | [superseded/agent-platform](../superseded/agent-platform/README.md) |
+| 下一阶段 | 存量质量 | 不新开 AI 大功能 |
 
 ---
 
-**文档版本**：v4.0（完整特性 + Vue3 + Go + Gin 模式）  
-**创建日期**：2026-06-13  
+**文档版本**：v5.0（产品方向刷新 + 核心定制门禁）  
+**创建日期**：2026-06-13 · **刷新**：2026-09-26  
 **所属项目**：reqmango
+

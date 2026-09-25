@@ -1,5 +1,9 @@
 # reqmango Product Requirements Document
 
+> **Canonical Chinese PRD:** [PRD.md](PRD.md) (refreshed 2026-09-26). English copy may lag.
+> **Not product direction:** Agent console / Harness / Loop — see [superseded/agent-platform](../superseded/agent-platform/README.md).
+
+
 > **Last Updated**: 2026-07-13
 
 ---

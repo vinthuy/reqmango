@@ -1,5 +1,8 @@
 # Agent-Project Integration 架构设计评审
 
+> **Note:** Reviewed ARCH is archived at [superseded/agent-platform/ARCH-Agent-Project-Integration.md](superseded/agent-platform/ARCH-Agent-Project-Integration.md). Not current product direction.
+
+
 > 日期：2026-07-26
 > 评审人员：架构师、产品经理、技术骨干、测试经理、用户代表、竞品分析员
 > 评审对象：ARCH-Agent-Project-Integration.md v1.0

@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-09-26 — 设计文档 / KB 刷新 · Agent 平台归档
+
+**类型**: Docs
+
+**变更内容**:
+- KB PRD v5.0：产品方向、核心定制 P0 门禁、废止 Agent 平台排期
+- 架构总览 / docs 首页 / active / pipeline / debt Stage B 同步
+- **归档** Harness·Loop·Multica 相关 PRD/设计/计划 → docs/superseded/agent-platform/（原路径留 stub）
+- redesign 规格标注 CANONICAL + 已验收
+
+**影响文件**:
+- docs/kb/PRD.md, rchitecture/README.md, docs/README.md, superseded/**, stubs under docs/ & superpowers/
+
+---
+---
+
 ## 2026-09-25 — 核心定制门禁（类型/字段/工作流/自动化）
 
 **类型**: QA + Fix（P0）
@@ -179,3 +195,4 @@
 **类型**: 文档重组
 
 建立 kb/dev/superseded 三层架构，从 TECH_ARCHITECTURE.md 拆分 7 个专题文档。
+
