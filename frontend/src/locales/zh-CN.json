@@ -323,7 +323,15 @@
     "applyNow": "立即应用",
     "applying": "应用中...",
     "applySuccess": "规则应用成功",
-    "applyFailed": "规则应用失败"
+    "applyFailed": "规则应用失败",
+    "aiSummary": "一键总结",
+    "aiSummaryFailed": "生成周期总结失败",
+    "saveAsPage": "存为 Page",
+    "saveAsPageSuccess": "已保存为文档",
+    "saveAsPageFailed": "保存文档失败",
+    "recommendedCapacity": "建议容量",
+    "suggestedIssues": "建议工作项",
+    "risks": "风险与建议"
   },
   "home": {
     "title": "工作空间",

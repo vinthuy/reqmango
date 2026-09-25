@@ -1171,7 +1171,105 @@ type AISprintPlanResponse struct {
 }
 
 // SprintPlan generates AI sprint planning recommendations.
-func (s *AIService) SprintPlan(ctx context.Context, projectID uint64) (*AISprintPlanResponse, error) {
+// When cycleID > 0, focuses the prompt on that cycle's issues and progress (one-click summary).
+func (s *AIService) SprintPlan(ctx context.Context, projectID uint64, cycleID uint64) (*AISprintPlanResponse, error) {
+	if cycleID > 0 {
+		return s.sprintPlanForCycle(ctx, projectID, cycleID)
+	}
+	return s.sprintPlanProject(ctx, projectID)
+}
+
+func formatCycleEndDate(end *time.Time) string {
+	if end == nil {
+		return "ongoing"
+	}
+	return end.Format("01-02")
+}
+
+func (s *AIService) sprintPlanForCycle(ctx context.Context, projectID, cycleID uint64) (*AISprintPlanResponse, error) {
+	var cycle model.Cycle
+	if err := s.db.Where("id = ? AND project_id = ?", cycleID, projectID).First(&cycle).Error; err != nil {
+		return nil, fmt.Errorf("cycle not found")
+	}
+
+	var issues []model.Issue
+	s.db.Joins("JOIN issue_cycles ON issue_cycles.issue_id = issues.id AND issue_cycles.cycle_id = ?", cycleID).
+		Preload("State").
+		Where("issues.project_id = ?", projectID).
+		Order("issues.sequence_id").
+		Limit(50).
+		Find(&issues)
+
+	var total, done int64
+	s.db.Model(&model.IssueCycle{}).Where("cycle_id = ?", cycleID).Count(&total)
+	s.db.Table("issue_cycles").
+		Joins("JOIN issues ON issues.id = issue_cycles.issue_id").
+		Joins("JOIN states ON states.id = issues.state_id").
+		Where("issue_cycles.cycle_id = ? AND states.\"group\" = ?", cycleID, "completed").
+		Count(&done)
+
+	issueList := ""
+	openIDs := make([]uint64, 0)
+	for _, i := range issues {
+		stateName := i.State.Name
+		group := i.State.Group
+		issueList += fmt.Sprintf("- #%d %s [%s] state=%s group=%s\n", i.SequenceID, i.Name, i.Priority, stateName, group)
+		if group != "completed" && group != "cancelled" {
+			openIDs = append(openIDs, i.ID)
+		}
+	}
+
+	prompt := fmt.Sprintf(`你是敏捷教练。请对本周期进行一键总结，并给出后续规划建议。
+
+周期: %s
+时间: %s → %s
+进度: %d/%d 已完成
+
+工作项列表:
+%s
+
+请输出JSON（不要markdown标记）:
+{
+  "recommended_capacity": 建议下个周期纳入的工作项数量（整数）,
+  "reasoning": "本周期总结与分析（100字内）",
+  "risks": ["风险或改进建议1", "风险或改进建议2"]
+}`,
+		cycle.Name, cycle.StartDate.Format("01-02"), formatCycleEndDate(cycle.EndDate), done, total, issueList)
+
+	result, err := s.llm.Complete(ctx, "你是敏捷规划专家。输出纯JSON。", prompt)
+	if err != nil {
+		cap := len(openIDs)
+		if cap == 0 {
+			cap = int(total)
+		}
+		if cap > 10 {
+			cap = 10
+		}
+		ids := openIDs
+		if len(ids) > cap {
+			ids = ids[:cap]
+		}
+		return &AISprintPlanResponse{
+			RecommendedCapacity: cap,
+			SuggestedIssues:     ids,
+			Reasoning:           fmt.Sprintf("周期「%s」进度 %d/%d，基于当前未完成工作项给出容量建议", cycle.Name, done, total),
+			Risks:               []string{"建议人工审核未完成工作项优先级"},
+		}, nil
+	}
+
+	var plan AISprintPlanResponse
+	if json.Unmarshal([]byte(result), &plan) != nil {
+		plan.Reasoning = result
+	}
+	ids := openIDs
+	if plan.RecommendedCapacity > 0 && len(ids) > plan.RecommendedCapacity {
+		ids = ids[:plan.RecommendedCapacity]
+	}
+	plan.SuggestedIssues = ids
+	return &plan, nil
+}
+
+func (s *AIService) sprintPlanProject(ctx context.Context, projectID uint64) (*AISprintPlanResponse, error) {
 	var completedCycles []model.Cycle
 	s.db.Where("project_id = ? AND completed_at IS NOT NULL", projectID).Order("completed_at DESC").Limit(5).Find(&completedCycles)
 
@@ -1185,7 +1283,7 @@ func (s *AIService) SprintPlan(ctx context.Context, projectID uint64) (*AISprint
 	for _, c := range completedCycles {
 		var count int64
 		s.db.Model(&model.IssueCycle{}).Where("cycle_id = ?", c.ID).Count(&count)
-		cycleSummary += fmt.Sprintf("- %s: %d issues, %s → %s\n", c.Name, count, c.StartDate.Format("01-02"), c.EndDate.Format("01-02"))
+		cycleSummary += fmt.Sprintf("- %s: %d issues, %s → %s\n", c.Name, count, c.StartDate.Format("01-02"), formatCycleEndDate(c.EndDate))
 	}
 
 	issueList := ""

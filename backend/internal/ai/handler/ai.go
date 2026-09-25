@@ -350,11 +350,16 @@ func (h *AIHandler) AssistComment(c *gin.Context) {
 }
 
 // SprintPlan handles POST /projects/:projectId/ai/sprint-plan.
+// Optional query: cycle_id — when > 0, summarizes that cycle's issues/progress.
 func (h *AIHandler) SprintPlan(c *gin.Context) {
 	pid, _ := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	var cycleID uint64
+	if v := c.Query("cycle_id"); v != "" {
+		cycleID, _ = strconv.ParseUint(v, 10, 64)
+	}
 	actx := h.buildContext(c)
 	svc := h.resolveService(actx.WorkspaceID)
-	r, err := svc.SprintPlan(c.Request.Context(), pid)
+	r, err := svc.SprintPlan(c.Request.Context(), pid, cycleID)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error()})
 		return

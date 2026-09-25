@@ -84,13 +84,23 @@ describe('suggestLabels', () => {
 describe('sprintPlan', () => {
   it('should POST to sprint-plan endpoint', async () => {
     mockPost.mockResolvedValue({
-      data: { plan: [{ issue_id: 1, suggestion: 'Move to next sprint' }] },
+      data: { recommended_capacity: 5, suggested_issues: [1], reasoning: 'ok', risks: [] },
     })
     const result = await sprintPlan(1)
     expect(mockPost).toHaveBeenCalledWith(
       '/projects/1/ai/sprint-plan'
     )
-    expect(result.plan).toHaveLength(1)
+    expect(result.recommended_capacity).toBe(5)
+  })
+
+  it('should pass cycle_id when provided', async () => {
+    mockPost.mockResolvedValue({
+      data: { recommended_capacity: 3, suggested_issues: [], reasoning: 'cycle', risks: [] },
+    })
+    await sprintPlan(1, 42)
+    expect(mockPost).toHaveBeenCalledWith(
+      '/projects/1/ai/sprint-plan?cycle_id=42'
+    )
   })
 })
 

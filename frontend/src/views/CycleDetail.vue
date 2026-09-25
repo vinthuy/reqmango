@@ -12,6 +12,12 @@
           <span :class="statusBadgeClass">{{ cycle?.status }}</span>
         </div>
         <div class="flex items-center space-x-2">
+          <button
+            type="button"
+            class="px-3 py-1.5 border border-indigo-300 text-sm text-indigo-700 rounded hover:bg-indigo-50 disabled:opacity-50"
+            :disabled="summarizing"
+            @click="runCycleSummary"
+          >{{ summarizing ? t('common.loading') : t('cycle.aiSummary') }}</button>
           <button v-if="cycle?.status === 'upcoming'" @click="handleStart" class="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700">{{ t('cycle.start') }}</button>
           <button v-if="cycle?.status === 'active'" @click="handleEnd" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">{{ t('cycle.end') }}</button>
           <button v-if="cycle?.status !== 'completed' && cycle?.status !== 'cancelled'" @click="handleCancel" class="px-3 py-1.5 border border-gray-300 text-sm text-gray-600 rounded hover:bg-gray-50">{{ t('cycle.cancel') }}</button>
@@ -28,6 +34,36 @@
     </div>
 
     <div v-else-if="cycle" class="max-w-5xl mx-auto px-6 py-6 space-y-6">
+      <!-- AI summary panel -->
+      <div v-if="summary || summaryError" class="bg-white rounded-lg border border-indigo-200 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-medium text-indigo-800">
+            {{ t('cycle.aiSummary') }}
+            <span v-if="cycle?.name" class="font-normal text-gray-500">· {{ cycle.name }}</span>
+          </h3>
+          <button
+            v-if="summary"
+            type="button"
+            class="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+            :disabled="savingPage"
+            @click="saveSummaryAsPage"
+          >{{ savingPage ? t('common.loading') : t('cycle.saveAsPage') }}</button>
+        </div>
+        <p v-if="summaryError" class="text-sm text-red-600">{{ summaryError }}</p>
+        <template v-else-if="summary">
+          <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ summary.reasoning }}</p>
+          <div class="mt-3 flex flex-wrap gap-4 text-xs text-gray-600">
+            <span>{{ t('cycle.recommendedCapacity') }}: {{ summary.recommended_capacity }}</span>
+            <span v-if="summary.suggested_issues?.length">
+              {{ t('cycle.suggestedIssues') }}: {{ summary.suggested_issues.length }}
+            </span>
+          </div>
+          <ul v-if="summary.risks?.length" class="mt-3 list-disc list-inside text-sm text-amber-800 space-y-1">
+            <li v-for="(risk, idx) in summary.risks" :key="idx">{{ risk }}</li>
+          </ul>
+        </template>
+      </div>
+
       <CycleProgressCard :progress="cycleStore.progress" />
 
       <!-- State Group Breakdown -->
@@ -124,15 +160,19 @@ import { useI18n } from '@/composables/useI18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useCycleStore } from '@/stores/cycle'
 import { issueApi } from '@/api/issue'
+import { sprintPlan, type AISprintPlanResponse } from '@/api/ai'
+import { createPage } from '@/api/page'
 import CycleProgressCard from '@/components/CycleProgressCard.vue'
 import CycleBurndownChart from '@/components/CycleBurndownChart.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const cycleStore = useCycleStore()
 const { confirm } = useConfirm()
+const toast = useToast()
 
 const cycleId = Number(route.params.cycleId)
 const cycle = computed(() => cycleStore.currentCycle)
@@ -142,6 +182,26 @@ const showAddIssue = ref(false)
 const searchQuery = ref('')
 const searched = ref(false)
 const availableIssues = ref<any[]>([])
+
+const summarizing = ref(false)
+const summary = ref<AISprintPlanResponse | null>(null)
+const summaryError = ref('')
+const savingPage = ref(false)
+
+const summaryMarkdown = computed(() => {
+  if (!summary.value) return ''
+  const risks = (summary.value.risks || []).map(r => `- ${r}`).join('\n')
+  const issues = (summary.value.suggested_issues || []).map(id => `- #${id}`).join('\n')
+  return [
+    `# ${cycle.value?.name || 'Cycle'} — ${t('cycle.aiSummary')}`,
+    '',
+    summary.value.reasoning,
+    '',
+    `**${t('cycle.recommendedCapacity')}:** ${summary.value.recommended_capacity}`,
+    issues ? `\n**${t('cycle.suggestedIssues')}:**\n${issues}` : '',
+    risks ? `\n**${t('cycle.risks')}:**\n${risks}` : '',
+  ].filter(Boolean).join('\n')
+})
 
 const statusBadgeClass = computed(() => {
   const map: Record<string, string> = {
@@ -179,6 +239,36 @@ onMounted(async () => {
     ])
   }
 })
+
+async function runCycleSummary() {
+  if (!cycle.value) return
+  summarizing.value = true
+  summaryError.value = ''
+  summary.value = null
+  try {
+    summary.value = await sprintPlan(cycle.value.project_id, cycleId)
+  } catch (e: any) {
+    summaryError.value = e?.response?.data?.message || e.message || t('cycle.aiSummaryFailed')
+  } finally {
+    summarizing.value = false
+  }
+}
+
+async function saveSummaryAsPage() {
+  if (!cycle.value || !summary.value) return
+  savingPage.value = true
+  try {
+    await createPage(cycle.value.project_id, cycle.value.workspace_id, {
+      title: `${cycle.value.name || 'Cycle'} — ${t('cycle.aiSummary')}`,
+      content: summaryMarkdown.value,
+    })
+    toast.success(t('cycle.saveAsPageSuccess'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e.message || t('cycle.saveAsPageFailed'))
+  } finally {
+    savingPage.value = false
+  }
+}
 
 function toggleAddIssue() {
   showAddIssue.value = !showAddIssue.value

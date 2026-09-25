@@ -115,10 +115,19 @@ export async function suggestLabels(projectId: number, issueId: number): Promise
 }
 
 /**
- * AI Sprint Plan — 辅助冲刺计划。
+ * AI Sprint Plan — 辅助冲刺计划 / 周期一键总结。
+ * Optional cycleId focuses the prompt on that cycle's issues and progress.
  */
-export async function sprintPlan(projectId: number): Promise<any> {
-  const res = await api.post(`/projects/${projectId}/ai/sprint-plan`)
+export interface AISprintPlanResponse {
+  recommended_capacity: number
+  suggested_issues: number[]
+  reasoning: string
+  risks: string[]
+}
+
+export async function sprintPlan(projectId: number, cycleId?: number): Promise<AISprintPlanResponse> {
+  const qs = cycleId && cycleId > 0 ? `?cycle_id=${cycleId}` : ''
+  const res = await api.post(`/projects/${projectId}/ai/sprint-plan${qs}`)
   return res.data
 }
 

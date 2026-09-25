@@ -323,7 +323,15 @@
     "applyNow": "Apply Now",
     "applying": "Applying...",
     "applySuccess": "Rule applied successfully",
-    "applyFailed": "Failed to apply rule"
+    "applyFailed": "Failed to apply rule",
+    "aiSummary": "One-click Summary",
+    "aiSummaryFailed": "Failed to generate cycle summary",
+    "saveAsPage": "Save as Page",
+    "saveAsPageSuccess": "Saved as page",
+    "saveAsPageFailed": "Failed to save page",
+    "recommendedCapacity": "Recommended capacity",
+    "suggestedIssues": "Suggested issues",
+    "risks": "Risks & suggestions"
   },
   "home": {
     "title": "Workspaces",
