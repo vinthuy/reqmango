@@ -3,7 +3,10 @@
 > **版本**: v1.0
 > **日期**: 2026-07-18
 > **作者**: vinthuy
-> **状态**: Draft — 待评审
+> **状态**: **Demoted — 基础设施 / 远期（2026-09-25）**  
+> **说明**: 产品主路径已改为对标 Plane AI 的项目管理 AI，见  
+> [`2026-09-25-ai-project-management-redesign.md`](./2026-09-25-ai-project-management-redesign.md)。  
+> 本文中的 Harness / Loop / Marketplace 等保留为 **Phase 3+ 超 Plane 能力** 与后端参考，**不再指导当前排期**。
 
 ---
 

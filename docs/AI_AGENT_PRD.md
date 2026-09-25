@@ -3,7 +3,10 @@
 > **版本**: v1.0  
 > **日期**: 2026-07-24  
 > **作者**: AI Agent  
-> **状态**: 待审核
+> **状态**: **Superseded（2026-09-25）**  
+> **废止原因**: Multica / 全 SDLC Agent 平台叙事已丢弃。现行设计见  
+> [`docs/superpowers/specs/2026-09-25-ai-project-management-redesign.md`](./superpowers/specs/2026-09-25-ai-project-management-redesign.md)（对标 Plane AI 的项目管理 AI）。  
+> 本文仅作历史参考，**不得作为排期依据**。
 
 ---
 
@@ -13,7 +16,7 @@
 
 **当前问题**：AI 能力仅限于被动问答和辅助生成，未能真正融入软件开发全流程。
 
-**解决方案**：借鉴 Multica 的"Agent as Teammates"理念，将 AI Agent 打造为团队的虚拟成员，实现从需求分析到上线的完整软件开发生命周期（SDLC）自动化。
+**解决方案**：（历史）曾借鉴 Multica 的"Agent as Teammates"理念……**已废止**。请改用 Plane AI 对齐的「AI 项目管理」设计。
 
 ### 1.2 核心目标
 
