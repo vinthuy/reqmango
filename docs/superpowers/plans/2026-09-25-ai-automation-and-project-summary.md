@@ -93,8 +93,8 @@
 - [x] **Step 1:** 选 API：优先 `POST …/ai/sprint-plan`（无 cycle_id = 项目视角）或 `analyze`；与 Cycle 总结区分标题。  
 - [x] **Step 2:** 实现按钮 + 面板 + 存 Page。  
 - [x] **Step 3:** i18n。  
-- [ ] **Step 4:** 手测：项目页出总结 → Page 列表可见。  
-- [ ] **Step 5:** Commit `feat(ai): add project AI summary save-as-page`
+- [x] **Step 4:** 手测：项目页出总结 → Page 列表可见。  
+- [x] **Step 5:** Commit `feat(ai): add project AI summary save-as-page`
 
 ---
 

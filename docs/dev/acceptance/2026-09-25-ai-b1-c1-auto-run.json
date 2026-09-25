@@ -1,0 +1,81 @@
+﻿{
+    "generated_at":  "2026-09-25T20:49:34.6870338+08:00",
+    "verdict":  "PASS",
+    "summary":  {
+                    "skip":  0,
+                    "pass":  13,
+                    "fail":  0,
+                    "partial":  0
+                },
+    "workspace_id":  1,
+    "project_id":  4,
+    "page_id":  143,
+    "workspace_slug":  "reqmango-dev",
+    "results":  [
+                    {
+                        "Id":  "B1-1",
+                        "Status":  "PASS",
+                        "Note":  "AI templates present: intakeTriage, riskOnCreate, specDraftOnCreate"
+                    },
+                    {
+                        "Id":  "B1-2",
+                        "Status":  "PASS",
+                        "Note":  "template grid sibling of empty-state (always shown)"
+                    },
+                    {
+                        "Id":  "B1-3",
+                        "Status":  "PASS",
+                        "Note":  "AutomationRuleBuilder exposes dispatch_agent (DEF-03)"
+                    },
+                    {
+                        "Id":  "DEF-02",
+                        "Status":  "PASS",
+                        "Note":  "Analyze routes issue vs project by IssueID"
+                    },
+                    {
+                        "Id":  "C1-1",
+                        "Status":  "PASS",
+                        "Note":  "Project.vue has project AI summary + save-as-page"
+                    },
+                    {
+                        "Id":  "B1C1-5",
+                        "Status":  "PASS",
+                        "Note":  "no Loop/Harness product copy in Project/Settings/i18n primary surfaces"
+                    },
+                    {
+                        "Id":  "B1C1-4",
+                        "Status":  "PASS",
+                        "Note":  "Phase 1-2 auto-run artifact present (prior conditional pass)"
+                    },
+                    {
+                        "Id":  "B1-API-0",
+                        "Status":  "PASS",
+                        "Note":  "ensure-pm ok; agent id=7 name=请求分诊"
+                    },
+                    {
+                        "Id":  "B1-API-1",
+                        "Status":  "PASS",
+                        "Note":  "created automation id=18828 name=B1C1-auto-risk-204930 with dispatch_agent"
+                    },
+                    {
+                        "Id":  "C1-API-1",
+                        "Status":  "PASS",
+                        "Note":  "project analyze ok; summary_len=94"
+                    },
+                    {
+                        "Id":  "C1-API-2",
+                        "Status":  "PASS",
+                        "Note":  "issue-scoped analyze ok issue_id=330"
+                    },
+                    {
+                        "Id":  "C1-API-3",
+                        "Status":  "PASS",
+                        "Note":  "created page id=143 title=AI Project Summary (B1C1 auto) 2026-09-25 20:49:34"
+                    },
+                    {
+                        "Id":  "C1-API-4",
+                        "Status":  "PASS",
+                        "Note":  "page visible in project pages list"
+                    }
+                ]
+}

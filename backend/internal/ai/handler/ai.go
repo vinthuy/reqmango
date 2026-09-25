@@ -388,6 +388,23 @@ func (h *AIHandler) SuggestLabels(c *gin.Context) {
 	c.JSON(200, r)
 }
 
+// AutomationPreview handles POST /projects/:projectId/ai/automation-preview (B2).
+func (h *AIHandler) AutomationPreview(c *gin.Context) {
+	var req service.AIAutomationPreviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	actx := h.buildContext(c)
+	svc := h.resolveService(actx.WorkspaceID)
+	result, err := svc.AutomationPreview(c.Request.Context(), &req, actx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 // TriageAnalyze handles POST /projects/:projectId/intake/:issueId/ai-analyze.
 func (h *AIHandler) TriageAnalyze(c *gin.Context) {
 	issueID, _ := strconv.ParseUint(c.Param("issueId"), 10, 64)

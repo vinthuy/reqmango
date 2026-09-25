@@ -609,7 +609,7 @@ const form = ref<{
   actions: []
 })
 
-const isEdit = computed(() => !!props.rule)
+const isEdit = computed(() => !!props.rule?.id)
 
 const isValid = computed(() => {
   return form.value.name.trim() !== '' &&

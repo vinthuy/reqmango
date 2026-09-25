@@ -106,6 +106,29 @@ export async function analyzeWithAI(projectId: number, issueId: number): Promise
   return res.data
 }
 
+/** B2: NL → automation rule draft for RuleBuilder prefill. */
+export interface AIAutomationPreviewResponse {
+  name: string
+  description?: string
+  trigger_type: string
+  conditions: Array<{ field: string; operator: string; value: unknown }>
+  actions: Array<{ type: string; value?: unknown; field?: string }>
+  warnings?: string[]
+  trigger_type_json: string
+  conditions_json: string
+  actions_json: string
+}
+
+export async function automationPreview(
+  projectId: number,
+  prompt: string,
+): Promise<AIAutomationPreviewResponse> {
+  const res = await api.post(`/projects/${projectId}/ai/automation-preview`, { prompt }, {
+    timeout: 120000,
+  })
+  return res.data
+}
+
 /**
  * AI Suggest Labels — 根据内容推荐标签。
  * Backend requires name (and optional description) in the JSON body.

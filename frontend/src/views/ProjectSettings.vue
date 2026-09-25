@@ -6,6 +6,7 @@ import { projectApi } from '@/api/project'
 import { workflowApi } from '@/api/workflow'
 import { automationApi } from '@/api/automation'
 import { ensurePMAgents } from '@/api/agent'
+import { automationPreview } from '@/api/ai'
 import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
@@ -201,6 +202,41 @@ const PM_AGENT = {
   spec: 'Spec 草稿',
 } as const
 const installingPMAgents = ref(false)
+const nlAutomationPrompt = ref('')
+const nlAutomationLoading = ref(false)
+const nlAutomationWarnings = ref<string[]>([])
+
+async function generateAutomationFromNL() {
+  const prompt = nlAutomationPrompt.value.trim()
+  if (!prompt || !projectId.value || nlAutomationLoading.value) return
+  nlAutomationLoading.value = true
+  nlAutomationWarnings.value = []
+  try {
+    if (workspaceId.value) {
+      await ensurePMAgents(workspaceId.value)
+    }
+    const draft = await automationPreview(projectId.value, prompt)
+    nlAutomationWarnings.value = draft.warnings || []
+    editingAutomation.value = {
+      name: draft.name,
+      description: draft.description || '',
+      trigger_type: draft.trigger_type_json || JSON.stringify({ type: draft.trigger_type }),
+      conditions: draft.conditions_json || JSON.stringify(draft.conditions || []),
+      actions: draft.actions_json || JSON.stringify(draft.actions || []),
+    }
+    showAutomationModal.value = true
+    if (nlAutomationWarnings.value.length) {
+      toast.success(t('automationTemplates.nlGeneratedWithWarnings'))
+    } else {
+      toast.success(t('automationTemplates.nlGenerated'))
+    }
+  } catch (e: any) {
+    console.error('NL automation preview failed:', e)
+    toast.error(e?.response?.data?.message || e.message || t('automationTemplates.nlFailed'))
+  } finally {
+    nlAutomationLoading.value = false
+  }
+}
 
 const automationTemplates = ref([
   {
@@ -982,6 +1018,32 @@ onMounted(async () => {
                 {{ installingPMAgents ? '…' : t('automationTemplates.installPMAgents') }}
               </button>
               <button @click="handleAddAutomation" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createAutomation') }}</button>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border border-indigo-100 p-4 space-y-3">
+            <div>
+              <h3 class="text-sm font-medium text-gray-800">{{ t('automationTemplates.nlTitle') }}</h3>
+              <p class="text-xs text-gray-500 mt-0.5">{{ t('automationTemplates.nlHint') }}</p>
+            </div>
+            <textarea
+              v-model="nlAutomationPrompt"
+              rows="2"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              :placeholder="t('automationTemplates.nlPlaceholder')"
+            />
+            <div class="flex items-center justify-between gap-3">
+              <p v-if="nlAutomationWarnings.length" class="text-xs text-amber-600 flex-1">
+                {{ nlAutomationWarnings.join(' · ') }}
+              </p>
+              <span v-else class="flex-1" />
+              <button
+                type="button"
+                @click="generateAutomationFromNL"
+                :disabled="nlAutomationLoading || !nlAutomationPrompt.trim()"
+                class="shrink-0 bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ nlAutomationLoading ? t('common.loading') : t('automationTemplates.nlGenerate') }}
+              </button>
             </div>
           </div>
           <div class="space-y-4">

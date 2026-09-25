@@ -1164,6 +1164,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		projects.POST("/:projectId/ai/chart", aiH.Chart)
 		projects.POST("/:projectId/ai/sprint-plan", aiH.SprintPlan)
 		projects.POST("/:projectId/ai/suggest-labels", aiH.SuggestLabels)
+		projects.POST("/:projectId/ai/automation-preview", aiH.AutomationPreview)
 
 		// Agent routes (project-level)
 		projects.POST("/:projectId/agent/auto-triage", agentH.AutoTriageProject)
