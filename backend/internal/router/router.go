@@ -552,6 +552,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/workflows/:workflowId", workflowH.GetWorkflow)
 			workspaces.PUT("/:wsParam/workflows/:workflowId", workflowH.UpdateWorkspaceWorkflow)
 			workspaces.DELETE("/:wsParam/workflows/:workflowId", workflowH.DeleteWorkspaceWorkflow)
+			workspaces.GET("/:wsParam/workflows/:workflowId/transitions", workflowH.ListTransitions)
 			workspaces.POST("/:wsParam/workflows/:workflowId/transitions", workflowH.AddTransition)
 			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
 			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
