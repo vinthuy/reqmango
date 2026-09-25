@@ -543,7 +543,7 @@ function handleViewAutomationLog(automation: any) {
 async function handleSaveAutomation(data: any) {
   if (!projectId.value) return
   try {
-    if (editingAutomation.value) {
+    if (editingAutomation.value?.id) {
       await automationApi.update(projectId.value, editingAutomation.value.id, data)
     } else {
       await automationApi.create(projectId.value, data)
