@@ -1,56 +1,76 @@
 # Reqmango
 
-A modern project management platform supporting work item management, custom fields, type templates, workflows, and automation.
+**Self-hosted project management where new requests are triaged first.**  
+Type, priority, and likely duplicates are suggested before work lands in the backlog — you only decide the uncertain ones.
+
+[中文文档](README-zh.md)
 
 ---
 
-## 🌐 Language
-
-- **English** (this document)
-- [中文文档](README-zh.md)
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Backend | Go 1.25+ + Gin + GORM |
-| Database | PostgreSQL 18+ |
-| Frontend | Vue 3.5+ + TypeScript 5+ + Vite 6+ + Pinia 3+ + Tailwind CSS 4+ |
-| Authentication | JWT (golang-jwt/v5) |
-| Security | bluemonday XSS sanitization, rate limiting, RBAC |
-| i18n | English + Chinese (backend & frontend) |
-
-## Quick Start
-
-### Prerequisites
-
-- Go 1.25+
-- PostgreSQL 18+
-- Node.js 20+
-
-### 1. Clone the Project
+## Try it in one command
 
 ```bash
 git clone https://github.com/vinthuy/reqmango.git
 cd reqmango
+cp .env.example .env
+docker compose up --build
 ```
 
-### 2. Configure Database
+Open **http://localhost** and sign in:
+
+| | |
+|---|---|
+| Email | `demo@example.com` |
+| Password | `demo1234` |
+
+Optional AI (Intake triage / analyze / labels): set `AI_API_KEY` in `.env`, then restart.
+
+> **Demo clip:** drop a short GIF at [`docs/assets/demo.gif`](docs/assets/demo.gif) after you record Intake triage (submit a vague request → type / priority / duplicate suggestions). Until then, use the walkthrough below.
+
+### 60-second walkthrough
+
+1. Sign in with the demo account.
+2. Open the **Demo** project → **Project settings** → **Intake triage**.
+3. Open the Intake form link, submit a short request (e.g. “login sometimes fails on mobile”).
+4. Return to the triage queue: accept / reject, and (with `AI_API_KEY`) run AI analyze / label suggestions on issues.
+
+---
+
+## What you get
+
+| Area | Capability |
+|------|------------|
+| **AI in the work loop** | Intake triage, issue analyze, label suggestions, Cycle / sprint summary, Ask / Build Copilot with preview before write |
+| Work items | List + Kanban, state transitions, hierarchy (up to 6 levels) |
+| Custom fields & templates | Text / number / dropdown / boolean / date / member / URL; workspace type blueprints; project templates |
+| Workflow & automation | Transitions, approvals, role gates; trigger → condition → action |
+| Relations & search | Blocks / Relates / Duplicates; RQL + multi-field filters |
+| Notifications & security | Unread counts; XSS sanitization (bluemonday); JWT + RBAC |
+| API | 100+ REST endpoints |
+
+AI is a layer on top of project management — not a separate “agent IDE” as the default story. Advanced Agent console routes may still exist in the codebase; day-to-day PM paths are Issue, Cycle, Intake, and Pages.
+
+---
+
+## Requirements
+
+| Mode | Need |
+|------|------|
+| **Docker (recommended)** | Docker + Docker Compose |
+| Local dev | Go **1.25+**, PostgreSQL **16+**, Node.js **20+** |
+
+Stack matches CI and `docker-compose.yml` (`postgres:16`, Go 1.25 image).
+
+---
+
+## Local development (without Docker)
 
 ```bash
-# Create database
+# Database
 psql -U postgres -c "CREATE DATABASE reqmango;"
-```
 
-### 3. Configure Backend
-
-```bash
+# Backend
 cd backend
-
-# Create environment configuration file
-# SECRET_KEY signs JWTs -- generate it with: openssl rand -hex 32
 cat > .env << EOF
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/reqmango?sslmode=disable
 SECRET_KEY=$(openssl rand -hex 32)
@@ -58,111 +78,53 @@ ACCESS_TOKEN_EXPIRE_MINUTES=10080
 PORT=8000
 DEBUG=true
 EOF
-
-# Start backend (auto-migrate + seed data)
 go run ./cmd/server/
 ```
 
-Upon startup, the backend automatically creates database tables and inserts demo data:
-- Admin account: `demo@example.com` / `demo1234`
-- Test accounts: `demo1@reqman.local` ~ `demo19@reqman.local` (same password)
-- Demo Workspace (slug: demo) + Demo Project (identifier: DEMO)
-- 6 default states, 4 Sprints, 5 modules, 100 work items
-- 3 default issue types (Bug/Feature/Epic)
-- 3 custom fields (Priority/Target Date/Version)
-
-### 4. Configure Frontend
+Seed data includes `demo@example.com` / `demo1234`, workspace `demo`, project `DEMO`, sample sprints / modules / issues.
 
 ```bash
+# Frontend (API on :8000)
 cd frontend
 npm install
 npm run dev
 ```
 
-Open browser at `http://localhost:5173`, login with `demo@example.com` / `demo1234`.
+Open **http://localhost:5173**.
 
-### 5. Production Build
+### Production build (local)
 
 ```bash
-# Backend
 cd backend && go build -o server ./cmd/server/
-
-# Frontend
 cd frontend && npm run build
 ```
 
 ---
 
-## Project Structure
+## Project layout
 
 ```
 reqmango/
-├── backend/              # Go Backend
-│   ├── cmd/server/          # Entry point
-│   ├── internal/
-│   │   ├── model/           # GORM Data Models (34 files)
-│   │   ├── dto/             # Request/Response DTOs (45 files)
-│   │   ├── service/         # Business Logic (35 files)
-│   │   ├── handler/         # HTTP Handlers (37 files)
-│   │   ├── rql/             # RQL Query Language Engine
-│   │   ├── middleware/      # Middleware (Auth/CORS/Lang/Log/RateLimit)
-│   │   ├── i18n/            # Internationalization (en/zh)
-│   │   ├── seed/            # Seed Data
-│   │   ├── common/          # Utility Functions
-│   │   └── config/          # Configuration Loading
-│   └── config/              # YAML Configuration
-├── sdk/                     # MCP Server + CLI (shared Go module)
-├── frontend/                # Vue 3 Frontend
-│   └── src/
-│       ├── api/             # API Calls (35 modules)
-│       ├── types/           # TypeScript Types
-│       ├── stores/          # Pinia State Management
-│       ├── views/           # Pages
-│       ├── components/      # Components
-│       └── router/          # Routing
-└── docs/                    # Documentation
-    ├── kb/                  # Knowledge Base (Architecture Docs)
-    ├── dev/                 # Development Pipeline
-    └── superseded/          # Historical Archive
+├── backend/     # Go + Gin + GORM API
+├── frontend/    # Vue 3 + TypeScript + Vite
+├── sdk/         # MCP / CLI (optional; not the default product story)
+├── docs/        # API, architecture, product specs
+└── docker-compose.yml
 ```
 
-## Core Features
+---
 
-| Feature | Description |
-|---------|-------------|
-| Work Item Management | CRUD + State Transitions + List/Kanban Views |
-| Custom Fields | 7 types (text/number/dropdown/boolean/date/member/url) |
-| Type Templates | Workspace-level type blueprints + Hierarchy + Field Binding |
-| Project Templates | Package type templates, apply to projects in one click |
-| Workflows | State transition rules + Approval + Role restrictions |
-| Automation | Trigger → Condition → Action rule engine |
-| Relations | Custom relation types (Blocks/Relates/Duplicates) |
-| Hierarchy System | Up to 6 levels of work item hierarchy + Type validation |
-| RQL Query Language | SQL-like filtering with field validation and injection protection |
-| Advanced Search | Multi-field AND combination filtering |
-| Notifications | Real-time notification system with unread counts |
-| XSS Security | bluemonday HTML sanitization for all user content |
-| API | 100+ RESTful endpoints with JWT authentication |
+## Docs
 
-## API Documentation
+- [API Reference](docs/API.md)
+- [Architecture](docs/kb/architecture/) — [tech stack](docs/kb/architecture/tech-stack.md), [Go backend](docs/kb/architecture/backend-go.md), [frontend](docs/kb/architecture/frontend.md), [data model](docs/kb/architecture/data-model.md)
 
-- [API Reference](docs/API.md) - Complete endpoint documentation
-- [Architecture Documents](docs/kb/architecture/) - System design docs
-
-## Architecture Documents
-
-- [Tech Stack](docs/kb/architecture/tech-stack.md)
-- [Go Backend Architecture](docs/kb/architecture/backend-go.md)
-- [Frontend Architecture](docs/kb/architecture/frontend.md)
-- [Data Model](docs/kb/architecture/data-model.md)
-- [API Conventions](docs/kb/architecture/api-conventions.md)
-- [Type Hierarchy & Template Design](docs/kb/architecture/type-hierarchy-template-design.md)
-- [Relation System Design](docs/kb/architecture/relation-system-design.md)
+---
 
 ## Contributing
 
-Contributions are welcome. Please submit Issues and Pull Requests.
+Issues and pull requests are welcome.
 
 ## License
 
-MIT
+[MIT](LICENSE)

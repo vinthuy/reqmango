@@ -318,26 +318,95 @@ func (h *WorkflowHandler) DeleteEdge(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "edge deleted"})
 }
 
-// --- Workspace-level workflow methods (not yet implemented) ---
+// --- Workspace-level state-machine workflow methods ---
 
-// ListWorkspaceWorkflows returns all workflows for a workspace.
+// ListWorkspaceWorkflows returns all state-machine workflows for a workspace.
 func (h *WorkflowHandler) ListWorkspaceWorkflows(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "workspace-level workflow listing is not yet implemented"})
+	workspaceID, err := h.workflowSvc.ResolveWorkspaceID(c.Param("wsParam"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workspace"})
+		return
+	}
+
+	workflows, err := h.workflowSvc.ListStateWorkflowsByWorkspace(workspaceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, workflows)
 }
 
-// CreateWorkspaceWorkflow creates a workflow in a workspace.
+// CreateWorkspaceWorkflow creates a state-machine workflow in a workspace.
 func (h *WorkflowHandler) CreateWorkspaceWorkflow(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "workspace-level workflow creation is not yet implemented"})
+	workspaceID, err := h.workflowSvc.ResolveWorkspaceID(c.Param("wsParam"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workspace"})
+		return
+	}
+
+	var req service.CreateStateWorkflowRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	workflow, err := h.workflowSvc.CreateStateWorkflow(workspaceID, nil, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, workflow)
 }
 
-// UpdateWorkspaceWorkflow updates a workspace workflow.
+// UpdateWorkspaceWorkflow updates a workspace state-machine workflow.
 func (h *WorkflowHandler) UpdateWorkspaceWorkflow(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "workspace-level workflow update is not yet implemented"})
+	workspaceID, err := h.workflowSvc.ResolveWorkspaceID(c.Param("wsParam"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workspace"})
+		return
+	}
+	workflowID, err := strconv.ParseUint(c.Param("workflowId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workflow ID"})
+		return
+	}
+
+	var req service.UpdateStateWorkflowRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	workflow, err := h.workflowSvc.UpdateStateWorkflow(workspaceID, workflowID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, workflow)
 }
 
-// DeleteWorkspaceWorkflow deletes a workspace workflow.
+// DeleteWorkspaceWorkflow deletes a workspace state-machine workflow.
 func (h *WorkflowHandler) DeleteWorkspaceWorkflow(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "workspace-level workflow deletion is not yet implemented"})
+	workspaceID, err := h.workflowSvc.ResolveWorkspaceID(c.Param("wsParam"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workspace"})
+		return
+	}
+	workflowID, err := strconv.ParseUint(c.Param("workflowId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workflow ID"})
+		return
+	}
+
+	if err := h.workflowSvc.DeleteStateWorkflow(workspaceID, workflowID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "workflow deleted"})
 }
 
 // --- State transition methods ---

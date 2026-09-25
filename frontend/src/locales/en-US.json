@@ -1008,6 +1008,7 @@
     "advancedAgentsTitle": "Advanced Agents (experimental)",
     "advancedAgentsDesc": "Loops, pipelines, squads and other platform consoles were removed from primary navigation.",
     "advancedAgentsLink": "Open advanced Agents console",
+    "advancedAgentsHiddenHint": "Advanced console is off by default. To unlock temporarily: localStorage.setItem('rm_advanced_agents','1') then refresh.",
     "configured": "Configured",
     "providerDeepseek": "DeepSeek",
     "providerAnthropic": "Anthropic (Claude)",

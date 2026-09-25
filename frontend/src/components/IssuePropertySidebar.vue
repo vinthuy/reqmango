@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white rounded-lg border border-gray-200 p-4 w-[240px] space-y-4">
+  <div class="bg-white rounded-lg border border-gray-200 p-4 w-[280px] space-y-4 shrink-0">
     <h3 class="text-sm font-semibold text-gray-700 mb-3">{{ t('issue.properties') }}</h3>
 
     <div v-if="isLocked" class="mb-1 px-3 py-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
@@ -37,7 +37,7 @@
             :value="issue.state_id"
             disabled
           >
-            <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
+            <option v-for="s in visibleStates" :key="s.id" :value="s.id">{{ s.name }}</option>
           </select>
           <span class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 cursor-help text-xs" :title="t('approvals.stateDisabledHint')">?</span>
         </div>
@@ -49,7 +49,7 @@
         :value="issue.state_id"
         @change="emitStateUpdate"
       >
-        <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
+        <option v-for="s in visibleStates" :key="s.id" :value="s.id">{{ s.name }}</option>
       </select>
     </div>
 
@@ -294,6 +294,13 @@ const props = defineProps<{
 }>()
 
 const isLocked = computed(() => props.issue?.approval_status === 'pending')
+const visibleStates = computed(() =>
+  (props.states || []).filter((s: any) => {
+    if (s?.is_active === false) return false
+    if (/^E2E\s+Test/i.test(String(s?.name || ''))) return false
+    return true
+  })
+)
 
 const emit = defineEmits<{
   (e: 'update:state', stateId: number): void

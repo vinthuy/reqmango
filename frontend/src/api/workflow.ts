@@ -208,11 +208,11 @@ export function deleteWorkspaceWorkflow(workspaceId: number, workflowId: number)
 }
 
 export function addWorkspaceTransition(workspaceId: number, workflowId: number, data: any) {
-  return apiClient.post(`/workspaces/${workspaceId}/workflows/${workflowId}/edges`, data).then(r => r.data)
+  return apiClient.post(`/workspaces/${workspaceId}/workflows/${workflowId}/transitions`, data).then(r => r.data)
 }
 
 export function deleteWorkspaceTransition(workspaceId: number, workflowId: number, edgeId: number) {
-  return apiClient.delete(`/workspaces/${workspaceId}/workflows/${workflowId}/edges/${edgeId}`)
+  return apiClient.delete(`/workspaces/${workspaceId}/workflows/${workflowId}/transitions/${edgeId}`)
 }
 
 // ==================== State Transitions ====================

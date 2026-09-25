@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-09-25 — 核心定制门禁（类型/字段/工作流/自动化）
+
+**类型**: QA + Fix（P0）
+
+**变更内容**:
+- 验收门禁新增：**自定义工作项类型 / 自定义字段 / 自定义工作流 / 自动化规则** 全部 OK 才可通过
+- **CORE-04**：实现 workspace 级状态机工作流 CRUD（原 501）；transitions 兼容 from/to；UI 状态回退项目状态
+- CORE-02/03 已修（分析状态分布、Issue 详情过滤 E2E/inactive）
+- 验收：`docs/dev/acceptance/2026-09-25-product-core-qa.md` §H CF-1…CF-10
+
+**影响文件**:
+- `backend/internal/handler/workflow_handler.go`, `service/workflow_service.go`, `model/workflow.go`, `router/router.go`
+- `frontend/src/components/WorkflowManager.vue`, `api/workflow.ts`
+
+---
+
 ## 2026-09-25 — 产品化主路径验收 + 工作流/仪表盘修复
 
 **类型**: QA + Fix

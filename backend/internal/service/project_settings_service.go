@@ -18,6 +18,15 @@ func NewProjectSettingsService(db *gorm.DB) *ProjectSettingsService {
 	return &ProjectSettingsService{db: db}
 }
 
+// ResolveWorkspaceIDBySlug looks up a workspace by slug.
+func (s *ProjectSettingsService) ResolveWorkspaceIDBySlug(slug string) (uint64, error) {
+	var ws model.Workspace
+	if err := s.db.Where("slug = ?", slug).First(&ws).Error; err != nil {
+		return 0, err
+	}
+	return ws.ID, nil
+}
+
 // ==================== State CRUD ====================
 
 // CreateState creates a new state for a project.

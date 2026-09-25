@@ -189,6 +189,27 @@ const router = createRouter({
       component: () => import('@/views/Project.vue'),
       meta: { requiresAuth: true }
     },
+    // Tab aliases — Project.vue uses ?tab=; bare paths previously rendered a blank shell
+    {
+      path: '/workspace/:slug/project/:id/cycles',
+      redirect: (to) => ({ path: `/workspace/${to.params.slug}/project/${to.params.id}`, query: { ...to.query, tab: 'cycles' } }),
+    },
+    {
+      path: '/workspace/:slug/project/:id/modules',
+      redirect: (to) => ({ path: `/workspace/${to.params.slug}/project/${to.params.id}`, query: { ...to.query, tab: 'modules' } }),
+    },
+    {
+      path: '/workspace/:slug/project/:id/updates',
+      redirect: (to) => ({ path: `/workspace/${to.params.slug}/project/${to.params.id}`, query: { ...to.query, tab: 'updates' } }),
+    },
+    {
+      path: '/workspace/:slug/project/:id/reports',
+      redirect: (to) => ({ path: `/workspace/${to.params.slug}/project/${to.params.id}`, query: { ...to.query, tab: 'reports' } }),
+    },
+    {
+      path: '/workspace/:slug/project/:id/dashboard',
+      redirect: (to) => ({ path: `/workspace/${to.params.slug}/project/${to.params.id}/dashboards`, query: to.query }),
+    },
     {
       path: '/workspace/:slug/project/:id/settings',
       name: 'ProjectSettings',
@@ -451,6 +472,15 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   cancelPendingConfirm()
+
+  // Stage B: hide advanced Agent console from product paths unless explicitly unlocked
+  const isAgentsConsole =
+    typeof to.path === 'string' &&
+    (/\/agents(\/|$)/.test(to.path) || /\/agent-(members|issues)\b/.test(to.path) || /\/budget-sla\b/.test(to.path))
+  if (isAgentsConsole && localStorage.getItem('rm_advanced_agents') !== '1') {
+    const slug = (to.params.slug as string) || 'reqmango-dev'
+    return { path: `/workspace/${slug}/settings` }
+  }
 
   const authStore = useAuthStore()
 

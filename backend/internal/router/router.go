@@ -549,7 +549,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PUT("/:wsParam/automations/:id", automationH.UpdateWorkspace)
 			workspaces.DELETE("/:wsParam/automations/:id", automationH.DeleteWorkspace)
 
-			// Workspace-level Workflows
+			// Workspace-level Workflows (state-machine)
 			workspaces.GET("/:wsParam/workflows", workflowH.ListWorkspaceWorkflows)
 			workspaces.POST("/:wsParam/workflows", workflowH.CreateWorkspaceWorkflow)
 			workspaces.GET("/:wsParam/workflows/:workflowId", workflowH.GetWorkflow)
@@ -559,6 +559,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/workflows/:workflowId/transitions", workflowH.AddTransition)
 			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
 			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
+			// Alias /edges → transitions for WorkflowManager compatibility
+			workspaces.POST("/:wsParam/workflows/:workflowId/edges", workflowH.AddTransition)
+			workspaces.DELETE("/:wsParam/workflows/:workflowId/edges/:transitionId", workflowH.DeleteTransition)
 
 			// Workspace-level Approvals
 			workspaces.GET("/:wsParam/approvals", approvalH.ListByWorkspace)

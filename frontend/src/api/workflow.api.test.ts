@@ -175,14 +175,14 @@ describe('Workspace-level API', () => {
 
   it('addWorkspaceTransition should POST', async () => {
     mockPost.mockResolvedValue({ data: { id: 1 } })
-    await addWorkspaceTransition(1, 5, { source_node_id: 1, target_node_id: 2 })
-    expect(mockPost).toHaveBeenCalledWith('/workspaces/1/workflows/5/edges', { source_node_id: 1, target_node_id: 2 })
+    await addWorkspaceTransition(1, 5, { from_state_id: 1, to_state_id: 2 })
+    expect(mockPost).toHaveBeenCalledWith('/workspaces/1/workflows/5/transitions', { from_state_id: 1, to_state_id: 2 })
   })
 
   it('deleteWorkspaceTransition should DELETE', async () => {
     mockDelete.mockResolvedValue({ data: null })
     await deleteWorkspaceTransition(1, 5, 9)
-    expect(mockDelete).toHaveBeenCalledWith('/workspaces/1/workflows/5/edges/9')
+    expect(mockDelete).toHaveBeenCalledWith('/workspaces/1/workflows/5/transitions/9')
   })
 })
 

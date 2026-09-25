@@ -1,54 +1,76 @@
-# reqmango
+# Reqmango
 
-现代化的项目管理平台，支持工作项管理、自定义字段、类型模板、工作流和自动化。
+**自建项目管理：新需求先分诊，再进待办。**  
+提交后先给出类型、优先级与疑似重复建议，拿不准的才由人决定。
 
----
-
-## 🌐 语言
-
-- **中文** (本文档)
-- [English](README.md)
+[English](README.md)
 
 ---
 
-## 技术栈
-
-| 层 | 技术 |
-|----|------|
-| 后端 | Go 1.21+ + Gin + GORM |
-| 数据库 | PostgreSQL 16+ |
-| 前端 | Vue 3 + TypeScript + Vite + Pinia + Tailwind CSS |
-| 认证 | JWT (golang-jwt/v5) |
-
-## 快速开始
-
-### 前置条件
-
-- Go 1.21+
-- PostgreSQL 16+
-- Node.js 18+
-
-### 1. 克隆项目
+## 一条命令试用
 
 ```bash
-git clone https://gitcode.com/yongfeng9m-/reqmango.git
+git clone https://github.com/vinthuy/reqmango.git
 cd reqmango
+cp .env.example .env
+docker compose up --build
 ```
 
-### 2. 配置数据库
+浏览器打开 **http://localhost**，登录：
+
+| | |
+|---|---|
+| 邮箱 | `demo@example.com` |
+| 密码 | `demo1234` |
+
+可选 AI（Intake 分诊 / 分析 / 标签建议）：在 `.env` 中设置 `AI_API_KEY` 后重启。
+
+> **演示动图：** 录完 Intake 分诊后，把 GIF 放到 [`docs/assets/demo.gif`](docs/assets/demo.gif)。在此之前请按下面步骤手动走一遍。
+
+### 一分钟走查
+
+1. 使用演示账号登录。
+2. 打开 **Demo** 项目 → **项目设置** → **请求分诊（Intake）**。
+3. 打开 Intake 表单链接，提交一条简短需求（例如「手机端登录偶尔失败」）。
+4. 回到分诊队列：接受 / 拒绝；配置了 `AI_API_KEY` 时可对工作项做 AI 分析与标签建议。
+
+---
+
+## 能力一览
+
+| 方向 | 能力 |
+|------|------|
+| **工作流里的 AI** | Intake 分诊、Issue 分析、标签建议、Cycle / Sprint 总结、Ask / Build Copilot（写入前先预览） |
+| 工作项 | 列表 + 看板、状态流转、最多 6 层层级 |
+| 自定义字段与模板 | 文本 / 数字 / 下拉 / 布尔 / 日期 / 成员 / URL；工作区类型蓝图；项目模板 |
+| 工作流与自动化 | 状态转换、审批、角色限制；触发器 → 条件 → 动作 |
+| 关联与搜索 | Blocks / Relates / Duplicates；RQL 与多字段筛选 |
+| 通知与安全 | 未读计数；XSS 清洗（bluemonday）；JWT + RBAC |
+| API | 100+ REST 接口 |
+
+AI 是项目管理上的一层能力，默认叙事不是独立的 Agent 控制台。代码里可能仍有高级 Agent 路由；日常路径是 Issue、Cycle、Intake 与 Pages。
+
+---
+
+## 环境要求
+
+| 方式 | 需要 |
+|------|------|
+| **Docker（推荐）** | Docker + Docker Compose |
+| 本地开发 | Go **1.25+**、PostgreSQL **16+**、Node.js **20+** |
+
+版本与 CI、`docker-compose.yml` 一致（`postgres:16`，Go 1.25 构建镜像）。
+
+---
+
+## 本地开发（不用 Docker）
 
 ```bash
-# 创建数据库
+# 数据库
 psql -U postgres -c "CREATE DATABASE reqmango;"
-```
 
-### 3. 配置后端
-
-```bash
+# 后端
 cd backend
-
-# 创建环境配置文件
-# SECRET_KEY 用于签发 JWT，请用 openssl rand -hex 32 生成随机值
 cat > .env << EOF
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/reqmango?sslmode=disable
 SECRET_KEY=$(openssl rand -hex 32)
@@ -56,107 +78,53 @@ ACCESS_TOKEN_EXPIRE_MINUTES=10080
 PORT=8000
 DEBUG=true
 EOF
-
-# 启动后端 (自动建表 + 种子数据)
 go run ./cmd/server/
 ```
 
-后端启动后自动创建数据库表并插入演示数据：
-- 管理员账号: `demo@example.com` / `demo1234`
-- 测试账号: `demo1@reqman.local` ~ `demo19@reqman.local` (密码同)
-- Demo Workspace (slug: demo) + Demo Project (identifier: DEMO)
-- 6 个默认状态, 4 个 Sprint, 5 个模块, 100 个工作项
-- 3 个默认工作项类型 (Bug/Feature/Epic)
-- 3 个自定义字段 (优先级/截止日期/版本号)
-
-### 4. 配置前端
+种子数据含 `demo@example.com` / `demo1234`、工作区 `demo`、项目 `DEMO`，以及示例 Sprint / 模块 / 工作项。
 
 ```bash
+# 前端（API 在 :8000）
 cd frontend
 npm install
 npm run dev
 ```
 
-浏览器打开 `http://localhost:5173`，使用 `demo@example.com` / `demo1234` 登录。
+打开 **http://localhost:5173**。
 
-### 5. 生产构建
+### 本地生产构建
 
 ```bash
-# 后端
 cd backend && go build -o server ./cmd/server/
-
-# 前端
 cd frontend && npm run build
 ```
 
 ---
 
-## 项目结构
+## 目录结构
 
 ```
 reqmango/
-├── backend/              # Go 后端
-│   ├── cmd/server/          # 入口
-│   ├── internal/
-│   │   ├── model/           # GORM 数据模型（34 文件）
-│   │   ├── dto/             # 请求/响应 DTO（45 文件）
-│   │   ├── service/         # 业务逻辑（35 文件）
-│   │   ├── handler/         # HTTP 处理器（37 文件）
-│   │   ├── rql/             # RQL 查询语言引擎
-│   │   ├── middleware/      # 中间件（Auth/CORS/Lang/Log/RateLimit）
-│   │   ├── i18n/            # 国际化 (en/zh)
-│   │   ├── seed/            # 种子数据
-│   │   ├── common/          # 公共工具
-│   │   └── config/          # 配置加载
-│   └── config/              # YAML 配置
-├── sdk/                     # MCP Server + CLI（共享 Go 模块）
-├── frontend/                # Vue 3 前端
-│   └── src/
-│       ├── api/             # API 调用（35 模块）
-│       ├── types/           # TypeScript 类型
-│       ├── stores/          # Pinia 状态管理
-│       ├── views/           # 页面
-│       ├── components/      # 组件
-│       └── router/          # 路由
-└── docs/                    # 文档
-    ├── kb/                  # 知识库 (架构文档)
-    ├── dev/                 # 开发管线
-    └── superseded/          # 历史归档
+├── backend/     # Go + Gin + GORM API
+├── frontend/    # Vue 3 + TypeScript + Vite
+├── sdk/         # MCP / CLI（可选，非默认产品叙事）
+├── docs/        # API、架构、产品规格
+└── docker-compose.yml
 ```
 
-## 核心功能
+---
 
-| 功能 | 说明 |
-|------|------|
-| 工作项管理 | CRUD + 状态流转 + 列表/看板视图 |
-| 自定义字段 | 7种类型 (text/number/dropdown/boolean/date/member/url) |
-| 类型模板 | 工作空间级类型蓝图 + 层级定义 + 字段绑定 |
-| 项目模板 | 打包类型模板，一键应用到项目 |
-| 工作流 | 状态转换规则 + 审批 + 角色限制 |
-| 自动化 | 触发器→条件→动作规则引擎 |
-| 关联关系 | 自定义关系类型 (Blocks/Relates/Duplicates) |
-| 层级系统 | 最多6层工作项层级 + 类型校验 |
-| 高级搜索 | 多字段 AND 组合筛选 |
-| API | 90+ RESTful 端点 |
+## 文档
 
-## API 文档
+- [API 参考](docs/API.md)
+- [架构文档](docs/kb/architecture/) — [技术栈](docs/kb/architecture/tech-stack.md)、[Go 后端](docs/kb/architecture/backend-go.md)、[前端](docs/kb/architecture/frontend.md)、[数据模型](docs/kb/architecture/data-model.md)
 
-详见 [docs/kb/architecture/](docs/kb/architecture/) 目录下的架构文档。
-
-## 架构文档
-
-- [技术栈](docs/kb/architecture/tech-stack.md)
-- [Go 后端架构](docs/kb/architecture/backend.md)
-- [前端架构](docs/kb/architecture/frontend.md)
-- [数据模型](docs/kb/architecture/data-model.md)
-- [API 约定](docs/kb/architecture/api-conventions.md)
-- [类型层级 & 模板设计](docs/kb/architecture/type-hierarchy-template-design.md)
-- [关联关系设计](docs/kb/architecture/relation-system-design.md)
+---
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request。
+欢迎提交 Issue 与 Pull Request。
 
 ## License
 
-MIT
+[MIT](LICENSE)

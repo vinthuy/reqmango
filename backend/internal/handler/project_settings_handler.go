@@ -24,7 +24,11 @@ func (h *ProjectSettingsHandler) getProjectID(c *gin.Context) (uint64, error) {
 }
 
 func (h *ProjectSettingsHandler) getWorkspaceID(c *gin.Context) (uint64, error) {
-	return strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	wsParam := c.Param("wsParam")
+	if id, err := strconv.ParseUint(wsParam, 10, 64); err == nil {
+		return id, nil
+	}
+	return h.svc.ResolveWorkspaceIDBySlug(wsParam)
 }
 
 // ==================== States ====================

@@ -114,7 +114,23 @@ async function load() {
     const s = sResult.status === 'fulfilled' ? sResult.value : null;
     workflows.value = Array.isArray(w) ? w : (w?.data ?? []);
     const statesBody = s?.data;
-    states.value = Array.isArray(statesBody?.data) ? statesBody.data : (Array.isArray(statesBody) ? statesBody : [])
+    let loadedStates = Array.isArray(statesBody?.data) ? statesBody.data : (Array.isArray(statesBody) ? statesBody : [])
+    // Workspace workflows need ≥2 states to define transitions; if workspace has none,
+    // fall back to states from the first project in this workspace so the editor is usable.
+    if (isWorkspaceMode.value && loadedStates.length < 2) {
+      try {
+        const projectsRes = await api.get(`/projects`, { params: { workspace_id: props.workspaceId } })
+        const projects = Array.isArray(projectsRes?.data) ? projectsRes.data : (projectsRes?.data?.data || [])
+        const first = projects[0]
+        if (first?.id) {
+          const ps = await api.get(`/projects/${first.id}/settings/states`)
+          const body = ps?.data
+          const projStates = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : [])
+          if (projStates.length) loadedStates = projStates
+        }
+      } catch { /* keep workspace states */ }
+    }
+    states.value = loadedStates
     
     // Load issue types
     try {
@@ -150,21 +166,32 @@ async function confirmDel(w:any) {
   } 
 }
 
-function openAddTrans(w:any) { selWid.value = w.id; trans.value = { from:0, to:0, desc:'', rule_type:'allow', approver_ids:'', role_allowed:'', approve_target_state_id:0, reject_target_state_id:0, approval_mode:'any' }; showTrans.value = true }
+function openAddTrans(w:any) {
+  selWid.value = w.id
+  const from = states.value[0]?.id || 0
+  const to = states.value[1]?.id || states.value[0]?.id || 0
+  trans.value = { from, to, desc:'', rule_type:'allow', approver_ids:'', role_allowed:'', approve_target_state_id:0, reject_target_state_id:0, approval_mode:'any' }
+  showTrans.value = true
+}
 
-async function saveTrans() { 
+async function saveTrans() {
+  if (!trans.value.from || !trans.value.to) return
   const data: any = { from_state_id:trans.value.from, to_state_id:trans.value.to, description:trans.value.desc, rule_type:trans.value.rule_type, approver_ids:trans.value.approver_ids || undefined, role_allowed:trans.value.role_allowed || undefined }
   if (trans.value.rule_type === 'approval') {
     if (trans.value.approve_target_state_id) data.approve_target_state_id = trans.value.approve_target_state_id
     if (trans.value.reject_target_state_id) data.reject_target_state_id = trans.value.reject_target_state_id
     data.approval_mode = trans.value.approval_mode || 'any'
   }
-  if (isWorkspaceMode.value) {
-    await addWorkspaceTransition(props.workspaceId!, selWid.value, data)
-  } else {
-    await workflowApi.addEdge(props.projectId!, selWid.value, data as any)
+  try {
+    if (isWorkspaceMode.value) {
+      await addWorkspaceTransition(props.workspaceId!, selWid.value, data)
+    } else {
+      await workflowApi.addEdge(props.projectId!, selWid.value, data as any)
+    }
+    showTrans.value = false; load()
+  } catch (e) {
+    console.error(e)
   }
-  showTrans.value = false; load() 
 }
 
 async function delTrans(tid:number) { 

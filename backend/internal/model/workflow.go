@@ -5,15 +5,19 @@ import (
 	"time"
 )
 
+// ensure json is used for Workflow.IssueTypeIDs and AgentWorkflow configs
+
 // Workflow represents a state machine workflow for issue transitions.
 type Workflow struct {
 	BaseModel
 
-	Name        string  `gorm:"size:100;not null" json:"name"`
-	Description string  `gorm:"type:text" json:"description"`
-	ProjectID   *uint64 `gorm:"index" json:"project_id"`
-	WorkspaceID uint64  `gorm:"not null;index" json:"workspace_id"`
-	IsActive    bool    `gorm:"default:true" json:"is_active"`
+	Name         string          `gorm:"size:100;not null" json:"name"`
+	Description  string          `gorm:"type:text" json:"description"`
+	ProjectID    *uint64         `gorm:"index" json:"project_id"`
+	WorkspaceID  uint64          `gorm:"not null;index" json:"workspace_id"`
+	IssueTypeID  *uint64         `gorm:"index" json:"issue_type_id"`
+	IssueTypeIDs json.RawMessage `gorm:"type:jsonb" json:"issue_type_ids"`
+	IsActive     bool            `gorm:"default:true" json:"is_active"`
 
 	// Relationships
 	Project Project `gorm:"foreignKey:ProjectID" json:"-"`

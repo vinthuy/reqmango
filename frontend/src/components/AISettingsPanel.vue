@@ -84,32 +84,19 @@
     <div class="mt-8 max-w-2xl rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
       <h3 class="text-sm font-medium text-gray-800">{{ t('ai.advancedAgentsTitle') }}</h3>
       <p class="mt-1 text-xs text-gray-500">{{ t('ai.advancedAgentsDesc') }}</p>
-      <router-link
-        :to="advancedAgentsPath"
-        class="mt-3 inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-700"
-      >
-        {{ t('ai.advancedAgentsLink') }} →
-      </router-link>
+      <p class="mt-2 text-xs text-gray-400">{{ t('ai.advancedAgentsHiddenHint') }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
 import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
 
 const { t } = useI18n()
-const route = useRoute()
 
 const props = defineProps<{ workspaceId: number }>()
-
-const advancedAgentsPath = computed(() => {
-  const slug = route.params.slug as string | undefined
-  if (slug) return `/workspace/${slug}/agents`
-  return `/workspaces/${props.workspaceId}/agents`
-})
 
 const loading = ref(true)
 const saving = ref(false)

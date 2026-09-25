@@ -386,12 +386,55 @@ const stateConfig: Record<string, { label: string; color: string }> = {
 const stateDistribution = computed(() => {
   const byState = issueStats.value.by_state || {}
   const total = issueStats.value.total || 1
+  const entries = Object.entries(byState)
+
+  const groupAliases: Record<string, string> = {
+    backlog: 'backlog',
+    unstarted: 'todo',
+    todo: 'todo',
+    started: 'in_progress',
+    in_progress: 'in_progress',
+    completed: 'done',
+    done: 'done',
+    cancelled: 'cancelled',
+  }
+
+  const looksLikeGroups = entries.length > 0 && entries.every(([k]) => !!groupAliases[k.toLowerCase()])
+  if (looksLikeGroups) {
+    const normalized: Record<string, number> = {}
+    for (const [k, v] of entries) {
+      const key = groupAliases[k.toLowerCase()] || k
+      normalized[key] = (normalized[key] || 0) + Number(v || 0)
+    }
+    return Object.entries(stateConfig).map(([key, cfg]) => ({
+      key,
+      label: cfg.label,
+      color: cfg.color,
+      count: normalized[key] || 0,
+      percent: Math.round(((normalized[key] || 0) / total) * 100),
+    }))
+  }
+
+  // Backend returns named states (e.g. "进行中 (In Progress)") — render them directly.
+  if (entries.length > 0) {
+    const palette = ['#9ca3af', '#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#ef4444', '#06b6d4', '#84cc16']
+    return entries
+      .map(([key, count], i) => ({
+        key,
+        label: key,
+        color: palette[i % palette.length],
+        count: Number(count || 0),
+        percent: Math.round((Number(count || 0) / total) * 100),
+      }))
+      .sort((a, b) => b.count - a.count)
+  }
+
   return Object.entries(stateConfig).map(([key, cfg]) => ({
     key,
     label: cfg.label,
     color: cfg.color,
-    count: byState[key] || 0,
-    percent: Math.round(((byState[key] || 0) / total) * 100)
+    count: 0,
+    percent: 0,
   }))
 })
 

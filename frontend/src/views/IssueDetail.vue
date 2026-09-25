@@ -373,11 +373,11 @@ const tabs = computed(() => [
   { key: 'details', label: t('issue.tabDetails'), count: undefined },
   { key: 'relations', label: t('issue.tabRelations'), count: relationSidebarSummary.value?.total ?? undefined },
   { key: 'attachments', label: t('issue.tabAttachments'), count: issue.value?.attachment_count || undefined },
+  { key: 'activity', label: t('issue.tabActivity'), count: undefined },
+  { key: 'ai', label: 'AI', count: undefined },
+  { key: 'chat', label: t('issue.tabChat'), count: undefined },
   { key: 'git', label: t('gitIntegration.title'), count: undefined },
   { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
-  { key: 'activity', label: t('issue.tabActivity'), count: undefined },
-  { key: 'ai', label: '🤖 AI', count: undefined },
-  { key: 'chat', label: t('issue.tabChat'), count: undefined },
 ])
 
 // AI quick actions
@@ -541,7 +541,14 @@ async function loadWorkspaceAgents() {
 async function loadStates() {
   try {
     const data = await stateApi.listStates(projectId.value)
-    states.value = data
+    const list = Array.isArray(data) ? data : (data as any)?.data || []
+    // Hide inactive / E2E junk states from product UI (CORE-03)
+    states.value = list.filter((s: any) => {
+      if (s?.is_active === false || s?.is_deleted) return false
+      const name = String(s?.name || '')
+      if (/^E2E\s+Test/i.test(name)) return false
+      return true
+    })
   } catch (error) {
     console.error('Failed to load states:', error)
   }

@@ -1008,6 +1008,7 @@
     "advancedAgentsTitle": "高级 Agent（实验）",
     "advancedAgentsDesc": "Loop、流水线、Squad 等平台能力已从主导航移除，仅保留给高级用户。",
     "advancedAgentsLink": "打开高级 Agent 控制台",
+    "advancedAgentsHiddenHint": "商业版默认关闭高级控制台。如需临时开启，请在浏览器控制台执行：localStorage.setItem('rm_advanced_agents','1') 后刷新。",
     "configured": "已配置",
     "providerDeepseek": "DeepSeek",
     "providerAnthropic": "Anthropic (Claude)",
