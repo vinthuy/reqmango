@@ -18,7 +18,11 @@ export function chatWithAI(
 ): AbortController {
   const controller = new AbortController()
 
-  fetch(`/api/v1/projects/${projectId}/ai/chat?workspace_id=${workspaceId}`, {
+  const params = new URLSearchParams({ workspace_id: String(workspaceId) })
+  if (request.issue_id) params.set('issue_id', String(request.issue_id))
+  if (request.page_id) params.set('page_id', String(request.page_id))
+
+  fetch(`/api/v1/projects/${projectId}/ai/chat?${params}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

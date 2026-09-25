@@ -223,6 +223,7 @@ onUnmounted(() => {
       :project-id="0"
       :workspace-id="workspace?.id || 0"
       :project-name="workspace?.name || ''"
+      view="workspace"
       @close="showAIChat = false"
     />
 

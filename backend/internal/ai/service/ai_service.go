@@ -322,6 +322,17 @@ func (s *AIService) getTools() []llm.Tool {
 	}
 }
 
+var askWriteTools = map[string]struct{}{
+	"create_issue": {},
+	"update_issue": {},
+	"add_comment":  {},
+}
+
+func isWriteTool(name string) bool {
+	_, ok := askWriteTools[name]
+	return ok
+}
+
 // ==================== Context ====================
 
 // AIContext holds the current user/project context for AI requests.
@@ -348,6 +359,9 @@ type AIChatRequest struct {
 	ThreadID uint64 `json:"thread_id"`
 	Mode     string `json:"mode"` // "ask" | "build"
 	Context  string `json:"context"`
+	IssueID  uint64 `json:"issue_id"`
+	CycleID  uint64 `json:"cycle_id"`
+	PageID   uint64 `json:"page_id"`
 }
 
 // Chat handles a conversational AI request with SSE streaming.
@@ -396,6 +410,9 @@ func (s *AIService) Chat(ctx context.Context, req *AIChatRequest, actx *AIContex
 	}
 
 	tools := s.getTools()
+	if actx.Mode != "build" {
+		tools = filterReadOnlyTools(tools)
+	}
 	streamCh, err := s.llm.ChatStream(ctx, systemPrompt, messages, tools)
 	if err != nil {
 		return nil, err
@@ -1354,6 +1371,9 @@ func (s *AIService) PageAI(ctx context.Context, req *PageAIRequest) (*PageAIResp
 // ==================== Tool Execution ====================
 
 func (s *AIService) ExecuteTool(name string, rawInput json.RawMessage, actx *AIContext) (any, error) {
+	if actx != nil && actx.Mode != "build" && isWriteTool(name) {
+		return nil, fmt.Errorf("Ask 模式禁止写操作「%s」，请切换到 Build 模式", name)
+	}
 	var args map[string]interface{}
 	if err := json.Unmarshal(rawInput, &args); err != nil {
 		args = map[string]interface{}{}

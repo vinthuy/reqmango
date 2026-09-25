@@ -13,12 +13,12 @@
         <button @click="close" class="p-1 hover:bg-white/20 rounded text-white" :title="t('common.close')">✕</button>
       </div>
 
-      <!-- Tab Bar -->
+      <!-- Tab Bar: Ask | Build only -->
       <div class="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
         <button
           v-for="tab in tabs"
           :key="tab.id"
-          @click="mode = tab.id"
+          @click="switchMode(tab.id)"
           :class="[
             'flex-1 py-2.5 text-xs font-medium transition-colors relative',
             mode === tab.id
@@ -36,17 +36,30 @@
         </button>
       </div>
 
-      <!-- Agent Selector (agent mode only) -->
-      <div v-if="mode === 'agent'" class="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-        <div v-if="!selectedAgent" class="relative">
+      <!-- Context bar -->
+      <div class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/80 flex items-center gap-2 text-xs">
+        <span class="text-gray-500 dark:text-gray-400 shrink-0">{{ t('ai.contextLabel') }}</span>
+        <span class="font-medium text-gray-800 dark:text-gray-200 truncate flex-1" :title="contextLabel">{{ contextLabel }}</span>
+        <button
+          v-if="activeIssueId || activeCycleId"
+          type="button"
+          class="text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
+          @click="clearViewContext"
+        >{{ t('ai.contextProjectOnly') }}</button>
+      </div>
+
+      <!-- Build: optional agent + create entry -->
+      <div v-if="mode === 'build' && !showCreatePanel" class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+        <div class="relative flex-1 min-w-0">
           <button
+            v-if="!selectedAgent"
             @click="showAgentPicker = !showAgentPicker"
-            class="w-full text-left px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:border-violet-400 transition-colors"
+            class="w-full text-left px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 hover:border-violet-400 transition-colors"
           >
-            🤖 {{ t('ai.chooseAgent') }}
+            🤖 {{ t('ai.chooseAgentOptional') }}
           </button>
           <div
-            v-if="showAgentPicker"
+            v-if="showAgentPicker && !selectedAgent"
             class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto"
           >
             <div v-if="!agents.length" class="px-3 py-2 text-sm text-gray-400">{{ t('ai.noAgents') }}</div>
@@ -58,18 +71,20 @@
             >
               <span>{{ agent.avatar }}</span>
               <span class="text-gray-800 dark:text-gray-200">{{ agent.name }}</span>
-              <span class="ml-auto text-xs text-gray-400">{{ (agent.capabilities || []).length || 'all' }} skills</span>
             </button>
           </div>
-        </div>
-        <div v-else class="flex items-center gap-2">
-          <span class="text-xl">{{ selectedAgent.avatar }}</span>
-          <div class="flex-1">
-            <p class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ selectedAgent.name }}</p>
-            <p class="text-xs text-gray-400">{{ selectedAgent.agent_type }} · {{ (selectedAgent.capabilities || []).join(', ') || 'all capabilities' }}</p>
+          <div v-if="selectedAgent" class="flex items-center gap-2 px-2 py-1">
+            <span>{{ selectedAgent.avatar }}</span>
+            <span class="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{{ selectedAgent.name }}</span>
+            <button @click="selectedAgent = null; showAgentPicker = false" class="ml-auto text-xs text-gray-400 hover:text-red-500">{{ t('ai.change') }}</button>
           </div>
-          <button @click="selectedAgent = null; showAgentPicker = false" class="text-xs text-gray-400 hover:text-red-500">{{ t('ai.change') }}</button>
         </div>
+        <button
+          v-if="projectId > 0"
+          type="button"
+          class="shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100"
+          @click="openCreatePanel()"
+        >✨ {{ t('ai.tabCreate') }}</button>
       </div>
 
       <!-- Related Memories -->
@@ -102,43 +117,42 @@
       </Transition>
 
       <!-- Quick Actions -->
-      <div class="flex gap-1.5 px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex-wrap">
-        <template v-if="mode === 'agent'">
-          <button @click="sendAgent(t('ai.projectAnalysis'))" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">{{ t('ai.projectAnalysisLabel') }}</button>
-          <button @click="sendAgent(t('ai.sprintSummary'))" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">{{ t('ai.sprintSummaryLabel') }}</button>
-          <button @click="sendAgent(t('ai.triage'))" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">{{ t('ai.triageLabel') }}</button>
-        </template>
-        <template v-else-if="mode === 'chart'">
+      <div v-if="!showCreatePanel" class="flex gap-1.5 px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex-wrap">
+        <template v-if="mode === 'ask'">
+          <button @click="sendQuickAction(t('ai.summarizeIssue'))" class="text-xs px-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100">{{ t('ai.summarizeLabel') }}</button>
+          <button @click="sendQuickAction(t('ai.riskAnalysis'))" class="text-xs px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 hover:bg-amber-100">{{ t('ai.riskLabel') }}</button>
+          <button @click="sendQuickAction(t('ai.suggestSteps'))" class="text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 hover:bg-green-100">{{ t('ai.suggestLabel') }}</button>
           <button @click="sendChartQuery(t('ai.chartPieState'))" class="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100">{{ t('ai.chartPieLabel') }}</button>
           <button @click="sendChartQuery(t('ai.chartBarPriority'))" class="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100">{{ t('ai.chartBarLabel') }}</button>
           <button @click="sendChartQuery(t('ai.chartLineTrend'))" class="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100">{{ t('ai.chartLineLabel') }}</button>
         </template>
-        <template v-else-if="mode === 'create'">
-          <span class="text-xs text-gray-400 px-1 py-1">{{ t('ai.createQuickHint') }}</span>
-        </template>
         <template v-else>
-          <button @click="sendQuickAction(t('ai.summarizeIssue'))" class="text-xs px-2 py-1 rounded-full bg-indigo-50 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100">{{ t('ai.summarizeLabel') }}</button>
-          <button @click="sendQuickAction(t('ai.riskAnalysis'))" class="text-xs px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 hover:bg-amber-100">{{ t('ai.riskLabel') }}</button>
+          <button @click="sendQuickAction(t('ai.summarizeIssue'))" class="text-xs px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 hover:bg-amber-100">{{ t('ai.summarizeLabel') }}</button>
           <button @click="sendQuickAction(t('ai.suggestSteps'))" class="text-xs px-2 py-1 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 hover:bg-green-100">{{ t('ai.suggestLabel') }}</button>
+          <button v-if="selectedAgent" @click="sendAgent(t('ai.projectAnalysis'))" class="text-xs px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-300 hover:bg-violet-100">{{ t('ai.projectAnalysisLabel') }}</button>
         </template>
+      </div>
+      <div v-else class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <span class="text-xs text-gray-400">{{ t('ai.createQuickHint') }}</span>
+        <button type="button" class="text-xs text-indigo-600 hover:underline" @click="buildPanel = 'chat'">← {{ t('ai.tabBuild') }}</button>
       </div>
 
       <!-- Messages / Content Area -->
       <div ref="msgContainer" class="flex-1 overflow-y-auto p-4 space-y-3">
         <!-- Empty state -->
-        <div v-if="messages.length === 0 && mode !== 'create'" class="text-center text-gray-400 mt-8">
-          <div class="text-4xl mb-3">{{ mode === 'agent' ? '👥' : mode === 'chart' ? '📊' : '🤖' }}</div>
+        <div v-if="messages.length === 0 && !showCreatePanel" class="text-center text-gray-400 mt-8">
+          <div class="text-4xl mb-3">🤖</div>
           <p class="text-sm font-medium">{{ emptyTitle }}</p>
           <p class="text-xs mt-1">{{ emptyHint }}</p>
-          <div v-if="mode === 'ask' || mode === 'build'" class="mt-4 space-y-2 text-xs text-left">
+          <div class="mt-4 space-y-2 text-xs text-left">
             <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" @click="send(t('ai.suggestedQuestion1'))">💡 "{{ t('ai.suggestedQuestion1') }}"</div>
             <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" @click="send(t('ai.suggestedQuestion2'))">💡 "{{ t('ai.suggestedQuestion2') }}"</div>
             <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" @click="send(t('ai.suggestedQuestion3'))">💡 "{{ t('ai.suggestedQuestion3') }}"</div>
           </div>
         </div>
 
-        <!-- Create Mode：AI Smart Create -->
-        <div v-if="mode === 'create'" class="space-y-4">
+        <!-- Create Mode：AI Smart Create (Build sub-panel) -->
+        <div v-if="showCreatePanel" class="space-y-4">
           <div class="text-center">
             <div class="text-3xl mb-2">✨</div>
             <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('ai.createModeTitle') }}</p>
@@ -199,12 +213,28 @@
               </div>
             </div>
 
+            <div
+              v-if="createDuplicates.length > 0"
+              class="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-2 space-y-1"
+            >
+              <p class="font-medium">{{ t('issue.duplicateWarning') }}</p>
+              <ul class="space-y-0.5">
+                <li v-for="dup in createDuplicates" :key="dup.id">
+                  <a
+                    :href="`/workspaces/${workspaceId}/projects/${projectId}/issues/${dup.id}`"
+                    target="_blank"
+                    class="underline hover:opacity-80"
+                  >#{{ dup.sequence_id }} {{ dup.name }}</a>
+                </li>
+              </ul>
+            </div>
+
             <button
               @click="confirmCreate"
               :disabled="!createPreview.name?.trim() || isCreating"
               class="w-full py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
             >
-              ✓ {{ t('ai.confirmCreate') }}
+              ✓ {{ createDuplicates.length > 0 ? t('issue.createAnyway') : t('ai.confirmCreate') }}
             </button>
           </div>
         </div>
@@ -324,8 +354,8 @@
         <div v-if="error" class="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs px-3 py-2 rounded-lg">{{ error }}</div>
       </div>
 
-      <!-- Input (hidden in create mode since it has its own) -->
-      <div v-if="mode !== 'create'" class="border-t border-gray-200 dark:border-gray-700 p-3 relative">
+      <!-- Input (hidden in create panel since it has its own) -->
+      <div v-if="!showCreatePanel" class="border-t border-gray-200 dark:border-gray-700 p-3 relative">
         <!-- @mention popup -->
         <div
           v-if="showMentionPopup && filteredAgents.length > 0"
@@ -342,7 +372,7 @@
           </button>
         </div>
         <div class="flex items-center gap-2">
-          <span v-if="mode === 'agent' && selectedAgent" class="text-lg">{{ selectedAgent.avatar }}</span>
+          <span v-if="mode === 'build' && selectedAgent" class="text-lg">{{ selectedAgent.avatar }}</span>
           <input
             ref="inputRef"
             v-model="input"
@@ -354,19 +384,21 @@
           />
           <button
             @click="handleSend"
-            :disabled="isStreaming || loadingChart || !input.trim() || (mode === 'agent' && !selectedAgent)"
-            :class="['px-3 py-2 text-white text-sm rounded-lg disabled:opacity-50 transition', mode === 'agent' ? 'bg-violet-600 hover:bg-violet-700' : mode === 'chart' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700']"
+            :disabled="isStreaming || loadingChart || !input.trim()"
+            :class="['px-3 py-2 text-white text-sm rounded-lg disabled:opacity-50 transition', mode === 'build' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700']"
           >
             {{ isStreaming || loadingChart ? '⏳' : '→' }}
           </button>
         </div>
+        <p v-if="mode === 'ask'" class="mt-1.5 text-[10px] text-gray-400">{{ t('ai.askReadOnlyHint') }}</p>
+        <p v-else class="mt-1.5 text-[10px] text-gray-400">{{ t('ai.buildConfirmHint') }}</p>
       </div>
     </div>
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 
 import { useAI } from '@/composables/useAI'
@@ -374,6 +406,7 @@ import { renderMarkdown } from '@/composables/useMarkdown'
 import { generateChart, createPreviewWithAI } from '@/api/ai'
 import { agentApi } from '@/api/agent'
 import issueApi from '@/api/issue'
+import type { DuplicateIssueItem } from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
 import * as memoryApi from '@/api/memory'
 import type { AIChartData } from '@/api/ai'
@@ -388,6 +421,12 @@ const props = defineProps<{
   workspaceId: number
   projectName?: string
   initialMode?: string
+  issueId?: number | null
+  cycleId?: number | null
+  pageId?: number | null
+  issueLabel?: string
+  cycleName?: string
+  view?: 'project' | 'issue_detail' | 'cycle' | 'page' | 'workspace'
 }>()
 
 const emit = defineEmits<{
@@ -400,37 +439,70 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const { messages, isStreaming, error, sendMessage, cancel, clear } = useAI()
 
-type CopilotMode = 'ask' | 'build' | 'create' | 'chart' | 'agent'
+type CopilotMode = 'ask' | 'build'
+type BuildPanel = 'chat' | 'create'
 
-const mode = ref<CopilotMode>((props.initialMode as CopilotMode) || 'ask')
+function resolveInitialMode(raw?: string): CopilotMode {
+  if (raw === 'build' || raw === 'create' || raw === 'agent') return 'build'
+  return 'ask'
+}
+
+const mode = ref<CopilotMode>(resolveInitialMode(props.initialMode))
+const buildPanel = ref<BuildPanel>(props.initialMode === 'create' ? 'create' : 'chat')
+const showCreatePanel = computed(() => mode.value === 'build' && buildPanel.value === 'create')
+
 const input = ref('')
 const loadingChart = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const msgContainer = ref<HTMLDivElement | null>(null)
 
-const allTabs = [
-  { id: 'ask' as const, icon: '💬', label: t('ai.tabAsk'), color: 'bg-indigo-500' },
-  { id: 'build' as const, icon: '🔧', label: t('ai.tabBuild'), color: 'bg-amber-500' },
-  { id: 'create' as const, icon: '✨', label: t('ai.tabCreate'), color: 'bg-green-500', requireProject: true },
-  { id: 'chart' as const, icon: '📊', label: t('ai.tabChart'), color: 'bg-emerald-500' },
-  { id: 'agent' as const, icon: '👥', label: t('ai.tabAgent'), color: 'bg-violet-500' },
-]
+/** Local overrides so user can clear issue/cycle context without remounting */
+const contextIssueId = ref<number | null | undefined>(undefined)
+const contextCycleId = ref<number | null | undefined>(undefined)
 
-const tabs = computed(() =>
-  allTabs.filter(t => !t.requireProject || props.projectId > 0)
+const activeIssueId = computed(() =>
+  contextIssueId.value !== undefined ? contextIssueId.value : (props.issueId ?? null)
+)
+const activeCycleId = computed(() =>
+  contextCycleId.value !== undefined ? contextCycleId.value : (props.cycleId ?? null)
 )
 
-const emptyTitle = computed(() => {
-  if (mode.value === 'agent') return t('ai.agentMode')
-  if (mode.value === 'chart') return t('ai.chartReady')
-  return t('ai.ready')
+const contextLabel = computed(() => {
+  if (activeIssueId.value) {
+    return props.issueLabel || `${props.projectName || 'Project'} · Issue #${activeIssueId.value}`
+  }
+  if (activeCycleId.value) {
+    return props.cycleName || `Cycle #${activeCycleId.value}`
+  }
+  return props.projectName || t('ai.contextProject')
 })
 
-const emptyHint = computed(() => {
-  if (mode.value === 'agent') return t('ai.agentHint')
-  if (mode.value === 'chart') return t('ai.chartHint')
-  return t('ai.readyHint')
-})
+function clearViewContext() {
+  contextIssueId.value = null
+  contextCycleId.value = null
+}
+
+function switchMode(next: CopilotMode) {
+  mode.value = next
+  if (next === 'ask') buildPanel.value = 'chat'
+}
+
+function openCreatePanel() {
+  mode.value = 'build'
+  buildPanel.value = 'create'
+  loadIssueTypes()
+}
+
+const tabs = computed(() => [
+  { id: 'ask' as const, icon: '💬', label: t('ai.tabAsk'), color: 'bg-indigo-500' },
+  { id: 'build' as const, icon: '🔧', label: t('ai.tabBuild'), color: 'bg-amber-500' },
+])
+
+const emptyTitle = computed(() => t('ai.ready'))
+
+const emptyHint = computed(() =>
+  mode.value === 'ask' ? t('ai.askReadOnlyHint') : t('ai.buildConfirmHint')
+)
 
 // Agent mode state
 const agents = ref<Agent[]>([])
@@ -472,8 +544,9 @@ const filteredAgents = computed(() => {
 })
 
 const inputPlaceholder = computed(() => {
-  if (mode.value === 'agent') return selectedAgent.value ? t('ai.agentTaskPlaceholder', { name: selectedAgent.value.name }) : t('ai.selectAgentFirst')
-  if (mode.value === 'chart') return t('ai.chartPlaceholder')
+  if (mode.value === 'build' && selectedAgent.value) {
+    return t('ai.agentTaskPlaceholder', { name: selectedAgent.value.name })
+  }
   if (mode.value === 'ask') return t('ai.placeholder')
   return t('ai.buildPlaceholder')
 })
@@ -488,13 +561,12 @@ function sendQuickAction(msg: string) {
 }
 
 function handleSend() {
-  if (mode.value === 'agent') {
+  // In Build with an agent selected, route @mentions to agent dispatch
+  if (mode.value === 'build' && selectedAgent.value && input.value.trim().startsWith('@')) {
     sendAgent(input.value)
-  } else if (mode.value === 'chart') {
-    sendChartQuery(input.value)
-  } else {
-    send(input.value)
+    return
   }
+  send(input.value)
 }
 
 async function fetchAgents() {
@@ -519,6 +591,8 @@ const createExplanation = ref('')
 const isCreating = ref(false)
 const createError = ref('')
 const issueTypes = ref<any[]>([])
+const createDuplicates = ref<DuplicateIssueItem[]>([])
+let createDuplicateTimer: ReturnType<typeof setTimeout> | null = null
 
 async function loadIssueTypes() {
   if (issueTypes.value.length > 0) return
@@ -527,6 +601,35 @@ async function loadIssueTypes() {
     issueTypes.value = types
   } catch (e) { /* ignore */ }
 }
+
+async function runCreateDuplicateCheck() {
+  const name = createPreview.value?.name?.trim() || ''
+  if (!props.projectId || name.length < 2) {
+    createDuplicates.value = []
+    return
+  }
+  try {
+    const result = await issueApi.checkDuplicates(props.projectId, {
+      name,
+      description: createPreview.value?.description || '',
+    })
+    createDuplicates.value = result.duplicates || []
+  } catch {
+    createDuplicates.value = []
+  }
+}
+
+watch(
+  () => [createPreview.value?.name, createPreview.value?.description],
+  () => {
+    if (createDuplicateTimer) clearTimeout(createDuplicateTimer)
+    createDuplicateTimer = setTimeout(runCreateDuplicateCheck, 400)
+  }
+)
+
+onBeforeUnmount(() => {
+  if (createDuplicateTimer) clearTimeout(createDuplicateTimer)
+})
 
 async function generatePreview() {
   if (!createInput.value.trim()) return
@@ -537,6 +640,7 @@ async function generatePreview() {
   isCreating.value = true
   createError.value = ''
   createPreview.value = null
+  createDuplicates.value = []
   try {
     const result: any = await createPreviewWithAI(props.projectId, props.workspaceId, {
       description: createInput.value,
@@ -564,6 +668,7 @@ async function generatePreview() {
       createPreview.value.type_id = ''
     }
     createExplanation.value = result?.explanation || t('ai.previewGenerated')
+    await runCreateDuplicateCheck()
   } catch (e: any) {
     createError.value = e?.response?.data?.message || e?.message || 'Failed to generate preview'
   } finally {
@@ -592,6 +697,7 @@ async function confirmCreate() {
     createInput.value = ''
     createPreview.value = null
     createExplanation.value = ''
+    createDuplicates.value = []
     emit('issueCreated')
   } catch (e: any) {
     createError.value = e?.message || 'Failed to create issue'
@@ -740,22 +846,36 @@ async function send(text: string) {
   if (!text.trim() || isStreaming.value) return
   const msg = text.trim()
   input.value = ''
-  
+
   // Search related memories and build context
   const memories = await searchRelatedMemories(msg)
-  
-  // Build context from related memories
+
+  // Build context from related memories + view context
   let context = ''
+  if (activeIssueId.value) {
+    context += `Current issue_id=${activeIssueId.value}`
+    if (props.issueLabel) context += ` (${props.issueLabel})`
+    context += '\n'
+  }
+  if (activeCycleId.value) {
+    context += `Current cycle_id=${activeCycleId.value}`
+    if (props.cycleName) context += ` (${props.cycleName})`
+    context += '\n'
+  }
   if (memories.length > 0) {
-    context = `${t('ai.relatedMemoryContext')}\n`
+    context += `${t('ai.relatedMemoryContext')}\n`
     memories.forEach((mem, idx) => {
       context += `${idx + 1}. ${mem.content}\n`
     })
     context += '\n'
   }
-  
-  const chatMode = (mode.value === 'agent' ? 'ask' : mode.value) as 'ask' | 'build'
-  sendMessage(msg, props.projectId, props.workspaceId, chatMode, context)
+
+  const chatMode = mode.value as 'ask' | 'build'
+  sendMessage(msg, props.projectId, props.workspaceId, chatMode, context || undefined, {
+    issueId: activeIssueId.value,
+    cycleId: activeCycleId.value,
+    pageId: props.pageId,
+  })
 }
 
 function scrollToBottom() {
@@ -792,15 +912,13 @@ function priorityBadge(p: string): string {
 // ─── AI Result Actions ───
 function handleAICreateIssue(suggestion: Record<string, any>) {
   if (suggestion.batch) {
-    // Batch create subtasks
-    mode.value = 'create'
+    openCreatePanel()
     nextTick(() => {
       createInput.value = suggestion.batch.map((item: any) => `- ${item.name}`).join('\n')
     })
     return
   }
-  // Single issue — switch to create mode with pre-fill
-  mode.value = 'create'
+  openCreatePanel()
   nextTick(() => {
     createInput.value = suggestion.description || suggestion.name || ''
   })
@@ -811,32 +929,47 @@ watch(() => props.workspaceId, (newId) => {
     fetchAgents()
   }
 })
+watch(() => [props.issueId, props.cycleId], () => {
+  // Parent remounted context — reset local overrides
+  contextIssueId.value = undefined
+  contextCycleId.value = undefined
+})
 watch(() => messages.value.length, scrollToBottom)
 watch(() => props.visible, (v) => {
   if (v) {
     nextTick(() => {
-      if (mode.value !== 'create') inputRef.value?.focus()
+      if (!showCreatePanel.value) inputRef.value?.focus()
     })
     fetchAgents()
-    if (mode.value === 'create') loadIssueTypes()
+    if (showCreatePanel.value) loadIssueTypes()
   } else {
     clear()
-    mode.value = 'ask'
+    mode.value = resolveInitialMode(props.initialMode)
+    buildPanel.value = props.initialMode === 'create' ? 'create' : 'chat'
     selectedAgent.value = null
     createInput.value = ''
     createPreview.value = null
+    createDuplicates.value = []
+    contextIssueId.value = undefined
+    contextCycleId.value = undefined
   }
 })
 watch(mode, (newMode) => {
-  if (newMode === 'create' && !props.projectId) {
-    mode.value = 'ask'
-  } else if (newMode === 'create') {
-    loadIssueTypes()
-  } else if (newMode === 'agent') {
-    fetchAgents()
-  } else {
+  if (newMode === 'ask') {
+    buildPanel.value = 'chat'
     nextTick(() => inputRef.value?.focus())
+  } else {
+    fetchAgents()
+    nextTick(() => {
+      if (!showCreatePanel.value) inputRef.value?.focus()
+    })
   }
+})
+watch(() => props.initialMode, (raw) => {
+  if (!props.visible) return
+  mode.value = resolveInitialMode(raw)
+  buildPanel.value = raw === 'create' ? 'create' : buildPanel.value
+  if (raw === 'create') loadIssueTypes()
 })
 </script>
 

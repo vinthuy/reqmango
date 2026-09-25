@@ -149,7 +149,24 @@ func (h *AIHandler) buildContext(c *gin.Context) *service.AIContext {
 		}
 	}
 
+	h.enrichIssueContext(actx)
 	return actx
+}
+
+// enrichIssueContext loads issue name/sequence when IssueID is set.
+func (h *AIHandler) enrichIssueContext(actx *service.AIContext) {
+	if actx.IssueID == 0 {
+		return
+	}
+	var issue model.Issue
+	if h.db.Select("id", "name", "sequence_id", "project_id").First(&issue, actx.IssueID).Error != nil {
+		return
+	}
+	actx.IssueName = issue.Name
+	actx.IssueSequenceID = issue.SequenceID
+	if actx.ProjectID == 0 {
+		actx.ProjectID = issue.ProjectID
+	}
 }
 
 func (h *AIHandler) getProjectInfo(projectID uint64) map[string]interface{} {
@@ -183,6 +200,10 @@ func (h *AIHandler) Chat(c *gin.Context) {
 	actx.ProjectID = projectID
 	if req.Mode != "" {
 		actx.Mode = req.Mode
+	}
+	if req.IssueID > 0 {
+		actx.IssueID = req.IssueID
+		h.enrichIssueContext(actx)
 	}
 
 	svc := h.resolveService(actx.WorkspaceID)

@@ -32,6 +32,7 @@ export function useAI() {
     workspaceId: number,
     mode: 'ask' | 'build' | 'chart' = 'ask',
     context?: string,
+    opts?: { issueId?: number | null; cycleId?: number | null; pageId?: number | null },
   ) {
     // Abort any existing stream before starting a new one
     abort()
@@ -49,10 +50,15 @@ export function useAI() {
       controller = null
     }
 
+    const request: import('@/types/ai').AIChatRequest = { message: text, mode, context }
+    if (opts?.issueId) request.issue_id = opts.issueId
+    if (opts?.cycleId) request.cycle_id = opts.cycleId
+    if (opts?.pageId) request.page_id = opts.pageId
+
     controller = chatWithAI(
       projectId,
       workspaceId,
-      { message: text, mode, context },
+      request,
       (evt: StreamEvent) => {
         switch (evt.type) {
           case 'text':

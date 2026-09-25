@@ -7,6 +7,9 @@ export interface AIChatRequest {
   thread_id?: number
   mode: 'ask' | 'build' | 'chart'
   context?: string
+  issue_id?: number
+  cycle_id?: number
+  page_id?: number
 }
 
 export interface StreamEvent {

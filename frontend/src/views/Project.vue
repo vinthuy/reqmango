@@ -239,6 +239,7 @@
     :project-id="projectId"
     :workspace-id="workspaceId"
     :project-name="project?.name"
+    view="project"
     @close="showAIChat = false"
     @quick-create="handleAIQuickCreate"
     @save-as-page="handleAISaveAsPage"
