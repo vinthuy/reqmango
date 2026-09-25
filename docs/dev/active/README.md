@@ -1,6 +1,6 @@
 # Active Feature（当前活跃功能）
 
-**AI 项目管理：C2 实施中（分支 `feature/ai-c2-dashboard-widget`）**
+**AI 项目管理：C2 已完成（合入 master）**
 
 1. **Phase 1–2** — [验收](../acceptance/2026-09-25-ai-pm-phase1-2.md)（有条件通过）
 2. **B1+C1** — [验收](../acceptance/2026-09-25-ai-b1-c1.md)
