@@ -79,13 +79,13 @@ func NewIssueQueryContext(db *gorm.DB, projectID uint64) *QueryContext {
 			"priority":      {ColumnName: "issues.priority", FieldType: "string"},
 			"type":          {ColumnName: "issues.issue_type_id", FieldType: "number", JoinTable: "issue_types", JoinKey: "name"},
 			"assignee":      {ColumnName: "issues.id", FieldType: "user"},
-			"assignee_id":   {ColumnName: "assignee_id", FieldType: "user", JoinTable: "issue_assignees"},
+			"assignee_id":   {ColumnName: "assignee_id", FieldType: "user_id", JoinTable: "issue_assignees"},
 			"reporter":      {ColumnName: "issues.reporter_id", FieldType: "number"},
 			"label":         {ColumnName: "issues.id", FieldType: "label"},
 			"cycle":         {ColumnName: "issues.id", FieldType: "cycle"},
-			"cycle_id":      {ColumnName: "cycle_id", FieldType: "cycle", JoinTable: "issue_cycles"},
+			"cycle_id":      {ColumnName: "cycle_id", FieldType: "cycle_id", JoinTable: "issue_cycles"},
 			"module":        {ColumnName: "issues.id", FieldType: "module"},
-			"module_id":     {ColumnName: "module_id", FieldType: "module", JoinTable: "module_issues"},
+			"module_id":     {ColumnName: "module_id", FieldType: "module_id", JoinTable: "module_issues"},
 			"issue_type_id": {ColumnName: "issues.issue_type_id", FieldType: "number"},
 			"project_id":    {ColumnName: "issues.project_id", FieldType: "number"},
 			"workspace_id":  {ColumnName: "issues.workspace_id", FieldType: "number"},
@@ -329,9 +329,7 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		// If JoinTable has JoinKey "name", lookup by name via subquery (e.g. state → states, type → issue_types)
 		// Use LIKE to match bilingual names like "进行中 (In Progress)" when user sends "进行中"
 		if mapping.JoinTable != "" && mapping.JoinKey == "name" {
-			likeValue := fmt.Sprint(value)
-			likeValue = strings.ReplaceAll(likeValue, "%", "\\%")
-			likeValue = strings.ReplaceAll(likeValue, "_", "\\_")
+			likeValue := escapeLikeWildcards(fmt.Sprint(value))
 			return &rawCondition{
 				SQL:  fmt.Sprintf("%s IN (SELECT id FROM %s WHERE name LIKE ? ESCAPE '\\')", mapping.ColumnName, mapping.JoinTable),
 				Args: []interface{}{"%" + likeValue + "%"},
@@ -347,8 +345,9 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		}, nil
 
 	case "user":
-		// If value is numeric, match by user_id directly; otherwise match by display_name or username
-		if isNumericValue(value) {
+		// assignee_id (JoinTable set) always matches by user_id;
+		// assignee (no JoinTable) matches by display_name or username
+		if mapping.JoinTable != "" || isNumericValue(value) {
 			return &rawCondition{
 				SQL:  "issues.id IN (SELECT ia.issue_id FROM issue_assignees ia WHERE ia.user_id = ?)",
 				Args: []interface{}{value},
@@ -360,21 +359,16 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		}, nil
 
 	case "label":
-		// If value is numeric, match by label_id directly; otherwise match by name
-		if isNumericValue(value) {
-			return &rawCondition{
-				SQL:  "issues.id IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
-				Args: []interface{}{value},
-			}, nil
-		}
+		// Always match by label_id (numeric ID)
 		return &rawCondition{
-			SQL:  "issues.id IN (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name = ?)",
+			SQL:  "issues.id IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
 			Args: []interface{}{value},
 		}, nil
 
 	case "cycle":
-		// If value is numeric, match by cycle_id directly; otherwise match by name
-		if isNumericValue(value) {
+		// cycle_id (JoinTable set) always matches by cycle_id;
+		// cycle (no JoinTable) matches by name
+		if mapping.JoinTable != "" || isNumericValue(value) {
 			return &rawCondition{
 				SQL:  "issues.id IN (SELECT ic.issue_id FROM issue_cycles ic WHERE ic.cycle_id = ?)",
 				Args: []interface{}{value},
@@ -386,7 +380,9 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		}, nil
 
 	case "module":
-		if isNumericValue(value) {
+		// module_id (JoinTable set) always matches by module_id;
+		// module (no JoinTable) matches by name
+		if mapping.JoinTable != "" || isNumericValue(value) {
 			return &rawCondition{
 				SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id = ?)",
 				Args: []interface{}{value},
@@ -394,6 +390,32 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 		}
 		return &rawCondition{
 			SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id LEFT JOIN module_inheritance_overrides mo ON m.project_id IS NULL AND mo.project_id = issues.project_id AND mo.workspace_module_id = m.id AND mo.is_excluded = false WHERE COALESCE(mo.override_name, m.name) = ?)",
+			Args: []interface{}{value},
+		}, nil
+
+	// Strict numeric-only variants for _id fields — no name fallback
+	case "user_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("assignee_id requires a numeric value, got %v", value)
+		}
+		return &rawCondition{
+			SQL:  "issues.id IN (SELECT ia.issue_id FROM issue_assignees ia WHERE ia.user_id = ?)",
+			Args: []interface{}{value},
+		}, nil
+	case "cycle_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("cycle_id requires a numeric value, got %v", value)
+		}
+		return &rawCondition{
+			SQL:  "issues.id IN (SELECT ic.issue_id FROM issue_cycles ic WHERE ic.cycle_id = ?)",
+			Args: []interface{}{value},
+		}, nil
+	case "module_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("module_id requires a numeric value, got %v", value)
+		}
+		return &rawCondition{
+			SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id = ?)",
 			Args: []interface{}{value},
 		}, nil
 
@@ -409,9 +431,7 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 		// If JoinTable has JoinKey "name", match by name via subquery (e.g. state → states, type → issue_types)
 		// Use LIKE to match bilingual names like "进行中 (In Progress)" when user sends "进行中"
 		if mapping.JoinTable != "" && mapping.JoinKey == "name" {
-			likeValue := fmt.Sprint(value)
-			likeValue = strings.ReplaceAll(likeValue, "%", "\\%")
-			likeValue = strings.ReplaceAll(likeValue, "_", "\\_")
+			likeValue := escapeLikeWildcards(fmt.Sprint(value))
 			return &rawCondition{
 				SQL:  fmt.Sprintf("%s NOT IN (SELECT id FROM %s WHERE name LIKE ? ESCAPE '\\')", mapping.ColumnName, mapping.JoinTable),
 				Args: []interface{}{"%" + likeValue + "%"},
@@ -425,7 +445,9 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 			Joins: []string{"JOIN states ON states.id = issues.state_id"},
 		}, nil
 	case "user":
-		if isNumericValue(value) {
+		// assignee_id (JoinTable set) always matches by user_id;
+		// assignee (no JoinTable) matches by display_name or username
+		if mapping.JoinTable != "" || isNumericValue(value) {
 			return &rawCondition{
 				SQL:  "issues.id NOT IN (SELECT ia.issue_id FROM issue_assignees ia WHERE ia.user_id = ?)",
 				Args: []interface{}{value},
@@ -436,18 +458,15 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 			Args: []interface{}{value},
 		}, nil
 	case "label":
-		if isNumericValue(value) {
-			return &rawCondition{
-				SQL:  "issues.id NOT IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
-				Args: []interface{}{value},
-			}, nil
-		}
+		// Always match by label_id (numeric ID)
 		return &rawCondition{
-			SQL:  "issues.id NOT IN (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name = ?)",
+			SQL:  "issues.id NOT IN (SELECT il.issue_id FROM issue_labels il WHERE il.label_id = ?)",
 			Args: []interface{}{value},
 		}, nil
 	case "cycle":
-		if isNumericValue(value) {
+		// cycle_id (JoinTable set) always matches by cycle_id;
+		// cycle (no JoinTable) matches by name
+		if mapping.JoinTable != "" || isNumericValue(value) {
 			return &rawCondition{
 				SQL:  "issues.id NOT IN (SELECT ic.issue_id FROM issue_cycles ic WHERE ic.cycle_id = ?)",
 				Args: []interface{}{value},
@@ -458,7 +477,9 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 			Args: []interface{}{value},
 		}, nil
 	case "module":
-		if isNumericValue(value) {
+		// module_id (JoinTable set) always matches by module_id;
+		// module (no JoinTable) matches by name
+		if mapping.JoinTable != "" || isNumericValue(value) {
 			return &rawCondition{
 				SQL:  "issues.id NOT IN (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id = ?)",
 				Args: []interface{}{value},
@@ -466,6 +487,31 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 		}
 		return &rawCondition{
 			SQL:  "issues.id NOT IN (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id LEFT JOIN module_inheritance_overrides mo ON m.project_id IS NULL AND mo.project_id = issues.project_id AND mo.workspace_module_id = m.id AND mo.is_excluded = false WHERE COALESCE(mo.override_name, m.name) = ?)",
+			Args: []interface{}{value},
+		}, nil
+	// Strict numeric-only variants for _id fields
+	case "user_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("assignee_id requires a numeric value, got %v", value)
+		}
+		return &rawCondition{
+			SQL:  "issues.id NOT IN (SELECT ia.issue_id FROM issue_assignees ia WHERE ia.user_id = ?)",
+			Args: []interface{}{value},
+		}, nil
+	case "cycle_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("cycle_id requires a numeric value, got %v", value)
+		}
+		return &rawCondition{
+			SQL:  "issues.id NOT IN (SELECT ic.issue_id FROM issue_cycles ic WHERE ic.cycle_id = ?)",
+			Args: []interface{}{value},
+		}, nil
+	case "module_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("module_id requires a numeric value, got %v", value)
+		}
+		return &rawCondition{
+			SQL:  "issues.id NOT IN (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id = ?)",
 			Args: []interface{}{value},
 		}, nil
 	}
@@ -644,7 +690,14 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 		}, nil
 
 	case "user":
-		// Check if all values are numeric - if so, match by user_id directly
+		// assignee_id (JoinTable set) always matches by user_id;
+		// assignee (no JoinTable) matches by display_name or username
+		if mapping.JoinTable != "" {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("issues.id %s (SELECT ia.issue_id FROM issue_assignees ia WHERE ia.user_id IN (%s))", op, placeholderList),
+				Args: args,
+			}, nil
+		}
 		allNumeric := true
 		for _, v := range expr.Values {
 			if !isNumericValue(v) {
@@ -664,25 +717,21 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 		}, nil
 
 	case "label":
-		allNumeric := true
-		for _, v := range expr.Values {
-			if !isNumericValue(v) {
-				allNumeric = false
-				break
-			}
-		}
-		if allNumeric {
-			return &rawCondition{
-				SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il WHERE il.label_id IN (%s))", op, placeholderList),
-				Args: args,
-			}, nil
-		}
+		// Always match by label_id (numeric ID)
 		return &rawCondition{
-			SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il JOIN labels l ON il.label_id = l.id WHERE l.name IN (%s))", op, placeholderList),
+			SQL:  fmt.Sprintf("issues.id %s (SELECT il.issue_id FROM issue_labels il WHERE il.label_id IN (%s))", op, placeholderList),
 			Args: args,
 		}, nil
 
 	case "cycle":
+		// cycle_id (JoinTable set) always matches by cycle_id;
+		// cycle (no JoinTable) matches by name
+		if mapping.JoinTable != "" {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("issues.id %s (SELECT ic.issue_id FROM issue_cycles ic WHERE ic.cycle_id IN (%s))", op, placeholderList),
+				Args: args,
+			}, nil
+		}
 		allNumeric := true
 		for _, v := range expr.Values {
 			if !isNumericValue(v) {
@@ -702,6 +751,14 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 		}, nil
 
 	case "module":
+		// module_id (JoinTable set) always matches by module_id;
+		// module (no JoinTable) matches by name
+		if mapping.JoinTable != "" {
+			return &rawCondition{
+				SQL:  fmt.Sprintf("issues.id %s (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id IN (%s))", op, placeholderList),
+				Args: args,
+			}, nil
+		}
 		allNumeric := true
 		for _, v := range expr.Values {
 			if !isNumericValue(v) {
@@ -717,6 +774,38 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 		}
 		return &rawCondition{
 			SQL:  fmt.Sprintf("issues.id %s (SELECT mi.issue_id FROM module_issues mi JOIN modules m ON mi.module_id = m.id LEFT JOIN module_inheritance_overrides mo ON m.project_id IS NULL AND mo.project_id = issues.project_id AND mo.workspace_module_id = m.id AND mo.is_excluded = false WHERE COALESCE(mo.override_name, m.name) IN (%s))", op, placeholderList),
+			Args: args,
+		}, nil
+
+	// Strict numeric-only variants for _id fields
+	case "user_id":
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				return nil, fmt.Errorf("assignee_id requires numeric values, got %v", v)
+			}
+		}
+		return &rawCondition{
+			SQL:  fmt.Sprintf("issues.id %s (SELECT ia.issue_id FROM issue_assignees ia WHERE ia.user_id IN (%s))", op, placeholderList),
+			Args: args,
+		}, nil
+	case "cycle_id":
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				return nil, fmt.Errorf("cycle_id requires numeric values, got %v", v)
+			}
+		}
+		return &rawCondition{
+			SQL:  fmt.Sprintf("issues.id %s (SELECT ic.issue_id FROM issue_cycles ic WHERE ic.cycle_id IN (%s))", op, placeholderList),
+			Args: args,
+		}, nil
+	case "module_id":
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				return nil, fmt.Errorf("module_id requires numeric values, got %v", v)
+			}
+		}
+		return &rawCondition{
+			SQL:  fmt.Sprintf("issues.id %s (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id IN (%s))", op, placeholderList),
 			Args: args,
 		}, nil
 	}

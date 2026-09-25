@@ -701,7 +701,7 @@ watch([issues, states], () => {
 })
 
 async function loadStates() {
-  try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ }
+  try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data?.data ?? r.data ?? [] } catch (e) { /* */ }
 }
 async function loadMembers() {
   try { const r = await api.get(`/workspaces/${props.workspaceId}/members`); members.value = r.data } catch (e) { /* */ }

@@ -6,36 +6,18 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/microcosm-cc/bluemonday"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/rql"
+	"github.com/reqmango/backend/internal/security"
 	"gorm.io/gorm"
 )
-
-var htmlTagRegex = regexp.MustCompile(`<[^>]*>`)
-
-func sanitizeHTML(html string) string {
-	if html == "" {
-		return "<p></p>"
-	}
-	policy := bluemonday.UGCPolicy()
-	return policy.Sanitize(html)
-}
-
-func stripHTMLTags(html string) string {
-	if html == "" {
-		return ""
-	}
-	return htmlTagRegex.ReplaceAllString(html, "")
-}
 
 type IssueService struct {
 	db              *gorm.DB
@@ -143,8 +125,8 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		priority = common.PriorityNone
 	}
 
-	descHTML := sanitizeHTML(req.DescriptionHTML)
-	descStripped := stripHTMLTags(descHTML)
+	descHTML := security.SanitizeHTML(req.DescriptionHTML)
+	descStripped := security.StripHTMLTags(descHTML)
 
 	issue := &model.Issue{
 		Name:                req.Name,
@@ -680,8 +662,8 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	}
 	if req.DescriptionHTML != nil && *req.DescriptionHTML != issue.DescriptionHTML {
 		s.createActivity(tx, issueID, "updated", strPtr("description"), nil, nil, nil, &userID)
-		issue.DescriptionHTML = sanitizeHTML(*req.DescriptionHTML)
-		descStripped := stripHTMLTags(issue.DescriptionHTML)
+		issue.DescriptionHTML = security.SanitizeHTML(*req.DescriptionHTML)
+		descStripped := security.StripHTMLTags(issue.DescriptionHTML)
 		issue.DescriptionStripped = &descStripped
 		hasChanges = true
 	}
@@ -1246,6 +1228,34 @@ func (s *IssueService) GetActivities(issueID uint64, limit, offset int) ([]respo
 		return nil, common.Internal("Database error")
 	}
 
+	// Pre-load state name map for resolving state IDs to names.
+	stateNameMap := make(map[uint64]string)
+	for _, a := range activities {
+		if a.Field != nil && *a.Field == "state" {
+			if a.OldValue != nil {
+				if id, err := strconv.ParseUint(*a.OldValue, 10, 64); err == nil {
+					stateNameMap[id] = "" // mark for resolution
+				}
+			}
+			if a.NewValue != nil {
+				if id, err := strconv.ParseUint(*a.NewValue, 10, 64); err == nil {
+					stateNameMap[id] = "" // mark for resolution
+				}
+			}
+		}
+	}
+	if len(stateNameMap) > 0 {
+		ids := make([]uint64, 0, len(stateNameMap))
+		for id := range stateNameMap {
+			ids = append(ids, id)
+		}
+		var states []model.State
+		s.db.Where("id IN ?", ids).Find(&states)
+		for _, st := range states {
+			stateNameMap[st.ID] = st.Name
+		}
+	}
+
 	result := make([]response.IssueActivityResponse, len(activities))
 	for i, a := range activities {
 		actorName := ""
@@ -1256,13 +1266,32 @@ func (s *IssueService) GetActivities(issueID uint64, limit, offset int) ([]respo
 				actorAvatar = *a.Actor.Avatar
 			}
 		}
+		oldVal := a.OldValue
+		newVal := a.NewValue
+		// Resolve state IDs to names for state-change activities.
+		if a.Field != nil && *a.Field == "state" {
+			if oldVal != nil {
+				if id, err := strconv.ParseUint(*oldVal, 10, 64); err == nil {
+					if name, ok := stateNameMap[id]; ok && name != "" {
+						oldVal = &name
+					}
+				}
+			}
+			if newVal != nil {
+				if id, err := strconv.ParseUint(*newVal, 10, 64); err == nil {
+					if name, ok := stateNameMap[id]; ok && name != "" {
+						newVal = &name
+					}
+				}
+			}
+		}
 		result[i] = response.IssueActivityResponse{
 			ID:               a.ID,
 			IssueID:          a.IssueID,
 			Verb:             a.Verb,
 			Field:            a.Field,
-			OldValue:         a.OldValue,
-			NewValue:         a.NewValue,
+			OldValue:         oldVal,
+			NewValue:         newVal,
 			Comment:          a.Comment,
 			ActorID:          a.ActorID,
 			ActorDisplayName: actorName,
@@ -1387,6 +1416,33 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 
 	hasSimpleUpdates := req.Priority != nil || req.StartDate != nil || req.TargetDate != nil || req.SortOrder != nil
 
+	// Verify which issue IDs actually exist before applying any updates.
+	// This ensures we don't silently count non-existent IDs as successes.
+	var existingIDs []uint64
+	var existingIDSet map[uint64]bool
+	if hasSimpleUpdates || req.StateID != nil {
+		var foundIDs []uint64
+		tx.Model(&model.Issue{}).Where("id IN ?", req.IssueIDs).Pluck("id", &foundIDs)
+		existingIDSet = make(map[uint64]bool, len(foundIDs))
+		for _, id := range foundIDs {
+			existingIDSet[id] = true
+		}
+		existingIDs = foundIDs
+
+		// Track IDs that don't exist as failures
+		for _, id := range req.IssueIDs {
+			if !existingIDSet[id] {
+				failedItems = append(failedItems, response.BulkFailedItem{IssueID: id, Reason: "Issue not found"})
+			}
+		}
+	} else {
+		existingIDs = req.IssueIDs
+		existingIDSet = make(map[uint64]bool, len(req.IssueIDs))
+		for _, id := range req.IssueIDs {
+			existingIDSet[id] = true
+		}
+	}
+
 	if hasSimpleUpdates {
 		updateMap := make(map[string]interface{})
 		if req.Priority != nil {
@@ -1405,8 +1461,8 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 		if req.SortOrder != nil {
 			updateMap["sort_order"] = *req.SortOrder
 		}
-		if len(updateMap) > 0 {
-			if err := tx.Model(&model.Issue{}).Where("id IN ?", req.IssueIDs).Updates(updateMap).Error; err != nil {
+		if len(updateMap) > 0 && len(existingIDs) > 0 {
+			if err := tx.Model(&model.Issue{}).Where("id IN ?", existingIDs).Updates(updateMap).Error; err != nil {
 				tx.Rollback()
 				return nil, common.Internal("Failed to bulk update issues")
 			}
@@ -1414,7 +1470,7 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 	}
 
 	if req.StateID != nil {
-		for _, issueID := range req.IssueIDs {
+		for _, issueID := range existingIDs {
 			var issue model.Issue
 			if err := tx.First(&issue, issueID).Error; err != nil {
 				failedItems = append(failedItems, response.BulkFailedItem{IssueID: issueID, Reason: "Issue not found"})
@@ -1444,7 +1500,7 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 			successIDs = append(successIDs, issueID)
 		}
 	} else {
-		successIDs = req.IssueIDs
+		successIDs = existingIDs
 	}
 
 	if req.AssigneeIDs != nil {

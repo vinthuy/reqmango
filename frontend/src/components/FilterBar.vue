@@ -167,7 +167,7 @@ watch(() => state.subGroupBy, () => {
 async function loadStates() {
   try {
     const r = await api.get(`/projects/${props.projectId}/settings/states`)
-    states.value = r.data
+    states.value = r.data?.data ?? r.data ?? []
   } catch (e) { /* */ }
 }
 

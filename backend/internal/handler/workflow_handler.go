@@ -318,26 +318,26 @@ func (h *WorkflowHandler) DeleteEdge(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "edge deleted"})
 }
 
-// --- Workspace-level workflow methods (backward compatibility) ---
+// --- Workspace-level workflow methods (not yet implemented) ---
 
 // ListWorkspaceWorkflows returns all workflows for a workspace.
 func (h *WorkflowHandler) ListWorkspaceWorkflows(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"data": []interface{}{}})
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "workspace-level workflow listing is not yet implemented"})
 }
 
 // CreateWorkspaceWorkflow creates a workflow in a workspace.
 func (h *WorkflowHandler) CreateWorkspaceWorkflow(c *gin.Context) {
-	c.JSON(http.StatusCreated, gin.H{"message": "workspace workflow created"})
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "workspace-level workflow creation is not yet implemented"})
 }
 
 // UpdateWorkspaceWorkflow updates a workspace workflow.
 func (h *WorkflowHandler) UpdateWorkspaceWorkflow(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "workspace workflow updated"})
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "workspace-level workflow update is not yet implemented"})
 }
 
 // DeleteWorkspaceWorkflow deletes a workspace workflow.
 func (h *WorkflowHandler) DeleteWorkspaceWorkflow(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "workspace workflow deleted"})
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "workspace-level workflow deletion is not yet implemented"})
 }
 
 // --- State transition methods ---

@@ -115,7 +115,7 @@ async function loadWorkspace() {
     projects.value = await projectApi.listProjects(workspaceId.value)
     for (const p of projects.value) {
       const r = await api.get(`/projects/${p.id}/settings/states`)
-      for (const s of r.data) { stateById.value[s.id] = s }
+      for (const s of (r.data?.data ?? r.data ?? [])) { stateById.value[s.id] = s }
     }
   } catch { /* */ }
   loadIssues()

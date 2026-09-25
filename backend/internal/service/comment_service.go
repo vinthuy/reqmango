@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"time"
+	"unicode"
 
 	"github.com/reqmango/backend/internal/client"
 	"github.com/reqmango/backend/internal/common"
@@ -129,8 +130,9 @@ func parseMentions(text string) []string {
 			j := start
 			for j < len(runes) {
 				c := runes[j]
-				isValid := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' ||
-					(c >= 0x4E00 && c <= 0x9FFF) || (c >= 0x3400 && c <= 0x4DBF) || (c >= 0xAC00 && c <= 0xD7AF)
+				// Support Unicode letters (CJK, Latin, Cyrillic, Arabic, etc.),
+				// Unicode digits, plus ASCII word chars and hyphen.
+				isValid := unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' || c == '-'
 				if !isValid {
 					break
 				}

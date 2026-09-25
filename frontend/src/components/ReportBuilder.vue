@@ -409,7 +409,7 @@ async function runQuickChart(q: any) {
 async function loadQuickChartFilters() {
   try {
     const sRes = await api.get(`/projects/${props.projectId}/settings/states`).catch(() => ({ data: [] }))
-    const statesList = (sRes.data || []).map((x: any) => ({ value: x.name, label: x.name || x.color }))
+    const statesList = (sRes.data?.data || sRes.data || []).map((x: any) => ({ value: x.name, label: x.name || x.color }))
     const pRes = await api.get(`/projects/${props.projectId}/settings/priorities`).catch(() => ({ data: [] }))
     const prioritiesList = (pRes.data || []).map((x: any) => ({ value: x.name, label: x.name || x }))
     const tRes = await api.get(`/projects/issue-types`).catch(() => ({ data: [] }))
@@ -565,7 +565,7 @@ async function loadFilterOptions() {
       api.get(`/projects/${props.projectId}/cycles`).catch(() => ({ data: [] })),
       api.get(`/projects/${props.projectId}/modules`).catch(() => ({ data: [] })),
     ])
-    states.value = (s.data || []).map((x: any) => ({ value: x.name, label: x.name || x.color }))
+    states.value = (s.data?.data || s.data || []).map((x: any) => ({ value: x.name, label: x.name || x.color }))
     priorities.value = p.data || []
     members.value = (m.data || []).map((x: any) => ({ value: x.user?.display_name || x.email, label: x.user?.display_name || x.email }))
     issueTypes.value = (tp.data || []).map((x: any) => ({ value: x.name, label: x.name }))

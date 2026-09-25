@@ -119,7 +119,7 @@ async function loadAllData() {
     const github = results[10].status === 'fulfilled' ? (Array.isArray(results[10].value) ? results[10].value : []) : [];
     const slack = results[11].status === 'fulfilled' ? (Array.isArray(results[11].value) ? results[11].value : []) : [];
     integrationCount.value = mcp.length + github.length + slack.length;
-    workspaceStates.value = results[12].status === 'fulfilled' ? (Array.isArray(results[12].value) ? results[12].value : []) : [];
+    workspaceStates.value = results[12].status === 'fulfilled' ? (Array.isArray(results[12].value?.data) ? results[12].value.data : (Array.isArray(results[12].value) ? results[12].value : [])) : [];
   } catch (e) { console.error('Failed to load data:', e); }
   finally { loading.value = false; }
 }

@@ -180,7 +180,7 @@ async function loadData() {
       automationApi.list(pid),
       api.get(`/projects/${pid}/members`).then(r => r.data),
     ])
-    states.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value) ? results[0].value : []) : []
+    states.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value?.data) ? results[0].value.data : (Array.isArray(results[0].value) ? results[0].value : [])) : []
     labels.value = results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : []) : []
     workflows.value = results[2].status === 'fulfilled' ? (Array.isArray(results[2].value) ? results[2].value : []) : []
     automations.value = results[3].status === 'fulfilled' ? (Array.isArray(results[3].value) ? results[3].value : []) : []

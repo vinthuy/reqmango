@@ -61,6 +61,9 @@
           <div><label class="block text-sm font-medium mb-1">{{ t('workflow.ruleType') }}</label><select v-model="trans.rule_type" class="w-full px-3 py-2 border rounded-lg"><option value="allow">{{ t('workflow.allow') }}</option><option value="approval">{{ t('workflow.approval') }}</option></select></div>
           <div v-if="trans.rule_type==='approval'"><label class="block text-sm font-medium mb-1">{{ t('workflow.approverIds') }}</label><input v-model="trans.approver_ids" class="w-full px-3 py-2 border rounded-lg" :placeholder="t('workflow.approverIdsPlaceholder')" /></div>
           <div v-if="trans.rule_type==='approval'"><label class="block text-sm font-medium mb-1">{{ t('workflow.roleAllowed') }}</label><input v-model="trans.role_allowed" class="w-full px-3 py-2 border rounded-lg" :placeholder="t('workflow.roleAllowedPlaceholder')" /></div>
+          <div v-if="trans.rule_type==='approval'"><label class="block text-sm font-medium mb-1">{{ t('workflow.approvalMode') }}</label><select v-model="trans.approval_mode" class="w-full px-3 py-2 border rounded-lg"><option value="any">{{ t('workflow.approvalModeAny') }}</option><option value="all">{{ t('workflow.approvalModeAll') }}</option></select></div>
+          <div v-if="trans.rule_type==='approval'"><label class="block text-sm font-medium mb-1">{{ t('workflow.approveTargetState') }}</label><select v-model="trans.approve_target_state_id" class="w-full px-3 py-2 border rounded-lg"><option :value="0">-- {{ t('workflow.selectDestState') }} --</option><option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option></select></div>
+          <div v-if="trans.rule_type==='approval'"><label class="block text-sm font-medium mb-1">{{ t('workflow.rejectTargetState') }}</label><select v-model="trans.reject_target_state_id" class="w-full px-3 py-2 border rounded-lg"><option :value="0">-- {{ t('workflow.selectDestState') }} --</option><option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option></select></div>
         </div>
         <div class="flex justify-end space-x-3 mt-6"><button @click="showTrans=false" class="px-4 py-2 border rounded-lg">{{ t('common.cancel') }}</button><button @click="saveTrans" class="px-4 py-2 bg-blue-600 text-white rounded-lg">{{ t('workflow.add') }}</button></div>
       </div>
@@ -83,7 +86,7 @@ const states = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const showModal = ref(false); const showTrans = ref(false); const selWid = ref(0)
 const form = ref<{ name: string; desc: string; selectedTypeIds: number[] }>({ name: '', desc: '', selectedTypeIds: [] })
-const trans = ref({ from: 0, to: 0, desc: '', rule_type: 'allow', approver_ids: '', role_allowed: '' })
+const trans = ref({ from: 0, to: 0, desc: '', rule_type: 'allow', approver_ids: '', role_allowed: '', approve_target_state_id: 0, reject_target_state_id: 0, approval_mode: 'any' })
 
 const isWorkspaceMode = computed(() => !!props.workspaceId && !props.projectId)
 
@@ -108,8 +111,8 @@ async function load() {
         : api.get(`/projects/${props.projectId}/settings/states`)
     ]); 
     workflows.value = Array.isArray(w) ? w : (w?.data ?? []); 
-    const statesRaw = s?.data ?? s; 
-    states.value = Array.isArray(statesRaw) ? statesRaw : []
+    const statesBody = s?.data;
+    states.value = Array.isArray(statesBody?.data) ? statesBody.data : (Array.isArray(statesBody) ? statesBody : [])
     
     // Load issue types
     try {
@@ -145,10 +148,15 @@ async function confirmDel(w:any) {
   } 
 }
 
-function openAddTrans(w:any) { selWid.value = w.id; trans.value = { from:0, to:0, desc:'', rule_type:'allow', approver_ids:'', role_allowed:'' }; showTrans.value = true }
+function openAddTrans(w:any) { selWid.value = w.id; trans.value = { from:0, to:0, desc:'', rule_type:'allow', approver_ids:'', role_allowed:'', approve_target_state_id:0, reject_target_state_id:0, approval_mode:'any' }; showTrans.value = true }
 
 async function saveTrans() { 
-  const data = { from_state_id:trans.value.from, to_state_id:trans.value.to, description:trans.value.desc, rule_type:trans.value.rule_type, approver_ids:trans.value.approver_ids || undefined, role_allowed:trans.value.role_allowed || undefined }
+  const data: any = { from_state_id:trans.value.from, to_state_id:trans.value.to, description:trans.value.desc, rule_type:trans.value.rule_type, approver_ids:trans.value.approver_ids || undefined, role_allowed:trans.value.role_allowed || undefined }
+  if (trans.value.rule_type === 'approval') {
+    if (trans.value.approve_target_state_id) data.approve_target_state_id = trans.value.approve_target_state_id
+    if (trans.value.reject_target_state_id) data.reject_target_state_id = trans.value.reject_target_state_id
+    data.approval_mode = trans.value.approval_mode || 'any'
+  }
   if (isWorkspaceMode.value) {
     await addWorkspaceTransition(props.workspaceId!, selWid.value, data)
   } else {

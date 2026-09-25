@@ -117,7 +117,7 @@ export async function listStates(
   const response = await api.get(
     `/projects/${projectId}/settings/states?${params.toString()}`
   )
-  return response.data
+  return response.data?.data ?? response.data
 }
 
 /**

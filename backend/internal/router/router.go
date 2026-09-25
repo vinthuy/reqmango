@@ -28,6 +28,11 @@ var (
 
 // SetupRoutes initializes all services, handlers, and routes.
 func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
+	// Prevent Gin from sending 301 redirects for trailing slashes,
+	// which causes issues when the frontend sends requests with
+	// inconsistent slash patterns.
+	r.RedirectTrailingSlash = false
+
 	// Initialize services
 	authSvc := service.NewAuthService(db, cfg)
 	workspaceSvc := service.NewWorkspaceService(db)

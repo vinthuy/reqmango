@@ -1,4 +1,7 @@
 import axios from 'axios'
+import { useToast } from '../composables/useToast'
+
+const toast = useToast()
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -35,15 +38,21 @@ api.interceptors.response.use(
       window.location.href = '/login'
       return Promise.reject(error)
     }
+    if (error.response?.status === 403) {
+      toast.error('Permission denied. You do not have access to this resource.')
+      return Promise.reject(error)
+    }
     if (error.response?.status === 429) {
       console.warn('Rate limited, please try again later')
       return Promise.reject(error)
     }
     if (error.response?.status >= 500) {
       console.error('Server error:', error.response.data)
+      toast.error('A server error occurred. Please try again later.')
     }
     if (error.code === 'ECONNABORTED') {
       console.error('Request timeout')
+      toast.error('Request timed out. Please check your connection and try again.')
     }
     return Promise.reject(error)
   }

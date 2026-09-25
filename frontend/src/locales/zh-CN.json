@@ -1781,6 +1781,7 @@
     "actionAssign": "分配给",
     "actionAddComment": "添加评论",
     "actionSetField": "设置字段",
+    "actionRemoveLabel": "移除标签",
     "actionCallWebhook": "调用 Webhook",
     "prev": "上一页",
     "next": "下一页",
@@ -2353,6 +2354,11 @@
       "customFieldAvg": "自定义字段(平均)",
       "customFieldCount": "自定义字段(计数)",
       "customFieldPrefix": "自定义字段({id})"
+    },
+    "metrics2": {
+      "count": "问题数量",
+      "avg_age": "平均工龄",
+      "completion_rate": "完成率"
     }
   },
   "issueTreeView": {

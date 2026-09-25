@@ -449,11 +449,18 @@ const router = createRouter({
   ]
 })
 
+// Safety net: ensure any pending confirm dialog is always resolved after
+// navigation completes, even if beforeEach missed it (e.g. programmatic push
+// that bypassed the guard, or a component-level beforeRouteLeave that aborted).
+router.afterEach(() => {
+  cancelPendingConfirm()
+})
+
 router.beforeEach(async (to) => {
   cancelPendingConfirm()
-  
+
   const authStore = useAuthStore()
-  
+
   if (to.meta.requiresAuth) {
     if (!authStore.token) {
       return { name: 'Login' }

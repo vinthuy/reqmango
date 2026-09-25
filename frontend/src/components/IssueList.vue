@@ -779,7 +779,7 @@ async function loadIssues() {
   finally { loading.value = false }
 }
 
-async function loadStates() { try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data } catch (e) { /* */ } }
+async function loadStates() { try { const r = await api.get(`/projects/${props.projectId}/settings/states`); states.value = r.data?.data ?? r.data ?? [] } catch (e) { /* */ } }
 async function loadCycles() { try { const r = await api.get(`/projects/${props.projectId}/cycles`); cycles.value = r.data } catch (e) { /* */ } }
 async function loadMembers() { try { const r = await api.get(`/workspaces/${props.workspaceId}/members`); members.value = r.data } catch (e) { /* */ } }
 async function loadCustomFields() {

@@ -734,6 +734,9 @@ func (e *stubAutopilotExecutor) Execute(task *model.AutopilotTask, exec *model.A
 		fmt.Sprintf("[%s] task %d (%s) started via %s", ts, task.ID, task.TaskType, exec.TriggerType),
 	}
 	// Brief delay so SSE progress is observable; keeps tests fast.
+	// NOTE: Execute does not accept context.Context, so cancellation cannot
+	// interrupt this sleep. The AutopilotExecutor interface should be extended
+	// with a context parameter in a future iteration.
 	time.Sleep(500 * time.Millisecond)
 
 	out := stubAutopilotTaskOutput(task)

@@ -47,7 +47,7 @@ func (h *ProjectSettingsHandler) ListWorkspaceStates(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, states)
+	c.JSON(http.StatusOK, gin.H{"data": states})
 }
 
 // CreateWorkspaceState handles POST /workspaces/:wsParam/settings/states
@@ -210,7 +210,7 @@ func (h *ProjectSettingsHandler) ListStates(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, states)
+	c.JSON(http.StatusOK, gin.H{"data": states})
 }
 
 // GetState handles GET /projects/:id/settings/states/:stateId

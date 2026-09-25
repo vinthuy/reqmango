@@ -172,7 +172,7 @@ export const workflowApi = {
   }
 }
 
-// ==================== Workspace-level Automation Stubs ====================
+// ==================== Workspace-level Automation (not yet implemented) ====================
 
 export function listWorkspaceWorkflows(workspaceId: number) {
   return apiClient.get(`/workspaces/${workspaceId}/workflows`).then(r => r.data)
@@ -210,7 +210,7 @@ export function deleteWorkspaceTransition(workspaceId: number, workflowId: numbe
   return apiClient.delete(`/workspaces/${workspaceId}/workflows/${workflowId}/edges/${edgeId}`)
 }
 
-// ==================== State Transition Stubs ====================
+// ==================== State Transitions ====================
 
 export function listStateTransitions(projectId: number, workflowId: number) {
   return apiClient.get(`/projects/${projectId}/workflows/${workflowId}/transitions`).then(r => r.data)
@@ -228,7 +228,7 @@ export function deleteStateTransition(projectId: number, workflowId: number, tra
   return apiClient.delete(`/projects/${projectId}/workflows/${workflowId}/transitions/${transitionId}`)
 }
 
-// ==================== Automation Rule Stubs ====================
+// ==================== Automation Rules ====================
 
 export function listAutomationRules(projectId: number) {
   return apiClient.get(`/projects/${projectId}/automation-rules`).then(r => r.data)
