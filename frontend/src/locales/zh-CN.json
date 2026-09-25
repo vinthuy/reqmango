@@ -67,7 +67,8 @@
     "projectCount": "{count} 个项目",
     "createFailedGeneric": "创建项目失败",
     "nameRequiredMsg": "请输入项目名称",
-    "slugRequiredMsg": "请输入项目标识符"
+    "slugRequiredMsg": "请输入项目标识符",
+    "settingsDesc": "管理工作区基本信息、成员与类型"
   },
   "project": {
     "create": "新建",
@@ -221,10 +222,13 @@
     "unwatch": "取消关注",
     "watching": "已关注",
     "unknownUser": "未知用户",
-    "loadMoreActivity": "加载更多动态"
+    "loadMoreActivity": "加载更多动态",
+    "issues": "工作项",
+    "remove": "移除",
+    "unknownError": "未知错误"
   },
   "activity": {
-    "created": "创建了该工作项",
+    "created": "创建",
     "changedState": "变更了状态",
     "changedPriority": "变更了优先级",
     "changedAssignees": "变更了负责人",
@@ -246,7 +250,7 @@
     "changedCustomField": "字段已更新",
     "changedStartDate": "修改了开始日期",
     "changedTargetDate": "修改了截止日期",
-    "updated": "更新了该工作项",
+    "updated": "更新了",
     "commented": "发表了评论",
     "mentioned": "@了相关人员",
     "today": "今天",
@@ -262,9 +266,7 @@
     "labels": "标签",
     "cycle": "周期",
     "description": "描述",
-    "created": "创建",
     "createdIssue": "创建了工作项",
-    "updated": "更新了",
     "approvalSubmitted": "提交了审批申请",
     "approvalApproved": "批准了审批",
     "approvalRejected": "拒绝了审批",
@@ -490,7 +492,7 @@
     "enable": "启用",
     "disable": "停用",
     "enabled": "已启用",
-    "disabled": "已禁用",
+    "disabled": "已停用",
     "enableAutomation": "启用自动化规则",
     "disableAutomation": "停用自动化规则",
     "confirmToggleAutomation": "确定要{action}规则 \"{name}\" 吗？",
@@ -558,16 +560,13 @@
       "issue_state_changed": "状态变更",
       "assignee_changed": "负责人变更",
       "comment_added": "评论添加",
-      "scheduled": "定时计划",
-      "issue_state_changed": "状态变更"
+      "scheduled": "定时计划"
     },
     "none": "无",
     "current": "当前",
     "default": "默认",
     "inherited": "继承",
     "noDescription": "无描述",
-    "enabled": "已启用",
-    "disabled": "已停用",
     "transitions": "流转规则",
     "preview": "预览",
     "workflowNamePlaceholder": "例如：标准工作流",
@@ -579,7 +578,8 @@
     "actionsPlaceholder": "[{\"type\":\"assign\",\"field\":\"assignee\",\"value\":\"1\"}]",
     "selectMemberPlaceholder": "选择成员...",
     "add": "添加",
-    "workspaceAutomationsDesc": "工作空间级自动化规则"
+    "workspaceAutomationsDesc": "工作空间级自动化规则",
+    "workspaceStatesDesc": "管理工作区级状态，可被项目继承"
   },
   "ai": {
     "title": "AI 助手",
@@ -719,7 +719,9 @@
       "inputParams": "输入数据",
       "inputParamsPlaceholder": "输入 JSON 对象",
       "outputResult": "输出结果",
-      "error": "错误"
+      "error": "错误",
+      "namePlaceholder": "输入任务名称",
+      "descriptionPlaceholder": "输入任务描述（可选）"
     },
     "agentMonitor": {
       "title": "智能体监控",
@@ -1120,7 +1122,8 @@
       "tools": "Agent 工具",
       "pipelines": "流水线构建器",
       "footer": "权限、限流、审计、MCP 集成"
-    }
+    },
+    "saveSuccess": "AI 设置已保存"
   },
   "auth": {
     "login": "登录",
@@ -1148,7 +1151,8 @@
     "registerFailed": "注册失败，请检查信息是否正确",
     "loginFailed": "登录失败，请检查邮箱和密码",
     "loginSubtitle": "登录您的账户",
-    "identifier": "标识符"
+    "identifier": "标识符",
+    "identifierHint": "用于 URL 的唯一标识，例如 DEMO"
   },
   "projectMember": {
     "title": "成员管理",
@@ -1396,8 +1400,8 @@
     "branch": "分支"
   },
   "workItemTemplate": {
-    "title": "工作项模板",
-    "description": "为不同类型的工作项预设创建模板，一键预填默认值",
+    "title": "标题",
+    "description": "描述",
     "noTemplates": "暂无模板",
     "noTemplatesDesc": "创建模板后，新建工作项时可以选择模板快速填充字段",
     "default": "默认",
@@ -1408,8 +1412,6 @@
     "descriptionPlaceholder": "输入模板描述",
     "issueType": "工作项类型",
     "defaultFields": "默认字段值",
-    "title": "标题",
-    "description": "描述",
     "priority": "优先级",
     "stateId": "状态ID",
     "setAsDefault": "设为默认模板",
@@ -1484,7 +1486,17 @@
     "copy": "复制",
     "copied": "已复制",
     "saveFailed": "保存失败",
-    "operationFailed": "操作失败"
+    "operationFailed": "操作失败",
+    "refresh": "刷新",
+    "add": "添加",
+    "creating": "创建中...",
+    "done": "完成",
+    "error": "错误",
+    "filter": "筛选",
+    "justNow": "刚刚",
+    "label": "标签",
+    "view": "查看",
+    "assignee": "负责人"
   },
   "confirm": {
     "title": "确认操作",
@@ -1521,11 +1533,11 @@
     "submodule": "子模块",
     "topLevel": "顶级模块",
     "viewDetails": "查看详情",
+    "delete": "删除",
     "editOverride": "编辑覆盖",
     "override": "覆盖",
     "exclude": "排除",
-    "resetOverride": "重置覆盖",
-    "delete": "删除"
+    "resetOverride": "重置覆盖"
   },
   "workspaceMember": {
     "memberManagement": "成员管理",
@@ -1577,7 +1589,15 @@
     "confirmToggleMessage": "确定要{action}类型 \"{name}\" 吗？",
     "deleteConfirmTitle": "删除类型",
     "deleteConfirmMessage": "确定要删除类型 \"{name}\" 吗？此操作不可撤销。",
-    "deleteConfirmBtn": "删除"
+    "deleteConfirmBtn": "删除",
+    "addPropertiesDesc": "选择要绑定到此类型的自定义字段",
+    "addPropertiesTitle": "添加属性到",
+    "addProperty": "添加属性",
+    "allFieldsBound": "所有可用字段均已绑定",
+    "customProperties": "自定义属性",
+    "customPropertiesDesc": "绑定到此工作项类型的自定义字段",
+    "noProperties": "暂无绑定属性",
+    "required": "必填"
   },
   "pageTab": {
     "title": "页面配置",
@@ -1657,7 +1677,8 @@
     "freqMonthly": "每月",
     "scheduleAtMinute": "第{minute}分",
     "scopeLimited": "限定项目",
-    "scheduledLabel": "定时"
+    "scheduledLabel": "定时",
+    "viewHistory": "查看历史"
   },
   "automationForm": {
     "basicInfo": "基本信息",
@@ -1733,7 +1754,8 @@
     "weekThursday": "周四",
     "weekFriday": "周五",
     "weekSaturday": "周六",
-    "weekSunday": "周日"
+    "weekSunday": "周日",
+    "agentNamePlaceholder": "Agent 名称或 ID"
   },
   "automationBuilder": {
     "title": "标题",
@@ -1802,7 +1824,9 @@
     "webhookUrl": "Webhook URL",
     "webhookHeaders": "自定义 Headers (每行 Key: Value)",
     "webhookBody": "请求 Body (JSON)",
-    "webhookVarsHint": "可用变量: {{issue_id}}, {{project_id}}, {{workspace_id}}, {{event_type}}"
+    "webhookVarsHint": "可用变量: {{issue_id}}, {{project_id}}, {{workspace_id}}, {{event_type}}",
+    "greaterThan": "大于",
+    "lessThan": "小于"
   },
   "automationHistory": {
     "title": "自动化执行记录",
@@ -1963,7 +1987,8 @@
     "noType": "无类型",
     "change": "变更",
     "noRelations": "无关联关系",
-    "noRelationTypes": "暂无关系类型，请在工作空间设置中配置"
+    "noRelationTypes": "暂无关系类型，请在工作空间设置中配置",
+    "dragRevert": "移动失败，已还原"
   },
   "issueGantt": {
     "groupByAssignee": "按负责人",
@@ -2138,7 +2163,7 @@
     "saved": "报表已保存",
     "deleteConfirm": "确定要删除报表 \"{name}\" 吗？",
     "loading": "正在生成...",
-    "emptyState": "选择筛选条件并点击生成",
+    "emptyState": "设置筛选条件并点击生成报表",
     "matched": "匹配",
     "issues": "个工作项",
     "avg": "平均",
@@ -2173,7 +2198,6 @@
     "visualFilter": "可视化筛选",
     "and": "且",
     "addCondition": "添加条件",
-    "emptyState": "设置筛选条件并点击生成报表",
     "savedFilters": "已保存筛选器",
     "noSavedFilters": "暂无已保存筛选器",
     "saveFilter": "保存筛选器",
@@ -2486,7 +2510,37 @@
     "downloadTemplate": "下载CSV模板",
     "pleaseWait": "请稍候，正在处理导入...",
     "startImport": "开始导入",
-    "importFailed": "导入失败"
+    "importFailed": "导入失败",
+    "colTitle": "标题",
+    "colTitleHint": "必填",
+    "colDescription": "描述",
+    "colDescriptionHint": "可选",
+    "colPriority": "优先级",
+    "colState": "状态",
+    "colStateHint": "状态名称",
+    "colType": "类型",
+    "colTypeHint": "类型名称",
+    "colAssignees": "负责人",
+    "colAssigneesHint": "邮箱，逗号分隔",
+    "colLabels": "标签",
+    "colLabelsHint": "标签名，逗号分隔",
+    "colStartDate": "开始日期",
+    "colTargetDate": "截止日期",
+    "colParentTitle": "父工作项标题",
+    "colParentTitleHint": "用于建立父子关系",
+    "colModule": "模块",
+    "colModuleHint": "模块名称",
+    "colCycle": "周期",
+    "colCycleHint": "周期名称",
+    "colEstimate": "估算",
+    "colEstimateHint": "估算点数",
+    "exampleTitle": "修复登录问题",
+    "exampleDescription": "用户无法登录",
+    "exampleState": "待办",
+    "exampleType": "Bug",
+    "exampleParentTitle": "用户认证",
+    "examplePlaceholderTitle": "示例工作项 1",
+    "examplePlaceholderTitle2": "示例工作项 2"
   },
   "cycleCard": {
     "progress": "进度",
@@ -2683,7 +2737,8 @@
     "save": "保存",
     "saving": "保存中...",
     "create": "创建",
-    "confirmDelete": "确定要删除此自动化规则吗？"
+    "confirmDelete": "确定要删除此自动化规则吗？",
+    "unassign": "取消分配"
   },
   "automationTemplate": {
     "title": "自动化模板",
@@ -2737,12 +2792,6 @@
     "noLabel": "未选择标签",
     "addLabel": "+ 添加标签",
     "noAvailable": "暂无可添加的标签"
-  },
-  "moduleCard": {
-    "submodule": "子模块",
-    "topLevel": "顶级模块",
-    "viewDetails": "查看详情",
-    "delete": "删除"
   },
   "moduleDetail": {
     "edit": "编辑",
@@ -2880,7 +2929,8 @@
     "removeBtn": "移除",
     "noFieldsBound": "暂无绑定字段",
     "selectFieldToAdd": "选择要添加的字段",
-    "addField": "添加"
+    "addField": "添加",
+    "field": "字段"
   },
   "customFieldsPage": {
     "title": "自定义字段管理"
@@ -2938,7 +2988,10 @@
     "reject": "拒绝",
     "approvePath": "批准路径",
     "rejectPath": "拒绝路径",
-    "transitionAlreadyExists": "该转换已存在，同一个起始状态不能重复添加相同的目标状态。"
+    "transitionAlreadyExists": "该转换已存在，同一个起始状态不能重复添加相同的目标状态。",
+    "selectAtLeastOneApprover": "请至少选择一名审批人",
+    "selectFromState": "请选择起始状态",
+    "workflowNotFound": "未找到工作流"
   },
   "workflowsPage": {
     "title": "工作流管理",
@@ -3027,7 +3080,9 @@
     "submittedTime": "提交时间",
     "status": "状态",
     "action": "操作",
-    "noApprovals": "暂无审批记录"
+    "noApprovals": "暂无审批记录",
+    "approveHint": "批准后工作项将按审批流继续流转",
+    "rejectHint": "拒绝后工作项将回到审批前状态"
   },
   "language": {
     "switchToEn": "切换到中文",
@@ -3101,7 +3156,9 @@
     "unassignSuccess": "已取消指派",
     "sectionTitle": "Agent",
     "selectAgent": "选择智能体...",
-    "dispatching": "派发中..."
+    "dispatching": "派发中...",
+    "feedbackUp": "有用",
+    "feedbackDown": "无用"
   },
   "cmdpalette": {
     "placeholder": "输入命令或搜索...",
@@ -3173,11 +3230,7 @@
     "urlPlaceholder": "https://hooks.slack.com/...",
     "secret": "密钥 (HMAC)",
     "secretPlaceholder": "可选的签名密钥",
-    "events": {
-      "issue_created": "工作项创建",
-      "issue_updated": "工作项更新",
-      "state_changed": "状态变更"
-    },
+    "events": "事件",
     "save": "保存",
     "saving": "保存中...",
     "cancel": "取消",

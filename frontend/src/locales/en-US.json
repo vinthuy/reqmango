@@ -67,7 +67,8 @@
     "projectCount": "{count} projects",
     "createFailedGeneric": "Failed to create project",
     "nameRequiredMsg": "Please enter a project name",
-    "slugRequiredMsg": "Please enter a project identifier"
+    "slugRequiredMsg": "Please enter a project identifier",
+    "settingsDesc": "Manage workspace profile, members, and types"
   },
   "project": {
     "create": "Create",
@@ -221,10 +222,13 @@
     "unwatch": "Unwatch",
     "watching": "Watching",
     "unknownUser": "Unknown user",
-    "loadMoreActivity": "Load more"
+    "loadMoreActivity": "Load more",
+    "issues": "Issues",
+    "remove": "Remove",
+    "unknownError": "Unknown error"
   },
   "activity": {
-    "created": "created this issue",
+    "created": "Created",
     "changedState": "changed status",
     "changedPriority": "changed priority",
     "changedAssignees": "updated assignees",
@@ -236,7 +240,7 @@
     "changedModule": "changed module",
     "changedStartDate": "changed start date",
     "changedTargetDate": "changed due date",
-    "updated": "updated this issue",
+    "updated": "Updated",
     "commented": "commented",
     "mentioned": "mentioned",
     "addedToCycle": "added to cycle",
@@ -262,9 +266,7 @@
     "labels": "Labels",
     "cycle": "Cycle",
     "description": "Description",
-    "created": "Created",
     "createdIssue": "Created issue",
-    "updated": "Updated",
     "approvalSubmitted": "submitted an approval request",
     "approvalApproved": "approved the request",
     "approvalRejected": "rejected the request",
@@ -558,16 +560,13 @@
       "issue_state_changed": "State Changed",
       "assignee_changed": "Assignee Changed",
       "comment_added": "Comment Added",
-      "scheduled": "Scheduled",
-      "issue_state_changed": "State Changed"
+      "scheduled": "Scheduled"
     },
     "none": "None",
     "current": "Current",
     "default": "Default",
     "inherited": "Inherited",
     "noDescription": "No description",
-    "enabled": "Enabled",
-    "disabled": "Disabled",
     "transitions": "transitions",
     "preview": "Preview",
     "workflowNamePlaceholder": "e.g., Standard Workflow",
@@ -579,7 +578,8 @@
     "actionsPlaceholder": "[{\"type\":\"assign\",\"field\":\"assignee\",\"value\":\"1\"}]",
     "selectMemberPlaceholder": "Select a member...",
     "add": "Add",
-    "workspaceAutomationsDesc": "Workspace-level automation rules"
+    "workspaceAutomationsDesc": "Workspace-level automation rules",
+    "workspaceStatesDesc": "Manage workspace-level states inherited by projects"
   },
   "ai": {
     "title": "AI Assistant",
@@ -719,7 +719,9 @@
       "inputParams": "Input Data",
       "inputParamsPlaceholder": "Enter JSON object",
       "outputResult": "Output Result",
-      "error": "Error"
+      "error": "Error",
+      "namePlaceholder": "Enter task name",
+      "descriptionPlaceholder": "Enter task description (optional)"
     },
     "agentMonitor": {
       "title": "Agent Monitor",
@@ -1120,7 +1122,8 @@
       "tools": "Agent Tools",
       "pipelines": "Pipeline Builder",
       "footer": "Permissions, rate limiting, audit, MCP integration"
-    }
+    },
+    "saveSuccess": "AI settings saved"
   },
   "auth": {
     "login": "Login",
@@ -1148,7 +1151,8 @@
     "registerFailed": "Registration failed, please check your information",
     "loginFailed": "Login failed, please check email and password",
     "loginSubtitle": "Sign in to your account",
-    "identifier": "Identifier"
+    "identifier": "Identifier",
+    "identifierHint": "Unique URL slug, e.g. DEMO"
   },
   "projectMember": {
     "title": "Member Management",
@@ -1396,8 +1400,8 @@
     "branch": "Branch"
   },
   "workItemTemplate": {
-    "title": "Work Item Templates",
-    "description": "Preset templates for different issue types with pre-filled defaults",
+    "title": "Title",
+    "description": "Description",
     "noTemplates": "No templates yet",
     "noTemplatesDesc": "Create templates to quickly populate fields when creating new issues",
     "default": "Default",
@@ -1408,8 +1412,6 @@
     "descriptionPlaceholder": "Enter template description",
     "issueType": "Issue Type",
     "defaultFields": "Default Field Values",
-    "title": "Title",
-    "description": "Description",
     "priority": "Priority",
     "stateId": "State ID",
     "setAsDefault": "Set as default template",
@@ -1484,7 +1486,17 @@
     "copy": "Copy",
     "copied": "Copied",
     "saveFailed": "Save failed",
-    "operationFailed": "Operation failed"
+    "operationFailed": "Operation failed",
+    "refresh": "Refresh",
+    "add": "Add",
+    "creating": "Creating...",
+    "done": "Done",
+    "error": "Error",
+    "filter": "Filter",
+    "justNow": "Just now",
+    "label": "Label",
+    "view": "View",
+    "assignee": "Assignee"
   },
   "confirm": {
     "title": "Confirm Action",
@@ -1519,13 +1531,13 @@
   },
   "moduleCard": {
     "submodule": "Submodule",
-    "topLevel": "Top Level",
-    "viewDetails": "View Details",
-    "editOverride": "Edit Override",
+    "topLevel": "Top-level",
+    "viewDetails": "View details",
+    "delete": "Delete",
+    "editOverride": "Edit override",
     "override": "Override",
     "exclude": "Exclude",
-    "resetOverride": "Reset Override",
-    "delete": "Delete"
+    "resetOverride": "Reset override"
   },
   "issueList": {
     "searchPlaceholder": "Search by title...",
@@ -1637,7 +1649,8 @@
     "noType": "No Type",
     "change": "Change",
     "noRelations": "No relations",
-    "noRelationTypes": "No relation types. Configure them in workspace settings."
+    "noRelationTypes": "No relation types. Configure them in workspace settings.",
+    "dragRevert": "Move failed, reverted"
   },
   "issueGantt": {
     "groupByAssignee": "By Assignee",
@@ -1704,7 +1717,15 @@
     "confirmToggleMessage": "Are you sure you want to {action} type \"{name}\"?",
     "deleteConfirmTitle": "Delete Type",
     "deleteConfirmMessage": "Are you sure you want to delete type \"{name}\"? This action cannot be undone.",
-    "deleteConfirmBtn": "Delete"
+    "deleteConfirmBtn": "Delete",
+    "addPropertiesDesc": "Choose custom fields to bind to this type",
+    "addPropertiesTitle": "Add properties to",
+    "addProperty": "Add property",
+    "allFieldsBound": "All available fields are already bound",
+    "customProperties": "Custom properties",
+    "customPropertiesDesc": "Custom fields bound to this issue type",
+    "noProperties": "No properties bound yet",
+    "required": "Required"
   },
   "pageTab": {
     "title": "Page Configuration",
@@ -1784,7 +1805,8 @@
     "freqMonthly": "Every Month",
     "scheduleAtMinute": "at minute {minute}",
     "scopeLimited": "Project-scoped",
-    "scheduledLabel": "Scheduled"
+    "scheduledLabel": "Scheduled",
+    "viewHistory": "View history"
   },
   "automationForm": {
     "basicInfo": "Basic Information",
@@ -1860,7 +1882,8 @@
     "weekThursday": "Thu",
     "weekFriday": "Fri",
     "weekSaturday": "Sat",
-    "weekSunday": "Sun"
+    "weekSunday": "Sun",
+    "agentNamePlaceholder": "Agent name or ID"
   },
   "automationBuilder": {
     "title": "Title",
@@ -1929,7 +1952,9 @@
     "webhookUrl": "Webhook URL",
     "webhookHeaders": "Custom Headers (Key: Value per line)",
     "webhookBody": "Request Body (JSON)",
-    "webhookVarsHint": "Available vars: {{issue_id}}, {{project_id}}, {{workspace_id}}, {{event_type}}"
+    "webhookVarsHint": "Available vars: {{issue_id}}, {{project_id}}, {{workspace_id}}, {{event_type}}",
+    "greaterThan": "Greater than",
+    "lessThan": "Less than"
   },
   "automationHistory": {
     "title": "Automation Execution History",
@@ -1953,7 +1978,6 @@
     "actionSetField": "Set Field",
     "actionCallWebhook": "Call Webhook",
     "actionRemoveLabel": "Remove Label",
-    "actionSetField": "Set Field",
     "prev": "Previous",
     "next": "Next",
     "page": "Page"
@@ -2139,7 +2163,7 @@
     "saved": "Report saved",
     "deleteConfirm": "Delete report \"{name}\"?",
     "loading": "Generating...",
-    "emptyState": "Select filters and click Generate",
+    "emptyState": "Set filter conditions and click Generate",
     "matched": "Matched",
     "issues": "issues",
     "avg": "Avg",
@@ -2174,7 +2198,6 @@
     "visualFilter": "Visual Filter",
     "and": "AND",
     "addCondition": "Add condition",
-    "emptyState": "Set filter conditions and click Generate",
     "savedFilters": "Saved Filters",
     "noSavedFilters": "No saved filters yet",
     "saveFilter": "Save Filter",
@@ -2487,7 +2510,37 @@
     "downloadTemplate": "Download CSV Template",
     "pleaseWait": "Please wait while we process your import...",
     "startImport": "Start Import",
-    "importFailed": "Import failed"
+    "importFailed": "Import failed",
+    "colTitle": "Title",
+    "colTitleHint": "Required",
+    "colDescription": "Description",
+    "colDescriptionHint": "Optional",
+    "colPriority": "Priority",
+    "colState": "State",
+    "colStateHint": "State name",
+    "colType": "Type",
+    "colTypeHint": "Type name",
+    "colAssignees": "Assignees",
+    "colAssigneesHint": "Emails, comma-separated",
+    "colLabels": "Labels",
+    "colLabelsHint": "Label names, comma-separated",
+    "colStartDate": "Start date",
+    "colTargetDate": "Due date",
+    "colParentTitle": "Parent title",
+    "colParentTitleHint": "Used to link parent/child",
+    "colModule": "Module",
+    "colModuleHint": "Module name",
+    "colCycle": "Cycle",
+    "colCycleHint": "Cycle name",
+    "colEstimate": "Estimate",
+    "colEstimateHint": "Estimate points",
+    "exampleTitle": "Fix login issue",
+    "exampleDescription": "Users cannot sign in",
+    "exampleState": "Todo",
+    "exampleType": "Bug",
+    "exampleParentTitle": "User auth",
+    "examplePlaceholderTitle": "Sample issue 1",
+    "examplePlaceholderTitle2": "Sample issue 2"
   },
   "cycleCard": {
     "progress": "Progress",
@@ -2684,7 +2737,8 @@
     "save": "Save",
     "saving": "Saving...",
     "create": "Create",
-    "confirmDelete": "Are you sure you want to delete this automation rule?"
+    "confirmDelete": "Are you sure you want to delete this automation rule?",
+    "unassign": "Unassign"
   },
   "automationTemplate": {
     "title": "Automation Templates",
@@ -2738,12 +2792,6 @@
     "noLabel": "No label selected",
     "addLabel": "+ Add Label",
     "noAvailable": "No labels available"
-  },
-  "moduleCard": {
-    "submodule": "Submodule",
-    "topLevel": "Top Level",
-    "viewDetails": "View Details",
-    "delete": "Delete"
   },
   "moduleDetail": {
     "edit": "Edit",
@@ -2881,7 +2929,8 @@
     "removeBtn": "Remove",
     "noFieldsBound": "No fields bound yet",
     "selectFieldToAdd": "Select field to add",
-    "addField": "Add Field"
+    "addField": "Add Field",
+    "field": "Field"
   },
   "customFieldsPage": {
     "title": "Custom Fields Management"
@@ -2939,7 +2988,10 @@
     "approve": "Approve",
     "reject": "Reject",
     "approvePath": "Approve path",
-    "rejectPath": "Reject path"
+    "rejectPath": "Reject path",
+    "selectAtLeastOneApprover": "Select at least one approver",
+    "selectFromState": "Select a from-state",
+    "workflowNotFound": "Workflow not found"
   },
   "workflowsPage": {
     "title": "Workflow Management",
@@ -3028,7 +3080,9 @@
     "submittedTime": "Submitted",
     "status": "Status",
     "action": "Action",
-    "noApprovals": "No approvals"
+    "noApprovals": "No approvals",
+    "approveHint": "After approval the work item continues along the workflow",
+    "rejectHint": "After rejection the work item returns to the pre-approval state"
   },
   "language": {
     "switchToEn": "Switch to Chinese",
@@ -3102,7 +3156,9 @@
     "unassignSuccess": "Agent unassigned",
     "sectionTitle": "Agent",
     "selectAgent": "Select an agent...",
-    "dispatching": "Dispatching..."
+    "dispatching": "Dispatching...",
+    "feedbackUp": "Helpful",
+    "feedbackDown": "Not helpful"
   },
   "cmdpalette": {
     "placeholder": "Type a command or search...",
@@ -3174,11 +3230,7 @@
     "urlPlaceholder": "https://hooks.slack.com/...",
     "secret": "Secret (HMAC)",
     "secretPlaceholder": "Optional signing secret",
-    "events": {
-      "issue_created": "Issue Created",
-      "issue_updated": "Issue Updated",
-      "state_changed": "State Changed"
-    },
+    "events": "Events",
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
