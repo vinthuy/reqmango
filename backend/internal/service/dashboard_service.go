@@ -18,6 +18,7 @@ type DashboardService struct {
 	savedReportSvc *SavedReportService
 	cycleSvc       *CycleService
 	issueSvc       *IssueService
+	aiSummary      AISummaryProvider
 }
 
 // NewDashboardService creates a new DashboardService.
@@ -437,6 +438,8 @@ func (s *DashboardService) renderWidget(projectID uint64, w *model.DashboardWidg
 		return s.renderBurndown(w)
 	case "recent_list":
 		return s.renderRecentList(projectID, w)
+	case "ai_summary":
+		return s.renderAISummary(projectID, w)
 	default:
 		return json.RawMessage("{}"), nil
 	}

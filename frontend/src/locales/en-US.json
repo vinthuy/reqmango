@@ -3503,7 +3503,12 @@
     "weekly": "Weekly",
     "monthly": "Monthly",
     "savedReport": "Saved Report",
-    "selectReport": "Select Report"
+    "selectReport": "Select Report",
+    "aiSummary": "AI Project Summary",
+    "aiSummaryEmpty": "No summary yet. Click refresh to generate.",
+    "aiSummaryInsights": "Insights",
+    "aiSummaryBottlenecks": "Bottlenecks",
+    "aiSummaryRefresh": "Refresh summary"
   },
   "plugin": {
     "title": "Plugin Manager",

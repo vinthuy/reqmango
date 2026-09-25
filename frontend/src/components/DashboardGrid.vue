@@ -20,6 +20,17 @@
         <div class="widget-header px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
           <span class="text-xs font-semibold text-gray-600 dark:text-gray-400 flex-1 truncate">{{ w.title }}</span>
           <span class="text-[10px] text-gray-400 dark:text-gray-500 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{{ widgetTypeLabel(w.widget_type) }}</span>
+          <button
+            v-if="w.widget_type === 'ai_summary'"
+            type="button"
+            @click="$emit('refresh')"
+            class="w-6 h-6 rounded flex items-center justify-center hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+            :title="t('dashboard.aiSummaryRefresh')"
+          >
+            <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
           <div v-if="editMode" class="flex gap-1">
             <button @click="$emit('configure', w)" class="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" :title="t('common.configure')">
               <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,6 +83,7 @@ defineEmits<{
   add: []
   configure: [widget: DashboardWidget]
   'delete-widget': [widgetId: number]
+  refresh: []
 }>()
 
 const columns = computed(() => props.columns || 12)
@@ -90,6 +102,7 @@ function widgetTypeLabel(type: WidgetType): string {
     table: t('dashboard.table'),
     recent_list: t('dashboard.recentList'),
     saved_report: t('dashboard.savedReport'),
+    ai_summary: t('dashboard.aiSummary'),
   }
   return map[type] ?? type
 }

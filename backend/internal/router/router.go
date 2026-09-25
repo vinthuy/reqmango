@@ -83,6 +83,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 	// Initialize AI services
 	aiSvc := aiservice.NewAIService(db, llmClient)
+	dashboardSvc.SetAISummaryProvider(&service.AIServiceSummaryProvider{AI: aiSvc, DB: db})
 	agentSvc := aiservice.NewAgentService(db, llmClient, aiSvc)
 	loopSvc := aiservice.NewLoopService(db, agentSvc)
 

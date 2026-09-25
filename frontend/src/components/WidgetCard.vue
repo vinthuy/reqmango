@@ -138,6 +138,31 @@
       </template>
     </div>
 
+    <!-- AI project summary -->
+    <div v-else-if="widget.widget_type === 'ai_summary' && data" class="w-full text-left space-y-2">
+      <div v-if="data.error" class="text-sm text-red-500 py-2">{{ data.error }}</div>
+      <template v-else>
+        <p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">{{ data.summary || t('dashboard.aiSummaryEmpty') }}</p>
+        <div v-if="Array.isArray(data.insights) && data.insights.length" class="space-y-1">
+          <p class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{{ t('dashboard.aiSummaryInsights') }}</p>
+          <ul class="space-y-1">
+            <li v-for="(ins, i) in data.insights.slice(0, 5)" :key="i" class="text-xs text-gray-600 dark:text-gray-300 pl-2 border-l-2 border-indigo-200 dark:border-indigo-700">
+              {{ ins }}
+            </li>
+          </ul>
+        </div>
+        <div v-if="Array.isArray(data.bottlenecks) && data.bottlenecks.length" class="space-y-1">
+          <p class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{{ t('dashboard.aiSummaryBottlenecks') }}</p>
+          <ul class="space-y-1">
+            <li v-for="b in data.bottlenecks.slice(0, 5)" :key="b.issue_id" class="text-xs text-gray-600 dark:text-gray-300">
+              #{{ b.issue_id }} {{ b.issue_name }}
+              <span class="text-gray-400">({{ b.days_in_state }}d / {{ b.state_name }})</span>
+            </li>
+          </ul>
+        </div>
+      </template>
+    </div>
+
     <!-- Fallback -->
     <div v-else class="flex items-center justify-center py-6 text-xs text-gray-400 dark:text-gray-500">
       {{ t('dashboard.configureWidget') }}

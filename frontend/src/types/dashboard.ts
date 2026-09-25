@@ -44,6 +44,7 @@ export type WidgetType =
   | 'table'
   | 'recent_list'
   | 'saved_report'
+  | 'ai_summary'
 
 export type WidgetIconMap = Record<WidgetType, string>
 
