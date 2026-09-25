@@ -72,6 +72,21 @@ func (h *AgentHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, agent)
 }
 
+// EnsurePM handles POST /workspaces/:wsParam/agents/ensure-pm
+func (h *AgentHandler) EnsurePM(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	wsID := h.resolveWorkspaceID(c)
+	if wsID == 0 {
+		return
+	}
+
+	agents, svcErr := h.svc.EnsurePMAgents(wsID, user.ID)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"agents": agents})
+}
+
 // Update handles PUT /workspaces/:wsParam/agents/:id
 func (h *AgentHandler) Update(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)

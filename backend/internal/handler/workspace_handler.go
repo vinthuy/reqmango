@@ -13,12 +13,23 @@ import (
 	"github.com/reqmango/backend/internal/service"
 )
 
+// PMAgentEnsurer seeds out-of-box PM agents for a workspace (optional dependency).
+type PMAgentEnsurer interface {
+	EnsurePMAgents(workspaceID, userID uint64) ([]*model.Agent, error)
+}
+
 type WorkspaceHandler struct {
-	svc *service.WorkspaceService
+	svc      *service.WorkspaceService
+	pmAgents PMAgentEnsurer
 }
 
 func NewWorkspaceHandler(svc *service.WorkspaceService) *WorkspaceHandler {
 	return &WorkspaceHandler{svc: svc}
+}
+
+// SetPMAgentEnsurer wires EnsurePMAgents into workspace creation (best-effort).
+func (h *WorkspaceHandler) SetPMAgentEnsurer(ensurer PMAgentEnsurer) {
+	h.pmAgents = ensurer
 }
 
 // List handles GET /workspaces/
@@ -65,6 +76,11 @@ func (h *WorkspaceHandler) Create(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
+	}
+
+	// Best-effort: seed four out-of-box PM agents for the new workspace.
+	if h.pmAgents != nil {
+		_, _ = h.pmAgents.EnsurePMAgents(resp.ID, user.ID)
 	}
 
 	c.JSON(http.StatusCreated, resp)

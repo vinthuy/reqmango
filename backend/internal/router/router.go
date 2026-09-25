@@ -138,6 +138,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	// Initialize handlers
 	authH := handler.NewAuthHandler(authSvc)
 	workspaceH := handler.NewWorkspaceHandler(workspaceSvc)
+	workspaceH.SetPMAgentEnsurer(agentSvc)
 	projectH := handler.NewProjectHandler(projectSvc, templateSvc)
 	settingsH := handler.NewProjectSettingsHandler(settingsSvc)
 	issueH := handler.NewIssueHandler(issueSvc)
@@ -414,6 +415,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// Agent routes (must come after other agent-related routes to avoid parameter conflicts)
 			workspaces.GET("/:wsParam/agents", agentH.List)
 			workspaces.POST("/:wsParam/agents", agentH.Create)
+			workspaces.POST("/:wsParam/agents/ensure-pm", agentH.EnsurePM)
 			workspaces.GET("/:wsParam/agents/activity", agentH.ListWorkspaceActivity)
 			workspaces.PATCH("/:wsParam/agents/activity/:id/feedback", agentH.UpdateActivityFeedback)
 			workspaces.GET("/:wsParam/agents/:id", agentH.GetByID)
