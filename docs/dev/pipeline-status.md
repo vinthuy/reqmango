@@ -8,7 +8,7 @@
 
 | 功能 | Spec | Design | Plan | Implement | 备注 |
 |------|------|--------|------|-----------|------|
-| AI 项目管理重设计（对标 Plane AI） | ✅ | ✅ | ✅ | 🔄 Phase1 Tasks 1–8 代码已接线 | 剩手测 + Task9 文档勾选；可选本地 commit |
+| AI 项目管理重设计（对标 Plane AI） | ✅ | ✅ | ✅ Phase1+2 | 🔄 Phase1 已推远程；Phase2 计划已就绪 | [设计](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · [Phase1](../superpowers/plans/2026-09-25-ai-project-management-phase1.md) · [Phase2](../superpowers/plans/2026-09-25-ai-project-management-phase2.md) |
 
 ---
 
