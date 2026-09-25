@@ -518,7 +518,7 @@ Duration   85.75s
 | `scripts/fix-kanban-spec.mjs` | 看板用例修复 |
 | `scripts/e2e-coverage-report.mjs` | Playwright JSON 报告聚合器（按目录统计 + 失败/flaky 清单） |
 | `scripts/run-full-e2e.ps1` | **一键全量运行**：拉起 PostgreSQL/后端/前端 preview 并依次跑 Go、`tests/`、`frontend/e2e`、vitest，再聚合覆盖矩阵（未实测） |
-| `E2E_COVERAGE_REPORT.md` | 本报告 |
+| `docs/E2E_COVERAGE_REPORT.md` | 本报告 |
 
 ---
 

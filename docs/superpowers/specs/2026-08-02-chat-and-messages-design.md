@@ -3,7 +3,7 @@
 > Date: 2026-08-02
 > Status: Approved (pending user review)
 > Owner: reqmango team
-> PRD Reference: [AI_AGENT_PRD.md](../../../AI_AGENT_PRD.md) §11, P3-009~012
+> PRD Reference: [AI_AGENT_PRD.md](../../AI_AGENT_PRD.md) §11, P3-009~012
 
 ## 1. Overview
 

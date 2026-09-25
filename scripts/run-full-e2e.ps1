@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   ReqMango 全量端到端覆盖测试 —— 一键运行。
 
@@ -26,12 +26,12 @@
   跳过前端单元测试。
 
 .EXAMPLE
-  pwsh -File scripts/run-full-e2e.ps1
+  powershell -NoProfile -File scripts/run-full-e2e.ps1
   pwsh -File scripts/run-full-e2e.ps1 -FrontendProject all -Workers 1
 
 .NOTES
-  本脚本在「主机无法创建子进程」的会话中编写，因此**尚未端到端实测**。
-  首次运行时请留意每个阶段打印的 PASS/FAIL 与 test-artifacts/ 下的日志。
+  本机若没有 pwsh，用 Windows PowerShell 5.1 运行。脚本须保持 UTF-8 BOM，否则 5.1 会把中文行解析坏。
+  冷的模块缓存下 `go run` 会先下载依赖，后端监听等待为 600 秒。
   前置：backend/.env 存在；PostgreSQL 中有 reqmango 库与测试账号。
 #>
 
@@ -104,7 +104,8 @@ $backendProc = Start-Process -FilePath 'go' `
   -PassThru -WindowStyle Hidden
 Write-Host "  后端 PID = $($backendProc.Id)，日志 $backendOut"
 
-if (-not (Wait-Port -Port 8000 -TimeoutSec 180 -Name '后端')) {
+# go run 在模块缓存为空时会先下载依赖，180s 不够（2026-09-25 实测卡在 go: downloading）。
+if (-not (Wait-Port -Port 8000 -TimeoutSec 600 -Name '后端')) {
   $script:Failed += 'backend'
   Write-Host '  后端启动失败，末尾日志：' -ForegroundColor Red
   if (Test-Path $backendErr) { Get-Content $backendErr -Tail 30 }

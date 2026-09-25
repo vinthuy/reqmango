@@ -685,7 +685,7 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | `ai-phase1-e2e.spec.ts` | 1 | `button:has-text("创建")` 命中面板里禁用的提交按钮 | 用标签页 `title` 属性定位，并断言"生成预览"按钮出现 |
 | `workspace-settings-e2e.spec.ts` | — | 产品侧 BUG-47（删除状态 500）已在上一轮修复 | 本轮回归通过 |
 
-> 结论：`frontend/e2e` 三个浏览器（chromium / firefox / webkit）全部通过，详见 `E2E_COVERAGE_REPORT.md` 第 11 节。
+> 结论：`frontend/e2e` 三个浏览器（chromium / firefox / webkit）全部通过，详见 `docs/E2E_COVERAGE_REPORT.md` 第 11 节。
 
 ### 统计补充
 

@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "axios-retry": "^4.5.0",
-    "playwright": "^1.61.0"
-  }
-}

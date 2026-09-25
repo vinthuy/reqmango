@@ -89,7 +89,7 @@ positives (test-only fixture credentials, documentation examples).
 The default limit is **500 requests per 60-second window per client IP**.
 
 For E2E suites the limit is raised via `RATE_LIMIT_REQUESTS=200000` (set in
-`scripts/run-full-e2e.ps1` and documented in `E2E_COVERAGE_REPORT.md §11.4`).
+`scripts/run-full-e2e.ps1` and documented in `docs/E2E_COVERAGE_REPORT.md` §11.4).
 
 If a CI run or a batch operation triggers HTTP 429 errors, check the backend log
 for the `[Webhook]` line counting `429` responses.
