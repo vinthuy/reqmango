@@ -302,13 +302,28 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	}
 
 	// Automation trigger: issue_created (after commit, uses own DB connection)
-	s.runAutomations(issue.ID, "issue.created", map[string]interface{}{
-		"issue_id": issue.ID, "priority": issue.Priority,
-		"state_id": issue.StateID, "project_id": issue.ProjectID,
-	})
+	s.NotifyIssueCreated(issue)
 
 	s.webhookSvc.Fire(projectID, "issue_created", map[string]interface{}{"issue_id": issue.ID, "name": issue.Name, "priority": issue.Priority})
 	return s.buildResponse(issue.ID)
+}
+
+// NotifyIssueCreated publishes issue.created automations for an issue created
+// outside Create (e.g. public Intake submit). Field names match Create's path.
+func (s *IssueService) NotifyIssueCreated(issue *model.Issue) {
+	if issue == nil {
+		return
+	}
+	ctx := map[string]interface{}{
+		"issue_id":   issue.ID,
+		"priority":   issue.Priority,
+		"state_id":   issue.StateID,
+		"project_id": issue.ProjectID,
+	}
+	if issue.IntakeStatus != nil {
+		ctx["intake_status"] = *issue.IntakeStatus
+	}
+	s.runAutomations(issue.ID, "issue.created", ctx)
 }
 
 // GetByID returns an issue with all relations loaded.

@@ -9,11 +9,19 @@ import (
 	"gorm.io/gorm"
 )
 
-type IntakeHandler struct {
-	db *gorm.DB
+// issueCreatedNotifier fires issue.created automations (implemented by *service.IssueService).
+type issueCreatedNotifier interface {
+	NotifyIssueCreated(issue *model.Issue)
 }
 
-func NewIntakeHandler(db *gorm.DB) *IntakeHandler { return &IntakeHandler{db: db} }
+type IntakeHandler struct {
+	db       *gorm.DB
+	issueSvc issueCreatedNotifier
+}
+
+func NewIntakeHandler(db *gorm.DB, issueSvc issueCreatedNotifier) *IntakeHandler {
+	return &IntakeHandler{db: db, issueSvc: issueSvc}
+}
 
 // Submit handles POST /api/v1/intake/:projectId — public, no auth.
 func (h *IntakeHandler) Submit(c *gin.Context) {
@@ -62,6 +70,9 @@ func (h *IntakeHandler) Submit(c *gin.Context) {
 	if err := h.db.Create(issue).Error; err != nil {
 		c.JSON(500, gin.H{"message": "Failed to submit"})
 		return
+	}
+	if h.issueSvc != nil {
+		h.issueSvc.NotifyIssueCreated(issue)
 	}
 	c.JSON(201, gin.H{"id": issue.ID, "name": issue.Name, "status": "pending", "message": "Submitted for review"})
 }

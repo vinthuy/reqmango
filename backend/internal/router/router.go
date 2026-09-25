@@ -71,7 +71,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	savedReportSvc := service.NewSavedReportService(db)
 	metricSvc := service.NewMetricService(db)
 	pageTabSvc := service.NewProjectPageTabService(db)
-	intakeH := handler.NewIntakeHandler(db)
+	intakeH := handler.NewIntakeHandler(db, issueSvc)
 	reportH := handler.NewReportHandler(reportSvc)
 	savedReportH := handler.NewSavedReportHandler(savedReportSvc)
 	metricH := handler.NewMetricHandler(metricSvc)
