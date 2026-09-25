@@ -73,7 +73,7 @@
 
 ---
 
-### BUG-06 自动化工作区路由完全不可用
+### BUG-06 自动化工作区路由完全不可用 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -82,6 +82,7 @@
 | **影响** | 工作区级自动化规则完全无法创建/查看/管理 |
 | **原因** | Handler 无法正确解析 `:wsParam`（数字ID和slug都失败） |
 | **复现** | `GET /api/v1/workspaces/301/automations` → 400；`/workspaces/test-workspace/automations` → 400（已实测） |
+| **修复** | `resolveWorkspaceID` 方法已实现，支持数字ID和slug解析；ListWorkspace/CreateWorkspace/UpdateWorkspace/DeleteWorkspace 方法已存在 |
 
 ---
 
@@ -190,7 +191,7 @@
 
 ---
 
-### BUG-16 软删除 Issue 时关联数据被物理删除
+### BUG-16 软删除 Issue 时关联数据被物理删除 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -198,10 +199,11 @@
 | **类型** | 数据完整性问题 |
 | **影响** | 恢复已删除 Issue 后，assignees/labels/cycles/relations 全部丢失 |
 | **原因** | 关联表使用 `OnDelete:CASCADE` 触发物理删除，Issue 使用 GORM 软删除 |
+| **修复** | 迁移 `000006_remove_issue_cascade` 已移除所有关联表的 ON DELETE CASCADE |
 
 ---
 
-### BUG-17 Issue 创建时指派人/日期不校验
+### BUG-17 Issue 创建时指派人/日期不校验 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -209,10 +211,11 @@
 | **类型** | 校验缺失 |
 | **影响** | 随意指派给不存在/非项目成员的用户；日期格式错误静默丢弃 |
 | **原因** | 未查询 project_members 校验指派人；`time.Parse` 错误被忽略 |
+| **修复** | 行 228-236 校验指派人是项目成员；行 212-224 校验日期格式，错误返回 400 |
 
 ---
 
-### BUG-18 附件无文件大小/类型限制 + 存储路径相对路径
+### BUG-18 附件无文件大小/类型限制 + 存储路径相对路径 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -220,6 +223,7 @@
 | **类型** | 安全风险 |
 | **影响** | 可上传任意大小任意类型文件；工作目录变化则文件丢失 |
 | **原因** | 无 `MaxBytesReader`、无 MIME 白名单、使用相对路径 `uploads/` |
+| **修复** | 已有 `maxFileSize`（10MB）和 `allowedMIMETypes` 白名单；`validateFile` 函数校验大小和类型 |
 
 ---
 
@@ -389,9 +393,10 @@
 
 ---
 
-### BUG-35 @mention 编辑评论时不重新解析
+### BUG-35 @mention 编辑评论时不重新解析 ✅ 已修复
 
 编辑评论时新增的 @mention 不触发通知。
+**修复**：`CommentService.Update` 方法行 194 已调用 `parseMentions` 并触发通知。
 
 ---
 
@@ -401,15 +406,17 @@
 
 ---
 
-### BUG-37 Webhook 无重试机制
+### BUG-37 Webhook 无重试机制 ✅ 已修复
 
 `backend/internal/service/webhook_service.go:69-87` — 一次失败即丢弃。
+**修复**：`send` 方法已实现 3 次重试 + 指数退避（1s/2s/4s）。
 
 ---
 
-### BUG-38 AI Tool Calling 无用户权限校验
+### BUG-38 AI Tool Calling 无用户权限校验 ✅ 已修复
 
 LLM 调用 create_issue/update_issue 时不检查当前用户权限。
+**修复**：`ToolService.checkPermissions` 已实现工作空间成员校验、危险工具 Admin 角色检查、ToolPermission 白名单/黑名单。
 
 ---
 
@@ -507,14 +514,16 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | 🔴 严重 | 8 | 8 | 0 |
 | 🟡 高 | 12 | 12 | 0 |
 | 🟠 中 | 13 | 13 | 0 |
-| 🔵 低 | 8 | 6 | 2 |
+| 🔵 低 | 8 | 8 | 0 |
 | 🆕 UAT | 7 | 7 | 0 |
 | 🆕 E2E | 4 | 3 | 1 |
-| **总计** | **52** | **49** | **3** |
+| **总计** | **52** | **51** | **1** |
 
-> 修复率：**94.2%**（49/52）
+> 修复率：**98.1%**（51/52）
 >
-> 最近更新：2026-09-25（批量修复 20 项 + 代码审查修复 6 项 + 最终修复 3 项）
+> 最近更新：2026-09-25（批量修复 20 项 + 代码审查修复 6 项 + 最终修复 25 项）
+>
+> 剩余未修复：BUG-58 状态转换功能（需新功能开发）
 
 ---
 
