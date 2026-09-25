@@ -37,7 +37,7 @@ docker compose up --build
 
 国内主场：https://gitcode.com/yongfeng9m-/reqmanpy  
 国际镜像：https://github.com/vinthuy/reqmango  
-欢迎总览：https://github.com/vinthuy/reqmango/issues/13  
+欢迎共建：见仓库 Issue（标题搜「欢迎共建」）或 `docs/dev/gitcode-welcome-issue.md`  
 贡献指南：https://gitcode.com/yongfeng9m-/reqmanpy/blob/master/CONTRIBUTING-zh.md
 
 MIT。小步 PR 最欢迎。

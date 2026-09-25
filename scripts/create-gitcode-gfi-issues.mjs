@@ -10,7 +10,8 @@
 import { execFileSync } from 'node:child_process'
 
 const owner = 'yongfeng9m-'
-const repo = 'reqmanpy'
+// GitCode path may still be historical `reqmanpy`; UI display name is Reqmango.
+const repo = process.env.GITCODE_REPO || 'reqmanpy'
 const token = process.env.GITCODE_TOKEN || process.env.GITCODE_ACCESS_TOKEN || ''
 if (!token) {
   console.error('Set GITCODE_TOKEN to a GitCode personal access token.')
