@@ -21,7 +21,6 @@
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <span class="text-[11px] text-gray-400 font-mono shrink-0">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
-            <!-- Issue type badge (before title) -->
             <span
               v-if="issue.issue_type"
               class="px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0"
@@ -34,7 +33,31 @@
               @keydown.enter="(e: KeyboardEvent) => { (e.target as HTMLInputElement).blur() }"
             />
             <span v-if="saving" class="text-[10px] text-indigo-500 animate-pulse shrink-0">{{ t('issue.saving') }}</span>
-            <!-- Open in full page -->
+            <button
+              type="button"
+              class="p-1 rounded transition-colors shrink-0"
+              :class="isWatching ? 'text-indigo-500 hover:bg-indigo-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'"
+              :title="isWatching ? t('issue.unwatch') : t('issue.watch')"
+              @click="handleToggleWatch"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </button>
+            <button
+              type="button"
+              class="p-1 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded transition-colors shrink-0"
+              :title="t('issue.copyLink')"
+              @click="copyPanelLink"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            </button>
+            <button
+              type="button"
+              class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+              :title="t('common.delete')"
+              @click="handleDelete"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
             <a
               :href="`/workspace/${workspaceSlug}/project/${projectId}/issues/${issue.id}`"
               class="p-1 text-gray-400 hover:text-indigo-500 rounded transition-colors shrink-0"
@@ -131,7 +154,7 @@
                 :agent-assigning="agentAssigning"
                 :agent-status="agentStatus"
                 :labels="projectLabels"
-                :relation-summary="relationSidebarSummary"
+                :relation-summary="effectiveRelationSummary"
                 @update:state="handleStateChange"
                 @update:priority="(p: any) => quickUpdate('priority', p)"
                 @update:assignee="quickUpdateAssignee"
@@ -186,9 +209,11 @@ import { releaseApi } from '@/api/release'
 import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { agentApi } from '@/api/agent'
 import { issueAgentApi, type AgentStatus } from '@/api/issue-agent'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
+import relationApi from '@/api/relation'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
 import IssueTabDetails from '@/components/IssueTabDetails.vue'
 import IssueTabRelations from '@/components/IssueTabRelations.vue'
@@ -204,6 +229,7 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const toast = useToast()
+const { confirm } = useConfirm()
 
 const workspaceSlug = computed(() => (route.params as any).slug as string || '')
 
@@ -237,7 +263,14 @@ const agentDispatching = ref(false)
 const agentAssigning = ref(false)
 const agentStatus = ref<AgentStatus | null>(null)
 const saving = ref(false)
+const isWatching = ref(false)
 const projectLabels = ref<Array<{ id: number; name: string; color: string }>>([])
+const relationSidebarSummary = ref<{
+  total: number
+  outbound: number
+  inbound: number
+  byType: Record<string, { outbound: number; inbound: number }>
+} | null>(null)
 const showSubmitDialog = ref(false)
 const submitDialogData = ref<{ transitionId: number; fromStateName: string; approveStateName: string; approverNames: string[]; workflowName?: string }>({
   transitionId: 0, fromStateName: '', approveStateName: '', approverNames: []
@@ -258,13 +291,14 @@ async function handleTitleChange(newTitle: string) {
   } finally { saving.value = false }
 }
 
-const relationSidebarSummary = computed(() => {
+const relationSidebarSummaryFromTab = computed(() => {
   return relationsTabRef.value?.relationSummary ?? null
 })
+const effectiveRelationSummary = computed(() => relationSidebarSummary.value || relationSidebarSummaryFromTab.value)
 
 const tabs = computed(() => [
   { key: 'details', label: t('issue.tabDetails'), count: undefined },
-  { key: 'relations', label: t('issue.tabRelations'), count: relationSidebarSummary.value?.total ?? undefined },
+  { key: 'relations', label: t('issue.tabRelations'), count: effectiveRelationSummary.value?.total ?? undefined },
   { key: 'attachments', label: t('issue.tabAttachments'), count: issue.value?.attachment_count || undefined },
   { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
   { key: 'activity', label: t('issue.tabActivity'), count: undefined },
@@ -296,6 +330,8 @@ watch(() => [props.issueId, props.visible] as const, async ([id, vis]) => {
         loadCustomFields(),
         loadLabels(),
         loadAgentStatus(id as number),
+        loadRelationSummary(id as number),
+        loadWatchers(id as number),
       ])
       await loadActiveApproval()
     } catch (e) {
@@ -321,7 +357,47 @@ async function loadAgentStatus(id: number) {
 }
 
 async function loadStates() {
-  try { stateOptions.value = await stateApi.listStates(props.projectId) } catch { /* */ }
+  try {
+    const raw = await stateApi.listStates(props.projectId)
+    stateOptions.value = (raw || []).filter((s: any) => {
+      if (s?.is_active === false) return false
+      if (/^E2E\s+Test/i.test(String(s?.name || ''))) return false
+      return true
+    })
+  } catch { /* */ }
+}
+
+async function loadRelationSummary(id: number) {
+  try {
+    const relations = await relationApi.listIssueRelations(id, 'both')
+    const list = Array.isArray(relations) ? relations : []
+    const byType: Record<string, { outbound: number; inbound: number }> = {}
+    let outbound = 0
+    let inbound = 0
+    for (const rel of list) {
+      const typeName = rel.relation_type?.name || rel.relation_name || ''
+      if (!byType[typeName]) byType[typeName] = { outbound: 0, inbound: 0 }
+      if (rel.direction === 'outbound') {
+        byType[typeName].outbound++
+        outbound++
+      } else {
+        byType[typeName].inbound++
+        inbound++
+      }
+    }
+    relationSidebarSummary.value = { total: list.length, outbound, inbound, byType }
+  } catch {
+    relationSidebarSummary.value = null
+  }
+}
+
+async function loadWatchers(id: number) {
+  try {
+    const { watchers } = await issueApi.listWatchers(id)
+    isWatching.value = (watchers || []).includes(currentUserId)
+  } catch {
+    isWatching.value = false
+  }
 }
 async function loadCycles() {
   try { const d = await cycleApi.listCycles(props.projectId); cycleOptions.value = d?.items || d || [] } catch { /* */ }
@@ -346,20 +422,28 @@ async function loadCustomFields() {
     const resp = await getIssueCustomFieldsWithDefinitions(props.issueId!)
     if (resp?.fields) {
       customFieldEntries.value = resp.fields.map((item: any) => ({
-        field: { id: item.id, name: item.name, field_type: item.field_type, options: item.options || [] },
+        field: {
+          id: item.id,
+          name: item.name,
+          field_type: item.field_type,
+          options: item.options || [],
+          is_required: !!item.is_required,
+        },
         value: item.value ?? null,
       }))
+    } else {
+      customFieldEntries.value = []
     }
   } catch { /* */ }
 }
 
-async function reloadIssue() {
-  if (!issue.value) return
-  try {
-    const data = await issueApi.getIssue(issue.value.id)
-    Object.assign(issue.value, data)
-  } catch { /* */ }
-}
+watch(
+  () => issue.value?.issue_type?.id ?? issue.value?.issue_type_id,
+  (next, prev) => {
+    if (next === prev || prev === undefined) return
+    loadCustomFields()
+  },
+)
 
 async function loadActiveApproval() {
   if (!issue.value) return
@@ -462,13 +546,13 @@ async function onApprovalDecided() {
 }
 
 async function onCancelApproval(approval: ApprovalResponse) {
-  if (!confirm(t('approvals.cancelApproval'))) return
+  if (!(await confirm(t('approvals.cancelApproval')))) return
   try {
     await approvalApi.cancel(approval.id)
     await reloadIssue()
     await loadActiveApproval()
   } catch (e: any) {
-    alert(e?.response?.data?.message || 'Failed to cancel approval')
+    toast.error(e?.response?.data?.message || t('issue.saveFailed'))
   }
 }
 
@@ -576,6 +660,48 @@ async function dispatchAgent(agentSelectorId: string) {
   } catch (e: any) {
     toast.error(e?.response?.data?.message || e?.message || 'Failed to dispatch agent')
   } finally { agentDispatching.value = false }
+}
+
+async function reloadIssue() {
+  if (!issue.value) return
+  try {
+    const data = await issueApi.getIssue(issue.value.id)
+    Object.assign(issue.value, data)
+    await loadRelationSummary(issue.value.id)
+  } catch { /* */ }
+}
+
+async function copyPanelLink() {
+  if (!issue.value) return
+  const url = `${window.location.origin}/workspace/${workspaceSlug.value}/project/${props.projectId}/issues/${issue.value.id}`
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.success(t('issue.copied'))
+  } catch {
+    toast.error(t('issue.copyFailed'))
+  }
+}
+
+async function handleToggleWatch() {
+  if (!issue.value) return
+  try {
+    if (isWatching.value) {
+      await issueApi.removeWatcher(issue.value.id)
+      isWatching.value = false
+    } else {
+      await issueApi.addWatcher(issue.value.id)
+      isWatching.value = true
+    }
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || t('issue.saveFailed'))
+  }
+}
+
+async function handleDelete() {
+  if (!issue.value) return
+  if (!(await confirm(t('issueDetail.confirmDelete', { 0: issue.value.name })))) return
+  emit('delete', issue.value)
+  close()
 }
 
 function close() {

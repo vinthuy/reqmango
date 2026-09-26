@@ -1,7 +1,6 @@
 <template>
   <div class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200">
     <div class="flex items-center gap-3 min-w-0 flex-1">
-      <!-- Back button -->
       <button
         data-test="back-btn"
         class="p-1 -ml-1 text-gray-400 hover:text-gray-600 transition-colors shrink-0"
@@ -12,7 +11,6 @@
         </svg>
       </button>
 
-      <!-- Issue type badge -->
       <span
         class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0"
         :style="{ backgroundColor: issue?.issue_type?.color + '20', color: issue?.issue_type?.color }"
@@ -20,13 +18,18 @@
         {{ issue?.issue_type?.name }}
       </span>
 
-      <!-- Sequence ID -->
       <span class="text-xs text-gray-400 font-mono shrink-0">{{ projectIdentifier }}-{{ issue?.sequence_id }}</span>
 
-      <!-- Title -->
-      <span class="text-sm font-semibold text-gray-800 truncate">{{ issue?.name }}</span>
+      <input
+        data-test="issue-title-input"
+        class="flex-1 min-w-0 text-sm font-semibold text-gray-800 bg-transparent border border-transparent rounded px-1.5 py-0.5 hover:border-gray-200 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
+        :value="localTitle"
+        :disabled="savingTitle"
+        @input="onTitleInput"
+        @blur="commitTitle"
+        @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+      />
 
-      <!-- Priority -->
       <span
         v-if="issue?.priority && issue.priority !== 'none'"
         class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0"
@@ -38,7 +41,6 @@
     </div>
 
     <div class="flex items-center gap-2 shrink-0">
-      <!-- Watch button -->
       <button
         class="p-1.5 rounded transition-colors"
         :class="isWatching ? 'text-indigo-500 hover:bg-indigo-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'"
@@ -48,7 +50,6 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
       </button>
 
-      <!-- Copy link -->
       <button
         class="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded transition-colors"
         :title="t('issue.copyLink')"
@@ -58,7 +59,6 @@
       </button>
       <span v-if="copied" class="text-[10px] text-green-600">{{ t('issue.copied') }}</span>
 
-      <!-- Delete button -->
       <button
         data-test="delete-btn"
         class="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-md hover:bg-red-50 transition-colors"
@@ -66,42 +66,56 @@
       >
         {{ t('common.delete') }}
       </button>
-
-      <!-- Save button -->
-      <button
-        data-test="save-btn"
-        class="px-4 py-1.5 text-sm font-medium bg-neutral-900 text-white rounded-md hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        :disabled="saving"
-        @click="$emit('save')"
-      >
-        {{ saving ? t('issue.saving') : t('issue.save') }}
-      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 
-defineProps<{
+const props = defineProps<{
   issue: any
-  saving: boolean
   projectIdentifier?: string
   isWatching?: boolean
 }>()
 
-defineEmits<{
-  save: []
+const emit = defineEmits<{
   back: []
   delete: []
   toggleWatch: []
+  'update:title': [title: string]
 }>()
 
 const { t } = useI18n()
 const toast = useToast()
 const copied = ref(false)
+const localTitle = ref(props.issue?.name || '')
+const savingTitle = ref(false)
+let titleDirty = false
+
+watch(() => props.issue?.name, (name) => {
+  if (!titleDirty) localTitle.value = name || ''
+}, { immediate: true })
+
+function onTitleInput(e: Event) {
+  titleDirty = true
+  localTitle.value = (e.target as HTMLInputElement).value
+}
+
+function commitTitle() {
+  const next = localTitle.value.trim()
+  const prev = (props.issue?.name || '').trim()
+  titleDirty = false
+  if (!next || next === prev) {
+    localTitle.value = props.issue?.name || ''
+    return
+  }
+  savingTitle.value = true
+  emit('update:title', next)
+  savingTitle.value = false
+}
 
 function copyLink() {
   const url = window.location.href

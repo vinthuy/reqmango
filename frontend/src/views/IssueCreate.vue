@@ -689,7 +689,11 @@ async function submitForm() {
     emit('created', issue)
 
     // 返回到项目页面，并保持当前的视图状态
-    router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}?view=${returnView.value}`)
+    if (slug.value) {
+      router.push(`/workspace/${slug.value}/project/${projectId.value}?view=${returnView.value}`)
+    } else {
+      router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}?view=${returnView.value}`)
+    }
   } catch (error: any) {
     console.error('Failed to create issue:', error)
     const errorMsg = error.response?.data?.message || error.message || t('issue.unknownError')

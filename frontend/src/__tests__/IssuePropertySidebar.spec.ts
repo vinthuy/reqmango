@@ -39,7 +39,15 @@ const mountOptions = {
     members: mockMembers,
     cycles: mockCycles,
     modules: mockModules,
+    releases: [],
     customFields: [],
+    workspaceId: 1,
+  },
+  global: {
+    stubs: {
+      AgentSelector: true,
+      LabelSelector: true,
+    },
   },
 }
 

@@ -34,7 +34,7 @@
             >
               {{ projectSummarizing ? t('common.loading') : t('project.aiSummary') }}
             </button>
-            <button @click="router.push(`/workspaces/${workspaceId}/projects/${projectId}/issues/new?view=${issueView}`)" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition shadow-sm">
+            <button @click="router.push(`/workspace/${route.params.slug}/project/${projectId}/issues/new?view=${issueView}`)" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition shadow-sm">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               {{ t('project.create') }}
             </button>
@@ -184,7 +184,7 @@
         :visible="detailPanelVisible"
         :workspace-id="workspaceId"
         :project-id="projectId"
-        @close="detailPanelVisible = false"
+        @close="closeDetailPanel"
         @delete="handleDetailDelete"
         @refresh="handleDetailRefresh"
       />
@@ -479,6 +479,12 @@ function handleColumnsChanged(columns: string[]) {
 
 function handleViewChange(view: 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt') {
   issueView.value = view
+  router.replace({
+    query: {
+      ...route.query,
+      view,
+    },
+  })
 }
 
 // Note: FilterBar handles its own data loading (states, cycles, members, modules, issueTypes, labels, customFields)
@@ -587,6 +593,20 @@ watch(activeTab, (tab) => {
 function openDetailPanel(issue: any) {
   detailIssueId.value = issue.id
   detailPanelVisible.value = true
+  router.push({
+    query: {
+      ...route.query,
+      issue: String(issue.id),
+    },
+  })
+}
+
+function closeDetailPanel() {
+  detailPanelVisible.value = false
+  detailIssueId.value = null
+  const q = { ...route.query }
+  delete q.issue
+  router.replace({ query: q })
 }
 
 function handleDetailDelete(issue: any) {
@@ -696,7 +716,7 @@ async function handleDeleteIssue(issue: any) {
   if (await confirm(t('project.deleteIssueConfirm', { name: issue?.name || 'selected issues' }))) {
     try {
       await issueApi.deleteIssue(issue.id)
-      detailPanelVisible.value = false
+      closeDetailPanel()
       triggerRefresh()
     } catch (err) {
       console.error('Failed to delete issue:', err)
@@ -704,6 +724,28 @@ async function handleDeleteIssue(issue: any) {
     }
   }
 }
+
+function syncDetailFromQuery() {
+  const raw = route.query.issue
+  const id = raw ? parseInt(String(raw), 10) : NaN
+  if (id > 0) {
+    detailIssueId.value = id
+    detailPanelVisible.value = true
+  } else {
+    detailIssueId.value = null
+    detailPanelVisible.value = false
+  }
+}
+
+watch(() => route.query.issue, () => {
+  syncDetailFromQuery()
+})
+
+watch(() => route.query.view, (view) => {
+  if (view && typeof view === 'string') {
+    issueView.value = view as any
+  }
+})
 
 onMounted(async () => {
   loading.value = true
@@ -731,6 +773,7 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+  syncDetailFromQuery()
   const handleKeydown = (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
       e.preventDefault()
@@ -739,6 +782,10 @@ onMounted(async () => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault()
       showCommandPalette.value = !showCommandPalette.value
+    }
+    if (e.key === 'Escape' && detailPanelVisible.value) {
+      e.preventDefault()
+      closeDetailPanel()
     }
   }
   document.addEventListener('keydown', handleKeydown)

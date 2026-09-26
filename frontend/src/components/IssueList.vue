@@ -364,7 +364,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import issueApi from '@/api/issue'
@@ -382,6 +382,7 @@ import type { IssueResponse } from '@/types/issue'
 
 const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string; searchTerm?: string; columns?: string[] }>()
 const router = useRouter()
+const route = useRoute()
 const { t, locale } = useI18n()
 const toast = useToast()
 
@@ -655,7 +656,14 @@ function assigneeColor(i: number) { return ['#6366f1', '#10b981', '#f59e0b', '#e
 function formatDate(d: string | null | undefined) { if (!d) return '-'; return new Date(d).toLocaleDateString(locale.value) }
 
 // ── Actions ──
-function goToCreate() { router.push(`/workspaces/${props.workspaceId}/projects/${props.projectId}/issues/new`) }
+function goToCreate() {
+  const slug = (route.params as any).slug as string
+  if (slug) {
+    router.push(`/workspace/${slug}/project/${props.projectId}/issues/new`)
+  } else {
+    router.push(`/workspaces/${props.workspaceId}/projects/${props.projectId}/issues/new`)
+  }
+}
 
 async function handleDecompose(issue: any) {
   decomposeLoading.value = true

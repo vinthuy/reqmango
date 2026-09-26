@@ -1,6 +1,14 @@
 <template>
   <div class="issue-detail-page min-h-screen bg-white">
-    <IssueDetailHeader :issue :saving :project-identifier="projectIdentifier" :is-watching="isWatching" @back="goBack" @save="saveIssue" @delete="deleteIssue" @toggle-watch="handleToggleWatch" />
+    <IssueDetailHeader
+      :issue
+      :project-identifier="projectIdentifier"
+      :is-watching="isWatching"
+      @back="goBack"
+      @delete="deleteIssue"
+      @toggle-watch="handleToggleWatch"
+      @update:title="handleTitleSave"
+    />
 
     <div class="max-w-6xl mx-auto px-6 pt-4">
       <ApprovalPendingBanner
@@ -54,8 +62,7 @@
           <IssueTabDetails
             v-if="activeTab === 'details'"
             v-bind="detailProps"
-            @update:title="issueForm.name = $event"
-            @update:description="issueForm.description = $event"
+            @update:description="handleDescriptionSave"
             @navigate="navigateToIssue"
           />
           <IssueTabRelations
@@ -250,7 +257,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import { useRoute, useRouter } from 'vue-router'
@@ -268,6 +275,7 @@ import { issueAgentApi, type AgentStatus } from '@/api/issue-agent'
 import type { Agent } from '@/types/agent'
 import { useConfirm } from '@/composables/useConfirm'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
+import relationApi from '@/api/relation'
 import IssueDetailHeader from '@/components/IssueDetailHeader.vue'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
 import IssueTabDetails from '@/components/IssueTabDetails.vue'
@@ -298,7 +306,6 @@ const projectLabels = ref<Array<{ id: number; name: string; color: string }>>([]
 
 // Reactive state
 const issue = ref<any>(null)
-const saving = ref(false)
 const issueForm = ref({ name: '', description: '' })
 const states = ref<any[]>([])
 const cycles = ref<any[]>([])
@@ -363,10 +370,37 @@ const submitDialogData = ref<{ transitionId: number; fromStateName: string; appr
 })
 const decisionDialogData = ref<{ approvalId: number; decision: 'approved' | 'rejected' } | null>(null)
 
-// Relation summary for sidebar
-const relationSidebarSummary = computed(() => {
-  return relationsTabRef.value?.relationSummary ?? null
-})
+// Relation summary for sidebar (loaded independently of Relations tab)
+const relationSidebarSummary = ref<{
+  total: number
+  outbound: number
+  inbound: number
+  byType: Record<string, { outbound: number; inbound: number }>
+} | null>(null)
+
+async function loadRelationSummary() {
+  try {
+    const relations = await relationApi.listIssueRelations(issueId, 'both')
+    const list = Array.isArray(relations) ? relations : []
+    const byType: Record<string, { outbound: number; inbound: number }> = {}
+    let outbound = 0
+    let inbound = 0
+    for (const rel of list) {
+      const typeName = rel.relation_type?.name || rel.relation_name || ''
+      if (!byType[typeName]) byType[typeName] = { outbound: 0, inbound: 0 }
+      if (rel.direction === 'outbound') {
+        byType[typeName].outbound++
+        outbound++
+      } else {
+        byType[typeName].inbound++
+        inbound++
+      }
+    }
+    relationSidebarSummary.value = { total: list.length, outbound, inbound, byType }
+  } catch {
+    relationSidebarSummary.value = null
+  }
+}
 
 // Tabs definition
 const tabs = computed(() => [
@@ -499,6 +533,7 @@ onMounted(async () => {
       loadWatchers(),
       loadAgentStatus(),
       loadWorkspaceAgents(),
+      loadRelationSummary(),
     ])
     // Load active approval if pending
     await loadActiveApproval()
@@ -609,14 +644,26 @@ async function loadCustomFields() {
           name: item.name,
           field_type: item.field_type,
           options: item.options || [],
+          is_required: !!item.is_required,
         },
         value: item.value ?? null,
       }))
+    } else {
+      customFieldEntries.value = []
     }
   } catch (error) {
     console.error('Failed to load custom fields:', error)
   }
 }
+
+// When issue type changes, field set must follow the new type bindings.
+watch(
+  () => issue.value?.issue_type?.id ?? issue.value?.issue_type_id,
+  (next, prev) => {
+    if (next === prev || prev === undefined) return
+    loadCustomFields()
+  },
+)
 
 async function loadLabels() {
   try {
@@ -650,21 +697,28 @@ async function updateCustomField(fieldId: number, value: string) {
   }
 }
 
-// Save issue (batch save title + description)
-async function saveIssue() {
-  saving.value = true
+async function handleTitleSave(title: string) {
   try {
-    await issueApi.updateIssue(issueId, {
-      name: issueForm.value.name,
-      description_html: issueForm.value.description || undefined,
-    })
-    toast.success(t('issue.saveSuccess'))
-  } catch (error) {
-    console.error('Failed to save issue:', error)
-    toast.error(t('issue.saveFailed'))
-  } finally {
-    saving.value = false
+    const updated = await issueApi.updateIssue(issueId, { name: title })
+    if (issue.value) Object.assign(issue.value, updated)
+    issueForm.value.name = title
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || t('issue.saveFailed'))
   }
+}
+
+let descTimer: ReturnType<typeof setTimeout> | null = null
+async function handleDescriptionSave(html: string) {
+  issueForm.value.description = html
+  if (descTimer) clearTimeout(descTimer)
+  descTimer = setTimeout(async () => {
+    try {
+      const updated = await issueApi.updateIssue(issueId, { description_html: html || undefined })
+      if (issue.value) Object.assign(issue.value, updated)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || t('issue.saveFailed'))
+    }
+  }, 600)
 }
 
 // Instant update for sidebar field changes
@@ -793,14 +847,14 @@ async function onApprovalDecided() {
 }
 
 async function onCancelApproval(approval: ApprovalResponse) {
-  if (!confirm(t('approvals.cancelApproval'))) return
+  if (!(await confirm(t('approvals.cancelApproval')))) return
   try {
     await approvalApi.cancel(approval.id)
     const updated = await issueApi.getIssue(issueId)
     issue.value = updated
     await loadActiveApproval()
   } catch (e: any) {
-    alert(e?.response?.data?.message || 'Failed to cancel approval')
+    toast.error(e?.response?.data?.message || t('issue.saveFailed'))
   }
 }
 
@@ -859,6 +913,7 @@ async function handleRelationsRefresh() {
     if (issue.value) {
       Object.assign(issue.value, data)
     }
+    await loadRelationSummary()
   } catch (err) {
     console.error('Failed to refresh issue after relations change:', err)
   }
