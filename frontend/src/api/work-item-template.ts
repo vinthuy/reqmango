@@ -13,9 +13,14 @@ export async function getWorkItemTemplate(projectId: number, templateId: number)
 
 export async function createWorkItemTemplate(
   projectId: number,
-  data: WorkItemTemplateCreate
+  data: WorkItemTemplateCreate,
+  workspaceId: number
 ): Promise<WorkItemTemplate> {
-  const response = await api.post(`/projects/${projectId}/work-item-templates`, data)
+  const response = await api.post(
+    `/projects/${projectId}/work-item-templates`,
+    data,
+    { params: { workspace_id: workspaceId } }
+  )
   return response.data
 }
 

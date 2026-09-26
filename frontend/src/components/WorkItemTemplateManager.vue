@@ -219,7 +219,7 @@ async function saveTemplate() {
       await updateWorkItemTemplate(props.projectId, editingTemplate.value.id, data)
       toast.success(t('workItemTemplate.updateSuccess'))
     } else {
-      await createWorkItemTemplate(props.projectId, data)
+      await createWorkItemTemplate(props.projectId, data, props.workspaceId)
       toast.success(t('workItemTemplate.createSuccess'))
     }
 
