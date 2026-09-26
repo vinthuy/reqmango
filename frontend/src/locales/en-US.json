@@ -450,6 +450,7 @@
     "labels": "Labels",
     "issueTypes": "Issue Types",
     "templates": "Templates",
+    "projectTemplates": "Project templates",
     "modules": "Modules",
     "cycles": "Cycles",
     "releases": "Releases",
@@ -603,7 +604,8 @@
     "selectMemberPlaceholder": "Select a member...",
     "add": "Add",
     "workspaceAutomationsDesc": "Workspace-level automation rules",
-    "workspaceStatesDesc": "Manage workspace-level states inherited by projects"
+    "workspaceStatesDesc": "Workspace-level state catalog that new projects can inherit. Day-to-day boards still use each project's own states.",
+    "workspaceStatesEmptyHint": "No workspace states yet — projects can still have their own. Add states here if you want new projects to inherit a shared set."
   },
   "ai": {
     "title": "AI Assistant",
@@ -3329,7 +3331,7 @@
   },
   "template": {
     "title": "Project Templates",
-    "desc": "Create reusable project structures from type templates",
+    "desc": "Reusable blueprints for creating projects (types / states / labels). Work-item quick-create templates are in project settings.",
     "create": "Create Template",
     "types": "Types",
     "states": "States",

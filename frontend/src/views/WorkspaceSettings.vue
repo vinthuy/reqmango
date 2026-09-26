@@ -1,5 +1,5 @@
 <script setup lang="ts">import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from '@/composables/useI18n';
 import RelationTypeManager from '@/components/RelationTypeManager.vue';
 import WorkspaceIssueTypeManager from '@/components/WorkspaceIssueTypeManager.vue';
@@ -35,17 +35,45 @@ const { t } = useI18n();
 const toast = useToast();
 
 const route = useRoute();
+const router = useRouter();
 const slug = computed(() => (route.params as any).slug as string || '');
 
 const loading = ref(false);
 const workspaceId = ref(0);
 const firstProjectId = ref(0);
 const workspaceProjects = ref<any[]>([]);
-const activeSection = ref('types');
+const activeSection = ref('members');
+
+const VALID_SECTIONS = new Set([
+  'members', 'types', 'states', 'templates', 'ai', 'fields',
+  'workflows', 'automations', 'relations', 'integrations', 'roles', 'plugins',
+])
+
+function unwrapList(value: unknown): any[] {
+  if (Array.isArray(value)) return value
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>
+    // AxiosResponse → body
+    if (obj.data !== undefined) return unwrapList(obj.data)
+  }
+  return []
+}
+
+function setSection(id: string) {
+  if (!VALID_SECTIONS.has(id)) return
+  activeSection.value = id
+  const nextQuery = { ...route.query, section: id }
+  router.replace({ query: nextQuery })
+}
 
 onMounted(() => {
   const section = route.query.section as string
-  if (section && typeof section === 'string') activeSection.value = section
+  if (section && VALID_SECTIONS.has(section)) {
+    activeSection.value = section
+  } else if (!section) {
+    // Keep URL shareable even on first load
+    router.replace({ query: { ...route.query, section: activeSection.value } })
+  }
   loadWorkspace()
 })
 
@@ -61,16 +89,17 @@ const pluginCount = ref(0);
 const roleCount = ref(0);
 const integrationCount = ref(0);
 const workspaceStates = ref<any[]>([]);
+const hasNoWorkspaceStates = computed(() => workspaceStates.value.length === 0)
 
 const navItems = computed(() => [
   { id: 'members', label: t('settings.members'), icon: '👥', count: memberCount.value },
   { id: 'types', label: t('settings.workItemTypes'), icon: '📋', count: issueTypes.value.length },
-  { id: 'states', label: t('settings.states'), icon: '🔄', count: workspaceStates.value.length },
-  { id: 'templates', label: t('settings.templates'), icon: '📦', count: templateCount.value },
-  { id: 'ai', label: t('settings.ai'), icon: '🤖', count: 0 },
+  { id: 'states', label: t('settings.states'), icon: '⬤', count: workspaceStates.value.length },
+  { id: 'templates', label: t('settings.projectTemplates'), icon: '📦', count: templateCount.value },
+  { id: 'ai', label: t('settings.ai'), icon: '✨', count: 0 },
   { id: 'fields', label: t('settings.fields'), icon: '📝', count: customFields.value.length },
-  { id: 'workflows', label: t('settings.workflows'), icon: '🔄', count: workflows.value.length },
-  { id: 'automations', label: t('settings.automations'), icon: '🤖', count: automations.value.length },
+  { id: 'workflows', label: t('settings.workflows'), icon: '🔀', count: workflows.value.length },
+  { id: 'automations', label: t('settings.automations'), icon: '⚡', count: automations.value.length },
   { id: 'relations', label: t('settings.relations'), icon: '🔗', count: relationTypes.value.length },
   { id: 'integrations', label: t('settings.integrations'), icon: '🔌', count: integrationCount.value },
   { id: 'roles', label: t('settings.roles'), icon: '🔑', count: roleCount.value },
@@ -110,22 +139,20 @@ async function loadAllData() {
       slackApi.list(wid),
       api.get(`/workspaces/${wid}/settings/states`).then(r => r.data),
     ]);
-    issueTypes.value = results[0].status === 'fulfilled' ? (Array.isArray(results[0].value) ? results[0].value : []) : [];
-    customFields.value = results[1].status === 'fulfilled' ? (Array.isArray(results[1].value) ? results[1].value : []) : [];
-    workflows.value = results[2].status === 'fulfilled' ? (Array.isArray(results[2].value) ? results[2].value : []) : [];
-    automations.value = results[3].status === 'fulfilled' ? (Array.isArray(results[3].value) ? results[3].value : []) : [];
-    relationTypes.value = results[4].status === 'fulfilled' ? (Array.isArray(results[4].value) ? results[4].value : []) : [];
-    memberCount.value = results[5].status === 'fulfilled' ? (Array.isArray(results[5].value) ? results[5].value.length : 0) : 0;
-    templateCount.value = results[6].status === 'fulfilled' ? (Array.isArray(results[6].value) ? results[6].value.length : 0) : 0;
-    pluginCount.value = results[7].status === 'fulfilled' ? (Array.isArray(results[7].value) ? results[7].value.length : 0) : 0;
-    const roles = results[8].status === 'fulfilled' ? results[8].value : null;
-    const roleData = roles?.data;
-    roleCount.value = Array.isArray(roleData) ? roleData.length : (Array.isArray(roles) ? roles.length : 0);
-    const mcp = results[9].status === 'fulfilled' ? (Array.isArray(results[9].value) ? results[9].value : []) : [];
-    const github = results[10].status === 'fulfilled' ? (Array.isArray(results[10].value) ? results[10].value : []) : [];
-    const slack = results[11].status === 'fulfilled' ? (Array.isArray(results[11].value) ? results[11].value : []) : [];
+    issueTypes.value = results[0].status === 'fulfilled' ? unwrapList(results[0].value) : [];
+    customFields.value = results[1].status === 'fulfilled' ? unwrapList(results[1].value) : [];
+    workflows.value = results[2].status === 'fulfilled' ? unwrapList(results[2].value) : [];
+    automations.value = results[3].status === 'fulfilled' ? unwrapList(results[3].value) : [];
+    relationTypes.value = results[4].status === 'fulfilled' ? unwrapList(results[4].value) : [];
+    memberCount.value = results[5].status === 'fulfilled' ? unwrapList(results[5].value).length : 0;
+    templateCount.value = results[6].status === 'fulfilled' ? unwrapList(results[6].value).length : 0;
+    pluginCount.value = results[7].status === 'fulfilled' ? unwrapList(results[7].value).length : 0;
+    roleCount.value = results[8].status === 'fulfilled' ? unwrapList(results[8].value).length : 0;
+    const mcp = results[9].status === 'fulfilled' ? unwrapList(results[9].value) : [];
+    const github = results[10].status === 'fulfilled' ? unwrapList(results[10].value) : [];
+    const slack = results[11].status === 'fulfilled' ? unwrapList(results[11].value) : [];
     integrationCount.value = mcp.length + github.length + slack.length;
-    workspaceStates.value = results[12].status === 'fulfilled' ? (Array.isArray(results[12].value?.data) ? results[12].value.data : (Array.isArray(results[12].value) ? results[12].value : [])) : [];
+    workspaceStates.value = results[12].status === 'fulfilled' ? unwrapList(results[12].value) : [];
   } catch (e) { console.error('Failed to load data:', e); }
   finally { loading.value = false; }
 }
@@ -237,7 +264,9 @@ async function wsHandleDeleteState(_groupId: string, state: any) {
 }
 
 watch(() => route.query.section, (section) => {
-  if (section && typeof section === 'string') activeSection.value = section
+  if (typeof section === 'string' && VALID_SECTIONS.has(section) && section !== activeSection.value) {
+    activeSection.value = section
+  }
 })
 </script>
 
@@ -253,7 +282,7 @@ watch(() => route.query.section, (section) => {
         <button
           v-for="item in navItems"
           :key="item.id"
-          @click="activeSection = item.id"
+          @click="setSection(item.id)"
           :class="['w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors', activeSection === item.id ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800']"
         >
           <span class="flex items-center space-x-3">
@@ -282,6 +311,12 @@ watch(() => route.query.section, (section) => {
       <div v-if="!loading && activeSection === 'states'" class="p-6 space-y-6">
         <div class="flex items-center justify-between">
           <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.workItemStates') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.workspaceStatesDesc') }}</p></div>
+        </div>
+        <div
+          v-if="hasNoWorkspaceStates"
+          class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          {{ t('settings.workspaceStatesEmptyHint') }}
         </div>
         <div v-for="group in wsStateGroups" :key="group.id" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">

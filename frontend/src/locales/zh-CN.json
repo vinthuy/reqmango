@@ -450,6 +450,7 @@
     "labels": "标签",
     "issueTypes": "工作项类型",
     "templates": "模板",
+    "projectTemplates": "项目模板",
     "modules": "模块",
     "cycles": "周期",
     "releases": "发布",
@@ -603,7 +604,8 @@
     "selectMemberPlaceholder": "选择成员...",
     "add": "添加",
     "workspaceAutomationsDesc": "工作空间级自动化规则",
-    "workspaceStatesDesc": "管理工作区级状态，可被项目继承"
+    "workspaceStatesDesc": "工作区级状态目录，新建项目时可继承；日常看板状态仍以各项目自己的状态为准。",
+    "workspaceStatesEmptyHint": "当前工作区还没有状态。这不等于项目坏了——项目侧可以有自己的状态。若希望新建项目时继承统一状态，请在此添加。"
   },
   "ai": {
     "title": "AI 助手",
@@ -3329,7 +3331,7 @@
   },
   "template": {
     "title": "项目模板",
-    "desc": "从类型模板创建可重用的项目结构",
+    "desc": "用于新建项目的可复用结构（类型/状态/标签）。工作项快速创建模板请到项目设置。",
     "create": "创建模板",
     "types": "类型",
     "states": "状态",
