@@ -48,6 +48,9 @@
         </button>
       </div>
     </div>
+    <p v-if="activeTemplateName" class="mt-1 text-[11px] text-gray-400">
+      {{ t('workItemTemplate.appliedHint', { name: activeTemplateName }) }}
+    </p>
     <div
       v-if="duplicates.length > 0"
       class="mt-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5"
@@ -67,9 +70,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import issueApi from '@/api/issue'
 import type { DuplicateIssueItem } from '@/api/issue'
+import { listWorkItemTemplates } from '@/api/work-item-template'
+import type { WorkItemTemplate } from '@/types/work-item-template'
 import { useI18n } from '@/composables/useI18n'
 
 const { t } = useI18n()
@@ -103,20 +108,67 @@ const emit = defineEmits<{
 const titleInput = ref<HTMLInputElement | null>(null)
 const creating = ref(false)
 const duplicates = ref<DuplicateIssueItem[]>([])
+const templates = ref<WorkItemTemplate[]>([])
+const activeTemplate = ref<WorkItemTemplate | null>(null)
 let duplicateTimer: ReturnType<typeof setTimeout> | null = null
 
 const quickCreate = reactive({
   title: '',
   type_id: '' as string | number | null,
   priority: 'none' as string,
-  state_id: props.defaultStateId || null
+  state_id: props.defaultStateId || null as number | null,
+  description_html: '' as string,
 })
+
+const activeTemplateName = computed(() => activeTemplate.value?.name || '')
 
 watch(() => props.defaultTypeId, (newVal) => {
   if (newVal && !quickCreate.type_id) {
     quickCreate.type_id = newVal
   }
 }, { immediate: true })
+
+watch(() => quickCreate.type_id, () => {
+  applyDefaultTemplate()
+})
+
+async function loadTemplates() {
+  try {
+    templates.value = await listWorkItemTemplates(props.projectId)
+    applyDefaultTemplate()
+  } catch {
+    templates.value = []
+  }
+}
+
+function resolveDefaultTemplate(typeId: number | null): WorkItemTemplate | null {
+  const typed = typeId
+    ? templates.value.find((t) => t.is_default && t.issue_type_id === typeId)
+    : undefined
+  if (typed) return typed
+  return templates.value.find((t) => t.is_default && !t.issue_type_id) || null
+}
+
+function applyDefaultTemplate() {
+  const typeId = quickCreate.type_id ? Number(quickCreate.type_id) : null
+  const tpl = resolveDefaultTemplate(typeId)
+  activeTemplate.value = tpl
+  if (!tpl) return
+  const d = tpl.defaults || {}
+  if (d.priority) quickCreate.priority = d.priority
+  if (d.state_id) quickCreate.state_id = Number(d.state_id)
+  else if (props.defaultStateId) quickCreate.state_id = props.defaultStateId
+  if (d.description_html) quickCreate.description_html = d.description_html
+  // Prefill name prefix only when title empty
+  if (d.name_prefix && !quickCreate.title.trim()) {
+    quickCreate.title = d.name_prefix
+  }
+}
+
+onMounted(() => {
+  loadTemplates()
+  if (props.autoFocus) titleInput.value?.focus()
+})
 
 async function runDuplicateCheck() {
   const name = quickCreate.title.trim()
@@ -146,19 +198,29 @@ async function handleCreate() {
 
   creating.value = true
   try {
+    let name = quickCreate.title.trim()
+    const prefix = activeTemplate.value?.defaults?.name_prefix
+    if (prefix && !name.startsWith(prefix)) {
+      name = prefix + name
+    }
     const issueData: any = {
-      name: quickCreate.title.trim(),
-      issue_type_id: quickCreate.type_id,
-      priority: quickCreate.priority
+      name,
+      type_id: quickCreate.type_id ? Number(quickCreate.type_id) : undefined,
+      priority: quickCreate.priority,
     }
     if (quickCreate.state_id) {
       issueData.state_id = quickCreate.state_id
+    }
+    if (quickCreate.description_html) {
+      issueData.description_html = quickCreate.description_html
     }
     const issue = await issueApi.createIssue(props.projectId, props.workspaceId, issueData)
     emit('created', issue)
     quickCreate.title = ''
     quickCreate.priority = 'none'
+    quickCreate.description_html = ''
     duplicates.value = []
+    applyDefaultTemplate()
     titleInput.value?.focus()
   } catch (e) {
     console.error('Failed to quick create issue:', e)
@@ -170,6 +232,7 @@ async function handleCreate() {
 function handleCancel() {
   quickCreate.title = ''
   quickCreate.priority = 'none'
+  quickCreate.description_html = ''
   duplicates.value = []
   emit('cancel')
 }

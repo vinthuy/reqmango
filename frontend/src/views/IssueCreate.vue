@@ -409,12 +409,13 @@ function applyTemplate(template: WorkItemTemplate | null) {
 }
 
 function applyDefaultTemplateForType(typeId: number | null) {
-  if (!typeId) {
-    selectedTemplateId.value = null
-    return
-  }
+  // Prefer type-scoped default; fall back to project-wide default (no issue_type_id).
+  const defaultTemplate =
+    (typeId
+      ? templates.value.find((t) => t.is_default && t.issue_type_id === typeId)
+      : undefined) ||
+    templates.value.find((t) => t.is_default && !t.issue_type_id)
 
-  const defaultTemplate = templates.value.find(t => t.is_default && t.issue_type_id === typeId)
   if (defaultTemplate) {
     selectedTemplateId.value = defaultTemplate.id
     applyTemplate(defaultTemplate)
@@ -712,12 +713,13 @@ function goBack() {
 watch(selectedTypeId, (newTypeId) => {
   if (newTypeId) {
     loadLinkedFields(newTypeId)
-    applyDefaultTemplateForType(newTypeId)
   }
+  applyDefaultTemplateForType(newTypeId)
 })
 
 onMounted(async () => {
   await loadData()
+  applyDefaultTemplateForType(selectedTypeId.value)
 })
 
 </script>

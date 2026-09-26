@@ -158,6 +158,7 @@
             >
               {{ agentDispatching ? t('agent.dispatching') : t('agent.dispatchAgent') }}
             </button>
+            <p class="text-[10px] text-gray-400 leading-snug">{{ t('agent.sidebarHint') }}</p>
           </div>
         </div>
       </div>

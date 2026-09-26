@@ -1,5 +1,9 @@
 <template>
-  <div class="issue-list bg-white rounded-xl border border-gray-100">
+  <div
+    class="issue-list bg-white rounded-xl border border-gray-100 outline-none"
+    tabindex="0"
+    @keydown="onListKeydown"
+  >
     <!-- Toolbar: 操作按钮 -->
     <div class="px-4 py-2.5 border-b border-gray-100">
       <div class="flex items-center gap-3">
@@ -168,7 +172,10 @@
             <template v-if="!group.subGroups || group.subGroups.length === 0">
               <tr v-for="issue in group.issues" :key="issue.id"
                 class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
-                :class="{ 'bg-blue-50/50': selectedIds.has(issue.id) }">
+                :class="{
+                  'bg-blue-50/50': selectedIds.has(issue.id),
+                  'ring-2 ring-inset ring-indigo-300 bg-indigo-50/40': focusedIssueId === issue.id,
+                }">
                 <td class="px-3 py-2.5" @click.stop>
                   <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300" />
                 </td>
@@ -227,7 +234,10 @@
               </tr>
               <tr v-for="issue in sub.issues" :key="issue.id"
                 class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
-                :class="{ 'bg-blue-50/50': selectedIds.has(issue.id) }">
+                :class="{
+                  'bg-blue-50/50': selectedIds.has(issue.id),
+                  'ring-2 ring-inset ring-indigo-300 bg-indigo-50/40': focusedIssueId === issue.id,
+                }">
                 <td class="px-3 py-2.5" @click.stop>
                   <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300" />
                 </td>
@@ -632,6 +642,43 @@ const groupedIssues = computed((): GroupedIssue[] => {
 
   return Object.values(groups).sort((a, b) => a.label.localeCompare(b.label))
 })
+
+const navigableIssues = computed(() => {
+  const rows: any[] = []
+  for (const g of groupedIssues.value) {
+    if (g.subGroups?.length) {
+      for (const sg of g.subGroups) rows.push(...sg.issues)
+    } else {
+      rows.push(...g.issues)
+    }
+  }
+  return rows
+})
+
+const focusedIssueId = ref<number | null>(null)
+
+function onListKeydown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.isContentEditable) {
+    return
+  }
+  const rows = navigableIssues.value
+  if (!rows.length) return
+  const idx = focusedIssueId.value == null ? -1 : rows.findIndex((i) => i.id === focusedIssueId.value)
+  if (e.key === 'j' || e.key === 'ArrowDown') {
+    e.preventDefault()
+    const next = Math.min(rows.length - 1, Math.max(0, idx + 1))
+    focusedIssueId.value = rows[next].id
+  } else if (e.key === 'k' || e.key === 'ArrowUp') {
+    e.preventDefault()
+    const next = Math.max(0, idx <= 0 ? 0 : idx - 1)
+    focusedIssueId.value = rows[next].id
+  } else if (e.key === 'Enter' && focusedIssueId.value) {
+    e.preventDefault()
+    const issue = rows.find((i) => i.id === focusedIssueId.value)
+    if (issue) emit('select', issue)
+  }
+}
 
 const visiblePages = computed(() => {
   const pages: (number | string)[] = []

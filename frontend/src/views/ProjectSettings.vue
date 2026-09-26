@@ -63,6 +63,31 @@ async function loadRelationTypes() {
 const states = ref<any[]>([])
 const labels = ref<any[]>([])
 const workflows = ref<any[]>([])
+const visibleAgentWorkflows = computed(() =>
+  workflows.value.filter((w) => !/^\[?E2E\b/i.test(String(w?.name || '')))
+)
+const hiddenE2EWorkflowCount = computed(() => workflows.value.length - visibleAgentWorkflows.value.length)
+const runningWorkflowId = ref<number | null>(null)
+
+async function handleRunAgentWorkflow(workflow: any) {
+  if (!projectId.value || runningWorkflowId.value) return
+  const raw = window.prompt(t('settings.runAgentWorkflowPrompt'), '')
+  if (raw === null) return
+  const issueId = raw.trim() ? parseInt(raw.trim(), 10) : undefined
+  if (raw.trim() && (!issueId || Number.isNaN(issueId))) {
+    toast.error(t('settings.runAgentWorkflowFailed'))
+    return
+  }
+  runningWorkflowId.value = workflow.id
+  try {
+    await workflowApi.execute(projectId.value, workflow.id, issueId)
+    toast.success(t('settings.runAgentWorkflowSuccess'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || t('settings.runAgentWorkflowFailed'))
+  } finally {
+    runningWorkflowId.value = null
+  }
+}
 const automations = ref<any[]>([])
 const members = ref<any[]>([])
 
@@ -979,15 +1004,20 @@ watch(() => route.query.section, (section) => {
               class="inline-block mt-2 text-indigo-600 hover:text-indigo-700 font-medium"
             >{{ t('settings.goWorkspaceWorkflows') }} →</router-link>
           </div>
+          <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 text-sm text-indigo-950">
+            <p class="font-medium">{{ t('settings.agentOrchestrationPathsTitle') }}</p>
+            <p class="mt-1 text-indigo-900/90">{{ t('settings.agentOrchestrationPathsDesc') }}</p>
+          </div>
           <div class="flex items-center justify-between">
             <div>
               <h2 class="text-lg font-semibold text-gray-900">{{ t('settings.agentWorkflows') }}</h2>
               <p class="text-sm text-gray-500 mt-1">{{ t('settings.agentWorkflowsDesc') }}</p>
+              <p v-if="hiddenE2EWorkflowCount > 0" class="text-xs text-gray-400 mt-1">{{ t('settings.hideE2EWorkflows', { count: hiddenE2EWorkflowCount }) }}</p>
             </div>
             <button @click="handleAddWorkflow" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createAgentWorkflow') }}</button>
           </div>
           <div class="grid gap-4">
-            <div v-for="workflow in workflows" :key="workflow.id" class="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-md transition-all">
+            <div v-for="workflow in visibleAgentWorkflows" :key="workflow.id" class="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-md transition-all">
               <div class="flex items-center justify-between">
                 <div @click="!workflow.is_inherited && handleViewWorkflow(workflow.id)" class="flex-1 cursor-pointer" :class="{ 'opacity-60': workflow.is_inherited }">
                   <div class="flex items-center justify-between">
@@ -1014,6 +1044,15 @@ watch(() => route.query.section, (section) => {
                 </div>
                 <div class="flex items-center space-x-1 ml-3">
                   <button
+                    v-if="!workflow.is_inherited && workflow.is_active"
+                    @click.stop="handleRunAgentWorkflow(workflow)"
+                    :disabled="runningWorkflowId === workflow.id"
+                    class="px-2 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded hover:bg-indigo-50 disabled:opacity-50"
+                    :title="t('settings.runAgentWorkflow')"
+                  >
+                    {{ runningWorkflowId === workflow.id ? '…' : t('settings.runAgentWorkflow') }}
+                  </button>
+                  <button
                     v-if="!workflow.is_inherited"
                     @click.stop="handleToggleWorkflowStatus(workflow)"
                     :disabled="togglingWorkflowId === workflow.id"
@@ -1026,7 +1065,7 @@ watch(() => route.query.section, (section) => {
                 </div>
               </div>
             </div>
-            <div v-if="workflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">{{ t('settings.noAgentWorkflows') }}</div>
+            <div v-if="visibleAgentWorkflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">{{ t('settings.noAgentWorkflows') }}</div>
           </div>
         </div>
 
