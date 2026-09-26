@@ -1,7 +1,7 @@
 # Issue List & Detail UX Polish
 
 **Date:** 2026-09-26  
-**Status:** Draft — awaiting user review before implementation plan  
+**Status:** Approved — implementation in progress  
 **Scope:** P0 consistency + P1 compact property sidebar (option A)  
 **Out of scope this round:** Linear-style property popovers, panel AI/Chat/Git tabs, list j/k keyboard nav (can follow later)
 
