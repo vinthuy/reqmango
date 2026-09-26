@@ -377,6 +377,10 @@ func (s *CustomFieldService) SetIssueValue(issueID uint64, req request.IssueCust
 		return nil, common.NotFound("Custom field not found")
 	}
 
+	if !s.fieldBoundToIssueType(&issue, req.FieldID) {
+		return nil, common.BadRequest("Custom field is not available for this issue type")
+	}
+
 	// Validate value against field type
 	if err := s.validateFieldValue(&field, req.Value); err != nil {
 		return nil, err
@@ -432,10 +436,13 @@ func (s *CustomFieldService) BulkSetIssueValues(req request.BulkCustomFieldValue
 
 	result := make([]response.IssueCustomFieldValueResponse, 0, len(req.Values))
 	for _, item := range req.Values {
-		// Validate field exists
+		// Validate field exists and is bound to this issue's type
 		var field model.CustomField
 		if err := s.db.First(&field, item.FieldID).Error; err != nil {
 			continue // skip invalid field IDs
+		}
+		if !s.fieldBoundToIssueType(&issue, item.FieldID) {
+			continue
 		}
 
 		// Upsert
@@ -486,9 +493,18 @@ func (s *CustomFieldService) ListIssueValues(issueID uint64) ([]response.IssueCu
 }
 
 func (s *CustomFieldService) UpdateIssueValue(issueID, fieldID uint64, val string) (*response.IssueCustomFieldValueResponse, error) {
+	var issue model.Issue
+	if err := s.db.First(&issue, issueID).Error; err != nil {
+		return nil, common.NotFound("Issue not found")
+	}
+
 	var field model.CustomField
 	if err := s.db.First(&field, fieldID).Error; err != nil {
 		return nil, common.NotFound("Custom field not found")
+	}
+
+	if !s.fieldBoundToIssueType(&issue, fieldID) {
+		return nil, common.BadRequest("Custom field is not available for this issue type")
 	}
 
 	if err := s.validateFieldValue(&field, val); err != nil {
@@ -537,13 +553,25 @@ func (s *CustomFieldService) GetIssueFieldsWithValues(issueID uint64) (*response
 		return nil, common.NotFound("Issue not found")
 	}
 
-	// Get all custom fields available in this workspace (shared + project-scoped)
-	var fields []model.CustomField
-	s.db.Where("workspace_id = ? AND is_active = ?", issue.WorkspaceID, true).
-		Where("project_id = ? OR project_id IS NULL", issue.ProjectID).
-		Find(&fields)
+	resp := &response.IssueCustomFieldsResponse{
+		IssueID: issueID,
+		Fields:  make([]response.FieldWithValue, 0),
+	}
 
-	// Get existing values
+	// Parity with Issue Create: only fields linked to the issue's type via
+	// issue_type_fields (fields follow the type; no enrollment filter).
+	if issue.IssueTypeID == nil || *issue.IssueTypeID == 0 {
+		return resp, nil
+	}
+
+	var links []model.IssueTypeField
+	if err := s.db.Preload("Field").
+		Where("type_id = ?", *issue.IssueTypeID).
+		Order("sequence").
+		Find(&links).Error; err != nil {
+		return nil, common.Internal("Failed to list type fields")
+	}
+
 	valueMap := make(map[uint64]string)
 	var values []model.IssueCustomFieldValue
 	s.db.Where("issue_id = ?", issueID).Find(&values)
@@ -551,13 +579,14 @@ func (s *CustomFieldService) GetIssueFieldsWithValues(issueID uint64) (*response
 		valueMap[v.FieldID] = v.Value
 	}
 
-	resp := &response.IssueCustomFieldsResponse{
-		IssueID: issueID,
-		Fields:  make([]response.FieldWithValue, 0),
-	}
-
-	for _, f := range fields {
+	for _, link := range links {
+		f := link.Field
+		if f.ID == 0 || !f.IsActive {
+			continue
+		}
 		cr := s.buildResponse(f)
+		// Prefer binding-level required flag (same as create form).
+		cr.IsRequired = link.IsRequired
 		fwv := response.FieldWithValue{
 			CustomFieldResponse: *cr,
 			Value:               valueMap[f.ID],
@@ -566,4 +595,16 @@ func (s *CustomFieldService) GetIssueFieldsWithValues(issueID uint64) (*response
 	}
 
 	return resp, nil
+}
+
+// fieldBoundToIssueType reports whether fieldID is attached to the issue's type.
+func (s *CustomFieldService) fieldBoundToIssueType(issue *model.Issue, fieldID uint64) bool {
+	if issue == nil || issue.IssueTypeID == nil || *issue.IssueTypeID == 0 {
+		return false
+	}
+	var count int64
+	s.db.Model(&model.IssueTypeField{}).
+		Where("type_id = ? AND field_id = ?", *issue.IssueTypeID, fieldID).
+		Count(&count)
+	return count > 0
 }

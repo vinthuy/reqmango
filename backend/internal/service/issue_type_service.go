@@ -407,6 +407,9 @@ func (s *IssueTypeService) ListFields(typeID uint64, projectID ...uint64) ([]res
 
 	result := make([]response.IssueTypeFieldResponse, 0)
 	for _, link := range links {
+		if link.Field.ID == 0 || !link.Field.IsActive {
+			continue
+		}
 		fr := response.IssueTypeFieldResponse{
 			FieldID:     link.FieldID,
 			TypeID:      link.TypeID,
