@@ -128,31 +128,55 @@ func (s *ProjectService) Create(req *request.ProjectCreateRequest, workspaceID, 
 		}
 	}
 
-	// Create default issue types if not using a template
+	// Enable workspace issue types (import) when present; otherwise seed project-private defaults.
+	// Import avoids "workspace types configured but invisible in project" on first create.
 	if req.TemplateID == nil {
-		defaultTypes := []struct {
-			Name  string
-			Color string
-			Icon  string
-		}{
-			{"Bug", "#EF4444", "circle"},
-			{"Feature", "#6366F1", "circle"},
-			{"Task", "#F59E0B", "circle"},
-		}
-		for i, dt := range defaultTypes {
-			issueType := &model.IssueType{
-				Name:        dt.Name,
-				Color:       dt.Color,
-				Icon:        dt.Icon,
-				IsDefault:   true,
-				Sequence:    i + 1,
-				IsActive:    true,
-				ProjectID:   &project.ID,
-				WorkspaceID: workspaceID,
+		var workspaceTypes []model.IssueType
+		tx.Where("workspace_id = ? AND project_id IS NULL AND is_active = ?", workspaceID, true).
+			Order("sequence").Find(&workspaceTypes)
+
+		imported := 0
+		for _, wt := range workspaceTypes {
+			rec := model.IssueTypeImport{
+				ProjectID:       project.ID,
+				WorkspaceTypeID: wt.ID,
+				WorkspaceID:     workspaceID,
 			}
-			if err := tx.Create(issueType).Error; err != nil {
+			if err := tx.Create(&rec).Error; err != nil {
+				if common.IsUniqueViolation(err) {
+					continue
+				}
 				tx.Rollback()
-				return nil, common.Internal("Failed to create default issue types")
+				return nil, common.Internal("Failed to import workspace issue types")
+			}
+			imported++
+		}
+
+		if imported == 0 {
+			defaultTypes := []struct {
+				Name  string
+				Color string
+				Icon  string
+			}{
+				{"Bug", "#EF4444", "circle"},
+				{"Feature", "#6366F1", "circle"},
+				{"Task", "#F59E0B", "circle"},
+			}
+			for i, dt := range defaultTypes {
+				issueType := &model.IssueType{
+					Name:        dt.Name,
+					Color:       dt.Color,
+					Icon:        dt.Icon,
+					IsDefault:   true,
+					Sequence:    i + 1,
+					IsActive:    true,
+					ProjectID:   &project.ID,
+					WorkspaceID: workspaceID,
+				}
+				if err := tx.Create(issueType).Error; err != nil {
+					tx.Rollback()
+					return nil, common.Internal("Failed to create default issue types")
+				}
 			}
 		}
 	}

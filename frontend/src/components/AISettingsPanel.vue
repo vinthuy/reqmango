@@ -86,6 +86,33 @@
       <p class="mt-1 text-xs text-gray-500">{{ t('ai.advancedAgentsDesc') }}</p>
       <p class="mt-2 text-xs text-gray-400">{{ t('ai.advancedAgentsHiddenHint') }}</p>
     </div>
+
+    <div class="mt-4 max-w-2xl rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h3 class="text-sm font-medium text-gray-800">{{ t('ai.showInitiativesTitle') }}</h3>
+          <p class="mt-1 text-xs text-gray-500">{{ t('ai.showInitiativesDesc') }}</p>
+          <p class="mt-2 text-xs text-gray-400">{{ t('ai.showInitiativesHint') }}</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          :aria-checked="showInitiatives"
+          @click="toggleInitiatives"
+          :class="[
+            'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+            showInitiatives ? 'bg-indigo-600' : 'bg-gray-300',
+          ]"
+        >
+          <span
+            :class="[
+              'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition',
+              showInitiatives ? 'translate-x-5' : 'translate-x-0',
+            ]"
+          />
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -93,8 +120,14 @@
 import { ref, reactive, onMounted } from 'vue'
 import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
+import { useShowInitiatives } from '@/composables/useProductFlags'
 
 const { t } = useI18n()
+const { enabled: showInitiatives, setEnabled: setShowInitiatives } = useShowInitiatives()
+
+function toggleInitiatives() {
+  setShowInitiatives(!showInitiatives.value)
+}
 
 const props = defineProps<{ workspaceId: number }>()
 

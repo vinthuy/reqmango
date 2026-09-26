@@ -52,6 +52,7 @@
           :project-id="projectId"
           @edit="openPanel('edit', chart)"
           @delete="handleDeleteChart(chart.id)"
+          @add-to-dashboard="handleAddToDashboard"
         />
       </div>
     </div>
@@ -262,15 +263,20 @@
                         </div>
                         <div v-if="f._showDropdown" class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                           <!-- Search input -->
-                          <div class="sticky top-0 bg-white border-b border-gray-100 px-2 py-1">
-                            <input v-model="f._search" :placeholder="t('metrics.search')" @input="$event.stopPropagation()"
-                              class="w-full px-2 py-1 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                          <div class="sticky top-0 bg-white border-b border-gray-100 px-2 py-1 relative">
+                            <input v-model="f._search" :placeholder="t('metrics.search')"
+                              @input="onFilterSearchInput(f); $event.stopPropagation()"
+                              @keydown="onFilterSearchKeydown(f, $event)"
+                              class="w-full px-2 py-1 pr-6 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                            <button v-if="f._search" type="button" @click.stop="f._search = ''; f._highlightIndex = -1"
+                              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs leading-none">&times;</button>
                           </div>
-                          <label v-for="v in filterDropdownValues(f)" :key="v"
-                            class="flex items-center gap-2 px-3 py-1.5 text-[11px] hover:bg-gray-50 cursor-pointer">
+                          <label v-for="(v, vi) in filterDropdownValues(f)" :key="v"
+                            class="flex items-center gap-2 px-3 py-1.5 text-[11px] cursor-pointer"
+                            :class="vi === f._highlightIndex ? 'bg-indigo-50' : 'hover:bg-gray-50'">
                             <input type="checkbox" :value="v" v-model="f.values"
                               class="w-3 h-3 rounded border-gray-300 text-indigo-500 focus:ring-indigo-400">
-                            <span class="text-gray-700">{{ v }}</span>
+                            <span class="text-gray-700" v-html="highlightFilterMatch(v, f._search)"></span>
                           </label>
                           <div v-if="filterDropdownValues(f).length === 0" class="px-3 py-2 text-[11px] text-gray-400">{{ t('metrics.noMatches') }}</div>
                         </div>
@@ -285,17 +291,23 @@
                             <option v-for="v in filterDropdownValues(f)" :key="v" :value="v">{{ v }}</option>
                           </select>
                           <div v-else-if="f._showDropdown" class="w-full">
-                            <input v-model="f._search" :placeholder="t('metrics.searchField', { field: fieldLabelMap[f.field] })"
-                              class="w-full px-2 py-1.5 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                              @input="$event.stopPropagation()" @blur="f._showDropdown = false" />
+                            <div class="relative">
+                              <input v-model="f._search" :placeholder="t('metrics.searchField', { field: fieldLabelMap[f.field] })"
+                                class="w-full px-2 py-1.5 pr-6 border border-gray-200 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                                @input="onFilterSearchInput(f); $event.stopPropagation()"
+                                @keydown="onFilterSearchKeydown(f, $event)"
+                                @blur="closeFilterDropdown(f)" />
+                              <button v-if="f._search" type="button" @mousedown.prevent="f._search = ''; f._highlightIndex = -1"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs leading-none">&times;</button>
+                            </div>
                             <div class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                              <div v-if="f.value" @click="f.value = ''; f._search = ''; f._showDropdown = false"
+                              <div v-if="f.value" @mousedown.prevent="f.value = ''; f._search = ''; f._showDropdown = false; f._highlightIndex = -1"
                                 class="px-3 py-1.5 text-[11px] text-red-500 hover:bg-red-50 cursor-pointer border-b border-gray-100">{{ t('metrics.clearSelection') }}</div>
-                              <div v-for="v in filterDropdownValues(f)" :key="v"
-                                @click="f.value = v; f._search = ''; f._showDropdown = false"
-                                class="px-3 py-1.5 text-[11px] hover:bg-indigo-50 cursor-pointer"
-                                :class="{'bg-indigo-50 text-indigo-700': f.value === v}">
-                                {{ v }}
+                              <div v-for="(v, vi) in filterDropdownValues(f)" :key="v"
+                                @mousedown.prevent="f.value = v; f._search = ''; f._showDropdown = false; f._highlightIndex = -1"
+                                class="px-3 py-1.5 text-[11px] cursor-pointer"
+                                :class="vi === f._highlightIndex || f.value === v ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-indigo-50'"
+                                v-html="highlightFilterMatch(v, f._search)">
                               </div>
                               <div v-if="filterDropdownValues(f).length === 0" class="px-3 py-2 text-[11px] text-gray-400">{{ t('metrics.noMatches') }}</div>
                             </div>
@@ -375,6 +387,8 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import { useI18n } from '@/composables/useI18n'
 import MetricsChartCard from '@/components/metrics/MetricsChartCard.vue'
+import { coerceAxesForChartType } from '@/utils/chartAxisConstraints'
+import { listDashboards, createDashboard, addWidget } from '@/api/dashboard'
 
 const props = defineProps<{ projectId: number }>()
 const { confirm } = useConfirm()
@@ -399,7 +413,7 @@ const panel = reactive({
 
 // ── Form ──
 const form = reactive({ name: '', chart_type: 'bar', x_axis: 'state', y_axis: 'count' })
-const filters = reactive<Array<{ field: string; operator: string; value: string; values: string[]; _showDropdown: boolean; _search: string }>>([])
+const filters = reactive<Array<{ field: string; operator: string; value: string; values: string[]; _showDropdown: boolean; _search: string; _highlightIndex: number }>>([])
 const advancedConfig = reactive<MetricChartConfig>({ stack_mode: 'none', show_labels: false, reference_lines: [] })
 const canSave = computed(() => form.name.trim().length > 0)
 const isTemplateMode = computed(() => !!panel.selectedTemplate && panel.useCustom)
@@ -461,6 +475,60 @@ function filterDropdownValues(f: { field: string; _search?: string }): string[] 
   const q = (f._search || '').toLowerCase()
   if (!q) return all
   return all.filter(v => v.toLowerCase().includes(q))
+}
+
+function highlightFilterMatch(text: string, query: string): string {
+  if (!query || !text) return text
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="bg-yellow-200 text-gray-900 px-0.5 rounded">$1</mark>')
+}
+
+function onFilterSearchKeydown(f: { field: string; operator: string; value: string; values: string[]; _showDropdown: boolean; _search: string; _highlightIndex: number }, e: KeyboardEvent) {
+  const options = filterDropdownValues(f)
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    f._showDropdown = true
+    f._highlightIndex = options.length === 0 ? -1 : Math.min((f._highlightIndex < 0 ? -1 : f._highlightIndex) + 1, options.length - 1)
+    if (f._highlightIndex < 0 && options.length) f._highlightIndex = 0
+    return
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    f._showDropdown = true
+    f._highlightIndex = options.length === 0 ? -1 : (f._highlightIndex <= 0 ? options.length - 1 : f._highlightIndex - 1)
+    return
+  }
+  if (e.key === 'Escape') {
+    f._showDropdown = false
+    f._highlightIndex = -1
+    return
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    if (f._highlightIndex >= 0 && options[f._highlightIndex]) {
+      const v = options[f._highlightIndex]
+      if (f.operator === 'in' || f.operator === 'not_in') {
+        if (!f.values.includes(v)) f.values.push(v)
+      } else {
+        f.value = v
+        f._showDropdown = false
+      }
+      f._search = ''
+      f._highlightIndex = -1
+    }
+  }
+}
+
+function onFilterSearchInput(f: { field: string; _search: string; _highlightIndex: number; _showDropdown: boolean }) {
+  f._highlightIndex = filterDropdownValues(f).length > 0 ? 0 : -1
+  f._showDropdown = true
+}
+
+function closeFilterDropdown(f: { _showDropdown: boolean; _highlightIndex: number }) {
+  window.setTimeout(() => {
+    f._showDropdown = false
+    f._highlightIndex = -1
+  }, 150)
 }
 
 // ── Build RQL from filters ──
@@ -587,12 +655,12 @@ function openPanel(mode: 'new' | 'edit', chart?: MetricChart) {
       if (f.conditions) {
         f.conditions.forEach((c: any) => {
           const values = c.values || (c.value ? [c.value] : [])
-          filters.push({ field: c.field || '', operator: c.operator || '=', value: c.value || '', values, _showDropdown: false, _search: '' })
+          filters.push({ field: c.field || '', operator: c.operator || '=', value: c.value || '', values, _showDropdown: false, _search: '', _highlightIndex: -1 })
         })
       } else if (f.rql) {
         // Convert legacy RQL to visual filters (best effort)
         const match = f.rql.match(/^(\w+)\s*(!?=)\s*"?([^"]+)"?$/)
-        if (match) filters.push({ field: match[1], operator: match[2], value: match[3], values: [match[3]], _showDropdown: false, _search: '' })
+        if (match) filters.push({ field: match[1], operator: match[2], value: match[3], values: [match[3]], _showDropdown: false, _search: '', _highlightIndex: -1 })
       }
     } catch { /* ignore */ }
     try {
@@ -630,7 +698,7 @@ function selectTemplate(tpl: MetricTemplate) {
         task: 'Task', story: 'Story', epic: 'Epic',
       }
       const typeVal = typeMap[tpl.default_filters.type_filter] || tpl.default_filters.type_filter
-      filters.push({ field: 'type', operator: '=', value: typeVal, values: [], _showDropdown: false, _search: '' })
+      filters.push({ field: 'type', operator: '=', value: typeVal, values: [], _showDropdown: false, _search: '', _highlightIndex: -1 })
     }
   }
   if (tpl.default_config) {
@@ -660,10 +728,13 @@ function resetForm() {
 
 function updateChartType(type: string) {
   form.chart_type = type
+  const coerced = coerceAxesForChartType(type, form.x_axis, form.y_axis)
+  form.x_axis = coerced.x_axis
+  form.y_axis = coerced.y_axis
 }
 
 function addFilter() {
-  filters.push({ field: '', operator: '=', value: '', values: [], _showDropdown: false, _search: '' })
+  filters.push({ field: '', operator: '=', value: '', values: [], _showDropdown: false, _search: '', _highlightIndex: -1 })
 }
 
 function removeFilter(index: number) {
@@ -749,6 +820,29 @@ async function handleDeleteChart(chartId: number) {
     await loadData()
   } catch (e) {
     console.error('Failed to delete chart:', e)
+  }
+}
+
+async function handleAddToDashboard(chart: MetricChart) {
+  try {
+    let list = await listDashboards(props.projectId)
+    if (!list.length) {
+      const created = await createDashboard(props.projectId, { name: t('dashboard.defaultName'), is_default: true })
+      list = [created]
+    }
+    // Prefer default, then the fullest board (avoid empty duplicates created by +)
+    const dash = list.find((d) => d.is_default)
+      || [...list].sort((a, b) => (b.widgets?.length ?? 0) - (a.widgets?.length ?? 0))[0]
+    await addWidget(props.projectId, dash.id, {
+      widget_type: 'metric_chart',
+      title: chart.name,
+      config: { metric_chart_id: chart.id },
+      position: { x: 0, y: 0, w: 6, h: 4 },
+    })
+    toast.success(t('metrics.addedToDashboard', { name: dash.name }))
+  } catch (e: any) {
+    console.error('Add to dashboard failed:', e)
+    toast.error(e?.response?.data?.message || t('metrics.addToDashboardFailed'))
   }
 }
 

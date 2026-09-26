@@ -110,6 +110,10 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	var stateID uint64
 	if req.StateID != nil {
 		stateID = *req.StateID
+		var st model.State
+		if err := s.db.Where("id = ? AND project_id = ? AND is_active = ?", stateID, projectID, true).First(&st).Error; err != nil {
+			return nil, common.BadRequest("State does not belong to this project")
+		}
 	} else {
 		var defaultState model.State
 		if err := s.db.Where("project_id = ? AND is_default = ?", projectID, true).First(&defaultState).Error; err != nil {
@@ -145,6 +149,8 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		CoverImageURL:       req.CoverImageURL,
 		IssueTypeID:         req.TypeID,
 	}
+	issue.CreatedByID = &userID
+	issue.UpdatedByID = &userID
 
 	// Hierarchy validation
 	if req.ParentID != nil && *req.ParentID > 0 {
@@ -224,8 +230,20 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		}
 	}
 
+	// Resolve assignees: request wins; otherwise fall back to project default_assignee_id
+	assigneeIDs := req.AssigneeIDs
+	if len(assigneeIDs) == 0 && project.DefaultAssigneeID != nil && *project.DefaultAssigneeID > 0 {
+		var memberCount int64
+		s.db.Model(&model.ProjectMember{}).
+			Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, *project.DefaultAssigneeID, true).
+			Count(&memberCount)
+		if memberCount > 0 {
+			assigneeIDs = []uint64{*project.DefaultAssigneeID}
+		}
+	}
+
 	// Validate assignees are project members
-	for _, assigneeID := range req.AssigneeIDs {
+	for _, assigneeID := range assigneeIDs {
 		var count int64
 		s.db.Model(&model.ProjectMember{}).
 			Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, assigneeID, true).
@@ -257,7 +275,7 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	s.createActivity(tx, issue.ID, "created", nil, nil, nil, nil, &userID)
 
 	// Add assignees
-	for _, assigneeID := range req.AssigneeIDs {
+	for _, assigneeID := range assigneeIDs {
 		tx.Create(&model.IssueAssignee{IssueID: issue.ID, UserID: assigneeID})
 	}
 
@@ -324,6 +342,33 @@ func (s *IssueService) NotifyIssueCreated(issue *model.Issue) {
 		ctx["intake_status"] = *issue.IntakeStatus
 	}
 	s.runAutomations(issue.ID, "issue.created", ctx)
+
+	// Notify project lead + subscribers (settings that previously had no issue effect).
+	if s.notificationSvc == nil {
+		return
+	}
+	exclude := uint64(0)
+	if issue.CreatedByID != nil {
+		exclude = *issue.CreatedByID
+	}
+	recipients := make(map[uint64]bool)
+	s.addProjectLeadAndSubscribers(issue.ProjectID, exclude, recipients)
+	if len(recipients) == 0 {
+		return
+	}
+	ids := make([]uint64, 0, len(recipients))
+	for id := range recipients {
+		ids = append(ids, id)
+	}
+	title := fmt.Sprintf("新工作项: %s", issue.Name)
+	message := fmt.Sprintf("项目中创建了工作项 #%d", issue.SequenceID)
+	issueIDPtr := issue.ID
+	projectIDPtr := issue.ProjectID
+	var actor *uint64
+	if exclude > 0 {
+		actor = &exclude
+	}
+	_ = s.notificationSvc.TriggerNotificationsBulk(s.db, "issue_created", title, message, ids, actor, &projectIDPtr, &issueIDPtr)
 }
 
 // GetByID returns an issue with all relations loaded.
@@ -691,6 +736,11 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 	if req.StateID != nil && *req.StateID != issue.StateID {
 		oldStateID = issue.StateID
 		newStateID := *req.StateID
+		var st model.State
+		if err := tx.Where("id = ? AND project_id = ? AND is_active = ?", newStateID, issue.ProjectID, true).First(&st).Error; err != nil {
+			tx.Rollback()
+			return nil, common.BadRequest("State does not belong to this project")
+		}
 		if err := s.validateStateTransition(tx, issue.ProjectID, issueID, oldStateID, newStateID, userID); err != nil {
 			tx.Rollback()
 			return nil, err
@@ -731,6 +781,8 @@ func (s *IssueService) Update(issueID uint64, req *request.IssueUpdateRequest, u
 					recipientIDs[w.UserID] = true
 				}
 			}
+
+			s.addProjectLeadAndSubscribers(issue.ProjectID, userID, recipientIDs)
 
 			if len(recipientIDs) > 0 {
 				ids := make([]uint64, 0, len(recipientIDs))
@@ -1478,6 +1530,11 @@ func (s *IssueService) BulkUpdate(projectID uint64, req *request.BulkUpdateReque
 	}
 
 	if req.StateID != nil {
+		var st model.State
+		if err := tx.Where("id = ? AND project_id = ? AND is_active = ?", *req.StateID, projectID, true).First(&st).Error; err != nil {
+			tx.Rollback()
+			return nil, common.BadRequest("State does not belong to this project")
+		}
 		for _, issueID := range existingIDs {
 			var issue model.Issue
 			if err := tx.First(&issue, issueID).Error; err != nil {
@@ -1872,8 +1929,12 @@ func strPtr(s string) *string {
 // ========== Workflow & Automation Engine ==========
 
 // validateStateTransition checks if moving from oldState to newState is allowed
-// by any active workflow in the project. Returns nil if allowed, error if blocked.
-// Uses the provided db (should be a transaction when called within one) for consistency.
+// by any active workflow in the project or workspace. Returns nil if allowed.
+//
+// Matching is by exact state ID first, then by state name (so workspace workflows
+// whose transitions reference workspace/copied state IDs still apply to project
+// copies with the same name). When applicable workflows define at least one
+// transition and none match, the change is rejected (no soft-allow).
 func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, oldStateID, newStateID, userID uint64) error {
 	// Get issue type ID if available for workflow filtering
 	var issueTypeID *uint64
@@ -1898,12 +1959,9 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 
 	// Include both project-level workflows (project_id = ?) AND workspace-level workflows (workspace_id = ? AND project_id IS NULL)
 	if issueTypeID != nil {
-		// Include workflows bound to this issue type OR workflows with no issue type binding
-		// Also check issue_type_ids JSON array for multi-type bindings
 		query = query.Where("(project_id = ? AND (issue_type_id = ? OR issue_type_id IS NULL OR issue_type_ids @> ?::jsonb)) OR (workspace_id = ? AND project_id IS NULL AND (issue_type_id = ? OR issue_type_id IS NULL OR issue_type_ids @> ?::jsonb))",
 			projectID, *issueTypeID, fmt.Sprintf(`[%d]`, *issueTypeID), workspaceID, *issueTypeID, fmt.Sprintf(`[%d]`, *issueTypeID))
 	} else {
-		// Only include workflows with no issue type binding
 		query = query.Where("(project_id = ? AND issue_type_id IS NULL) OR (workspace_id = ? AND project_id IS NULL AND issue_type_id IS NULL)",
 			projectID, workspaceID)
 	}
@@ -1912,37 +1970,91 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 	if len(workflows) == 0 {
 		return nil // no workflows configured = allow all transitions
 	}
+
+	var oldState, newState model.State
+	db.First(&oldState, oldStateID)
+	db.First(&newState, newStateID)
+
 	var approvalTransition *model.StateTransition
 	var approvalWorkflow *model.Workflow
+	matchedAllow := false
+	hasAnyTransition := false
 
 	for _, wf := range workflows {
-		var transition model.StateTransition
-		err := db.Where("workflow_id = ? AND source_state_id = ? AND target_state_id = ?",
-			wf.ID, oldStateID, newStateID).First(&transition).Error
-		if err != nil {
-			continue // not found in this workflow, try next
+		var transitions []model.StateTransition
+		db.Where("workflow_id = ?", wf.ID).Find(&transitions)
+		if len(transitions) > 0 {
+			hasAnyTransition = true
 		}
-		// Transition found — check rule_type
-		if transition.RuleType == "approval" {
-			// Record approval requirement, but continue checking all workflows
-			approvalTransition = &transition
-			approvalWorkflow = &wf
-		}
-		if transition.RuleType == "allow" && approvalTransition == nil {
-			// Only allow if no approval required by any workflow
-			return nil // simple allow, no restriction
+		for i := range transitions {
+			tr := &transitions[i]
+			if !s.transitionMatchesStates(db, tr, &oldState, &newState) {
+				continue
+			}
+			if tr.RuleType == "approval" {
+				approvalTransition = tr
+				approvalWorkflow = &wf
+				continue
+			}
+			if tr.RuleType == "allow" || tr.RuleType == "" {
+				matchedAllow = true
+			}
 		}
 	}
 
-	// If any workflow requires approval, return approval required
 	if approvalTransition != nil && approvalWorkflow != nil {
-		var srcState, tgtState model.State
-		db.Select("id, name").First(&srcState, oldStateID)
-		db.Select("id, name").First(&tgtState, newStateID)
-		return common.NewApprovalRequiredError(approvalTransition.ID, approvalWorkflow.ID, approvalWorkflow.Name, srcState.Name, tgtState.Name, oldStateID, newStateID)
+		return common.NewApprovalRequiredError(approvalTransition.ID, approvalWorkflow.ID, approvalWorkflow.Name, oldState.Name, newState.Name, oldStateID, newStateID)
 	}
+	if matchedAllow {
+		return nil
+	}
+	if !hasAnyTransition {
+		return nil // workflows exist but define no edges yet
+	}
+	return common.BadRequest(fmt.Sprintf("状态转换「%s → %s」不被当前工作流允许", oldState.Name, newState.Name))
+}
 
-	return nil // no matching transition found in any workflow, allow by default
+// transitionMatchesStates reports whether a transition applies to the given
+// from/to states by exact ID or by case-insensitive name equivalence.
+func (s *IssueService) transitionMatchesStates(db *gorm.DB, tr *model.StateTransition, from, to *model.State) bool {
+	if tr.SourceStateID == from.ID && tr.TargetStateID == to.ID {
+		return true
+	}
+	var src, tgt model.State
+	if err := db.First(&src, tr.SourceStateID).Error; err != nil {
+		return false
+	}
+	if err := db.First(&tgt, tr.TargetStateID).Error; err != nil {
+		return false
+	}
+	return statesEquivalent(&src, from) && statesEquivalent(&tgt, to)
+}
+
+func statesEquivalent(a, b *model.State) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	if a.ID != 0 && a.ID == b.ID {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(a.Name), strings.TrimSpace(b.Name))
+}
+
+// addProjectLeadAndSubscribers adds project lead and project subscribers into recipientIDs.
+func (s *IssueService) addProjectLeadAndSubscribers(projectID, excludeUserID uint64, recipientIDs map[uint64]bool) {
+	var project model.Project
+	if err := s.db.Select("default_assignee_id, project_lead_id").First(&project, projectID).Error; err == nil {
+		if project.ProjectLeadID != nil && *project.ProjectLeadID != excludeUserID {
+			recipientIDs[*project.ProjectLeadID] = true
+		}
+	}
+	var subs []model.ProjectSubscriber
+	s.db.Where("project_id = ?", projectID).Find(&subs)
+	for _, sub := range subs {
+		if sub.UserID != excludeUserID {
+			recipientIDs[sub.UserID] = true
+		}
+	}
 }
 
 // runAutomations executes automation rules for a given trigger type on an issue.
@@ -2559,11 +2671,10 @@ func (s *IssueService) validateMandatoryCustomFields(projectID, workspaceID, iss
 		return common.Internal("Failed to fetch mandatory custom fields")
 	}
 
-	// If the client didn't send any custom field values (nil map),
-	// skip validation — this happens in quick-create / AI / tree flows
-	// where the client doesn't know about custom fields.
+	// Required custom fields must be present whenever the type defines them.
+	// Treat a nil map the same as empty so quick-create cannot bypass required fields.
 	if cfValues == nil {
-		return nil
+		cfValues = map[uint64]interface{}{}
 	}
 
 	var missingFields []string

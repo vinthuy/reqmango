@@ -71,13 +71,11 @@ func (s *ProjectSettingsService) CreateState(req *request.StateCreateRequest, pr
 	return stateToResponse(state), nil
 }
 
-// ListStates returns all states for a project including inherited workspace states.
+// ListStates returns project-scoped states only (not live workspace states).
+// Workspace states are copied into the project at create time; listing them
+// alongside project copies caused duplicate / wrong IDs on create and filters.
 func (s *ProjectSettingsService) ListStates(projectID uint64, includeInactive bool) ([]response.StateResponse, error) {
-	var project model.Project
-	if err := s.db.Select("workspace_id").Where("id = ?", projectID).First(&project).Error; err != nil {
-		return nil, common.Internal("Project not found")
-	}
-	query := s.db.Where("(project_id = ? OR (project_id IS NULL AND workspace_id = ?))", projectID, project.WorkspaceID)
+	query := s.db.Where("project_id = ?", projectID)
 	if !includeInactive {
 		query = query.Where("is_active = ?", true)
 	}

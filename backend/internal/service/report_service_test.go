@@ -253,6 +253,74 @@ func TestReportService_Generate_Routing(t *testing.T) {
 	}
 }
 
+// ==================== resolveYAxis ====================
+
+func TestResolveXAxisCompletedWeek(t *testing.T) {
+	svc := &ReportService{}
+	sel, _, col := svc.resolveXAxis("completed_week", "week")
+	assert.Equal(t, "completed_at", col)
+	assert.Contains(t, sel, "TO_CHAR(issues.completed_at")
+	assert.NotContains(t, sel, "N/A")
+	assert.NotContains(t, sel, "COALESCE")
+}
+
+func TestResolveYAxis(t *testing.T) {
+	svc := &ReportService{}
+
+	t.Run("backlog_count filters backlog/unstarted", func(t *testing.T) {
+		expr, where := svc.resolveYAxis("backlog_count")
+		assert.Equal(t, "COUNT(*)", expr)
+		assert.Contains(t, where, "backlog")
+		assert.Contains(t, where, "unstarted")
+		assert.NotEqual(t, "", where)
+	})
+
+	t.Run("wip_count filters started", func(t *testing.T) {
+		expr, where := svc.resolveYAxis("wip_count")
+		assert.Equal(t, "COUNT(*)", expr)
+		assert.Contains(t, where, "started")
+	})
+
+	t.Run("overdue_count uses target_date", func(t *testing.T) {
+		expr, where := svc.resolveYAxis("overdue_count")
+		assert.Contains(t, expr, "target_date")
+		assert.Equal(t, "", where)
+	})
+
+	t.Run("count has no extra filter", func(t *testing.T) {
+		expr, where := svc.resolveYAxis("count")
+		assert.Equal(t, "COUNT(*)", expr)
+		assert.Equal(t, "", where)
+	})
+}
+
+func TestListTemplates_NoFakeBurndown(t *testing.T) {
+	svc := &MetricService{}
+	cats := svc.ListTemplates()
+	var burndown *MetricTemplate
+	for _, c := range cats {
+		for i := range c.Templates {
+			if c.Templates[i].ID == "agile_burndown" {
+				burndown = &c.Templates[i]
+			}
+			if c.Templates[i].ID == "agile_velocity" {
+				assert.Equal(t, "completed_week", c.Templates[i].DefaultXAxis)
+				assert.Equal(t, "throughput", c.Templates[i].DefaultYAxis)
+			}
+			if c.Templates[i].ID == "agile_cfd" {
+				assert.Equal(t, "state_group", c.Templates[i].DefaultXAxis)
+				assert.NotEqual(t, "area", c.Templates[i].ChartType)
+			}
+		}
+	}
+	if assert.NotNil(t, burndown) {
+		assert.Equal(t, "line", burndown.ChartType)
+		assert.Equal(t, "created_week", burndown.DefaultXAxis)
+		assert.Equal(t, "count", burndown.DefaultYAxis)
+		assert.NotContains(t, burndown.Name, "燃尽")
+	}
+}
+
 // ==================== Helpers ====================
 
 func timePtr(t time.Time) *time.Time {

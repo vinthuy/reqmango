@@ -70,7 +70,7 @@ node scripts/create-gitcode-gfi-issues.mjs
 
 ## 验收（你这边点开能看到）
 
-- [ ] About 已是产品一句话  
-- [ ] 有一条置顶/显眼的「欢迎共建」Issue  
-- [ ] 至少 5 个带 `good first issue` 的 Issue  
-- [ ] 近 7 天有一条动态或讨论指向试用命令  
+- [x] About 已是产品一句话（中文，API 已改）  
+- [x] 「欢迎共建」Issue：https://gitcode.com/yongfeng9m-/reqmanpy/issues/10（已置顶）  
+- [x] GFI #2–#9 开放；#1 已关（demo.gif 已有）  
+- [x] 公告讨论：自建 PM 开源共建（Discussion #1，试用命令已写）  

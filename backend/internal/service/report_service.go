@@ -127,6 +127,11 @@ func (s *ReportService) GenerateV2(projectID uint64, req *ReportV2Request) (*Rep
 		sql += " AND " + extraWhere
 	}
 
+	// completed_* axes: only issues that actually completed (avoid a giant "N/A" bucket)
+	if timeColumn == "completed_at" {
+		sql += " AND issues.completed_at IS NOT NULL"
+	}
+
 	// 追加 RQL 过滤
 	if ids != nil {
 		if len(ids) == 0 {
@@ -171,7 +176,11 @@ func (s *ReportService) GenerateV2(projectID uint64, req *ReportV2Request) (*Rep
 	}
 	for _, r := range rows {
 		name := r.Name
-		if name == "" {
+		if name == "" || name == "N/A" {
+			// Skip empty / sentinel buckets (esp. incomplete completed_* rows)
+			if timeColumn == "completed_at" {
+				continue
+			}
 			name = "N/A"
 		}
 		resp.Labels = append(resp.Labels, name)
@@ -209,13 +218,13 @@ func (s *ReportService) resolveXAxis(xAxis, interval string) (selectExpr, joinCl
 	case "created_month":
 		return fmt.Sprintf("COALESCE(TO_CHAR(issues.created_at, '%s'), 'N/A')", s.timeFormat("month", interval)), "", "created_at"
 
-	// ---- 时间轴：completed_at ----
+	// ---- 时间轴：completed_at （无完成时间的不入桶，见 GenerateV2 WHERE）----
 	case "completed_day":
-		return fmt.Sprintf("COALESCE(TO_CHAR(issues.completed_at, '%s'), 'N/A')", s.timeFormat("day", interval)), "", "completed_at"
+		return fmt.Sprintf("TO_CHAR(issues.completed_at, '%s') as name", s.timeFormat("day", interval)), "", "completed_at"
 	case "completed_week":
-		return fmt.Sprintf("COALESCE(TO_CHAR(issues.completed_at, '%s'), 'N/A')", s.timeFormat("week", interval)), "", "completed_at"
+		return fmt.Sprintf("TO_CHAR(issues.completed_at, '%s') as name", s.timeFormat("week", interval)), "", "completed_at"
 	case "completed_month":
-		return fmt.Sprintf("COALESCE(TO_CHAR(issues.completed_at, '%s'), 'N/A')", s.timeFormat("month", interval)), "", "completed_at"
+		return fmt.Sprintf("TO_CHAR(issues.completed_at, '%s') as name", s.timeFormat("month", interval)), "", "completed_at"
 
 	// ---- 时间轴：updated_at ----
 	case "updated_day":
@@ -273,11 +282,13 @@ func (s *ReportService) resolveYAxis(yAxis string) (selectExpr, extraWhere strin
 	case "throughput":
 		return "COUNT(CASE WHEN issues.completed_at IS NOT NULL THEN 1 END)", ""
 	case "wip_count":
-		return "COUNT(*)", "issues.completed_at IS NULL AND issues.created_at IS NOT NULL"
+		// In-progress issues (state group = started), not merely "incomplete".
+		return "COUNT(*)", "EXISTS (SELECT 1 FROM states st WHERE st.id = issues.state_id AND st.\"group\" = 'started')"
 	case "backlog_count":
-		return "COUNT(*)", ""
+		// Backlog / unstarted only — must not equal plain count.
+		return "COUNT(*)", "EXISTS (SELECT 1 FROM states st WHERE st.id = issues.state_id AND st.\"group\" IN ('backlog', 'unstarted'))"
 	case "overdue_count":
-		return "COUNT(CASE WHEN issues.completed_at IS NULL AND issues.due_date IS NOT NULL AND issues.due_date < NOW() THEN 1 END)", ""
+		return "COUNT(CASE WHEN issues.completed_at IS NULL AND issues.target_date IS NOT NULL AND issues.target_date < NOW() THEN 1 END)", ""
 	default: // count
 		return "COUNT(*)", ""
 	}

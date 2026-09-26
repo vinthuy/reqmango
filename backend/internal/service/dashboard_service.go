@@ -17,6 +17,7 @@ type DashboardService struct {
 	reportSvc      *ReportService
 	savedReportSvc *SavedReportService
 	cycleSvc       *CycleService
+	metricSvc      *MetricService
 	issueSvc       *IssueService
 	aiSummary      AISummaryProvider
 }
@@ -28,6 +29,7 @@ func NewDashboardService(db *gorm.DB) *DashboardService {
 		reportSvc:      NewReportService(db),
 		savedReportSvc: NewSavedReportService(db),
 		cycleSvc:       NewCycleService(db, nil),
+		metricSvc:      NewMetricService(db),
 		issueSvc:       nil, // issueSvc needs notificationSvc, so we leave it nil for now
 	}
 }
@@ -430,8 +432,11 @@ func (s *DashboardService) renderWidget(projectID uint64, w *model.DashboardWidg
 	switch w.WidgetType {
 	case "number_card":
 		return s.renderNumberCard(projectID, w)
-	case "bar_chart", "pie_chart", "doughnut_chart", "line_chart", "table":
+	case "bar_chart", "pie_chart", "doughnut_chart", "line_chart", "table",
+		"bubble_chart", "scatter_chart", "mixed_chart":
 		return s.renderChart(projectID, w, d)
+	case "metric_chart":
+		return s.renderMetricChart(projectID, w)
 	case "saved_report":
 		return s.renderSavedReportWidget(projectID, w, d)
 	case "burndown":
@@ -545,10 +550,19 @@ func (s *DashboardService) renderChart(projectID uint64, w *model.DashboardWidge
 		DateTo:     dateTo,
 	}
 	if reportReq.ReportType == "" {
-		reportReq.ReportType = "distribution"
+		// Line / mixed / scatter / bubble are time-series by default; bars/pies stay distribution.
+		switch w.WidgetType {
+		case "line_chart", "mixed_chart", "bubble_chart", "scatter_chart":
+			reportReq.ReportType = "created_trend"
+		default:
+			reportReq.ReportType = "distribution"
+		}
 	}
 	if reportReq.GroupBy == "" {
 		reportReq.GroupBy = "state"
+	}
+	if reportReq.Interval == "" && (reportReq.ReportType == "created_trend" || reportReq.ReportType == "created_vs_resolved") {
+		reportReq.Interval = "week"
 	}
 	if reportReq.Chart == "" {
 		reportReq.Chart = w.WidgetType
@@ -562,6 +576,12 @@ func (s *DashboardService) renderChart(projectID uint64, w *model.DashboardWidge
 			reportReq.Chart = "doughnut"
 		case "line_chart":
 			reportReq.Chart = "line"
+		case "bubble_chart":
+			reportReq.Chart = "bubble"
+		case "scatter_chart":
+			reportReq.Chart = "scatter"
+		case "mixed_chart":
+			reportReq.Chart = "mixed"
 		case "table":
 			reportReq.Chart = "table"
 		default:
@@ -599,6 +619,28 @@ func (s *DashboardService) renderBurndown(w *model.DashboardWidget) (json.RawMes
 		return nil, err
 	}
 	data, _ := json.Marshal(burndown)
+	return json.RawMessage(data), nil
+}
+
+// renderMetricChart embeds a Metrics chart by id (author in Metrics, display on Dashboard).
+func (s *DashboardService) renderMetricChart(projectID uint64, w *model.DashboardWidget) (json.RawMessage, error) {
+	config := struct {
+		MetricChartID uint64 `json:"metric_chart_id"`
+	}{}
+	if err := json.Unmarshal(w.Config, &config); err != nil {
+		return nil, err
+	}
+	if config.MetricChartID == 0 {
+		return json.RawMessage(`{"error":"No metric chart selected"}`), nil
+	}
+	if s.metricSvc == nil {
+		s.metricSvc = NewMetricService(s.db)
+	}
+	resp, err := s.metricSvc.RenderChart(projectID, config.MetricChartID)
+	if err != nil {
+		return nil, err
+	}
+	data, _ := json.Marshal(resp)
 	return json.RawMessage(data), nil
 }
 

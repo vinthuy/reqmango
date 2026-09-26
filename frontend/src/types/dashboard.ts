@@ -40,6 +40,7 @@ export type WidgetType =
   | 'bubble_chart'
   | 'scatter_chart'
   | 'mixed_chart'
+  | 'metric_chart'
   | 'burndown'
   | 'table'
   | 'recent_list'

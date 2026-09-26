@@ -57,12 +57,14 @@ func (s *MetricService) ListTemplates() []TemplateCategory {
 		{
 			ID: "agile", Name: "敏捷效能",
 			Templates: []MetricTemplate{
-				{ID: "agile_burndown", Category: "agile", Name: "迭代燃尽图", Description: "展示迭代内剩余工作量趋势", ChartType: "line", DefaultXAxis: "created_week", DefaultYAxis: "count", DefaultConfig: map[string]interface{}{"reference_lines": []map[string]interface{}{{"type": "average", "label": "平均值"}}, "show_labels": true}, Icon: "flame"},
-				{ID: "agile_velocity", Category: "agile", Name: "速率趋势", Description: "展示每个迭代的完成速率", ChartType: "bar", DefaultXAxis: "created_week", DefaultYAxis: "count", DefaultConfig: map[string]interface{}{"show_labels": true}, Icon: "trending-up"},
-				{ID: "agile_cfd", Category: "agile", Name: "累积流图", Description: "展示各状态Issue数量累积变化", ChartType: "area", DefaultXAxis: "created_week", DefaultYAxis: "count", DefaultConfig: map[string]interface{}{"stack_mode": "stack"}, Icon: "layers"},
+				// Real sprint burndown lives on Cycles / dashboard burndown widget.
+				// This template is an honest created-volume trend (kept id for existing charts).
+				{ID: "agile_burndown", Category: "agile", Name: "创建趋势", Description: "按周展示新建工作项数量。迭代燃尽请用「周期」燃尽图或仪表盘燃尽组件", ChartType: "line", DefaultXAxis: "created_week", DefaultYAxis: "count", DefaultConfig: map[string]interface{}{"reference_lines": []map[string]interface{}{{"type": "average", "label": "平均值"}}, "show_labels": true}, Icon: "trending-up"},
+				{ID: "agile_velocity", Category: "agile", Name: "速率趋势", Description: "按完成周统计吞吐（已完成工作项数）", ChartType: "bar", DefaultXAxis: "completed_week", DefaultYAxis: "throughput", DefaultConfig: map[string]interface{}{"show_labels": true}, Icon: "trending-up"},
+				{ID: "agile_cfd", Category: "agile", Name: "状态组分布", Description: "当前各状态组工作项数量快照（非时间累积流）", ChartType: "bar", DefaultXAxis: "state_group", DefaultYAxis: "count", DefaultConfig: map[string]interface{}{"show_labels": true}, Icon: "layers"},
 				{ID: "agile_cycle_time", Category: "agile", Name: "周期时间分布", Description: "展示Issue从开始到完成的时间分布", ChartType: "bar", DefaultXAxis: "completed_week", DefaultYAxis: "avg_processing_time", Icon: "clock"},
 				{ID: "agile_lead_time", Category: "agile", Name: "前置时间趋势", Description: "展示需求提出到交付的平均前置时间", ChartType: "line", DefaultXAxis: "created_week", DefaultYAxis: "avg_processing_time", Icon: "timer"},
-				{ID: "agile_wip", Category: "agile", Name: "WIP限制", Description: "展示各状态的在制品数量", ChartType: "bar", DefaultXAxis: "state", DefaultYAxis: "count", Icon: "columns"},
+				{ID: "agile_wip", Category: "agile", Name: "WIP 在制品", Description: "按状态统计进行中（started）工作项", ChartType: "bar", DefaultXAxis: "state", DefaultYAxis: "wip_count", Icon: "columns"},
 			},
 		},
 		{

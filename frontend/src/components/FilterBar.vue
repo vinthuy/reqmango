@@ -26,11 +26,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'view-change', view: 'list' | 'kanban' | 'tree' | 'calendar' | 'gantt'): void
-  (e: 'filters-changed', rql: string, sortBy: SortOption[], groupBy: GroupOption | null, subGroupBy: SubGroupOption | null): void
+  (e: 'filters-changed', rql: string, sortBy: SortOption[], groupBy: GroupOption | null, subGroupBy: SubGroupOption | null, quickSearch?: string): void
   (e: 'columns-changed', columns: string[]): void
 }>()
 
-const { state, rql, isEmpty, removeFilter, clearAll, restoreFromRQL, addSortBy, removeSortBy, setGroupBy, setSubGroupBy, setQuickSearch, addToHistory } = useFilters()
+const { state, rql, isEmpty, removeFilter, clearAll, restoreFromRQL, addSortBy, removeSortBy, setGroupBy, setSubGroupBy, setQuickSearch, commitQuickSearch, setAndCommitQuickSearch, setProjectIdentifier, addToHistory } = useFilters()
 
 const showFieldDropdown = ref(false)
 const editingIndex = ref<number | null>(null)
@@ -45,7 +45,14 @@ const searchSuggestions = ref<IssueSearchResult[]>([])
 const showSuggestions = ref(false)
 const searchFocused = ref(false)
 const searchInputRef = ref<HTMLInputElement | null>(null)
+const suggestionIndex = ref(-1)
 let suggestDebounce: ReturnType<typeof setTimeout> | null = null
+let searchCommitDebounce: ReturnType<typeof setTimeout> | null = null
+const SEARCH_COMMIT_MS = 400
+
+watch(() => props.projectIdentifier, (id) => {
+  setProjectIdentifier(id || '')
+}, { immediate: true })
 
 const states = ref<any[]>([])
 const cycles = ref<any[]>([])
@@ -140,7 +147,7 @@ function isFilterCondition(node: FilterNode): node is FilterCondition {
 }
 
 watch(() => rql.value, (newRQL: string) => {
-  emit('filters-changed', newRQL, state.sortBy, state.groupBy, state.subGroupBy)
+  emit('filters-changed', newRQL, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
   if (!isEditingRQL.value) {
     rqlText.value = newRQL
   }
@@ -153,15 +160,15 @@ watch(showRQL, (show) => {
 })
 
 watch(() => state.sortBy, () => {
-  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
 })
 
 watch(() => state.groupBy, () => {
-  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
 })
 
 watch(() => state.subGroupBy, () => {
-  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
 })
 
 async function loadStates() {
@@ -223,6 +230,7 @@ async function fetchSuggestions(query: string) {
   if (query.length < 2) {
     searchSuggestions.value = []
     showSuggestions.value = false
+    suggestionIndex.value = -1
     return
   }
   
@@ -232,25 +240,49 @@ async function fetchSuggestions(query: string) {
     try {
       searchSuggestions.value = await suggestIssues(props.projectId, query, 8)
       showSuggestions.value = searchSuggestions.value.length > 0
+      suggestionIndex.value = searchSuggestions.value.length > 0 ? 0 : -1
     } catch {
       searchSuggestions.value = []
       showSuggestions.value = false
+      suggestionIndex.value = -1
     }
   }, 200)
 }
 
+function scheduleCommitQuickSearch() {
+  if (searchCommitDebounce) clearTimeout(searchCommitDebounce)
+  searchCommitDebounce = setTimeout(() => {
+    commitQuickSearch()
+  }, SEARCH_COMMIT_MS)
+}
+
+function flushCommitQuickSearch() {
+  if (searchCommitDebounce) {
+    clearTimeout(searchCommitDebounce)
+    searchCommitDebounce = null
+  }
+  commitQuickSearch()
+}
+
 function handleQuickSearchChange(value: string) {
   setQuickSearch(value)
+  suggestionIndex.value = -1
   fetchSuggestions(value)
+  if (!value.trim()) {
+    flushCommitQuickSearch()
+  } else {
+    scheduleCommitQuickSearch()
+  }
 }
 
 function selectSuggestion(suggestion: IssueSearchResult) {
   const query = `${suggestion.project_identifier}-${suggestion.sequence_id}`
-  setQuickSearch(query)
+  setAndCommitQuickSearch(query)
   if (searchInputRef.value) searchInputRef.value.value = query
   addToHistory(query)
   showSuggestions.value = false
-  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
+  suggestionIndex.value = -1
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
 }
 
 function onSearchFocus() {
@@ -263,25 +295,87 @@ function onSearchFocus() {
 }
 
 function handleSearchSubmit() {
+  if (showSuggestions.value && suggestionIndex.value >= 0 && searchSuggestions.value[suggestionIndex.value]) {
+    selectSuggestion(searchSuggestions.value[suggestionIndex.value])
+    return
+  }
+  if (state.searchHistory.length > 0 && state.quickSearch.length < 2 && suggestionIndex.value >= 0) {
+    const q = state.searchHistory[suggestionIndex.value]
+    if (q) {
+      applyHistory(q)
+      return
+    }
+  }
   if (state.quickSearch.trim()) {
     addToHistory(state.quickSearch.trim())
   }
+  flushCommitQuickSearch()
   showSuggestions.value = false
+  suggestionIndex.value = -1
+}
+
+function onSearchKeydown(e: KeyboardEvent) {
+  const showingHistory = searchFocused.value && state.searchHistory.length > 0 && state.quickSearch.length < 2
+  const showingSuggest = showSuggestions.value && searchSuggestions.value.length > 0
+  const itemCount = showingSuggest
+    ? searchSuggestions.value.length
+    : (showingHistory ? state.searchHistory.length : 0)
+
+  if (e.key === 'ArrowDown' && itemCount > 0) {
+    e.preventDefault()
+    if (!showingSuggest && showingHistory) showSuggestions.value = true
+    suggestionIndex.value = suggestionIndex.value < 0
+      ? 0
+      : Math.min(suggestionIndex.value + 1, itemCount - 1)
+    return
+  }
+  if (e.key === 'ArrowUp' && itemCount > 0) {
+    e.preventDefault()
+    suggestionIndex.value = suggestionIndex.value <= 0
+      ? itemCount - 1
+      : suggestionIndex.value - 1
+    return
+  }
+  if (e.key === 'Escape') {
+    showSuggestions.value = false
+    suggestionIndex.value = -1
+    return
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    handleSearchSubmit()
+  }
 }
 
 function onSearchBlur() {
   searchFocused.value = false
+  flushCommitQuickSearch()
   window.setTimeout(() => {
     showSuggestions.value = false
+    suggestionIndex.value = -1
   }, 200)
 }
 
+function clearQuickSearch() {
+  setAndCommitQuickSearch('')
+  if (searchInputRef.value) searchInputRef.value.value = ''
+  searchSuggestions.value = []
+  showSuggestions.value = false
+  suggestionIndex.value = -1
+  if (searchCommitDebounce) {
+    clearTimeout(searchCommitDebounce)
+    searchCommitDebounce = null
+  }
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
+}
+
 function applyHistory(query: string) {
-  setQuickSearch(query)
+  setAndCommitQuickSearch(query)
   if (searchInputRef.value) searchInputRef.value.value = query
   addToHistory(query)
   showSuggestions.value = false
-  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
+  suggestionIndex.value = -1
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
 }
 
 function toggleFieldDropdown(e: Event) {
@@ -483,13 +577,13 @@ function applyRQL() {
   if (!rqlText.value.trim()) {
     state.filters = []
     state.sortBy = []
-    state.quickSearch = ''
-    emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
+    setAndCommitQuickSearch('')
+    emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
     return
   }
 
   restoreFromRQL(rqlText.value, true)
-  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
 }
 
 function handleClickOutside(e: MouseEvent) {
@@ -670,7 +764,7 @@ function handleSavedViewSelect(view: SavedView) {
 
 function handleViewSaved() {
   // View was saved by SavedViewSelector — filters are already current, refresh parent
-  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy)
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
 }
 
 function handleSearchTemplateApply(template: SearchTemplate) {
@@ -712,6 +806,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (suggestDebounce) clearTimeout(suggestDebounce)
+  if (searchCommitDebounce) clearTimeout(searchCommitDebounce)
 })
 </script>
 
@@ -729,14 +825,15 @@ onUnmounted(() => {
           @input="handleQuickSearchChange(($event.target as HTMLInputElement).value)"
           @focus="onSearchFocus"
           @blur="onSearchBlur"
-          @keyup.enter="handleSearchSubmit"
+          @keydown="onSearchKeydown"
           type="text"
           :placeholder="t('filter.quickSearchPlaceholder')"
           class="w-full pl-9 pr-9 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 focus:bg-white transition-all"
         />
         <button
           v-if="state.quickSearch"
-          @click="setQuickSearch('')"
+          type="button"
+          @mousedown.prevent="clearQuickSearch"
           class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-200 rounded transition-colors"
         >
           <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -750,10 +847,11 @@ onUnmounted(() => {
               {{ t('filter.suggestions') }}
             </div>
             <div
-              v-for="suggestion in searchSuggestions"
+              v-for="(suggestion, sIdx) in searchSuggestions"
               :key="suggestion.id"
-              @click="selectSuggestion(suggestion)"
-              class="px-3 py-2 hover:bg-indigo-50 cursor-pointer flex items-center gap-2"
+              @mousedown.prevent="selectSuggestion(suggestion)"
+              class="px-3 py-2 cursor-pointer flex items-center gap-2"
+              :class="sIdx === suggestionIndex ? 'bg-indigo-50' : 'hover:bg-indigo-50'"
             >
               <span class="text-sm font-medium text-indigo-600">{{ suggestion.project_identifier }}-{{ suggestion.sequence_id }}</span>
               <span class="text-sm text-gray-700 truncate">{{ suggestion.name }}</span>
@@ -767,7 +865,8 @@ onUnmounted(() => {
               v-for="(query, index) in state.searchHistory"
               :key="'history-' + index"
               @mousedown.prevent="applyHistory(query)"
-              class="px-3 py-2 hover:bg-indigo-50 cursor-pointer flex items-center justify-between"
+              class="px-3 py-2 cursor-pointer flex items-center justify-between"
+              :class="index === suggestionIndex ? 'bg-indigo-50' : 'hover:bg-indigo-50'"
             >
               <span class="text-sm text-gray-700">{{ query }}</span>
               <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

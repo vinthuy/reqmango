@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceApi } from '@/api/workspace'
 import { projectApi } from '@/api/project'
@@ -133,7 +133,7 @@ const menuItems = computed(() => [
   { id: 'git-integration', label: t('gitIntegration.title'), icon: '🌿' },
   { id: 'relations', label: t('settings.relations'), icon: '🔗' },
   { id: 'custom-fields', label: t('settings.customFields'), icon: '🔧' },
-  { id: 'workflows', label: t('settings.workflows'), icon: '⚙️' },
+  { id: 'workflows', label: t('settings.agentWorkflows'), icon: '⚙️' },
   { id: 'automations', label: t('settings.automations'), icon: '🤖' },
   { id: 'triage', label: t('settings.triage'), icon: '🏥' },
   { id: 'delete', label: t('settings.deleteProject'), icon: '🗑️' },
@@ -677,6 +677,9 @@ function copyIntakeFormLink() {
 }
 
 onMounted(async () => {
+  const section = route.query.section as string
+  if (section && typeof section === 'string') activeSection.value = section
+
   if (!slug.value) return
   try {
     workspace.value = await workspaceApi.getBySlug(slug.value)
@@ -692,6 +695,10 @@ onMounted(async () => {
     await loadSubscribers()
     await loadRelationTypes()
   } catch (e) { console.error('Failed to load:', e) }
+})
+
+watch(() => route.query.section, (section) => {
+  if (section && typeof section === 'string') activeSection.value = section
 })
 </script>
 
@@ -962,11 +969,22 @@ onMounted(async () => {
           <CustomFieldList :project-id="projectId" :workspace-id="workspaceId" @create="handleCreateField" @edit="handleEditField" />
         </div>
 
-        <!-- Workflows -->
+        <!-- Agent orchestration (not state-machine transitions) -->
         <div v-if="!loading && activeSection === 'workflows'" class="space-y-6">
+          <div class="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-sm text-amber-900">
+            <p class="font-medium">{{ t('settings.stateWorkflowHintTitle') }}</p>
+            <p class="mt-1 text-amber-800/90">{{ t('settings.stateWorkflowHintDesc') }}</p>
+            <router-link
+              :to="`/workspace/${slug}/settings?section=workflows`"
+              class="inline-block mt-2 text-indigo-600 hover:text-indigo-700 font-medium"
+            >{{ t('settings.goWorkspaceWorkflows') }} →</router-link>
+          </div>
           <div class="flex items-center justify-between">
-            <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.workflows') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.workflowsDesc') }}</p></div>
-            <button @click="handleAddWorkflow" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createWorkflow') }}</button>
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">{{ t('settings.agentWorkflows') }}</h2>
+              <p class="text-sm text-gray-500 mt-1">{{ t('settings.agentWorkflowsDesc') }}</p>
+            </div>
+            <button @click="handleAddWorkflow" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createAgentWorkflow') }}</button>
           </div>
           <div class="grid gap-4">
             <div v-for="workflow in workflows" :key="workflow.id" class="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-md transition-all">
@@ -985,7 +1003,10 @@ onMounted(async () => {
                         <span v-if="workflow.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️ {{ t('settings.inherited') }}</span>
                       </div>
                       <div class="flex items-center space-x-2 mt-1">
-                        <span class="text-sm text-gray-500">{{ (workflow.transitions || []).length }} {{ t('settings.transitions') }}</span>
+                        <span class="text-sm text-gray-500">
+                          {{ workflow.node_count ?? 0 }} {{ t('settings.nodes') }}
+                          · {{ workflow.edge_count ?? 0 }} {{ t('settings.edges') }}
+                        </span>
                       </div>
                     </div>
                     <span v-if="!workflow.is_inherited" class="text-gray-400">→</span>
@@ -1005,7 +1026,7 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
-            <div v-if="workflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">{{ t('settings.noWorkflows') }}</div>
+            <div v-if="workflows.length === 0" class="text-center text-gray-400 py-12 bg-white rounded-xl border border-gray-200">{{ t('settings.noAgentWorkflows') }}</div>
           </div>
         </div>
 
@@ -1243,7 +1264,7 @@ onMounted(async () => {
     <!-- Workflow Modal -->
     <div v-if="showWorkflowModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showWorkflowModal = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('settings.createWorkflow') }}</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ t('settings.createAgentWorkflow') }}</h3>
         <div class="space-y-4">
           <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.name') }}</label><input v-model="newWorkflowForm.name" type="text" :placeholder="t('settings.workflowNamePlaceholder')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>
           <div><label class="block text-sm font-medium text-gray-700 mb-1">{{ t('settings.descriptionOptional') }}</label><input v-model="newWorkflowForm.description" type="text" :placeholder="t('settings.briefDescription')" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" /></div>

@@ -75,6 +75,18 @@
           </div>
         </template>
 
+        <!-- Metric chart (reference) -->
+        <template v-else-if="widget.widget_type === 'metric_chart'">
+          <div class="form-group">
+            <label class="form-label">{{ t('dashboard.selectMetricChart') }}</label>
+            <select v-model="form.config.metric_chart_id" class="form-input">
+              <option :value="null">{{ t('dashboard.selectMetricChart') }}</option>
+              <option v-for="c in metricCharts" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+          </div>
+          <p class="text-[11px] text-gray-400">{{ t('dashboard.editInMetrics') }}</p>
+        </template>
+
         <!-- Burndown config -->
         <template v-else-if="widget.widget_type === 'burndown'">
           <div class="form-group">
@@ -135,8 +147,10 @@ import { reactive, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { listCycles } from '@/api/cycle'
 import { savedReportApi } from '@/api/report'
+import { metricsApi } from '@/api/metrics'
 import type { DashboardWidget } from '@/types/dashboard'
 import type { SavedReport } from '@/api/report'
+import type { MetricChart } from '@/types/metrics'
 
 const { t } = useI18n()
 
@@ -156,6 +170,7 @@ const isChartWidget = computed(() =>
 
 const cycles = reactive<{ id: number; name: string }[]>([])
 const savedReports = reactive<SavedReport[]>([])
+const metricCharts = reactive<MetricChart[]>([])
 
 const form = reactive({
   title: props.widget.title,
@@ -165,13 +180,13 @@ const form = reactive({
 
 // Initialize default config values
 if (isChartWidget.value && !form.config.report_type) {
-  form.config.report_type = 'distribution'
+  const timeSeries = ['line_chart', 'bubble_chart', 'scatter_chart', 'mixed_chart'].includes(props.widget.widget_type)
+  form.config.report_type = timeSeries ? 'created_trend' : 'distribution'
   form.config.group_by = form.config.group_by || 'state'
   form.config.interval = form.config.interval || 'week'
   form.config.rql = form.config.rql || ''
 }
 
-// Fetch cycles when configuring a burndown widget
 async function fetchCycles() {
   if (props.widget.widget_type !== 'burndown') return
   try {
@@ -182,7 +197,6 @@ async function fetchCycles() {
   }
 }
 
-// Fetch saved reports when configuring a saved_report widget
 async function fetchSavedReports() {
   if (props.widget.widget_type !== 'saved_report') return
   try {
@@ -193,13 +207,26 @@ async function fetchSavedReports() {
   }
 }
 
+async function fetchMetricCharts() {
+  if (props.widget.widget_type !== 'metric_chart') return
+  try {
+    const data = await metricsApi.listCharts(props.projectId)
+    const list = Array.isArray(data) ? data : (data.charts || [])
+    metricCharts.splice(0, metricCharts.length, ...list)
+  } catch {
+    // silently ignore
+  }
+}
+
 onMounted(() => {
   fetchCycles()
   fetchSavedReports()
+  fetchMetricCharts()
 })
 watch(() => props.widget.widget_type, () => {
   fetchCycles()
   fetchSavedReports()
+  fetchMetricCharts()
 })
 
 function save() {

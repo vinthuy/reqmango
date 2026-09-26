@@ -9,6 +9,7 @@ import { workspaceApi } from '@/api/workspace'
 import { useI18n } from '@/composables/useI18n'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { projectApi } from '@/api/project'
+import { useShowInitiatives } from '@/composables/useProductFlags'
 import type { Workspace } from '@/types'
 import type { ProjectResponse } from '@/types/project'
 
@@ -17,6 +18,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useI18n()
 const { isDark, toggle: toggleTheme } = useDarkMode()
+const { enabled: showInitiatives } = useShowInitiatives()
 
 const workspaces = ref<Workspace[]>([])
 const projects = ref<ProjectResponse[]>([])
@@ -61,41 +63,60 @@ function logout() {
 
 const navItems = computed(() => {
   if (!isWorkspaceContext.value) return []
-  return [
+  const items = [
     { label: t('sidebar.projects'), path: '', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' },
     { label: t('sidebar.initiatives'), path: '/initiatives', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
     { label: t('sidebar.settings'), path: '/settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   ]
+  if (!showInitiatives.value) {
+    return items.filter((i) => i.path !== '/initiatives')
+  }
+  return items
 })
 
 const projectNavItems = computed(() => {
   if (!isInProject.value) return []
   return [
-    { label: t('project.tab.issues'), path: '', query: { tab: undefined } },
-    { label: t('project.tab.cycles'), path: '', query: { tab: 'cycles' } },
-    { label: t('project.tab.modules'), path: '', query: { tab: 'modules' } },
-    { label: t('project.tab.updates'), path: '', query: { tab: 'updates' } },
-    { label: t('project.tab.reports'), path: '', query: { tab: 'reports' } },
+    { label: t('project.tab.issues'), path: '', query: { tab: undefined as string | undefined } },
+    { label: t('project.tab.cycles'), path: '/cycles', query: { tab: undefined } },
+    { label: t('project.tab.modules'), path: '/modules', query: { tab: undefined } },
+    { label: t('project.tab.updates'), path: '/updates', query: { tab: undefined } },
+    { label: t('project.tab.metrics'), path: '/metrics', query: { tab: undefined } },
     { label: t('project.tab.pages'), path: '/pages', query: { tab: undefined } },
     { label: t('project.tab.dashboards'), path: '/dashboards', query: { tab: undefined } },
-    // Agent console tabs demoted from primary nav (deep links still work via advanced console)
     { label: t('project.tab.settings'), path: '/settings', query: { tab: undefined } },
   ] as { label: string; path: string; query: { tab?: string } }[]
 })
 
 function projectNavLink(item: { path: string; query: { tab?: string } }) {
   const base = `/workspace/${workspaceSlug.value}/project/${route.params.id}`
-  if (item.path) return base + item.path
-  if (item.query.tab) {
-    return base + '?tab=' + item.query.tab
+  // Path aliases (/metrics, /cycles, …) leave nested routes like /dashboards reliably.
+  if (item.path) {
+    return { path: base + item.path }
   }
-  return base
+  return { path: base }
+}
+
+function goProjectNav(item: { path: string; query: { tab?: string } }) {
+  router.push(projectNavLink(item))
 }
 
 function isProjectNavActive(item: { path: string; query: { tab?: string } }) {
-  if (item.path) return route.path.startsWith(`/workspace/${workspaceSlug.value}/project/${route.params.id}${item.path}`)
-  if (item.query.tab) return route.query.tab === item.query.tab
-  return route.path === `/workspace/${workspaceSlug.value}/project/${route.params.id}` && !route.query.tab
+  const base = `/workspace/${workspaceSlug.value}/project/${route.params.id}`
+  if (item.path === '/dashboards') return route.path.includes('/dashboards')
+  if (item.path === '/pages') return route.path.includes('/pages')
+  if (item.path === '/settings') return route.path.includes('/settings')
+  if (item.path === '/metrics' || item.path === '/reports') {
+    return route.path === base && (route.query.tab === 'metrics' || route.query.tab === 'reports')
+  }
+  if (item.path === '/cycles') return route.path === base && route.query.tab === 'cycles'
+  if (item.path === '/modules') return route.path === base && route.query.tab === 'modules'
+  if (item.path === '/updates') return route.path === base && route.query.tab === 'updates'
+  // Issues (empty path): project root without a special tab
+  if (!item.path) {
+    return route.path === base && (!route.query.tab || route.query.tab === 'issues')
+  }
+  return route.path.startsWith(base + item.path)
 }
 
 // Close dropdown on outside click
@@ -135,15 +156,18 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
     <!-- Project context indicator -->
     <div v-if="isInProject" class="flex items-center gap-1 ml-4 pl-4 border-l border-gray-200 dark:border-gray-700">
       <span class="text-xs text-gray-400 dark:text-gray-500 mr-1">{{ t('topbar.project') }}</span>
-      <router-link v-for="item in projectNavItems" :key="item.label"
-        :to="projectNavLink(item)"
+      <button
+        v-for="item in projectNavItems"
+        :key="item.label"
+        type="button"
+        @click="goProjectNav(item)"
         :class="[
           'px-2.5 py-1 text-xs rounded transition-colors',
           isProjectNavActive(item) ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-medium'
                                    : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
         ]">
         {{ item.label }}
-      </router-link>
+      </button>
     </div>
 
     <!-- Spacer -->

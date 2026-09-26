@@ -174,7 +174,7 @@
                 </td>
               <td v-for="col in visibleColumns" :key="col.key" class="px-3 py-2.5" @click="$emit('select', issue)">
                 <!-- 编号 -->
-                <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-400 font-mono">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
+                <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-400 font-mono" v-html="highlightSearchTerm(`${projectIdentifier}-${issue.sequence_id}`, props.searchTerm || '')"></span>
                 <!-- 标题 -->
                 <span v-else-if="col.key === 'name'" class="text-sm text-gray-800 font-medium line-clamp-2 hover:text-gray-900 transition-colors" v-html="highlightSearchTerm(issue.name, props.searchTerm || '')"></span>
                 <!-- 优先级 -->
@@ -232,7 +232,7 @@
                   <input type="checkbox" :checked="selectedIds.has(issue.id)" @change="toggleSelect(issue.id)" class="rounded border-gray-300" />
                 </td>
                 <td v-for="col in visibleColumns" :key="col.key" class="px-3 py-2.5" @click="$emit('select', issue)">
-                  <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-400 font-mono">{{ projectIdentifier }}-{{ issue.sequence_id }}</span>
+                  <span v-if="col.key === 'sequence_id'" class="text-xs text-gray-400 font-mono" v-html="highlightSearchTerm(`${projectIdentifier}-${issue.sequence_id}`, props.searchTerm || '')"></span>
                   <span v-else-if="col.key === 'name'" class="text-sm text-gray-800 font-medium line-clamp-2 hover:text-gray-900 transition-colors" v-html="highlightSearchTerm(issue.name, props.searchTerm || '')"></span>
                   <span v-else-if="col.key === 'priority'" :class="priorityClass(issue.priority)" class="text-xs px-1.5 py-0.5 rounded whitespace-nowrap">{{ priorityLabel(issue.priority) }}</span>
                   <span v-else-if="col.key === 'issue_type'" class="text-xs whitespace-nowrap">

@@ -1,4 +1,4 @@
-<script setup lang="ts">import { ref, computed, onMounted } from 'vue';
+<script setup lang="ts">import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from '@/composables/useI18n';
 import RelationTypeManager from '@/components/RelationTypeManager.vue';
@@ -42,6 +42,12 @@ const workspaceId = ref(0);
 const firstProjectId = ref(0);
 const workspaceProjects = ref<any[]>([]);
 const activeSection = ref('types');
+
+onMounted(() => {
+  const section = route.query.section as string
+  if (section && typeof section === 'string') activeSection.value = section
+  loadWorkspace()
+})
 
 // ===== Data =====
 const issueTypes = ref<any[]>([]);
@@ -230,7 +236,9 @@ async function wsHandleDeleteState(_groupId: string, state: any) {
   catch (e: any) { console.error('Failed to delete state:', e); toast.error(e?.response?.data?.message || 'Failed to delete state'); }
 }
 
-onMounted(() => { loadWorkspace(); });
+watch(() => route.query.section, (section) => {
+  if (section && typeof section === 'string') activeSection.value = section
+})
 </script>
 
 <template>

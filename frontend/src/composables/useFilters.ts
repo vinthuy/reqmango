@@ -17,7 +17,12 @@ export interface FiltersState {
   sortBy: SortOption[]  // multi-sort, empty array = default order
   groupBy: GroupOption | null
   subGroupBy: SubGroupOption | null
+  /** Draft text in the search input (updates immediately while typing). */
   quickSearch: string
+  /** Committed search applied to RQL / list queries (debounced or flushed). */
+  appliedQuickSearch: string
+  /** Current project identifier for KEY-n matching (e.g. PROJ). */
+  projectIdentifier: string
   searchHistory: string[]
 }
 
@@ -36,6 +41,9 @@ export interface FiltersContext {
   removeSortBy: (index: number) => void
   setGroupBy: (group: GroupOption | null) => void
   setQuickSearch: (query: string) => void
+  commitQuickSearch: () => void
+  setAndCommitQuickSearch: (query: string) => void
+  setProjectIdentifier: (identifier: string) => void
   setSubGroupBy: (group: SubGroupOption | null) => void
   addToHistory: (query: string) => void
   removeFromHistory: (index: number) => void
@@ -68,14 +76,16 @@ export function useFilters() {
     groupBy: null,
     subGroupBy: null,
     quickSearch: '',
+    appliedQuickSearch: '',
+    projectIdentifier: '',
     searchHistory: loadSearchHistory()
   })
 
   const rql = computed<string>(() => {
     if (state.filterGroups.length > 0) {
-      return buildRQL(state.filterGroups, state.quickSearch, auth.user?.id, state.sortBy)
+      return buildRQL(state.filterGroups, state.appliedQuickSearch, auth.user?.id, state.sortBy, state.projectIdentifier)
     }
-    return buildRQL(state.filters, state.quickSearch, auth.user?.id, state.sortBy)
+    return buildRQL(state.filters, state.appliedQuickSearch, auth.user?.id, state.sortBy, state.projectIdentifier)
   })
   
   const activeFilterCount = computed<number>(() => {
@@ -104,10 +114,24 @@ export function useFilters() {
     state.groupBy = null
     state.subGroupBy = null
     state.quickSearch = ''
+    state.appliedQuickSearch = ''
   }
 
   function setQuickSearch(query: string): void {
     state.quickSearch = query
+  }
+
+  function commitQuickSearch(): void {
+    state.appliedQuickSearch = state.quickSearch
+  }
+
+  function setAndCommitQuickSearch(query: string): void {
+    state.quickSearch = query
+    state.appliedQuickSearch = query
+  }
+
+  function setProjectIdentifier(identifier: string): void {
+    state.projectIdentifier = identifier || ''
   }
 
   function addToHistory(query: string): void {
@@ -185,7 +209,10 @@ export function useFilters() {
       state.filters = []
       state.filterGroups = []
       state.sortBy = []
-      if (extractQuickSearch) state.quickSearch = ''
+      if (extractQuickSearch) {
+        state.quickSearch = ''
+        state.appliedQuickSearch = ''
+      }
       return
     }
     let cleaned = rqlStr
@@ -195,11 +222,22 @@ export function useFilters() {
       const likeMatch = cleaned.match(/\(name\s+LIKE\s+"((?:[^"\\]|\\.)*)"\s+OR\s+description\s+LIKE\s+"((?:[^"\\]|\\.)*)"\)/i)
       if (likeMatch) {
         // Unescape RQL string escape sequences (\", \\, \%, \_)
-        state.quickSearch = likeMatch[1].replace(/\\(.)/g, '$1')
+        const qs = likeMatch[1].replace(/\\(.)/g, '$1')
+        state.quickSearch = qs
+        state.appliedQuickSearch = qs
       } else {
-        state.quickSearch = ''
+        const seqMatch = cleaned.match(/\bsequence_id\s*=\s*(\d+)\b/i)
+        if (seqMatch && state.projectIdentifier) {
+          const qs = `${state.projectIdentifier}-${seqMatch[1]}`
+          state.quickSearch = qs
+          state.appliedQuickSearch = qs
+        } else {
+          state.quickSearch = ''
+          state.appliedQuickSearch = ''
+        }
       }
       cleaned = cleaned.replace(/\(name\s+LIKE\s+"(?:[^"\\]|\\.)*"\s+OR\s+description\s+LIKE\s+"(?:[^"\\]|\\.)*"\)/i, '')
+      cleaned = cleaned.replace(/\bsequence_id\s*=\s*\d+\b/i, '')
       cleaned = cleaned.replace(/\s*AND\s*AND\s*/gi, ' AND ').replace(/^\s*AND\s*/i, '').replace(/\s*AND\s*$/i, '').trim()
     }
     if (cleaned) {
@@ -262,6 +300,9 @@ export function useFilters() {
     removeSortBy,
     setGroupBy,
     setQuickSearch,
+    commitQuickSearch,
+    setAndCommitQuickSearch,
+    setProjectIdentifier,
     setSubGroupBy,
     addToHistory,
     removeFromHistory,

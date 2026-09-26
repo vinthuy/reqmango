@@ -2,13 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { initiativeApi, type Initiative } from '@/api/initiative'
+import { useShowInitiatives } from '@/composables/useProductFlags'
 import Roadmap from './Roadmap.vue'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const toast = useToast()
+const { enabled: showInitiatives, setEnabled: enableInitiatives } = useShowInitiatives()
 const slug = route.params.slug as string
 const workspaceId = ref<number>(0)
 const initiatives = ref<Initiative[]>([])
@@ -20,6 +23,10 @@ const progressData = ref<Record<number, any>>({})
 const viewMode = ref<'list' | 'roadmap'>('list')
 
 onMounted(async () => {
+  if (!showInitiatives.value) {
+    loading.value = false
+    return
+  }
   try {
     const wsResp = await fetch(`/api/v1/workspaces/${slug}`)
     if (!wsResp.ok) throw new Error(`Workspace fetch failed: ${wsResp.status}`)
@@ -32,6 +39,30 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function enableAndLoad() {
+  enableInitiatives(true)
+  loading.value = true
+  try {
+    const wsResp = await fetch(`/api/v1/workspaces/${slug}`)
+    if (!wsResp.ok) throw new Error(`Workspace fetch failed: ${wsResp.status}`)
+    const body = await wsResp.json()
+    const ws = body.data
+    if (ws) { workspaceId.value = ws.id; await load(ws.id) }
+  } catch (e) {
+    console.error('Initiatives: failed to load workspace', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+function goSettingsAi() {
+  router.push({ path: `/workspace/${slug}/settings`, query: { section: 'ai' } })
+}
+
+function goProjects() {
+  router.push(`/workspace/${slug}`)
+}
 
 async function load(wsId: number) {
   loading.value = true
@@ -87,6 +118,25 @@ function getStatusColor(s: string) {
 
 <template>
   <div class="p-6 max-w-6xl mx-auto">
+    <!-- Soft gate: demoted from primary IA (AI PM discipline) -->
+    <div v-if="!showInitiatives" class="max-w-lg mx-auto text-center py-16">
+      <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">{{ t('initiative.gatedTitle') }}</h1>
+      <p class="text-sm text-gray-500 mb-2">{{ t('initiative.gatedDesc') }}</p>
+      <p class="text-xs text-gray-400 mb-6">{{ t('initiative.gatedHint') }}</p>
+      <div class="flex flex-wrap items-center justify-center gap-3">
+        <button type="button" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700" @click="enableAndLoad">
+          {{ t('initiative.gatedEnable') }}
+        </button>
+        <button type="button" class="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800" @click="goSettingsAi">
+          {{ t('initiative.gatedSettings') }}
+        </button>
+        <button type="button" class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700" @click="goProjects">
+          {{ t('initiative.gatedBack') }}
+        </button>
+      </div>
+    </div>
+
+    <template v-else>
     <!-- Header with view toggle -->
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-3">
@@ -227,5 +277,6 @@ function getStatusColor(s: string) {
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>

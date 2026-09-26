@@ -124,6 +124,15 @@ describe('buildRQL', () => {
     expect(buildRQL(filters, 'PROJ-42')).toBe('sequence_id = 42')
   })
 
+  it('should treat issue keys as case-insensitive', () => {
+    expect(buildRQL([], 'proj-42')).toBe('sequence_id = 42')
+    expect(buildRQL([], 'Proj-7', null, undefined, 'PROJ')).toBe('sequence_id = 7')
+  })
+
+  it('should fall back to LIKE when key prefix does not match project identifier', () => {
+    expect(buildRQL([], 'OTHER-9', null, undefined, 'PROJ')).toBe('(name LIKE "%OTHER-9%" OR description LIKE "%OTHER-9%")')
+  })
+
   it('should combine quick search with filters', () => {
     const filters: FilterCondition[] = [
       { field: 'priority', operator: 'is', value: 'high', displayValue: 'high' }

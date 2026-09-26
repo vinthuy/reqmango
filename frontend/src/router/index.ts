@@ -204,7 +204,11 @@ const router = createRouter({
     },
     {
       path: '/workspace/:slug/project/:id/reports',
-      redirect: (to) => ({ path: `/workspace/${to.params.slug}/project/${to.params.id}`, query: { ...to.query, tab: 'reports' } }),
+      redirect: (to) => ({ path: `/workspace/${to.params.slug}/project/${to.params.id}`, query: { ...to.query, tab: 'metrics' } }),
+    },
+    {
+      path: '/workspace/:slug/project/:id/metrics',
+      redirect: (to) => ({ path: `/workspace/${to.params.slug}/project/${to.params.id}`, query: { ...to.query, tab: 'metrics' } }),
     },
     {
       path: '/workspace/:slug/project/:id/dashboard',

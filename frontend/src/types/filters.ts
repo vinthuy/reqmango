@@ -173,19 +173,27 @@ export interface RQLResult {
   sortBy?: SortOption[]
 }
 
-export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[]): string
-export function buildRQL(filterGroups: FilterGroup[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[]): string
-export function buildRQL(filtersOrGroups: FilterCondition[] | FilterGroup[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[]): string {
+export function buildRQL(filters: FilterCondition[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[], projectIdentifier?: string): string
+export function buildRQL(filterGroups: FilterGroup[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[], projectIdentifier?: string): string
+export function buildRQL(filtersOrGroups: FilterCondition[] | FilterGroup[], quickSearchValue?: string, currentUserId?: number | null, sortBy?: SortOption[], projectIdentifier?: string): string {
   const clauses: string[] = []
 
   if (quickSearchValue) {
     const qs = quickSearchValue.trim()
     if (qs) {
-      const issueKeyMatch = qs.match(/^[A-Z]+-\d+$/)
+      const issueKeyMatch = qs.match(/^([A-Za-z][A-Za-z0-9]*)-(\d+)$/)
       if (issueKeyMatch) {
-        const parts = qs.split('-')
-        const sequenceId = parts[1]
-        clauses.push(`sequence_id = ${sequenceId}`)
+        const prefix = issueKeyMatch[1]
+        const sequenceId = issueKeyMatch[2]
+        const ident = (projectIdentifier || '').trim()
+        if (!ident || prefix.toUpperCase() === ident.toUpperCase()) {
+          clauses.push(`sequence_id = ${sequenceId}`)
+        } else {
+          const escaped = qs
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"')
+          clauses.push(`(name LIKE "%${escaped}%" OR description LIKE "%${escaped}%")`)
+        }
       } else {
         const escaped = qs
           .replace(/\\/g, '\\\\')

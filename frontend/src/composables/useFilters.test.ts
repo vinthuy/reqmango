@@ -64,6 +64,10 @@ describe('useFilters', () => {
       expect(ctx.activeFilterCount.value).toBe(1)
       ctx.setQuickSearch('bug')
       expect(ctx.activeFilterCount.value).toBe(2)
+      // draft-only search should not yet affect rql
+      expect(ctx.rql.value).not.toContain('bug')
+      ctx.commitQuickSearch()
+      expect(ctx.rql.value).toContain('bug')
     })
 
     it('isEmpty should be true when no filters or search', () => {
@@ -185,15 +189,28 @@ describe('useFilters', () => {
   })
 
   describe('quickSearch', () => {
-    it('should set quickSearch', () => {
+    it('should set quickSearch draft without applying to rql until commit', () => {
       ctx.setQuickSearch('login bug')
       expect(ctx.state.quickSearch).toBe('login bug')
+      expect(ctx.state.appliedQuickSearch).toBe('')
+      expect(ctx.rql.value).toBe('')
+      ctx.commitQuickSearch()
+      expect(ctx.state.appliedQuickSearch).toBe('login bug')
+      expect(ctx.rql.value).toContain('login bug')
+    })
+
+    it('should set and commit in one step', () => {
+      ctx.setAndCommitQuickSearch('api')
+      expect(ctx.state.quickSearch).toBe('api')
+      expect(ctx.state.appliedQuickSearch).toBe('api')
+      expect(ctx.rql.value).toContain('api')
     })
 
     it('should clear quickSearch', () => {
-      ctx.setQuickSearch('test')
-      ctx.setQuickSearch('')
+      ctx.setAndCommitQuickSearch('test')
+      ctx.setAndCommitQuickSearch('')
       expect(ctx.state.quickSearch).toBe('')
+      expect(ctx.state.appliedQuickSearch).toBe('')
     })
   })
 

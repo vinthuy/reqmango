@@ -93,18 +93,50 @@
     <!-- Add Widget Dialog -->
     <div v-if="showAddWidget" class="fixed inset-0 z-100 flex items-center justify-center">
       <div class="absolute inset-0 bg-black/20" @click="showAddWidget = false"></div>
-      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 z-10">
+      <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-6 z-10 max-h-[85vh] overflow-y-auto">
         <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">{{ t('dashboard.addWidget') }}</h3>
-        <div class="grid grid-cols-2 gap-3 mb-4">
-          <button v-for="wt in widgetTypes" :key="wt.type"
+
+        <!-- From Metrics -->
+        <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">{{ t('dashboard.addFromMetrics') }}</p>
+        <div v-if="metricChartsLoading" class="text-xs text-gray-400 py-4 text-center">…</div>
+        <div v-else-if="metricCharts.length === 0" class="mb-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/40 text-center">
+          <p class="text-xs text-gray-500 mb-2">{{ t('dashboard.noMetricsCharts') }}</p>
+          <button class="btn btn-sm btn-primary" @click="goToMetrics">{{ t('dashboard.goToMetrics') }}</button>
+        </div>
+        <div v-else class="grid grid-cols-1 gap-2 mb-5">
+          <button
+            v-for="c in metricCharts"
+            :key="c.id"
+            @click="handleAddMetricChart(c)"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left transition-colors"
+          >
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 shrink-0">{{ c.chart_type }}</span>
+            <span class="text-sm text-gray-800 dark:text-gray-200 truncate flex-1">{{ c.name }}</span>
+          </button>
+        </div>
+
+        <!-- Layout widgets -->
+        <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">{{ t('dashboard.addLayoutWidgets') }}</p>
+        <div class="grid grid-cols-2 gap-2 mb-4">
+          <button v-for="wt in layoutWidgetTypes" :key="wt.type"
             @click="handleAddWidget(wt.type)"
-            class="flex flex-col items-center gap-2 p-4 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors">
-            <svg class="w-7 h-7 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="wt.icon" />
-            </svg>
+            class="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors">
             <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ wt.label }}</span>
           </button>
         </div>
+
+        <!-- Legacy advanced -->
+        <details class="mb-4">
+          <summary class="text-[11px] font-medium text-gray-400 cursor-pointer select-none">{{ t('dashboard.addAdvancedLegacy') }}</summary>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <button v-for="wt in legacyWidgetTypes" :key="wt.type"
+              @click="handleAddWidget(wt.type)"
+              class="flex flex-col items-center gap-1 p-2.5 rounded-lg border border-dashed border-gray-200 dark:border-gray-600 hover:border-amber-400 text-xs text-gray-600 dark:text-gray-400">
+              {{ wt.label }}
+            </button>
+          </div>
+        </details>
+
         <div class="flex justify-end">
           <button class="btn btn-sm btn-ghost" @click="showAddWidget = false">{{ t('common.cancel') }}</button>
         </div>
@@ -114,10 +146,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { useDashboard } from '@/composables/useDashboard'
+import { metricsApi } from '@/api/metrics'
+import type { MetricChart } from '@/types/metrics'
 import type { DashboardWidget, WidgetCreate, WidgetType } from '@/types/dashboard'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import DashboardGrid from '@/components/DashboardGrid.vue'
@@ -141,39 +175,68 @@ const showConfig = ref(false)
 const showAddWidget = ref(false)
 const configWidget = ref<DashboardWidget | null>(null)
 
-const widgetTypes = computed(() => [
-  { type: 'number_card' as WidgetType, label: t('dashboard.numberCard'), icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
-  { type: 'bar_chart' as WidgetType, label: t('dashboard.barChart'), icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-  { type: 'pie_chart' as WidgetType, label: t('dashboard.pieChart'), icon: 'M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z' },
-  { type: 'doughnut_chart' as WidgetType, label: t('dashboard.doughnutChart'), icon: 'M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z' },
-  { type: 'line_chart' as WidgetType, label: t('dashboard.lineChart'), icon: 'M7 12l3-3 3 3 4-4M7 12v8M14 8v12M11 12v8M18 8v12' },
-  { type: 'bubble_chart' as WidgetType, label: t('dashboard.bubbleChart'), icon: 'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0M17 7m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' },
-  { type: 'scatter_chart' as WidgetType, label: t('dashboard.scatterChart'), icon: 'M8 18l4-10m0 0l4-4m-4 4l4 4m-4-4l-4-4' },
-  { type: 'mixed_chart' as WidgetType, label: t('dashboard.mixedChart'), icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V5l8 4-8 4' },
-  { type: 'burndown' as WidgetType, label: t('dashboard.burndown'), icon: 'M4 20h16M4 20V4m0 16l4-4 4 4 8-8' },
-  { type: 'table' as WidgetType, label: t('dashboard.table'), icon: 'M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' },
-  { type: 'recent_list' as WidgetType, label: t('dashboard.recentList'), icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
-  { type: 'saved_report' as WidgetType, label: t('dashboard.savedReport'), icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { type: 'ai_summary' as WidgetType, label: t('dashboard.aiSummary'), icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
+const metricCharts = ref<MetricChart[]>([])
+const metricChartsLoading = ref(false)
+
+const layoutWidgetTypes = computed(() => [
+  { type: 'number_card' as WidgetType, label: t('dashboard.numberCard') },
+  { type: 'burndown' as WidgetType, label: t('dashboard.burndown') },
+  { type: 'recent_list' as WidgetType, label: t('dashboard.recentList') },
+  { type: 'ai_summary' as WidgetType, label: t('dashboard.aiSummary') },
 ])
+
+const legacyWidgetTypes = computed(() => [
+  { type: 'bar_chart' as WidgetType, label: t('dashboard.barChart') },
+  { type: 'pie_chart' as WidgetType, label: t('dashboard.pieChart') },
+  { type: 'doughnut_chart' as WidgetType, label: t('dashboard.doughnutChart') },
+  { type: 'line_chart' as WidgetType, label: t('dashboard.lineChart') },
+  { type: 'table' as WidgetType, label: t('dashboard.table') },
+  { type: 'saved_report' as WidgetType, label: t('dashboard.savedReport') },
+])
+
+async function loadMetricCharts() {
+  metricChartsLoading.value = true
+  try {
+    const data = await metricsApi.listCharts(projectId.value)
+    metricCharts.value = Array.isArray(data) ? data : (data.charts || [])
+  } catch {
+    metricCharts.value = []
+  } finally {
+    metricChartsLoading.value = false
+  }
+}
+
+watch(showAddWidget, (v) => {
+  if (v) loadMetricCharts()
+})
 
 onMounted(() => {
   loadDashboards()
 })
 
-// Navigation
 function goBack() {
   const slug = route.params.slug
   router.push({ name: 'Project', params: { slug, id: projectId.value } })
 }
 
-// Sidebar actions
+function goToMetrics() {
+  showAddWidget.value = false
+  router.push({ path: `/workspace/${route.params.slug}/project/${projectId.value}`, query: { tab: 'metrics' } })
+}
+
 function handleSelect(id: number) {
   selectDashboard(id)
 }
 
 async function handleCreate() {
-  const name = t('dashboard.defaultName')
+  const base = t('dashboard.defaultName')
+  const existing = new Set(dashboards.value.map((d) => d.name))
+  let name = base
+  let n = 2
+  while (existing.has(name)) {
+    name = `${base} (${n})`
+    n += 1
+  }
   await createDashboard(name)
 }
 
@@ -193,7 +256,6 @@ async function handleRename(id: number, name: string) {
   await updateDashboardMeta(id, { name })
 }
 
-// Widget actions
 function openConfig(widget: DashboardWidget | null) {
   configWidget.value = widget
 }
@@ -212,8 +274,19 @@ async function handleDeleteWidget(widgetId: number) {
   await deleteWidgetOnCurrent(widgetId)
 }
 
+async function handleAddMetricChart(chart: MetricChart) {
+  const data: WidgetCreate = {
+    widget_type: 'metric_chart',
+    title: chart.name,
+    config: { metric_chart_id: chart.id },
+    position: { x: 0, y: 0, w: 6, h: 4 },
+  }
+  await addWidgetToCurrent(data)
+  showAddWidget.value = false
+}
+
 async function handleAddWidget(widgetType: WidgetType) {
-  const titleMap: Record<WidgetType, string> = {
+  const titleMap: Partial<Record<WidgetType, string>> = {
     number_card: t('dashboard.numberCard'),
     bar_chart: t('dashboard.barChart'),
     pie_chart: t('dashboard.pieChart'),
@@ -222,20 +295,32 @@ async function handleAddWidget(widgetType: WidgetType) {
     bubble_chart: t('dashboard.bubbleChart'),
     scatter_chart: t('dashboard.scatterChart'),
     mixed_chart: t('dashboard.mixedChart'),
+    metric_chart: t('dashboard.metricChart'),
     burndown: t('dashboard.burndown'),
     table: t('dashboard.table'),
     recent_list: t('dashboard.recentList'),
     saved_report: t('dashboard.savedReport'),
     ai_summary: t('dashboard.aiSummary'),
   }
-  let config: Record<string, unknown> = { metric: 'total', label: t('dashboard.totalIssues') }
-  if (widgetType === 'burndown') config = { cycle_id: null }
-  else if (widgetType === 'recent_list') config = { limit: 10 }
-  else if (widgetType === 'saved_report') config = { saved_report_id: null }
-  else if (widgetType === 'ai_summary') config = {}
+  let config: Record<string, unknown> = {}
+  if (widgetType === 'number_card') {
+    config = { metric: 'total', label: t('dashboard.totalIssues') }
+  } else if (widgetType === 'burndown') {
+    config = { cycle_id: null }
+  } else if (widgetType === 'recent_list') {
+    config = { limit: 10 }
+  } else if (widgetType === 'saved_report') {
+    config = { saved_report_id: null }
+  } else if (widgetType === 'ai_summary') {
+    config = {}
+  } else if (['line_chart', 'bubble_chart', 'scatter_chart', 'mixed_chart'].includes(widgetType)) {
+    config = { report_type: 'created_trend', group_by: 'state', interval: 'week', rql: '' }
+  } else if (['bar_chart', 'pie_chart', 'doughnut_chart', 'table'].includes(widgetType)) {
+    config = { report_type: 'distribution', group_by: 'state', interval: 'week', rql: '' }
+  }
   const data: WidgetCreate = {
     widget_type: widgetType,
-    title: titleMap[widgetType],
+    title: titleMap[widgetType] || widgetType,
     config,
     position: { x: 0, y: 0, w: widgetType === 'ai_summary' ? 6 : 4, h: widgetType === 'ai_summary' ? 4 : 3 },
   }

@@ -395,20 +395,29 @@ async function handleStateChange(newStateId: number) {
       const sourceStateName = e.response.data.source_state_name
       const targetStateName = e.response.data.target_state_name
       try {
-        const wfRes = await api.get(`/projects/${issue.value.project_id}/workflows`)
-        const workflows = wfRes.data || []
+        const workspaceId = issue.value.workspace_id
         let transition: any = null
-        for (const w of workflows) {
-          const found = (w.transitions || []).find((tr: any) => tr.id === transitionId)
-          if (found) {
-            transition = found
-            break
+        const workflowId = e.response.data.workflow_id
+        if (workspaceId && workflowId) {
+          try {
+            const trRes = await api.get(`/workspaces/${workspaceId}/workflows/${workflowId}/transitions`)
+            const list = Array.isArray(trRes.data) ? trRes.data : (trRes.data?.data || [])
+            transition = list.find((tr: any) => tr.id === transitionId) || null
+          } catch { /* fall through */ }
+        }
+        if (!transition && workspaceId) {
+          const wfRes = await api.get(`/workspaces/${workspaceId}/workflows`)
+          const workflows = Array.isArray(wfRes.data) ? wfRes.data : (wfRes.data?.data || [])
+          for (const w of workflows) {
+            const found = (w.transitions || []).find((tr: any) => tr.id === transitionId)
+            if (found) { transition = found; break }
           }
         }
         let approverNames: string[] = []
-        if (transition?.approver_ids) {
+        const rawApprovers = transition?.approver_ids
+        if (rawApprovers) {
           try {
-            const ids: number[] = JSON.parse(transition.approver_ids)
+            const ids: number[] = typeof rawApprovers === 'string' ? JSON.parse(rawApprovers) : rawApprovers
             approverNames = ids.map(id => {
               const m = projectMembers.value.find((m: any) => m.user_id === id || m.id === id)
               return m?.user?.display_name || m?.display_name || `#${id}`

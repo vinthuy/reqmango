@@ -232,7 +232,7 @@
         />
       </div>
 
-      <div v-if="activeTab === 'reports'">
+      <div v-if="activeTab === 'metrics' || activeTab === 'reports'">
         <MetricsView :project-id="projectId" />
       </div>
 
@@ -434,8 +434,14 @@ function clearProjectSummary() {
   projectSummary.value = null
   projectSummaryError.value = ''
 }
+function normalizeProjectTab(tab: string | undefined | null): string {
+  if (!tab) return 'issues'
+  if (tab === 'reports') return 'metrics'
+  return tab
+}
+
 const loading = ref(false)
-const activeTab = ref((route.query.tab as string) || 'issues')
+const activeTab = ref(normalizeProjectTab(route.query.tab as string))
 const issueView = ref<'list' | 'kanban' | 'tree' | 'calendar' | 'gantt'>((route.query.view as any) || 'list')
 const issueRefreshKey = ref(0)
 function triggerRefresh() { issueRefreshKey.value++ }
@@ -446,7 +452,7 @@ const currentGroupBy = ref<any>(null)
 const currentSubGroupBy = ref<any>(null)
 const currentColumns = ref<string[]>([])
 
-const searchTerm = computed(() => extractSearchTerm(currentRQL.value))
+const searchTerm = ref('')
 
 // Compute sort_config JSON string for API
 const sortConfigJson = computed(() => {
@@ -458,11 +464,12 @@ const sortConfigJson = computed(() => {
   return JSON.stringify(config)
 })
 
-function handleFiltersChanged(rql: string, sortBy: any[] = [], groupBy: any = null, subGroupBy: any = null) {
+function handleFiltersChanged(rql: string, sortBy: any[] = [], groupBy: any = null, subGroupBy: any = null, quickSearch = '') {
   currentRQL.value = rql
   currentSortBy.value = sortBy
   currentGroupBy.value = groupBy
   currentSubGroupBy.value = subGroupBy
+  searchTerm.value = quickSearch || extractSearchTerm(rql)
   triggerRefresh()
 }
 
@@ -548,14 +555,14 @@ function getUpdateStatusColor(s: string) {
 
 // Reset active tab when switching between projects (Vue Router reuses the component)
 watch(() => route.params.id, () => {
-  activeTab.value = (route.query.tab as string) || 'issues'
+  activeTab.value = normalizeProjectTab(route.query.tab as string)
   issueView.value = (route.query.view as any) || 'list'
 })
 
-// Watch query.tab changes (e.g. TopBar nav with ?tab=reports)
+// Watch query.tab changes (e.g. TopBar nav with ?tab=metrics|reports)
 watch(() => route.query.tab, (tab) => {
   if (tab && typeof tab === 'string') {
-    activeTab.value = tab
+    activeTab.value = tab === 'reports' ? 'metrics' : tab
   }
 })
 
@@ -650,8 +657,11 @@ const defaultTypeId = computed(() => {
 })
 
 const defaultStateId = computed(() => {
-  const todoState = states.value.find((s: any) => s.group === 'todo')
-  return todoState?.id || null
+  const preferred =
+    states.value.find((s: any) => s.is_default) ||
+    states.value.find((s: any) => s.group === 'unstarted') ||
+    states.value.find((s: any) => s.group === 'backlog')
+  return preferred?.id || null
 })
 const defaultTabs = computed(() => [
   { id: 'issues', name: t('project.tab.issues') },
@@ -659,7 +669,7 @@ const defaultTabs = computed(() => [
   { id: 'modules', name: t('project.tab.modules') },
   { id: 'updates', name: t('project.tab.updates') },
   { id: 'pages', name: t('project.tab.pages') },
-  { id: 'reports', name: t('project.tab.reports') },
+  { id: 'metrics', name: t('project.tab.metrics') },
   { id: 'dashboards', name: t('project.tab.dashboards') },
   { id: 'settings', name: t('project.tab.settings') },
 ])

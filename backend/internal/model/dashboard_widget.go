@@ -7,7 +7,8 @@ type DashboardWidget struct {
 	BaseModel
 
 	DashboardID uint64 `gorm:"not null;index" json:"dashboard_id"`
-	// WidgetType: number_card | bar_chart | pie_chart | doughnut_chart | line_chart | burndown | table | recent_list | saved_report | ai_summary
+	// WidgetType: number_card | bar_chart | pie_chart | doughnut_chart | line_chart |
+	// bubble_chart | scatter_chart | mixed_chart | metric_chart | burndown | table | recent_list | saved_report | ai_summary
 	WidgetType string `gorm:"size:30;not null" json:"widget_type"`
 	Title      string `gorm:"size:100" json:"title"`
 	// Description is an optional tooltip/help text
@@ -15,7 +16,9 @@ type DashboardWidget struct {
 
 	// Config stores widget-type-specific configuration (JSONB).
 	// number_card: {"metric":"total|completed|in_progress|overdue","label":"...","color":"#xxx"}
-	// bar/pie/doughnut/line_chart/table: {"report_type":"distribution","group_by":"state","chart_type":"bar","rql":"..."}
+	// metric_chart: {"metric_chart_id":123}
+	// bar/pie/doughnut/table: {"report_type":"distribution","group_by":"state","interval":"week","rql":"..."}
+	// line/bubble/scatter/mixed: {"report_type":"created_trend","group_by":"state","interval":"week","rql":"..."}
 	// burndown: {"cycle_id":123}
 	// recent_list: {"limit":10}
 	Config json.RawMessage `gorm:"type:jsonb" json:"config"`

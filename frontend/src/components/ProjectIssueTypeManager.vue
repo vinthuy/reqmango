@@ -13,6 +13,19 @@
       </div>
     </div>
 
+    <div
+      v-if="!loading && importableCount > 0 && !types.some(t => t.is_imported)"
+      class="mb-4 bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 text-sm text-indigo-900 flex items-center justify-between gap-3"
+    >
+      <div>
+        <p class="font-medium">{{ $t('issueType.enableWorkspaceTypesTitle') }}</p>
+        <p class="text-indigo-800/80 mt-0.5">{{ $t('issueType.enableWorkspaceTypesDesc', { count: importableCount }) }}</p>
+      </div>
+      <button @click="openImportModal" class="shrink-0 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700">
+        {{ $t('issueType.importFromWorkspace') }}
+      </button>
+    </div>
+
     <div v-if="loading" class="text-center py-8 text-gray-400">{{ $t('common.loading') }}</div>
 
     <div v-else-if="types.length === 0" class="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
@@ -178,6 +191,7 @@ const importableLoading = ref(false)
 const importing = ref(false)
 const importingTypeId = ref<number | null>(null)
 const unimportingId = ref<number | null>(null)
+const importableCount = ref(0)
 
 onMounted(() => loadTypes())
 watch(() => props.projectId, () => loadTypes())
@@ -188,6 +202,12 @@ async function loadTypes() {
     const res = await api.get(`/projects/${props.projectId}/issue-types?workspace_id=${props.workspaceId}`)
     types.value = Array.isArray(res.data) ? res.data : []
     reorderDirty.value = false
+    try {
+      const importable = await issueTypeApi.listImportableTypes(props.workspaceId, props.projectId)
+      importableCount.value = Array.isArray(importable) ? importable.length : 0
+    } catch {
+      importableCount.value = 0
+    }
   } catch (e) { console.error('Failed to load issue types:', e) }
   finally { loading.value = false }
 }

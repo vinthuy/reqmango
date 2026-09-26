@@ -32,6 +32,13 @@
               <span>{{ type.name }}</span>
             </button>
           </div>
+          <p v-if="issueTypes.length === 0" class="text-sm text-amber-700 mt-2 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+            {{ t('issue.noTypesHint') }}
+            <router-link
+              :to="`/workspace/${slug}/project/${projectId}/settings?section=issue-types`"
+              class="text-indigo-600 hover:text-indigo-700 font-medium ml-1"
+            >{{ t('issue.importTypesCta') }} →</router-link>
+          </p>
         </div>
 
         <!-- 模板选择 -->
@@ -452,16 +459,13 @@ async function loadData() {
       const defaultType = typesRes.find((t: any) => t.is_default) || typesRes[0]
       if (defaultType) {
         selectedTypeId.value = defaultType.id
-      } else if (typesRes.length === 0) {
-        // API succeeded but returned no types; fall back to type ID 1 so the
-        // form remains usable (e.g. when workspaceId resolution failed).
-        console.warn('No issue types returned, falling back to default type ID 1')
-        selectedTypeId.value = 1
+      } else {
+        selectedTypeId.value = null
       }
     } catch (e) {
-      // API 不可用时使用默认类型 ID = 1
-      console.warn('Issue types API not available, using default type ID 1')
-      selectedTypeId.value = 1
+      console.warn('Issue types API not available')
+      issueTypes.value = []
+      selectedTypeId.value = null
     }
 
     // 加载状态
@@ -469,8 +473,12 @@ async function loadData() {
       const statesRes = await stateApi.listStates(projectId.value)
       states.value = statesRes
       if (statesRes.length > 0) {
-        const todoState = statesRes.find((s: any) => s.group === 'todo') || statesRes[0]
-        formData.value.state_id = todoState.id
+        const defaultState =
+          statesRes.find((s: any) => s.is_default) ||
+          statesRes.find((s: any) => s.group === 'unstarted') ||
+          statesRes.find((s: any) => s.group === 'backlog') ||
+          statesRes[0]
+        formData.value.state_id = defaultState.id
       }
     } catch (e) {
       console.error('Failed to load states:', e)
@@ -500,12 +508,24 @@ async function loadData() {
       console.error('Failed to load releases:', e)
     }
 
-    // 加载项目成员
+    // 加载项目成员 + 默认负责人
     try {
       const membersRes = await projectApi.listProjectMembers(projectId.value)
       projectMembers.value = membersRes.map((m: any) => m.user)
     } catch (e) {
       console.error('Failed to load project members:', e)
+    }
+
+    try {
+      const project = await projectApi.getProject(projectId.value)
+      if (!formData.value.assignee_id && project?.default_assignee_id) {
+        const mid = Number(project.default_assignee_id)
+        if (mid > 0 && projectMembers.value.some((m: any) => m.id === mid)) {
+          formData.value.assignee_id = mid
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load project default assignee:', e)
     }
 
     // 加载工作项模板

@@ -14,8 +14,8 @@
       <span class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ data?.label ?? '' }}</span>
     </div>
 
-    <!-- Bar Chart (mini bar) -->
-    <div v-else-if="isChart && data?.labels" class="mini-bar flex flex-col gap-2 w-full">
+    <!-- Bar Chart (mini bar) — bar only -->
+    <div v-else-if="widget.widget_type === 'bar_chart' && data?.labels" class="mini-bar flex flex-col gap-2 w-full">
       <div v-for="(label, i) in data.labels.slice(0, 6)" :key="i" class="flex items-center gap-2">
         <span class="text-[11px] text-gray-500 dark:text-gray-400 w-20 text-right truncate shrink-0">{{ label }}</span>
         <div class="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -24,6 +24,34 @@
         </div>
         <span class="text-[11px] text-gray-700 dark:text-gray-300 font-medium w-8 shrink-0">{{ data.values[i] ?? 0 }}</span>
       </div>
+    </div>
+
+    <!-- Line / Bubble / Scatter / Mixed / Metrics (non-table) — Chart.js canvas -->
+    <div v-else-if="isCanvasChart && data?.labels" class="w-full h-36 relative">
+      <canvas ref="widgetCanvas" class="w-full h-full"></canvas>
+    </div>
+
+    <!-- Metrics chart as table -->
+    <div v-else-if="widget.widget_type === 'metric_chart' && data?.chart_type === 'table' && data?.labels" class="w-full overflow-auto max-h-[300px]">
+      <table class="w-full text-[11px]">
+        <thead>
+          <tr class="border-b border-gray-200 dark:border-gray-700">
+            <th class="text-left py-1.5 px-2 text-gray-400 font-medium text-[10px] uppercase">Label</th>
+            <th class="text-right py-1.5 px-2 text-gray-400 font-medium text-[10px] uppercase">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(label, i) in data.labels" :key="i" class="border-b border-gray-50 dark:border-gray-700/50">
+            <td class="py-1.5 px-2 text-gray-700 dark:text-gray-300">{{ label }}</td>
+            <td class="py-1.5 px-2 text-right font-medium">{{ (data.values ?? [])[i] ?? 0 }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty chart payload -->
+    <div v-else-if="isCanvasChart || widget.widget_type === 'metric_chart'" class="text-sm text-gray-400 py-4 text-center">
+      {{ data?.error || t('dashboard.noChartData') || '暂无数据' }}
     </div>
 
     <!-- Pie / Doughnut Chart -->
@@ -48,14 +76,18 @@
       </div>
     </div>
 
-    <!-- Burndown -->
+    <!-- Burndown (cycle remaining over days) -->
     <div v-else-if="widget.widget_type === 'burndown' && data">
       <div v-if="data.error" class="text-sm text-gray-400 py-4 text-center">{{ data.error }}</div>
       <div v-else class="w-full">
-        <svg viewBox="0 0 300 120" class="w-full h-28">
-          <polyline :points="getBurndownLine(data)" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linejoin="round" />
-          <line x1="0" y1="120" x2="300" y2="0" stroke="#EF4444" stroke-width="1" stroke-dasharray="4,3" opacity="0.5" />
+        <svg viewBox="0 0 300 120" class="w-full h-28" preserveAspectRatio="none">
+          <polyline :points="getBurndownIdealLine(data)" fill="none" stroke="#9CA3AF" stroke-width="1.5" stroke-dasharray="4,3" />
+          <polyline :points="getBurndownActualLine(data)" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linejoin="round" />
         </svg>
+        <div class="flex justify-center gap-4 text-[10px] text-gray-500 mt-1">
+          <span class="flex items-center gap-1"><span class="w-3 border-t border-dashed border-gray-400"></span>{{ t('cycleBurndown.ideal') || '理想' }}</span>
+          <span class="flex items-center gap-1"><span class="w-3 border-t-2 border-blue-500"></span>{{ t('cycleBurndown.actual') || '实际' }}</span>
+        </div>
       </div>
     </div>
 
@@ -214,9 +246,13 @@ const props = defineProps<{
   data: Record<string, any> | null
 }>()
 
-const isChart = computed(() =>
-  ['bar_chart', 'line_chart', 'bubble_chart', 'scatter_chart', 'mixed_chart'].includes(props.widget.widget_type)
-)
+const isCanvasChart = computed(() => {
+  if (props.widget.widget_type === 'metric_chart') {
+    const ct = props.data?.chart_type
+    return !!ct && ct !== 'table'
+  }
+  return ['line_chart', 'bubble_chart', 'scatter_chart', 'mixed_chart'].includes(props.widget.widget_type)
+})
 const isPieOrDoughnut = computed(() =>
   ['pie_chart', 'doughnut_chart'].includes(props.widget.widget_type)
 )
@@ -224,14 +260,15 @@ const isPieOrDoughnut = computed(() =>
 const barColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
 const pieColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316']
 
-// Saved Report Chart.js rendering
+// Chart.js for saved_report + line/bubble/scatter/mixed widgets
 const savedReportCanvas = ref<HTMLCanvasElement | null>(null)
+const widgetCanvas = ref<HTMLCanvasElement | null>(null)
 const chartInstance = ref<Chart | null>(null)
 
 const isSavedReportChart = computed(() => {
   if (props.widget.widget_type !== 'saved_report') return false
   const ct = props.data?.chart_type ?? 'bar'
-  return ['bar', 'pie', 'doughnut', 'line', 'bubble', 'scatter'].includes(ct)
+  return ['bar', 'pie', 'doughnut', 'line', 'bubble', 'scatter', 'mixed'].includes(ct)
 })
 
 function getColors(data: Record<string, any>): string[] {
@@ -256,22 +293,33 @@ function destroyChart() {
   }
 }
 
-function renderSavedReportChart(data: Record<string, any>) {
+function chartTypeFromWidget(): string {
+  switch (props.widget.widget_type) {
+    case 'line_chart': return 'line'
+    case 'bubble_chart': return 'bubble'
+    case 'scatter_chart': return 'scatter'
+    case 'mixed_chart': return 'mixed'
+    case 'metric_chart': return props.data?.chart_type ?? 'bar'
+    default: return props.data?.chart_type ?? 'bar'
+  }
+}
+
+function renderOnCanvas(canvas: HTMLCanvasElement | null, data: Record<string, any>, chartType: string) {
   destroyChart()
-  if (!savedReportCanvas.value) return
-  const ctx = savedReportCanvas.value.getContext('2d')
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const chartType = data.chart_type ?? 'bar'
   const colors = getColors(data)
   const labels = data.labels || []
   const values = data.values || []
+  const values2 = data.values2 || []
 
   const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: true, position: 'bottom' as const, labels: { font: { size: 10 }, padding: 10 } },
+      legend: { display: values2.length > 0 || chartType === 'mixed', position: 'bottom' as const, labels: { font: { size: 10 }, padding: 8 } },
       tooltip: { backgroundColor: '#1F2937', bodyColor: '#D1D5DB', titleFont: { size: 11 }, bodyFont: { size: 11 } },
     },
   }
@@ -301,9 +349,29 @@ function renderSavedReportChart(data: Record<string, any>) {
       options: { ...baseOptions, cutout: '60%' },
     })
   } else if (chartType === 'line') {
+    const datasets: any[] = [{
+      label: data.type === 'created_vs_resolved' ? 'Created' : (data.type ?? 'Count'),
+      data: values,
+      borderColor: '#3B82F6',
+      backgroundColor: 'rgba(59,130,246,0.06)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+    }]
+    if (values2.length > 0) {
+      datasets.push({
+        label: 'Resolved',
+        data: values2,
+        borderColor: '#10B981',
+        backgroundColor: 'rgba(16,185,129,0.06)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 2,
+      })
+    }
     chartInstance.value = new Chart(ctx, {
       type: 'line',
-      data: { labels, datasets: [{ label: data.type ?? 'Count', data: values, borderColor: '#3B82F6', backgroundColor: 'rgba(59,130,246,0.06)', fill: true, tension: 0.3, pointRadius: 2 }] },
+      data: { labels, datasets },
       options: {
         ...baseOptions,
         scales: {
@@ -317,11 +385,17 @@ function renderSavedReportChart(data: Record<string, any>) {
     chartInstance.value = new Chart(ctx, {
       type: 'bubble',
       data: {
-        datasets: [{ label: data.type ?? 'Count', data: values.map((v: number, i: number) => ({ x: i, y: v, r: Math.max((v / maxVal) * 12, 2) })), backgroundColor: colors.map((c: string) => c + '99'), borderColor: colors, borderWidth: 1 }],
+        datasets: [{
+          label: data.type ?? 'Count',
+          data: values.map((v: number, i: number) => ({ x: i, y: v, r: Math.max((v / maxVal) * 12, 2) })),
+          backgroundColor: colors.map((c: string) => c + '99'),
+          borderColor: colors,
+          borderWidth: 1,
+        }],
       },
       options: {
         ...baseOptions,
-        plugins: { ...baseOptions.plugins, legend: { display: false, position: 'bottom' as const, labels: { font: { size: 10 }, padding: 10 } } },
+        plugins: { ...baseOptions.plugins, legend: { display: false, position: 'bottom' as const, labels: { font: { size: 10 }, padding: 8 } } },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 9 }, callback: (val: any) => labels[val] || '' } },
           y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { size: 9 } } },
@@ -332,13 +406,103 @@ function renderSavedReportChart(data: Record<string, any>) {
     chartInstance.value = new Chart(ctx, {
       type: 'scatter',
       data: {
-        datasets: [{ label: data.type ?? 'Count', data: values.map((v: number, i: number) => ({ x: i, y: v })), backgroundColor: colors.map((c: string) => c + 'CC'), borderColor: colors, borderWidth: 1.5, pointRadius: 4 }],
+        datasets: [{
+          label: data.type ?? 'Count',
+          data: values.map((v: number, i: number) => ({ x: i, y: v })),
+          backgroundColor: colors.map((c: string) => c + 'CC'),
+          borderColor: colors,
+          borderWidth: 1.5,
+          pointRadius: 4,
+        }],
       },
       options: {
         ...baseOptions,
-        plugins: { ...baseOptions.plugins, legend: { display: false, position: 'bottom' as const, labels: { font: { size: 10 }, padding: 10 } } },
+        plugins: { ...baseOptions.plugins, legend: { display: false, position: 'bottom' as const, labels: { font: { size: 10 }, padding: 8 } } },
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 9 }, callback: (val: any) => labels[val] || '' } },
+          y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { size: 9 } } },
+        },
+      },
+    })
+  } else if (chartType === 'mixed') {
+    const datasets: any[] = [
+      {
+        type: 'bar' as const,
+        label: data.type ?? 'Count',
+        data: values,
+        backgroundColor: colors.map((c: string) => c + '99'),
+        borderColor: colors,
+        borderWidth: 1,
+        borderRadius: 3,
+        order: 2,
+      },
+      {
+        type: 'line' as const,
+        label: 'Trend',
+        data: values,
+        borderColor: '#EF4444',
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        pointRadius: 2,
+        borderWidth: 2,
+        order: 1,
+      },
+    ]
+    if (values2.length > 0) {
+      datasets[0].label = 'Created'
+      datasets.push({
+        type: 'bar' as const,
+        label: 'Resolved',
+        data: values2,
+        backgroundColor: 'rgba(16,185,129,0.6)',
+        borderColor: '#10B981',
+        borderWidth: 1,
+        borderRadius: 3,
+        order: 3,
+      })
+    }
+    chartInstance.value = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        ...baseOptions,
+        scales: {
+          x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 9 } } },
+          y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { size: 9 } } },
+        },
+      },
+    })
+  } else if (chartType === 'area') {
+    chartInstance.value = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: data.type ?? 'Count',
+          data: values,
+          borderColor: '#3B82F6',
+          backgroundColor: 'rgba(59,130,246,0.15)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 2,
+        }],
+      },
+      options: {
+        ...baseOptions,
+        scales: {
+          x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 9 } } },
+          y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { size: 9 } } },
+        },
+      },
+    })
+  } else if (chartType === 'radar') {
+    chartInstance.value = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets: [{ label: data.type ?? 'Count', data: values, borderColor: '#3B82F6', fill: false, tension: 0.3, pointRadius: 2 }] },
+      options: {
+        ...baseOptions,
+        scales: {
+          x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 9 } } },
           y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { size: 9 } } },
         },
       },
@@ -346,10 +510,22 @@ function renderSavedReportChart(data: Record<string, any>) {
   }
 }
 
+function renderSavedReportChart(data: Record<string, any>) {
+  renderOnCanvas(savedReportCanvas.value, data, data.chart_type ?? 'bar')
+}
+
+function renderWidgetChart(data: Record<string, any>) {
+  renderOnCanvas(widgetCanvas.value, data, chartTypeFromWidget())
+}
+
 watch(() => props.data, async (newData) => {
-  if (props.widget.widget_type === 'saved_report' && newData && isSavedReportChart.value) {
+  if (!newData) return
+  if (props.widget.widget_type === 'saved_report' && isSavedReportChart.value) {
     await nextTick()
     renderSavedReportChart(newData)
+  } else if (isCanvasChart.value && newData.labels) {
+    await nextTick()
+    renderWidgetChart(newData)
   }
 }, { immediate: true, deep: true })
 
@@ -379,16 +555,45 @@ function pieSegments(values: number[]) {
   })
 }
 
-function getBurndownLine(data: Record<string, any>): string {
-  const points = data.points ?? data.data ?? []
-  if (!points.length) return ''
-  const maxVal = Math.max(...points.map((p: any) => p.remaining ?? p.value ?? 0), 1)
-  return points
-    .map((p: any, i: number) => {
-      const x = (i / Math.max(points.length - 1, 1)) * 300
-      const y = 120 - ((p.remaining ?? p.value ?? 0) / maxVal) * 110
+function burndownScale(data: Record<string, any>) {
+  const points = data.daily_points ?? []
+  const totalIssues = Number(data.total_issues ?? 0)
+  const fromPoints = points.length
+    ? Math.max(...points.map((p: any) => Math.max(p.ideal_remaining ?? 0, p.actual_remaining ?? 0)), 1)
+    : 1
+  return Math.max(totalIssues, fromPoints, Number(data.actual_remaining ?? 0), 1)
+}
+
+function getBurndownIdealLine(data: Record<string, any>): string {
+  const points = data.daily_points ?? []
+  const maxVal = burndownScale(data)
+  const totalDays = Math.max(Number(data.total_days ?? points.length - 1), 1)
+  if (points.length > 0) {
+    return points.map((p: any) => {
+      const x = (Number(p.day_index ?? 0) / totalDays) * 300
+      const y = 110 - ((p.ideal_remaining ?? 0) / maxVal) * 100
       return `${x},${y}`
-    })
-    .join(' ')
+    }).join(' ')
+  }
+  // Fallback diagonal when daily_points missing
+  return `0,10 300,110`
+}
+
+function getBurndownActualLine(data: Record<string, any>): string {
+  const points = data.daily_points ?? []
+  const maxVal = burndownScale(data)
+  const totalDays = Math.max(Number(data.total_days ?? points.length - 1), 1)
+  if (points.length > 0) {
+    const elapsed = Number(data.days_elapsed ?? points.length - 1)
+    return points
+      .filter((p: any) => Number(p.day_index ?? 0) <= elapsed)
+      .map((p: any) => {
+        const x = (Number(p.day_index ?? 0) / totalDays) * 300
+        const y = 110 - ((p.actual_remaining ?? 0) / maxVal) * 100
+        return `${x},${y}`
+      })
+      .join(' ')
+  }
+  return ''
 }
 </script>

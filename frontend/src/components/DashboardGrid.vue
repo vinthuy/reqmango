@@ -98,6 +98,7 @@ function widgetTypeLabel(type: WidgetType): string {
     bubble_chart: t('dashboard.bubbleChart'),
     scatter_chart: t('dashboard.scatterChart'),
     mixed_chart: t('dashboard.mixedChart'),
+    metric_chart: t('dashboard.metricChart'),
     burndown: t('dashboard.burndown'),
     table: t('dashboard.table'),
     recent_list: t('dashboard.recentList'),

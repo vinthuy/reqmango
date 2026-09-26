@@ -1546,7 +1546,9 @@ func (s *AutomationService) ExecuteTrigger(projectID uint64, triggerType string,
 
 func (s *AutomationService) ListWorkspace(workspaceID uint64) ([]AutomationResponse, error) {
 	var rules []model.AutomationRule
-	if err := s.db.Where("workspace_id = ?", workspaceID).Order("sequence ASC").Find(&rules).Error; err != nil {
+	// Workspace settings list only workspace-scoped rules (project_id = 0).
+	// Project-owned rules are managed under project settings.
+	if err := s.db.Where("workspace_id = ? AND project_id = 0", workspaceID).Order("sequence ASC").Find(&rules).Error; err != nil {
 		return nil, common.Internal("Failed to list workspace automation rules")
 	}
 	res := make([]AutomationResponse, len(rules))

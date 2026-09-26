@@ -97,9 +97,15 @@ describe('DashboardWidget Types', () => {
       'pie_chart',
       'doughnut_chart',
       'line_chart',
+      'metric_chart',
       'burndown',
       'table',
       'recent_list',
+      'bubble_chart',
+      'scatter_chart',
+      'mixed_chart',
+      'saved_report',
+      'ai_summary',
     ]
 
     validTypes.forEach((type) => {
