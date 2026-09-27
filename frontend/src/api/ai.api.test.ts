@@ -66,6 +66,12 @@ describe('analyzeWithAI', () => {
     )
     expect(result.insights).toHaveLength(1)
   })
+
+  it('should pass the issue analysis mode', async () => {
+    mockPost.mockResolvedValue({ data: { mode: 'risk', risks: [] } })
+    await analyzeWithAI(1, 42, 'risk')
+    expect(mockPost).toHaveBeenCalledWith('/projects/1/ai/analyze?issue_id=42&mode=risk')
+  })
 })
 
 describe('suggestLabels', () => {

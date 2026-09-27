@@ -101,8 +101,11 @@ export default { chatWithAI, searchWithAI, createPreviewWithAI, generateChart }
 /**
  * AI Analyze — 分析工作项并生成洞察。
  */
-export async function analyzeWithAI(projectId: number, issueId: number): Promise<any> {
-  const res = await api.post(`/projects/${projectId}/ai/analyze?issue_id=${issueId}`)
+export type IssueAnalysisMode = 'summary' | 'risk' | 'next_steps'
+
+export async function analyzeWithAI(projectId: number, issueId: number, mode?: IssueAnalysisMode): Promise<any> {
+  const modeQuery = mode ? `&mode=${mode}` : ''
+  const res = await api.post(`/projects/${projectId}/ai/analyze?issue_id=${issueId}${modeQuery}`)
   return res.data
 }
 

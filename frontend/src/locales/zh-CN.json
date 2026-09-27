@@ -682,6 +682,14 @@
     "insights": "洞察",
     "bottlenecks": "瓶颈",
     "suggestedLabelsTitle": "建议标签",
+    "risksTitle": "风险项",
+    "noRisks": "未发现明显风险",
+    "nextStepsTitle": "下一步行动",
+    "riskLevel": {
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
     "labelApplied": "标签已应用",
     "labelApplyFailed": "应用标签失败",
     "daysInState": "在 {state} 已停留 {days} 天",

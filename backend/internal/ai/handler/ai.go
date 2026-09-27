@@ -256,8 +256,10 @@ func (h *AIHandler) Search(c *gin.Context) {
 // ==================== Create Preview ====================
 
 // Analyze handles POST /projects/:projectId/ai/analyze.
+// With issue_id, optional query mode selects summary | risk | next_steps.
 func (h *AIHandler) Analyze(c *gin.Context) {
 	actx := h.buildContext(c)
+	actx.AnalysisMode = c.Query("mode")
 	svc := h.resolveService(actx.WorkspaceID)
 	result, err := svc.Analyze(c.Request.Context(), actx)
 	if err != nil {

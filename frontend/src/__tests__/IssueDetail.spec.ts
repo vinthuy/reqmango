@@ -325,7 +325,7 @@ describe('IssueDetail', () => {
     await nextTick()
     await nextTick()
 
-    expect(mockAnalyzeWithAI).toHaveBeenCalledWith(1, 42)
+    expect(mockAnalyzeWithAI).toHaveBeenCalledWith(1, 42, 'summary')
     expect(wrapper.find('[data-test="ai-analyze-result"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Healthy enough')
     expect(wrapper.find('[data-test="mock-aicopilot"]').exists()).toBe(false)

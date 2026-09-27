@@ -38,16 +38,59 @@ describe('IssueTabAI', () => {
     vi.clearAllMocks()
   })
 
-  it('summarize calls analyzeWithAI and shows the result', async () => {
-    mockAnalyzeWithAI.mockResolvedValue({ summary: 'Healthy enough', insights: ['ok'], bottlenecks: [] })
+  it('summarize requests summary mode and shows the result', async () => {
+    mockAnalyzeWithAI.mockResolvedValue({ mode: 'summary', summary: 'Healthy enough', insights: ['ok'] })
     const wrapper = mount(IssueTabAI, { props: baseProps })
     await wrapper.find('[data-test="ai-action-summarize"]').trigger('click')
     await flushPromises()
-    expect(mockAnalyzeWithAI).toHaveBeenCalledWith(1, 42)
+    expect(mockAnalyzeWithAI).toHaveBeenCalledWith(1, 42, 'summary')
     expect(wrapper.find('[data-test="ai-analyze-result"]').text()).toContain('Healthy enough')
+    expect(wrapper.find('[data-test="ai-risks"]').exists()).toBe(false)
+  })
+
+  it('risk requests risk mode and lists graded risks', async () => {
+    mockAnalyzeWithAI.mockResolvedValue({
+      mode: 'risk',
+      summary: 'Delivery at risk',
+      insights: [],
+      risks: [
+        { level: 'high', title: 'Overdue 7 days', detail: 'Target date passed' },
+        { level: 'low', title: 'Thin description', detail: 'Add repro steps' },
+      ],
+    })
+    const wrapper = mount(IssueTabAI, { props: baseProps })
+    await wrapper.find('[data-test="ai-action-risk"]').trigger('click')
+    await flushPromises()
+    expect(mockAnalyzeWithAI).toHaveBeenCalledWith(1, 42, 'risk')
+    const risks = wrapper.findAll('[data-test="ai-risk-item"]')
+    expect(risks).toHaveLength(2)
+    expect(risks[0].text()).toContain('ai.riskLevel.high')
+    expect(risks[0].text()).toContain('Overdue 7 days')
+    expect(risks[0].text()).toContain('Target date passed')
+  })
+
+  it('risk with no findings shows the empty state', async () => {
+    mockAnalyzeWithAI.mockResolvedValue({ mode: 'risk', summary: 'Looks fine', insights: [], risks: [] })
+    const wrapper = mount(IssueTabAI, { props: baseProps })
+    await wrapper.find('[data-test="ai-action-risk"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-test="ai-risks"]').text()).toContain('ai.noRisks')
+  })
+
+  it('suggest shows next steps even when label suggestions fail', async () => {
+    mockAnalyzeWithAI.mockResolvedValue({ mode: 'next_steps', summary: 'Unblock first', insights: [], next_steps: ['Ask ops for logs', 'Add repro'] })
+    mockSuggestLabels.mockRejectedValue(new Error('labels down'))
+    const wrapper = mount(IssueTabAI, { props: baseProps })
+    await wrapper.find('[data-test="ai-action-suggest"]').trigger('click')
+    await flushPromises()
+    expect(mockAnalyzeWithAI).toHaveBeenCalledWith(1, 42, 'next_steps')
+    const steps = wrapper.findAll('[data-test="ai-next-step"]')
+    expect(steps.map((s) => s.text())).toEqual(['Ask ops for logs', 'Add repro'])
+    expect(wrapper.find('[data-test="ai-error"]').exists()).toBe(false)
   })
 
   it('suggest lists labels and applying one emits issue-updated', async () => {
+    mockAnalyzeWithAI.mockResolvedValue({ mode: 'next_steps', summary: '', insights: [], next_steps: [] })
     mockSuggestLabels.mockResolvedValue({ suggested_labels: [{ label_id: 7, label_name: 'bug', reason: 'error' }] })
     mockAddIssueLabel.mockResolvedValue({})
     mockGetIssue.mockResolvedValue({ id: 42, name: 'Login fails', labels: [7] })
@@ -70,6 +113,15 @@ describe('IssueTabAI', () => {
     expect(wrapper.emitted('open-copilot')).toHaveLength(2)
     expect(mockAnalyzeWithAI).not.toHaveBeenCalled()
     expect(mockSuggestLabels).not.toHaveBeenCalled()
+  })
+
+  it('suggest shows an error only when both requests fail', async () => {
+    mockAnalyzeWithAI.mockRejectedValue({ response: { data: { message: 'llm down' } } })
+    mockSuggestLabels.mockRejectedValue(new Error('labels down'))
+    const wrapper = mount(IssueTabAI, { props: baseProps })
+    await wrapper.find('[data-test="ai-action-suggest"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-test="ai-error"]').text()).toBe('llm down')
   })
 
   it('shows the API error message', async () => {

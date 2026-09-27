@@ -46,6 +46,34 @@
                 <li v-for="(insight, idx) in analyzeResult.insights" :key="idx">{{ insight }}</li>
               </ul>
             </div>
+            <div v-if="analyzeResult.mode === 'risk'" data-test="ai-risks">
+              <h4 class="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">{{ t('ai.risksTitle') }}</h4>
+              <p v-if="!analyzeResult.risks?.length" class="text-sm text-emerald-700 dark:text-emerald-300">{{ t('ai.noRisks') }}</p>
+              <ul v-else class="space-y-2">
+                <li
+                  v-for="(risk, idx) in analyzeResult.risks"
+                  :key="idx"
+                  data-test="ai-risk-item"
+                  class="flex items-start gap-2 text-sm rounded-md px-2 py-1.5"
+                  :class="RISK_STYLES[risk.level]?.row || RISK_STYLES.medium.row"
+                >
+                  <span
+                    class="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                    :class="RISK_STYLES[risk.level]?.badge || RISK_STYLES.medium.badge"
+                  >{{ t(`ai.riskLevel.${risk.level}`) }}</span>
+                  <div class="min-w-0">
+                    <div class="font-medium text-gray-900 dark:text-gray-100">{{ risk.title }}</div>
+                    <div v-if="risk.detail" class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{{ risk.detail }}</div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div v-if="analyzeResult.next_steps?.length">
+              <h4 class="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">{{ t('ai.nextStepsTitle') }}</h4>
+              <ol class="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                <li v-for="(step, idx) in analyzeResult.next_steps" :key="idx" data-test="ai-next-step">{{ step }}</li>
+              </ol>
+            </div>
             <div v-if="analyzeResult.bottlenecks?.length">
               <h4 class="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">{{ t('ai.bottlenecks') }}</h4>
               <ul class="space-y-2">
@@ -121,6 +149,12 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 
+const RISK_STYLES: Record<string, { row: string; badge: string }> = {
+  high: { row: 'bg-red-50 dark:bg-red-900/20', badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+  medium: { row: 'bg-amber-50 dark:bg-amber-900/20', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+  low: { row: 'bg-gray-50 dark:bg-gray-700/30', badge: 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
+}
+
 const loading = ref(false)
 const error = ref('')
 const analyzeResult = ref<any>(null)
@@ -184,20 +218,28 @@ async function executeAction(action: string) {
   error.value = ''
   try {
     if (action === 'summarize' || action === 'risk') {
-      const res = await analyzeWithAI(props.projectId, requestedIssueId)
+      const res = await analyzeWithAI(props.projectId, requestedIssueId, action === 'risk' ? 'risk' : 'summary')
       if (requestedIssueId !== props.issueId) return
       analyzeResult.value = res
       labelSuggestions.value = []
       labelSuggestionsVisible.value = false
     } else if (action === 'suggest') {
       analyzeResult.value = null
-      const res = await suggestLabels(props.projectId, requestedIssueId, {
-        name: props.issue?.name || `Issue #${requestedIssueId}`,
-        description: props.issue?.description_html || props.issue?.description_text || '',
-      })
+      labelSuggestionsVisible.value = false
+      const [steps, labels] = await Promise.allSettled([
+        analyzeWithAI(props.projectId, requestedIssueId, 'next_steps'),
+        suggestLabels(props.projectId, requestedIssueId, {
+          name: props.issue?.name || `Issue #${requestedIssueId}`,
+          description: props.issue?.description_html || props.issue?.description_text || '',
+        }),
+      ])
       if (requestedIssueId !== props.issueId) return
-      labelSuggestions.value = normalizeLabelSuggestions(res)
-      labelSuggestionsVisible.value = true
+      if (steps.status === 'rejected' && labels.status === 'rejected') throw steps.reason
+      analyzeResult.value = steps.status === 'fulfilled' ? steps.value : null
+      if (labels.status === 'fulfilled') {
+        labelSuggestions.value = normalizeLabelSuggestions(labels.value)
+        labelSuggestionsVisible.value = true
+      }
     }
   } catch (e: any) {
     if (requestedIssueId !== props.issueId) return

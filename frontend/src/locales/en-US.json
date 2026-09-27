@@ -682,6 +682,14 @@
     "insights": "Insights",
     "bottlenecks": "Bottlenecks",
     "suggestedLabelsTitle": "Suggested labels",
+    "risksTitle": "Risks",
+    "noRisks": "No notable risks found",
+    "nextStepsTitle": "Next steps",
+    "riskLevel": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
     "labelApplied": "Label applied",
     "labelApplyFailed": "Failed to apply label",
     "daysInState": "{days} days in {state}",
