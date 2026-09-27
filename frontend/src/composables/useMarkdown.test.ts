@@ -115,4 +115,34 @@ describe('renderMarkdown', () => {
     const html = renderMarkdown('Line 1\n\nLine 2')
     expect(html).toContain('<div class="h-2"></div>')
   })
+
+  it('should escape HTML inside table cells', () => {
+    const table = ['| A | B |', '|---|---|', '| <img src=x onerror=alert(1)> | ok |'].join('\n')
+    const html = renderMarkdown(table)
+    expect(html).not.toContain('<img')
+    expect(html).toContain('&lt;img')
+  })
+
+  it('should autolink bare URLs', () => {
+    const html = renderMarkdown('see https://example.com/docs for details')
+    expect(html).toContain('<a href="https://example.com/docs"')
+    expect(html).toContain('for details')
+  })
+
+  it('should keep trailing punctuation outside autolinked URLs', () => {
+    const html = renderMarkdown('docs at https://example.com/a.')
+    expect(html).toContain('<a href="https://example.com/a"')
+    expect(html).toContain('</a>.')
+  })
+
+  it('should not double-process markdown link urls', () => {
+    const html = renderMarkdown('see [docs](https://example.com/a) now')
+    expect(html.match(/<a /g)?.length).toBe(1)
+    expect(html).not.toContain('href="<a')
+  })
+
+  it('should not autolink unsafe link schemes', () => {
+    const html = renderMarkdown('[x](javascript:alert(1))')
+    expect(html).not.toContain('<a')
+  })
 })

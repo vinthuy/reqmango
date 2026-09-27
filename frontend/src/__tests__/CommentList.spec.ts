@@ -23,15 +23,38 @@ vi.mock('@/composables/useI18n', () => ({
   useI18n: () => ({ t: (k: string, p?: Record<string, string>) => (p ? `${k}:${JSON.stringify(p)}` : k) }),
 }))
 
-const userComment = {
-  id: 10, issue_id: 42, author_id: 1, author: { id: 1, username: 'leo', display_name: 'Leo', email: '' },
-  body: '@Assistant Agent 请分诊', is_resolved: false, reaction_count: 0,
-  created_at: '2026-09-27T10:00:00Z', updated_at: '2026-09-27T10:00:00Z',
+// The component mutates comments it receives (it attaches replies), so every test
+// needs its own fixtures rather than shared module-level objects.
+function makeComment(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 10,
+    issue_id: 42,
+    author_id: 1,
+    author: { id: 1, username: 'leo', display_name: 'Leo', email: '' },
+    body: '@Assistant Agent 请分诊',
+    is_resolved: false,
+    reaction_count: 0,
+    created_at: '2026-09-27T10:00:00Z',
+    updated_at: '2026-09-27T10:00:00Z',
+    ...overrides,
+  }
 }
-const agentReply = {
-  id: 11, issue_id: 42, author_id: null, agent_id: 3, agent: { id: 3, name: 'Assistant Agent', avatar: '🦾' },
-  parent_id: 10, body: '建议优先级调整为高', is_resolved: false, reaction_count: 0,
-  created_at: '2026-09-27T10:00:05Z', updated_at: '2026-09-27T10:00:05Z',
+
+function makeAgentReply(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 11,
+    issue_id: 42,
+    author_id: null,
+    agent_id: 3,
+    agent: { id: 3, name: 'Assistant Agent', avatar: '🦾' },
+    parent_id: 10,
+    body: '建议优先级调整为高',
+    is_resolved: false,
+    reaction_count: 0,
+    created_at: '2026-09-27T10:00:05Z',
+    updated_at: '2026-09-27T10:00:05Z',
+    ...overrides,
+  }
 }
 
 function mountList() {
@@ -52,7 +75,7 @@ describe('CommentList agent replies', () => {
   })
 
   it('renders agent-authored replies with the agent name, avatar and badge', async () => {
-    mockList.mockResolvedValue({ comments: [userComment, agentReply], total: 2 })
+    mockList.mockResolvedValue({ comments: [makeComment(), makeAgentReply()], total: 2 })
     const wrapper = mountList()
     await flushPromises()
 
@@ -64,10 +87,25 @@ describe('CommentList agent replies', () => {
     expect(mention).toContain('@Assistant Agent')
   })
 
+  it('renders agent markdown replies (headings, lists, tables)', async () => {
+    const reply = makeAgentReply({
+      body: '## 分诊建议\n\n- 改为 Bug\n- 指派李四\n\n| 项 | 建议 |\n|---|---|\n| 类型 | Bug |',
+    })
+    mockList.mockResolvedValue({ comments: [makeComment({ body: 'hi' }), reply], total: 2 })
+    const wrapper = mountList()
+    await flushPromises()
+
+    const body = wrapper.findAll('[data-test="comment-body"]')[1]
+    expect(body.find('h3').exists()).toBe(true)
+    expect(body.find('ul li').text()).toBe('改为 Bug')
+    expect(body.find('table').exists()).toBe(true)
+    expect(body.text()).toContain('类型')
+  })
+
   it('shows a pending indicator after mentioning an agent and polls until it replies', async () => {
     vi.useFakeTimers()
     mockList.mockResolvedValueOnce({ comments: [], total: 0 })
-    mockCreate.mockResolvedValue(userComment)
+    mockCreate.mockResolvedValue(makeComment())
     const wrapper = mountList()
     await flushPromises()
 
@@ -76,12 +114,12 @@ describe('CommentList agent replies', () => {
     await flushPromises()
     expect(wrapper.find('[data-test="agent-pending"]').text()).toContain('Assistant Agent')
 
-    mockList.mockResolvedValueOnce({ comments: [userComment], total: 1 })
+    mockList.mockResolvedValueOnce({ comments: [makeComment()], total: 1 })
     await vi.advanceTimersByTimeAsync(3000)
     await flushPromises()
     expect(wrapper.find('[data-test="agent-pending"]').exists()).toBe(true)
 
-    mockList.mockResolvedValue({ comments: [userComment, agentReply], total: 2 })
+    mockList.mockResolvedValueOnce({ comments: [makeComment(), makeAgentReply()], total: 2 })
     await vi.advanceTimersByTimeAsync(3000)
     await flushPromises()
     expect(wrapper.find('[data-test="agent-pending"]').exists()).toBe(false)
@@ -93,17 +131,35 @@ describe('CommentList agent replies', () => {
     const wrapper = mountList()
     await flushPromises()
 
-    mockList.mockResolvedValueOnce({ comments: [{ ...agentReply, parent_id: undefined }], total: 1 })
+    mockList.mockResolvedValueOnce({ comments: [makeAgentReply({ parent_id: undefined })], total: 1 })
     await wrapper.setProps({ refreshKey: 1 })
     await flushPromises()
     expect(mockList).toHaveBeenCalledTimes(2)
     expect(wrapper.findAll('[data-test="comment-author"]').map(a => a.text())).toEqual(['Assistant Agent'])
   })
 
+  it('watches for a dispatched agent reply and stops once it lands', async () => {
+    vi.useFakeTimers()
+    mockList.mockResolvedValueOnce({ comments: [], total: 0 })
+    const wrapper = mountList()
+    await flushPromises()
+
+    mockList.mockResolvedValueOnce({ comments: [], total: 0 })
+    await wrapper.setProps({ refreshKey: 1 })
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-pending"]').text()).toBe('comment.agentDispatched')
+
+    mockList.mockResolvedValueOnce({ comments: [makeComment(), makeAgentReply()], total: 2 })
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-pending"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-test="comment-author"]').map(a => a.text())).toContain('Assistant Agent')
+  })
+
   it('does not poll when no agent is mentioned', async () => {
     vi.useFakeTimers()
     mockList.mockResolvedValue({ comments: [], total: 0 })
-    mockCreate.mockResolvedValue({ ...userComment, body: 'plain' })
+    mockCreate.mockResolvedValue(makeComment({ body: 'plain' }))
     const wrapper = mountList()
     await flushPromises()
 

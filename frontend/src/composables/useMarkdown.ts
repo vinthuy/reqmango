@@ -99,7 +99,7 @@ export function renderMarkdown(text: string): string {
       const tableRows: string[][] = []
       let j = i
       while (j < lines.length && lines[j].trim().startsWith('|') && lines[j].trim().endsWith('|')) {
-        tableRows.push(lines[j].trim().split('|').slice(1, -1).map(c => c.trim()))
+        tableRows.push(lines[j].trim().split('|').slice(1, -1).map(c => escapeHtml(c.trim())))
         j++
       }
 
@@ -152,6 +152,20 @@ export function renderMarkdown(text: string): string {
   return out.join('\n')
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function safeLink(label: string, url: string): string {
+  const trimmed = url.trim()
+  // Allow only http(s)/mailto, site-relative, and scheme-less URLs (blocks javascript:, data:, ...)
+  if (/^(https?:|mailto:)/i.test(trimmed) || /^[/#]/.test(trimmed) || !/:/.test(trimmed)) {
+    const safeUrl = trimmed.replace(/"/g, '&quot;')
+    return `<a href="${safeUrl}" class="text-indigo-600 dark:text-indigo-400 underline" target="_blank" rel="noopener noreferrer">${label}</a>`
+  }
+  return label
+}
+
 function inlineMarkdown(text: string): string {
   // Bold
   text = text.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-gray-100">$1</strong>')
@@ -159,15 +173,16 @@ function inlineMarkdown(text: string): string {
   text = text.replace(/\*(.+?)\*/g, '<em>$1</em>')
   // Strikethrough
   text = text.replace(/~~(.+?)~~/g, '<del class="text-gray-400">$1</del>')
-  // Links — validate URL scheme to prevent XSS (javascript:, data:, etc.) and escape quotes
-  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label: string, url: string) => {
-    const trimmed = url.trim()
-    if (/^(https?:|mailto:)/i.test(trimmed) || /^[/#]/.test(trimmed) || !/:/.test(trimmed)) {
-      const safeUrl = trimmed.replace(/"/g, '&quot;')
-      return `<a href="${safeUrl}" class="text-indigo-600 dark:text-indigo-400 underline" target="_blank" rel="noopener noreferrer">${label}</a>`
-    }
-    return label
-  })
-
+  // Markdown links and bare URLs, in a single pass so generated hrefs are never re-scanned
+  text = text.replace(
+    /\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s<>"')]+)/g,
+    (_match, label: string | undefined, url: string | undefined, bare: string | undefined) => {
+      if (bare) {
+        const trimmed = bare.replace(/[.,;:!?]+$/, '')
+        return safeLink(trimmed, trimmed) + bare.slice(trimmed.length)
+      }
+      return safeLink(label || '', url || '')
+    },
+  )
   return text
 }

@@ -798,25 +798,28 @@ async function unassignAgent() {
   }
 }
 
-async function dispatchAgent(agentSelectorId: string) {
+// An agent run takes minutes. The request is fire-and-forget so the UI never looks
+// frozen: the thread shows the agent working, and the result lands as a comment.
+const DISPATCH_BUTTON_GUARD_MS = 1500
+
+function dispatchAgent(agentSelectorId: string) {
   if (!agentSelectorId || !agentSelectorId.startsWith('agent:')) return
   const agentId = parseInt(agentSelectorId.replace('agent:', ''), 10)
-  if (!agentId) return
+  if (!agentId || agentDispatching.value) return
   agentDispatching.value = true
-  try {
-    await agentApi.dispatch(workspaceId.value, agentId, {
+  setTimeout(() => { agentDispatching.value = false }, DISPATCH_BUTTON_GUARD_MS)
+  agentApi
+    .dispatch(workspaceId.value, agentId, {
       task: t('agent.dispatchTask', { seq: String(issue.value?.sequence_id || issueId), name: issue.value?.name || '' }),
       issue_id: issueId,
       project_id: projectId.value,
     })
-    toast.success(t('agent.dispatch'))
-    commentsRefreshKey.value++
-    await loadAgentStatus()
-  } catch (e: any) {
-    toast.error(e?.response?.data?.message || e?.message || 'Failed to dispatch agent')
-  } finally {
-    agentDispatching.value = false
-  }
+    .then(() => loadAgentStatus())
+    .catch((e: any) => {
+      toast.error(e?.response?.data?.message || e?.message || 'Failed to dispatch agent')
+    })
+  toast.success(t('agent.dispatch'))
+  commentsRefreshKey.value++
 }
 </script>
 

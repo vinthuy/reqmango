@@ -36,13 +36,9 @@
               {{ submitting ? t('comment.publishing') : t('comment.publish') }}
             </button>
           </div>
-          <div
-            v-if="pendingAgentNames.length"
-            data-test="agent-pending"
-            class="mt-2 flex items-center gap-2 text-xs text-indigo-600"
-          >
+          <div v-if="pendingAgents" data-test="agent-pending" class="mt-2 flex items-center gap-2 text-xs text-indigo-600">
             <span class="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-            {{ t('comment.agentWorking', { names: pendingAgentNames.join('、') }) }}
+            {{ pendingAgents.length ? t('comment.agentWorking', { names: pendingAgents.join('、') }) : t('comment.agentDispatched') }}
           </div>
         </div>
       </div>
@@ -118,7 +114,7 @@
             </div>
 
             <!-- View mode: rendered body -->
-            <div v-if="editingId !== comment.id" class="text-sm text-gray-700 whitespace-pre-wrap break-words" v-html="renderBody(comment.body || comment.content)"></div>
+            <div v-if="editingId !== comment.id" data-test="comment-body" class="comment-body text-sm text-gray-700 break-words" v-html="renderBody(comment.body || comment.content)"></div>
 
             <!-- Edit mode: textarea -->
             <div v-else class="mt-1">
@@ -218,7 +214,7 @@
                     :title="formatFullDate(reply.created_at)"
                   >{{ formatRelativeTime(reply.created_at) }}</span>
                 </div>
-                <div class="text-xs text-gray-700 whitespace-pre-wrap break-words" v-html="renderBody(reply.body || reply.content)"></div>
+                <div data-test="comment-body" class="comment-body text-xs text-gray-700 break-words" v-html="renderBody(reply.body || reply.content)"></div>
               </div>
             </div>
           </div>
@@ -247,6 +243,7 @@ import { agentApi } from '@/api/agent'
 import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from '@/composables/useI18n'
+import { renderMarkdown } from '@/composables/useMarkdown'
 import type { Comment, CommentCreate } from '@/types/comment'
 
 const AVATAR_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
@@ -297,12 +294,18 @@ const mentionTarget = ref<'main' | 'reply' | 'edit'>('main')
 const mentionTextarea = ref<HTMLTextAreaElement | null>(null)
 
 const allMentionCandidates = computed(() => [...members.value, ...agents.value])
-// Agent names may contain spaces, so they need their own pattern (longest first).
-const agentMentionPattern = computed(() => {
-  const names = agents.value.map(a => a.display_name).filter(Boolean).sort((a, b) => b.length - a.length)
-  if (!names.length) return null
-  const alts = names.map(n => escapeHtml(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  return new RegExp(`(^|\\s)(@(?:${alts.join('|')}))(?![\\p{L}\\p{N}_-])`, 'gu')
+// Mention highlighting runs over rendered text nodes, so agent names may contain spaces.
+const mentionTerms = computed(() => {
+  const names = [
+    ...agents.value.map(a => a.display_name),
+    ...members.value.map(m => m.username || m.display_name),
+  ].filter((n): n is string => !!n)
+  return [...new Set(names)].sort((a, b) => b.length - a.length)
+})
+const mentionPattern = computed(() => {
+  const specific = mentionTerms.value.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const alternation = specific.length ? `(?:${specific.join('|')}|[^\\s@]+)` : '[^\\s@]+'
+  return new RegExp(`(^|\\s)(@${alternation})`, 'g')
 })
 
 // Load members for @mention
@@ -454,8 +457,9 @@ async function loadComments(silent = false) {
 
 // --- Agent replies arrive asynchronously; poll until they land ---
 const AGENT_REPLY_POLL_MS = 3000
-const AGENT_REPLY_TIMEOUT_MS = 120000
-const pendingAgentNames = ref<string[]>([])
+const AGENT_REPLY_TIMEOUT_MS = 300000
+// null = idle; [] = waiting on a dispatch we can't name; [names] = waiting on mentions
+const pendingAgents = ref<string[] | null>(null)
 let agentPollTimer: ReturnType<typeof setTimeout> | null = null
 
 function mentionedAgentNames(text: string): string[] {
@@ -469,28 +473,31 @@ function countAgentComments(): number {
     0,
   )
 }
-function stopAgentPolling() {
+function stopWaiting() {
   if (agentPollTimer) clearTimeout(agentPollTimer)
   agentPollTimer = null
-  pendingAgentNames.value = []
+  pendingAgents.value = null
 }
-function waitForAgentReplies(text: string) {
-  const names = mentionedAgentNames(text)
-  if (!names.length) return
-  stopAgentPolling()
-  pendingAgentNames.value = names
+/** Polls for new agent replies so a slow agent shows up without a manual refresh. */
+function waitForAgentReplies(names: string[] = []) {
+  stopWaiting()
+  pendingAgents.value = names
   const baseline = countAgentComments()
   const deadline = Date.now() + AGENT_REPLY_TIMEOUT_MS
   const poll = async () => {
     page.value = 1
     await loadComments(true)
-    if (countAgentComments() - baseline >= names.length || Date.now() >= deadline) {
-      stopAgentPolling()
+    if (countAgentComments() > baseline || Date.now() >= deadline) {
+      stopWaiting()
       return
     }
     agentPollTimer = setTimeout(poll, AGENT_REPLY_POLL_MS)
   }
   agentPollTimer = setTimeout(poll, AGENT_REPLY_POLL_MS)
+}
+function waitForMentionedAgents(text: string) {
+  const names = mentionedAgentNames(text)
+  if (names.length) waitForAgentReplies(names)
 }
 
 async function loadMore() {
@@ -508,7 +515,7 @@ async function submitComment() {
     const data: CommentCreate = { issue_id: props.issueId, body: newComment.value.trim() } as any
     const comment = await commentApi.createComment(data)
     comments.value.unshift(comment)
-    waitForAgentReplies(newComment.value)
+    waitForMentionedAgents(newComment.value)
     newComment.value = ''
   } catch (error) { console.error('Failed to create comment:', error) }
   finally { submitting.value = false }
@@ -570,7 +577,7 @@ async function submitReply() {
       if (!parent.replies) parent.replies = []
       parent.replies.push(reply)
     }
-    waitForAgentReplies(replyText.value)
+    waitForMentionedAgents(replyText.value)
     cancelReply()
   } catch (error) { console.error('Failed to submit reply:', error) }
   finally { submitting.value = false }
@@ -610,27 +617,50 @@ function avatarBg(comment: Comment): string {
 }
 
 function renderBody(text: string | undefined): string {
-  if (!text) return ''
-  let html = escapeHtml(text)
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-200 text-red-600 px-1 py-0.5 rounded text-xs font-mono">$1</code>')
-  // Bold
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  // Italic
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
-  // Links
-  html = html.replace(/(https?:\/\/\S+)/g, '<a href="$1" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">$1</a>')
-  // @mentions (match non-whitespace after @, skip standalone @ with nothing after)
-  html = html.replace(/@AI\s+\S+/g, '<span class="ai-mention px-1.5 py-0.5 rounded bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 font-medium">🤖 $&</span>')
-  if (agentMentionPattern.value) {
-    html = html.replace(agentMentionPattern.value, '$1<span class="text-indigo-600 font-medium bg-indigo-50 px-1 rounded">$2</span>')
-  }
-  html = html.replace(/(^|\s)@(\S+)/g, '$1<span class="text-indigo-600 font-medium bg-indigo-50 px-1 rounded">@$2</span>')
-  return html
+  const html = renderMarkdown(text ?? '')
+  if (!html) return ''
+  const host = document.createElement('div')
+  host.innerHTML = html
+  highlightMentions(host)
+  return host.innerHTML
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+// Wraps @mentions in styled spans, touching text nodes only so links, code blocks
+// and tables produced by renderMarkdown stay intact.
+function highlightMentions(root: HTMLElement) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  const targets: Text[] = []
+  let current: Node | null
+  while ((current = walker.nextNode())) {
+    const tag = current.parentElement?.tagName.toUpperCase()
+    if (tag === 'A' || tag === 'CODE' || tag === 'PRE') continue
+    if (current.nodeValue?.includes('@')) targets.push(current as Text)
+  }
+  for (const node of targets) {
+    const text = node.nodeValue || ''
+    const pattern = mentionPattern.value
+    pattern.lastIndex = 0
+    if (!pattern.test(text)) continue
+    pattern.lastIndex = 0
+    const fragment = document.createDocumentFragment()
+    let consumed = 0
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(text))) {
+      if (match.index > consumed) {
+        fragment.appendChild(document.createTextNode(text.slice(consumed, match.index)))
+      }
+      if (match[1]) fragment.appendChild(document.createTextNode(match[1]))
+      const span = document.createElement('span')
+      span.className = 'text-indigo-600 font-medium bg-indigo-50 px-1 rounded'
+      span.textContent = match[2]
+      fragment.appendChild(span)
+      consumed = match.index + match[0].length
+    }
+    if (consumed < text.length) {
+      fragment.appendChild(document.createTextNode(text.slice(consumed)))
+    }
+    node.parentNode?.replaceChild(fragment, node)
+  }
 }
 
 // --- Time ---
@@ -652,11 +682,13 @@ function formatFullDate(timeStr: string): string {
 }
 
 onMounted(() => loadComments())
-onBeforeUnmount(stopAgentPolling)
-watch(() => props.issueId, stopAgentPolling)
+onBeforeUnmount(stopWaiting)
+watch(() => props.issueId, stopWaiting)
 watch(() => props.refreshKey, () => {
   page.value = 1
   loadComments(true)
+  // A dispatch returns immediately, so watch the thread for the agent's reply.
+  waitForAgentReplies()
 })
 watch(
   () => [props.projectId, props.workspaceId] as const,
@@ -672,7 +704,7 @@ watch(
 :deep(code) {
   font-family: ui-monospace, 'Cascadia Code', monospace;
 }
-:deep(.ai-mention) {
-  display: inline;
+.comment-body :deep(p) {
+  margin: 0;
 }
 </style>

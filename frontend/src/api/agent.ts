@@ -60,7 +60,11 @@ export const agentApi = {
   },
 
   dispatch(workspaceId: number, agentId: number, req: AgentDispatchRequest): Promise<AgentActivity> {
-    return api.post(`/workspaces/${workspaceId}/agents/${agentId}/dispatch`, req).then((r) => r.data)
+    // An agent run can take minutes (LLM + tool calls), so this endpoint needs a
+    // far longer timeout than the default 30s.
+    return api
+      .post(`/workspaces/${workspaceId}/agents/${agentId}/dispatch`, req, { timeout: 600000 })
+      .then((r) => r.data)
   },
 
   getActivity(workspaceId: number, agentId: number): Promise<AgentActivity[]> {
