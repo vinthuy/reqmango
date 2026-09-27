@@ -135,9 +135,9 @@ Implementation notes:
 
 ### 7. Follow-ups (explicitly deferred)
 
-- Option B: Linear-style property Popovers.
-- Panel AI / Chat / Git tabs.
-- List `j/k` + Enter open / Esc close.
+- ~~Option B: Linear-style property Popovers.~~ Done 2026-09-27 (`PropertyPicker` for state / priority / assignee / cycle / module / release).
+- ~~Panel AI / Chat / Git tabs.~~ Done 2026-09-27 (shared `IssueTabAI`; panel hosts its own `AICopilot`, Esc closes Copilot first).
+- ~~List `j/k` + Enter open / Esc close.~~ Done.
 - Deduplicate remaining shared logic between `IssueDetail` and `IssueDetailPanel` into a composable (optional cleanup if time remains).
 
 ## Testing

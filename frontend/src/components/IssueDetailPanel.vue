@@ -135,6 +135,27 @@
                   :issue-id="issue.id"
                   :workspace-id="workspaceId"
                 />
+                <IssueTabAI
+                  v-else-if="activeTab === 'ai'"
+                  :issue-id="issue.id"
+                  :project-id="projectId"
+                  :issue="issue"
+                  :labels="projectLabels"
+                  @open-copilot="showAICopilot = true"
+                  @issue-updated="(updated: any) => { Object.assign(issue, updated); emit('refresh') }"
+                />
+                <ChatPanel
+                  v-else-if="activeTab === 'chat'"
+                  :issue-id="issue.id"
+                  :workspace-id="workspaceId"
+                  :current-user-id="currentUserId"
+                  :mention-candidates="chatMentionCandidates"
+                />
+                <IssueGitPanel
+                  v-else-if="activeTab === 'git'"
+                  :workspace-id="workspaceId"
+                  :issue-id="issue.id"
+                />
               </div>
             </div>
 
@@ -193,12 +214,24 @@
           @decided="onApprovalDecided"
         />
       </div>
+
+      <AICopilot
+        v-if="issue"
+        :visible="showAICopilot"
+        :project-id="projectId"
+        :workspace-id="workspaceId"
+        :project-name="projectIdentifier"
+        :issue-id="issue.id"
+        :issue-label="`${projectIdentifier}-${issue.sequence_id} ${issue.name || ''}`.trim()"
+        view="issue_detail"
+        @close="showAICopilot = false"
+      />
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import issueApi from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
@@ -220,6 +253,11 @@ import IssueTabRelations from '@/components/IssueTabRelations.vue'
 import IssueTabAttachments from '@/components/IssueTabAttachments.vue'
 import IssueTabTimeTracking from '@/components/IssueTabTimeTracking.vue'
 import IssueTabActivity from '@/components/IssueTabActivity.vue'
+import IssueTabAI from '@/components/IssueTabAI.vue'
+import IssueGitPanel from '@/components/IssueGitPanel.vue'
+import ChatPanel from '@/components/chat/ChatPanel.vue'
+import AICopilot from '@/components/AICopilot.vue'
+import type { Agent } from '@/types/agent'
 import ApprovalSubmitDialog from '@/components/ApprovalSubmitDialog.vue'
 import ApprovalDecisionDialog from '@/components/ApprovalDecisionDialog.vue'
 import ApprovalPendingBanner from '@/components/ApprovalPendingBanner.vue'
@@ -262,6 +300,8 @@ const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
 const agentAssigning = ref(false)
 const agentStatus = ref<AgentStatus | null>(null)
+const workspaceAgents = ref<Agent[]>([])
+const showAICopilot = ref(false)
 const saving = ref(false)
 const isWatching = ref(false)
 const projectLabels = ref<Array<{ id: number; name: string; color: string }>>([])
@@ -300,8 +340,22 @@ const tabs = computed(() => [
   { key: 'details', label: t('issue.tabDetails'), count: undefined },
   { key: 'relations', label: t('issue.tabRelations'), count: effectiveRelationSummary.value?.total ?? undefined },
   { key: 'attachments', label: t('issue.tabAttachments'), count: issue.value?.attachment_count || undefined },
-  { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
   { key: 'activity', label: t('issue.tabActivity'), count: undefined },
+  { key: 'ai', label: 'AI', count: undefined },
+  { key: 'chat', label: t('issue.tabChat'), count: undefined },
+  { key: 'git', label: t('gitIntegration.title'), count: undefined },
+  { key: 'timetrack', label: t('issue.tabTimetrack'), count: undefined },
+])
+
+const chatMentionCandidates = computed(() => [
+  ...projectMembers.value.map((m: any) => ({
+    id: m.id,
+    name: m.display_name || m.username || `User #${m.id}`,
+    type: 'user' as const,
+  })),
+  ...workspaceAgents.value
+    .filter((a) => a.status === 'active')
+    .map((a) => ({ id: a.id, name: a.name, type: 'agent' as const })),
 ])
 
 function navigateTo(issueId: number) {
@@ -316,6 +370,7 @@ watch(() => [props.issueId, props.visible] as const, async ([id, vis]) => {
   if (id && vis) {
     loading.value = true
     activeTab.value = 'details'
+    showAICopilot.value = false
     try {
       const result = await issueApi.getIssue(id)
       issue.value = result
@@ -332,6 +387,7 @@ watch(() => [props.issueId, props.visible] as const, async ([id, vis]) => {
         loadAgentStatus(id as number),
         loadRelationSummary(id as number),
         loadWatchers(id as number),
+        loadWorkspaceAgents(),
       ])
       await loadActiveApproval()
     } catch (e) {
@@ -344,8 +400,31 @@ watch(() => [props.issueId, props.visible] as const, async ([id, vis]) => {
     issue.value = null
     activeApproval.value = null
     agentStatus.value = null
+    showAICopilot.value = false
   }
 }, { immediate: true })
+
+function closeCopilotOnEscape(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return
+  e.preventDefault()
+  e.stopImmediatePropagation()
+  showAICopilot.value = false
+}
+
+watch(showAICopilot, (open) => {
+  if (open) window.addEventListener('keydown', closeCopilotOnEscape, true)
+  else window.removeEventListener('keydown', closeCopilotOnEscape, true)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', closeCopilotOnEscape, true))
+
+async function loadWorkspaceAgents() {
+  if (!props.workspaceId) return
+  try {
+    workspaceAgents.value = await agentApi.list(props.workspaceId)
+  } catch {
+    workspaceAgents.value = []
+  }
+}
 
 async function loadAgentStatus(id: number) {
   try {
