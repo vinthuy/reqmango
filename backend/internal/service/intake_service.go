@@ -542,16 +542,20 @@ func (s *IntakeService) Triage(projectID, issueID, actorID uint64, in IntakeTria
 			return err
 		}
 		if mergeTarget != nil {
+			// Comment bodies are plain text; the client escapes them on render.
 			who := "—"
 			if issue.IntakeSubmitter != nil {
 				who = *issue.IntakeSubmitter
 			}
 			if issue.IntakeEmail != nil {
-				who += " &lt;" + html.EscapeString(*issue.IntakeEmail) + "&gt;"
+				who += " <" + *issue.IntakeEmail + ">"
 			}
-			text := strings.TrimSpace(html.UnescapeString(htmlTagRe.ReplaceAllString(issue.DescriptionHTML, " ")))
-			body := fmt.Sprintf("<p><strong>Merged intake request #%d:</strong> %s</p><p>From: %s</p><p>%s</p>",
-				issue.SequenceID, html.EscapeString(issue.Name), who, html.EscapeString(text))
+			text := strings.TrimSpace(html.UnescapeString(htmlTagRe.ReplaceAllString(
+				strings.ReplaceAll(issue.DescriptionHTML, "<br>", "\n"), "")))
+			body := fmt.Sprintf("Merged intake request #%d: %s\nFrom: %s", issue.SequenceID, issue.Name, who)
+			if text != "" {
+				body += "\n\n" + text
+			}
 			if err := tx.Create(&model.Comment{IssueID: mergeTarget.ID, AuthorID: &actorID, Body: body}).Error; err != nil {
 				return err
 			}

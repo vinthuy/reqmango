@@ -381,15 +381,20 @@ function errMsg(e: any) {
   return e?.response?.data?.message || e?.message || t('intake.actionFailed')
 }
 
+let metricsSeq = 0
 async function loadMetrics() {
+  const seq = ++metricsSeq
   try {
-    metrics.value = await intakeApi.metrics(projectId.value, days.value)
+    const m = await intakeApi.metrics(projectId.value, days.value)
+    if (seq === metricsSeq) metrics.value = m
   } catch (e) {
     toast.error(errMsg(e))
   }
 }
 
+let listSeq = 0
 async function loadList(append = false) {
+  const seq = ++listSeq
   if (!append) loading.value = true
   try {
     const res = await intakeApi.list(projectId.value, {
@@ -398,6 +403,7 @@ async function loadList(append = false) {
       q: search.value || undefined,
       offset: append ? items.value.length : 0,
     })
+    if (seq !== listSeq) return
     items.value = append ? [...items.value, ...res.items] : res.items
     total.value = res.total
     counts.value = res.counts
@@ -407,9 +413,9 @@ async function loadList(append = false) {
       selectItem(keep || items.value[0] || null)
     }
   } catch (e) {
-    toast.error(errMsg(e))
+    if (seq === listSeq) toast.error(errMsg(e))
   } finally {
-    loading.value = false
+    if (seq === listSeq) loading.value = false
   }
 }
 function loadMore() {
