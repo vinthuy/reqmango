@@ -1,10 +1,12 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/reqmango/backend/internal/ai/llm"
 	"github.com/reqmango/backend/internal/model"
 )
 
@@ -25,18 +27,48 @@ const suggestionHonestyRule = "\n\nsuggest_issue_changes 不会修改任何数�
 
 var suggestionClaimMarkers = []string{"suggest_issue_changes", "一键采纳"}
 
-// withSuggestionNotice flags replies that claim suggestions when none were stored.
-func withSuggestionNotice(body string, suggestions []model.IssueSuggestion) string {
-	if len(suggestions) > 0 {
-		return body
-	}
+const suggestionRetryNudge = "你在回复中提到了可一键采纳的建议，但本次没有成功调用 suggest_issue_changes，所以用户看不到任何建议。" +
+	"请现在调用 suggest_issue_changes 提交你回复中的字段建议（状态必须在 allowed_next 内）；如果其实没有要提交的建议，就不要调用任何工具。"
+
+func claimsSuggestions(body string) bool {
 	lower := strings.ToLower(body)
 	for _, m := range suggestionClaimMarkers {
 		if strings.Contains(lower, m) {
-			return strings.TrimRight(body, " \n") + "\n\n---\n" + agentNoSuggestionsNotice
+			return true
 		}
 	}
-	return body
+	return false
+}
+
+// withSuggestionNotice flags replies that claim suggestions when none were stored.
+func withSuggestionNotice(body string, suggestions []model.IssueSuggestion) string {
+	if len(suggestions) > 0 || !claimsSuggestions(body) {
+		return body
+	}
+	return strings.TrimRight(body, " \n") + "\n\n---\n" + agentNoSuggestionsNotice
+}
+
+// retryClaimedSuggestions gives an agent one more turn to submit suggestions its
+// reply describes but never recorded. The original reply is kept either way.
+func (s *AgentService) retryClaimedSuggestions(ctx context.Context, systemPrompt, task, reply string,
+	tools []llm.Tool, exec llm.ToolExecutor, suggestions *[]model.IssueSuggestion) {
+	if len(*suggestions) > 0 || !claimsSuggestions(reply) || !hasTool(tools, "suggest_issue_changes") {
+		return
+	}
+	_, _ = s.llm.ChatSyncWithTools(ctx, systemPrompt, []llm.Message{
+		{Role: "user", Content: task},
+		{Role: "assistant", Content: reply},
+		{Role: "user", Content: suggestionRetryNudge},
+	}, tools, exec)
+}
+
+func hasTool(tools []llm.Tool, name string) bool {
+	for _, t := range tools {
+		if t.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func formatToolCall(name string, input json.RawMessage) string {

@@ -139,6 +139,70 @@ func TestToolListStates_MarksTheIssueCurrentState(t *testing.T) {
 	assert.Equal(t, []string{"Backlog"}, current)
 }
 
+func suggest(t *testing.T, f statesFixture, suggestions ...map[string]interface{}) (any, []model.IssueSuggestion, error) {
+	t.Helper()
+	recorded := make([]model.IssueSuggestion, 0)
+	items := make([]interface{}, len(suggestions))
+	for i, s := range suggestions {
+		items[i] = s
+	}
+	res, err := f.svc.toolSuggestIssueChanges(
+		map[string]interface{}{"issue_id": float64(1), "suggestions": items},
+		&AIContext{ProjectID: 1, IssueID: 1, Suggestions: &recorded},
+	)
+	return res, recorded, err
+}
+
+func TestToolSuggestIssueChanges_DropsAnIllegalStateAndSaysWhatIsLegal(t *testing.T) {
+	f := newStatesFixture(t)
+	f.addWorkflow(t, model.Workflow{Name: "默认流程"})
+	f.addEdge(t, "Backlog", "In Progress", "allow")
+
+	res, recorded, err := suggest(t, f,
+		map[string]interface{}{"field": "priority", "value": "medium"},
+		map[string]interface{}{"field": "state", "value": float64(2), "label": "Todo"},
+	)
+	require.NoError(t, err)
+
+	require.Len(t, recorded, 1, "the legal proposal is kept")
+	assert.Equal(t, "priority", recorded[0].Field)
+	out := res.(map[string]interface{})
+	assert.Equal(t, 1, out["recorded"])
+	rejected := out["rejected"].([]string)
+	require.Len(t, rejected, 1)
+	assert.Contains(t, rejected[0], "Todo")
+	assert.Contains(t, rejected[0], "In Progress", "the model is told which targets are legal")
+}
+
+func TestToolSuggestIssueChanges_ErrorsWhenOnlyAnIllegalStateWasProposed(t *testing.T) {
+	f := newStatesFixture(t)
+	f.addWorkflow(t, model.Workflow{Name: "默认流程"})
+	f.addEdge(t, "Backlog", "In Progress", "allow")
+
+	_, recorded, err := suggest(t, f, map[string]interface{}{"field": "state", "value": float64(2)})
+	require.Error(t, err, "the model must retry instead of believing it submitted something")
+	assert.Contains(t, err.Error(), "In Progress")
+	assert.Empty(t, recorded)
+}
+
+func TestToolSuggestIssueChanges_KeepsLegalAndApprovalStates(t *testing.T) {
+	f := newStatesFixture(t)
+	f.addWorkflow(t, model.Workflow{Name: "默认流程"})
+	f.addEdge(t, "Backlog", "Done", "approval")
+
+	_, recorded, err := suggest(t, f, map[string]interface{}{"field": "state", "value": float64(4)})
+	require.NoError(t, err)
+	require.Len(t, recorded, 1, "an approval edge is still a legal proposal")
+}
+
+func TestToolSuggestIssueChanges_RejectsAStateFromAnotherProject(t *testing.T) {
+	f := newStatesFixture(t)
+
+	_, recorded, err := suggest(t, f, map[string]interface{}{"field": "state", "value": float64(999)})
+	require.Error(t, err)
+	assert.Empty(t, recorded)
+}
+
 func TestToolListStates_ScopesTargetsToTheIssuesWorkflow(t *testing.T) {
 	// A workflow that only governs the issue's type restricts it, while other
 	// states in the same project stay free to move anywhere.

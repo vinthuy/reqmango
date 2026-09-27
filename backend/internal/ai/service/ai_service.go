@@ -1642,7 +1642,8 @@ func (s *AIService) toolSuggestIssueChanges(args map[string]interface{}, actx *A
 	if actx == nil || actx.Suggestions == nil {
 		return nil, fmt.Errorf("suggest_issue_changes 只能在 Agent 派发过程中使用")
 	}
-	if getUintArg(args, "issue_id", actx.IssueID) == 0 {
+	issueID := getUintArg(args, "issue_id", actx.IssueID)
+	if issueID == 0 {
 		return nil, fmt.Errorf("issue_id is required")
 	}
 
@@ -1658,11 +1659,70 @@ func (s *AIService) toolSuggestIssueChanges(args map[string]interface{}, actx *A
 		return nil, fmt.Errorf("没有可采纳的建议：每条需包含合法的 field（title/priority/type/state/assignee/description）与 value")
 	}
 
-	*actx.Suggestions = append(*actx.Suggestions, parsed...)
-	return map[string]interface{}{
-		"recorded": len(parsed),
+	kept := make([]model.IssueSuggestion, 0, len(parsed))
+	rejected := make([]string, 0)
+	for _, sg := range parsed {
+		if sg.Field == "state" && !sg.NoOp {
+			if reason := s.illegalStateSuggestion(issueID, sg); reason != "" {
+				rejected = append(rejected, reason)
+				continue
+			}
+		}
+		kept = append(kept, sg)
+	}
+	if len(kept) == 0 {
+		return nil, fmt.Errorf("建议未记录：%s", strings.Join(rejected, "；"))
+	}
+
+	*actx.Suggestions = append(*actx.Suggestions, kept...)
+	result := map[string]interface{}{
+		"recorded": len(kept),
 		"note":     "建议已记录，将在回复中以「一键采纳」呈现，请不要再用 update_issue 直接修改",
-	}, nil
+	}
+	if len(rejected) > 0 {
+		result["rejected"] = rejected
+	}
+	return result, nil
+}
+
+// illegalStateSuggestion explains why a proposed state cannot be applied to the
+// issue under its workflow, or returns "" when the move is allowed.
+func (s *AIService) illegalStateSuggestion(issueID uint64, sg model.IssueSuggestion) string {
+	targetID, _ := sg.Value.(uint64)
+	var issue model.Issue
+	if err := s.db.Select("id", "project_id", "state_id", "issue_type_id").First(&issue, issueID).Error; err != nil {
+		return fmt.Sprintf("工作项 %d 不存在", issueID)
+	}
+	var states []model.State
+	s.db.Where("project_id = ? AND is_active = ?", issue.ProjectID, true).Order("sequence").Find(&states)
+	var from, to *model.State
+	for i := range states {
+		switch states[i].ID {
+		case issue.StateID:
+			from = &states[i]
+		case targetID:
+			to = &states[i]
+		}
+	}
+	if to == nil {
+		return fmt.Sprintf("状态 %d 不属于本项目，请用 list_states 查询", targetID)
+	}
+	if from == nil {
+		return ""
+	}
+	rules, err := workflow.Load(s.db, issue.ProjectID, issue.IssueTypeID)
+	if err != nil || rules.Check(*from, *to).Outcome != workflow.Denied {
+		return ""
+	}
+	targets := rules.Targets(*from, states)
+	names := make([]string, len(targets))
+	for i, tg := range targets {
+		names[i] = fmt.Sprintf("%s(%d)", tg.Name, tg.ID)
+	}
+	if len(names) == 0 {
+		return fmt.Sprintf("状态「%s → %s」不被工作流允许，当前状态没有可流转的目标", from.Name, to.Name)
+	}
+	return fmt.Sprintf("状态「%s → %s」不被工作流允许，当前可选：%s", from.Name, to.Name, strings.Join(names, "、"))
 }
 
 func (s *AIService) toolUpdateIssue(args map[string]interface{}, actx *AIContext) (any, error) {

@@ -3383,6 +3383,7 @@
     "analyze": "Analyze",
     "comment": "Comment",
     "listResources": "List Resources",
+    "suggestChanges": "Suggest Changes",
     "summarize": "Summarize",
     "activity": "Activity Log",
     "noActivity": "No activity recorded yet.",

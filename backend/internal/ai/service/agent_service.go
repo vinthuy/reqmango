@@ -396,11 +396,8 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 
 	systemPrompt := s.buildAgentSystemPrompt(agent, ctx)
 	tools := s.filterToolsByCapabilities(agent)
-	for _, t := range tools {
-		if t.Name == "suggest_issue_changes" {
-			systemPrompt += suggestionHonestyRule
-			break
-		}
+	if hasTool(tools, "suggest_issue_changes") {
+		systemPrompt += suggestionHonestyRule
 	}
 
 	actx := &AIContext{
@@ -448,9 +445,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	}
 
 	executedTools := make([]string, 0)
-	resp, llmErr := s.llm.ChatSyncWithTools(context.Background(), systemPrompt, []llm.Message{
-		{Role: "user", Content: task},
-	}, tools, func(name string, input json.RawMessage) (string, error) {
+	exec := func(name string, input json.RawMessage) (string, error) {
 		result, execErr := s.aiSvc.ExecuteTool(name, input, actx)
 		if execErr != nil {
 			return toolErrorJSON(execErr.Error()), nil
@@ -458,7 +453,10 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		executedTools = append(executedTools, formatToolCall(name, input))
 		b, _ := json.Marshal(result)
 		return string(b), nil
-	})
+	}
+	resp, llmErr := s.llm.ChatSyncWithTools(context.Background(), systemPrompt, []llm.Message{
+		{Role: "user", Content: task},
+	}, tools, exec)
 	if llmErr != nil {
 		s.recordActivity(agent, ctx.IssueID, "dispatch",
 			fmt.Sprintf("Failed: %v", llmErr), task, userID)
@@ -468,6 +466,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		return nil, common.Internal(fmt.Sprintf("Agent LLM call failed: %v", llmErr))
 	}
 
+	s.retryClaimedSuggestions(context.Background(), systemPrompt, task, resp.Content, tools, exec, &suggestions)
 	reply := withSuggestionNotice(resp.Content, suggestions)
 	s.recordActivity(agent, ctx.IssueID, "dispatch", agentActivitySummary(reply, executedTools), task, userID)
 	if ctx.IssueID != nil {

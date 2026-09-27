@@ -29,10 +29,10 @@
       </div>
       <div v-if="selectedAgent.capabilities?.length" class="flex flex-wrap gap-1">
         <span
-          v-for="cap in selectedAgent.capabilities"
-          :key="cap"
+          v-for="label in capabilityLabels(selectedAgent.capabilities, t)"
+          :key="label"
           class="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-xs"
-        >{{ formatCapability(cap) }}</span>
+        >{{ label }}</span>
       </div>
       <div v-if="selectedAgent.model_override" class="mt-1 text-gray-500">
         {{ t('agent.model') || 'Model' }}: {{ selectedAgent.model_override }}
@@ -49,6 +49,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { agentApi } from '@/api/agent'
 import type { Agent } from '@/types/agent'
+import { capabilityLabels } from '@/utils/agentCapabilities'
 
 const { t } = useI18n()
 
@@ -76,21 +77,6 @@ const selectedAgent = computed(() => {
   const agentId = parseInt(props.modelValue.replace('agent:', ''))
   return agents.value.find(a => a.id === agentId) || null
 })
-
-function formatCapability(cap: string): string {
-  const labels: Record<string, string> = {
-    create_issue: t('agent.capCreate') || 'Create',
-    update_issue: t('agent.capUpdate') || 'Update',
-    search: t('agent.capSearch') || 'Search',
-    comment: t('agent.capComment') || 'Comment',
-    label: t('agent.capLabel') || 'Label',
-    assign: t('agent.capAssign') || 'Assign',
-    triage: t('agent.capTriage') || 'Triage',
-    summarize: t('agent.capSummarize') || 'Summarize',
-    plan: t('agent.capPlan') || 'Plan',
-  }
-  return labels[cap] || cap
-}
 
 async function fetchAgents() {
   if (!props.workspaceId) return

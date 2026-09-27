@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { agentApi } from '@/api/agent'
 import type { Agent, AgentCreateRequest, AgentUpdateRequest } from '@/types/agent'
+import { capabilityLabels } from '@/utils/agentCapabilities'
 
 const props = defineProps<{ workspaceId: number }>()
 
@@ -162,11 +163,11 @@ onMounted(fetchAgents)
               </div>
               <div class="flex flex-wrap gap-1 mt-1">
                 <span
-                  v-for="cap in (agent.capabilities || [])"
-                  :key="cap"
+                  v-for="label in capabilityLabels(agent.capabilities, t)"
+                  :key="label"
                   class="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
                 >
-                  {{ cap }}
+                  {{ label }}
                 </span>
                 <span
               v-if="!agent.capabilities || agent.capabilities.length === 0"
