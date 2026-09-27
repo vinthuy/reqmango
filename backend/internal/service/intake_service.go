@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -11,18 +12,23 @@ import (
 	"strings"
 	"time"
 
+	aiservice "github.com/reqmango/backend/internal/ai/service"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 
 const (
-	IntakePending   = "pending"
-	IntakeSnoozed   = "snoozed"
-	IntakeAccepted  = "accepted"
-	IntakeRejected  = "rejected"
-	IntakeDuplicate = "duplicate"
+	IntakePending    = "pending"
+	IntakeSnoozed    = "snoozed"
+	IntakeSpecReview = "spec_review"
+	IntakeAccepted   = "accepted"
+	IntakeRejected   = "rejected"
+	IntakeDuplicate  = "duplicate"
 )
+
+// intakeSpecSource is the page source_type used for specs drafted from intake items.
+const intakeSpecSource = "issue"
 
 // intakeVisibleClause hides untriaged, rejected and duplicate intake requests from work-item lists.
 const intakeVisibleClause = "(issues.intake_status IS NULL OR issues.intake_status = 'accepted')"
@@ -38,11 +44,15 @@ type IntakeNotifier interface {
 type IntakeService struct {
 	db       *gorm.DB
 	notifier IntakeNotifier
+	specAI   *aiservice.AIService
 }
 
 func NewIntakeService(db *gorm.DB, notifier IntakeNotifier) *IntakeService {
 	return &IntakeService{db: db, notifier: notifier}
 }
+
+// SetSpecAI wires the model used to draft specs; without it drafts use a template.
+func (s *IntakeService) SetSpecAI(ai *aiservice.AIService) { s.specAI = ai }
 
 func newIntakeToken() string {
 	b := make([]byte, 24)
@@ -268,6 +278,7 @@ type IntakeItem struct {
 	StateID         uint64     `json:"state_id"`
 	AgeHours        float64    `json:"age_hours"`
 	SLAOverdue      bool       `json:"sla_overdue"`
+	SpecPageID      *uint64    `json:"spec_page_id"`
 }
 
 type IntakeListResult struct {
@@ -292,7 +303,7 @@ func (s *IntakeService) scopeStatus(q *gorm.DB, status string, now time.Time) *g
 		return q.Where("(issues.intake_status = ? OR (issues.intake_status = ? AND (issues.intake_snoozed_until IS NULL OR issues.intake_snoozed_until <= ?)))", IntakePending, IntakeSnoozed, now)
 	case IntakeSnoozed:
 		return q.Where("issues.intake_status = ? AND issues.intake_snoozed_until > ?", IntakeSnoozed, now)
-	case IntakeAccepted, IntakeRejected, IntakeDuplicate:
+	case IntakeSpecReview, IntakeAccepted, IntakeRejected, IntakeDuplicate:
 		return q.Where("issues.intake_status = ?", status)
 	}
 	return q
@@ -323,7 +334,7 @@ func (s *IntakeService) List(projectID uint64, lq IntakeListQuery) (*IntakeListR
 	}
 
 	counts := map[string]int64{}
-	for _, k := range []string{IntakePending, IntakeSnoozed, IntakeAccepted, IntakeRejected, IntakeDuplicate} {
+	for _, k := range []string{IntakePending, IntakeSnoozed, IntakeSpecReview, IntakeAccepted, IntakeRejected, IntakeDuplicate} {
 		var n int64
 		s.scopeStatus(base(), k, now).Count(&n)
 		counts[k] = n
@@ -341,8 +352,9 @@ func (s *IntakeService) List(projectID uint64, lq IntakeListQuery) (*IntakeListR
 		return nil, common.Internal("Failed to list intake")
 	}
 
-	userIDs, dupIDs := []uint64{}, []uint64{}
+	userIDs, dupIDs, issueIDs := []uint64{}, []uint64{}, []uint64{}
 	for _, is := range issues {
+		issueIDs = append(issueIDs, is.ID)
 		if is.IntakeTriagedBy != nil {
 			userIDs = append(userIDs, *is.IntakeTriagedBy)
 		}
@@ -368,6 +380,17 @@ func (s *IntakeService) List(projectID uint64, lq IntakeListQuery) (*IntakeListR
 		s.db.Select("id, sequence_id, name").Where("id IN ?", dupIDs).Find(&ds)
 		for _, d := range ds {
 			dups[d.ID] = d
+		}
+	}
+	specPages := map[uint64]uint64{}
+	if len(issueIDs) > 0 {
+		var pages []model.Page
+		s.db.Select("id, source_id").Where("project_id = ? AND source_type = ? AND source_id IN ?", projectID, intakeSpecSource, issueIDs).
+			Order("id ASC").Find(&pages)
+		for _, p := range pages {
+			if p.SourceID != nil {
+				specPages[*p.SourceID] = p.ID
+			}
 		}
 	}
 
@@ -405,6 +428,9 @@ func (s *IntakeService) List(projectID uint64, lq IntakeListQuery) (*IntakeListR
 		}
 		it.AgeHours = math.Round(end.Sub(is.CreatedAt).Hours()*10) / 10
 		it.SLAOverdue = it.Status == IntakePending && it.AgeHours > float64(st.SLAHours)
+		if pid, ok := specPages[is.ID]; ok {
+			it.SpecPageID = &pid
+		}
 		items = append(items, it)
 	}
 	return &IntakeListResult{Items: items, Total: total, Counts: counts, SLAHours: st.SLAHours}, nil
@@ -419,6 +445,8 @@ type IntakeTriageInput struct {
 	Reason      string  `json:"reason"`
 	SnoozeHours int     `json:"snooze_hours"`
 	DuplicateOf *uint64 `json:"duplicate_of"`
+	// UseSpec replaces the description with the drafted spec (original kept below) on accept.
+	UseSpec bool `json:"use_spec"`
 }
 
 func (s *IntakeService) Triage(projectID, issueID, actorID uint64, in IntakeTriageInput) (*model.Issue, error) {
@@ -453,6 +481,17 @@ func (s *IntakeService) Triage(projectID, issueID, actorID uint64, in IntakeTria
 			if cnt == 0 {
 				return nil, common.Validation("assignee is not a member of this project")
 			}
+		}
+		if in.UseSpec && old != IntakeAccepted {
+			page, err := s.specPage(projectID, issueID)
+			if err != nil {
+				return nil, common.Validation("no spec has been drafted for this item")
+			}
+			desc := page.Content
+			if strings.TrimSpace(issue.DescriptionHTML) != "" {
+				desc += "<hr><h3>原始需求</h3>" + issue.DescriptionHTML
+			}
+			updates["description_html"] = desc
 		}
 		updates["intake_snoozed_until"] = nil
 	case "reject":
@@ -574,6 +613,161 @@ func (s *IntakeService) Triage(projectID, issueID, actorID uint64, in IntakeTria
 	return &issue, nil
 }
 
+// ---------- spec drafting ----------
+
+type IntakeSpecResult struct {
+	PageID  uint64                     `json:"page_id"`
+	Title   string                     `json:"title"`
+	Content string                     `json:"content"`
+	Status  string                     `json:"status"`
+	Draft   *aiservice.IntakeSpecDraft `json:"draft,omitempty"`
+}
+
+func (s *IntakeService) specPage(projectID, issueID uint64) (*model.Page, error) {
+	var p model.Page
+	err := s.db.Where("project_id = ? AND source_type = ? AND source_id = ?", projectID, intakeSpecSource, issueID).
+		Order("id DESC").First(&p).Error
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+// Spec returns the drafted spec page for an intake item.
+func (s *IntakeService) Spec(projectID, issueID uint64) (*IntakeSpecResult, error) {
+	var issue model.Issue
+	if err := s.db.Where("id = ? AND project_id = ? AND intake_source IS NOT NULL", issueID, projectID).First(&issue).Error; err != nil {
+		return nil, common.NotFound("Intake item not found")
+	}
+	p, err := s.specPage(projectID, issueID)
+	if err != nil {
+		return nil, common.NotFound("No spec drafted yet")
+	}
+	status := ""
+	if issue.IntakeStatus != nil {
+		status = *issue.IntakeStatus
+	}
+	return &IntakeSpecResult{PageID: p.ID, Title: p.Title, Content: p.Content, Status: status}, nil
+}
+
+// DraftSpec drafts (or redrafts) a structured spec for an untriaged intake item,
+// saves it as a project page linked back to the item, and moves the item into
+// spec review so a human confirms it before it enters the backlog.
+func (s *IntakeService) DraftSpec(ctx context.Context, projectID, issueID, actorID uint64) (*IntakeSpecResult, error) {
+	var issue model.Issue
+	if err := s.db.Where("id = ? AND project_id = ? AND intake_source IS NOT NULL", issueID, projectID).First(&issue).Error; err != nil {
+		return nil, common.NotFound("Intake item not found")
+	}
+	old := ""
+	if issue.IntakeStatus != nil {
+		old = *issue.IntakeStatus
+	}
+	if old != IntakePending && old != IntakeSnoozed && old != IntakeSpecReview {
+		return nil, common.Validation("specs can only be drafted for untriaged items")
+	}
+	var project model.Project
+	if err := s.db.Select("id, workspace_id").First(&project, projectID).Error; err != nil {
+		return nil, common.ProjectNotFound()
+	}
+
+	text := strings.TrimSpace(html.UnescapeString(htmlTagRe.ReplaceAllString(
+		strings.ReplaceAll(issue.DescriptionHTML, "<br>", "\n"), "")))
+	submitter := ""
+	if issue.IntakeSubmitter != nil {
+		submitter = *issue.IntakeSubmitter
+	}
+	ai := s.specAI
+	if ai == nil {
+		ai = &aiservice.AIService{}
+	}
+	draft := ai.DraftIntakeSpec(ctx, issue.Name, text, submitter)
+	title := fmt.Sprintf("需求规格 #%d %s", issue.SequenceID, issue.Name)
+	content := renderIntakeSpec(&issue, draft)
+
+	var page model.Page
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		existing, err := s.specPage(projectID, issueID)
+		if err == nil {
+			page = *existing
+			if err := tx.Model(&page).Updates(map[string]interface{}{"title": title, "content": content, "content_json": nil}).Error; err != nil {
+				return err
+			}
+			page.Title, page.Content = title, content
+		} else {
+			sid := issue.ID
+			page = model.Page{
+				Title: title, Content: content, Published: true, Sequence: 1,
+				ProjectID: projectID, WorkspaceID: project.WorkspaceID,
+				SourceType: intakeSpecSource, SourceID: &sid,
+			}
+			page.CreatedByID = &actorID
+			if err := tx.Create(&page).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Model(&model.Issue{}).Where("id = ?", issue.ID).
+			Updates(map[string]interface{}{"intake_status": IntakeSpecReview, "intake_snoozed_until": nil}).Error; err != nil {
+			return err
+		}
+		if old != IntakeSpecReview {
+			field := "intake_status"
+			ov, nv := old, IntakeSpecReview
+			act := &model.IssueActivity{IssueID: &issue.ID, Verb: "updated", Field: &field, OldValue: &ov, NewValue: &nv, ActorID: &actorID}
+			act.CreatedByID = &actorID
+			if err := tx.Create(act).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, common.Internal("Failed to save spec")
+	}
+	return &IntakeSpecResult{PageID: page.ID, Title: page.Title, Content: page.Content, Status: IntakeSpecReview, Draft: draft}, nil
+}
+
+var intakePriorityLabel = map[string]string{"urgent": "紧急", "high": "高", "medium": "中", "low": "低"}
+
+func renderIntakeSpec(issue *model.Issue, d *aiservice.IntakeSpecDraft) string {
+	var b strings.Builder
+	esc := html.EscapeString
+	list := func(heading string, items []string) {
+		if len(items) == 0 {
+			return
+		}
+		b.WriteString("<h2>" + heading + "</h2><ul>")
+		for _, it := range items {
+			if t := strings.TrimSpace(it); t != "" {
+				b.WriteString("<li>" + esc(t) + "</li>")
+			}
+		}
+		b.WriteString("</ul>")
+	}
+	b.WriteString("<h2>概述</h2><p>" + esc(d.Summary) + "</p>")
+	if strings.TrimSpace(d.Background) != "" {
+		b.WriteString("<h2>背景</h2><p>" + strings.ReplaceAll(esc(d.Background), "\n", "<br>") + "</p>")
+	}
+	list("用户故事", d.UserStories)
+	list("验收标准", d.AcceptanceCriteria)
+	list("范围内", d.InScope)
+	list("不在范围内", d.OutOfScope)
+	list("待确认问题", d.OpenQuestions)
+	meta := []string{fmt.Sprintf("来源：需求入口 #%d", issue.SequenceID)}
+	if issue.IntakeSubmitter != nil && *issue.IntakeSubmitter != "" {
+		meta = append(meta, "提交人："+esc(*issue.IntakeSubmitter))
+	}
+	if l, ok := intakePriorityLabel[d.SuggestedPriority]; ok {
+		meta = append(meta, "建议优先级："+l)
+	}
+	if d.Source == "ai" {
+		meta = append(meta, "由 AI 起草，需人工确认")
+	} else {
+		meta = append(meta, "按模板起草（AI 不可用），需人工完善")
+	}
+	b.WriteString("<p><em>" + strings.Join(meta, " · ") + "</em></p>")
+	return b.String()
+}
+
 func (s *IntakeService) cancelledStateID(projectID uint64) uint64 {
 	var st model.State
 	if s.db.Where("project_id = ? AND \"group\" = ?", projectID, "cancelled").Order("sequence ASC").First(&st).Error == nil {
@@ -613,6 +807,7 @@ type IntakeMetrics struct {
 	Duplicate       int64              `json:"duplicate"`
 	PendingNow      int64              `json:"pending_now"`
 	SnoozedNow      int64              `json:"snoozed_now"`
+	SpecReviewNow   int64              `json:"spec_review_now"`
 	OverdueNow      int64              `json:"overdue_now"`
 	AcceptanceRate  *float64           `json:"acceptance_rate"`
 	AvgTriageHours  *float64           `json:"avg_triage_hours"`
@@ -705,6 +900,7 @@ func (s *IntakeService) Metrics(projectID uint64, days int) (*IntakeMetrics, err
 
 	s.scopeStatus(base(), IntakePending, now).Count(&m.PendingNow)
 	s.scopeStatus(base(), IntakeSnoozed, now).Count(&m.SnoozedNow)
+	s.scopeStatus(base(), IntakeSpecReview, now).Count(&m.SpecReviewNow)
 	s.scopeStatus(base(), IntakePending, now).Where("issues.created_at < ?", now.Add(-time.Duration(st.SLAHours)*time.Hour)).Count(&m.OverdueNow)
 
 	buckets := map[string]*IntakeTrendPoint{}

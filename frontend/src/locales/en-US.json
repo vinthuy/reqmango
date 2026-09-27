@@ -3714,9 +3714,25 @@
     "status": {
       "pending": "Pending",
       "snoozed": "Snoozed",
+      "spec_review": "Spec review",
       "accepted": "Accepted",
       "rejected": "Rejected",
       "duplicate": "Merged"
+    },
+    "spec": {
+      "badge": "Spec",
+      "ctaTitle": "Draft a spec with AI",
+      "ctaHint": "Generates background, user stories, acceptance criteria and open questions, saves them to project docs, and waits for your confirmation before the backlog.",
+      "draft": "Draft spec",
+      "drafting": "Drafting…",
+      "title": "Spec (awaiting confirmation)",
+      "open": "Edit in docs",
+      "regenerate": "Regenerate",
+      "regenerateConfirm": "Regenerating overwrites any edits made to this spec in docs. Continue?",
+      "missing": "The spec page is gone; regenerate it",
+      "confirmTitle": "Confirm spec and add to backlog",
+      "useSpec": "Replace the work item description with the spec (original kept)",
+      "confirmAccept": "Confirm and add to backlog"
     },
     "source": {
       "form": "Form",
@@ -3776,7 +3792,9 @@
       "reopened": "Reopened",
       "saved": "Saved",
       "rotated": "Key rotated",
-      "copied": "Copied"
+      "copied": "Copied",
+      "specDrafted": "AI drafted a spec — please review",
+      "specTemplate": "AI unavailable; drafted a spec from a template — please refine"
     }
   },
   "intakeForm": {

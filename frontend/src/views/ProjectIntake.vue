@@ -113,6 +113,7 @@
               <span class="text-xs text-gray-400">#{{ it.sequence_id }}</span>
               <span class="text-sm font-medium text-gray-900 truncate flex-1">{{ it.name }}</span>
               <span :class="['text-[11px] px-1.5 py-0.5 rounded', sourceClass(it.source)]">{{ t('intakeHub.source.' + it.source) }}</span>
+              <span v-if="it.spec_page_id" class="text-[11px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700" data-testid="in-spec-badge">{{ t('intakeHub.spec.badge') }}</span>
               <span v-if="it.sla_overdue" class="text-[11px] px-1.5 py-0.5 rounded bg-red-100 text-red-700" data-testid="in-overdue">{{ t('intakeHub.overdue') }}</span>
             </div>
             <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
@@ -178,9 +179,47 @@
             </div>
 
             <!-- Actions for open items -->
-            <div v-if="selected.status === 'pending' || selected.status === 'snoozed'" class="mt-4 space-y-3">
+            <div v-if="isOpen(selected.status)" class="mt-4 space-y-3">
+              <div v-if="selected.status !== 'spec_review'" class="border border-emerald-200 bg-emerald-50/40 rounded-lg p-3" data-testid="in-spec-cta">
+                <div class="text-xs font-medium text-gray-700">{{ t('intakeHub.spec.ctaTitle') }}</div>
+                <p class="text-xs text-gray-500 mt-1">{{ t('intakeHub.spec.ctaHint') }}</p>
+                <button class="mt-2 w-full px-3 py-1.5 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50" :disabled="drafting || acting" data-testid="in-spec-draft" @click="draftSpec">
+                  {{ drafting ? t('intakeHub.spec.drafting') : t('intakeHub.spec.draft') }}
+                </button>
+              </div>
+
+              <div v-else class="border border-emerald-200 rounded-lg p-3" data-testid="in-spec">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-xs font-medium text-gray-700">{{ t('intakeHub.spec.title') }}</div>
+                  <div class="flex items-center gap-2 text-xs">
+                    <router-link
+                      v-if="spec"
+                      :to="`/workspace/${slug}/project/${projectId}/pages?page=${spec.page_id}`"
+                      class="text-indigo-600 hover:underline"
+                      data-testid="in-spec-open"
+                    >{{ t('intakeHub.spec.open') }}</router-link>
+                    <button class="text-gray-500 hover:underline disabled:opacity-50" :disabled="drafting || acting" data-testid="in-spec-regen" @click="draftSpec">
+                      {{ drafting ? t('intakeHub.spec.drafting') : t('intakeHub.spec.regenerate') }}
+                    </button>
+                  </div>
+                </div>
+                <div v-if="specLoading" class="text-xs text-gray-400 py-4 text-center">{{ t('intake.loading') }}</div>
+                <div v-else-if="spec" class="mt-2 max-h-80 overflow-auto space-y-2 text-sm" data-testid="in-spec-body">
+                  <div v-for="(sec, i) in specSections" :key="i">
+                    <div v-if="sec.title" class="text-xs font-semibold text-gray-600">{{ sec.title }}</div>
+                    <ul v-if="sec.list" class="list-disc pl-5 text-gray-700 space-y-0.5">
+                      <li v-for="(l, j) in sec.lines" :key="j">{{ l }}</li>
+                    </ul>
+                    <template v-else>
+                      <p v-for="(l, j) in sec.lines" :key="j" class="text-gray-700 whitespace-pre-wrap">{{ l }}</p>
+                    </template>
+                  </div>
+                </div>
+                <div v-else class="text-xs text-gray-400 py-3">{{ t('intakeHub.spec.missing') }}</div>
+              </div>
+
               <div class="border border-gray-200 rounded-lg p-3">
-                <div class="text-xs font-medium text-gray-700 mb-2">{{ t('intakeHub.acceptTitle') }}</div>
+                <div class="text-xs font-medium text-gray-700 mb-2">{{ selected.status === 'spec_review' ? t('intakeHub.spec.confirmTitle') : t('intakeHub.acceptTitle') }}</div>
                 <div class="flex gap-2">
                   <select v-model="acceptState" data-testid="in-accept-state" class="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-lg">
                     <option :value="null">{{ t('intakeHub.keepState') }}</option>
@@ -191,10 +230,16 @@
                     <option v-for="m in members" :key="m.user_id" :value="m.user_id">{{ memberName(m) }}</option>
                   </select>
                 </div>
-                <button class="mt-2 w-full px-3 py-1.5 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50" :disabled="acting" data-testid="in-accept" @click="doAccept">{{ t('intake.accept') }}</button>
+                <label v-if="selected.status === 'spec_review' && spec" class="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                  <input v-model="useSpec" type="checkbox" data-testid="in-accept-use-spec" />
+                  {{ t('intakeHub.spec.useSpec') }}
+                </label>
+                <button class="mt-2 w-full px-3 py-1.5 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50" :disabled="acting || drafting" data-testid="in-accept" @click="doAccept">
+                  {{ selected.status === 'spec_review' ? t('intakeHub.spec.confirmAccept') : t('intake.accept') }}
+                </button>
               </div>
 
-              <div class="border border-gray-200 rounded-lg p-3">
+              <div v-if="selected.status !== 'spec_review'" class="border border-gray-200 rounded-lg p-3">
                 <div class="text-xs font-medium text-gray-700 mb-2">{{ t('intakeHub.snoozeTitle') }}</div>
                 <div class="flex gap-2">
                   <button v-for="o in snoozeOptions" :key="o.h" :class="btnClass + ' flex-1'" :disabled="acting" :data-testid="'in-snooze-' + o.h" @click="doSnooze(o.h)">{{ o.label }}</button>
@@ -267,7 +312,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { intakeApi, type IntakeItem, type IntakeMetrics, type IntakeSettings, type IntakeStatus, type IntakeSource } from '@/api/intake'
+import { intakeApi, type IntakeItem, type IntakeMetrics, type IntakeSettings, type IntakeSpec, type IntakeStatus, type IntakeSource } from '@/api/intake'
 import * as projectApi from '@/api/project'
 import { listStates } from '@/api/project-settings'
 import { listIssues } from '@/api/issue'
@@ -279,7 +324,7 @@ const toast = useToast()
 const route = useRoute()
 
 const btnClass = 'px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50'
-const statuses: IntakeStatus[] = ['pending', 'snoozed', 'accepted', 'rejected', 'duplicate']
+const statuses: IntakeStatus[] = ['pending', 'snoozed', 'spec_review', 'accepted', 'rejected', 'duplicate']
 const sources: IntakeSource[] = ['form', 'webhook', 'email']
 
 const slug = computed(() => route.params.slug as string)
@@ -313,6 +358,51 @@ const rejectReason = ref('')
 const dupQuery = ref('')
 const dupResults = ref<{ id: number; sequence_id: number; name: string }[]>([])
 const dupTarget = ref<{ id: number; sequence_id: number; name: string } | null>(null)
+const spec = ref<IntakeSpec | null>(null)
+const specLoading = ref(false)
+const drafting = ref(false)
+const useSpec = ref(true)
+
+function isOpen(s: IntakeStatus) {
+  return s === 'pending' || s === 'snoozed' || s === 'spec_review'
+}
+
+// Rendered as text: page content may have been edited by users in the docs editor.
+const specSections = computed(() => {
+  const html = spec.value?.content
+  if (!html) return []
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const out: { title: string; lines: string[]; list: boolean }[] = []
+  let cur: { title: string; lines: string[]; list: boolean } | null = null
+  for (const el of Array.from(doc.body.children)) {
+    const tag = el.tagName.toLowerCase()
+    if (/^h[1-6]$/.test(tag)) {
+      cur = { title: (el.textContent || '').trim(), lines: [], list: false }
+      out.push(cur)
+      continue
+    }
+    if (!cur) {
+      cur = { title: '', lines: [], list: false }
+      out.push(cur)
+    }
+    if (tag === 'ul' || tag === 'ol') {
+      cur.list = true
+      el.querySelectorAll('li').forEach((li) => {
+        const s = (li.textContent || '').trim()
+        if (s) cur!.lines.push(s)
+      })
+    } else if (tag !== 'hr') {
+      const s = (el.textContent || '').trim()
+      if (!s) continue
+      if (cur.list) {
+        cur = { title: '', lines: [], list: false }
+        out.push(cur)
+      }
+      cur.lines.push(s)
+    }
+  }
+  return out.filter((s) => s.title || s.lines.length)
+})
 
 const snoozeOptions = computed(() => [
   { h: 24, label: t('intakeHub.snooze1d') },
@@ -459,8 +549,47 @@ function selectItem(it: IntakeItem | null) {
     dupQuery.value = ''
     dupResults.value = []
     dupTarget.value = null
+    spec.value = null
+    useSpec.value = true
+    if (it?.status === 'spec_review') loadSpec(it.id)
   }
   selected.value = it
+}
+
+async function loadSpec(issueId: number) {
+  specLoading.value = true
+  try {
+    const res = await intakeApi.getSpec(projectId.value, issueId)
+    if (selected.value?.id === issueId) spec.value = res
+  } catch {
+    if (selected.value?.id === issueId) spec.value = null
+  } finally {
+    specLoading.value = false
+  }
+}
+
+async function draftSpec() {
+  if (!selected.value) return
+  if (selected.value.status === 'spec_review' && !confirm(t('intakeHub.spec.regenerateConfirm'))) return
+  const id = selected.value.id
+  drafting.value = true
+  try {
+    const res = await intakeApi.draftSpec(projectId.value, id)
+    toast.success(t(res.draft?.source === 'template' ? 'intakeHub.toast.specTemplate' : 'intakeHub.toast.specDrafted'))
+    if (status.value !== 'spec_review') {
+      status.value = 'spec_review'
+      await loadList()
+    }
+    if (selected.value?.id === id) {
+      spec.value = res
+      selected.value = { ...selected.value, status: 'spec_review', spec_page_id: res.page_id }
+    }
+    loadMetrics()
+  } catch (e) {
+    toast.error(errMsg(e))
+  } finally {
+    drafting.value = false
+  }
 }
 function select(it: IntakeItem) {
   selectItem(it)
@@ -493,7 +622,16 @@ async function act(payload: Parameters<typeof intakeApi.triage>[2], okKey: strin
   }
 }
 function doAccept() {
-  act({ action: 'accept', state_id: acceptState.value ?? undefined, assignee_id: acceptAssignee.value ?? undefined }, 'intakeHub.toast.accepted')
+  const withSpec = selected.value?.status === 'spec_review' && !!spec.value && useSpec.value
+  act(
+    {
+      action: 'accept',
+      state_id: acceptState.value ?? undefined,
+      assignee_id: acceptAssignee.value ?? undefined,
+      use_spec: withSpec || undefined,
+    },
+    'intakeHub.toast.accepted',
+  )
 }
 function doReject() {
   act({ action: 'reject', reason: rejectReason.value.trim() || undefined }, 'intakeHub.toast.rejected')

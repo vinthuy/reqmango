@@ -90,6 +90,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	// Initialize Memory service and inject via setter (to avoid import cycle)
 	memSvc := service.NewMemoryService(db, llmClient)
 	aiSvc.SetMemoryService(memSvc)
+	intakeH.SetSpecAI(aiSvc)
 	agentSvc.SetMemoryService(memSvc)
 
 	// Start memory cleanup scheduler
@@ -664,6 +665,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.PUT("/:projectId/webhooks/:id", webhookH.Update)
 			projects.DELETE("/:projectId/webhooks/:id", webhookH.Delete)
 			projects.POST("/:projectId/intake/:issueId/triage", intakeH.Triage)
+			projects.GET("/:projectId/intake/:issueId/spec", intakeH.GetSpec)
+			projects.POST("/:projectId/intake/:issueId/spec", intakeH.DraftSpec)
 			projects.POST("/:projectId/intake/:issueId/ai-analyze", aiH.TriageAnalyze)
 			projects.GET("/:projectId/issues-summary", projectH.GetIssuesSummary)
 			projects.PATCH("/:projectId/lead", projectH.UpdateProjectLead)

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	aiservice "github.com/reqmango/backend/internal/ai/service"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
@@ -217,6 +218,47 @@ func (h *IntakeHandler) Triage(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"issue_id": issue.ID, "status": issue.IntakeStatus, "state_id": issue.StateID})
+}
+
+// SetSpecAI wires the model used to draft specs from intake items.
+func (h *IntakeHandler) SetSpecAI(ai *aiservice.AIService) { h.svc.SetSpecAI(ai) }
+
+// GetSpec handles GET /api/v1/projects/:projectId/intake/:issueId/spec
+func (h *IntakeHandler) GetSpec(c *gin.Context) {
+	projectID, ok := h.requireProjectRole(c, common.RoleGuest)
+	if !ok {
+		return
+	}
+	issueID, err := strconv.ParseUint(c.Param("issueId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid issue id"})
+		return
+	}
+	res, err := h.svc.Spec(projectID, issueID)
+	if err != nil {
+		common.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+// DraftSpec handles POST /api/v1/projects/:projectId/intake/:issueId/spec
+func (h *IntakeHandler) DraftSpec(c *gin.Context) {
+	projectID, ok := h.requireProjectRole(c, common.RoleMember)
+	if !ok {
+		return
+	}
+	issueID, err := strconv.ParseUint(c.Param("issueId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid issue id"})
+		return
+	}
+	res, err := h.svc.DraftSpec(c.Request.Context(), projectID, issueID, middleware.GetUserID(c))
+	if err != nil {
+		common.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, res)
 }
 
 // GetSettings handles GET /api/v1/projects/:projectId/intake/settings

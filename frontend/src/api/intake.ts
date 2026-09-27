@@ -3,7 +3,7 @@
  */
 import api from './index'
 
-export type IntakeStatus = 'pending' | 'snoozed' | 'accepted' | 'rejected' | 'duplicate'
+export type IntakeStatus = 'pending' | 'snoozed' | 'spec_review' | 'accepted' | 'rejected' | 'duplicate'
 export type IntakeSource = 'form' | 'webhook' | 'email'
 
 export interface IntakeItem {
@@ -27,6 +27,15 @@ export interface IntakeItem {
   state_id: number
   age_hours: number
   sla_overdue: boolean
+  spec_page_id: number | null
+}
+
+export interface IntakeSpec {
+  page_id: number
+  title: string
+  content: string
+  status: IntakeStatus
+  draft?: { source: 'ai' | 'template'; suggested_priority: string }
 }
 
 export interface IntakeListResult {
@@ -54,6 +63,7 @@ export interface IntakeMetrics {
   duplicate: number
   pending_now: number
   snoozed_now: number
+  spec_review_now: number
   overdue_now: number
   acceptance_rate: number | null
   avg_triage_hours: number | null
@@ -79,6 +89,7 @@ export interface IntakeTriage {
   reason?: string
   snooze_hours?: number
   duplicate_of?: number
+  use_spec?: boolean
 }
 
 export interface IntakeProjectInfo {
@@ -100,6 +111,12 @@ export const intakeApi = {
 
   triage: async (projectId: number, issueId: number, data: IntakeTriage) =>
     (await api.post(`/projects/${projectId}/intake/${issueId}/triage`, data)).data,
+
+  getSpec: async (projectId: number, issueId: number): Promise<IntakeSpec> =>
+    (await api.get(`/projects/${projectId}/intake/${issueId}/spec`)).data,
+
+  draftSpec: async (projectId: number, issueId: number): Promise<IntakeSpec> =>
+    (await api.post(`/projects/${projectId}/intake/${issueId}/spec`, {}, { timeout: 120000 })).data,
 
   aiAnalyze: async (projectId: number, issueId: number) =>
     (await api.post(`/projects/${projectId}/intake/${issueId}/ai-analyze`)).data,

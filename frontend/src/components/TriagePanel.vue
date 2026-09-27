@@ -16,7 +16,7 @@
     </div>
 
     <div v-if="loading" class="text-center py-8 text-gray-400">{{ t('intake.loading') }}</div>
-    <div v-else class="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <div v-else class="grid grid-cols-2 md:grid-cols-6 gap-3">
       <div v-for="s in statuses" :key="s" class="rounded-lg border border-gray-200 p-3">
         <div class="text-xs text-gray-500">{{ t('intakeHub.status.' + s) }}</div>
         <div class="text-xl font-semibold text-gray-900 mt-1">{{ counts[s] ?? 0 }}</div>
@@ -38,7 +38,7 @@ const toast = useToast()
 const { t } = useI18n()
 const route = useRoute()
 
-const statuses: IntakeStatus[] = ['pending', 'snoozed', 'accepted', 'rejected', 'duplicate']
+const statuses: IntakeStatus[] = ['pending', 'snoozed', 'spec_review', 'accepted', 'rejected', 'duplicate']
 const counts = ref<Record<string, number>>({})
 const loading = ref(false)
 const hubLink = computed(() => `/workspace/${route.params.slug}/project/${props.projectId}/intake`)

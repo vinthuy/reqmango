@@ -3714,9 +3714,25 @@
     "status": {
       "pending": "待处理",
       "snoozed": "已暂缓",
+      "spec_review": "规格评审",
       "accepted": "已接受",
       "rejected": "已拒绝",
       "duplicate": "已合并"
+    },
+    "spec": {
+      "badge": "规格",
+      "ctaTitle": "AI 起草需求规格",
+      "ctaHint": "生成背景、用户故事、验收标准和待确认问题，保存到项目文档，确认后再进入待办。",
+      "draft": "起草规格",
+      "drafting": "起草中…",
+      "title": "需求规格（待确认）",
+      "open": "在文档中编辑",
+      "regenerate": "重新生成",
+      "regenerateConfirm": "重新生成会覆盖文档中对该规格的修改，确定继续？",
+      "missing": "规格文档不存在，可重新生成",
+      "confirmTitle": "确认规格并进入待办",
+      "useSpec": "用规格替换工作项描述（保留原始需求）",
+      "confirmAccept": "确认并进入待办"
     },
     "source": {
       "form": "表单",
@@ -3776,7 +3792,9 @@
       "reopened": "已重新打开",
       "saved": "已保存",
       "rotated": "密钥已重置",
-      "copied": "已复制"
+      "copied": "已复制",
+      "specDrafted": "AI 已起草规格，请确认",
+      "specTemplate": "AI 不可用，已按模板起草规格，请完善"
     }
   },
   "intakeForm": {
