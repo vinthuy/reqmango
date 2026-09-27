@@ -18,6 +18,10 @@ cp .env.example .env
 docker compose up --build
 ```
 
+**首次启动：** `docker compose up --build` 会在本地构建后端和前端镜像，
+耗时可能达到几分钟，具体取决于网络和机器性能。请等待服务启动完成后再打开
+页面；构建期间页面暂时无法打开或空白，并不代表启动失败。
+
 浏览器打开 **http://localhost**，登录：
 
 | | |

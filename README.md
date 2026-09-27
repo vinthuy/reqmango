@@ -17,6 +17,11 @@ cp .env.example .env
 docker compose up --build
 ```
 
+**First run:** `docker compose up --build` builds the backend and frontend
+images locally. This can take several minutes depending on your network and
+machine. Wait for the services to finish starting before opening the app; a
+temporary blank page during the build does not mean startup failed.
+
 Open **http://localhost** and sign in:
 
 | | |
