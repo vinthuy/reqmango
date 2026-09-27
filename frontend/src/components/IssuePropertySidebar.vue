@@ -187,13 +187,13 @@
             v-for="act in agentActivities"
             :key="act.id"
             class="rounded-md border border-gray-100 bg-gray-50 px-2 py-1.5 text-xs"
-            :title="act.result_summary"
+            :title="act.task_context || act.result_summary"
           >
             <div class="flex items-center justify-between gap-2">
               <span class="font-medium text-violet-700 truncate">{{ act.agent_name }}</span>
               <span class="text-[10px] text-gray-400 shrink-0">{{ formatActivityTime(act.executed_at) }}</span>
             </div>
-            <p class="text-gray-600 line-clamp-2 mt-0.5">{{ act.task_context || act.result_summary }}</p>
+            <p class="text-gray-600 line-clamp-2 mt-0.5">{{ act.result_summary || act.task_context }}</p>
           </div>
         </div>
       </div>

@@ -104,6 +104,7 @@
                   :issue-type-id="issue.issue_type?.id"
                   :members="projectMembers"
                   :show-title="false"
+                  :comments-refresh-key="commentsRefreshKey"
                   @update:title="(v: string) => quickUpdate('name', v)"
                   @update:description="(v: string) => quickUpdate('description_html', v)"
                 />
@@ -298,6 +299,7 @@ const projectIdentifier = ref('')
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
+const commentsRefreshKey = ref(0)
 const agentAssigning = ref(false)
 const agentStatus = ref<AgentStatus | null>(null)
 const workspaceAgents = ref<Agent[]>([])
@@ -730,11 +732,12 @@ async function dispatchAgent(agentSelectorId: string) {
   agentDispatching.value = true
   try {
     await agentApi.dispatch(props.workspaceId, agentId, {
-      task: `Analyze issue #${issue.value?.sequence_id}: ${issue.value?.name || 'Untitled'}`,
+      task: t('agent.dispatchTask', { seq: String(issue.value?.sequence_id ?? ''), name: issue.value?.name || '' }),
       issue_id: issue.value.id,
       project_id: props.projectId,
     })
     toast.success(t('agent.dispatch'))
+    commentsRefreshKey.value++
     if (issue.value) await loadAgentStatus(issue.value.id)
   } catch (e: any) {
     toast.error(e?.response?.data?.message || e?.message || 'Failed to dispatch agent')

@@ -101,6 +101,9 @@ type anthropicContentBlock struct {
 	ID    string          `json:"id,omitempty"`
 	Name  string          `json:"name,omitempty"`
 	Input json.RawMessage `json:"input,omitempty"`
+	// tool_result fields
+	ToolUseID string `json:"tool_use_id,omitempty"`
+	Content   string `json:"content,omitempty"`
 }
 
 type anthropicStreamEvent struct {
@@ -294,8 +297,14 @@ func (c *LLMClient) parseOpenAIResponse(body []byte) (*ChatResponse, error) {
 	var result struct {
 		Choices []struct {
 			Message struct {
-				Content   string     `json:"content"`
-				ToolCalls []ToolCall `json:"tool_calls"`
+				Content   string `json:"content"`
+				ToolCalls []struct {
+					ID       string `json:"id"`
+					Function struct {
+						Name      string `json:"name"`
+						Arguments string `json:"arguments"`
+					} `json:"function"`
+				} `json:"tool_calls"`
 			} `json:"message"`
 			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
@@ -305,9 +314,20 @@ func (c *LLMClient) parseOpenAIResponse(body []byte) (*ChatResponse, error) {
 	}
 	chatResp := &ChatResponse{}
 	if len(result.Choices) > 0 {
-		chatResp.Content = result.Choices[0].Message.Content
-		chatResp.ToolCalls = result.Choices[0].Message.ToolCalls
-		chatResp.StopReason = result.Choices[0].FinishReason
+		choice := result.Choices[0]
+		chatResp.Content = choice.Message.Content
+		chatResp.StopReason = choice.FinishReason
+		for _, tc := range choice.Message.ToolCalls {
+			args := strings.TrimSpace(tc.Function.Arguments)
+			if args == "" {
+				args = "{}"
+			}
+			chatResp.ToolCalls = append(chatResp.ToolCalls, ToolCall{
+				ID:    tc.ID,
+				Name:  tc.Function.Name,
+				Input: json.RawMessage(args),
+			})
+		}
 	}
 	return chatResp, nil
 }
@@ -432,7 +452,8 @@ func (c *LLMClient) ChatSyncWithTools(ctx context.Context, systemPrompt string, 
 			result, execErr := executor(tc.Name, tc.Input)
 			content := result
 			if execErr != nil {
-				content = fmt.Sprintf(`{"error":"%s"}`, execErr.Error())
+				errJSON, _ := json.Marshal(map[string]string{"error": execErr.Error()})
+				content = string(errJSON)
 			}
 			conversation = append(conversation, Message{Role: "tool", Content: content, ToolCallID: tc.ID})
 		}
@@ -512,12 +533,51 @@ func (c *LLMClient) buildOpenAIRequest(systemPrompt string, messages []Message, 
 	return httpReq, nil
 }
 
-func (c *LLMClient) buildAnthropicRequest(systemPrompt string, messages []Message, tools []Tool, stream bool) (*http.Request, error) {
-	anthropicMsgs := make([]anthropicMsg, 0, len(messages))
-	for _, m := range messages {
-		content, _ := json.Marshal([]anthropicContentBlock{{Type: "text", Text: m.Content}})
-		anthropicMsgs = append(anthropicMsgs, anthropicMsg{Role: m.Role, Content: content})
+// toAnthropicMessages maps the internal conversation onto Anthropic's content blocks:
+// assistant tool calls become tool_use blocks, and consecutive tool results are merged
+// into a single user message of tool_result blocks.
+func toAnthropicMessages(messages []Message) []anthropicMsg {
+	out := make([]anthropicMsg, 0, len(messages))
+	var pendingResults []anthropicContentBlock
+	flushResults := func() {
+		if len(pendingResults) == 0 {
+			return
+		}
+		content, _ := json.Marshal(pendingResults)
+		out = append(out, anthropicMsg{Role: "user", Content: content})
+		pendingResults = nil
 	}
+	for _, m := range messages {
+		if m.Role == "tool" {
+			pendingResults = append(pendingResults, anthropicContentBlock{
+				Type: "tool_result", ToolUseID: m.ToolCallID, Content: m.Content,
+			})
+			continue
+		}
+		flushResults()
+		blocks := make([]anthropicContentBlock, 0, 1+len(m.ToolCalls))
+		if m.Content != "" {
+			blocks = append(blocks, anthropicContentBlock{Type: "text", Text: m.Content})
+		}
+		for _, tc := range m.ToolCalls {
+			input := tc.Input
+			if len(input) == 0 {
+				input = json.RawMessage("{}")
+			}
+			blocks = append(blocks, anthropicContentBlock{Type: "tool_use", ID: tc.ID, Name: tc.Name, Input: input})
+		}
+		if len(blocks) == 0 {
+			blocks = append(blocks, anthropicContentBlock{Type: "text", Text: " "})
+		}
+		content, _ := json.Marshal(blocks)
+		out = append(out, anthropicMsg{Role: m.Role, Content: content})
+	}
+	flushResults()
+	return out
+}
+
+func (c *LLMClient) buildAnthropicRequest(systemPrompt string, messages []Message, tools []Tool, stream bool) (*http.Request, error) {
+	anthropicMsgs := toAnthropicMessages(messages)
 	anthropicTools := make([]anthropicTool, len(tools))
 	for i, t := range tools {
 		anthropicTools[i] = anthropicTool(t)

@@ -370,6 +370,8 @@ type DispatchContext struct {
 	ProjectID   *uint64 `json:"project_id"`
 	WorkspaceID uint64  `json:"workspace_id"`
 	TriggeredBy string  `json:"triggered_by"`
+	// ReplyToCommentID threads the agent's reply under the comment that mentioned it.
+	ReplyToCommentID *uint64 `json:"reply_to_comment_id,omitempty"`
 }
 
 // DispatchAgent sends a task to an agent and executes any tool calls it makes.
@@ -405,6 +407,14 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		actx.ProjectID = *ctx.ProjectID
 	}
 
+	if issue, ic := s.loadDispatchIssue(ctx.IssueID); issue != nil {
+		actx.IssueID = issue.ID
+		if actx.ProjectID == 0 {
+			actx.ProjectID = issue.ProjectID
+		}
+		systemPrompt += agentIssueContextBlock(issue.ID, *ic)
+	}
+
 	// Retrieve relevant memories and inject into system prompt
 	if s.memSvc != nil {
 		memories, _ := s.retrieveAgentMemories(context.Background(), agent, actx, task)
@@ -433,7 +443,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	}, tools, func(name string, input json.RawMessage) (string, error) {
 		result, execErr := s.aiSvc.ExecuteTool(name, input, actx)
 		if execErr != nil {
-			return "", execErr
+			return toolErrorJSON(execErr.Error()), nil
 		}
 		executedTools = append(executedTools, fmt.Sprintf("%s(%v)", name, input))
 		b, _ := json.Marshal(result)
@@ -442,29 +452,16 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	if llmErr != nil {
 		s.recordActivity(agent, ctx.IssueID, "dispatch",
 			fmt.Sprintf("Failed: %v", llmErr), task, userID)
+		if ctx.IssueID != nil {
+			s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), agentFailureReply)
+		}
 		return nil, common.Internal(fmt.Sprintf("Agent LLM call failed: %v", llmErr))
 	}
 
-	var resultBuilder strings.Builder
-	resultBuilder.WriteString(fmt.Sprintf("Agent %s processed task: %s\n", agent.Name, task))
-
-	if len(executedTools) > 0 {
-		resultBuilder.WriteString(fmt.Sprintf("Executed %d tool(s):\n", len(executedTools)))
-		for _, t := range executedTools {
-			resultBuilder.WriteString(fmt.Sprintf("- %s\n", t))
-		}
+	s.recordActivity(agent, ctx.IssueID, "dispatch", agentActivitySummary(resp.Content, executedTools), task, userID)
+	if ctx.IssueID != nil {
+		s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), resp.Content)
 	}
-
-	if resp.Content != "" {
-		resultBuilder.WriteString(fmt.Sprintf("\nResponse:\n%s", resp.Content))
-	}
-
-	summary := resultBuilder.String()
-	if len(summary) > 500 {
-		summary = summary[:500] + "..."
-	}
-
-	s.recordActivity(agent, ctx.IssueID, "dispatch", summary, task, userID)
 
 	// Record heartbeat to mark agent as online
 	_ = s.RecordHeartbeat(agent.ID)
@@ -582,13 +579,17 @@ func (s *AgentService) HandleMention(agentID, commentID, userID uint64, commentB
 	}
 
 	task := fmt.Sprintf(
-		"You were mentioned in a comment on issue '%s'. The comment says:\n\n%s\n\n"+
-			"Please respond appropriately based on your capabilities. If you can help, analyze the situation and provide your response.", issueName, commentBody)
+		"有人在工作项「%s」的评论中提到了你，评论内容：\n\n%s\n\n"+
+			"请根据你的能力处理这个请求，并直接输出回复正文：用与评论相同的语言，简洁地给出结论或说明已执行的操作。"+
+			"系统会自动把你的回复发到该讨论串，不要调用 add_comment，也不要写「已回复」之类的说明。", issueName, commentBody)
 
 	ctx := &DispatchContext{
 		IssueID:     issueID,
 		WorkspaceID: agent.WorkspaceID,
 		TriggeredBy: "mention",
+	}
+	if commentID != 0 {
+		ctx.ReplyToCommentID = &commentID
 	}
 
 	return s.DispatchAgent(agent.ID, userID, task, ctx)
@@ -804,7 +805,8 @@ func (s *AgentService) buildAgentSystemPrompt(agent *model.Agent, ctx *DispatchC
 
 	sb.WriteString("You have access to tools that let you read and modify project data. ")
 	sb.WriteString("When given a task, use the available tools to gather information, then provide your analysis or take action. ")
-	sb.WriteString("Always explain what you found or did in plain language.\n\n")
+	sb.WriteString("Always explain what you found or did in plain language. ")
+	sb.WriteString("Reply in the same language as the task (default to Simplified Chinese), and give your final answer directly rather than announcing what you are about to do.\n\n")
 
 	if ctx != nil {
 		sb.WriteString(fmt.Sprintf("Current context: workspace_id=%d", ctx.WorkspaceID))

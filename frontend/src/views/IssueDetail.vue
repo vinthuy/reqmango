@@ -226,6 +226,7 @@ const isWatching = ref(false)
 const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
+const commentsRefreshKey = ref(0)
 const agentAssigning = ref(false)
 const agentStatus = ref<AgentStatus | null>(null)
 const workspaceAgents = ref<Agent[]>([])
@@ -324,6 +325,7 @@ const detailProps = computed(() => ({
   projectId: projectId.value,
   issueTypeId: issue.value?.issue_type?.id,
   members: projectMembers.value,
+  commentsRefreshKey: commentsRefreshKey.value,
 }))
 
 // Data loading
@@ -803,11 +805,12 @@ async function dispatchAgent(agentSelectorId: string) {
   agentDispatching.value = true
   try {
     await agentApi.dispatch(workspaceId.value, agentId, {
-      task: `Analyze issue #${issue.value?.sequence_id || issueId}: ${issue.value?.name || 'Untitled'}`,
+      task: t('agent.dispatchTask', { seq: String(issue.value?.sequence_id || issueId), name: issue.value?.name || '' }),
       issue_id: issueId,
       project_id: projectId.value,
     })
     toast.success(t('agent.dispatch'))
+    commentsRefreshKey.value++
     await loadAgentStatus()
   } catch (e: any) {
     toast.error(e?.response?.data?.message || e?.message || 'Failed to dispatch agent')

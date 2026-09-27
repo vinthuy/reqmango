@@ -23,7 +23,7 @@
     <!-- Comments -->
     <div class="card">
       <div class="text-sm font-medium text-gray-500 mb-2">{{ t('issue.comments') }}</div>
-      <CommentList :issue-id="issueId" :project-id="projectId" :workspace-id="workspaceId" />
+      <CommentList :issue-id="issueId" :project-id="projectId" :workspace-id="workspaceId" :refresh-key="commentsRefreshKey" />
     </div>
   </div>
 </template>
@@ -43,6 +43,7 @@ defineProps<{
   issueTypeId: number
   members: any[]
   showTitle?: boolean
+  commentsRefreshKey?: number
 }>()
 
 const emit = defineEmits<{

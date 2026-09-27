@@ -8,8 +8,10 @@ export interface Comment {
   content?: string
   html_content?: string
   issue_id: number
-  author_id: number
+  author_id: number | null
   author?: UserLite
+  agent_id?: number
+  agent?: AgentLite
   parent_id?: number
   is_resolved: boolean
   resolved_by_id?: number
@@ -40,6 +42,12 @@ export interface CommentListResponse {
   total: number
   page: number
   page_size: number
+}
+
+export interface AgentLite {
+  id: number
+  name: string
+  avatar?: string
 }
 
 export interface UserLite {

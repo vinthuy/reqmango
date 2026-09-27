@@ -2,6 +2,7 @@ package llm
 
 import (
 	"encoding/json"
+	"io"
 	"strings"
 	"testing"
 )
@@ -195,6 +196,86 @@ func TestBuildAnthropicRequest_XiaomiBearerAuth(t *testing.T) {
 	}
 	if req.Header.Get("x-api-key") != "test-key" {
 		t.Errorf("x-api-key = %q, want %q", req.Header.Get("x-api-key"), "test-key")
+	}
+}
+
+func TestParseOpenAIResponse_ToolCalls(t *testing.T) {
+	client := NewLLMClient("k", "deepseek-chat", "", "deepseek")
+	body := `{"choices":[{"finish_reason":"tool_calls","message":{"content":"先查一下",
+		"tool_calls":[{"id":"call_1","type":"function","function":{"name":"get_issue","arguments":"{\"issue_id\":6444}"}}]}}]}`
+	resp, err := client.parseOpenAIResponse([]byte(body))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(resp.ToolCalls) != 1 {
+		t.Fatalf("tool calls = %d, want 1", len(resp.ToolCalls))
+	}
+	tc := resp.ToolCalls[0]
+	if tc.ID != "call_1" || tc.Name != "get_issue" || string(tc.Input) != `{"issue_id":6444}` {
+		t.Errorf("tool call = %+v (input %s)", tc, tc.Input)
+	}
+	if resp.Content != "先查一下" {
+		t.Errorf("content = %q", resp.Content)
+	}
+}
+
+func TestParseOpenAIResponse_EmptyArgumentsBecomeObject(t *testing.T) {
+	client := NewLLMClient("k", "deepseek-chat", "", "deepseek")
+	body := `{"choices":[{"message":{"tool_calls":[{"id":"c","type":"function","function":{"name":"list_states","arguments":""}}]}}]}`
+	resp, err := client.parseOpenAIResponse([]byte(body))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if string(resp.ToolCalls[0].Input) != "{}" {
+		t.Errorf("input = %q, want {}", resp.ToolCalls[0].Input)
+	}
+}
+
+func TestBuildAnthropicRequest_ToolRoundTrip(t *testing.T) {
+	client := NewLLMClient("k", "claude-sonnet-4-6", "https://api.anthropic.com", "anthropic")
+	req, err := client.buildAnthropicRequest("sys", []Message{
+		{Role: "user", Content: "分诊"},
+		{Role: "assistant", Content: "", ToolCalls: []ToolCall{
+			{ID: "tu_1", Name: "get_issue", Input: json.RawMessage(`{"issue_id":1}`)},
+			{ID: "tu_2", Name: "list_states", Input: json.RawMessage(`{}`)},
+		}},
+		{Role: "tool", Content: `{"name":"x"}`, ToolCallID: "tu_1"},
+		{Role: "tool", Content: `{"error":"boom"}`, ToolCallID: "tu_2"},
+	}, nil, false)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	var body struct {
+		Messages []struct {
+			Role    string `json:"role"`
+			Content []struct {
+				Type      string          `json:"type"`
+				Text      string          `json:"text"`
+				ID        string          `json:"id"`
+				Name      string          `json:"name"`
+				Input     json.RawMessage `json:"input"`
+				ToolUseID string          `json:"tool_use_id"`
+				Content   string          `json:"content"`
+			} `json:"content"`
+		} `json:"messages"`
+	}
+	raw, _ := io.ReadAll(req.Body)
+	if err := json.Unmarshal(raw, &body); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(body.Messages) != 3 {
+		t.Fatalf("messages = %d, want 3 (user, assistant tool_use, merged tool_result): %s", len(body.Messages), raw)
+	}
+	asst := body.Messages[1]
+	if asst.Role != "assistant" || len(asst.Content) != 2 || asst.Content[0].Type != "tool_use" || asst.Content[0].Name != "get_issue" {
+		t.Errorf("assistant message = %+v", asst)
+	}
+	results := body.Messages[2]
+	if results.Role != "user" || len(results.Content) != 2 {
+		t.Fatalf("tool results message = %+v", results)
+	}
+	if results.Content[0].Type != "tool_result" || results.Content[0].ToolUseID != "tu_1" || results.Content[1].ToolUseID != "tu_2" {
+		t.Errorf("tool results = %+v", results.Content)
 	}
 }
 

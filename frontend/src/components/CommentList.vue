@@ -36,6 +36,14 @@
               {{ submitting ? t('comment.publishing') : t('comment.publish') }}
             </button>
           </div>
+          <div
+            v-if="pendingAgentNames.length"
+            data-test="agent-pending"
+            class="mt-2 flex items-center gap-2 text-xs text-indigo-600"
+          >
+            <span class="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+            {{ t('comment.agentWorking', { names: pendingAgentNames.join('、') }) }}
+          </div>
         </div>
       </div>
     </div>
@@ -84,9 +92,9 @@
       >
         <!-- Avatar -->
         <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-          :style="{ backgroundColor: avatarColor(comment.author_id) }"
-          :title="comment.author?.display_name || t('comment.user')"
-        >{{ getInitial(comment.author?.display_name || t('comment.user')) }}</div>
+          :style="{ backgroundColor: avatarBg(comment) }"
+          :title="authorName(comment)"
+        >{{ avatarText(comment) }}</div>
 
         <!-- Comment body -->
         <div class="flex-1 min-w-0">
@@ -94,9 +102,10 @@
             <!-- Header row -->
             <div class="flex items-center justify-between mb-1.5">
               <div class="flex items-center gap-2">
-                <span class="text-sm font-semibold text-gray-800">
-                  {{ comment.author?.display_name || comment.author?.username || t('comment.user') }}
+                <span class="text-sm font-semibold text-gray-800" data-test="comment-author">
+                  {{ authorName(comment) }}
                 </span>
+                <span v-if="comment.agent" data-test="comment-agent-badge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">Agent</span>
                 <span v-if="comment.is_resolved" class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">
                   {{ t('comment.resolved') }}
                 </span>
@@ -196,11 +205,14 @@
               class="flex items-start gap-2"
             >
               <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
-                :style="{ backgroundColor: avatarColor(reply.author_id) }"
-              >{{ getInitial(reply.author?.display_name || t('comment.user')) }}</div>
+                :style="{ backgroundColor: avatarBg(reply) }"
+              >{{ avatarText(reply) }}</div>
               <div class="flex-1 bg-gray-50 rounded-lg px-3 py-2">
                 <div class="flex items-center justify-between mb-0.5">
-                  <span class="text-xs font-semibold text-gray-800">{{ reply.author?.display_name || t('comment.user') }}</span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="text-xs font-semibold text-gray-800" data-test="comment-author">{{ authorName(reply) }}</span>
+                    <span v-if="reply.agent" data-test="comment-agent-badge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">Agent</span>
+                  </span>
                   <span
                     class="text-[10px] text-gray-400"
                     :title="formatFullDate(reply.created_at)"
@@ -228,7 +240,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import commentApi from '@/api/comment'
 import api from '@/api'
 import { agentApi } from '@/api/agent'
@@ -239,7 +251,14 @@ import type { Comment, CommentCreate } from '@/types/comment'
 
 const AVATAR_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
 
-const props = defineProps<{ issueId: number; isAdmin?: boolean; projectId?: number; workspaceId?: number }>()
+const props = defineProps<{
+  issueId: number
+  isAdmin?: boolean
+  projectId?: number
+  workspaceId?: number
+  /** Bump to silently reload, e.g. after an agent dispatch posted a reply. */
+  refreshKey?: number
+}>()
 
 const { confirm } = useConfirm()
 const authStore = useAuthStore()
@@ -278,6 +297,13 @@ const mentionTarget = ref<'main' | 'reply' | 'edit'>('main')
 const mentionTextarea = ref<HTMLTextAreaElement | null>(null)
 
 const allMentionCandidates = computed(() => [...members.value, ...agents.value])
+// Agent names may contain spaces, so they need their own pattern (longest first).
+const agentMentionPattern = computed(() => {
+  const names = agents.value.map(a => a.display_name).filter(Boolean).sort((a, b) => b.length - a.length)
+  if (!names.length) return null
+  const alts = names.map(n => escapeHtml(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  return new RegExp(`(^|\\s)(@(?:${alts.join('|')}))(?![\\p{L}\\p{N}_-])`, 'gu')
+})
 
 // Load members for @mention
 async function loadMembers() {
@@ -394,8 +420,8 @@ const currentUserInitial = computed(() => {
 })
 
 // --- Data loading ---
-async function loadComments() {
-  loading.value = true
+async function loadComments(silent = false) {
+  if (!silent) loading.value = true
   try {
     const response = await commentApi.listIssueComments(props.issueId, page.value)
     const items = response.comments || response.items || []
@@ -426,6 +452,47 @@ async function loadComments() {
   } finally { loading.value = false }
 }
 
+// --- Agent replies arrive asynchronously; poll until they land ---
+const AGENT_REPLY_POLL_MS = 3000
+const AGENT_REPLY_TIMEOUT_MS = 120000
+const pendingAgentNames = ref<string[]>([])
+let agentPollTimer: ReturnType<typeof setTimeout> | null = null
+
+function mentionedAgentNames(text: string): string[] {
+  return agents.value
+    .map(a => a.display_name)
+    .filter(name => name && text.includes('@' + name))
+}
+function countAgentComments(): number {
+  return comments.value.reduce(
+    (n, c) => n + (c.agent_id ? 1 : 0) + (c.replies?.filter(r => r.agent_id).length ?? 0),
+    0,
+  )
+}
+function stopAgentPolling() {
+  if (agentPollTimer) clearTimeout(agentPollTimer)
+  agentPollTimer = null
+  pendingAgentNames.value = []
+}
+function waitForAgentReplies(text: string) {
+  const names = mentionedAgentNames(text)
+  if (!names.length) return
+  stopAgentPolling()
+  pendingAgentNames.value = names
+  const baseline = countAgentComments()
+  const deadline = Date.now() + AGENT_REPLY_TIMEOUT_MS
+  const poll = async () => {
+    page.value = 1
+    await loadComments(true)
+    if (countAgentComments() - baseline >= names.length || Date.now() >= deadline) {
+      stopAgentPolling()
+      return
+    }
+    agentPollTimer = setTimeout(poll, AGENT_REPLY_POLL_MS)
+  }
+  agentPollTimer = setTimeout(poll, AGENT_REPLY_POLL_MS)
+}
+
 async function loadMore() {
   page.value++
   loadingMore.value = true
@@ -441,6 +508,7 @@ async function submitComment() {
     const data: CommentCreate = { issue_id: props.issueId, body: newComment.value.trim() } as any
     const comment = await commentApi.createComment(data)
     comments.value.unshift(comment)
+    waitForAgentReplies(newComment.value)
     newComment.value = ''
   } catch (error) { console.error('Failed to create comment:', error) }
   finally { submitting.value = false }
@@ -502,6 +570,7 @@ async function submitReply() {
       if (!parent.replies) parent.replies = []
       parent.replies.push(reply)
     }
+    waitForAgentReplies(replyText.value)
     cancelReply()
   } catch (error) { console.error('Failed to submit reply:', error) }
   finally { submitting.value = false }
@@ -528,6 +597,17 @@ function avatarColor(id: number | null): string {
 function getInitial(name: string): string {
   return (name || '?').charAt(0).toUpperCase()
 }
+function authorName(comment: Comment): string {
+  if (comment.agent) return comment.agent.name
+  return comment.author?.display_name || comment.author?.username || t('comment.user')
+}
+function avatarText(comment: Comment): string {
+  if (comment.agent) return comment.agent.avatar || '🤖'
+  return getInitial(authorName(comment))
+}
+function avatarBg(comment: Comment): string {
+  return comment.agent ? '#6366f1' : avatarColor(comment.author_id)
+}
 
 function renderBody(text: string | undefined): string {
   if (!text) return ''
@@ -542,6 +622,9 @@ function renderBody(text: string | undefined): string {
   html = html.replace(/(https?:\/\/\S+)/g, '<a href="$1" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">$1</a>')
   // @mentions (match non-whitespace after @, skip standalone @ with nothing after)
   html = html.replace(/@AI\s+\S+/g, '<span class="ai-mention px-1.5 py-0.5 rounded bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 font-medium">🤖 $&</span>')
+  if (agentMentionPattern.value) {
+    html = html.replace(agentMentionPattern.value, '$1<span class="text-indigo-600 font-medium bg-indigo-50 px-1 rounded">$2</span>')
+  }
   html = html.replace(/(^|\s)@(\S+)/g, '$1<span class="text-indigo-600 font-medium bg-indigo-50 px-1 rounded">@$2</span>')
   return html
 }
@@ -569,6 +652,12 @@ function formatFullDate(timeStr: string): string {
 }
 
 onMounted(() => loadComments())
+onBeforeUnmount(stopAgentPolling)
+watch(() => props.issueId, stopAgentPolling)
+watch(() => props.refreshKey, () => {
+  page.value = 1
+  loadComments(true)
+})
 watch(
   () => [props.projectId, props.workspaceId] as const,
   () => {
