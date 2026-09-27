@@ -47,46 +47,52 @@ const mountOptions = {
     stubs: {
       AgentSelector: true,
       LabelSelector: true,
+      teleport: true,
     },
   },
 }
 
 describe('IssuePropertySidebar', () => {
-  it('renders State select with label "issue.state"', () => {
+  it('renders state, priority and assignee pickers with current values', () => {
     const wrapper = mount(IssuePropertySidebar, mountOptions)
     expect(wrapper.text()).toContain('issue.state')
-    const selects = wrapper.findAll('select')
-    expect(selects[0].exists()).toBe(true)
+    expect(wrapper.find('[data-testid="picker-state"]').text()).toContain('To Do')
+    expect(wrapper.find('[data-testid="picker-priority"]').text()).toContain('issue.priorityHigh')
+    expect(wrapper.find('[data-testid="picker-assignee"]').text()).toContain('Alice')
+    expect(wrapper.find('[data-testid="picker-cycle"]').text()).toContain('Sprint 5')
   })
 
-  it('renders Priority select with label "issue.priority"', () => {
-    const wrapper = mount(IssuePropertySidebar, mountOptions)
-    expect(wrapper.text()).toContain('issue.priority')
-    const selects = wrapper.findAll('select')
-    expect(selects[1].exists()).toBe(true)
-  })
+  async function pickOption(wrapper: ReturnType<typeof mount>, testId: string, label: string) {
+    await wrapper.find(`[data-testid="${testId}"] button`).trigger('click')
+    const option = wrapper.findAll('[role="option"]').find((o) => o.text().includes(label))
+    await option!.trigger('mousedown')
+  }
 
-  it('renders Assignee select with label "issue.assignee"', () => {
+  it('emits update:state when a state is picked', async () => {
     const wrapper = mount(IssuePropertySidebar, mountOptions)
-    expect(wrapper.text()).toContain('issue.assignee')
-    const selects = wrapper.findAll('select')
-    expect(selects[2].exists()).toBe(true)
-  })
-
-  it('emits update:state on state change', () => {
-    const wrapper = mount(IssuePropertySidebar, mountOptions)
-    const selects = wrapper.findAll('select')
-    selects[0].setValue(2)
-    expect(wrapper.emitted('update:state')).toBeTruthy()
+    await pickOption(wrapper, 'picker-state', 'In Progress')
     expect(wrapper.emitted('update:state')![0]).toEqual([2])
   })
 
-  it('emits update:priority on priority change', () => {
+  it('emits update:priority when a priority is picked', async () => {
     const wrapper = mount(IssuePropertySidebar, mountOptions)
-    const selects = wrapper.findAll('select')
-    selects[1].setValue('urgent')
-    expect(wrapper.emitted('update:priority')).toBeTruthy()
+    await pickOption(wrapper, 'picker-priority', 'issue.priorityUrgent')
     expect(wrapper.emitted('update:priority')![0]).toEqual(['urgent'])
+  })
+
+  it('emits update:assignee null when cleared', async () => {
+    const wrapper = mount(IssuePropertySidebar, mountOptions)
+    await pickOption(wrapper, 'picker-assignee', 'issue.unassigned')
+    expect(wrapper.emitted('update:assignee')![0]).toEqual([null])
+  })
+
+  it('disables pickers while approval is pending', () => {
+    const wrapper = mount(IssuePropertySidebar, {
+      ...mountOptions,
+      props: { ...mountOptions.props, issue: { ...mockIssue, approval_status: 'pending' } },
+    })
+    expect(wrapper.find('[data-testid="picker-state"] button').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="picker-priority"] button').attributes('disabled')).toBeDefined()
   })
 
   it('renders start date and target date inputs', () => {

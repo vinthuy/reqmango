@@ -35,38 +35,46 @@
       <div class="prop-row">
         <label class="prop-label">{{ t('issue.state') }}</label>
         <div class="prop-control">
-          <div v-if="issue.approval_status === 'pending'" class="flex items-center gap-1.5 w-full">
-            <select class="prop-input bg-gray-100 cursor-not-allowed" :value="issue.state_id" disabled>
-              <option v-for="s in visibleStates" :key="s.id" :value="s.id">{{ s.name }}</option>
-            </select>
-            <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium whitespace-nowrap">{{ t('approvals.pending') }}</span>
+          <div class="flex items-center gap-1.5 w-full">
+            <PropertyPicker
+              class="flex-1"
+              data-testid="picker-state"
+              :model-value="issue.state_id"
+              :options="stateOptions"
+              :disabled="isLocked"
+              @update:model-value="(v) => v !== null && emit('update:state', Number(v))"
+            />
+            <span v-if="isLocked" class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium whitespace-nowrap">{{ t('approvals.pending') }}</span>
           </div>
-          <select v-else class="prop-input" :value="issue.state_id" @change="emitStateUpdate">
-            <option v-for="s in visibleStates" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </select>
         </div>
       </div>
 
       <div class="prop-row">
         <label class="prop-label">{{ t('issue.priority') }}</label>
         <div class="prop-control">
-          <select class="prop-input" :value="issue.priority" :disabled="isLocked" @change="emitPriorityUpdate">
-            <option value="urgent">{{ t('issue.priorityUrgent') }}</option>
-            <option value="high">{{ t('issue.priorityHigh') }}</option>
-            <option value="medium">{{ t('issue.priorityMedium') }}</option>
-            <option value="low">{{ t('issue.priorityLow') }}</option>
-            <option value="none">{{ t('issue.priorityNone') }}</option>
-          </select>
+          <PropertyPicker
+            data-testid="picker-priority"
+            :model-value="issue.priority"
+            :options="priorityOptions"
+            :disabled="isLocked"
+            @update:model-value="(v) => v !== null && emit('update:priority', String(v))"
+          />
         </div>
       </div>
 
       <div class="prop-row">
         <label class="prop-label">{{ t('issue.assignee') }}</label>
         <div class="prop-control">
-          <select class="prop-input" :value="issue.assignees?.[0]?.id ?? ''" :disabled="isLocked" @change="emitAssigneeUpdate">
-            <option value=""></option>
-            <option v-for="m in members" :key="m.id" :value="m.id">{{ m.display_name }}</option>
-          </select>
+          <PropertyPicker
+            data-testid="picker-assignee"
+            :model-value="issue.assignees?.[0]?.id ?? null"
+            :options="memberOptions"
+            :disabled="isLocked"
+            :placeholder="t('issue.unassigned')"
+            :clear-label="t('issue.unassigned')"
+            clearable
+            @update:model-value="(v) => emit('update:assignee', toId(v))"
+          />
         </div>
       </div>
 
@@ -76,30 +84,42 @@
       <div class="prop-row">
         <label class="prop-label">{{ t('issue.cycle') }}</label>
         <div class="prop-control">
-          <select class="prop-input" :value="issue.cycle_id ?? ''" :disabled="isLocked" @change="emitCycleUpdate">
-            <option value=""></option>
-            <option v-for="c in cycles" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
+          <PropertyPicker
+            data-testid="picker-cycle"
+            :model-value="issue.cycle_id ?? null"
+            :options="cycleOptions"
+            :disabled="isLocked"
+            clearable
+            @update:model-value="(v) => emit('update:cycle', toId(v))"
+          />
         </div>
       </div>
 
       <div class="prop-row">
         <label class="prop-label">{{ t('issue.module') }}</label>
         <div class="prop-control">
-          <select class="prop-input" :value="issue.module_ids?.[0] ?? ''" :disabled="isLocked" @change="emitModuleUpdate">
-            <option value=""></option>
-            <option v-for="m in modules" :key="m.id" :value="m.id">{{ m.name }}</option>
-          </select>
+          <PropertyPicker
+            data-testid="picker-module"
+            :model-value="issue.module_ids?.[0] ?? null"
+            :options="moduleOptions"
+            :disabled="isLocked"
+            clearable
+            @update:model-value="(v) => emit('update:module', toId(v))"
+          />
         </div>
       </div>
 
       <div class="prop-row">
         <label class="prop-label">{{ t('issue.release') }}</label>
         <div class="prop-control">
-          <select class="prop-input" :value="issue.release_id ?? ''" :disabled="isLocked" @change="emitReleaseUpdate">
-            <option value=""></option>
-            <option v-for="r in releases" :key="r.id" :value="r.id">{{ r.name }} ({{ r.version }})</option>
-          </select>
+          <PropertyPicker
+            data-testid="picker-release"
+            :model-value="issue.release_id ?? null"
+            :options="releaseOptions"
+            :disabled="isLocked"
+            clearable
+            @update:model-value="(v) => emit('update:release', toId(v))"
+          />
         </div>
       </div>
 
@@ -258,6 +278,7 @@ import { ref, watch, computed, nextTick } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import AgentSelector from '@/components/AgentSelector.vue'
 import LabelSelector from '@/components/LabelSelector.vue'
+import PropertyPicker, { type PickerOption } from '@/components/PropertyPicker.vue'
 import type { AgentStatus } from '@/api/issue-agent'
 import { agentApi } from '@/api/agent'
 import type { AgentActivity } from '@/types/agent'
@@ -375,28 +396,41 @@ function formatActivityTime(iso: string): string {
 function emitCustomFieldUpdate(fieldId: number, value: string) {
   emit('update:customField', fieldId, value)
 }
-function emitStateUpdate(event: Event) {
-  emit('update:state', Number((event.target as HTMLSelectElement).value))
+function toId(value: string | number | null): number | null {
+  return value === null ? null : Number(value)
 }
-function emitPriorityUpdate(event: Event) {
-  emit('update:priority', (event.target as HTMLSelectElement).value)
+
+const PRIORITY_COLORS: Record<string, string> = {
+  urgent: '#ef4444',
+  high: '#f97316',
+  medium: '#eab308',
+  low: '#3b82f6',
+  none: '#d1d5db',
 }
-function emitAssigneeUpdate(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  emit('update:assignee', value ? Number(value) : null)
-}
-function emitCycleUpdate(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  emit('update:cycle', value ? Number(value) : null)
-}
-function emitModuleUpdate(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  emit('update:module', value ? Number(value) : null)
-}
-function emitReleaseUpdate(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  emit('update:release', value ? Number(value) : null)
-}
+
+const stateOptions = computed<PickerOption[]>(() =>
+  visibleStates.value.map((s: any) => ({ value: s.id, label: s.name, color: s.color || '#9ca3af' }))
+)
+const priorityOptions = computed<PickerOption[]>(() => [
+  { value: 'urgent', label: t('issue.priorityUrgent'), color: PRIORITY_COLORS.urgent },
+  { value: 'high', label: t('issue.priorityHigh'), color: PRIORITY_COLORS.high },
+  { value: 'medium', label: t('issue.priorityMedium'), color: PRIORITY_COLORS.medium },
+  { value: 'low', label: t('issue.priorityLow'), color: PRIORITY_COLORS.low },
+  { value: 'none', label: t('issue.priorityNone'), color: PRIORITY_COLORS.none },
+])
+const memberOptions = computed<PickerOption[]>(() =>
+  (props.members || []).map((m) => ({ value: m.id, label: m.display_name }))
+)
+const cycleOptions = computed<PickerOption[]>(() =>
+  (props.cycles || []).map((c) => ({ value: c.id, label: c.name }))
+)
+const moduleOptions = computed<PickerOption[]>(() =>
+  (props.modules || []).map((m) => ({ value: m.id, label: m.name }))
+)
+const releaseOptions = computed<PickerOption[]>(() =>
+  (props.releases || []).map((r) => ({ value: r.id, label: r.version ? `${r.name} (${r.version})` : r.name }))
+)
+
 function emitStartDateUpdate(event: Event) {
   emit('update:startDate', (event.target as HTMLInputElement).value)
 }
