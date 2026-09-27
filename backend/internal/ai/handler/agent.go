@@ -193,6 +193,15 @@ func (h *AgentHandler) ListWorkspaceActivity(c *gin.Context) {
 		}
 		agentID = &id
 	}
+	var issueID *uint64
+	if issueIDStr := c.Query("issue_id"); issueIDStr != "" {
+		id, err := strconv.ParseUint(issueIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue_id"})
+			return
+		}
+		issueID = &id
+	}
 	limit := 50
 	if limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
@@ -200,7 +209,7 @@ func (h *AgentHandler) ListWorkspaceActivity(c *gin.Context) {
 		}
 	}
 
-	activities, svcErr := h.svc.ListWorkspaceActivity(wsID, agentID, action, limit)
+	activities, svcErr := h.svc.ListWorkspaceActivity(wsID, agentID, issueID, action, limit)
 	if appError(c, svcErr) {
 		return
 	}

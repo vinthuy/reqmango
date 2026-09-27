@@ -301,7 +301,7 @@ func (s *AgentService) GetActivity(agentID uint64) ([]model.AgentActivity, error
 }
 
 // ListWorkspaceActivity returns activities for all agents in a workspace.
-func (s *AgentService) ListWorkspaceActivity(workspaceID uint64, agentID *uint64, action string, limit int) ([]model.AgentActivity, error) {
+func (s *AgentService) ListWorkspaceActivity(workspaceID uint64, agentID *uint64, issueID *uint64, action string, limit int) ([]model.AgentActivity, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
@@ -321,6 +321,9 @@ func (s *AgentService) ListWorkspaceActivity(workspaceID uint64, agentID *uint64
 		return []model.AgentActivity{}, nil
 	}
 	q := s.db.Where("agent_id IN ?", agentIDs)
+	if issueID != nil {
+		q = q.Where("issue_id = ?", *issueID)
+	}
 	if action != "" {
 		q = q.Where("action = ?", action)
 	}

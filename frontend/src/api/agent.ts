@@ -81,6 +81,7 @@ export const agentApi = {
 
   listWorkspaceActivity(workspaceId: number, params?: {
     agent_id?: number
+    issue_id?: number
     action?: string
     limit?: number
   }): Promise<AgentActivity[]> {

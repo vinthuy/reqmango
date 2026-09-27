@@ -161,6 +161,21 @@
             <p class="text-[10px] text-gray-400 leading-snug">{{ t('agent.sidebarHint') }}</p>
           </div>
         </div>
+        <div v-if="agentActivities.length" class="mt-2 space-y-1.5">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{{ t('agent.issueActivityTitle') }}</p>
+          <div
+            v-for="act in agentActivities"
+            :key="act.id"
+            class="rounded-md border border-gray-100 bg-gray-50 px-2 py-1.5 text-xs"
+            :title="act.result_summary"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-medium text-violet-700 truncate">{{ act.agent_name }}</span>
+              <span class="text-[10px] text-gray-400 shrink-0">{{ formatActivityTime(act.executed_at) }}</span>
+            </div>
+            <p class="text-gray-600 line-clamp-2 mt-0.5">{{ act.task_context || act.result_summary }}</p>
+          </div>
+        </div>
       </div>
 
       <!-- Custom fields -->
@@ -244,6 +259,8 @@ import { useI18n } from '@/composables/useI18n'
 import AgentSelector from '@/components/AgentSelector.vue'
 import LabelSelector from '@/components/LabelSelector.vue'
 import type { AgentStatus } from '@/api/issue-agent'
+import { agentApi } from '@/api/agent'
+import type { AgentActivity } from '@/types/agent'
 
 interface StateOption { id: number; name: string }
 interface MemberOption { id: number; display_name: string }
@@ -329,7 +346,31 @@ function emitAssign() {
   emit('assign-agent', localAgentId.value)
 }
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+const agentActivities = ref<AgentActivity[]>([])
+
+async function loadAgentActivities() {
+  const issueId = props.issue?.id
+  if (!issueId || !props.workspaceId) {
+    agentActivities.value = []
+    return
+  }
+  try {
+    agentActivities.value = await agentApi.listWorkspaceActivity(props.workspaceId, { issue_id: issueId, limit: 5 })
+  } catch {
+    agentActivities.value = []
+  }
+}
+
+watch(() => [props.issue?.id, props.workspaceId], loadAgentActivities, { immediate: true })
+watch(() => props.agentDispatching, (now, before) => {
+  if (before && !now) loadAgentActivities()
+})
+
+function formatActivityTime(iso: string): string {
+  return new Date(iso).toLocaleString(locale.value, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 function emitCustomFieldUpdate(fieldId: number, value: string) {
   emit('update:customField', fieldId, value)
