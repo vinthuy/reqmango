@@ -56,6 +56,9 @@ func suggestIssueChangesTool() llm.Tool {
 			"建议列表每项为对象：{\"field\": \"title|priority|type|state|assignee|description\", " +
 			"\"value\": 目标值（type/state/assignee 用数字 ID，priority 用 urgent|high|medium|low|none，title/description 用文本）, " +
 			"\"label\": \"给人看的目标值(如 Bug (type_id=3))\", \"current\": \"当前值\", \"reason\": \"建议理由\"}。\n" +
+			"type 和 state 的 ID 必须先通过 list_issue_types / list_states 查出来，不要凭记忆写：" +
+			"类型必须来自本项目可用类型，状态必须是 list_states 返回的当前状态 allowed_next 里的目标，" +
+			"否则用户点采纳时会被拒绝。\n" +
 			"只提有把握的字段，最多 12 条。",
 		InputSchema: &llm.ToolSchema{
 			Type: "object",

@@ -1120,6 +1120,13 @@ func (s *AgentService) filterToolsByCapabilities(agent *model.Agent) []llm.Tool 
 		_ = json.Unmarshal(agent.Capabilities, &caps)
 	}
 
+	return toolsForCapabilities(caps, allTools)
+}
+
+// toolsForCapabilities narrows the full tool set down to what an agent's
+// declared capabilities allow. An empty list means "no restriction", and "all"
+// means everything.
+func toolsForCapabilities(caps []string, allTools []llm.Tool) []llm.Tool {
 	if len(caps) == 0 {
 		return allTools
 	}
@@ -1137,6 +1144,15 @@ func (s *AgentService) filterToolsByCapabilities(agent *model.Agent) []llm.Tool 
 		"comment":   {"add_comment", "suggest_issue_changes"},
 		"list":      {"list_members", "list_issue_types", "list_states", "list_labels", "list_cycles", "list_modules", "list_releases", "list_pages"},
 		"summarize": {"get_project_stats", "get_issues_summary", "get_cycle_progress", "list_cycles", "get_issue", "get_issue_activities"},
+	}
+
+	// Any capability that lets an agent propose a change must also carry the
+	// tools that describe the values it may propose. Without them the model has
+	// to guess ids from memory, and it guesses workspace-level issue types and
+	// transitions the project's workflow forbids.
+	proposesChanges := []string{"update", "analyze", "comment"}
+	for _, cap := range proposesChanges {
+		capTools[cap] = append(capTools[cap], "list_states", "list_issue_types")
 	}
 
 	allowedTools := make(map[string]bool)

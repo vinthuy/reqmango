@@ -16,6 +16,7 @@ import (
 	"github.com/reqmango/backend/internal/ai/llm"
 	"github.com/reqmango/backend/internal/issuetype"
 	"github.com/reqmango/backend/internal/model"
+	"github.com/reqmango/backend/internal/workflow"
 	"gorm.io/gorm"
 )
 
@@ -209,12 +210,15 @@ func (s *AIService) getTools() []llm.Tool {
 			},
 		},
 		{
-			Name:        "list_states",
-			Description: "列出项目的所有工作项状态。",
+			Name: "list_states",
+			Description: "列出项目的所有工作项状态，并给出每个状态允许流转到的目标状态（allowed_next）。" +
+				"传入 issue_id 可按该项目类型过滤规则，并标出该工作项当前所处状态（is_current）。" +
+				"要变更状态前必须先看这里，只能建议 allowed_next 里的目标；标了 requires_approval 的目标需要走审批。",
 			InputSchema: &llm.ToolSchema{
 				Type: "object",
 				Properties: map[string]llm.SchemaProp{
 					"project_id": {Type: "integer", Description: "项目 ID"},
+					"issue_id":   {Type: "integer", Description: "工作项 ID（可选）。传入后按该项目类型解析流转规则，并标出当前状态"},
 				},
 				Required: []string{"project_id"},
 			},
@@ -1746,13 +1750,45 @@ func (s *AIService) toolListIssueTypes(args map[string]interface{}, actx *AICont
 	return result, nil
 }
 
+// toolListStates lists a project's states together with the moves its workflows
+// permit. The allowed targets are included so an agent proposes a transition
+// that will actually be accepted - a suggestion the workflow rejects is a dead
+// end for the user, and asking an agent to guess the workflow is unfair.
 func (s *AIService) toolListStates(args map[string]interface{}, actx *AIContext) (any, error) {
 	pid := getUintArg(args, "project_id", actx.ProjectID)
 	var states []model.State
 	s.db.Where("project_id = ? AND is_active = ?", pid, true).Order("sequence").Find(&states)
+
+	// Workflows are scoped by issue type, so the legal moves depend on the work
+	// item the agent is reasoning about.
+	var issueTypeID *uint64
+	currentStateID := uint64(0)
+	if issueID := getUintArg(args, "issue_id", 0); issueID != 0 {
+		var issue model.Issue
+		if err := s.db.Select("issue_type_id, state_id").First(&issue, issueID).Error; err == nil {
+			issueTypeID = issue.IssueTypeID
+			currentStateID = issue.StateID
+		}
+	}
+
+	rules, err := workflow.Load(s.db, pid, issueTypeID)
+	if err != nil {
+		return nil, err
+	}
+
 	result := make([]map[string]interface{}, len(states))
 	for i, st := range states {
-		result[i] = map[string]interface{}{"id": st.ID, "name": st.Name, "color": st.Color, "group": st.Group}
+		entry := map[string]interface{}{
+			"id":           st.ID,
+			"name":         st.Name,
+			"color":        st.Color,
+			"group":        st.Group,
+			"allowed_next": rules.Targets(st, states),
+		}
+		if currentStateID != 0 && st.ID == currentStateID {
+			entry["is_current"] = true
+		}
+		result[i] = entry
 	}
 	return result, nil
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/rql"
 	"github.com/reqmango/backend/internal/security"
+	"github.com/reqmango/backend/internal/workflow"
 	"gorm.io/gorm"
 )
 
@@ -1949,95 +1950,30 @@ func (s *IssueService) validateStateTransition(db *gorm.DB, projectID, issueID, 
 		}
 	}
 
-	// Get workspace ID from project for workspace-level workflow lookup
-	var workspaceID uint64
-	db.Raw("SELECT workspace_id FROM projects WHERE id = ?", projectID).Scan(&workspaceID)
-
-	// Build the workflow query condition
-	var workflows []model.Workflow
-	query := db.Where("is_active = ?", true)
-
-	// Include both project-level workflows (project_id = ?) AND workspace-level workflows (workspace_id = ? AND project_id IS NULL)
-	if issueTypeID != nil {
-		query = query.Where("(project_id = ? AND (issue_type_id = ? OR issue_type_id IS NULL OR issue_type_ids @> ?::jsonb)) OR (workspace_id = ? AND project_id IS NULL AND (issue_type_id = ? OR issue_type_id IS NULL OR issue_type_ids @> ?::jsonb))",
-			projectID, *issueTypeID, fmt.Sprintf(`[%d]`, *issueTypeID), workspaceID, *issueTypeID, fmt.Sprintf(`[%d]`, *issueTypeID))
-	} else {
-		query = query.Where("(project_id = ? AND issue_type_id IS NULL) OR (workspace_id = ? AND project_id IS NULL AND issue_type_id IS NULL)",
-			projectID, workspaceID)
+	// Resolve the transition rules from the shared workflow engine. A failure to
+	// load them is treated as "unconstrained" so a database hiccup cannot block
+	// every state change in the product; the AI tools, which only advise, surface
+	// the error instead of guessing.
+	rules, err := workflow.Load(db, projectID, issueTypeID)
+	if err != nil {
+		return nil
 	}
-	query.Find(&workflows)
-
-	if len(workflows) == 0 {
-		return nil // no workflows configured = allow all transitions
+	if !rules.Restricts {
+		return nil // no workflow constrains this project yet = allow all transitions
 	}
 
 	var oldState, newState model.State
 	db.First(&oldState, oldStateID)
 	db.First(&newState, newStateID)
 
-	var approvalTransition *model.StateTransition
-	var approvalWorkflow *model.Workflow
-	matchedAllow := false
-	hasAnyTransition := false
-
-	for _, wf := range workflows {
-		var transitions []model.StateTransition
-		db.Where("workflow_id = ?", wf.ID).Find(&transitions)
-		if len(transitions) > 0 {
-			hasAnyTransition = true
-		}
-		for i := range transitions {
-			tr := &transitions[i]
-			if !s.transitionMatchesStates(db, tr, &oldState, &newState) {
-				continue
-			}
-			if tr.RuleType == "approval" {
-				approvalTransition = tr
-				approvalWorkflow = &wf
-				continue
-			}
-			if tr.RuleType == "allow" || tr.RuleType == "" {
-				matchedAllow = true
-			}
-		}
-	}
-
-	if approvalTransition != nil && approvalWorkflow != nil {
-		return common.NewApprovalRequiredError(approvalTransition.ID, approvalWorkflow.ID, approvalWorkflow.Name, oldState.Name, newState.Name, oldStateID, newStateID)
-	}
-	if matchedAllow {
+	verdict := rules.Check(oldState, newState)
+	switch verdict.Outcome {
+	case workflow.Allowed:
 		return nil
-	}
-	if !hasAnyTransition {
-		return nil // workflows exist but define no edges yet
+	case workflow.ApprovalRequired:
+		return common.NewApprovalRequiredError(verdict.TransitionID, verdict.WorkflowID, verdict.WorkflowName, oldState.Name, newState.Name, oldStateID, newStateID)
 	}
 	return common.BadRequest(fmt.Sprintf("状态转换「%s → %s」不被当前工作流允许", oldState.Name, newState.Name))
-}
-
-// transitionMatchesStates reports whether a transition applies to the given
-// from/to states by exact ID or by case-insensitive name equivalence.
-func (s *IssueService) transitionMatchesStates(db *gorm.DB, tr *model.StateTransition, from, to *model.State) bool {
-	if tr.SourceStateID == from.ID && tr.TargetStateID == to.ID {
-		return true
-	}
-	var src, tgt model.State
-	if err := db.First(&src, tr.SourceStateID).Error; err != nil {
-		return false
-	}
-	if err := db.First(&tgt, tr.TargetStateID).Error; err != nil {
-		return false
-	}
-	return statesEquivalent(&src, from) && statesEquivalent(&tgt, to)
-}
-
-func statesEquivalent(a, b *model.State) bool {
-	if a == nil || b == nil {
-		return false
-	}
-	if a.ID != 0 && a.ID == b.ID {
-		return true
-	}
-	return strings.EqualFold(strings.TrimSpace(a.Name), strings.TrimSpace(b.Name))
 }
 
 // addProjectLeadAndSubscribers adds project lead and project subscribers into recipientIDs.
