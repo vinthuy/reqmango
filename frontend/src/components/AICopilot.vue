@@ -331,9 +331,11 @@
               />
             </div>
 
-            <!-- Action buttons for AI responses -->
+            <!-- Action buttons for AI responses. Replies that looked data up still
+                 end in text, so tool calls must not hide these; wait for the stream
+                 to finish so a partial answer can't be saved. -->
             <AIResultActions
-              v-if="msg.role === 'assistant' && msg.content && !msg.toolResults?.length"
+              v-if="msg.role === 'assistant' && msg.content && !(isStreaming && idx === messages.length - 1)"
               message-type="text"
               :project-id="projectId"
               :workspace-id="workspaceId"
