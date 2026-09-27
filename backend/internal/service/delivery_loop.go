@@ -49,14 +49,16 @@ type LoopStalledItem struct {
 }
 
 type LoopSummary struct {
-	Received     int      `json:"received"`
-	FromIntake   int      `json:"from_intake"`
-	Accepted     int      `json:"accepted"`
-	Rejected     int      `json:"rejected"`
-	Done         int      `json:"done"`
-	Shipped      int      `json:"shipped"`
-	ShipRate     float64  `json:"ship_rate"`
-	SpecCoverage *float64 `json:"spec_coverage"`
+	Received       int      `json:"received"`
+	FromIntake     int      `json:"from_intake"`
+	Accepted       int      `json:"accepted"`
+	Rejected       int      `json:"rejected"`
+	Done           int      `json:"done"`
+	Shipped        int      `json:"shipped"`
+	ShipRate       float64  `json:"ship_rate"`
+	SpecCoverage   *float64 `json:"spec_coverage"`
+	DeliveredHuman int      `json:"delivered_human"`
+	DeliveredAI    int      `json:"delivered_ai"`
 }
 
 type DeliveryLoop struct {
@@ -90,6 +92,7 @@ type loopRow struct {
 	MergedAt           *time.Time
 	ShippedAt          *time.Time
 	HasSpec            bool
+	HasAI              bool
 	ProjectHasReleases bool
 }
 
@@ -181,14 +184,26 @@ sp AS (
 	SELECT DISTINCT pg.source_id AS issue_id
 	FROM pages pg JOIN c ON c.id = pg.source_id
 	WHERE pg.source_type = 'issue' AND pg.deleted_at IS NULL
+),
+ai AS (
+	SELECT i.id AS issue_id
+	FROM issues i JOIN c ON c.id = i.id
+	WHERE i.deleted_at IS NULL AND (i.agent_assignee_id IS NOT NULL OR i.agent_task_id IS NOT NULL)
+	UNION
+	SELECT t.issue_id FROM agent_tasks t JOIN c ON c.id = t.issue_id WHERE t.deleted_at IS NULL
+	UNION
+	SELECT a.issue_id FROM agent_activities a JOIN c ON c.id = a.issue_id WHERE a.deleted_at IS NULL
 )
-SELECT c.*, st.started_at, gl.linked_at, gm.merged_at, rs.shipped_at, (sp.issue_id IS NOT NULL) AS has_spec
+SELECT c.*, st.started_at, gl.linked_at, gm.merged_at, rs.shipped_at,
+	(sp.issue_id IS NOT NULL) AS has_spec,
+	(ai.issue_id IS NOT NULL) AS has_ai
 FROM c
 LEFT JOIN st ON st.issue_id = c.id
 LEFT JOIN gl ON gl.issue_id = c.id
 LEFT JOIN gm ON gm.issue_id = c.id
 LEFT JOIN rs ON rs.issue_id = c.id
-LEFT JOIN sp ON sp.issue_id = c.id`, args...).Scan(&rows).Error
+LEFT JOIN sp ON sp.issue_id = c.id
+LEFT JOIN ai ON ai.issue_id = c.id`, args...).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +218,7 @@ LEFT JOIN sp ON sp.issue_id = c.id`, args...).Scan(&rows).Error
 func buildDeliveryLoop(rows []loopRow, now time.Time) *DeliveryLoop {
 	out := &DeliveryLoop{GeneratedAt: now, Stalled: []LoopStalledItem{}}
 
-	var nAccepted, nStarted, nLinked, nDone, nShipped, nSpec int
+	var nAccepted, nStarted, nLinked, nDone, nShipped, nSpec, nDeliveredAI, nDeliveredHuman int
 	samples := map[string][]float64{}
 	wipAges := map[string][]float64{}
 	var review, leadDone, leadShip []float64
@@ -253,6 +268,11 @@ func buildDeliveryLoop(rows []loopRow, now time.Time) *DeliveryLoop {
 		}
 		if r.done() {
 			nDone++
+			if r.HasAI {
+				nDeliveredAI++
+			} else {
+				nDeliveredHuman++
+			}
 		}
 		if r.ShippedAt != nil {
 			nShipped++
@@ -287,6 +307,8 @@ func buildDeliveryLoop(rows []loopRow, now time.Time) *DeliveryLoop {
 	out.Summary.Accepted = nAccepted
 	out.Summary.Done = nDone
 	out.Summary.Shipped = nShipped
+	out.Summary.DeliveredAI = nDeliveredAI
+	out.Summary.DeliveredHuman = nDeliveredHuman
 	if nAccepted > 0 {
 		out.Summary.ShipRate = float64(nShipped) / float64(nAccepted)
 		cov := float64(nSpec) / float64(nAccepted)

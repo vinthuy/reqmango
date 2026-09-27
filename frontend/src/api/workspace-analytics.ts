@@ -76,6 +76,8 @@ export interface DeliveryLoop {
     shipped: number
     ship_rate: number
     spec_coverage: number | null
+    delivered_human: number
+    delivered_ai: number
   }
   funnel: { key: 'received' | 'accepted' | 'started' | 'pr_linked' | 'done' | 'shipped'; count: number; rate: number; step_rate: number }[]
   stages: LoopStage[]

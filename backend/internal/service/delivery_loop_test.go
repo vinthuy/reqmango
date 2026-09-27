@@ -15,9 +15,9 @@ func TestBuildDeliveryLoop(t *testing.T) {
 		return &v
 	}
 	rows := []loopRow{
-		// Direct issue: queued 10h, developed 20h, released 30h after done.
+		// Direct issue: queued 10h, developed 20h, released 30h after done; delivered by AI.
 		{ID: 1, Identifier: "APP", SequenceID: 1, CreatedAt: *at(100), StartedAt: at(90), CompletedAt: at(70),
-			StateGroup: "completed", LinkedAt: at(85), MergedAt: at(75), ShippedAt: at(40), ProjectHasReleases: true},
+			StateGroup: "completed", LinkedAt: at(85), MergedAt: at(75), ShippedAt: at(40), HasAI: true, ProjectHasReleases: true},
 		// Accepted intake: triaged in 4h, still queued since then.
 		{ID: 2, Identifier: "APP", SequenceID: 2, CreatedAt: *at(50), IntakeSource: strp("form"),
 			IntakeStatus: strp(IntakeAccepted), IntakeTriagedAt: at(46), StateGroup: "backlog", HasSpec: true},
@@ -42,6 +42,9 @@ func TestBuildDeliveryLoop(t *testing.T) {
 	}
 	if s.SpecCoverage == nil || *s.SpecCoverage != 0.25 {
 		t.Fatalf("spec coverage = %v", s.SpecCoverage)
+	}
+	if s.DeliveredAI != 1 || s.DeliveredHuman != 2 {
+		t.Fatalf("delivery split = ai:%d human:%d, want ai:1 human:2", s.DeliveredAI, s.DeliveredHuman)
 	}
 
 	wantFunnel := map[string]int{"received": 6, "accepted": 4, "started": 3, "pr_linked": 1, "done": 3, "shipped": 2}

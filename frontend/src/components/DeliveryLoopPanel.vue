@@ -48,6 +48,33 @@
         </div>
       </div>
 
+      <div>
+        <h3 class="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">{{ t('workspaceAnalytics.loop.deliveryTitle') }}</h3>
+        <div class="rounded-md bg-gray-50 dark:bg-gray-900/40 p-3" data-testid="loop-delivery">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="flex-1 h-3 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden flex">
+              <div class="h-3" :style="{ width: `${delivery.humanPct}%`, background: '#3b82f6' }" :title="`${t('workspaceAnalytics.loop.deliveredHuman')} ${delivery.human} (${pct(delivery.humanPct / 100)})`" />
+              <div class="h-3" :style="{ width: `${delivery.aiPct}%`, background: '#10b981' }" :title="`${t('workspaceAnalytics.loop.deliveredAI')} ${delivery.ai} (${pct(delivery.aiPct / 100)})`" />
+            </div>
+          </div>
+          <div class="flex items-center gap-4 text-xs">
+            <span class="inline-flex items-center gap-1.5" data-testid="loop-delivery-human">
+              <span class="w-2.5 h-2.5 rounded-full" style="background: #3b82f6" />
+              {{ t('workspaceAnalytics.loop.deliveredHuman') }}
+              <span class="font-semibold tabular-nums">{{ delivery.human }}</span>
+              <span class="text-gray-400 tabular-nums">{{ pct(delivery.humanPct / 100) }}</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5" data-testid="loop-delivery-ai">
+              <span class="w-2.5 h-2.5 rounded-full" style="background: #10b981" />
+              {{ t('workspaceAnalytics.loop.deliveredAI') }}
+              <span class="font-semibold tabular-nums">{{ delivery.ai }}</span>
+              <span class="text-gray-400 tabular-nums">{{ pct(delivery.aiPct / 100) }}</span>
+            </span>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">{{ t('workspaceAnalytics.loop.deliveryHint') }}</p>
+        </div>
+      </div>
+
       <div class="overflow-x-auto">
         <h3 class="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">{{ t('workspaceAnalytics.loop.stagesTitle') }}</h3>
         <table class="w-full text-sm" data-testid="loop-stages">
@@ -183,6 +210,19 @@ const kpis = computed(() => {
 })
 
 const extraDurations = computed(() => (data.value ? [data.value.pr_review, data.value.lead_to_done] : []))
+
+const delivery = computed(() => {
+  const human = data.value?.summary.delivered_human || 0
+  const ai = data.value?.summary.delivered_ai || 0
+  const total = human + ai
+  return {
+    human,
+    ai,
+    total,
+    humanPct: total ? (human / total) * 100 : 0,
+    aiPct: total ? (ai / total) * 100 : 0,
+  }
+})
 
 watch(() => [props.slug, props.days, props.projectId, props.refreshKey], load)
 onMounted(load)
