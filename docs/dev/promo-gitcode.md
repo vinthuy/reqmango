@@ -74,3 +74,5 @@ node scripts/create-gitcode-gfi-issues.mjs
 - [x] 「欢迎共建」Issue：https://gitcode.com/yongfeng9m-/reqmanpy/issues/10（已置顶）  
 - [x] GFI #2–#9 开放；#1 已关（demo.gif 已有）  
 - [x] 公告讨论：自建 PM 开源共建（Discussion #1，试用命令已写）  
+- [x] 第一个外部贡献者 xiapdo（MR !1）已合并 + Issue #10 致谢（2026-09-27）  
+- [x] demo 登录修复上线，Issue #10 已同步公告（2026-09-27）  

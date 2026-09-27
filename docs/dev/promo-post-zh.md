@@ -9,9 +9,15 @@
 |------|------|------|
 | GitCode 主场 | **持续** | https://gitcode.com/yongfeng9m-/reqmanpy · 操作清单：`docs/dev/promo-gitcode.md` |
 | 开源中国 | **已投递软件，待审核** | 入口：`my.oschina.net/.../admin/publish` → 投递软件；成稿：`docs/dev/promo-oschina.md` |
-| V2EX | 已发（存量） | https://www.v2ex.com/t/1244811 |
+| V2EX | 已发（存量）· 回帖待手动 | https://www.v2ex.com/t/1244811 · 回帖草稿：`docs/dev/promo-reply-drafts.md` |
 | 掘金 | 已发审核中（存量） | https://juejin.cn/spost/7689019584239009811 |
 | 思否等 | 暂缓 | — |
+
+## 里程碑（2026-09-27）
+
+- **第一个外部贡献者 xiapdo**：完成 GFI-11「Compose 首启说明」（MR !1，修 Issue #9），已合并并同步两端；已在欢迎 Issue #10 公开致谢（@xiapdo）。
+- **demo 登录修复**：种子数据新增 `SeedDemoLoginUser`，`demo@example.com / demo1234` 每次启动自动创建（新装 + 已部署库都可用）；README 同步更正了工作区/项目名。
+- 回帖草稿统一放在：`docs/dev/promo-reply-drafts.md`。
 
 ## 成稿
 
