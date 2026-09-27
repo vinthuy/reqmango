@@ -168,6 +168,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	witH := handler.NewWorkItemTemplateHandler(witSvc)
 	releaseH := handler.NewReleaseHandler(releaseSvc)
 	initiativeH := handler.NewInitiativeHandler(db)
+	wsAnalyticsH := handler.NewWorkspaceAnalyticsHandler(db, service.NewWorkspaceAnalyticsService(db))
 	estimateH := handler.NewEstimateHandler(estimateSvc)
 	attachmentH := handler.NewAttachmentHandler(attachmentSvc)
 	webhookH := handler.NewWebhookHandler(webhookSvc)
@@ -244,6 +245,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PATCH("/:wsParam", workspaceH.Update)  // numeric ID or slug
 			workspaces.DELETE("/:wsParam", workspaceH.Delete) // numeric ID or slug
 			workspaces.GET("/:wsParam/members", workspaceH.ListMembers)
+			workspaces.GET("/:wsParam/analytics", wsAnalyticsH.Get)
 			workspaces.POST("/:wsParam/members", workspaceH.AddMember)
 			workspaces.PATCH("/:wsParam/members/:userId", workspaceH.UpdateMember)
 			workspaces.DELETE("/:wsParam/members/:userId", workspaceH.RemoveMember)

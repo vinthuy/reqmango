@@ -440,7 +440,67 @@
     "view": "View"
   },
   "workspaceAnalytics": {
-    "redirecting": "Redirecting..."
+    "redirecting": "Redirecting...",
+    "title": "Workspace analytics",
+    "subtitle": "Delivery progress, risk and team load across projects",
+    "rangeDays": "Last {n} days",
+    "allProjects": "All projects",
+    "refresh": "Refresh",
+    "exportCsv": "Export CSV",
+    "loadFailed": "Failed to load analytics",
+    "retry": "Retry",
+    "empty": "No work items for the current filter",
+    "generatedAt": "Generated at {time}",
+    "kpi": {
+      "total": "Total work items",
+      "open": "Open",
+      "overdue": "Overdue",
+      "created": "Created (in range)",
+      "completed": "Completed (in range)",
+      "avgCycle": "Avg cycle time",
+      "completionRate": "Completion rate",
+      "days": "{n} days",
+      "projects": "Across {n} projects",
+      "overdueHint": "Open items whose target date is before today",
+      "avgCycleHint": "Average days from creation to completion for items completed in range"
+    },
+    "trendTitle": "Created vs completed",
+    "trendCreated": "Created",
+    "trendCompleted": "Completed",
+    "byDay": "Daily",
+    "byWeek": "Weekly",
+    "stateGroups": "By state",
+    "priorities": "Open · priority",
+    "issueTypes": "Open · type",
+    "projectsTitle": "Projects",
+    "assigneesTitle": "Team load (top 10)",
+    "noAssignees": "No assignment data",
+    "untyped": "No type",
+    "col": {
+      "project": "Project",
+      "total": "Total",
+      "open": "Open",
+      "completed": "Completed",
+      "overdue": "Overdue",
+      "created": "Created in range",
+      "completedInRange": "Completed in range",
+      "rate": "Completion",
+      "member": "Member"
+    },
+    "stateGroup": {
+      "backlog": "Backlog",
+      "unstarted": "Unstarted",
+      "started": "Started",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "priority": {
+      "urgent": "Urgent",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "none": "None"
+    }
   },
   "settings": {
     "projectSettings": "Project Settings",

@@ -440,7 +440,67 @@
     "view": "查看"
   },
   "workspaceAnalytics": {
-    "redirecting": "跳转中..."
+    "redirecting": "跳转中...",
+    "title": "工作区分析",
+    "subtitle": "跨项目查看交付进度、风险与团队负载",
+    "rangeDays": "近 {n} 天",
+    "allProjects": "全部项目",
+    "refresh": "刷新",
+    "exportCsv": "导出 CSV",
+    "loadFailed": "加载分析数据失败",
+    "retry": "重试",
+    "empty": "当前筛选下暂无工作项",
+    "generatedAt": "数据生成于 {time}",
+    "kpi": {
+      "total": "工作项总数",
+      "open": "未完成",
+      "overdue": "已逾期",
+      "created": "新建（范围内）",
+      "completed": "完成（范围内）",
+      "avgCycle": "平均交付周期",
+      "completionRate": "完成率",
+      "days": "{n} 天",
+      "projects": "覆盖 {n} 个项目",
+      "overdueHint": "截止日期早于今天且未完成",
+      "avgCycleHint": "范围内完成的工作项，从创建到完成的平均天数"
+    },
+    "trendTitle": "新建 vs 完成趋势",
+    "trendCreated": "新建",
+    "trendCompleted": "完成",
+    "byDay": "按天",
+    "byWeek": "按周",
+    "stateGroups": "状态分布",
+    "priorities": "未完成 · 优先级",
+    "issueTypes": "未完成 · 类型",
+    "projectsTitle": "项目明细",
+    "assigneesTitle": "成员负载 Top 10",
+    "noAssignees": "暂无分配数据",
+    "untyped": "未设置类型",
+    "col": {
+      "project": "项目",
+      "total": "总数",
+      "open": "未完成",
+      "completed": "已完成",
+      "overdue": "逾期",
+      "created": "范围内新建",
+      "completedInRange": "范围内完成",
+      "rate": "完成率",
+      "member": "成员"
+    },
+    "stateGroup": {
+      "backlog": "待规划",
+      "unstarted": "未开始",
+      "started": "进行中",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    },
+    "priority": {
+      "urgent": "紧急",
+      "high": "高",
+      "medium": "中",
+      "low": "低",
+      "none": "无"
+    }
   },
   "settings": {
     "projectSettings": "项目设置",
