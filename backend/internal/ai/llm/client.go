@@ -393,6 +393,11 @@ func (c *LLMClient) Complete(ctx context.Context, systemPrompt, userMessage stri
 	return resp.Content, nil
 }
 
+// maxToolRounds bounds ChatSyncWithTools. Agent triage typically needs a lookup
+// round, a search round, a detail round, then a round to submit suggestions
+// before it can answer.
+const maxToolRounds = 8
+
 // ChatSyncWithTools sends a chat request with multi-turn tool execution.
 func (c *LLMClient) ChatSyncWithTools(ctx context.Context, systemPrompt string, messages []Message, tools []Tool, executor ToolExecutor) (*ChatResponse, error) {
 	if !c.hasValidAPIKey() {
@@ -406,7 +411,7 @@ func (c *LLMClient) ChatSyncWithTools(ctx context.Context, systemPrompt string, 
 	copy(conversation, messages)
 
 	var lastContent string
-	for round := 0; round < 3; round++ {
+	for round := 0; round < maxToolRounds; round++ {
 		req, err := c.buildRequest(systemPrompt, conversation, tools, false)
 		if err != nil {
 			return nil, err
@@ -459,10 +464,12 @@ func (c *LLMClient) ChatSyncWithTools(ctx context.Context, systemPrompt string, 
 		}
 	}
 
+	// lastContent is only the model's interim narration here, never an answer.
+	const exhausted = "已达到最大工具调用轮数，请简化问题重试。"
 	if lastContent != "" {
-		return &ChatResponse{Content: lastContent}, nil
+		return &ChatResponse{Content: lastContent + "\n\n⚠️ " + exhausted}, nil
 	}
-	return &ChatResponse{Content: "已达到最大工具调用轮数，请简化问题重试。"}, nil
+	return &ChatResponse{Content: exhausted}, nil
 }
 
 // ==================== Internal ====================

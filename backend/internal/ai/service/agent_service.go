@@ -396,6 +396,12 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 
 	systemPrompt := s.buildAgentSystemPrompt(agent, ctx)
 	tools := s.filterToolsByCapabilities(agent)
+	for _, t := range tools {
+		if t.Name == "suggest_issue_changes" {
+			systemPrompt += suggestionHonestyRule
+			break
+		}
+	}
 
 	actx := &AIContext{
 		WorkspaceID: ctx.WorkspaceID,
@@ -449,7 +455,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		if execErr != nil {
 			return toolErrorJSON(execErr.Error()), nil
 		}
-		executedTools = append(executedTools, fmt.Sprintf("%s(%v)", name, input))
+		executedTools = append(executedTools, formatToolCall(name, input))
 		b, _ := json.Marshal(result)
 		return string(b), nil
 	})
@@ -462,17 +468,18 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		return nil, common.Internal(fmt.Sprintf("Agent LLM call failed: %v", llmErr))
 	}
 
-	s.recordActivity(agent, ctx.IssueID, "dispatch", agentActivitySummary(resp.Content, executedTools), task, userID)
+	reply := withSuggestionNotice(resp.Content, suggestions)
+	s.recordActivity(agent, ctx.IssueID, "dispatch", agentActivitySummary(reply, executedTools), task, userID)
 	if ctx.IssueID != nil {
-		s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), resp.Content, suggestions)
+		s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), reply, suggestions)
 	}
 
 	// Record heartbeat to mark agent as online
 	_ = s.RecordHeartbeat(agent.ID)
 
 	// Save task result as memory after completion
-	if s.memSvc != nil && resp.Content != "" {
-		s.saveAgentTaskMemory(context.Background(), agent, actx, task, resp.Content, executedTools)
+	if s.memSvc != nil && reply != "" {
+		s.saveAgentTaskMemory(context.Background(), agent, actx, task, reply, executedTools)
 	}
 
 	return s.getLatestActivity(agent.ID)

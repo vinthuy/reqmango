@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/reqmango/backend/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,6 +36,32 @@ func TestToolErrorJSON_EscapesQuotes(t *testing.T) {
 	var parsed map[string]string
 	require.NoError(t, json.Unmarshal([]byte(out), &parsed))
 	assert.Equal(t, `field "issue_id" is required`, parsed["error"])
+}
+
+func TestWithSuggestionNotice_FlagsClaimedButMissingSuggestions(t *testing.T) {
+	for _, body := range []string{
+		"## 已提交的一键采纳建议\n- priority → medium",
+		"已通过 suggest_issue_changes 提交建议。",
+		"Submitted via SUGGEST_ISSUE_CHANGES.",
+	} {
+		got := withSuggestionNotice(body, nil)
+		assert.True(t, strings.HasPrefix(got, body), body)
+		assert.True(t, strings.HasSuffix(got, agentNoSuggestionsNotice), body)
+	}
+}
+
+func TestWithSuggestionNotice_LeavesHonestRepliesAlone(t *testing.T) {
+	plain := "分析完毕：优先级建议保持 high。"
+	assert.Equal(t, plain, withSuggestionNotice(plain, nil))
+
+	claimed := "已提交的一键采纳建议见下方。"
+	stored := []model.IssueSuggestion{{Field: "priority", Value: "medium"}}
+	assert.Equal(t, claimed, withSuggestionNotice(claimed, stored))
+}
+
+func TestFormatToolCall_ShowsReadableJSON(t *testing.T) {
+	got := formatToolCall("list_states", json.RawMessage(`{"issue_id": 81}`))
+	assert.Equal(t, `list_states({"issue_id": 81})`, got)
 }
 
 func TestAgentIssueContextBlock_IncludesFacts(t *testing.T) {
