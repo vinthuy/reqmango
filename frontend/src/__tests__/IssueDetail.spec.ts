@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
 // Hoisted mocks for API calls
@@ -51,17 +51,37 @@ const {
 }))
 
 // Mock all API modules
-vi.mock('@/api/issue', () => ({
-  getIssue: (...args: any[]) => mockGetIssue(...args),
-  updateIssue: (...args: any[]) => mockUpdateIssue(...args),
-  addIssueLabel: (...args: any[]) => mockAddIssueLabel(...args),
-  listWatchers: vi.fn().mockResolvedValue({ watchers: [] }),
-  addWatcher: vi.fn().mockResolvedValue({}),
-  removeWatcher: vi.fn().mockResolvedValue({}),
-  issueApi: {
+vi.mock('@/api/issue', () => {
+  const issueApi = {
     getIssue: (...args: any[]) => mockGetIssue(...args),
     updateIssue: (...args: any[]) => mockUpdateIssue(...args),
-  },
+    addIssueLabel: (...args: any[]) => mockAddIssueLabel(...args),
+    listWatchers: vi.fn().mockResolvedValue({ watchers: [] }),
+    addWatcher: vi.fn().mockResolvedValue({}),
+    removeWatcher: vi.fn().mockResolvedValue({}),
+  }
+  return { ...issueApi, issueApi, default: issueApi }
+})
+
+vi.mock('@/api/release', () => ({
+  releaseApi: { list: vi.fn().mockResolvedValue([]) },
+}))
+
+vi.mock('@/api/custom-field', () => ({
+  getIssueCustomFieldsWithDefinitions: vi.fn().mockResolvedValue({ fields: [] }),
+  updateIssueCustomFieldValue: vi.fn().mockResolvedValue({}),
+}))
+
+vi.mock('@/api/issue-agent', () => ({
+  issueAgentApi: { getStatus: vi.fn().mockResolvedValue({ data: null }) },
+}))
+
+vi.mock('@/api/relation', () => ({
+  default: { listIssueRelations: vi.fn().mockResolvedValue([]) },
+}))
+
+vi.mock('@/api', () => ({
+  default: { get: vi.fn().mockResolvedValue({ data: [] }) },
 }))
 
 vi.mock('@/api/ai', () => ({
@@ -94,6 +114,7 @@ vi.mock('@/api/issue-type', () => ({
 vi.mock('@/api/agent', () => ({
   agentApi: {
     dispatch: (...args: any[]) => mockDispatch(...args),
+    list: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -135,9 +156,9 @@ vi.mock('vue-router', () => ({
 vi.mock('@/components/IssueDetailHeader.vue', () => ({
   default: {
     template:
-      '<div data-test="mock-header"><span>{{ issue?.issue_type?.name }}</span><button data-test="save-btn" @click="$emit(\'save\')">{{ saving ? \'issue.saving\' : \'issue.save\' }}</button></div>',
-    props: ['issue', 'saving'],
-    emits: ['save', 'back'],
+      '<div data-test="mock-header"><span>{{ issue?.issue_type?.name }}</span><button data-test="rename-btn" @click="$emit(\'update:title\', \'Renamed Issue\')">rename</button></div>',
+    props: ['issue', 'projectIdentifier', 'isWatching'],
+    emits: ['back', 'delete', 'toggle-watch', 'update:title'],
   },
 }))
 
@@ -216,32 +237,30 @@ describe('IssueDetail', () => {
     })
   }
 
-  it('renders the header with issue type and save button', async () => {
+  it('renders the header with the issue type', async () => {
     const wrapper = mountComponent()
-    await nextTick() // wait for onMounted
-    await nextTick()
+    await flushPromises()
 
     expect(mockGetIssue).toHaveBeenCalledWith(42)
     expect(wrapper.find('[data-test="mock-header"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Task')
-    expect(wrapper.text()).toContain('issue.save')
   })
 
   it('renders 8 tab buttons', async () => {
     const wrapper = mountComponent()
-    await nextTick()
-    await nextTick()
+    await flushPromises()
 
-    const tabBtns = wrapper.findAll('[data-test="tab-btn"]')
-    expect(tabBtns.length).toBe(8)
-    expect(tabBtns[0].text()).toBe('issue.tabDetails')
-    expect(tabBtns[1].text()).toBe('issue.tabRelations')
-    expect(tabBtns[2].text()).toBe('issue.tabAttachments')
-    expect(tabBtns[3].text()).toBe('gitIntegration.title')
-    expect(tabBtns[4].text()).toBe('issue.tabTimetrack')
-    expect(tabBtns[5].text()).toBe('issue.tabActivity')
-    expect(tabBtns[6].text()).toBe('🤖 AI')
-    expect(tabBtns[7].text()).toBe('issue.tabChat')
+    const labels = wrapper.findAll('[data-test="tab-btn"]').map((b) => b.text())
+    expect(labels).toEqual([
+      'issue.tabDetails',
+      'issue.tabRelations',
+      'issue.tabAttachments',
+      'issue.tabActivity',
+      'AI',
+      'issue.tabChat',
+      'gitIntegration.title',
+      'issue.tabTimetrack',
+    ])
   })
 
   it('shows Details tab by default', async () => {
@@ -269,34 +288,31 @@ describe('IssueDetail', () => {
     expect(wrapper.find('[data-test="mock-details"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="mock-relations"]').exists()).toBe(true)
 
-    await tabBtns[5].trigger('click')
+    await tabBtns[3].trigger('click')
     await nextTick()
 
     expect(wrapper.find('[data-test="mock-relations"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="mock-activity"]').exists()).toBe(true)
+
+    await tabBtns[6].trigger('click')
+    await nextTick()
+    expect(wrapper.find('[data-test="mock-git"]').exists()).toBe(true)
   })
 
-  it('calls save API when save is triggered', async () => {
+  it('saves the title instantly when the header emits a rename', async () => {
     const wrapper = mountComponent()
-    await nextTick()
-    await nextTick()
+    await flushPromises()
 
-    // Click save button inside the header
-    const saveBtn = wrapper.find('[data-test="save-btn"]')
-    await saveBtn.trigger('click')
-    await nextTick()
+    await wrapper.find('[data-test="rename-btn"]').trigger('click')
+    await flushPromises()
 
-    // saveIssue should call updateIssue
-    expect(mockUpdateIssue).toHaveBeenCalledWith(42, expect.objectContaining({
-      name: 'Test Issue',
-    }))
+    expect(mockUpdateIssue).toHaveBeenCalledWith(42, { name: 'Renamed Issue' })
   })
 
   async function openAiTab(wrapper: ReturnType<typeof mount>) {
-    await nextTick()
-    await nextTick()
-    const tabBtns = wrapper.findAll('[data-test="tab-btn"]')
-    await tabBtns[6].trigger('click')
+    await flushPromises()
+    const aiTab = wrapper.findAll('[data-test="tab-btn"]').find((b) => b.text() === 'AI')
+    await aiTab!.trigger('click')
     await nextTick()
   }
 
