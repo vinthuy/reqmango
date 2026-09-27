@@ -1272,7 +1272,46 @@
     "custom": "Custom (10)",
     "confirmDeleteTitle": "Confirm Delete",
     "confirmDeleteMessage": "Are you sure you want to delete role \"{name}\"?",
-    "irreversible": "This action cannot be undone."
+    "irreversible": "This action cannot be undone.",
+    "systemRoles": {
+      "Admin": { "name": "Admin", "desc": "Full access to all resources" },
+      "Member": { "name": "Member", "desc": "Create and edit content" },
+      "Guest": { "name": "Guest", "desc": "Read-only access" }
+    },
+    "resources": {
+      "workspace": "Workspace",
+      "member": "Members",
+      "role": "Roles",
+      "project": "Projects",
+      "initiative": "Initiatives",
+      "issue": "Issues",
+      "cycle": "Cycles",
+      "module": "Modules",
+      "page": "Pages",
+      "comment": "Comments",
+      "attachment": "Attachments",
+      "workflow": "Workflows",
+      "automation": "Automations",
+      "settings": "Settings",
+      "report": "Reports",
+      "release": "Releases",
+      "time_track": "Time tracking",
+      "ai": "AI features",
+      "agent": "AI agents"
+    },
+    "actions": {
+      "view": "View",
+      "view_all": "View all",
+      "create": "Create",
+      "edit": "Edit",
+      "delete": "Delete",
+      "manage": "Manage",
+      "import": "Import",
+      "export": "Export",
+      "use": "Use",
+      "manage_project": "Manage project",
+      "view_project": "View project"
+    }
   },
   "estimatePoint": {
     "title": "Estimate Settings",
