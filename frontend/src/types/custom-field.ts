@@ -32,6 +32,7 @@ export interface CustomFieldOption {
 }
 
 export interface CustomFieldOptionCreate {
+  id?: number
   value: string
   color?: string
   sequence?: number
@@ -76,10 +77,14 @@ export interface CustomField {
   
   // 序列号
   sequence: number
-  
+
   // 默认值
   default_value?: any
-  
+
+  // 使用情况
+  issue_count?: number
+  type_names?: string[]
+
   // 关联关系
   workspace_id: number
   project_id?: number
@@ -147,10 +152,12 @@ export interface CustomFieldUpdate {
   number_max?: number
   
   is_multi_select?: boolean
-  
+
   date_format?: string
-  
+
   sequence?: number
+
+  options?: CustomFieldOptionCreate[]
 }
 
 export interface CustomFieldLite {

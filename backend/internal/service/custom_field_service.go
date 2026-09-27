@@ -1,7 +1,9 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/reqmango/backend/internal/common"
@@ -26,19 +28,24 @@ var validFieldTypes = map[string]bool{
 
 func (s *CustomFieldService) buildResponse(f model.CustomField) *response.CustomFieldResponse {
 	r := &response.CustomFieldResponse{
-		ID:           f.ID,
-		Name:         f.Name,
-		Description:  f.Description,
-		FieldType:    f.FieldType,
-		IsRequired:   f.IsRequired,
-		DefaultValue: f.DefaultValue,
-		Placeholder:  f.Placeholder,
-		IsActive:     f.IsActive,
-		ProjectID:    f.ProjectID,
-		WorkspaceID:  f.WorkspaceID,
-		CreatedAt:    f.CreatedAt,
-		UpdatedAt:    f.UpdatedAt,
-		Options:      make([]response.CustomFieldOptionResponse, 0),
+		ID:            f.ID,
+		Name:          f.Name,
+		Description:   f.Description,
+		FieldType:     f.FieldType,
+		IsRequired:    f.IsRequired,
+		DefaultValue:  f.DefaultValue,
+		Placeholder:   f.Placeholder,
+		IsActive:      f.IsActive,
+		IsReadonly:    f.IsReadonly,
+		IsMultiSelect: f.IsMultiSelect,
+		NumberMin:     f.NumberMin,
+		NumberMax:     f.NumberMax,
+		TypeNames:     make([]string, 0),
+		ProjectID:     f.ProjectID,
+		WorkspaceID:   f.WorkspaceID,
+		CreatedAt:     f.CreatedAt,
+		UpdatedAt:     f.UpdatedAt,
+		Options:       make([]response.CustomFieldOptionResponse, 0),
 	}
 
 	if f.FieldType == "dropdown" {
@@ -68,10 +75,30 @@ func (s *CustomFieldService) validateFieldType(fieldType string) error {
 // validateFieldValue validates a value against the field's type definition.
 func (s *CustomFieldService) validateFieldValue(field *model.CustomField, value string) error {
 	if field.FieldType == "dropdown" && value != "" {
-		var count int64
-		s.db.Model(&model.CustomFieldOption{}).Where("field_id = ? AND value = ?", field.ID, value).Count(&count)
-		if count == 0 {
-			return common.Validation(fmt.Sprintf("Value '%s' is not a valid option for field '%s'", value, field.Name))
+		values := []string{value}
+		if field.IsMultiSelect && strings.HasPrefix(value, "[") {
+			if err := json.Unmarshal([]byte(value), &values); err != nil {
+				return common.Validation("Multi-select value must be a JSON array of option values")
+			}
+		}
+		for _, v := range values {
+			var count int64
+			s.db.Model(&model.CustomFieldOption{}).Where("field_id = ? AND value = ?", field.ID, v).Count(&count)
+			if count == 0 {
+				return common.Validation(fmt.Sprintf("Value '%s' is not a valid option for field '%s'", v, field.Name))
+			}
+		}
+	}
+	if field.FieldType == "number" && value != "" {
+		n, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return common.Validation(fmt.Sprintf("Field '%s' must be a number", field.Name))
+		}
+		if field.NumberMin != nil && n < *field.NumberMin {
+			return common.Validation(fmt.Sprintf("Field '%s' must be >= %v", field.Name, *field.NumberMin))
+		}
+		if field.NumberMax != nil && n > *field.NumberMax {
+			return common.Validation(fmt.Sprintf("Field '%s' must be <= %v", field.Name, *field.NumberMax))
 		}
 	}
 	if field.FieldType == "boolean" && value != "" {
@@ -90,23 +117,144 @@ func (s *CustomFieldService) Create(workspaceID, userID uint64, req request.Cust
 	}
 
 	f := model.CustomField{
-		Name:         req.Name,
-		Description:  req.Description,
-		FieldType:    req.FieldType,
-		IsRequired:   req.IsRequired,
-		DefaultValue: req.DefaultValue,
-		Placeholder:  req.Placeholder,
-		IsActive:     true,
-		ProjectID:    req.ProjectID,
-		WorkspaceID:  workspaceID,
+		Name:          req.Name,
+		Description:   req.Description,
+		FieldType:     req.FieldType,
+		IsRequired:    req.IsRequired,
+		DefaultValue:  req.DefaultValue,
+		Placeholder:   req.Placeholder,
+		IsActive:      true,
+		IsReadonly:    req.IsReadonly,
+		IsMultiSelect: req.IsMultiSelect,
+		NumberMin:     req.NumberMin,
+		NumberMax:     req.NumberMax,
+		ProjectID:     req.ProjectID,
+		WorkspaceID:   workspaceID,
 	}
 	f.CreatedByID = &userID
+	if err := validateNumberRange(f.NumberMin, f.NumberMax); err != nil {
+		return nil, err
+	}
 
-	if err := s.db.Create(&f).Error; err != nil {
-		return nil, common.Internal("Failed to create custom field")
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&f).Error; err != nil {
+			return common.Internal("Failed to create custom field")
+		}
+		if f.FieldType == "dropdown" {
+			return syncFieldOptions(tx, f.ID, req.Options)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return s.buildResponse(f), nil
+}
+
+func validateNumberRange(min, max *float64) error {
+	if min != nil && max != nil && *min > *max {
+		return common.Validation("number_min must not exceed number_max")
+	}
+	return nil
+}
+
+// syncFieldOptions makes the field's option list match opts. Options with an
+// ID are updated in place; renaming one rewrites issue values that used the
+// old label, since values store the option label.
+func syncFieldOptions(tx *gorm.DB, fieldID uint64, opts []request.CustomFieldOptionInput) error {
+	var existing []model.CustomFieldOption
+	if err := tx.Where("field_id = ?", fieldID).Find(&existing).Error; err != nil {
+		return common.Internal("Failed to load options")
+	}
+	byID := make(map[uint64]model.CustomFieldOption, len(existing))
+	for _, o := range existing {
+		byID[o.ID] = o
+	}
+
+	seen := make(map[string]bool)
+	keep := make(map[uint64]bool)
+	for i, in := range opts {
+		value := strings.TrimSpace(in.Value)
+		if value == "" {
+			continue
+		}
+		if seen[value] {
+			return common.Validation(fmt.Sprintf("Duplicate option '%s'", value))
+		}
+		seen[value] = true
+		seq := in.Sequence
+		if seq == 0 {
+			seq = i + 1
+		}
+
+		if in.ID != nil {
+			if old, ok := byID[*in.ID]; ok {
+				keep[old.ID] = true
+				if old.Value != value {
+					tx.Model(&model.IssueCustomFieldValue{}).
+						Where("field_id = ? AND value = ?", fieldID, old.Value).
+						Update("value", value)
+				}
+				if err := tx.Model(&model.CustomFieldOption{}).Where("id = ?", old.ID).
+					Updates(map[string]interface{}{"value": value, "color": in.Color, "sequence": seq}).Error; err != nil {
+					return common.Internal("Failed to update option")
+				}
+				continue
+			}
+		}
+		opt := model.CustomFieldOption{FieldID: fieldID, Value: value, Color: in.Color, Sequence: seq}
+		if err := tx.Create(&opt).Error; err != nil {
+			return common.Internal("Failed to create option")
+		}
+		keep[opt.ID] = true
+	}
+
+	for _, o := range existing {
+		if !keep[o.ID] {
+			tx.Delete(&model.CustomFieldOption{}, o.ID)
+		}
+	}
+	return nil
+}
+
+// attachUsage fills issue counts and bound type names for a list of fields.
+func (s *CustomFieldService) attachUsage(fields []response.CustomFieldResponse) {
+	if len(fields) == 0 {
+		return
+	}
+	ids := make([]uint64, len(fields))
+	index := make(map[uint64]int, len(fields))
+	for i, f := range fields {
+		ids[i] = f.ID
+		index[f.ID] = i
+	}
+
+	var counts []struct {
+		FieldID uint64
+		N       int64
+	}
+	s.db.Model(&model.IssueCustomFieldValue{}).
+		Select("field_id, COUNT(DISTINCT issue_id) AS n").
+		Where("field_id IN ? AND value <> ''", ids).
+		Group("field_id").Scan(&counts)
+	for _, c := range counts {
+		fields[index[c.FieldID]].IssueCount = c.N
+	}
+
+	var types []struct {
+		FieldID uint64
+		Name    string
+	}
+	s.db.Table("issue_type_fields").
+		Select("DISTINCT issue_type_fields.field_id, issue_types.name").
+		Joins("JOIN issue_types ON issue_types.id = issue_type_fields.type_id AND issue_types.deleted_at IS NULL").
+		Where("issue_type_fields.field_id IN ?", ids).
+		Order("issue_types.name").Scan(&types)
+	for _, t := range types {
+		i := index[t.FieldID]
+		fields[i].TypeNames = append(fields[i].TypeNames, t.Name)
+	}
 }
 
 func (s *CustomFieldService) List(workspaceID uint64, projectID *uint64, issueTypeID *uint64) ([]response.CustomFieldResponse, error) {
@@ -149,6 +297,7 @@ func (s *CustomFieldService) List(workspaceID uint64, projectID *uint64, issueTy
 	for i, f := range fields {
 		result[i] = *s.buildResponse(f)
 	}
+	s.attachUsage(result)
 	return result, nil
 }
 
@@ -264,13 +413,38 @@ func (s *CustomFieldService) Update(fieldID, userID uint64, req request.CustomFi
 	if req.ProjectID != nil {
 		f.ProjectID = req.ProjectID
 	}
-
-	f.UpdatedByID = &userID
-	if err := s.db.Save(&f).Error; err != nil {
-		return nil, common.Internal("Failed to update custom field")
+	if req.IsReadonly != nil {
+		f.IsReadonly = *req.IsReadonly
+	}
+	if req.IsMultiSelect != nil {
+		f.IsMultiSelect = *req.IsMultiSelect
+	}
+	if req.NumberMin != nil || req.NumberMax != nil {
+		f.NumberMin = req.NumberMin
+		f.NumberMax = req.NumberMax
+	}
+	if err := validateNumberRange(f.NumberMin, f.NumberMax); err != nil {
+		return nil, err
 	}
 
-	return s.buildResponse(f), nil
+	f.UpdatedByID = &userID
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&f).Error; err != nil {
+			return common.Internal("Failed to update custom field")
+		}
+		if req.Options != nil && f.FieldType == "dropdown" {
+			return syncFieldOptions(tx, f.ID, *req.Options)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	resp := s.buildResponse(f)
+	list := []response.CustomFieldResponse{*resp}
+	s.attachUsage(list)
+	return &list[0], nil
 }
 
 func (s *CustomFieldService) Delete(fieldID uint64) error {

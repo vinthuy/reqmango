@@ -6,7 +6,7 @@
         <h2 class="text-lg font-semibold text-gray-900">{{ t('customField.customFields') }}</h2>
         <p class="text-sm text-gray-500 mt-0.5">{{ t('customField.managerDescription') }}</p>
       </div>
-      <button v-if="mode !== 'display'" @click="openCreateModal" class="create-btn">
+      <button v-if="mode !== 'display'" @click="openCreateModal" class="create-btn" data-testid="cf-create">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -14,13 +14,32 @@
       </button>
     </div>
 
+    <div v-if="mode !== 'display' && customFields.length > 0" class="flex flex-wrap items-center gap-2 mb-4">
+      <input
+        v-model="searchQuery"
+        type="search"
+        class="form-input"
+        style="width: 280px; max-width: 100%"
+        :placeholder="t('customField.searchPlaceholder')"
+        data-testid="cf-search"
+      />
+      <select v-model="typeFilter" class="form-input" style="width: 160px" data-testid="cf-type-filter">
+        <option value="">{{ t('customField.allTypes') }}</option>
+        <option v-for="type in fieldTypes" :key="type.value" :value="type.value">{{ type.label }}</option>
+      </select>
+      <span class="text-xs text-gray-500" data-testid="cf-summary">
+        {{ t('customField.summary', { total: String(customFields.length), active: String(activeCount) }) }}
+      </span>
+    </div>
+
     <!-- 字段列表 -->
-    <div v-if="customFields.length > 0" class="space-y-3">
+    <div v-if="visibleFields.length > 0" class="space-y-3">
       <div
-        v-for="field in customFields"
+        v-for="field in visibleFields"
         :key="field.id"
         class="field-row"
         :class="{ 'is-default': field.is_required }"
+        data-testid="cf-row"
       >
         <div class="field-row-main" @click="openEditModal(field)">
           <div class="field-icon" :class="getFieldTypeClass(field.field_type)">
@@ -45,6 +64,14 @@
             <p v-if="field.description" class="text-xs text-gray-500 mt-0.5 truncate">{{ field.description }}</p>
             <p v-if="field.field_type === 'dropdown' && field.options?.length > 0" class="text-xs text-gray-400 mt-0.5">
               {{ field.options?.length }} {{ t('customField.optionCount') }}{{ field.is_multi_select ? t('customField.multiSelectSuffix') : '' }}
+            </p>
+            <p v-if="field.field_type === 'number' && (field.number_min != null || field.number_max != null)" class="text-xs text-gray-400 mt-0.5">
+              {{ t('customField.rangeLabel', { min: field.number_min != null ? String(field.number_min) : '−∞', max: field.number_max != null ? String(field.number_max) : '+∞' }) }}
+            </p>
+            <p v-if="mode !== 'display'" class="text-xs text-gray-500 mt-1" data-testid="cf-usage">
+              <span>{{ field.type_names?.length ? t('customField.boundTypes', { types: field.type_names.join('、') }) : t('customField.noBoundTypes') }}</span>
+              <span class="mx-1 text-gray-300">·</span>
+              <span>{{ t('customField.issueUsage', { count: String(field.issue_count || 0) }) }}</span>
             </p>
           </div>
         </div>
@@ -157,6 +184,10 @@
       </div>
     </div>
 
+    <div v-else-if="customFields.length > 0" class="empty-state" data-testid="cf-no-match">
+      <p class="text-sm text-gray-500">{{ t('customField.noMatch') }}</p>
+    </div>
+
     <div v-else class="empty-state">
       <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -185,7 +216,7 @@
           <div class="drawer-body">
             <div class="form-group">
               <label class="form-label">{{ t('customField.name') }} <span class="required">*</span></label>
-              <input v-model="formData.name" type="text" class="form-input" :placeholder="t('customField.enterFieldName')" />
+              <input v-model="formData.name" type="text" class="form-input" :placeholder="t('customField.enterFieldName')" data-testid="cf-name" />
             </div>
 
             <div class="form-group">
@@ -194,6 +225,7 @@
                 v-model="formData.field_type"
                 :disabled="!isCreating"
                 class="form-input"
+                data-testid="cf-type"
                 @change="handleFieldTypeChange"
               >
                 <option v-for="type in fieldTypes" :key="type.value" :value="type.value">
@@ -212,25 +244,15 @@
               ></textarea>
             </div>
 
-            <!-- 文本类型属性 -->
-            <div v-if="formData.field_type === 'text'" class="form-group">
-              <label class="form-label">{{ t('customField.textType') }}</label>
-              <select v-model="formData.text_type" class="form-input">
-                <option value="single">{{ t('customField.singleLineText') }}</option>
-                <option value="paragraph">{{ t('customField.multiLineText') }}</option>
-                <option value="readonly">{{ t('customField.readonlyText') }}</option>
-              </select>
-            </div>
-
             <!-- 数字类型属性 -->
             <div v-if="formData.field_type === 'number'" class="space-y-3">
               <div class="form-group">
                 <label class="form-label">{{ t('customField.minValue') }}</label>
-                <input v-model.number="formData.number_min" type="number" class="form-input" :placeholder="t('customField.minValue')" />
+                <input v-model.number="formData.number_min" type="number" class="form-input" :placeholder="t('customField.minValue')" data-testid="cf-number-min" />
               </div>
               <div class="form-group">
                 <label class="form-label">{{ t('customField.maxValue') }}</label>
-                <input v-model.number="formData.number_max" type="number" class="form-input" :placeholder="t('customField.maxValue')" />
+                <input v-model.number="formData.number_max" type="number" class="form-input" :placeholder="t('customField.maxValue')" data-testid="cf-number-max" />
               </div>
             </div>
 
@@ -238,7 +260,7 @@
             <div v-if="formData.field_type === 'dropdown'" class="space-y-4">
               <div class="form-group">
                 <label class="checkbox-label">
-                  <input v-model="formData.is_multi_select" type="checkbox" class="checkbox" />
+                  <input v-model="formData.is_multi_select" type="checkbox" class="checkbox" data-testid="cf-multi" />
                   <span>{{ t('customField.allowMultiSelect') }}</span>
                 </label>
               </div>
@@ -246,7 +268,7 @@
               <div class="form-group">
                 <div class="flex items-center justify-between">
                   <label class="form-label">{{ t('customField.optionsList') }}</label>
-                  <button @click="addOption" class="text-sm text-indigo-600 hover:text-indigo-700">+ {{ t('customField.addOption') }}</button>
+                  <button @click="addOption" class="text-sm text-indigo-600 hover:text-indigo-700" data-testid="cf-add-option">+ {{ t('customField.addOption') }}</button>
                 </div>
                 <div class="space-y-2 mt-2">
                   <div
@@ -264,11 +286,13 @@
                         v-model="option.value"
                         type="text"
                         class="form-input flex-1"
+                        data-testid="cf-option-input"
                         :placeholder="t('customField.optionLabel2', { index: String(index + 1) })"
                       />
                       <button
                         @click="removeOption(index)"
                         class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                        data-testid="cf-option-remove"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -293,7 +317,7 @@
 
             <div class="form-group">
               <label class="checkbox-label">
-                <input v-model="formData.is_readonly" type="checkbox" class="checkbox" />
+                <input v-model="formData.is_readonly" type="checkbox" class="checkbox" data-testid="cf-readonly" />
                 <span>{{ t('customField.isReadonly') }}</span>
               </label>
             </div>
@@ -301,7 +325,7 @@
 
           <div class="drawer-footer">
             <button @click="closeDrawer" class="btn btn-secondary">{{ t('common.cancel') }}</button>
-            <button @click="submitForm" class="btn btn-primary" :disabled="!formData.name">
+            <button @click="submitForm" class="btn btn-primary" :disabled="!formData.name" data-testid="cf-submit">
               {{ isCreating ? t('common.create') : t('common.save') }}
             </button>
           </div>
@@ -333,7 +357,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import type { CustomField, CustomFieldCreate, CustomFieldUpdate, CustomFieldOptionCreate } from '@/types/custom-field'
@@ -378,6 +402,16 @@ const fieldTypes = [
 ]
 
 const customFields = ref<CustomField[]>([])
+const searchQuery = ref('')
+const typeFilter = ref('')
+const visibleFields = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return customFields.value.filter(f =>
+    (!typeFilter.value || f.field_type === typeFilter.value) &&
+    (!q || f.name.toLowerCase().includes(q) || (f.description || '').toLowerCase().includes(q))
+  )
+})
+const activeCount = computed(() => customFields.value.filter(f => f.is_active).length)
 const fieldValues = ref<Record<number, any>>({})
 const showEditDrawer = ref(false)
 const isCreating = ref(false)
@@ -498,6 +532,7 @@ function openEditModal(field: CustomField) {
     is_readonly: field.is_readonly,
     is_active: field.is_active,
     options: (field.options || []).map((opt) => ({
+      id: opt.id,
       value: opt.value,
       color: opt.color || COLOR_PALETTE[0],
       sequence: opt.sequence,
@@ -505,11 +540,26 @@ function openEditModal(field: CustomField) {
       is_active: opt.is_active,
     })),
     is_multi_select: field.is_multi_select,
-    text_type: field.text_type,
-    number_min: field.number_min,
-    number_max: field.number_max,
+    number_min: field.number_min ?? undefined,
+    number_max: field.number_max ?? undefined,
   }
   showEditDrawer.value = true
+}
+
+function buildPayload() {
+  const num = (v: unknown) => (typeof v === 'number' && !Number.isNaN(v) ? v : null)
+  const data: Record<string, any> = { ...formData.value }
+  data.number_min = num(data.number_min)
+  data.number_max = num(data.number_max)
+  if (data.field_type === 'dropdown') {
+    data.options = (data.options || [])
+      .filter((o: any) => (o.value || '').trim())
+      .map((o: any, i: number) => ({ id: o.id, value: o.value.trim(), color: o.color, sequence: i + 1 }))
+  } else {
+    delete data.options
+  }
+  if (!isCreating.value) delete data.field_type
+  return data
 }
 
 function closeDrawer() {
@@ -521,18 +571,25 @@ function closeDrawer() {
 async function submitForm() {
   if (!formData.value.name) return
 
+  const min = formData.value.number_min
+  const max = formData.value.number_max
+  if (typeof min === 'number' && typeof max === 'number' && min > max) {
+    toast.error(t('customField.rangeInvalid'))
+    return
+  }
   try {
+    const payload = buildPayload()
     if (isCreating.value) {
-      await customFieldApi.createCustomField(props.workspaceId, formData.value)
+      await customFieldApi.createCustomField(props.workspaceId, payload as CustomFieldCreate)
     } else if (selectedField.value) {
-      await customFieldApi.updateCustomField(selectedField.value.id, formData.value)
+      await customFieldApi.updateCustomField(selectedField.value.id, payload as CustomFieldUpdate)
     }
     closeDrawer()
     await loadData()
     toast.success(t('customField.saveSuccess'))
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to submit form:', error)
-    toast.error(t('customField.saveFailed'))
+    toast.error(error?.response?.data?.message || t('customField.saveFailed'))
   }
 }
 
@@ -560,7 +617,9 @@ async function toggleActive(field: CustomField) {
 async function confirmDelete(field: CustomField) {
   if (await confirm({
     title: t('customField.deleteField'),
-    message: t('customField.confirmDeleteFieldIrreversible', { name: field.name }),
+    message: field.issue_count
+      ? t('customField.confirmDeleteFieldWithUsage', { name: field.name, count: String(field.issue_count) })
+      : t('customField.confirmDeleteFieldIrreversible', { name: field.name }),
     danger: true,
     confirmText: t('common.delete')
   })) {

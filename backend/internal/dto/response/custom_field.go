@@ -4,19 +4,25 @@ import "time"
 
 // CustomFieldResponse is the API response for a single custom field.
 type CustomFieldResponse struct {
-	ID           uint64                      `json:"id"`
-	Name         string                      `json:"name"`
-	Description  string                      `json:"description"`
-	FieldType    string                      `json:"field_type"`
-	IsRequired   bool                        `json:"is_required"`
-	DefaultValue string                      `json:"default_value"`
-	Placeholder  string                      `json:"placeholder"`
-	IsActive     bool                        `json:"is_active"`
-	ProjectID    *uint64                     `json:"project_id"`
-	WorkspaceID  uint64                      `json:"workspace_id"`
-	CreatedAt    time.Time                   `json:"created_at"`
-	UpdatedAt    time.Time                   `json:"updated_at"`
-	Options      []CustomFieldOptionResponse `json:"options,omitempty"`
+	ID            uint64                      `json:"id"`
+	Name          string                      `json:"name"`
+	Description   string                      `json:"description"`
+	FieldType     string                      `json:"field_type"`
+	IsRequired    bool                        `json:"is_required"`
+	DefaultValue  string                      `json:"default_value"`
+	Placeholder   string                      `json:"placeholder"`
+	IsActive      bool                        `json:"is_active"`
+	IsReadonly    bool                        `json:"is_readonly"`
+	IsMultiSelect bool                        `json:"is_multi_select"`
+	NumberMin     *float64                    `json:"number_min"`
+	NumberMax     *float64                    `json:"number_max"`
+	IssueCount    int64                       `json:"issue_count"`
+	TypeNames     []string                    `json:"type_names"`
+	ProjectID     *uint64                     `json:"project_id"`
+	WorkspaceID   uint64                      `json:"workspace_id"`
+	CreatedAt     time.Time                   `json:"created_at"`
+	UpdatedAt     time.Time                   `json:"updated_at"`
+	Options       []CustomFieldOptionResponse `json:"options,omitempty"`
 }
 
 // CustomFieldLite is a minimal custom field reference.

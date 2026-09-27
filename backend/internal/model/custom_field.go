@@ -5,15 +5,19 @@ package model
 // Supported field types: text, number, dropdown, boolean, date, member, url.
 type CustomField struct {
 	BaseModel
-	Name         string  `gorm:"type:varchar(100);not null" json:"name"`
-	Description  string  `gorm:"type:text" json:"description"`
-	FieldType    string  `gorm:"type:varchar(20);not null" json:"field_type"`
-	IsRequired   bool    `gorm:"default:false" json:"is_required"`
-	DefaultValue string  `gorm:"type:text" json:"default_value"`
-	Placeholder  string  `gorm:"type:varchar(255)" json:"placeholder"`
-	IsActive     bool    `gorm:"default:true" json:"is_active"`
-	ProjectID    *uint64 `gorm:"index" json:"project_id"`
-	WorkspaceID  uint64  `gorm:"not null;index" json:"workspace_id"`
+	Name          string   `gorm:"type:varchar(100);not null" json:"name"`
+	Description   string   `gorm:"type:text" json:"description"`
+	FieldType     string   `gorm:"type:varchar(20);not null" json:"field_type"`
+	IsRequired    bool     `gorm:"default:false" json:"is_required"`
+	DefaultValue  string   `gorm:"type:text" json:"default_value"`
+	Placeholder   string   `gorm:"type:varchar(255)" json:"placeholder"`
+	IsActive      bool     `gorm:"default:true" json:"is_active"`
+	IsReadonly    bool     `gorm:"default:false" json:"is_readonly"`
+	IsMultiSelect bool     `gorm:"default:false" json:"is_multi_select"`
+	NumberMin     *float64 `json:"number_min"`
+	NumberMax     *float64 `json:"number_max"`
+	ProjectID     *uint64  `gorm:"index" json:"project_id"`
+	WorkspaceID   uint64   `gorm:"not null;index" json:"workspace_id"`
 
 	// Relationships
 	Workspace Workspace           `gorm:"foreignKey:WorkspaceID" json:"-"`

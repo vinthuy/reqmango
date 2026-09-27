@@ -77,7 +77,7 @@ function decide(a: ApprovalResponse, decision: 'approved' | 'rejected', event: M
 async function onDecided() {
   showDecisionDialog.value = false
   decisionData.value = null
-  await refresh()
+  window.dispatchEvent(new Event('approvals:changed'))
 }
 
 function onCloseDialog() {
@@ -89,11 +89,13 @@ onMounted(() => {
   if (props.workspaceId <= 0) return
   refresh()
   document.addEventListener('click', onDocClick)
+  window.addEventListener('approvals:changed', refresh)
   pollTimer = setInterval(refresh, 60000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
+  window.removeEventListener('approvals:changed', refresh)
   if (pollTimer) clearInterval(pollTimer)
 })
 </script>
