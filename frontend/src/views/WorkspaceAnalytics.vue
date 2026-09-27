@@ -20,7 +20,7 @@
           <option :value="0">{{ t('workspaceAnalytics.allProjects') }}</option>
           <option v-for="p in projectOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
         </select>
-        <button type="button" :class="btnClass" :disabled="loading" data-testid="wa-refresh" @click="load">{{ t('workspaceAnalytics.refresh') }}</button>
+        <button type="button" :class="btnClass" :disabled="loading" data-testid="wa-refresh" @click="refresh">{{ t('workspaceAnalytics.refresh') }}</button>
         <button type="button" :class="btnClass" :disabled="!data || data.projects.length === 0" data-testid="wa-export" @click="exportCsv">{{ t('workspaceAnalytics.exportCsv') }}</button>
       </div>
     </div>
@@ -55,6 +55,8 @@
           </div>
           <div class="h-64"><canvas ref="trendCanvas" data-testid="wa-trend" /></div>
         </div>
+
+        <DeliveryLoopPanel :slug="slug" :days="days" :project-id="projectId" :refresh-key="refreshKey" />
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div v-for="dist in distributions" :key="dist.key" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4" :data-testid="`wa-dist-${dist.key}`">
@@ -152,6 +154,7 @@ import {
 } from 'chart.js'
 import { useI18n } from '@/composables/useI18n'
 import { getWorkspaceAnalytics, type WorkspaceAnalytics, type WorkspaceAnalyticsProject } from '@/api/workspace-analytics'
+import DeliveryLoopPanel from '@/components/DeliveryLoopPanel.vue'
 
 Chart.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, BarController, LineController, Filler, Tooltip, Legend)
 
@@ -170,6 +173,12 @@ const projectOptions = ref<{ id: number; name: string }[]>([])
 const trendCanvas = ref<HTMLCanvasElement | null>(null)
 let trendChart: Chart | null = null
 let requestSeq = 0
+const refreshKey = ref(0)
+
+function refresh() {
+  refreshKey.value++
+  load()
+}
 
 const STATE_COLORS: Record<string, string> = {
   backlog: '#9ca3af', unstarted: '#60a5fa', started: '#f59e0b', completed: '#22c55e', cancelled: '#ef4444',

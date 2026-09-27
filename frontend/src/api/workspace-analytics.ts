@@ -49,6 +49,52 @@ export interface WorkspaceAnalytics {
   generated_at: string
 }
 
+export type LoopStageKey = 'triage' | 'queue' | 'develop' | 'release'
+
+export interface LoopDuration {
+  key: string
+  samples: number
+  median_hours: number | null
+  p85_hours: number | null
+  avg_hours: number | null
+}
+
+export interface LoopStage extends LoopDuration {
+  key: LoopStageKey
+  wip: number
+  wip_median_hours: number | null
+}
+
+export interface DeliveryLoop {
+  days: number
+  summary: {
+    received: number
+    from_intake: number
+    accepted: number
+    rejected: number
+    done: number
+    shipped: number
+    ship_rate: number
+    spec_coverage: number | null
+  }
+  funnel: { key: 'received' | 'accepted' | 'started' | 'pr_linked' | 'done' | 'shipped'; count: number; rate: number; step_rate: number }[]
+  stages: LoopStage[]
+  bottleneck: LoopStageKey | ''
+  pr_review: LoopDuration
+  lead_to_done: LoopDuration
+  lead_to_ship: LoopDuration
+  stalled: { issue_id: number; project_id: number; key: string; name: string; stage: LoopStageKey; since: string; age_hours: number }[]
+  generated_at: string
+}
+
+export async function getDeliveryLoop(
+  wsParam: string,
+  params: { days: number; project_id?: number },
+): Promise<DeliveryLoop> {
+  const response = await api.get(`/workspaces/${wsParam}/analytics/loop`, { params })
+  return response.data
+}
+
 export async function getWorkspaceAnalytics(
   wsParam: string,
   params: { days: number; project_id?: number },

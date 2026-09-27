@@ -89,6 +89,12 @@ func (s *ReleaseService) Update(projectID, releaseID uint64, req *request.Releas
 	if req.Description != "" {
 		release.Description = req.Description
 	}
+	// Shipping without an explicit date stamps the release with the moment it went
+	// out, so a stale planned date does not become the recorded release time.
+	if req.Status == "released" && release.Status != "released" && req.ReleaseDate == nil {
+		now := time.Now()
+		release.ReleaseDate = &now
+	}
 	if req.Status != "" {
 		release.Status = req.Status
 	}

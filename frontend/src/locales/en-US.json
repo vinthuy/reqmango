@@ -455,6 +455,70 @@
     "retry": "Retry",
     "empty": "No work items for the current filter",
     "generatedAt": "Generated at {time}",
+    "loop": {
+      "title": "Request-to-release loop",
+      "subtitle": "Requests raised in the last {n} days: conversion and time spent from request, acceptance and development to merge and release",
+      "bottleneck": "Bottleneck: {stage}",
+      "loadFailed": "Failed to load loop metrics",
+      "empty": "No requests were raised in this range",
+      "funnelTitle": "Loop funnel",
+      "stepRateHint": "Conversion from the previous step (↳ is a side metric relative to Started)",
+      "stagesTitle": "Stage durations",
+      "wipHint": "Requests currently sitting in this stage",
+      "note": "Durations only count requests with recorded timestamps, so small samples are indicative. Development starts at the first move into an in-progress state; release time is the release date of the shipped version.",
+      "stalledTitle": "Waiting the longest",
+      "stalledEmpty": "Nothing is stalled",
+      "waiting": "waiting {d}",
+      "minutes": "{n} min",
+      "hours": "{n} h",
+      "funnel": {
+        "received": "Raised",
+        "accepted": "Accepted",
+        "started": "Started",
+        "pr_linked": "PR linked",
+        "done": "Done",
+        "shipped": "Released"
+      },
+      "stage": {
+        "triage": "Triage",
+        "queue": "Queue",
+        "develop": "Development",
+        "release": "Awaiting release"
+      },
+      "stageDesc": {
+        "triage": "Intake submitted → triage decision",
+        "queue": "Accepted → development started",
+        "develop": "Started → done",
+        "release": "Done → shipped in a release"
+      },
+      "extra": {
+        "pr_review": "PR review",
+        "lead_to_done": "Raised to done"
+      },
+      "extraDesc": {
+        "pr_review": "PR linked → merged",
+        "lead_to_done": "End to end, excluding release wait"
+      },
+      "col": {
+        "stage": "Stage",
+        "median": "Median",
+        "avg": "Average",
+        "samples": "Samples",
+        "wip": "WIP",
+        "wipAge": "WIP median wait"
+      },
+      "kpi": {
+        "received": "Requests raised",
+        "fromIntake": "{n} from intake · {r} rejected/duplicate",
+        "shipRate": "Release rate",
+        "shipped": "{n} of {total} accepted requests released",
+        "shipRateHint": "Requests shipped in a released version ÷ accepted requests",
+        "leadToShip": "Lead time (median)",
+        "leadHint": "From request to shipping in a release",
+        "specCoverage": "Spec coverage",
+        "specHint": "Share of accepted requests with an AI spec document"
+      }
+    },
     "kpi": {
       "total": "Total work items",
       "open": "Open",

@@ -455,6 +455,70 @@
     "retry": "重试",
     "empty": "当前筛选下暂无工作项",
     "generatedAt": "数据生成于 {time}",
+    "loop": {
+      "title": "需求到上线闭环",
+      "subtitle": "统计近 {n} 天内提出的需求，从提出、受理、开发、合并到发布上线的转化与各阶段耗时",
+      "bottleneck": "瓶颈：{stage}",
+      "loadFailed": "加载闭环度量失败",
+      "empty": "当前范围内没有提出的需求",
+      "funnelTitle": "闭环漏斗",
+      "stepRateHint": "相对上一阶段的转化率（↳ 为旁路指标，相对「开发中」）",
+      "stagesTitle": "阶段耗时",
+      "wipHint": "当前停留在该阶段、尚未流转的需求数",
+      "note": "耗时按有时间记录的需求计算，样本数少时仅供参考；开始开发时间取自首次进入「进行中」类状态的记录，上线时间取自所属已发布版本的发布日期。",
+      "stalledTitle": "等待最久的需求",
+      "stalledEmpty": "没有滞留中的需求",
+      "waiting": "已等待 {d}",
+      "minutes": "{n} 分钟",
+      "hours": "{n} 小时",
+      "funnel": {
+        "received": "提出",
+        "accepted": "受理",
+        "started": "开始开发",
+        "pr_linked": "关联 PR",
+        "done": "完成",
+        "shipped": "发布上线"
+      },
+      "stage": {
+        "triage": "分诊",
+        "queue": "排队",
+        "develop": "开发",
+        "release": "待发布"
+      },
+      "stageDesc": {
+        "triage": "Intake 提交 → 分诊决定",
+        "queue": "受理 → 开始开发",
+        "develop": "开始开发 → 完成",
+        "release": "完成 → 随版本发布"
+      },
+      "extra": {
+        "pr_review": "PR 评审",
+        "lead_to_done": "提出到完成"
+      },
+      "extraDesc": {
+        "pr_review": "关联 PR → 合并",
+        "lead_to_done": "端到端，不含发布等待"
+      },
+      "col": {
+        "stage": "阶段",
+        "median": "中位",
+        "avg": "平均",
+        "samples": "样本",
+        "wip": "在制",
+        "wipAge": "在制中位等待"
+      },
+      "kpi": {
+        "received": "提出需求",
+        "fromIntake": "来自 Intake {n} · 拒绝/重复 {r}",
+        "shipRate": "上线率",
+        "shipped": "{n} / {total} 已受理需求已上线",
+        "shipRateHint": "已随已发布版本上线的需求 ÷ 已受理需求",
+        "leadToShip": "交付周期（中位）",
+        "leadHint": "从提出到随版本发布上线的时长",
+        "specCoverage": "规格覆盖率",
+        "specHint": "已受理需求中带有 AI 规格文档的比例"
+      }
+    },
     "kpi": {
       "total": "工作项总数",
       "open": "未完成",
