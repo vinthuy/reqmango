@@ -50,6 +50,17 @@
       <span>{{ t('ai.saveAsPage') || 'Save as Page' }}</span>
     </button>
 
+    <!-- Insert as Comment — on text + tool_result when an issue is in context -->
+    <button
+      v-if="showInsertComment"
+      data-test="insert-comment"
+      @click="$emit('insert-comment', content)"
+      class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-teal-50 text-teal-600 hover:bg-teal-100 transition-colors"
+    >
+      <span>💬</span>
+      <span>{{ t('ai.insertComment') || 'Insert as Comment' }}</span>
+    </button>
+
     <!-- Batch Create Subtasks — on search results -->
     <button
       v-if="showBatchCreate"
@@ -79,14 +90,18 @@ const props = withDefaults(defineProps<{
   chartConfig?: any
   content?: string
   toolResult?: { toolName?: string; rows?: any[] }
+  /** Active work-item context; enables "insert as comment" on text results. */
+  issueId?: number | null
 }>(), {
   messageType: 'text',
+  issueId: null,
 })
 
 const emit = defineEmits<{
   'create-issue': [suggestion: Record<string, any>]
   'save-as-page': [content: string | undefined]
   'saved-to-dashboard': [dashboardId: number]
+  'insert-comment': [content: string | undefined]
 }>()
 
 // Show logic
@@ -98,6 +113,9 @@ const showSaveToDashboard = computed(() =>
 )
 const showSaveAsPage = computed(() =>
   ['text', 'tool_result'].includes(props.messageType) && !!props.content
+)
+const showInsertComment = computed(() =>
+  ['text', 'tool_result'].includes(props.messageType) && !!props.content && !!props.issueId
 )
 const showBatchCreate = computed(() =>
   props.messageType === 'tool_result' &&

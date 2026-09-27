@@ -137,6 +137,75 @@ describe('AIResultActions', () => {
     })
   })
 
+  describe('showInsertComment button', () => {
+    it('should show for text with content and an issue context', () => {
+      const wrapper = mount(AIResultActions, {
+        props: {
+          messageType: 'text',
+          projectId: 1,
+          workspaceId: 1,
+          issueId: 42,
+          content: 'AI analysis text',
+        },
+      })
+      expect(wrapper.text()).toContain('ai.insertComment')
+    })
+
+    it('should show for tool_result with content and an issue context', () => {
+      const wrapper = mount(AIResultActions, {
+        props: {
+          messageType: 'tool_result',
+          projectId: 1,
+          workspaceId: 1,
+          issueId: 42,
+          content: 'Result summary',
+          toolResult: { toolName: 'analyze', rows: [] },
+        },
+      })
+      expect(wrapper.text()).toContain('ai.insertComment')
+    })
+
+    it('should hide when no issue is in context', () => {
+      const wrapper = mount(AIResultActions, {
+        props: {
+          messageType: 'text',
+          projectId: 1,
+          workspaceId: 1,
+          issueId: null,
+          content: 'AI analysis text',
+        },
+      })
+      expect(wrapper.text()).not.toContain('ai.insertComment')
+    })
+
+    it('should hide when content is empty', () => {
+      const wrapper = mount(AIResultActions, {
+        props: {
+          messageType: 'text',
+          projectId: 1,
+          workspaceId: 1,
+          issueId: 42,
+          content: '',
+        },
+      })
+      expect(wrapper.text()).not.toContain('ai.insertComment')
+    })
+
+    it('should hide for chart results even with an issue context', () => {
+      const wrapper = mount(AIResultActions, {
+        props: {
+          messageType: 'chart',
+          projectId: 1,
+          workspaceId: 1,
+          issueId: 42,
+          content: 'A chart',
+          chartConfig: { chart_type: 'bar' },
+        },
+      })
+      expect(wrapper.text()).not.toContain('ai.insertComment')
+    })
+  })
+
   describe('showBatchCreate button', () => {
     it('should show for search_issues tool result with rows', () => {
       const wrapper = mount(AIResultActions, {
@@ -222,6 +291,26 @@ describe('AIResultActions', () => {
         await saveBtn.trigger('click')
         expect(wrapper.emitted('save-as-page')).toBeTruthy()
         expect(wrapper.emitted('save-as-page')?.[0]?.[0]).toBe('Page content')
+      }
+    })
+
+    it('should emit insert-comment with the content on insert as comment click', async () => {
+      const wrapper = mount(AIResultActions, {
+        props: {
+          messageType: 'text',
+          projectId: 1,
+          workspaceId: 1,
+          issueId: 42,
+          content: 'AI analysis text',
+        },
+      })
+      const buttons = wrapper.findAll('button')
+      const insertBtn = buttons.find(b => b.text().includes('ai.insertComment'))
+      expect(insertBtn).toBeTruthy()
+      if (insertBtn) {
+        await insertBtn.trigger('click')
+        expect(wrapper.emitted('insert-comment')).toBeTruthy()
+        expect(wrapper.emitted('insert-comment')?.[0]?.[0]).toBe('AI analysis text')
       }
     })
 

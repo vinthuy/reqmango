@@ -303,9 +303,11 @@
                 message-type="tool_result"
                 :project-id="projectId"
                 :workspace-id="workspaceId"
+                :issue-id="activeIssueId"
                 :content="summarizeThinking(msg.toolResults)"
                 :tool-result="msg.toolResults?.[0]"
                 @create-issue="handleAICreateIssue"
+                @insert-comment="insertAsComment"
                 @save-as-page="(content: string | undefined) => emit('saveAsPage', { title: t('ai.aiReport') || 'AI Report', content: content || '' })"
               />
             </div>
@@ -321,6 +323,7 @@
                 message-type="chart"
                 :project-id="projectId"
                 :workspace-id="workspaceId"
+                :issue-id="activeIssueId"
                 :chart-config="msg.chartConfig"
                 :content="msg.content"
                 @create-issue="handleAICreateIssue"
@@ -334,8 +337,10 @@
               message-type="text"
               :project-id="projectId"
               :workspace-id="workspaceId"
+              :issue-id="activeIssueId"
               :content="msg.content"
               @create-issue="handleAICreateIssue"
+              @insert-comment="insertAsComment"
               @save-as-page="(content: string | undefined) => emit('saveAsPage', { title: t('ai.aiReport') || 'AI Report', content: content || '' })"
             />
           </div>
@@ -405,6 +410,7 @@ import { useAI } from '@/composables/useAI'
 import { renderMarkdown } from '@/composables/useMarkdown'
 import { generateChart, createPreviewWithAI } from '@/api/ai'
 import { agentApi } from '@/api/agent'
+import commentApi from '@/api/comment'
 import issueApi from '@/api/issue'
 import type { DuplicateIssueItem } from '@/api/issue'
 import * as issueTypeApi from '@/api/issue-type'
@@ -414,6 +420,7 @@ import type { Agent } from '@/types/agent'
 import type { MemoryEntry } from '@/api/memory'
 import AIChartRenderer from '@/components/AIChartRenderer.vue'
 import AIResultActions from '@/components/AIResultActions.vue'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{
   visible: boolean
@@ -437,6 +444,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const toast = useToast()
 const { messages, isStreaming, error, sendMessage, cancel, clear } = useAI()
 
 type CopilotMode = 'ask' | 'build'
@@ -922,6 +930,18 @@ function handleAICreateIssue(suggestion: Record<string, any>) {
   nextTick(() => {
     createInput.value = suggestion.description || suggestion.name || ''
   })
+}
+
+/** Persist an AI response onto the work item the Copilot is scoped to. */
+async function insertAsComment(content: string | undefined) {
+  const issueId = activeIssueId.value
+  if (!issueId || !content?.trim()) return
+  try {
+    await commentApi.createComment({ issue_id: issueId, body: content })
+    toast.success(t('ai.commentInserted'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || t('ai.commentInsertFailed'))
+  }
 }
 
 watch(() => props.workspaceId, (newId) => {
