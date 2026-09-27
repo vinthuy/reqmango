@@ -233,13 +233,20 @@ func (c *Client) ResolveIssueCode(ctx context.Context, workspaceID uint64, code 
 		return 0, fmt.Errorf("project with identifier %q not found", identifier)
 	}
 
-	res, err := c.ListIssues(ctx, IssueListOptions{ProjectID: projectID, Search: seqStr, Limit: 100})
-	if err != nil {
-		return 0, err
-	}
-	for _, it := range res.Items {
-		if it.SequenceID == seq {
-			return it.ID, nil
+	// Text search only matches titles/descriptions, so look the sequence up
+	// via RQL first and fall back to search for backends without RQL.
+	for _, opts := range []IssueListOptions{
+		{ProjectID: projectID, RQL: fmt.Sprintf("sequence_id = %d", seq), Limit: 5},
+		{ProjectID: projectID, Search: seqStr, Limit: 100},
+	} {
+		res, err := c.ListIssues(ctx, opts)
+		if err != nil {
+			continue
+		}
+		for _, it := range res.Items {
+			if it.SequenceID == seq {
+				return it.ID, nil
+			}
 		}
 	}
 	return 0, fmt.Errorf("issue %s not found", code)
@@ -268,6 +275,17 @@ func (c *Client) AddComment(ctx context.Context, issueID uint64, body string, pa
 		return nil, err
 	}
 	return &out, nil
+}
+
+// LinkPullRequest links a pull-request URL to an issue
+// (POST /workspaces/:ws/issues/:id/git-links).
+func (c *Client) LinkPullRequest(ctx context.Context, workspaceID, issueID uint64, prURL, title string) (map[string]any, error) {
+	var out map[string]any
+	path := fmt.Sprintf("/workspaces/%d/issues/%d/git-links", workspaceID, issueID)
+	if _, err := c.PostJSON(ctx, path, nil, map[string]any{"url": prURL, "title": title}, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // ListComments lists comments (GET /comments/issue/:id → {comments,total,...}).

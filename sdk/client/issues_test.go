@@ -63,7 +63,7 @@ func TestResolveIssueCode(t *testing.T) {
 		case r.URL.Path == "/api/v1/projects":
 			json.NewEncoder(w).Encode([]map[string]any{{"id": 5, "identifier": "DEMO", "workspace_id": 2}})
 		case r.URL.Path == "/api/v1/issues":
-			if r.URL.Query().Get("project_id") != "5" || r.URL.Query().Get("search") != "42" {
+			if r.URL.Query().Get("project_id") != "5" || r.URL.Query().Get("rql") != "sequence_id = 42" {
 				t.Errorf("unexpected issue query %s", r.URL.RawQuery)
 			}
 			step++

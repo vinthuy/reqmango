@@ -513,6 +513,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PUT("/:wsParam/git-integration", gitIntegrationH.UpdateIntegration)
 			workspaces.DELETE("/:wsParam/git-integration", gitIntegrationH.DeleteIntegration)
 			workspaces.GET("/:wsParam/issues/:issueId/git-links", gitIntegrationH.GetIssueGitLinks)
+			workspaces.POST("/:wsParam/issues/:issueId/git-links", gitIntegrationH.LinkPullRequest)
 
 			// Slack integration
 			workspaces.GET("/:wsParam/slack", slackH.List)

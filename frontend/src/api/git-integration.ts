@@ -76,3 +76,13 @@ export async function getIssueGitLinks(
   const response = await api.get(`/workspaces/${workspaceId}/issues/${issueId}/git-links`)
   return response.data
 }
+
+export async function linkPullRequest(
+  workspaceId: number,
+  issueId: number,
+  url: string,
+  title?: string
+): Promise<GitIssueLink> {
+  const response = await api.post(`/workspaces/${workspaceId}/issues/${issueId}/git-links`, { url, title })
+  return response.data
+}

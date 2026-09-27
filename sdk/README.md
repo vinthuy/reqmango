@@ -5,7 +5,7 @@ reqmango 的 MCP server、CLI 和多语言 SDK，共享同一个 API 客户端�
 ```
 sdk/
   client/       ← Go 共享 API 客户端（仅标准库）+ 全部 DTO + 错误映射
-  mcp/          ← MCP server（mark3labs/mcp-go）：27 个工具
+  mcp/          ← MCP server（mark3labs/mcp-go）：28 个工具
   cli/          ← reqmango CLI（cobra）
   python/       ← Python SDK（httpx）
   node/         ← Node.js SDK（原生 fetch，零依赖）
@@ -155,9 +155,9 @@ reqmango-mcp --http :8080
 
 ⚠️ 安全：HTTP 模式每个请求都在明文携带全权限 PAT。生产/远程部署必须在前面架 TLS 终结反向代理（如 Nginx），或将地址绑定到回环（127.0.0.1）仅本机使用。绑定非回环地址时二进制会打印警告。
 
-## 工具清单（27 个）
+## 工具清单（28 个）
 
-**核心（22）**：`list_workspaces` `list_projects` `get_project` `create_issue` `list_issues` `get_issue` `update_issue` `search_issues` `add_comment` `list_comments` `list_cycles` `get_cycle` `get_cycle_progress` `get_cycle_burndown` `add_issue_to_cycle` `list_members` `get_states` `get_labels` `list_issue_types` `list_notifications` `list_pages` `get_page`
+**核心（23）**：`list_workspaces` `list_projects` `get_project` `create_issue` `list_issues` `get_issue` `update_issue` `search_issues` `add_comment` `link_pull_request` `list_comments` `list_cycles` `get_cycle` `get_cycle_progress` `get_cycle_burndown` `add_issue_to_cycle` `list_members` `get_states` `get_labels` `list_issue_types` `list_notifications` `list_pages` `get_page`
 
 **AI（5）**：`ai_search` `ai_chat` `list_agents` `dispatch_agent` `get_agent_task`
 

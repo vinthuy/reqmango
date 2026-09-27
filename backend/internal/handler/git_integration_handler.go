@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
+	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -169,4 +170,27 @@ func (h *GitIntegrationHandler) GetIssueGitLinks(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, links)
+}
+
+// LinkPullRequest handles POST /workspaces/:wsParam/issues/:issueId/git-links
+func (h *GitIntegrationHandler) LinkPullRequest(c *gin.Context) {
+	issueID, err := strconv.ParseUint(c.Param("issueId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue_id"})
+		return
+	}
+	var req struct {
+		URL   string `json:"url" binding:"required"`
+		Title string `json:"title"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "url is required"})
+		return
+	}
+	link, err := h.gitSvc.LinkPullRequest(issueID, middleware.GetCurrentUser(c), req.URL, req.Title)
+	if err != nil {
+		common.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, link)
 }

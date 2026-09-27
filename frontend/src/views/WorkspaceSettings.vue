@@ -11,6 +11,7 @@ import AutomationForm from '@/components/AutomationForm.vue';
 import AutomationList from '@/components/AutomationList.vue';
 import AutomationExecutionLog from '@/components/AutomationExecutionLog.vue';
 import WorkspaceIntegrations from '@/components/WorkspaceIntegrations.vue'
+import AIToolConnect from '@/components/AIToolConnect.vue'
 import RoleManagement from '@/components/RoleManagement.vue';
 import PluginManager from '@/views/PluginManager.vue';
 import WorkflowManager from '@/components/WorkflowManager.vue';
@@ -46,7 +47,7 @@ const activeSection = ref('members');
 
 const VALID_SECTIONS = new Set([
   'members', 'types', 'states', 'templates', 'ai', 'fields',
-  'workflows', 'automations', 'relations', 'integrations', 'roles', 'plugins',
+  'workflows', 'automations', 'relations', 'integrations', 'ai-tools', 'roles', 'plugins',
 ])
 
 function unwrapList(value: unknown): any[] {
@@ -102,6 +103,7 @@ const navItems = computed(() => [
   { id: 'automations', label: t('settings.automations'), icon: '⚡', count: automations.value.length },
   { id: 'relations', label: t('settings.relations'), icon: '🔗', count: relationTypes.value.length },
   { id: 'integrations', label: t('settings.integrations'), icon: '🔌', count: integrationCount.value },
+  { id: 'ai-tools', label: t('aiConnect.nav'), icon: '🤖', count: 0 },
   { id: 'roles', label: t('settings.roles'), icon: '🔑', count: roleCount.value },
   { id: 'plugins', label: t('settings.plugins'), icon: '🧩', count: pluginCount.value },
 ])
@@ -389,6 +391,10 @@ watch(() => route.query.section, (section) => {
       <!-- Integrations Section -->
       <div v-if="activeSection === 'integrations'" class="p-0">
         <WorkspaceIntegrations :workspace-id="workspaceId" :slug="slug" />
+      </div>
+
+      <div v-if="activeSection === 'ai-tools'" class="p-0">
+        <AIToolConnect :workspace-id="workspaceId" :projects="workspaceProjects" />
       </div>
 
       <!-- Roles & Permissions Section -->

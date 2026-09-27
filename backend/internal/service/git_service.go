@@ -74,20 +74,40 @@ func (s *GitService) DeleteIntegration(projectID uint64) error {
 	return result.Error
 }
 
-var issueKeyRegex = regexp.MustCompile(`([A-Z]+-\d+)`)
+var issueKeyRegex = regexp.MustCompile(`(?i)\b([a-z][a-z0-9]*-\d+)\b`)
 
-func (s *GitService) ParseIssueKey(commitMessage string) []string {
-	return issueKeyRegex.FindAllString(commitMessage, -1)
+// ParseIssueKey returns the distinct upper-cased issue keys found in text
+// (titles, branch names such as feature/mobile-12-login, PR bodies).
+func (s *GitService) ParseIssueKey(text string) []string {
+	seen := map[string]bool{}
+	var keys []string
+	for _, k := range issueKeyRegex.FindAllString(text, -1) {
+		k = strings.ToUpper(k)
+		if !seen[k] {
+			seen[k] = true
+			keys = append(keys, k)
+		}
+	}
+	return keys
 }
 
-var smartCommitRegex = regexp.MustCompile(`(fixes|closes|resolve|ref)\s+([A-Z]+-\d+)`)
+var smartCommitRegex = regexp.MustCompile(`(?i)\b(fix(?:es|ed)?|close[sd]?|resolve[sd]?|ref)\s+([a-z][a-z0-9]*-\d+)\b`)
 
 func (s *GitService) ParseSmartCommit(commitMessage string) []map[string]string {
-	matches := smartCommitRegex.FindAllStringSubmatch(strings.ToLower(commitMessage), -1)
+	matches := smartCommitRegex.FindAllStringSubmatch(commitMessage, -1)
 	result := make([]map[string]string, 0, len(matches))
 	for _, match := range matches {
+		action := strings.ToLower(match[1])
+		switch {
+		case strings.HasPrefix(action, "fix"):
+			action = "fixes"
+		case strings.HasPrefix(action, "close"):
+			action = "closes"
+		case strings.HasPrefix(action, "resolve"):
+			action = "resolves"
+		}
 		result = append(result, map[string]string{
-			"action": strings.ToLower(match[1]),
+			"action": action,
 			"key":    strings.ToUpper(match[2]),
 		})
 	}
@@ -140,23 +160,31 @@ func (s *GitService) HandlePushEvent(projectID uint64, commits []map[string]inte
 	for _, commit := range commits {
 		message := fmt.Sprintf("%v", commit["message"])
 		smartCommits := s.ParseSmartCommit(message)
-
+		keys := make([]string, 0, len(smartCommits))
+		closing := map[string]bool{}
 		for _, sc := range smartCommits {
-			var issue model.Issue
-			if err := s.db.Where("sequence_id = ? AND project_id = ?", parseSequenceID(sc["key"]), projectID).First(&issue).Error; err != nil {
-				continue
+			keys = append(keys, sc["key"])
+			if sc["action"] != "ref" {
+				closing[sc["key"]] = true
 			}
+		}
+		issues, matched := s.resolveProjectIssues(projectID, keys)
 
-			commitURL := fmt.Sprintf("%v", commit["url"])
-			author := ""
-			if authorMap, ok := commit["author"].(map[string]interface{}); ok {
-				author = fmt.Sprintf("%v", authorMap["name"])
-			}
+		commitURL := fmt.Sprintf("%v", commit["url"])
+		author := ""
+		if authorMap, ok := commit["author"].(map[string]interface{}); ok {
+			author = fmt.Sprintf("%v", authorMap["name"])
+		}
+		firstLine := strings.SplitN(message, "\n", 2)[0]
 
+		for i := range issues {
+			issue := &issues[i]
 			_ = s.LinkIssueToGit(issue.ID, "commit", commitURL, commitURL, message, "pushed", author, "", integration.ID)
-
-			if sc["action"] == "fixes" || sc["action"] == "closes" {
-				s.db.Model(&issue).Update("state_id", s.getCompletedStateID(projectID))
+			if closing[matched[i]] {
+				_ = s.db.Transaction(func(tx *gorm.DB) error {
+					_, err := s.completeIssue(tx, issue, "Commit: "+firstLine)
+					return err
+				})
 			}
 		}
 	}
@@ -164,64 +192,112 @@ func (s *GitService) HandlePushEvent(projectID uint64, commits []map[string]inte
 	return nil
 }
 
-func (s *GitService) HandlePullRequestEvent(projectID uint64, pr map[string]interface{}) error {
+// HandlePullRequestEvent links a PR to every issue referenced in its title,
+// head branch or body, and completes those issues when the PR is merged.
+func (s *GitService) HandlePullRequestEvent(projectID uint64, pr map[string]interface{}, pctx PRContext) ([]PRLinkResult, error) {
 	integration, err := s.GetIntegration(projectID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if !integration.SyncPRs {
-		return nil
+	if !integration.Active || !integration.SyncPRs {
+		return nil, nil
 	}
 
-	prID := fmt.Sprintf("%v", pr["id"])
-	prURL := fmt.Sprintf("%v", pr["html_url"])
-	prTitle := fmt.Sprintf("%v", pr["title"])
-	prState := fmt.Sprintf("%v", pr["state"])
+	str := func(v interface{}) string {
+		if v == nil {
+			return ""
+		}
+		return fmt.Sprintf("%v", v)
+	}
+	prID := str(pr["id"])
+	prURL := str(pr["html_url"])
+	prTitle := str(pr["title"])
+	prState := str(pr["state"])
+	merged := pr["merged"] == true
+	if merged {
+		prState = "merged"
+	}
+	number := pctx.Number
+	if number == 0 {
+		if n, ok := pr["number"].(float64); ok {
+			number = int(n)
+		}
+	}
 
 	prAuthor := ""
 	if userMap, ok := pr["user"].(map[string]interface{}); ok {
-		prAuthor = fmt.Sprintf("%v", userMap["login"])
+		prAuthor = str(userMap["login"])
 	}
 
 	prBranch := ""
 	if headMap, ok := pr["head"].(map[string]interface{}); ok {
-		prBranch = fmt.Sprintf("%v", headMap["ref"])
+		prBranch = str(headMap["ref"])
 	}
 
-	title := fmt.Sprintf("%v", pr["title"])
-	issueKeys := s.ParseIssueKey(title)
+	keys := s.ParseIssueKey(prTitle + "\n" + prBranch + "\n" + str(pr["body"]))
+	issues, matched := s.resolveProjectIssues(projectID, keys)
+	repo := repoFullName(integration, pctx.Repo)
+	label := prTitle
+	if number > 0 {
+		label = fmt.Sprintf("PR #%d: %s", number, prTitle)
+	}
 
-	for _, key := range issueKeys {
-		var issue model.Issue
-		if err := s.db.Where("sequence_id = ? AND project_id = ?", parseSequenceID(key), projectID).First(&issue).Error; err != nil {
-			continue
+	var results []PRLinkResult
+	var linkedRefs, completedRefs []string
+	for i := range issues {
+		issue := &issues[i]
+		var existing model.GitIssueLink
+		isNew := s.db.Where("issue_id = ? AND git_type = ? AND git_id = ?", issue.ID, "pull_request", prID).First(&existing).Error != nil
+		wasMerged := !isNew && existing.GitState == "merged"
+
+		res := PRLinkResult{IssueID: issue.ID, Key: matched[i], NewLink: isNew}
+		err := s.db.Transaction(func(tx *gorm.DB) error {
+			if isNew {
+				if err := tx.Create(&model.GitIssueLink{IssueID: issue.ID, GitType: "pull_request", GitID: prID, GitURL: prURL, GitTitle: prTitle, GitState: prState, GitAuthor: prAuthor, GitBranch: prBranch, IntegrationID: integration.ID}).Error; err != nil {
+					return err
+				}
+				if err := gitActivity(tx, issue.ID, "git_linked", prURL, label, nil); err != nil {
+					return err
+				}
+			} else if err := tx.Model(&existing).Updates(map[string]interface{}{"git_url": prURL, "git_title": prTitle, "git_state": prState, "git_author": prAuthor, "git_branch": prBranch}).Error; err != nil {
+				return err
+			}
+			if merged && !wasMerged {
+				if err := gitActivity(tx, issue.ID, "git_merged", prURL, label, nil); err != nil {
+					return err
+				}
+				done, err := s.completeIssue(tx, issue, "Merged "+label)
+				if err != nil {
+					return err
+				}
+				res.Completed = done
+			}
+			return nil
+		})
+		if err != nil {
+			return results, common.Internal("Failed to record pull request")
 		}
-
-		_ = s.LinkIssueToGit(issue.ID, "pull_request", prID, prURL, prTitle, prState, prAuthor, prBranch, integration.ID)
-
-		if prState == "closed" && pr["merged"] == true {
-			s.db.Model(&issue).Update("state_id", s.getCompletedStateID(projectID))
+		results = append(results, res)
+		if isNew {
+			linkedRefs = append(linkedRefs, s.issueRef(issue, matched[i]))
+		}
+		if res.Completed {
+			completedRefs = append(completedRefs, s.issueRef(issue, matched[i]))
 		}
 	}
 
-	return nil
-}
-
-func parseSequenceID(key string) uint64 {
-	parts := strings.Split(key, "-")
-	if len(parts) != 2 {
-		return 0
+	var parts []string
+	if len(linkedRefs) > 0 {
+		parts = append(parts, "🔗 Linked to ReqMango: "+strings.Join(linkedRefs, ", "))
 	}
-	var seqID uint64
-	_, _ = fmt.Sscanf(parts[1], "%d", &seqID)
-	return seqID
-}
+	if len(completedRefs) > 0 {
+		parts = append(parts, "✅ Merged — marked as done in ReqMango: "+strings.Join(completedRefs, ", "))
+	}
+	if len(parts) > 0 {
+		body := strings.Join(parts, "\n\n")
+		go postPRComment(integration, repo, number, body)
+	}
 
-func (s *GitService) getCompletedStateID(projectID uint64) uint64 {
-	var state model.State
-	s.db.Joins("JOIN workflows ON workflows.id = states.workflow_id").
-		Where("workflows.project_id = ? AND states.group = ?", projectID, common.StateGroupCompleted).
-		First(&state)
-	return state.ID
+	return results, nil
 }

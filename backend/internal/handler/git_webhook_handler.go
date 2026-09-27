@@ -96,12 +96,22 @@ func (h *GitWebhookHandler) handleGitHubPR(c *gin.Context, projectID uint64, bod
 		return
 	}
 
-	if err := h.gitSvc.HandlePullRequestEvent(projectID, pr); err != nil {
+	pctx := service.PRContext{}
+	pctx.Action, _ = payload["action"].(string)
+	if n, ok := payload["number"].(float64); ok {
+		pctx.Number = int(n)
+	}
+	if repo, ok := payload["repository"].(map[string]interface{}); ok {
+		pctx.Repo, _ = repo["full_name"].(string)
+	}
+
+	results, err := h.gitSvc.HandlePullRequestEvent(projectID, pr, pctx)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to handle PR event"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "PR event handled"})
+	c.JSON(http.StatusOK, gin.H{"message": "PR event handled", "issues": results})
 }
 
 func (h *GitWebhookHandler) handleGitHubIssue(c *gin.Context, projectID uint64, body []byte) {

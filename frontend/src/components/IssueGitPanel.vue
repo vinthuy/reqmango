@@ -2,7 +2,38 @@
   <div class="issue-git-panel">
     <div class="flex items-center justify-between mb-4">
       <h4 class="text-sm font-medium text-gray-700">{{ t('gitIntegration.title') }}</h4>
+      <button
+        v-if="!showLinkForm"
+        data-testid="git-link-open"
+        class="text-xs text-indigo-600 hover:text-indigo-700"
+        @click="showLinkForm = true"
+      >+ {{ t('gitIntegration.linkPR') }}</button>
     </div>
+
+    <form v-if="showLinkForm" class="mb-4 space-y-2 bg-gray-50 border border-gray-200 rounded-lg p-3" data-testid="git-link-form" @submit.prevent="submitLink">
+      <input
+        v-model="linkUrl"
+        data-testid="git-link-url"
+        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+        placeholder="https://github.com/owner/repo/pull/123"
+      />
+      <input
+        v-model="linkTitle"
+        data-testid="git-link-title"
+        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+        :placeholder="t('gitIntegration.prTitleOptional')"
+      />
+      <p v-if="linkError" class="text-xs text-red-600" data-testid="git-link-error">{{ linkError }}</p>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="px-3 py-1.5 text-xs text-gray-600" @click="showLinkForm = false">{{ t('common.cancel') }}</button>
+        <button
+          type="submit"
+          data-testid="git-link-submit"
+          :disabled="linking || !linkUrl.trim()"
+          class="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg disabled:opacity-50"
+        >{{ t('gitIntegration.link') }}</button>
+      </div>
+    </form>
 
     <div v-if="loading" class="flex items-center justify-center py-8">
       <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
@@ -37,8 +68,8 @@
               </span>
             </div>
             <div class="flex items-center gap-4 mt-2 text-xs text-gray-400">
-              <span>{{ t('gitIntegration.author') }}: {{ link.git_author }}</span>
-              <span>{{ t('gitIntegration.branch') }}: {{ link.git_branch }}</span>
+              <span v-if="link.git_author">{{ t('gitIntegration.author') }}: {{ link.git_author }}</span>
+              <span v-if="link.git_branch">{{ t('gitIntegration.branch') }}: {{ link.git_branch }}</span>
             </div>
           </div>
         </div>
@@ -83,7 +114,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import { getIssueGitLinks, type GitIssueLink } from '@/api/git-integration'
+import { getIssueGitLinks, linkPullRequest, type GitIssueLink } from '@/api/git-integration'
 
 const props = defineProps<{
   workspaceId: number
@@ -94,6 +125,27 @@ const { t } = useI18n()
 
 const links = ref<GitIssueLink[]>([])
 const loading = ref(false)
+const showLinkForm = ref(false)
+const linkUrl = ref('')
+const linkTitle = ref('')
+const linking = ref(false)
+const linkError = ref('')
+
+async function submitLink() {
+  linkError.value = ''
+  linking.value = true
+  try {
+    await linkPullRequest(props.workspaceId, props.issueId, linkUrl.value.trim(), linkTitle.value.trim() || undefined)
+    linkUrl.value = ''
+    linkTitle.value = ''
+    showLinkForm.value = false
+    await loadLinks()
+  } catch (e: any) {
+    linkError.value = e?.response?.data?.message || t('gitIntegration.linkFailed')
+  } finally {
+    linking.value = false
+  }
+}
 
 const pullRequests = computed(() => links.value.filter(link => link.git_type === 'pull_request'))
 const commits = computed(() => links.value.filter(link => link.git_type === 'commit'))

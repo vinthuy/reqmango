@@ -411,6 +411,33 @@ func registerCoreTools(s *server.MCPServer, cli *client.Client) {
 			return toolResultJSON(out), nil
 		})
 
+	s.AddTool(mcp.NewTool("link_pull_request",
+		mcp.WithDescription("Link a pull request URL to an issue so it shows up in the issue's Git tab. Call this after opening a PR for the issue."),
+		mcp.WithString("issue", mcp.Required(), mcp.Description("Numeric issue ID or code like DEMO-42")),
+		mcp.WithInteger("workspace_id", mcp.Required(), mcp.Description("Workspace ID")),
+		mcp.WithString("url", mcp.Required(), mcp.Description("Pull request URL, e.g. https://github.com/owner/repo/pull/123")),
+		mcp.WithString("title", mcp.Description("Pull request title"))),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			var a struct {
+				Issue       string `json:"issue"`
+				WorkspaceID int64  `json:"workspace_id"`
+				URL         string `json:"url"`
+				Title       string `json:"title"`
+			}
+			if err := decodeArgs(req, &a); err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			id, err := resolveIssueArg(ctx, cli, a.WorkspaceID, a.Issue)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			out, err := cli.LinkPullRequest(ctx, uint64(a.WorkspaceID), id, a.URL, a.Title)
+			if err != nil {
+				return toolAPIError(err), nil
+			}
+			return toolResultJSON(out), nil
+		})
+
 	s.AddTool(mcp.NewTool("list_comments",
 		mcp.WithDescription("List comments on an issue"),
 		mcp.WithInteger("issue_id", mcp.Required(), mcp.Description("Issue ID")),

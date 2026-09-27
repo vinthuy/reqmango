@@ -54,7 +54,7 @@
               <div class="flex items-baseline gap-2 flex-wrap">
                 <!-- Actor name -->
                 <span class="text-sm font-medium text-gray-800">
-                  {{ activity.actor_display_name || t('issue.unknownUser') }}
+                  {{ activity.actor_display_name || (isGitSystemActivity(activity) ? 'GitHub' : t('issue.unknownUser')) }}
                 </span>
 
                 <!-- Activity message -->
@@ -76,8 +76,17 @@
                 <span class="px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium">{{ activity.new_value || '—' }}</span>
               </div>
 
+              <a
+                v-if="isGitActivity(activity) && safeHttpUrl(activity.new_value)"
+                :href="safeHttpUrl(activity.new_value)"
+                target="_blank"
+                rel="noopener"
+                data-testid="activity-git-link"
+                class="mt-1.5 block text-sm text-indigo-600 hover:text-indigo-700 bg-white border border-gray-200 rounded-lg p-2.5 truncate"
+              >{{ activity.comment || activity.new_value }}</a>
+
               <!-- Comment content -->
-              <div v-if="activity.comment" class="mt-1.5 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg p-2.5">
+              <div v-else-if="activity.comment" class="mt-1.5 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg p-2.5">
                 {{ activity.comment }}
               </div>
             </div>
@@ -157,7 +166,7 @@ function getActorColor(id: number): string {
 }
 
 function getActorInitial(activity: Activity): string {
-  const name = activity.actor_display_name || ''
+  const name = activity.actor_display_name || (isGitSystemActivity(activity) ? 'GitHub' : '')
   return name.charAt(0).toUpperCase() || '?'
 }
 
@@ -168,6 +177,8 @@ function getActivityColor(activity: Activity): string {
   if (activity.verb === 'approval_rejected') return '#ef4444'
   if (activity.verb === 'approval_cancelled') return '#94a3b8'
   if (activity.verb === 'created') return '#10b981'
+  if (activity.verb === 'git_linked') return '#0ea5e9'
+  if (activity.verb === 'git_merged') return '#a855f7'
   if (activity.verb === 'moved' || activity.verb === 'converted' || activity.verb === 'merged') return '#06b6d4'
   if (activity.verb === 'relation_added') return '#6366f1'
   if (activity.verb === 'relation_removed') return '#ef4444'
@@ -223,6 +234,8 @@ function getActivityMessage(activity: Activity): string {
     case 'approval_approved': return t('activity.approvalApproved')
     case 'approval_rejected': return t('activity.approvalRejected')
     case 'approval_cancelled': return t('activity.approvalCancelled')
+    case 'git_linked': return t('activity.gitLinked')
+    case 'git_merged': return t('activity.gitMerged')
     default: return t('activity.updated')
   }
 }
@@ -248,8 +261,22 @@ function getFieldMessage(activity: Activity): string {
   }
 }
 
+function isGitActivity(activity: Activity): boolean {
+  return activity.verb === 'git_linked' || activity.verb === 'git_merged'
+}
+
+// Webhook-driven entries have no actor; state changes they cause carry a "Merged …"/"Commit: …" note.
+function isGitSystemActivity(activity: Activity): boolean {
+  if (activity.actor_id) return false
+  return isGitActivity(activity) || /^(Merged |Commit: )/.test(activity.comment || '')
+}
+
+function safeHttpUrl(v?: string | null): string | undefined {
+  return v && /^https?:\/\//i.test(v) ? v : undefined
+}
+
 function shouldShowDiff(activity: Activity): boolean {
-  return !!(activity.old_value || activity.new_value) &&
+  return !isGitActivity(activity) && !!(activity.old_value || activity.new_value) &&
     activity.field !== 'description' &&
     activity.field !== 'comment'
 }
