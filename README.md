@@ -82,7 +82,7 @@ EOF
 go run ./cmd/server/
 ```
 
-Seed data includes `demo@example.com` / `demo1234`, workspace `demo`, project `DEMO`, sample sprints / modules / issues.
+Seed data includes `demo@example.com` / `demo1234`, workspace `reqmango-dev` (projects `CORE` / `MOBILE` / `AI` / `OPENAPI`), sample sprints / modules / issues.
 
 ```bash
 # Frontend (API on :8000)

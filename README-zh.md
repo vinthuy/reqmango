@@ -83,7 +83,7 @@ EOF
 go run ./cmd/server/
 ```
 
-种子数据含 `demo@example.com` / `demo1234`、工作区 `demo`、项目 `DEMO`，以及示例 Sprint / 模块 / 工作项。
+种子数据含 `demo@example.com` / `demo1234`、工作区 `reqmango-dev`（项目 `CORE` / `MOBILE` / `AI` / `OPENAPI`），以及示例 Sprint / 模块 / 工作项。
 
 ```bash
 # 前端（API 在 :8000）

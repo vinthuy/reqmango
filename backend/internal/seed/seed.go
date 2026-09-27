@@ -21,6 +21,7 @@ func SeedAll(db *gorm.DB) {
 	SeedRBACData(db)
 	SeedIssueTypesForAllWorkspaces(db)
 	SeedDemoData(db)
+	SeedDemoLoginUser(db)
 	SeedConfigData(db)
 	SeedRelationTypesForAllWorkspaces(db)
 	SeedReleasesForAllProjects(db)
@@ -2437,6 +2438,49 @@ var _ = json.Marshal
 // The fixtures are: workspace slug "qa-test", user qa_tester@reqmango.com
 // (password Test@12345), project identifier "QAT" (id 2347), and the default
 // state set that most specs expect.
+// SeedDemoLoginUser ensures the account advertised in README and promo posts
+// (demo@example.com / demo1234) exists and administers the demo workspaces.
+// Runs independently of SeedDemoData so already-seeded databases get it too.
+func SeedDemoLoginUser(db *gorm.DB) {
+	var user model.User
+	if db.Where("email = ?", "demo@example.com").First(&user).Error != nil {
+		hash, _ := bcrypt.GenerateFromPassword([]byte("demo1234"), bcrypt.DefaultCost)
+		user = model.User{
+			Email:        "demo@example.com",
+			Username:     "demo",
+			DisplayName:  "Demo",
+			PasswordHash: string(hash),
+			IsActive:     true,
+			IsSuperuser:  true,
+		}
+		if err := db.Create(&user).Error; err != nil {
+			fmt.Printf("  WARN: failed to create demo user: %v\n", err)
+			return
+		}
+	}
+
+	var workspaces []model.Workspace
+	db.Where("slug IN ?", []string{"reqmango-dev", "client-delivery", "infra"}).Find(&workspaces)
+	for _, ws := range workspaces {
+		var wsMember model.WorkspaceMember
+		if db.Where("workspace_id = ? AND user_id = ?", ws.ID, user.ID).First(&wsMember).Error != nil {
+			db.Create(&model.WorkspaceMember{
+				WorkspaceID: ws.ID, UserID: user.ID, Role: common.RoleAdmin, IsActive: true,
+			})
+		}
+		var projects []model.Project
+		db.Where("workspace_id = ?", ws.ID).Find(&projects)
+		for _, proj := range projects {
+			var projMember model.ProjectMember
+			if db.Where("project_id = ? AND user_id = ?", proj.ID, user.ID).First(&projMember).Error != nil {
+				db.Create(&model.ProjectMember{
+					ProjectID: proj.ID, UserID: user.ID, Role: common.RoleAdmin, IsActive: true,
+				})
+			}
+		}
+	}
+}
+
 func SeedE2EFixtures(db *gorm.DB) {
 	// 1. User qa_tester (password Test@12345)
 	var user model.User
