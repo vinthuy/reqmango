@@ -9,6 +9,7 @@ import { workspaceApi } from '@/api/workspace'
 import { useI18n } from '@/composables/useI18n'
 import { useDarkMode } from '@/composables/useDarkMode'
 import { projectApi } from '@/api/project'
+import approvalApi from '@/api/approval'
 import { useShowInitiatives } from '@/composables/useProductFlags'
 import type { Workspace } from '@/types'
 import type { ProjectResponse } from '@/types/project'
@@ -50,6 +51,17 @@ watch(workspaceSlug, async (slug) => {
   } catch { projects.value = [] }
 }, { immediate: true })
 
+const pendingApprovals = ref(0)
+async function loadPendingApprovals() {
+  if (!currentWorkspace.value) { pendingApprovals.value = 0; return }
+  try {
+    pendingApprovals.value = await approvalApi.countPending(currentWorkspace.value.id)
+  } catch { pendingApprovals.value = 0 }
+}
+watch([currentWorkspace, () => route.fullPath], loadPendingApprovals, { immediate: true })
+onMounted(() => window.addEventListener('approvals:changed', loadPendingApprovals))
+onUnmounted(() => window.removeEventListener('approvals:changed', loadPendingApprovals))
+
 function goHome() { router.push('/') }
 function goToWorkspace(slug: string) {
   showWorkspaceMenu.value = false
@@ -66,6 +78,7 @@ const navItems = computed(() => {
   const items = [
     { label: t('sidebar.projects'), path: '', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' },
     { label: t('sidebar.initiatives'), path: '/initiatives', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+    { label: t('approvals.title'), path: '/approvals', icon: '' },
     { label: t('sidebar.settings'), path: '/settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
   ]
   if (!showInitiatives.value) {
@@ -148,8 +161,13 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
           'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
           isActive(item.path) ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-        ]">
+        ]"
+        :data-testid="`nav-${item.path.replace('/', '') || 'projects'}`">
         {{ item.label }}
+        <span v-if="item.path === '/approvals' && pendingApprovals > 0"
+          class="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
+          {{ pendingApprovals > 99 ? '99+' : pendingApprovals }}
+        </span>
       </router-link>
     </nav>
 
