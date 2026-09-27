@@ -3239,6 +3239,7 @@
     "unassignSuccess": "已取消指派",
     "sidebarHint": "侧栏仅指派/派发单个 Agent；多节点编排请到项目设置 → Agent 编排。",
     "issueActivityTitle": "Agent 活动",
+    "activityNoSummary": "已执行，详见讨论",
     "sectionTitle": "Agent",
     "selectAgent": "选择智能体...",
     "dispatching": "派发中...",

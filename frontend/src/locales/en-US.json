@@ -3239,6 +3239,7 @@
     "unassignSuccess": "Agent unassigned",
     "sidebarHint": "Sidebar assigns/dispatches a single agent. Multi-node pipelines live under Project Settings → Agent orchestration.",
     "issueActivityTitle": "Agent activity",
+    "activityNoSummary": "Handled — see the thread",
     "sectionTitle": "Agent",
     "selectAgent": "Select an agent...",
     "dispatching": "Dispatching...",

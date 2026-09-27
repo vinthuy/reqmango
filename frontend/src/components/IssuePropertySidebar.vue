@@ -187,13 +187,13 @@
             v-for="act in agentActivities"
             :key="act.id"
             class="rounded-md border border-gray-100 bg-gray-50 px-2 py-1.5 text-xs"
-            :title="act.task_context || act.result_summary"
+            :title="activityPreview(act.result_summary) || t('agent.activityNoSummary')"
           >
             <div class="flex items-center justify-between gap-2">
               <span class="font-medium text-violet-700 truncate">{{ act.agent_name }}</span>
               <span class="text-[10px] text-gray-400 shrink-0">{{ formatActivityTime(act.executed_at) }}</span>
             </div>
-            <p class="text-gray-600 line-clamp-2 mt-0.5">{{ act.result_summary || act.task_context }}</p>
+            <p class="text-gray-600 line-clamp-2 mt-0.5">{{ activityPreview(act.result_summary) || t('agent.activityNoSummary') }}</p>
           </div>
         </div>
       </div>
@@ -391,6 +391,30 @@ watch(() => props.agentDispatching, (now, before) => {
 
 function formatActivityTime(iso: string): string {
   return new Date(iso).toLocaleString(locale.value, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+// Agent summaries are markdown (headings, tables). The sidebar only has room for a
+// short preview, so flatten the markup instead of dumping raw syntax into two lines.
+// Never falls back to task_context: that holds the internal prompt.
+function activityPreview(markdown: string | undefined): string {
+  if (!markdown) return ''
+  return markdown
+    .replace(/```[\s\S]*?```/g, ' ')
+    .split('\n')
+    .filter(line => !/^\s*\|?[\s:|-]*\|[\s:|-]*\|?\s*$/.test(line))
+    .map(line => line
+      .replace(/^\s*#{1,6}\s*/, '')
+      .replace(/^\s*>\s?/, '')
+      .replace(/^\s*[-*+]\s+/, '· ')
+      .replace(/\|/g, ' · ')
+      .trim())
+    .filter(Boolean)
+    .join('  ')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function emitCustomFieldUpdate(fieldId: number, value: string) {

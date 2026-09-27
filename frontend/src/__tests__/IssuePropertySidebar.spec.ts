@@ -1,7 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
 
+const { mockActivity } = vi.hoisted(() => ({ mockActivity: vi.fn() }))
+
+vi.mock('@/api/agent', () => ({
+  agentApi: { listWorkspaceActivity: (...args: any[]) => mockActivity(...args) },
+}))
 vi.mock('@/composables/useI18n', () => ({
   useI18n: () => ({ t: (k: string) => k }),
 }))
@@ -53,6 +58,11 @@ const mountOptions = {
 }
 
 describe('IssuePropertySidebar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockActivity.mockResolvedValue([])
+  })
+
   it('renders state, priority and assignee pickers with current values', () => {
     const wrapper = mount(IssuePropertySidebar, mountOptions)
     expect(wrapper.text()).toContain('issue.state')
