@@ -4,6 +4,7 @@ import (
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
+	"github.com/reqmango/backend/internal/issuetype"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
@@ -127,61 +128,20 @@ func (s *IssueTypeService) Create(workspaceID, userID uint64, req request.IssueT
 //     workspace-level types that the project has explicitly imported via the
 //     workspace-type Import model. Legacy auto-inherit is removed — workspace
 //     types are only visible when imported.
+//
+// The scoping rules live in issuetype.Visible so the agent tool layer hands out
+// the same ids this endpoint advertises.
 func (s *IssueTypeService) List(workspaceID uint64, projectID *uint64) ([]response.IssueTypeResponse, error) {
-	if projectID == nil {
-		var types []model.IssueType
-		if err := s.db.Where("workspace_id = ? AND project_id IS NULL", workspaceID).
-			Order("sequence, created_at").Find(&types).Error; err != nil {
-			return nil, common.Internal("Failed to list issue types")
-		}
-		result := make([]response.IssueTypeResponse, len(types))
-		for i, t := range types {
-			result[i] = *s.buildResponse(t, false)
-		}
-		return result, nil
-	}
-
-	// Project scope: project-private + explicitly imported workspace types.
-	// When neither exists (legacy projects without explicit imports), fall back
-	// to all workspace-level types so the user isn't locked out of features
-	// like decompose that depend on the type list.
-	importedIDs, err := s.listImportedTypeIDs(*projectID)
+	types, err := issuetype.Visible(s.db, workspaceID, projectID)
 	if err != nil {
-		return nil, common.Internal("Failed to load import records")
-	}
-
-	var types []model.IssueType
-	query := s.db.Where("workspace_id = ?", workspaceID)
-
-	if len(importedIDs) == 0 {
-		// No imports: try project-private types first.
-		var projCount int64
-		s.db.Model(&model.IssueType{}).
-			Where("workspace_id = ? AND project_id = ?", workspaceID, *projectID).
-			Count(&projCount)
-		if projCount > 0 {
-			query = query.Where("project_id = ?", *projectID)
-		}
-		// else: no project-private types either → return all workspace-level
-		// types (backward-compatible fallback for legacy projects).
-		// query stays as "workspace_id = ?" which naturally fetches workspace-level types
-		// (project_id IS NULL is implicit because there are no project-private types).
-	} else {
-		ids := make([]uint64, 0, len(importedIDs))
-		for id := range importedIDs {
-			ids = append(ids, id)
-		}
-		query = query.Where("project_id = ? OR (project_id IS NULL AND id IN ?)", *projectID, ids)
-	}
-
-	if err := query.Order("sequence, created_at").Find(&types).Error; err != nil {
 		return nil, common.Internal("Failed to list issue types")
 	}
 
-	// In project scope, any workspace-level type (project_id IS NULL) is imported by definition.
+	// In project scope, any workspace-level type (project_id IS NULL) is
+	// visible because the project imported it.
 	result := make([]response.IssueTypeResponse, len(types))
 	for i, t := range types {
-		result[i] = *s.buildResponse(t, t.ProjectID == nil)
+		result[i] = *s.buildResponse(t, projectID != nil && t.ProjectID == nil)
 	}
 	return result, nil
 }

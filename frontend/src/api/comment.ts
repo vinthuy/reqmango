@@ -2,7 +2,7 @@
  * Comment API - 评论API模块
  */
 import api from './index'
-import type { Comment, CommentCreate, CommentUpdate, CommentListResponse } from '@/types/comment'
+import type { Comment, CommentCreate, CommentUpdate, CommentListResponse, SuggestionField, ApplySuggestionsResult } from '@/types/comment'
 
 const BASE_URL = '/comments'
 
@@ -80,6 +80,22 @@ export async function unresolveComment(
   return response.data
 }
 
+/**
+ * 采纳 Agent 在评论里提出的字段变更建议。
+ * `fields` 为空表示采纳该评论上的全部建议。
+ */
+export async function applySuggestions(
+  issueId: number,
+  commentId: number,
+  fields: SuggestionField[] = []
+): Promise<ApplySuggestionsResult> {
+  const response = await api.post(`/issues/${issueId}/suggestions/apply`, {
+    comment_id: commentId,
+    fields,
+  })
+  return response.data
+}
+
 export default {
   createComment,
   listIssueComments,
@@ -87,5 +103,6 @@ export default {
   updateComment,
   deleteComment,
   resolveComment,
-  unresolveComment
+  unresolveComment,
+  applySuggestions,
 }

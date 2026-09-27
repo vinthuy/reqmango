@@ -25,6 +25,12 @@ type Page struct {
 	ProjectID   uint64 `gorm:"not null;index" json:"project_id"`
 	WorkspaceID uint64 `gorm:"not null" json:"workspace_id"`
 
+	// Provenance: set when a page is generated from something else (e.g. a cycle
+	// AI summary), so the page can link back to its source and the source can
+	// show that it has been written up.
+	SourceType string  `gorm:"size:32;index" json:"source_type,omitempty"` // "cycle" | "issue" | ...
+	SourceID   *uint64 `gorm:"index" json:"source_id,omitempty"`
+
 	// Relationships
 	Project  Project `gorm:"foreignKey:ProjectID" json:"-"`
 	Parent   *Page   `gorm:"foreignKey:ParentID" json:"-"`

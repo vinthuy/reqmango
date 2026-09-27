@@ -62,6 +62,19 @@
             <li v-for="(risk, idx) in summary.risks" :key="idx">{{ risk }}</li>
           </ul>
         </template>
+
+        <!-- Documents already captured from this cycle, so the summary is traceable -->
+        <div v-if="savedPages.length" data-test="cycle-saved-pages" class="mt-3 pt-3 border-t border-indigo-100">
+          <span class="text-xs text-gray-500">{{ t('cycle.savedToDocs') }}</span>
+          <ul class="mt-1 space-y-0.5">
+            <li v-for="page in savedPages" :key="page.id" class="text-xs">
+              <router-link
+                :to="{ path: `/workspace/${route.params.slug}/project/${cycle?.project_id}/pages`, query: { page: page.id } }"
+                class="text-indigo-600 hover:text-indigo-800 hover:underline"
+              >{{ page.title }}</router-link>
+            </li>
+          </ul>
+        </div>
       </div>
 
       <CycleProgressCard :progress="cycleStore.progress" />
@@ -161,7 +174,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useCycleStore } from '@/stores/cycle'
 import { issueApi } from '@/api/issue'
 import { sprintPlan, type AISprintPlanResponse } from '@/api/ai'
-import { createPage } from '@/api/page'
+import { createPage, listPagesBySource } from '@/api/page'
+import type { Page } from '@/types/page'
 import CycleProgressCard from '@/components/CycleProgressCard.vue'
 import CycleBurndownChart from '@/components/CycleBurndownChart.vue'
 import { useConfirm } from '@/composables/useConfirm'
@@ -187,6 +201,8 @@ const summarizing = ref(false)
 const summary = ref<AISprintPlanResponse | null>(null)
 const summaryError = ref('')
 const savingPage = ref(false)
+/** Documents generated from this cycle's AI summary, newest first. */
+const savedPages = ref<Page[]>([])
 
 const summaryMarkdown = computed(() => {
   if (!summary.value) return ''
@@ -236,6 +252,7 @@ onMounted(async () => {
       cycleStore.fetchProgress(cycleId),
       cycleStore.fetchBurndown(cycleId),
       cycleStore.fetchCycleIssues(cycleId),
+      loadSavedPages(),
     ])
   }
 })
@@ -258,15 +275,29 @@ async function saveSummaryAsPage() {
   if (!cycle.value || !summary.value) return
   savingPage.value = true
   try {
-    await createPage(cycle.value.project_id, cycle.value.workspace_id, {
+    const page = await createPage(cycle.value.project_id, cycle.value.workspace_id, {
       title: `${cycle.value.name || 'Cycle'} — ${t('cycle.aiSummary')}`,
       content: summaryMarkdown.value,
+      // Record where this document came from so the page can link back to the cycle.
+      source_type: 'cycle',
+      source_id: cycleId,
     })
+    savedPages.value = [page, ...savedPages.value]
     toast.success(t('cycle.saveAsPageSuccess'))
   } catch (e: any) {
     toast.error(e?.response?.data?.message || e.message || t('cycle.saveAsPageFailed'))
   } finally {
     savingPage.value = false
+  }
+}
+
+/** Loads the documents already generated from this cycle, so the link survives a reload. */
+async function loadSavedPages() {
+  if (!cycle.value) return
+  try {
+    savedPages.value = await listPagesBySource(cycle.value.project_id, 'cycle', cycleId)
+  } catch (e) {
+    console.error('Failed to load pages for this cycle:', e)
   }
 }
 

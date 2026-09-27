@@ -30,8 +30,16 @@ type Issue struct {
 	ExternalID       *string `gorm:"size:255" json:"external_id"`
 	ExternalSource   *string `gorm:"size:255" json:"external_source"`
 	CoverImageURL    *string `gorm:"size:500" json:"cover_image_url"`
-	IntakeSource     *string `gorm:"size:50" json:"intake_source"` // "form" | "email" | "api"
-	IntakeStatus     *string `gorm:"size:30" json:"intake_status"` // "pending" | "accepted" | "rejected"
+	IntakeSource     *string `gorm:"size:50" json:"intake_source"` // "form" | "email" | "webhook"
+	IntakeStatus     *string `gorm:"size:30;index" json:"intake_status"` // "pending" | "snoozed" | "accepted" | "rejected" | "duplicate"
+
+	IntakeSubmitter    *string    `gorm:"size:255" json:"intake_submitter,omitempty"`
+	IntakeEmail        *string    `gorm:"size:255" json:"intake_email,omitempty"`
+	IntakeTriagedAt    *time.Time `json:"intake_triaged_at,omitempty"`
+	IntakeTriagedBy    *uint64    `json:"intake_triaged_by,omitempty"`
+	IntakeSnoozedUntil *time.Time `json:"intake_snoozed_until,omitempty"`
+	IntakeDuplicateOf  *uint64    `json:"intake_duplicate_of,omitempty"`
+	IntakeNote         *string    `gorm:"type:text" json:"intake_note,omitempty"`
 
 	// Agent integration (Agent-Project Integration)
 	AgentAssigneeID *uint64 `gorm:"index" json:"agent_assignee_id,omitempty"`

@@ -532,6 +532,50 @@ func (h *IssueHandler) BulkDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// ==================== Agent suggestions ====================
+
+// applySuggestionsRequest is the body for adopting an agent's proposals.
+type applySuggestionsRequest struct {
+	CommentID uint64   `json:"comment_id"`
+	Fields    []string `json:"fields"` // empty = apply every suggestion
+}
+
+// ApplySuggestions handles POST /issues/:issueId/suggestions/apply.
+// It adopts the structured proposals an agent attached to one of its comments,
+// going through the standard update path so validation and activity match a
+// manual edit.
+func (h *IssueHandler) ApplySuggestions(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	var req applySuggestionsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	if req.CommentID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "comment_id is required"})
+		return
+	}
+
+	result, svcErr := h.svc.ApplyIssueSuggestions(issueID, req.CommentID, user.ID, req.Fields)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 // ==================== Assignee Management ====================
 
 // AddAssignee handles POST /issues/:id/assignees?user_id=int

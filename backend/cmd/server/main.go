@@ -59,6 +59,7 @@ func main() {
 		&model.StateTransition{},
 		&model.Label{},
 		&model.Issue{},
+		&model.ProjectIntakeSetting{},
 		&model.IssueAssignee{},
 		&model.IssueLabel{},
 		&model.IssueCycle{},

@@ -298,6 +298,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/workspace/:slug/project/:id/intake',
+      name: 'ProjectIntake',
+      component: () => import('@/views/ProjectIntake.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/workspace/:slug/project/:id/analytics',
       name: 'Analytics',
       component: () => import('@/views/Analytics.vue'),

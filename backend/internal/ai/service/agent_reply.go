@@ -74,11 +74,19 @@ func (s *AgentService) threadRootID(commentID *uint64) *uint64 {
 
 // postAgentComment writes the agent's reply into the issue's comment thread.
 // It bypasses CommentService on purpose so agent replies never re-trigger mentions.
-func (s *AgentService) postAgentComment(agent *model.Agent, issueID uint64, parentID *uint64, body string) {
+// suggestions, when present, ride along on the comment so the UI can render
+// one-click apply actions for the changes the agent proposed.
+func (s *AgentService) postAgentComment(agent *model.Agent, issueID uint64, parentID *uint64, body string, suggestions []model.IssueSuggestion) {
 	body = strings.TrimSpace(body)
 	if body == "" {
 		return
 	}
-	c := model.Comment{IssueID: issueID, AgentID: &agent.ID, Body: body, ParentID: parentID}
+	c := model.Comment{
+		IssueID:     issueID,
+		AgentID:     &agent.ID,
+		Body:        body,
+		ParentID:    parentID,
+		Suggestions: encodeSuggestions(suggestions),
+	}
 	s.db.Create(&c)
 }

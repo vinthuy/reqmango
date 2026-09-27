@@ -211,6 +211,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	{
 		// ---- Intake (public) ----
 		v1.POST("/intake/:projectId", intakeH.Submit)
+		v1.GET("/intake/:projectId/info", intakeH.Info)
+		v1.POST("/intake-channels/:token/webhook", intakeH.Webhook)
+		v1.POST("/intake-channels/:token/email", intakeH.Email)
 
 		// ---- GitHub Webhook (public) ----
 		v1.POST("/webhook/github/:id", githubH.Webhook)
@@ -652,7 +655,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.GET("/:projectId/metrics/custom-fields", metricH.GetCustomFields)
 			projects.POST("/:projectId/custom-fields/:fieldId/enroll", customFieldH.EnrollField)
 			projects.POST("/:projectId/custom-fields/:fieldId/unenroll", customFieldH.UnenrollField)
-			projects.GET("/:projectId/intake", intakeH.ListPending)
+			projects.GET("/:projectId/intake", intakeH.List)
+			projects.GET("/:projectId/intake/metrics", intakeH.Metrics)
+			projects.GET("/:projectId/intake/settings", intakeH.GetSettings)
+			projects.PUT("/:projectId/intake/settings", intakeH.UpdateSettings)
 			projects.GET("/:projectId/webhooks", webhookH.List)
 			projects.POST("/:projectId/webhooks", webhookH.Create)
 			projects.PUT("/:projectId/webhooks/:id", webhookH.Update)
@@ -677,6 +683,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			{
 				pages.GET("", pageH.List)
 				pages.GET("/search", pageH.Search) // ?q=
+				pages.GET("/by-source", pageH.ListBySource) // ?source_type=&source_id=
 				pages.POST("", pageH.Create)
 				pages.GET("/tree", pageH.GetTree)
 				pages.GET("/:pageId", pageH.Get)
@@ -897,6 +904,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// Assignees
 			issues.POST("/:issueId/assignees", middleware.RequirePermission(db, "issue:edit", "project"), issueH.AddAssignee) // ?user_id=
 			issues.DELETE("/:issueId/assignees/:userId", middleware.RequirePermission(db, "issue:edit", "project"), issueH.RemoveAssignee)
+			// Adopt the structured field proposals an agent attached to its comment.
+			issues.POST("/:issueId/suggestions/apply", middleware.RequirePermission(db, "issue:edit", "project"), issueH.ApplySuggestions)
 
 			// Labels
 			issues.POST("/:issueId/labels", middleware.RequirePermission(db, "issue:edit", "project"), issueH.AddLabel) // ?label_id=

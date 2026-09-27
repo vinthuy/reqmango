@@ -22,6 +22,10 @@ type PageResponse struct {
 	ProjectID   uint64 `json:"project_id"`
 	WorkspaceID uint64 `json:"workspace_id"`
 
+	// Provenance of a generated page (e.g. a cycle AI summary).
+	SourceType string  `json:"source_type,omitempty"`
+	SourceID   *uint64 `json:"source_id,omitempty"`
+
 	CreatedByID *uint64   `json:"created_by_id"`
 	UpdatedByID *uint64   `json:"updated_by_id"`
 	CreatedAt   time.Time `json:"created_at"`

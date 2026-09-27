@@ -64,6 +64,7 @@
             v-bind="detailProps"
             @update:description="handleDescriptionSave"
             @navigate="navigateToIssue"
+            @suggestionsApplied="onSuggestionsApplied"
           />
           <IssueTabRelations
             v-else-if="activeTab === 'relations'"
@@ -637,6 +638,17 @@ async function handleStateChange(newStateId: number) {
       console.error('Failed to update state:', e)
       toast.error(t('issue.saveFailed'))
     }
+  }
+}
+
+// Adopting an agent's proposals changed issue fields server-side, so pull the
+// fresh issue back in to keep the header and property sidebar in sync.
+async function onSuggestionsApplied() {
+  try {
+    const updated = await issueApi.getIssue(issueId)
+    issue.value = updated
+  } catch (e) {
+    console.error('Failed to reload issue after applying suggestions:', e)
   }
 }
 

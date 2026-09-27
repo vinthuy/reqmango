@@ -23,7 +23,13 @@
     <!-- Comments -->
     <div class="card">
       <div class="text-sm font-medium text-gray-500 mb-2">{{ t('issue.comments') }}</div>
-      <CommentList :issue-id="issueId" :project-id="projectId" :workspace-id="workspaceId" :refresh-key="commentsRefreshKey" />
+      <CommentList
+        :issue-id="issueId"
+        :project-id="projectId"
+        :workspace-id="workspaceId"
+        :refresh-key="commentsRefreshKey"
+        @suggestions-applied="emit('suggestionsApplied', $event)"
+      />
     </div>
   </div>
 </template>
@@ -50,6 +56,8 @@ const emit = defineEmits<{
   'update:title': [value: string]
   'update:description': [value: string]
   'navigate': [issueId: number]
+  /** An agent's proposals were adopted, so the parent should reload the issue. */
+  'suggestionsApplied': [applied: string[]]
 }>()
 
 </script>

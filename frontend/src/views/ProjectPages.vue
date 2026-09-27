@@ -52,6 +52,17 @@
           </div>
         </div>
 
+        <!-- Provenance: where this document was generated from -->
+        <div v-if="pageSource" data-test="page-source" class="mb-3 flex items-center gap-1.5 text-xs text-gray-500">
+          <span>{{ t('pages.sourceLabel') }}</span>
+          <router-link
+            v-if="pageSource.link"
+            :to="pageSource.link"
+            class="text-indigo-600 hover:text-indigo-800 hover:underline"
+          >{{ pageSource.label }}</router-link>
+          <span v-else>{{ pageSource.label }}</span>
+        </div>
+
         <!-- AI Toolbar -->
         <div class="flex items-center gap-2 mb-2">
           <span class="text-xs text-gray-400 mr-1">🤖 {{ t('ai.title') }}:</span>
@@ -127,6 +138,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as pageApi from '@/api/page'
+import { cycleApi } from '@/api/cycle'
 import type { Page } from '@/types/page'
 import PageTree from '@/components/PageTree.vue'
 import TipTapEditor from '@/components/TipTapEditor.vue'
@@ -162,7 +174,41 @@ const saved = ref(false)
 const saveError = ref('')
 const showVersionPanel = ref(false)
 
-onMounted(() => loadPages())
+/** Resolves the page's origin into a link back to the source, when known. */
+const pageSource = computed(() => {
+  const page = selectedPage.value
+  if (!page?.source_type || !page.source_id) return null
+  if (page.source_type === 'cycle') {
+    return {
+      label: cycleNames.value[page.source_id] || `#${page.source_id}`,
+      link: { path: `/workspace/${slug.value}/project/${projectId.value}/cycles/${page.source_id}` },
+    }
+  }
+  return { label: `#${page.source_id}`, link: null }
+})
+/** Cycle names for provenance labels, fetched lazily once per project. */
+const cycleNames = ref<Record<number, string>>({})
+
+async function loadCycleNames() {
+  if (Object.keys(cycleNames.value).length > 0) return
+  try {
+    const { items } = await cycleApi.listCycles(projectId.value, { limit: 100 })
+    cycleNames.value = Object.fromEntries((items || []).map(c => [c.id, c.name]))
+  } catch (e) {
+    // A missing name only degrades the label, never the link.
+    console.error('Failed to load cycle names:', e)
+  }
+}
+
+onMounted(async () => {
+  await loadPages()
+  // Support deep links like ?page=123 (e.g. from the cycle that generated the doc).
+  const requested = Number((route.query as any).page)
+  if (Number.isFinite(requested) && requested > 0) {
+    const target = pageTree.value.find(p => p.id === requested)
+    if (target) await selectPage(target)
+  }
+})
 
 async function loadPages() {
   loading.value = true
@@ -208,6 +254,7 @@ async function selectPage(page: Page) {
     selectedPageId.value = full.id
     editForm.title = full.title
     editForm.content = full.content || ''
+    if (full.source_type === 'cycle') loadCycleNames()
   } catch (e) { console.error('Failed to load page:', e) }
 }
 

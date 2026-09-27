@@ -116,6 +116,14 @@
             <!-- View mode: rendered body -->
             <div v-if="editingId !== comment.id" data-test="comment-body" class="comment-body text-sm text-gray-700 break-words" v-html="renderBody(comment.body || comment.content)"></div>
 
+            <!-- Structured proposals the agent attached to this reply -->
+            <CommentSuggestions
+              v-if="editingId !== comment.id"
+              :issue-id="issueId"
+              :comment="comment"
+              @applied="onSuggestionsApplied"
+            />
+
             <!-- Edit mode: textarea -->
             <div v-else class="mt-1">
               <textarea
@@ -215,6 +223,11 @@
                   >{{ formatRelativeTime(reply.created_at) }}</span>
                 </div>
                 <div data-test="comment-body" class="comment-body text-xs text-gray-700 break-words" v-html="renderBody(reply.body || reply.content)"></div>
+                <CommentSuggestions
+                  :issue-id="issueId"
+                  :comment="reply"
+                  @applied="onSuggestionsApplied"
+                />
               </div>
             </div>
           </div>
@@ -244,6 +257,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from '@/composables/useI18n'
 import { renderMarkdown } from '@/composables/useMarkdown'
+import CommentSuggestions from '@/components/CommentSuggestions.vue'
 import type { Comment, CommentCreate } from '@/types/comment'
 
 const AVATAR_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
@@ -255,6 +269,11 @@ const props = defineProps<{
   workspaceId?: number
   /** Bump to silently reload, e.g. after an agent dispatch posted a reply. */
   refreshKey?: number
+}>()
+
+const emit = defineEmits<{
+  /** Fired after an agent's proposals are adopted so the parent can reload the issue. */
+  (e: 'suggestionsApplied', applied: string[]): void
 }>()
 
 const { confirm } = useConfirm()
@@ -594,6 +613,13 @@ async function deleteComment(comment: Comment) {
 function canDelete(comment: Comment): boolean {
   if (props.isAdmin) return true
   return comment.author_id === currentUserId.value
+}
+
+// --- Suggestion apply ---
+function onSuggestionsApplied(applied: string[]) {
+  // Applied rows already updated the issue server-side; tell the parent so the
+  // sidebar and header stop showing stale field values.
+  if (applied.length > 0) emit('suggestionsApplied', applied)
 }
 
 // --- Rendering ---

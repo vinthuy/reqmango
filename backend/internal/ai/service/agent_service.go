@@ -403,6 +403,10 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		Mode:        "agent",
 		UserID:      userID,
 	}
+	// Collect structured field proposals so they can be attached to the reply
+	// comment and applied by the user with one click.
+	suggestions := make([]model.IssueSuggestion, 0)
+	actx.Suggestions = &suggestions
 	if ctx.ProjectID != nil {
 		actx.ProjectID = *ctx.ProjectID
 	}
@@ -453,14 +457,14 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 		s.recordActivity(agent, ctx.IssueID, "dispatch",
 			fmt.Sprintf("Failed: %v", llmErr), task, userID)
 		if ctx.IssueID != nil {
-			s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), agentFailureReply)
+			s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), agentFailureReply, nil)
 		}
 		return nil, common.Internal(fmt.Sprintf("Agent LLM call failed: %v", llmErr))
 	}
 
 	s.recordActivity(agent, ctx.IssueID, "dispatch", agentActivitySummary(resp.Content, executedTools), task, userID)
 	if ctx.IssueID != nil {
-		s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), resp.Content)
+		s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), resp.Content, suggestions)
 	}
 
 	// Record heartbeat to mark agent as online
@@ -1128,9 +1132,9 @@ func (s *AgentService) filterToolsByCapabilities(agent *model.Agent) []llm.Tool 
 	capTools := map[string][]string{
 		"search":    {"search_issues", "get_issue", "get_issue_activities"},
 		"create":    {"create_issue"},
-		"update":    {"update_issue"},
-		"analyze":   {"get_project_stats", "get_issues_summary", "get_cycle_progress"},
-		"comment":   {"add_comment"},
+		"update":    {"update_issue", "suggest_issue_changes"},
+		"analyze":   {"get_project_stats", "get_issues_summary", "get_cycle_progress", "suggest_issue_changes"},
+		"comment":   {"add_comment", "suggest_issue_changes"},
 		"list":      {"list_members", "list_issue_types", "list_states", "list_labels", "list_cycles", "list_modules", "list_releases", "list_pages"},
 		"summarize": {"get_project_stats", "get_issues_summary", "get_cycle_progress", "list_cycles", "get_issue", "get_issue_activities"},
 	}

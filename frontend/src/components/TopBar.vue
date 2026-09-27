@@ -92,6 +92,7 @@ const projectNavItems = computed(() => {
   if (!isInProject.value) return []
   return [
     { label: t('project.tab.issues'), path: '', query: { tab: undefined as string | undefined } },
+    { label: t('project.tab.intake'), path: '/intake', query: { tab: undefined } },
     { label: t('project.tab.cycles'), path: '/cycles', query: { tab: undefined } },
     { label: t('project.tab.modules'), path: '/modules', query: { tab: undefined } },
     { label: t('project.tab.updates'), path: '/updates', query: { tab: undefined } },
@@ -119,6 +120,7 @@ function isProjectNavActive(item: { path: string; query: { tab?: string } }) {
   const base = `/workspace/${workspaceSlug.value}/project/${route.params.id}`
   if (item.path === '/dashboards') return route.path.includes('/dashboards')
   if (item.path === '/pages') return route.path.includes('/pages')
+  if (item.path === '/intake') return route.path.endsWith('/intake')
   if (item.path === '/settings') return route.path.includes('/settings')
   if (item.path === '/metrics' || item.path === '/reports') {
     return route.path === base && (route.query.tab === 'metrics' || route.query.tab === 'reports')

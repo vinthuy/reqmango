@@ -430,7 +430,7 @@ func (s *IssueService) buildSortClause(filters map[string]interface{}) string {
 
 // List returns issues for a project with optional filters and total count.
 func (s *IssueService) List(projectID uint64, filters map[string]interface{}, limit, offset int) ([]response.IssueResponse, int64, error) {
-	baseQuery := s.db.Model(&model.Issue{}).Where("issues.project_id = ?", projectID)
+	baseQuery := s.db.Model(&model.Issue{}).Where("issues.project_id = ?", projectID).Where(intakeVisibleClause)
 
 	// Build dynamic ORDER BY from sort_by / sort_dir
 	sortClause := s.buildSortClause(filters)
@@ -636,7 +636,7 @@ func (s *IssueService) ListByWorkspace(workspaceID uint64, filters map[string]in
 }
 
 func (s *IssueService) listByProjects(projectIDs []uint64, filters map[string]interface{}, limit, offset int) ([]response.IssueResponse, int64, error) {
-	baseQuery := s.db.Model(&model.Issue{}).Where("issues.project_id IN ?", projectIDs)
+	baseQuery := s.db.Model(&model.Issue{}).Where("issues.project_id IN ?", projectIDs).Where(intakeVisibleClause)
 
 	sortClause := s.buildSortClause(filters)
 

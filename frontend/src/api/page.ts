@@ -2,7 +2,7 @@
  * Page API - 页面API模块
  */
 import api from './index'
-import type { Page, PageCreate, PageUpdate, PageMove, PageVersion, PageTemplate, PageTemplateCreate, PageTemplateUpdate } from '@/types/page'
+import type { Page, PageCreate, PageUpdate, PageMove, PageVersion, PageTemplate, PageTemplateCreate, PageTemplateUpdate, PageSourceType } from '@/types/page'
 
 /**
  * List pages for a project.
@@ -19,6 +19,20 @@ export async function listPages(projectId: number, includeArchived = false): Pro
  */
 export async function getPageTree(projectId: number): Promise<Page[]> {
   const response = await api.get(`/projects/${projectId}/pages/tree`)
+  return response.data
+}
+
+/**
+ * List pages generated from a given origin (e.g. every AI summary saved for a cycle).
+ */
+export async function listPagesBySource(
+  projectId: number,
+  sourceType: PageSourceType,
+  sourceId: number
+): Promise<Page[]> {
+  const response = await api.get(`/projects/${projectId}/pages/by-source`, {
+    params: { source_type: sourceType, source_id: sourceId }
+  })
   return response.data
 }
 
@@ -224,6 +238,7 @@ export default {
   restorePage,
   movePage,
   listPageChildren,
+  listPagesBySource,
   lockPage,
   unlockPage,
   exportPage,

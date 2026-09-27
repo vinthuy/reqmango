@@ -17,6 +17,9 @@ export interface Page {
   locked_by_name?: string
   project_id: number
   workspace_id: number
+  /** Provenance of a generated page, e.g. { source_type: 'cycle', source_id: 12 }. */
+  source_type?: string
+  source_id?: number
   created_by_id?: number
   updated_by_id?: number
   created_at: string
@@ -30,7 +33,12 @@ export interface PageCreate {
   content_json?: string
   parent_id?: number
   sequence?: number
+  /** Set when the page is generated from something, so it can link back. */
+  source_type?: PageSourceType
+  source_id?: number
 }
+
+export type PageSourceType = 'cycle' | 'issue'
 
 export interface PageUpdate {
   title?: string

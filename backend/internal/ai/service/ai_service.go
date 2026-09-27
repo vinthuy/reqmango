@@ -14,6 +14,7 @@ import (
 
 	"github.com/reqmango/backend/internal/ai/common"
 	"github.com/reqmango/backend/internal/ai/llm"
+	"github.com/reqmango/backend/internal/issuetype"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
@@ -319,6 +320,7 @@ func (s *AIService) getTools() []llm.Tool {
 				Required: []string{"query"},
 			},
 		},
+		suggestIssueChangesTool(),
 	}
 }
 
@@ -350,6 +352,11 @@ type AIContext struct {
 	AnalysisMode      string // issue analyze: "summary" | "risk" | "next_steps"
 	UserID            uint64
 	Token             string `json:"-"` // JWT token for backend API calls
+
+	// Suggestions collects the structured work-item changes an agent proposes
+	// via suggest_issue_changes. It is nil unless a caller opted in (agent
+	// dispatch), which makes the tool reject use in plain chat contexts.
+	Suggestions *[]model.IssueSuggestion
 }
 
 // ==================== Chat ====================
@@ -1525,6 +1532,8 @@ func (s *AIService) ExecuteTool(name string, rawInput json.RawMessage, actx *AIC
 		return s.toolListReleases(args, actx)
 	case "list_pages":
 		return s.toolListPages(args, actx)
+	case "suggest_issue_changes":
+		return s.toolSuggestIssueChanges(args, actx)
 	case "web_search":
 		return s.toolWebSearch(args)
 	default:
@@ -1622,6 +1631,36 @@ func (s *AIService) toolGetIssue(args map[string]interface{}) (any, error) {
 	}, nil
 }
 
+// toolSuggestIssueChanges records structured proposals on the AIContext so the
+// dispatch path can attach them to the agent's reply comment. It deliberately
+// mutates nothing: the user applies suggestions explicitly.
+func (s *AIService) toolSuggestIssueChanges(args map[string]interface{}, actx *AIContext) (any, error) {
+	if actx == nil || actx.Suggestions == nil {
+		return nil, fmt.Errorf("suggest_issue_changes 只能在 Agent 派发过程中使用")
+	}
+	if getUintArg(args, "issue_id", actx.IssueID) == 0 {
+		return nil, fmt.Errorf("issue_id is required")
+	}
+
+	raw, err := json.Marshal(args["suggestions"])
+	if err != nil {
+		return nil, fmt.Errorf("suggestions must be an array of objects")
+	}
+	parsed, err := ParseIssueSuggestions(raw)
+	if err != nil {
+		return nil, err
+	}
+	if len(parsed) == 0 {
+		return nil, fmt.Errorf("没有可采纳的建议：每条需包含合法的 field（title/priority/type/state/assignee/description）与 value")
+	}
+
+	*actx.Suggestions = append(*actx.Suggestions, parsed...)
+	return map[string]interface{}{
+		"recorded": len(parsed),
+		"note":     "建议已记录，将在回复中以「一键采纳」呈现，请不要再用 update_issue 直接修改",
+	}, nil
+}
+
 func (s *AIService) toolUpdateIssue(args map[string]interface{}, actx *AIContext) (any, error) {
 	id := getUintArg(args, "issue_id", 0)
 
@@ -1687,8 +1726,19 @@ func (s *AIService) toolListMembers(args map[string]interface{}, actx *AIContext
 
 func (s *AIService) toolListIssueTypes(args map[string]interface{}, actx *AIContext) (any, error) {
 	wid := getUintArg(args, "workspace_id", actx.WorkspaceID)
-	var types []model.IssueType
-	s.db.Where("workspace_id = ? AND is_active = ? AND project_id IS NULL", wid, true).Find(&types)
+	var projectID *uint64
+	if pid := getUintArg(args, "project_id", actx.ProjectID); pid > 0 {
+		projectID = &pid
+	}
+
+	// Resolve the same list the project's type picker shows. Deriving it from
+	// the workspace alone would hand the model ids the issue endpoints reject,
+	// so a type suggestion the user adopts would fail on apply.
+	types, err := issuetype.Visible(s.db, wid, projectID)
+	if err != nil {
+		return nil, err
+	}
+
 	result := make([]map[string]interface{}, len(types))
 	for i, t := range types {
 		result[i] = map[string]interface{}{"id": t.ID, "name": t.Name, "color": t.Color, "level": t.Level}

@@ -62,6 +62,33 @@ func (h *PageHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, pages)
 }
 
+// ListBySource handles GET /projects/:projectId/pages/by-source?source_type=&source_id=
+// It returns pages generated from an origin (e.g. a cycle's AI summaries).
+func (h *PageHandler) ListBySource(c *gin.Context) {
+	projectID, err := h.getProjectID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+	sourceType := c.Query("source_type")
+	sourceID, err := strconv.ParseUint(c.Query("source_id"), 10, 64)
+	if sourceType == "" || err != nil || sourceID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "source_type and source_id are required"})
+		return
+	}
+
+	pages, svcErr := h.svc.ListBySource(projectID, sourceType, sourceID)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, pages)
+}
+
 // Search handles GET /projects/:projectId/pages/search?q=xxx
 func (h *PageHandler) Search(c *gin.Context) {
 	projectID, err := h.getProjectID(c)

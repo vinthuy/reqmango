@@ -40,14 +40,33 @@ func TestIntakeHandler_Submit_NotifiesIssueCreated(t *testing.T) {
 			"name", "identifier", "workspace_id",
 		}).AddRow(projectID, nil, nil, nil, nil, nil, "Demo", "DEM", workspaceID))
 
+	// The service reads the project's intake settings to decide whether the
+	// channel is open before it accepts anything.
+	mock.ExpectQuery(`SELECT \* FROM "project_intake_settings"`).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "created_at", "updated_at", "deleted_at", "created_by_id", "updated_by_id",
+			"project_id", "form_enabled", "webhook_enabled", "email_enabled", "token", "sla_hours",
+		}).AddRow(1, nil, nil, nil, nil, nil, projectID, true, true, true, "tok", 48))
+
 	mock.ExpectQuery(`SELECT \* FROM "states"`).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "created_at", "updated_at", "deleted_at", "created_by_id", "updated_by_id",
 			"name", "project_id", "workspace_id", "is_default",
 		}).AddRow(stateID, nil, nil, nil, nil, nil, "Backlog", projectID, workspaceID, true))
 
+	// The insert runs in a transaction so the issue and its activity land together.
+	mock.ExpectBegin()
+
+	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence_id\), 0\) FROM "issues"`).
+		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(41))
+
 	mock.ExpectQuery(`INSERT INTO "issues"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(issueID))
+
+	mock.ExpectQuery(`INSERT INTO "issue_activities"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	mock.ExpectCommit()
 
 	notifier := &mockIssueCreatedNotifier{}
 	h := NewIntakeHandler(db, notifier)
@@ -87,14 +106,30 @@ func TestIntakeHandler_Submit_NilNotifierStillSucceeds(t *testing.T) {
 			"name", "identifier", "workspace_id",
 		}).AddRow(uint64(10), nil, nil, nil, nil, nil, "Demo", "DEM", uint64(1)))
 
+	mock.ExpectQuery(`SELECT \* FROM "project_intake_settings"`).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "created_at", "updated_at", "deleted_at", "created_by_id", "updated_by_id",
+			"project_id", "form_enabled", "webhook_enabled", "email_enabled", "token", "sla_hours",
+		}).AddRow(1, nil, nil, nil, nil, nil, uint64(10), true, true, true, "tok", 48))
+
 	mock.ExpectQuery(`SELECT \* FROM "states"`).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "created_at", "updated_at", "deleted_at", "created_by_id", "updated_by_id",
 			"name", "project_id", "workspace_id", "is_default",
 		}).AddRow(uint64(5), nil, nil, nil, nil, nil, "Backlog", uint64(10), uint64(1), true))
 
+	mock.ExpectBegin()
+
+	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence_id\), 0\) FROM "issues"`).
+		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(41))
+
 	mock.ExpectQuery(`INSERT INTO "issues"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uint64(7)))
+
+	mock.ExpectQuery(`INSERT INTO "issue_activities"`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	mock.ExpectCommit()
 
 	h := NewIntakeHandler(db, nil)
 	w := httptest.NewRecorder()

@@ -7,6 +7,9 @@ type PageCreateRequest struct {
 	ContentJSON *string `json:"content_json"`
 	ParentID    *uint64 `json:"parent_id"`
 	Sequence    int     `json:"sequence"`
+	// Provenance of a generated page, e.g. cycle/42 for an AI cycle summary.
+	SourceType string  `json:"source_type"`
+	SourceID   *uint64 `json:"source_id"`
 }
 
 // PageUpdateRequest represents the request to update a page.

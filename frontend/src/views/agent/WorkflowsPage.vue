@@ -329,8 +329,10 @@ function formatDate(dateStr: string): string {
 async function loadWorkflows() {
   loadingWorkflows.value = true
   try {
-    const res = await workflowApi.list(projectId.value)
-    workflows.value = res.data.data || []
+    // workflowApi.list already unwraps the envelope and always resolves to an
+    // array; reaching into `res.data.data` threw a TypeError that the catch
+    // below swallowed, so the workflow list never rendered.
+    workflows.value = await workflowApi.list(projectId.value)
   } catch (e: any) {
     message.error(t('workflowsPage.loadWorkflowsFailed') + (e.message || t('workflowsPage.unknownError')))
   } finally {

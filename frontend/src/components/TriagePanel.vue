@@ -1,110 +1,56 @@
 <template>
   <div class="p-6">
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-4">
       <div>
         <h2 class="text-lg font-semibold text-gray-900">{{ t('intake.title') }}</h2>
         <p class="text-sm text-gray-500 mt-1">{{ t('intake.desc') }}</p>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-sm text-gray-500">{{ t('intake.pendingCount', { count: items.length }) }}</span>
-        <button @click="$emit('showForm')" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">
+        <button @click="$emit('showForm')" class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">
           {{ t('intake.formLink') }}
         </button>
+        <router-link :to="hubLink" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700" data-testid="triage-open-hub">
+          {{ t('intakeHub.openHub') }}
+        </router-link>
       </div>
     </div>
 
     <div v-if="loading" class="text-center py-8 text-gray-400">{{ t('intake.loading') }}</div>
-
-    <div v-else-if="items.length === 0" class="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-      <p class="text-gray-500">{{ t('intake.empty') }}</p>
-      <p class="text-xs text-gray-400 mt-1">{{ t('intake.emptyHint') }}</p>
-    </div>
-
-    <div v-else class="space-y-3">
-      <div v-for="item in items" :key="item.id" class="bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300 transition">
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-sm font-medium text-gray-900">{{ item.name }}</span>
-              <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded">{{ t('intake.pendingBadge') }}</span>
-            </div>
-            <p v-if="item.description_html && item.description_html !== '<p></p>'" class="text-xs text-gray-500 line-clamp-2" v-html="item.description_html"></p>
-            <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
-              <span>{{ item.priority }}</span>
-              <span>{{ formatDate(item.created_at) }}</span>
-            </div>
-          </div>
-          <!-- AI Suggestion -->
-          <div v-if="aiResults[item.id]" class="mt-2 p-2 bg-indigo-50 rounded text-xs">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="font-medium text-indigo-700">{{ t('intake.aiLabel') }}</span>
-              <span class="text-indigo-600">{{ aiResults[item.id].suggested_type }}</span>
-              <span :class="'px-1 rounded text-white '+(aiResults[item.id].suggested_priority==='urgent'?'bg-red-500':'bg-amber-500')">{{ aiResults[item.id].suggested_priority }}</span>
-            </div>
-            <div class="text-gray-600">{{ aiResults[item.id].summary }}</div>
-            <div v-if="aiResults[item.id].has_duplicates" class="text-amber-600 mt-1">
-              {{ t('intake.possibleDuplicates', { ids: aiResults[item.id].duplicate_ids?.join(', #') }) }}
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2 ml-4">
-            <button @click="analyzeAI(item.id)" class="px-2 py-1.5 text-xs border border-indigo-300 text-indigo-600 rounded hover:bg-indigo-50" :disabled="analyzing[item.id]">
-              {{ analyzing[item.id] ? t('intake.analyzing') : '🤖' }}
-            </button>
-            <button @click="triage(item.id, 'accept')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700">{{ t('intake.accept') }}</button>
-            <button @click="triage(item.id, 'reject')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded hover:bg-red-600">{{ t('intake.reject') }}</button>
-          </div>
-        </div>
+    <div v-else class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div v-for="s in statuses" :key="s" class="rounded-lg border border-gray-200 p-3">
+        <div class="text-xs text-gray-500">{{ t('intakeHub.status.' + s) }}</div>
+        <div class="text-xl font-semibold text-gray-900 mt-1">{{ counts[s] ?? 0 }}</div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import api from '@/api'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { intakeApi, type IntakeStatus } from '@/api/intake'
 import { useToast } from '@/composables/useToast'
 import { useI18n } from '@/composables/useI18n'
 
 const props = defineProps<{ projectId: number }>()
-const toast = useToast()
-const { t, locale } = useI18n()
 defineEmits<{ (e: 'showForm'): void }>()
+const toast = useToast()
+const { t } = useI18n()
+const route = useRoute()
 
-const items = ref<any[]>([])
+const statuses: IntakeStatus[] = ['pending', 'snoozed', 'accepted', 'rejected', 'duplicate']
+const counts = ref<Record<string, number>>({})
 const loading = ref(false)
-const aiResults = ref<Record<number, any>>({})
-const analyzing = ref<Record<number, boolean>>({})
+const hubLink = computed(() => `/workspace/${route.params.slug}/project/${props.projectId}/intake`)
 
-async function analyzeAI(issueId: number) {
-  analyzing.value[issueId] = true
-  try {
-    const r = await api.post(`/projects/${props.projectId}/intake/${issueId}/ai-analyze`)
-    aiResults.value[issueId] = r.data
-  } catch (e: any) {
-    toast.error(e?.response?.data?.message || e?.message || t('intake.analyzeFailed'))
-  } finally { analyzing.value[issueId] = false }
-}
-
-onMounted(() => load())
-
-async function load() {
+onMounted(async () => {
   loading.value = true
-  try { const r = await api.get(`/projects/${props.projectId}/intake`); items.value = r.data || [] }
-  catch (e: any) {
-    toast.error(e?.response?.data?.message || e?.message || t('intake.loadFailed'))
-  }
-  finally { loading.value = false }
-}
-
-async function triage(issueId: number, action: string) {
   try {
-    await api.post(`/projects/${props.projectId}/intake/${issueId}/triage`, { action })
-    load()
-  } catch (e: any) { toast.error(e.response?.data?.message || t('intake.actionFailed')) }
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString(locale.value === 'zh-CN' ? 'zh-CN' : 'en-US')
-}
+    counts.value = (await intakeApi.list(props.projectId, { limit: 1 })).counts
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || t('intake.loadFailed'))
+  } finally {
+    loading.value = false
+  }
+})
 </script>

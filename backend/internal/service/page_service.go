@@ -44,6 +44,25 @@ func (s *PageService) List(projectID uint64, includeArchived bool) ([]response.P
 	return resps, nil
 }
 
+// ListBySource returns the pages generated from a given origin (e.g. every AI
+// summary saved for one cycle), so the origin can link to its write-ups.
+func (s *PageService) ListBySource(projectID uint64, sourceType string, sourceID uint64) ([]response.PageResponse, error) {
+	if _, ok := pageSourceTypes[sourceType]; !ok {
+		return nil, common.Validation("Unsupported page source type: " + sourceType)
+	}
+	var pages []model.Page
+	if err := s.db.Where("project_id = ? AND archived_at IS NULL AND source_type = ? AND source_id = ?",
+		projectID, sourceType, sourceID).
+		Order("created_at DESC").Find(&pages).Error; err != nil {
+		return nil, common.Internal("Failed to fetch pages by source")
+	}
+	resps := make([]response.PageResponse, len(pages))
+	for i, p := range pages {
+		resps[i] = pageToResponse(&p)
+	}
+	return resps, nil
+}
+
 // Search returns pages matching the query.
 func (s *PageService) Search(projectID uint64, query string) ([]response.PageResponse, error) {
 	var pages []model.Page
@@ -136,6 +155,14 @@ func (s *PageService) Create(req *request.PageCreateRequest, projectID, workspac
 		Depth:       depth,
 		ProjectID:   projectID,
 		WorkspaceID: workspaceID,
+	}
+	if req.SourceType != "" && req.SourceID != nil {
+		// Whitelist the kind so the index stays meaningful and the UI can trust it.
+		if _, ok := pageSourceTypes[req.SourceType]; !ok {
+			return nil, common.Validation("Unsupported page source type: " + req.SourceType)
+		}
+		p.SourceType = req.SourceType
+		p.SourceID = req.SourceID
 	}
 	p.CreatedByID = &userID
 
@@ -419,6 +446,12 @@ func (s *PageService) Move(pageID, projectID uint64, req *request.PageMoveReques
 
 // ==================== Helpers ====================
 
+// pageSourceTypes whitelists what a generated page may claim as its origin.
+var pageSourceTypes = map[string]struct{}{
+	"cycle": {},
+	"issue": {},
+}
+
 func pageToResponse(p *model.Page) response.PageResponse {
 	resp := response.PageResponse{
 		ID:          p.ID,
@@ -434,6 +467,8 @@ func pageToResponse(p *model.Page) response.PageResponse {
 		LockedAt:    p.LockedAt,
 		ProjectID:   p.ProjectID,
 		WorkspaceID: p.WorkspaceID,
+		SourceType:  p.SourceType,
+		SourceID:    p.SourceID,
 		CreatedByID: p.CreatedByID,
 		UpdatedByID: p.UpdatedByID,
 		CreatedAt:   p.CreatedAt,
