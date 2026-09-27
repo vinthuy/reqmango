@@ -1123,9 +1123,30 @@ func (s *AgentService) filterToolsByCapabilities(agent *model.Agent) []llm.Tool 
 	return toolsForCapabilities(caps, allTools)
 }
 
+// capabilityTools expands the capability categories offered in the agent editor
+// into the tools they grant.
+var capabilityTools = map[string][]string{
+	"search":    {"search_issues", "get_issue", "get_issue_activities"},
+	"create":    {"create_issue"},
+	"update":    {"update_issue", "suggest_issue_changes"},
+	"analyze":   {"get_project_stats", "get_issues_summary", "get_cycle_progress", "suggest_issue_changes"},
+	"comment":   {"add_comment", "suggest_issue_changes"},
+	"list":      {"list_members", "list_issue_types", "list_states", "list_labels", "list_cycles", "list_modules", "list_releases", "list_pages"},
+	"summarize": {"get_project_stats", "get_issues_summary", "get_cycle_progress", "list_cycles", "get_issue", "get_issue_activities"},
+}
+
+// proposalLookupTools are the tools that describe the values a field-change
+// proposal may use. An agent that can propose changes without them has to guess
+// ids from memory, and it guesses workspace-level issue types and transitions
+// the project's workflow forbids.
+var proposalLookupTools = []string{"list_states", "list_issue_types"}
+
 // toolsForCapabilities narrows the full tool set down to what an agent's
 // declared capabilities allow. An empty list means "no restriction", and "all"
 // means everything.
+//
+// A capability is either a category from capabilityTools (what the agent editor
+// writes) or a single tool name (what the built-in agents declare).
 func toolsForCapabilities(caps []string, allTools []llm.Tool) []llm.Tool {
 	if len(caps) == 0 {
 		return allTools
@@ -1136,31 +1157,24 @@ func toolsForCapabilities(caps []string, allTools []llm.Tool) []llm.Tool {
 		}
 	}
 
-	capTools := map[string][]string{
-		"search":    {"search_issues", "get_issue", "get_issue_activities"},
-		"create":    {"create_issue"},
-		"update":    {"update_issue", "suggest_issue_changes"},
-		"analyze":   {"get_project_stats", "get_issues_summary", "get_cycle_progress", "suggest_issue_changes"},
-		"comment":   {"add_comment", "suggest_issue_changes"},
-		"list":      {"list_members", "list_issue_types", "list_states", "list_labels", "list_cycles", "list_modules", "list_releases", "list_pages"},
-		"summarize": {"get_project_stats", "get_issues_summary", "get_cycle_progress", "list_cycles", "get_issue", "get_issue_activities"},
-	}
-
-	// Any capability that lets an agent propose a change must also carry the
-	// tools that describe the values it may propose. Without them the model has
-	// to guess ids from memory, and it guesses workspace-level issue types and
-	// transitions the project's workflow forbids.
-	proposesChanges := []string{"update", "analyze", "comment"}
-	for _, cap := range proposesChanges {
-		capTools[cap] = append(capTools[cap], "list_states", "list_issue_types")
+	known := make(map[string]bool, len(allTools))
+	for _, t := range allTools {
+		known[t.Name] = true
 	}
 
 	allowedTools := make(map[string]bool)
 	for _, cap := range caps {
-		if tools, ok := capTools[cap]; ok {
+		if tools, ok := capabilityTools[cap]; ok {
 			for _, t := range tools {
 				allowedTools[t] = true
 			}
+		} else if known[cap] {
+			allowedTools[cap] = true
+		}
+	}
+	if allowedTools["suggest_issue_changes"] {
+		for _, t := range proposalLookupTools {
+			allowedTools[t] = true
 		}
 	}
 
