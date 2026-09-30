@@ -425,14 +425,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	// Retrieve relevant memories and inject into system prompt
 	if s.memSvc != nil {
 		memories, _ := s.retrieveAgentMemories(context.Background(), agent, actx, task)
-		if len(memories) > 0 {
-			var memBuilder strings.Builder
-			memBuilder.WriteString("\n\n以下是相关历史记忆（帮助你理解上下文）：\n")
-			for _, mem := range memories {
-				memBuilder.WriteString(fmt.Sprintf("- [%s] %s\n", mem.ContextName, mem.Content[:minX(len(mem.Content), 150)]))
-			}
-			systemPrompt += memBuilder.String()
-		}
+		systemPrompt += agentMemoryBlock(memories)
 	}
 
 	// Execute skill if agent template has skill integration enabled
@@ -489,6 +482,18 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 // and falls back to keyword/attribute filtering otherwise.
 func (s *AgentService) retrieveAgentMemories(ctx context.Context, agent *model.Agent, actx *AIContext, task string) ([]*model.MemoryEntry, error) {
 	const limit = 5
+	// The agent's own history on this work item beats anything merely similar.
+	if actx.IssueID != 0 {
+		memories, err := s.memSvc.ListMemories(ctx, actx.WorkspaceID, map[string]interface{}{
+			"agent_id": agent.ID,
+			"issue_id": actx.IssueID,
+			"limit":    limit,
+		})
+		if err == nil && len(memories) > 0 {
+			return memories, nil
+		}
+	}
+
 	// Try semantic search first — it ranks memories by actual similarity to
 	// the task text rather than relying on stored relevance_score.
 	if task != "" {
@@ -511,28 +516,55 @@ func (s *AgentService) retrieveAgentMemories(ctx context.Context, agent *model.A
 
 // saveAgentTaskMemory saves the agent task result as a memory entry
 func (s *AgentService) saveAgentTaskMemory(ctx context.Context, agent *model.Agent, actx *AIContext, task, result string, executedTools []string) {
-	contextKey := fmt.Sprintf("agent_%d_task", agent.ID)
+	entry := newAgentTaskMemory(agent, actx, task, result, executedTools)
+	go func() {
+		_, _ = s.memSvc.CreateMemory(ctx, entry)
+	}()
+}
 
+func newAgentTaskMemory(agent *model.Agent, actx *AIContext, task, result string, executedTools []string) *model.MemoryEntry {
 	content := fmt.Sprintf("任务：%s\n\n执行结果：%s", task, result)
 	if len(executedTools) > 0 {
 		content += fmt.Sprintf("\n\n执行工具：%v", executedTools)
 	}
 
+	projectID := actx.ProjectID
+	agentID := agent.ID
 	entry := &model.MemoryEntry{
 		WorkspaceID:    actx.WorkspaceID,
-		ProjectID:      &actx.ProjectID,
-		AgentID:        &agent.ID,
+		ProjectID:      &projectID,
+		AgentID:        &agentID,
 		MemoryType:     model.MemoryMediumTerm,
 		Scope:          model.ScopeAgent,
 		Content:        content,
-		ContextKey:     contextKey,
+		ContextKey:     fmt.Sprintf("agent_%d_task", agent.ID),
 		ContextName:    agent.Name,
 		RelevanceScore: 0.7,
 	}
+	if actx.IssueID != 0 {
+		issueID := actx.IssueID
+		entry.IssueID = &issueID
+	}
+	return entry
+}
 
-	go func() {
-		_, _ = s.memSvc.CreateMemory(ctx, entry)
-	}()
+const agentMemoryMaxRunes = 150
+
+// agentMemoryBlock renders retrieved memories for the system prompt.
+func agentMemoryBlock(memories []*model.MemoryEntry) string {
+	if len(memories) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n\n以下是相关历史记忆（帮助你理解上下文，可能已过时：涉及字段、状态等事实时以工具查询到的当前数据为准）：\n")
+	for _, m := range memories {
+		content := []rune(m.Content)
+		if len(content) > agentMemoryMaxRunes {
+			content = content[:agentMemoryMaxRunes]
+		}
+		b.WriteString(fmt.Sprintf("- [%s] %s\n", m.ContextName, string(content)))
+	}
+	return b.String()
 }
 
 // ======== Auto Triage ========
