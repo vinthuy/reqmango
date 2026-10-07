@@ -183,6 +183,7 @@ import api from '@/api'
 import { agentApi } from '@/api/agent'
 import { issueAgentApi, type AgentStatus } from '@/api/issue-agent'
 import type { Agent } from '@/types/agent'
+import { buildDispatchTask } from '@/utils/agentDispatchTask'
 import { useConfirm } from '@/composables/useConfirm'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
 import relationApi from '@/api/relation'
@@ -814,15 +815,22 @@ async function unassignAgent() {
 // frozen: the thread shows the agent working, and the result lands as a comment.
 const DISPATCH_BUTTON_GUARD_MS = 1500
 
-function dispatchAgent(agentSelectorId: string) {
+async function dispatchAgent(agentSelectorId: string) {
   if (!agentSelectorId || !agentSelectorId.startsWith('agent:')) return
   const agentId = parseInt(agentSelectorId.replace('agent:', ''), 10)
   if (!agentId || agentDispatching.value) return
   agentDispatching.value = true
   setTimeout(() => { agentDispatching.value = false }, DISPATCH_BUTTON_GUARD_MS)
+  const agents = await agentApi.list(workspaceId.value).catch(() => [])
+  const agent = agents.find(a => a.id === agentId)
+  const task = buildDispatchTask(
+    agent,
+    { seq: String(issue.value?.sequence_id || issueId), name: issue.value?.name || '' },
+    t,
+  )
   agentApi
     .dispatch(workspaceId.value, agentId, {
-      task: t('agent.dispatchTask', { seq: String(issue.value?.sequence_id || issueId), name: issue.value?.name || '' }),
+      task,
       issue_id: issueId,
       project_id: projectId.value,
     })

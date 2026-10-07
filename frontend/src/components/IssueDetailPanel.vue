@@ -246,6 +246,7 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { agentApi } from '@/api/agent'
 import { issueAgentApi, type AgentStatus } from '@/api/issue-agent'
+import { buildDispatchTask } from '@/utils/agentDispatchTask'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
 import relationApi from '@/api/relation'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
@@ -729,15 +730,22 @@ async function unassignAgent() {
 // frozen: the thread shows the agent working, and the result lands as a comment.
 const DISPATCH_BUTTON_GUARD_MS = 1500
 
-function dispatchAgent(agentSelectorId: string) {
+async function dispatchAgent(agentSelectorId: string) {
   if (!agentSelectorId || !agentSelectorId.startsWith('agent:')) return
   const agentId = parseInt(agentSelectorId.replace('agent:', ''))
-  if (!agentId || agentDispatching.value) return
+  if (!agentId || agentDispatching.value || !issue.value) return
   agentDispatching.value = true
   setTimeout(() => { agentDispatching.value = false }, DISPATCH_BUTTON_GUARD_MS)
+  const agents = await agentApi.list(props.workspaceId).catch(() => [])
+  const agent = agents.find(a => a.id === agentId)
+  const task = buildDispatchTask(
+    agent,
+    { seq: String(issue.value.sequence_id ?? ''), name: issue.value.name || '' },
+    t,
+  )
   agentApi
     .dispatch(props.workspaceId, agentId, {
-      task: t('agent.dispatchTask', { seq: String(issue.value?.sequence_id ?? ''), name: issue.value?.name || '' }),
+      task,
       issue_id: issue.value.id,
       project_id: props.projectId,
     })

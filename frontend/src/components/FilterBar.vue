@@ -10,11 +10,15 @@ import SearchTemplateSelector from '@/components/SearchTemplateSelector.vue'
 import type { SearchTemplate } from '@/types/search-template'
 import { listCustomFields } from '@/api/custom-field'
 import { suggestIssues } from '@/api/issue'
+import { searchWithAI } from '@/api/ai'
 import type { CustomField } from '@/types/custom-field'
 import type { IssueSearchResult } from '@/types/issue'
+import type { IssueLite } from '@/types/ai'
+import { useToast } from '@/composables/useToast'
 import api from '@/api'
 
 const { t } = useI18n()
+const toast = useToast()
 
 const props = defineProps<{
   projectId: number
@@ -49,6 +53,12 @@ const suggestionIndex = ref(-1)
 let suggestDebounce: ReturnType<typeof setTimeout> | null = null
 let searchCommitDebounce: ReturnType<typeof setTimeout> | null = null
 const SEARCH_COMMIT_MS = 400
+
+const aiSearching = ref(false)
+const showAIResults = ref(false)
+const aiExplanation = ref('')
+const aiResults = ref<IssueLite[]>([])
+const aiResultIndex = ref(-1)
 
 watch(() => props.projectIdentifier, (id) => {
   setProjectIdentifier(id || '')
@@ -267,6 +277,7 @@ function flushCommitQuickSearch() {
 function handleQuickSearchChange(value: string) {
   setQuickSearch(value)
   suggestionIndex.value = -1
+  if (showAIResults.value) clearAIResults()
   fetchSuggestions(value)
   if (!value.trim()) {
     flushCommitQuickSearch()
@@ -281,8 +292,51 @@ function selectSuggestion(suggestion: IssueSearchResult) {
   if (searchInputRef.value) searchInputRef.value.value = query
   addToHistory(query)
   showSuggestions.value = false
+  showAIResults.value = false
   suggestionIndex.value = -1
   emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
+}
+
+function clearAIResults() {
+  showAIResults.value = false
+  aiExplanation.value = ''
+  aiResults.value = []
+  aiResultIndex.value = -1
+}
+
+function selectAIResult(issue: IssueLite) {
+  const ident = props.projectIdentifier || 'ISSUE'
+  const query = `${ident}-${issue.sequence_id}`
+  setAndCommitQuickSearch(query)
+  if (searchInputRef.value) searchInputRef.value.value = query
+  addToHistory(query)
+  clearAIResults()
+  showSuggestions.value = false
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
+}
+
+async function runAISearch() {
+  const q = state.quickSearch.trim()
+  if (!q) {
+    toast.warning(t('filter.aiSearchNeedQuery'))
+    return
+  }
+  if (aiSearching.value || props.projectId <= 0) return
+  aiSearching.value = true
+  showSuggestions.value = false
+  clearAIResults()
+  try {
+    const res = await searchWithAI(props.projectId, { query: q })
+    aiExplanation.value = res.explanation || ''
+    aiResults.value = Array.isArray(res.issues) ? res.issues : []
+    showAIResults.value = true
+    aiResultIndex.value = aiResults.value.length > 0 ? 0 : -1
+    addToHistory(q)
+  } catch (e: any) {
+    toast.error(e?.response?.data?.message || e?.message || t('filter.aiSearchFailed'))
+  } finally {
+    aiSearching.value = false
+  }
 }
 
 function onSearchFocus() {
@@ -295,6 +349,10 @@ function onSearchFocus() {
 }
 
 function handleSearchSubmit() {
+  if (showAIResults.value && aiResultIndex.value >= 0 && aiResults.value[aiResultIndex.value]) {
+    selectAIResult(aiResults.value[aiResultIndex.value])
+    return
+  }
   if (showSuggestions.value && suggestionIndex.value >= 0 && searchSuggestions.value[suggestionIndex.value]) {
     selectSuggestion(searchSuggestions.value[suggestionIndex.value])
     return
@@ -315,6 +373,33 @@ function handleSearchSubmit() {
 }
 
 function onSearchKeydown(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault()
+    runAISearch()
+    return
+  }
+  if (showAIResults.value && aiResults.value.length > 0) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      aiResultIndex.value = Math.min(aiResultIndex.value + 1, aiResults.value.length - 1)
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      aiResultIndex.value = Math.max(aiResultIndex.value - 1, 0)
+      return
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSearchSubmit()
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      clearAIResults()
+      return
+    }
+  }
   const showingHistory = searchFocused.value && state.searchHistory.length > 0 && state.quickSearch.length < 2
   const showingSuggest = showSuggestions.value && searchSuggestions.value.length > 0
   const itemCount = showingSuggest
@@ -362,6 +447,7 @@ function clearQuickSearch() {
   searchSuggestions.value = []
   showSuggestions.value = false
   suggestionIndex.value = -1
+  clearAIResults()
   if (searchCommitDebounce) {
     clearTimeout(searchCommitDebounce)
     searchCommitDebounce = null
@@ -815,66 +901,106 @@ onUnmounted(() => {
   <div class="filter-bar issue-filter-bar border-b border-gray-200 bg-white">
     <!-- 快速搜索（独立区域） -->
     <div class="px-4 py-2 border-b border-gray-100">
-      <div class="relative max-w-xl">
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          ref="searchInputRef"
-          :value="state.quickSearch"
-          @input="handleQuickSearchChange(($event.target as HTMLInputElement).value)"
-          @focus="onSearchFocus"
-          @blur="onSearchBlur"
-          @keydown="onSearchKeydown"
-          type="text"
-          :placeholder="t('filter.quickSearchPlaceholder')"
-          class="w-full pl-9 pr-9 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 focus:bg-white transition-all"
-        />
-        <button
-          v-if="state.quickSearch"
-          type="button"
-          @mousedown.prevent="clearQuickSearch"
-          class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-200 rounded transition-colors"
-        >
-          <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      <div class="flex items-start gap-2 max-w-2xl">
+        <div class="relative flex-1 min-w-0">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-        </button>
-        
-        <div v-if="showSuggestions || (searchFocused && state.searchHistory.length > 0 && state.quickSearch.length < 2)" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-          <template v-if="searchSuggestions.length > 0">
-            <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
-              {{ t('filter.suggestions') }}
+          <input
+            ref="searchInputRef"
+            :value="state.quickSearch"
+            @input="handleQuickSearchChange(($event.target as HTMLInputElement).value)"
+            @focus="onSearchFocus"
+            @blur="onSearchBlur"
+            @keydown="onSearchKeydown"
+            type="text"
+            data-test="quick-search-input"
+            :placeholder="t('filter.quickSearchPlaceholder')"
+            class="w-full pl-9 pr-9 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 focus:bg-white transition-all"
+          />
+          <button
+            v-if="state.quickSearch"
+            type="button"
+            @mousedown.prevent="clearQuickSearch"
+            class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-200 rounded transition-colors"
+          >
+            <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          <div
+            v-if="showAIResults"
+            data-test="ai-search-results"
+            class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-80 overflow-y-auto"
+          >
+            <div class="px-3 py-1.5 text-xs font-medium text-indigo-600 border-b border-gray-100 flex items-center justify-between">
+              <span>{{ t('filter.aiSearchResults') }}</span>
+              <button type="button" class="text-gray-400 hover:text-gray-600" @mousedown.prevent="clearAIResults">✕</button>
             </div>
-            <div
-              v-for="(suggestion, sIdx) in searchSuggestions"
-              :key="suggestion.id"
-              @mousedown.prevent="selectSuggestion(suggestion)"
-              class="px-3 py-2 cursor-pointer flex items-center gap-2"
-              :class="sIdx === suggestionIndex ? 'bg-indigo-50' : 'hover:bg-indigo-50'"
-            >
-              <span class="text-sm font-medium text-indigo-600">{{ suggestion.project_identifier }}-{{ suggestion.sequence_id }}</span>
-              <span class="text-sm text-gray-700 truncate">{{ suggestion.name }}</span>
-            </div>
-          </template>
-          <template v-if="state.searchHistory.length > 0 && state.quickSearch.length < 2">
-            <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
-              {{ t('filter.searchHistory') }}
-            </div>
-            <div
-              v-for="(query, index) in state.searchHistory"
-              :key="'history-' + index"
-              @mousedown.prevent="applyHistory(query)"
-              class="px-3 py-2 cursor-pointer flex items-center justify-between"
-              :class="index === suggestionIndex ? 'bg-indigo-50' : 'hover:bg-indigo-50'"
-            >
-              <span class="text-sm text-gray-700">{{ query }}</span>
-              <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </template>
+            <p v-if="aiExplanation" class="px-3 py-2 text-xs text-gray-600 whitespace-pre-wrap border-b border-gray-50 max-h-28 overflow-y-auto">{{ aiExplanation }}</p>
+            <template v-if="aiResults.length > 0">
+              <div
+                v-for="(issue, idx) in aiResults"
+                :key="issue.id"
+                data-test="ai-search-result-row"
+                @mousedown.prevent="selectAIResult(issue)"
+                class="px-3 py-2 cursor-pointer flex items-center gap-2"
+                :class="idx === aiResultIndex ? 'bg-indigo-50' : 'hover:bg-indigo-50'"
+              >
+                <span class="text-sm font-medium text-indigo-600 shrink-0">{{ projectIdentifier || 'ISSUE' }}-{{ issue.sequence_id }}</span>
+                <span class="text-sm text-gray-700 truncate">{{ issue.name }}</span>
+                <span v-if="issue.priority" class="ml-auto text-[10px] text-gray-400 shrink-0">{{ issue.priority }}</span>
+              </div>
+            </template>
+            <div v-else class="px-3 py-3 text-sm text-gray-400">{{ t('filter.aiSearchEmpty') }}</div>
+          </div>
+          
+          <div v-else-if="showSuggestions || (searchFocused && state.searchHistory.length > 0 && state.quickSearch.length < 2)" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+            <template v-if="searchSuggestions.length > 0">
+              <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
+                {{ t('filter.suggestions') }}
+              </div>
+              <div
+                v-for="(suggestion, sIdx) in searchSuggestions"
+                :key="suggestion.id"
+                @mousedown.prevent="selectSuggestion(suggestion)"
+                class="px-3 py-2 cursor-pointer flex items-center gap-2"
+                :class="sIdx === suggestionIndex ? 'bg-indigo-50' : 'hover:bg-indigo-50'"
+              >
+                <span class="text-sm font-medium text-indigo-600">{{ suggestion.project_identifier }}-{{ suggestion.sequence_id }}</span>
+                <span class="text-sm text-gray-700 truncate">{{ suggestion.name }}</span>
+              </div>
+            </template>
+            <template v-if="state.searchHistory.length > 0 && state.quickSearch.length < 2">
+              <div class="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
+                {{ t('filter.searchHistory') }}
+              </div>
+              <div
+                v-for="(query, index) in state.searchHistory"
+                :key="'history-' + index"
+                @mousedown.prevent="applyHistory(query)"
+                class="px-3 py-2 cursor-pointer flex items-center justify-between"
+                :class="index === suggestionIndex ? 'bg-indigo-50' : 'hover:bg-indigo-50'"
+              >
+                <span class="text-sm text-gray-700">{{ query }}</span>
+                <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </template>
+          </div>
         </div>
+        <button
+          type="button"
+          data-test="ai-search-button"
+          :disabled="aiSearching || !state.quickSearch.trim()"
+          @click="runAISearch"
+          class="shrink-0 px-3 py-1.5 text-sm font-medium rounded-md border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          :title="t('filter.aiSearch') + ' (Ctrl/⌘+Enter)'"
+        >
+          {{ aiSearching ? t('filter.aiSearching') : t('filter.aiSearch') }}
+        </button>
       </div>
     </div>
 

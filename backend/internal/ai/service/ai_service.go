@@ -860,7 +860,7 @@ func (s *AIService) Search(ctx context.Context, req *AISearchRequest, actx *AICo
 			return "", execErr
 		}
 		if name == "search_issues" {
-			if arr, ok := result.([]map[string]interface{}); ok {
+			if arr := asIssueMaps(result); len(arr) > 0 {
 				issues = arr
 			}
 		}
@@ -2125,6 +2125,26 @@ func filterReadOnlyTools(tools []llm.Tool) []llm.Tool {
 		}
 	}
 	return filtered
+}
+
+// asIssueMaps normalises search_issues tool results into a slice of maps.
+// ExecuteTool usually returns []map[string]interface{}, but JSON round-trips
+// and some executors surface []interface{} instead.
+func asIssueMaps(result any) []map[string]interface{} {
+	switch v := result.(type) {
+	case []map[string]interface{}:
+		return v
+	case []interface{}:
+		out := make([]map[string]interface{}, 0, len(v))
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				out = append(out, m)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }
 
 func extractJSON(text string) map[string]interface{} {
