@@ -140,6 +140,14 @@ func (s *CustomFieldService) Create(workspaceID, userID uint64, req request.Cust
 		if err := tx.Create(&f).Error; err != nil {
 			return common.Internal("Failed to create custom field")
 		}
+		// Project pages only list workspace fields their project is enrolled in.
+		if f.ProjectID == nil {
+			if err := tx.Exec(`INSERT INTO project_custom_field_enrollments (project_id, field_id, is_enabled)
+				SELECT id, ?, true FROM projects WHERE workspace_id = ? AND deleted_at IS NULL
+				ON CONFLICT (project_id, field_id) DO NOTHING`, f.ID, workspaceID).Error; err != nil {
+				return common.Internal("Failed to enroll custom field")
+			}
+		}
 		if f.FieldType == "dropdown" {
 			return syncFieldOptions(tx, f.ID, req.Options)
 		}
