@@ -43,6 +43,13 @@ describe('buildRQL', () => {
     expect(buildRQL(filters)).toBe('assignee_id IS NOT NULL')
   })
 
+  it('should build sequence_id "is any of" clause for AI search apply', () => {
+    const filters: FilterCondition[] = [
+      { field: 'sequence_id', operator: 'is any of', value: [3, 7, 11], displayValue: '3, 7, 11' }
+    ]
+    expect(buildRQL(filters)).toBe('sequence_id IN (3, 7, 11)')
+  })
+
   it('should build "is any of" clause', () => {
     const filters: FilterCondition[] = [
       { field: 'state_id', operator: 'is any of', value: [1, 2, 3], displayValue: 'TODO, Doing, Done' }

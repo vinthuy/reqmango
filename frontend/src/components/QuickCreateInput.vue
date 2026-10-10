@@ -48,6 +48,13 @@
         </button>
       </div>
     </div>
+    <label
+      class="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-gray-500 cursor-pointer select-none"
+      :title="t('issue.autoTriageOnCreateHint')"
+    >
+      <input v-model="autoTriage" type="checkbox" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+      <span>{{ t('issue.autoTriageOnCreate') }}</span>
+    </label>
     <p v-if="activeTemplateName" class="mt-1 text-[11px] text-gray-400">
       {{ t('workItemTemplate.appliedHint', { name: activeTemplateName }) }}
     </p>
@@ -107,6 +114,7 @@ const emit = defineEmits<{
 
 const titleInput = ref<HTMLInputElement | null>(null)
 const creating = ref(false)
+const autoTriage = ref(false)
 const duplicates = ref<DuplicateIssueItem[]>([])
 const templates = ref<WorkItemTemplate[]>([])
 const activeTemplate = ref<WorkItemTemplate | null>(null)
@@ -207,6 +215,7 @@ async function handleCreate() {
       name,
       type_id: quickCreate.type_id ? Number(quickCreate.type_id) : undefined,
       priority: quickCreate.priority,
+      auto_triage: autoTriage.value,
     }
     if (quickCreate.state_id) {
       issueData.state_id = quickCreate.state_id

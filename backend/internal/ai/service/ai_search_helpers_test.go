@@ -20,3 +20,17 @@ func TestAsIssueMaps_AcceptsTypedAndUntypedSlices(t *testing.T) {
 
 	assert.Nil(t, asIssueMaps("nope"))
 }
+
+func TestBuildAISearchRQL(t *testing.T) {
+	assert.Equal(t, "", buildAISearchRQL(nil))
+	assert.Equal(t, "", buildAISearchRQL([]map[string]interface{}{{"name": "x"}}))
+	assert.Equal(t, "sequence_id = 42", buildAISearchRQL([]map[string]interface{}{
+		{"sequence_id": float64(42), "name": "a"},
+	}))
+	assert.Equal(t, "sequence_id IN (3, 7, 11)", buildAISearchRQL([]map[string]interface{}{
+		{"sequence_id": float64(3)},
+		{"sequence_id": uint64(7)},
+		{"sequence_id": float64(3)}, // dedupe
+		{"sequence_id": float64(11)},
+	}))
+}

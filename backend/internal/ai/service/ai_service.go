@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -872,10 +873,37 @@ func (s *AIService) Search(ctx context.Context, req *AISearchRequest, actx *AICo
 	}
 
 	return &AISearchResponse{
-		RQL:         "",
+		RQL:         buildAISearchRQL(issues),
 		Explanation: resp.Content,
 		Issues:      issues,
 	}, nil
+}
+
+// buildAISearchRQL turns matched issues into a FilterBar-applicable RQL clause
+// on sequence_id so the user can apply AI results as a real filter.
+func buildAISearchRQL(issues []map[string]interface{}) string {
+	seqs := make([]uint64, 0, len(issues))
+	seen := make(map[uint64]bool, len(issues))
+	for _, iss := range issues {
+		seq := getUintArg(iss, "sequence_id", 0)
+		if seq == 0 || seen[seq] {
+			continue
+		}
+		seen[seq] = true
+		seqs = append(seqs, seq)
+	}
+	switch len(seqs) {
+	case 0:
+		return ""
+	case 1:
+		return fmt.Sprintf("sequence_id = %d", seqs[0])
+	default:
+		parts := make([]string, len(seqs))
+		for i, seq := range seqs {
+			parts[i] = strconv.FormatUint(seq, 10)
+		}
+		return fmt.Sprintf("sequence_id IN (%s)", strings.Join(parts, ", "))
+	}
 }
 
 // ==================== Create Preview ====================
@@ -1662,11 +1690,22 @@ func (s *AIService) toolSuggestIssueChanges(args map[string]interface{}, actx *A
 	kept := make([]model.IssueSuggestion, 0, len(parsed))
 	rejected := make([]string, 0)
 	for _, sg := range parsed {
-		if sg.Field == "state" && !sg.NoOp {
-			if reason := s.illegalStateSuggestion(issueID, sg); reason != "" {
-				rejected = append(rejected, reason)
-				continue
-			}
+		if sg.NoOp {
+			kept = append(kept, sg)
+			continue
+		}
+		var reason string
+		switch sg.Field {
+		case "state":
+			reason = s.illegalStateSuggestion(issueID, sg)
+		case "type":
+			reason = s.illegalTypeSuggestion(issueID, sg)
+		case "assignee":
+			reason = s.illegalAssigneeSuggestion(issueID, sg)
+		}
+		if reason != "" {
+			rejected = append(rejected, reason)
+			continue
 		}
 		kept = append(kept, sg)
 	}
@@ -1723,6 +1762,43 @@ func (s *AIService) illegalStateSuggestion(issueID uint64, sg model.IssueSuggest
 		return fmt.Sprintf("状态「%s → %s」不被工作流允许，当前状态没有可流转的目标", from.Name, to.Name)
 	}
 	return fmt.Sprintf("状态「%s → %s」不被工作流允许，当前可选：%s", from.Name, to.Name, strings.Join(names, "、"))
+}
+
+// illegalTypeSuggestion rejects a type that is not visible in the issue's project.
+func (s *AIService) illegalTypeSuggestion(issueID uint64, sg model.IssueSuggestion) string {
+	typeID, _ := sg.Value.(uint64)
+	var issue model.Issue
+	if err := s.db.Select("id", "project_id", "workspace_id").First(&issue, issueID).Error; err != nil {
+		return fmt.Sprintf("工作项 %d 不存在", issueID)
+	}
+	types, err := issuetype.Visible(s.db, issue.WorkspaceID, &issue.ProjectID)
+	if err != nil {
+		return ""
+	}
+	names := make([]string, 0, len(types))
+	for _, t := range types {
+		if t.ID == typeID {
+			return ""
+		}
+		names = append(names, fmt.Sprintf("%s(%d)", t.Name, t.ID))
+	}
+	if len(names) == 0 {
+		return fmt.Sprintf("类型 %d 不可用：本项目没有可选用的工作项类型", typeID)
+	}
+	return fmt.Sprintf("类型 %d 不属于本项目，可用类型：%s", typeID, strings.Join(names, "、"))
+}
+
+// illegalAssigneeSuggestion rejects a user who is not an active project member.
+func (s *AIService) illegalAssigneeSuggestion(issueID uint64, sg model.IssueSuggestion) string {
+	userID, _ := sg.Value.(uint64)
+	var issue model.Issue
+	if err := s.db.Select("id", "project_id").First(&issue, issueID).Error; err != nil {
+		return fmt.Sprintf("工作项 %d 不存在", issueID)
+	}
+	if s.isProjectMember(issue.ProjectID, userID) {
+		return ""
+	}
+	return fmt.Sprintf("负责人 %d 不是本项目成员，请用 list_members 查询", userID)
 }
 
 func (s *AIService) toolUpdateIssue(args map[string]interface{}, actx *AIContext) (any, error) {
@@ -2083,6 +2159,20 @@ func getUintArg(args map[string]interface{}, key string, defaultVal uint64) uint
 				return defaultVal
 			}
 			return uint64(val)
+		case int:
+			if n < 0 {
+				return defaultVal
+			}
+			return uint64(n)
+		case int64:
+			if n < 0 {
+				return defaultVal
+			}
+			return uint64(n)
+		case uint64:
+			return n
+		case uint:
+			return uint64(n)
 		}
 	}
 	return defaultVal

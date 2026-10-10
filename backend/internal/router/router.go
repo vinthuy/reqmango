@@ -144,6 +144,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	projectH := handler.NewProjectHandler(projectSvc, templateSvc)
 	settingsH := handler.NewProjectSettingsHandler(settingsSvc)
 	issueH := handler.NewIssueHandler(issueSvc)
+	issueH.SetAutoTriager(agentSvc)
 	cycleH := handler.NewCycleHandler(cycleSvc)
 	moduleH := handler.NewModuleHandler(moduleSvc)
 	issueTypeH := handler.NewIssueTypeHandler(issueTypeSvc)
@@ -687,7 +688,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			pages := projects.Group("/:projectId/pages", authMiddleware)
 			{
 				pages.GET("", pageH.List)
-				pages.GET("/search", pageH.Search) // ?q=
+				pages.GET("/search", pageH.Search)          // ?q=
 				pages.GET("/by-source", pageH.ListBySource) // ?source_type=&source_id=
 				pages.POST("", pageH.Create)
 				pages.GET("/tree", pageH.GetTree)

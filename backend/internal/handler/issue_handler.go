@@ -17,12 +17,23 @@ import (
 	"github.com/reqmango/backend/internal/service"
 )
 
+// IssueAutoTriager runs best-effort auto-triage after issue create.
+type IssueAutoTriager interface {
+	AutoTriage(issueID, userID uint64) (*model.AgentActivity, error)
+}
+
 type IssueHandler struct {
-	svc *service.IssueService
+	svc         *service.IssueService
+	autoTriager IssueAutoTriager
 }
 
 func NewIssueHandler(svc *service.IssueService) *IssueHandler {
 	return &IssueHandler{svc: svc}
+}
+
+// SetAutoTriager wires optional post-create auto-triage.
+func (h *IssueHandler) SetAutoTriager(t IssueAutoTriager) {
+	h.autoTriager = t
 }
 
 func (h *IssueHandler) parseIssueID(c *gin.Context) (uint64, error) {
@@ -61,6 +72,13 @@ func (h *IssueHandler) Create(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
 		return
+	}
+
+	if req.AutoTriage && h.autoTriager != nil && resp != nil && resp.ID > 0 {
+		issueID, userID := resp.ID, user.ID
+		go func() {
+			_, _ = h.autoTriager.AutoTriage(issueID, userID)
+		}()
 	}
 
 	c.JSON(http.StatusCreated, resp)

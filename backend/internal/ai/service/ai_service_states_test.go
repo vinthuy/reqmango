@@ -203,6 +203,41 @@ func TestToolSuggestIssueChanges_RejectsAStateFromAnotherProject(t *testing.T) {
 	assert.Empty(t, recorded)
 }
 
+func TestToolSuggestIssueChanges_RejectsInvisibleTypeAndNonMember(t *testing.T) {
+	f := newStatesFixture(t)
+	require.NoError(t, f.svc.db.AutoMigrate(&model.IssueType{}, &model.IssueTypeImport{}, &model.ProjectMember{}, &model.User{}))
+	require.NoError(t, f.svc.db.Create(&model.IssueType{
+		BaseModel: model.BaseModel{ID: 12369}, Name: "Bug", WorkspaceID: 1, ProjectID: ptrU64(1),
+	}).Error)
+	require.NoError(t, f.svc.db.Create(&model.User{
+		BaseModel: model.BaseModel{ID: 14}, Email: "a@b.c", Username: "a", PasswordHash: "x",
+	}).Error)
+	require.NoError(t, f.svc.db.Create(&model.ProjectMember{
+		ProjectID: 1, UserID: 14, IsActive: true,
+	}).Error)
+
+	_, recorded, err := suggest(t, f,
+		map[string]interface{}{"field": "type", "value": float64(999)},
+		map[string]interface{}{"field": "assignee", "value": float64(99)},
+		map[string]interface{}{"field": "assignee", "value": float64(14)},
+		map[string]interface{}{"field": "type", "value": float64(12369)},
+	)
+	// First type+assignee of each field wins in ParseIssueSuggestions dedupe —
+	// so we get illegal type 999 and illegal assignee 99 only.
+	require.Error(t, err)
+	assert.Empty(t, recorded)
+	assert.Contains(t, err.Error(), "类型")
+	assert.Contains(t, err.Error(), "负责人")
+
+	_, recorded, err = suggest(t, f,
+		map[string]interface{}{"field": "type", "value": float64(12369)},
+		map[string]interface{}{"field": "assignee", "value": float64(14)},
+		map[string]interface{}{"field": "priority", "value": "medium"},
+	)
+	require.NoError(t, err)
+	require.Len(t, recorded, 3)
+}
+
 func TestToolListStates_ScopesTargetsToTheIssuesWorkflow(t *testing.T) {
 	// A workflow that only governs the issue's type restricts it, while other
 	// states in the same project stay free to move anywhere.

@@ -21,6 +21,9 @@ type IssueCreateRequest struct {
 	ExternalSource    *string                `json:"external_source"`
 	CoverImageURL     *string                `json:"cover_image_url"`
 	CustomFieldValues map[uint64]interface{} `json:"custom_field_values"`
+	// AutoTriage, when true, asks the workspace triage agent to suggest
+	// type/priority/state after the issue is created (best-effort, async).
+	AutoTriage bool `json:"auto_triage"`
 }
 
 // IssueUpdateRequest is the request body for updating an issue.

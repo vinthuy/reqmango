@@ -200,6 +200,10 @@
 
     <!-- 底部操作 -->
     <div class="page-footer">
+      <label class="flex items-center gap-2 text-sm text-gray-600 mr-auto cursor-pointer select-none" :title="t('issue.autoTriageOnCreateHint')">
+        <input v-model="autoTriage" type="checkbox" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+        <span>{{ t('issue.autoTriageOnCreate') }}</span>
+      </label>
       <button @click="goBack" class="btn btn-secondary">{{ t('issue.cancel') }}</button>
       <button @click="submitForm" class="btn btn-primary" :disabled="!canSubmit || saving">
         <svg v-if="saving" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -275,6 +279,7 @@ const projectMembers = ref<User[]>([])
 const selectedTypeId = ref<number | null>(null)
 const customFieldValues = ref<Record<number, IssueCustomFieldValueUpdate>>({})
 const saving = ref(false)
+const autoTriage = ref(false)
 
 const templates = ref<WorkItemTemplate[]>([])
 const selectedTemplateId = ref<number | null>(null)
@@ -584,7 +589,8 @@ async function submitForm() {
     const data: any = {
       name: formData.value.name,
       type_id: selectedTypeId.value,
-      priority: formData.value.priority || 'none'
+      priority: formData.value.priority || 'none',
+      auto_triage: autoTriage.value,
     }
     
     // Add description if provided

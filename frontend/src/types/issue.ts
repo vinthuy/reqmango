@@ -55,6 +55,8 @@ export interface IssueCreate extends IssueBase {
   external_source?: string
   project_id?: number
   workspace_id?: number
+  /** When true, backend runs workspace triage agent after create (async). */
+  auto_triage?: boolean
 }
 
 // ==================== Issue Update ====================

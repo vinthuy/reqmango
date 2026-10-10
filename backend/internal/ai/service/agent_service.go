@@ -570,16 +570,23 @@ func agentMemoryBlock(memories []*model.MemoryEntry) string {
 // ======== Auto Triage ========
 
 // AutoTriage analyzes an unsorted issue and suggests type, priority, and labels.
+// Prefers the built-in「请求分诊」agent in the issue's workspace so suggestions
+// go through suggest_issue_changes rather than a generic analyze agent.
 func (s *AgentService) AutoTriage(issueID, userID uint64) (*model.AgentActivity, error) {
-	agent, err := s.findAgentByCapability("analyze")
+	var issue model.Issue
+	if err := s.db.Select("id", "name", "sequence_id", "workspace_id").First(&issue, issueID).Error; err != nil {
+		return nil, common.NotFound("Issue not found")
+	}
+
+	agent, err := s.findTriageAgent(issue.WorkspaceID)
 	if err != nil {
 		return nil, err
 	}
 
 	task := fmt.Sprintf(
-		"Analyze the following issue and suggest the appropriate type, priority, labels, and assignee. "+
-			"Use the project context to understand what issue types, states, labels, and members are available. "+
-			"Then provide your triage recommendation. Issue ID: %d", issueID)
+		"请对工作项 #%d「%s」做分诊：判断类型、优先级、下一步应流转到什么状态，"+
+			"并用 suggest_issue_changes 给出可一键采纳的字段建议。工作项 ID: %d",
+		issue.SequenceID, issue.Name, issueID)
 	ctx := &DispatchContext{
 		IssueID:     &issueID,
 		WorkspaceID: agent.WorkspaceID,
@@ -587,6 +594,36 @@ func (s *AgentService) AutoTriage(issueID, userID uint64) (*model.AgentActivity,
 	}
 
 	return s.DispatchAgent(agent.ID, userID, task, ctx)
+}
+
+// findTriageAgent picks the best active agent for auto-triage in a workspace:
+// named「请求分诊」first, then any agent with suggest_issue_changes / analyze.
+func (s *AgentService) findTriageAgent(workspaceID uint64) (*model.Agent, error) {
+	var agents []model.Agent
+	if err := s.db.Where("workspace_id = ? AND status = ?", workspaceID, "active").
+		Order("id ASC").Find(&agents).Error; err != nil {
+		return nil, common.Internal("Failed to find agents")
+	}
+	for i := range agents {
+		if agents[i].Name == "请求分诊" {
+			return &agents[i], nil
+		}
+	}
+	for i := range agents {
+		var caps []string
+		if err := json.Unmarshal(agents[i].Capabilities, &caps); err != nil {
+			continue
+		}
+		for _, c := range caps {
+			if c == "suggest_issue_changes" || c == "analyze" || c == "all" {
+				return &agents[i], nil
+			}
+		}
+	}
+	if len(agents) > 0 {
+		return &agents[0], nil
+	}
+	return nil, common.NotFound("No active triage agent found")
 }
 
 // ======== Auto Assign ========

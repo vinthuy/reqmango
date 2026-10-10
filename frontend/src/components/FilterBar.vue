@@ -58,6 +58,7 @@ const aiSearching = ref(false)
 const showAIResults = ref(false)
 const aiExplanation = ref('')
 const aiResults = ref<IssueLite[]>([])
+const aiRQL = ref('')
 const aiResultIndex = ref(-1)
 
 watch(() => props.projectIdentifier, (id) => {
@@ -301,7 +302,17 @@ function clearAIResults() {
   showAIResults.value = false
   aiExplanation.value = ''
   aiResults.value = []
+  aiRQL.value = ''
   aiResultIndex.value = -1
+}
+
+function applyAIRQL() {
+  const rqlStr = aiRQL.value.trim()
+  if (!rqlStr) return
+  restoreFromRQL(rqlStr, false)
+  clearAIResults()
+  showSuggestions.value = false
+  emit('filters-changed', rql.value, state.sortBy, state.groupBy, state.subGroupBy, state.appliedQuickSearch)
 }
 
 function selectAIResult(issue: IssueLite) {
@@ -329,6 +340,7 @@ async function runAISearch() {
     const res = await searchWithAI(props.projectId, { query: q })
     aiExplanation.value = res.explanation || ''
     aiResults.value = Array.isArray(res.issues) ? res.issues : []
+    aiRQL.value = (res.rql || '').trim()
     showAIResults.value = true
     aiResultIndex.value = aiResults.value.length > 0 ? 0 : -1
     addToHistory(q)
@@ -934,9 +946,18 @@ onUnmounted(() => {
             data-test="ai-search-results"
             class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-80 overflow-y-auto"
           >
-            <div class="px-3 py-1.5 text-xs font-medium text-indigo-600 border-b border-gray-100 flex items-center justify-between">
+            <div class="px-3 py-1.5 text-xs font-medium text-indigo-600 border-b border-gray-100 flex items-center justify-between gap-2">
               <span>{{ t('filter.aiSearchResults') }}</span>
-              <button type="button" class="text-gray-400 hover:text-gray-600" @mousedown.prevent="clearAIResults">✕</button>
+              <div class="flex items-center gap-2">
+                <button
+                  v-if="aiRQL"
+                  type="button"
+                  data-test="ai-search-apply-rql"
+                  class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                  @mousedown.prevent="applyAIRQL"
+                >{{ t('filter.aiSearchApplyFilter') }}</button>
+                <button type="button" class="text-gray-400 hover:text-gray-600" @mousedown.prevent="clearAIResults">✕</button>
+              </div>
             </div>
             <p v-if="aiExplanation" class="px-3 py-2 text-xs text-gray-600 whitespace-pre-wrap border-b border-gray-50 max-h-28 overflow-y-auto">{{ aiExplanation }}</p>
             <template v-if="aiResults.length > 0">
