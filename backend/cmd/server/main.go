@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	airegistry "github.com/reqmango/backend/internal/ai/registry"
+	aiservice "github.com/reqmango/backend/internal/ai/service"
 	"github.com/reqmango/backend/internal/config"
 	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
@@ -189,6 +190,7 @@ func main() {
 		// Phase 4 - SDLC orchestration (P4-006)
 		&model.SDLCWorkflow{},
 		&model.SDLCStage{},
+		&model.DataMigration{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}
@@ -237,6 +239,15 @@ func main() {
 	}
 
 	seed.SeedAll(db)
+
+	go func() {
+		ran, filled, expired, err := aiservice.RunAgentMemoryBackfillOnce(db)
+		if err != nil {
+			log.Printf("WARNING: agent memory backfill failed (will retry next start): %v", err)
+		} else if ran {
+			fmt.Printf("Agent memory backfill completed: %d linked, %d expired\n", filled, expired)
+		}
+	}()
 
 	// Update built-in search templates for all projects (fixes RQL / description)
 	var projects []model.Project

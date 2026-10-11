@@ -69,3 +69,46 @@ func TestBackfillAgentMemoryIssueIDs_FillsAndExpires(t *testing.T) {
 	assert.Nil(t, got2.IssueID)
 	require.NotNil(t, got2.ExpiresAt)
 }
+
+func TestRunAgentMemoryBackfillOnce_RunsOnceAndPagesPastUnresolvedRows(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Project{}, &model.Issue{}, &model.MemoryEntry{}, &model.DataMigration{}))
+	require.NoError(t, db.Create(&model.Project{
+		BaseModel: model.BaseModel{ID: 1}, Name: "P", Identifier: "CORE", WorkspaceID: 1,
+	}).Error)
+	require.NoError(t, db.Create(&model.Issue{
+		BaseModel: model.BaseModel{ID: 81}, Name: "慢查询", ProjectID: 1, WorkspaceID: 1, SequenceID: 81, StateID: 1,
+	}).Error)
+
+	agentID := uint64(7)
+	// A full batch of recent unresolvable rows ahead of the resolvable one: they
+	// are neither linked nor expired, so the cursor must move past them.
+	for i := 0; i < memoryBackfillBatch; i++ {
+		require.NoError(t, db.Create(&model.MemoryEntry{
+			WorkspaceID: 1, AgentID: &agentID, MemoryType: model.MemoryMediumTerm, Scope: model.ScopeAgent,
+			Content: "近期闲聊", Metadata: json.RawMessage(`{}`), Tags: json.RawMessage(`[]`),
+		}).Error)
+	}
+	target := model.MemoryEntry{
+		WorkspaceID: 2, AgentID: &agentID, MemoryType: model.MemoryMediumTerm, Scope: model.ScopeAgent,
+		Content: "issue_id=81 分诊", Metadata: json.RawMessage(`{}`), Tags: json.RawMessage(`[]`),
+	}
+	require.NoError(t, db.Create(&target).Error)
+	require.NoError(t, db.Model(&model.Issue{}).Where("id = 81").Update("workspace_id", 2).Error)
+
+	ran, filled, expired, err := RunAgentMemoryBackfillOnce(db)
+	require.NoError(t, err)
+	assert.True(t, ran)
+	assert.Equal(t, 1, filled)
+	assert.Equal(t, 0, expired)
+
+	var got model.MemoryEntry
+	require.NoError(t, db.First(&got, target.ID).Error)
+	require.NotNil(t, got.IssueID)
+	assert.EqualValues(t, 81, *got.IssueID)
+
+	ran, _, _, err = RunAgentMemoryBackfillOnce(db)
+	require.NoError(t, err)
+	assert.False(t, ran, "the marker prevents a second run")
+}

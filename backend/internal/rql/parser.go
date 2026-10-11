@@ -30,6 +30,24 @@ func (p *Parser) Parse() (Node, error) {
 	return node, nil
 }
 
+// ParseStrict lexes and parses q, and also rejects trailing tokens that Parse
+// would silently drop (e.g. `priority = "high" foo`).
+func ParseStrict(q string) (Node, error) {
+	tokens, lexErr := NewLexer(q).Tokenize()
+	if lexErr != nil {
+		return nil, lexErr
+	}
+	p := NewParser(tokens)
+	node, err := p.Parse()
+	if err != nil {
+		return nil, err
+	}
+	if p.current().Type != TOKEN_EOF {
+		return nil, &ParseError{Position: p.current().Position, Message: "多余的内容: " + p.current().Value}
+	}
+	return node, nil
+}
+
 func (p *Parser) current() Token {
 	if p.position >= len(p.tokens) {
 		return Token{Type: TOKEN_EOF}

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/reqmango/backend/internal/model"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -52,38 +54,69 @@ const (
 // BackfillAgentMemoryIssueIDs repairs agent task memories that were saved
 // before issue_id was recorded. Resolvable rows get issue_id; unresolvable
 // rows older than 30 days get expires_at so they stop polluting retrieval.
+// workspaceID 0 covers every workspace.
 func (s *AgentService) BackfillAgentMemoryIssueIDs(workspaceID uint64) (filled, expired int, err error) {
-	var entries []model.MemoryEntry
-	q := s.db.Where("agent_id IS NOT NULL AND issue_id IS NULL AND deleted_at IS NULL").
-		Where("expires_at IS NULL OR expires_at > ?", time.Now()).
-		Order("id ASC").Limit(memoryBackfillBatch)
-	if workspaceID > 0 {
-		q = q.Where("workspace_id = ?", workspaceID)
-	}
-	if err = q.Find(&entries).Error; err != nil {
-		return 0, 0, err
-	}
-
 	now := time.Now()
-	for i := range entries {
-		e := &entries[i]
-		hint := extractMemoryIssueHint(e.Content)
-		if id := s.resolveMemoryIssueHint(e, hint); id > 0 {
-			if err := s.db.Model(e).Update("issue_id", id).Error; err != nil {
-				return filled, expired, err
-			}
-			filled++
-			continue
+	var lastID uint64
+	for {
+		var entries []model.MemoryEntry
+		q := s.db.Where("agent_id IS NOT NULL AND issue_id IS NULL AND deleted_at IS NULL").
+			Where("expires_at IS NULL OR expires_at > ?", now).
+			Where("id > ?", lastID).
+			Order("id ASC").Limit(memoryBackfillBatch)
+		if workspaceID > 0 {
+			q = q.Where("workspace_id = ?", workspaceID)
 		}
-		if e.CreatedAt.IsZero() || now.Sub(e.CreatedAt) < memoryOrphanExpireAge {
-			continue
-		}
-		if err := s.db.Model(e).Update("expires_at", now).Error; err != nil {
+		if err = q.Find(&entries).Error; err != nil {
 			return filled, expired, err
 		}
-		expired++
+
+		for i := range entries {
+			e := &entries[i]
+			lastID = e.ID
+			hint := extractMemoryIssueHint(e.Content)
+			if id := s.resolveMemoryIssueHint(e, hint); id > 0 {
+				if err := s.db.Model(e).Update("issue_id", id).Error; err != nil {
+					return filled, expired, err
+				}
+				filled++
+				continue
+			}
+			if e.CreatedAt.IsZero() || now.Sub(e.CreatedAt) < memoryOrphanExpireAge {
+				continue
+			}
+			if err := s.db.Model(e).Update("expires_at", now).Error; err != nil {
+				return filled, expired, err
+			}
+			expired++
+		}
+		if len(entries) < memoryBackfillBatch {
+			return filled, expired, nil
+		}
 	}
-	return filled, expired, nil
+}
+
+const memoryIssueIDBackfillMigration = "agent_memory_issue_id_backfill_v1"
+
+// RunAgentMemoryBackfillOnce runs the issue_id backfill across all workspaces
+// the first time it is called against a database. The marker is claimed before
+// running so concurrent instances do not both run it, and released on failure
+// so the next startup retries.
+func RunAgentMemoryBackfillOnce(db *gorm.DB) (ran bool, filled, expired int, err error) {
+	claim := db.Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&model.DataMigration{Name: memoryIssueIDBackfillMigration, AppliedAt: time.Now()})
+	if claim.Error != nil {
+		return false, 0, 0, claim.Error
+	}
+	if claim.RowsAffected == 0 {
+		return false, 0, 0, nil
+	}
+	filled, expired, err = (&AgentService{db: db}).BackfillAgentMemoryIssueIDs(0)
+	if err != nil {
+		db.Where("name = ?", memoryIssueIDBackfillMigration).Delete(&model.DataMigration{})
+		return true, filled, expired, err
+	}
+	return true, filled, expired, nil
 }
 
 func (s *AgentService) resolveMemoryIssueHint(e *model.MemoryEntry, hint memoryIssueHint) uint64 {

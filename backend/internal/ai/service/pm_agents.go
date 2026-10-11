@@ -142,7 +142,5 @@ func (s *AgentService) EnsurePMAgents(workspaceID, userID uint64) ([]*model.Agen
 		}
 		out = append(out, ag)
 	}
-	// Best-effort: repair agent memories that predate issue-scoped storage.
-	_, _, _ = s.BackfillAgentMemoryIssueIDs(workspaceID)
 	return out, nil
 }

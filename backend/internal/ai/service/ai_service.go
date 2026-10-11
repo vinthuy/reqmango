@@ -837,6 +837,15 @@ type AISearchResponse struct {
 
 // Search translates natural language to a search query and executes it.
 func (s *AIService) Search(ctx context.Context, req *AISearchRequest, actx *AIContext) (*AISearchResponse, error) {
+	// Prefer a real filter; fall back to the tool loop when the model cannot
+	// express the request or the filter matches nothing.
+	genRQL, genExplanation, genOK := s.translateSearchRQL(ctx, req.Query, actx)
+	if genOK {
+		if found, err := s.runSearchRQL(genRQL, actx); err == nil && len(found) > 0 {
+			return &AISearchResponse{RQL: genRQL, Explanation: genExplanation, Issues: found}, nil
+		}
+	}
+
 	translatePrompt := fmt.Sprintf(`你是一个查询翻译器。将用户的自然语言需求翻译为 reqmango 查询，然后搜索并返回结果。
 
 项目信息：
@@ -870,6 +879,10 @@ func (s *AIService) Search(ctx context.Context, req *AISearchRequest, actx *AICo
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if len(issues) == 0 && genOK {
+		return &AISearchResponse{RQL: genRQL, Explanation: genExplanation, Issues: []map[string]interface{}{}}, nil
 	}
 
 	return &AISearchResponse{
