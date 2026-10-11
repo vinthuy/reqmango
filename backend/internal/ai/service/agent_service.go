@@ -95,11 +95,7 @@ func (s *AgentService) CanInvoke(agentID, userID uint64) (bool, error) {
 	case model.PermissionModePrivate:
 		// Private mode: owner or same workspace member can invoke
 		// Check if user is a member of the agent's workspace
-		var workspaceMember model.WorkspaceMember
-		if err := s.db.Where("workspace_id = ? AND user_id = ?", agent.WorkspaceID, userID).First(&workspaceMember).Error; err == nil {
-			return true, nil
-		}
-		return false, nil
+		return s.isActiveWorkspaceMember(agent.WorkspaceID, userID), nil
 	case model.PermissionModePublicTo:
 		// Public_to mode: check invocation targets
 		var targets []model.AgentInvocationTarget
@@ -110,7 +106,9 @@ func (s *AgentService) CanInvoke(agentID, userID uint64) (bool, error) {
 			switch target.TargetType {
 			case "workspace":
 				// Workspace target: any workspace member can invoke
-				return true, nil
+				if s.isActiveWorkspaceMember(agent.WorkspaceID, userID) {
+					return true, nil
+				}
 			case "member":
 				// Member target: check if user matches
 				if target.TargetID != "" {
@@ -129,6 +127,13 @@ func (s *AgentService) CanInvoke(agentID, userID uint64) (bool, error) {
 	default:
 		return false, nil
 	}
+}
+
+func (s *AgentService) isActiveWorkspaceMember(workspaceID, userID uint64) bool {
+	var n int64
+	s.db.Model(&model.WorkspaceMember{}).
+		Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, userID, true).Count(&n)
+	return n > 0
 }
 
 // GetByID returns a single agent by ID.

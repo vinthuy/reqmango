@@ -15,7 +15,7 @@ import (
 
 // RequirePermission admits users whose role grants requiredPerm in every
 // project the request touches. The project is resolved from the route
-// (:workflowId, :issueId, :projectId), ?project_id=, and for bulk endpoints
+// (:issueId, :projectId), ?project_id=, and for bulk endpoints
 // the JSON body's issue_ids / target_project_id. A request that resolves to no
 // project (e.g. an unknown ID) is passed through so the handler can 404.
 func RequirePermission(db *gorm.DB, requiredPerm string, scope string) gin.HandlerFunc {
@@ -52,14 +52,7 @@ func permissionProjects(c *gin.Context, db *gorm.DB) []uint64 {
 		}
 	}
 
-	if id := paramID(c, "workflowId"); id != 0 {
-		var wf model.AgentWorkflow
-		if db.Select("id", "project_id").First(&wf, id).Error == nil {
-			add(wf.ProjectID)
-		}
-	} else {
-		add(paramID(c, "projectId"))
-	}
+	add(paramID(c, "projectId"))
 	if id := paramID(c, "issueId"); id != 0 {
 		// Unscoped so restoring a deleted work item is still checked.
 		var issue model.Issue

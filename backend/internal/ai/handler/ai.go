@@ -138,7 +138,8 @@ func (h *AIHandler) buildContext(c *gin.Context) *service.AIContext {
 	if pageIDStr != "" {
 		if pid, err := strconv.ParseUint(pageIDStr, 10, 64); err == nil && pid > 0 {
 			var page model.Page
-			if h.db.First(&page, pid).Error == nil {
+			if h.db.First(&page, pid).Error == nil &&
+				middleware.CanAccessProject(h.db, page.WorkspaceID, page.ProjectID, actx.UserID) {
 				actx.PageTitle = page.Title
 			}
 		}
@@ -330,6 +331,11 @@ func (h *AIHandler) PageAI(c *gin.Context) {
 		return
 	}
 	actx := h.buildContext(c)
+	var page model.Page
+	if pid, err := strconv.ParseUint(c.Param("pageId"), 10, 64); err == nil &&
+		h.db.Select("id", "workspace_id").First(&page, pid).Error == nil {
+		actx.WorkspaceID = page.WorkspaceID
+	}
 	svc := h.resolveService(actx.WorkspaceID)
 	result, err := svc.PageAI(c.Request.Context(), &req)
 	if err != nil {

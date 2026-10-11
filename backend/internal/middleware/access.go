@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
@@ -88,21 +89,165 @@ func RequireIssueAccess(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// RequirePageAccess admits whoever may access the :pageId page's project.
+func RequirePageAccess(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pageID, err := strconv.ParseUint(c.Param("pageId"), 10, 64)
+		if err != nil || pageID == 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid page ID"})
+			return
+		}
+		var page model.Page
+		if err := db.Select("id", "project_id").First(&page, pageID).Error; err != nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Page not found"})
+			return
+		}
+		requireProject(c, db, page.ProjectID)
+	}
+}
+
 func requireProject(c *gin.Context, db *gorm.DB, projectID uint64) {
+	if _, ok := allowProject(c, db, projectID); ok {
+		c.Next()
+	}
+}
+
+// allowProject aborts the request unless the caller may access the project.
+func allowProject(c *gin.Context, db *gorm.DB, projectID uint64) (*model.Project, bool) {
 	user, ok := accessUser(c)
 	if !ok {
-		return
+		return nil, false
 	}
 	var project model.Project
 	if err := db.Select("id", "workspace_id").First(&project, projectID).Error; err != nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Project not found"})
-		return
+		return nil, false
 	}
 	if !user.IsSuperuser && !CanAccessProject(db, project.WorkspaceID, projectID, user.ID) {
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"message": "No access to this project"})
-		return
+		return nil, false
 	}
-	c.Next()
+	return &project, true
+}
+
+// RequireProjectWorkflow guards /projects/:projectId/workflows routes: the
+// caller must reach the project, :workflowId must belong to it, and any
+// :nodeId, :edgeId, :runId or :transitionId must belong to that workflow.
+// Transition routes address state workflows; the rest address agent workflows.
+func RequireProjectWorkflow(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+		if err != nil || projectID == 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+			return
+		}
+		project, ok := allowProject(c, db, projectID)
+		if !ok {
+			return
+		}
+		workflowID := paramID(c, "workflowId")
+		if workflowID == 0 {
+			c.Next()
+			return
+		}
+
+		found := false
+		if strings.Contains(c.FullPath(), "/transitions") {
+			var wf model.Workflow
+			if db.Select("id", "project_id", "workspace_id").First(&wf, workflowID).Error == nil {
+				if wf.ProjectID != nil {
+					found = *wf.ProjectID == projectID
+				} else {
+					// Workspace-wide workflows are readable from their projects
+					// but only editable from workspace settings.
+					found = wf.WorkspaceID == project.WorkspaceID && c.Request.Method == http.MethodGet
+				}
+			}
+			found = found && childOf(db, &model.StateTransition{}, paramID(c, "transitionId"), workflowID)
+		} else {
+			var n int64
+			db.Model(&model.AgentWorkflow{}).Where("id = ? AND project_id = ?", workflowID, projectID).Count(&n)
+			found = n > 0 &&
+				childOf(db, &model.WorkflowNode{}, paramID(c, "nodeId"), workflowID) &&
+				childOf(db, &model.WorkflowEdge{}, paramID(c, "edgeId"), workflowID) &&
+				childOf(db, &model.WorkflowRun{}, paramID(c, "runId"), workflowID)
+		}
+		if !found {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Workflow not found"})
+			return
+		}
+		c.Next()
+	}
+}
+
+// RequireWorkspaceWorkflow guards /workspaces/:wsParam/workflows routes:
+// members may read, admins may change, and :workflowId / :transitionId must
+// belong to the workspace.
+func RequireWorkspaceWorkflow(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		wsID, ok := workspaceFromParam(c, db)
+		if !ok {
+			return
+		}
+		user, ok := accessUser(c)
+		if !ok {
+			return
+		}
+		if !user.IsSuperuser {
+			minRole := common.RoleGuest
+			if c.Request.Method != http.MethodGet {
+				minRole = common.RoleAdmin
+			}
+			var n int64
+			db.Model(&model.WorkspaceMember{}).
+				Where("workspace_id = ? AND user_id = ? AND is_active = ? AND role >= ?", wsID, user.ID, true, minRole).
+				Count(&n)
+			if n == 0 {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"message": "Workspace admin required"})
+				return
+			}
+		}
+		if workflowID := paramID(c, "workflowId"); workflowID != 0 {
+			// GET .../:workflowId is served from agent workflows; every other
+			// route here addresses a state workflow.
+			var table interface{} = &model.Workflow{}
+			if c.Request.Method == http.MethodGet && strings.HasSuffix(c.FullPath(), "/:workflowId") {
+				table = &model.AgentWorkflow{}
+			}
+			var n int64
+			db.Model(table).Where("id = ? AND workspace_id = ?", workflowID, wsID).Count(&n)
+			if n == 0 || !childOf(db, &model.StateTransition{}, paramID(c, "transitionId"), workflowID) {
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Workflow not found"})
+				return
+			}
+		}
+		c.Next()
+	}
+}
+
+// childOf reports whether row id of the given model has workflow_id =
+// workflowID; an absent id (0) imposes no constraint.
+func childOf(db *gorm.DB, m interface{}, id, workflowID uint64) bool {
+	if id == 0 {
+		return true
+	}
+	var n int64
+	db.Model(m).Where("id = ? AND workflow_id = ?", id, workflowID).Count(&n)
+	return n > 0
+}
+
+// workspaceFromParam resolves :wsParam as a numeric ID or a slug.
+func workspaceFromParam(c *gin.Context, db *gorm.DB) (uint64, bool) {
+	param := c.Param("wsParam")
+	if id, err := strconv.ParseUint(param, 10, 64); err == nil && id > 0 {
+		return id, true
+	}
+	var ws model.Workspace
+	if param == "" || db.Select("id").Where("slug = ?", param).First(&ws).Error != nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Workspace not found"})
+		return 0, false
+	}
+	return ws.ID, true
 }
 
 // IsWorkspaceMember reports an active workspace membership.

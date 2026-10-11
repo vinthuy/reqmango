@@ -21,7 +21,7 @@ func TestRequirePermission(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&model.WorkspaceMember{}, &model.Project{}, &model.ProjectMember{},
-		&model.Issue{}, &model.AgentWorkflow{}, &model.Permission{}, &model.Role{}))
+		&model.Issue{}, &model.Permission{}, &model.Role{}))
 
 	perms := map[string]*model.Permission{}
 	for _, code := range []string{"issue:edit", "issue:delete", "workflow:manage"} {
@@ -64,8 +64,6 @@ func TestRequirePermission(t *testing.T) {
 		require.NoError(t, db.Create(i).Error)
 	}
 	require.NoError(t, db.Delete(&deletedIssue).Error)
-	foreignWorkflow := model.AgentWorkflow{Name: "wf", ProjectID: foreign.ID, WorkspaceID: 20}
-	require.NoError(t, db.Create(&foreignWorkflow).Error)
 
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
@@ -88,7 +86,6 @@ func TestRequirePermission(t *testing.T) {
 	r.POST("/issues/bulk/update", RequirePermission(db, "issue:edit", "project"), echoBody)
 	r.POST("/issues/bulk/delete", RequirePermission(db, "issue:delete", "project"), echoBody)
 	r.POST("/issues/bulk/move", RequirePermission(db, "issue:edit", "project"), echoBody)
-	r.PUT("/projects/:projectId/workflows/:workflowId", RequirePermission(db, "workflow:manage", "project"), echoBody)
 	r.PUT("/projects/:projectId/sla", RequirePermission(db, "workflow:manage", "project"), echoBody)
 
 	do := func(user, method, path, body string) *httptest.ResponseRecorder {
@@ -133,6 +130,4 @@ func TestRequirePermission(t *testing.T) {
 
 	assert.Equal(t, 200, status("admin", "PUT", "/projects/"+uitoa(own.ID)+"/sla", ""))
 	assert.Equal(t, 403, status("member", "PUT", "/projects/"+uitoa(own.ID)+"/sla", ""))
-	assert.Equal(t, 403, status("admin", "PUT", "/projects/"+uitoa(own.ID)+"/workflows/"+uitoa(foreignWorkflow.ID), ""),
-		"a workflow is checked against its own project, not the route's")
 }

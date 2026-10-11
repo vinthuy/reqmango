@@ -42,6 +42,39 @@ func TestCheckDispatchTenant_KeepsAgentIssueAndProjectInOneWorkspace(t *testing.
 	assert.Error(t, s.checkDispatchTenant(agent, &DispatchContext{IssueID: ptr(999)}))
 }
 
+func TestCanInvoke_WorkspaceTargetRequiresMembership(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Agent{}, &model.WorkspaceMember{}))
+	require.NoError(t, db.Create(&model.WorkspaceMember{WorkspaceID: 10, UserID: 1, Role: 15, IsActive: true}).Error)
+	inactive := model.WorkspaceMember{WorkspaceID: 10, UserID: 3, Role: 15}
+	require.NoError(t, db.Create(&inactive).Error)
+	require.NoError(t, db.Model(&inactive).Update("is_active", false).Error)
+	public := model.Agent{WorkspaceID: 10, Name: "public", PermissionMode: model.PermissionModePublicTo,
+		Capabilities: []byte(`[]`), InvocationTargets: []byte(`[{"target_type":"workspace"}]`)}
+	private := model.Agent{WorkspaceID: 10, Name: "private", PermissionMode: model.PermissionModePrivate,
+		Capabilities: []byte(`[]`), InvocationTargets: []byte(`[]`)}
+	require.NoError(t, db.Create(&public).Error)
+	require.NoError(t, db.Create(&private).Error)
+
+	s := &AgentService{db: db}
+	for _, tc := range []struct {
+		agent uint64
+		user  uint64
+		want  bool
+	}{
+		{public.ID, 1, true},
+		{public.ID, 2, false}, // not a member of workspace 10
+		{public.ID, 3, false}, // deactivated member
+		{private.ID, 1, true},
+		{private.ID, 3, false},
+	} {
+		got, err := s.CanInvoke(tc.agent, tc.user)
+		require.NoError(t, err)
+		assert.Equal(t, tc.want, got, "agent %d user %d", tc.agent, tc.user)
+	}
+}
+
 func TestActivityAccess_StaysInTheWorkspace(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)

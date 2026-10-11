@@ -189,6 +189,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	wsAdmin := middleware.RequireWorkspaceAdmin(db)
 	projectAccess := middleware.RequireProjectAccess(db)
 	issueAccess := middleware.RequireIssueAccess(db)
+	pageAccess := middleware.RequirePageAccess(db)
+	wsWorkflow := middleware.RequireWorkspaceWorkflow(db)
 	githubH := handler.NewGitHubHandler(githubSvc)
 	slackH := handler.NewSlackHandler(slackSvc)
 	roleH := handler.NewRoleHandler(roleSvc, db)
@@ -571,18 +573,18 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.DELETE("/:wsParam/automations/:id", automationH.DeleteWorkspace)
 
 			// Workspace-level Workflows (state-machine)
-			workspaces.GET("/:wsParam/workflows", workflowH.ListWorkspaceWorkflows)
-			workspaces.POST("/:wsParam/workflows", workflowH.CreateWorkspaceWorkflow)
-			workspaces.GET("/:wsParam/workflows/:workflowId", workflowH.GetWorkflow)
-			workspaces.PUT("/:wsParam/workflows/:workflowId", workflowH.UpdateWorkspaceWorkflow)
-			workspaces.DELETE("/:wsParam/workflows/:workflowId", workflowH.DeleteWorkspaceWorkflow)
-			workspaces.GET("/:wsParam/workflows/:workflowId/transitions", workflowH.ListTransitions)
-			workspaces.POST("/:wsParam/workflows/:workflowId/transitions", workflowH.AddTransition)
-			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.UpdateTransition)
-			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", workflowH.DeleteTransition)
+			workspaces.GET("/:wsParam/workflows", wsWorkflow, workflowH.ListWorkspaceWorkflows)
+			workspaces.POST("/:wsParam/workflows", wsWorkflow, workflowH.CreateWorkspaceWorkflow)
+			workspaces.GET("/:wsParam/workflows/:workflowId", wsWorkflow, workflowH.GetWorkflow)
+			workspaces.PUT("/:wsParam/workflows/:workflowId", wsWorkflow, workflowH.UpdateWorkspaceWorkflow)
+			workspaces.DELETE("/:wsParam/workflows/:workflowId", wsWorkflow, workflowH.DeleteWorkspaceWorkflow)
+			workspaces.GET("/:wsParam/workflows/:workflowId/transitions", wsWorkflow, workflowH.ListTransitions)
+			workspaces.POST("/:wsParam/workflows/:workflowId/transitions", wsWorkflow, workflowH.AddTransition)
+			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", wsWorkflow, workflowH.UpdateTransition)
+			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", wsWorkflow, workflowH.DeleteTransition)
 			// Alias /edges → transitions for WorkflowManager compatibility
-			workspaces.POST("/:wsParam/workflows/:workflowId/edges", workflowH.AddTransition)
-			workspaces.DELETE("/:wsParam/workflows/:workflowId/edges/:transitionId", workflowH.DeleteTransition)
+			workspaces.POST("/:wsParam/workflows/:workflowId/edges", wsWorkflow, workflowH.AddTransition)
+			workspaces.DELETE("/:wsParam/workflows/:workflowId/edges/:transitionId", wsWorkflow, workflowH.DeleteTransition)
 
 			// Workspace-level Approvals
 			workspaces.GET("/:wsParam/approvals", approvalH.ListByWorkspace)
@@ -1103,7 +1105,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		issues.GET("/:issueId/relations", relationH.ListRelations)
 		v1.DELETE("/relations/:relationId", authMiddleware, relationH.DeleteRelation)
 		// ---- Workflows (protected with RBAC) ----
-		workflows := v1.Group("/projects/:projectId/workflows", authMiddleware)
+		workflows := v1.Group("/projects/:projectId/workflows", authMiddleware, middleware.RequireProjectWorkflow(db))
 		{
 			workflows.GET("", workflowH.ListWorkflows)
 			workflows.GET("/:workflowId", workflowH.GetWorkflow)
@@ -1127,7 +1129,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workflows.POST("/:workflowId/runs/:runId/cancel", workflowH.CancelRun)
 		}
 		// ---- Agent Members (project-level) ----
-		agentMembers := v1.Group("/projects/:projectId/agent-members", authMiddleware)
+		agentMembers := v1.Group("/projects/:projectId/agent-members", authMiddleware, projectAccess)
 		{
 			agentMembers.GET("", agentMemberH.ListByProject)
 			agentMembers.POST("", middleware.RequirePermission(db, "workflow:manage", "project"), agentMemberH.Add)
@@ -1135,22 +1137,22 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			agentMembers.DELETE("/:memberId", middleware.RequirePermission(db, "workflow:manage", "project"), agentMemberH.Remove)
 		}
 		// ---- Issue-Agent assignments ----
-		issues.POST("/:issueId/assign-agent", issueAgentH.AssignAgent)
-		issues.DELETE("/:issueId/assign-agent", issueAgentH.UnassignAgent)
-		issues.GET("/:issueId/agent-status", issueAgentH.GetAgentStatus)
-		issues.POST("/:issueId/preview-execution", issueAgentH.PreviewExecution)
+		issues.POST("/:issueId/assign-agent", issueAccess, issueAgentH.AssignAgent)
+		issues.DELETE("/:issueId/assign-agent", issueAccess, issueAgentH.UnassignAgent)
+		issues.GET("/:issueId/agent-status", issueAccess, issueAgentH.GetAgentStatus)
+		issues.POST("/:issueId/preview-execution", issueAccess, issueAgentH.PreviewExecution)
 		issues.POST("/bulk-assign-agent", issueAgentH.BulkAssign)
 		// ---- Budget & SLA (project-level) ----
-		v1.GET("/projects/:projectId/budget", authMiddleware, budgetH.Get)
-		v1.PUT("/projects/:projectId/budget", authMiddleware, middleware.RequirePermission(db, "workflow:manage", "project"), budgetH.Update)
-		v1.GET("/projects/:projectId/sla", authMiddleware, slaH.Get)
-		v1.PUT("/projects/:projectId/sla", authMiddleware, middleware.RequirePermission(db, "workflow:manage", "project"), slaH.Update)
-		v1.GET("/projects/:projectId/decisions", authMiddleware, decisionH.ListByProject)
+		v1.GET("/projects/:projectId/budget", authMiddleware, projectAccess, budgetH.Get)
+		v1.PUT("/projects/:projectId/budget", authMiddleware, projectAccess, middleware.RequirePermission(db, "workflow:manage", "project"), budgetH.Update)
+		v1.GET("/projects/:projectId/sla", authMiddleware, projectAccess, slaH.Get)
+		v1.PUT("/projects/:projectId/sla", authMiddleware, projectAccess, middleware.RequirePermission(db, "workflow:manage", "project"), slaH.Update)
+		v1.GET("/projects/:projectId/decisions", authMiddleware, projectAccess, decisionH.ListByProject)
 		// ---- Issue duplicate check (pre-create warn-only) ----
-		v1.POST("/projects/:projectId/issues/duplicate-check", authMiddleware, issueH.CheckDuplicates)
-		v1.GET("/projects/:projectId/issues/duplicate-check", authMiddleware, issueH.CheckDuplicates)
+		v1.POST("/projects/:projectId/issues/duplicate-check", authMiddleware, projectAccess, issueH.CheckDuplicates)
+		v1.GET("/projects/:projectId/issues/duplicate-check", authMiddleware, projectAccess, issueH.CheckDuplicates)
 		// ---- Decision Records ----
-		issues.GET("/:issueId/decisions", decisionH.ListByIssue)
+		issues.GET("/:issueId/decisions", issueAccess, decisionH.ListByIssue)
 		v1.GET("/agent-tasks/:taskId/decisions", authMiddleware, decisionH.ListByTask)
 		// ---- Comments (protected) ----
 		comments := v1.Group("/comments", authMiddleware)
@@ -1183,7 +1185,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			messages.DELETE("/:messageId/reactions", chatH.RemoveReaction)
 		}
 		// ---- RQL (protected) ----
-		v1.POST("/pages/:pageId/ai", authMiddleware, aiH.PageAI)
+		v1.POST("/pages/:pageId/ai", authMiddleware, pageAccess, aiH.PageAI)
 
 		rqlHandler := rql.NewRQLHandler(db)
 		rqlGroup := v1.Group("/rql", authMiddleware)

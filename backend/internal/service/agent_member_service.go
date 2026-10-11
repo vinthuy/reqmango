@@ -87,6 +87,15 @@ func (s *AgentMemberService) Add(projectID, agentID uint64, role string) (*Proje
 		role = "member"
 	}
 
+	var sameWorkspace int64
+	s.db.Table("agents").
+		Joins("JOIN projects ON projects.workspace_id = agents.workspace_id").
+		Where("agents.id = ? AND projects.id = ? AND agents.deleted_at IS NULL", agentID, projectID).
+		Count(&sameWorkspace)
+	if sameWorkspace == 0 {
+		return nil, errors.New("agent not found in this project's workspace")
+	}
+
 	// Check if already exists
 	var existing ProjectAgentMember
 	if err := s.db.Where("project_id = ? AND agent_id = ?", projectID, agentID).First(&existing).Error; err == nil {
