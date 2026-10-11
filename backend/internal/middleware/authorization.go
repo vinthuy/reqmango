@@ -1,167 +1,143 @@
 package middleware
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
 
-// RequirePermission checks if the current user has the required permission.
-// It looks up the permission set from the database using user ID + workspace/project context.
+// RequirePermission admits users whose role grants requiredPerm in every
+// project the request touches. The project is resolved from the route
+// (:workflowId, :issueId, :projectId), ?project_id=, and for bulk endpoints
+// the JSON body's issue_ids / target_project_id. A request that resolves to no
+// project (e.g. an unknown ID) is passed through so the handler can 404.
 func RequirePermission(db *gorm.DB, requiredPerm string, scope string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		currentUser, exists := c.Get("currentUser")
-		if !exists {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		user, ok := accessUser(c)
+		if !ok {
 			return
 		}
-		user := currentUser.(interface{ GetID() uint64 })
-		userID := user.GetID()
-
-		workspaceID := parseContextID(c, "workspaceID")
-		projectID := parseContextID(c, "projectID")
-
-		// Superusers bypass all permission checks
-		// Cast to model.User to check IsSuperuser
-		type superuserChecker interface {
-			IsSuper() bool
-		}
-		if su, ok := currentUser.(superuserChecker); ok && su.IsSuper() {
+		if user.IsSuperuser {
 			c.Next()
 			return
 		}
-
-		// If no workspace context, just check if user is authenticated
-		if workspaceID == 0 {
-			c.Next()
-			return
-		}
-
-		if !hasPermissionDB(db, userID, workspaceID, projectID, requiredPerm) {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error":    "Permission denied",
-				"required": requiredPerm,
-			})
-			return
+		for _, projectID := range permissionProjects(c, db) {
+			if !hasProjectPermission(db, user.ID, projectID, requiredPerm) {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+					"message":  "Permission denied",
+					"required": requiredPerm,
+				})
+				return
+			}
 		}
 		c.Next()
 	}
 }
 
-// RequireRoleLevel checks if the current user has at least the given role level.
-func RequireRoleLevel(db *gorm.DB, minLevel int) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		currentUser, exists := c.Get("currentUser")
-		if !exists {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-			return
+// permissionProjects lists the distinct projects a request acts on.
+func permissionProjects(c *gin.Context, db *gorm.DB) []uint64 {
+	seen := map[uint64]bool{}
+	var out []uint64
+	add := func(id uint64) {
+		if id != 0 && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
 		}
-
-		type superuserChecker interface {
-			IsSuper() bool
-		}
-		if su, ok := currentUser.(superuserChecker); ok && su.IsSuper() {
-			c.Next()
-			return
-		}
-
-		user := currentUser.(interface{ GetID() uint64 })
-		workspaceID := parseContextID(c, "workspaceID")
-		projectID := parseContextID(c, "projectID")
-
-		level := getMaxRoleLevelDB(db, user.GetID(), workspaceID, projectID)
-		if level < minLevel {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions"})
-			return
-		}
-		c.Next()
 	}
+
+	if id := paramID(c, "workflowId"); id != 0 {
+		var wf model.AgentWorkflow
+		if db.Select("id", "project_id").First(&wf, id).Error == nil {
+			add(wf.ProjectID)
+		}
+	} else {
+		add(paramID(c, "projectId"))
+	}
+	if id := paramID(c, "issueId"); id != 0 {
+		// Unscoped so restoring a deleted work item is still checked.
+		var issue model.Issue
+		if db.Unscoped().Select("id", "project_id").First(&issue, id).Error == nil {
+			add(issue.ProjectID)
+		}
+	}
+	if id, err := strconv.ParseUint(c.Query("project_id"), 10, 64); err == nil {
+		add(id)
+	}
+
+	body := peekJSONBody(c)
+	if len(body.IssueIDs) > 0 {
+		var projectIDs []uint64
+		db.Unscoped().Model(&model.Issue{}).Where("id IN ?", body.IssueIDs).
+			Distinct().Pluck("project_id", &projectIDs)
+		for _, id := range projectIDs {
+			add(id)
+		}
+	}
+	add(body.TargetProjectID)
+	return out
 }
 
-func parseContextID(c *gin.Context, key string) uint64 {
-	val := c.GetString(key)
-	if val == "" {
-		// Try query param
-		val = c.Query(key)
-	}
-	if val == "" {
-		// Try param
-		val = c.Param(key)
-	}
-	if val == "" {
-		return 0
-	}
-	n, _ := strconv.ParseUint(val, 10, 64)
-	return n
+type permissionBody struct {
+	IssueIDs        []uint64 `json:"issue_ids"`
+	TargetProjectID uint64   `json:"target_project_id"`
 }
 
-func hasPermissionDB(db *gorm.DB, userID, workspaceID, projectID uint64, requiredPerm string) bool {
-	// Get user's role level from workspace member
-	var member struct {
-		Role         int
-		CustomRoleID *uint64
+// peekJSONBody reads the JSON body and puts it back for the handler.
+func peekJSONBody(c *gin.Context) permissionBody {
+	var b permissionBody
+	if c.Request.Body == nil || !strings.HasPrefix(c.ContentType(), "application/json") {
+		return b
 	}
-	if err := db.Raw("SELECT role, custom_role_id FROM workspace_members WHERE user_id = ? AND workspace_id = ? LIMIT 1",
-		userID, workspaceID).Scan(&member).Error; err != nil || member.Role == 0 {
+	raw, err := io.ReadAll(c.Request.Body)
+	c.Request.Body = io.NopCloser(bytes.NewReader(raw))
+	if err == nil {
+		_ = json.Unmarshal(raw, &b)
+	}
+	return b
+}
+
+func paramID(c *gin.Context, key string) uint64 {
+	id, _ := strconv.ParseUint(c.Param(key), 10, 64)
+	return id
+}
+
+// hasProjectPermission checks the system role matching the user's effective
+// level in the project: the higher of their workspace and project roles.
+func hasProjectPermission(db *gorm.DB, userID, projectID uint64, requiredPerm string) bool {
+	var project model.Project
+	if db.Select("id", "workspace_id").First(&project, projectID).Error != nil {
+		return false
+	}
+	var wsRoles, prjRoles []int
+	db.Model(&model.WorkspaceMember{}).
+		Where("workspace_id = ? AND user_id = ? AND is_active = ?", project.WorkspaceID, userID, true).
+		Pluck("role", &wsRoles)
+	db.Model(&model.ProjectMember{}).
+		Where("project_id = ? AND user_id = ? AND is_active = ?", projectID, userID, true).
+		Pluck("role", &prjRoles)
+	level := 0
+	for _, r := range append(wsRoles, prjRoles...) {
+		if r > level {
+			level = r
+		}
+	}
+	if level == 0 {
 		return false
 	}
 
-	// Check custom role first (if assigned)
-	if member.CustomRoleID != nil {
-		var count int64
-		db.Raw(`
-			SELECT COUNT(*) FROM role_permissions rp
-			JOIN permissions p ON rp.permission_id = p.id
-			WHERE rp.role_id = ? AND p.code = ?
-		`, *member.CustomRoleID, requiredPerm).Count(&count)
-		if count > 0 {
-			return true
-		}
-	}
-
-	// Check project-level custom role
-	if projectID > 0 {
-		var prjMember struct {
-			CustomRoleID *uint64
-		}
-		if err := db.Raw("SELECT custom_role_id FROM project_members WHERE user_id = ? AND project_id = ? LIMIT 1",
-			userID, projectID).Scan(&prjMember).Error; err == nil && prjMember.CustomRoleID != nil {
-			var count int64
-			db.Raw(`
-				SELECT COUNT(*) FROM role_permissions rp
-				JOIN permissions p ON rp.permission_id = p.id
-				WHERE rp.role_id = ? AND p.code = ?
-			`, *prjMember.CustomRoleID, requiredPerm).Count(&count)
-			if count > 0 {
-				return true
-			}
-		}
-	}
-
-	// Fallback to system role level matching
 	var count int64
-	db.Raw(`
-		SELECT COUNT(*) FROM role_permissions rp
-		JOIN permissions p ON rp.permission_id = p.id
-		JOIN roles r ON rp.role_id = r.id
-		WHERE r.level = ? AND r.workspace_id IS NULL AND p.code = ?
-	`, member.Role, requiredPerm).Count(&count)
+	db.Table("role_permissions rp").
+		Joins("JOIN permissions p ON rp.permission_id = p.id").
+		Joins("JOIN roles r ON rp.role_id = r.id").
+		Where("r.level = ? AND r.workspace_id IS NULL AND r.is_system = ? AND r.deleted_at IS NULL AND p.code = ?",
+			level, true, requiredPerm).
+		Count(&count)
 	return count > 0
-}
-
-func getMaxRoleLevelDB(db *gorm.DB, userID, workspaceID, projectID uint64) int {
-	var level int
-	db.Raw("SELECT role FROM workspace_members WHERE user_id = ? AND workspace_id = ? LIMIT 1",
-		userID, workspaceID).Scan(&level)
-	if projectID > 0 {
-		var prjLevel int
-		db.Raw("SELECT role FROM project_members WHERE user_id = ? AND project_id = ? LIMIT 1",
-			userID, projectID).Scan(&prjLevel)
-		if prjLevel > level {
-			level = prjLevel
-		}
-	}
-	return level
 }
