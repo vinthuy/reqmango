@@ -1,7 +1,12 @@
-import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
 import IssueDetailHeader from '@/components/IssueDetailHeader.vue'
+import { resetProjectPermissionsCache } from '@/composables/usePermission'
 
+const mockGet = vi.fn()
+vi.mock('@/api', () => ({
+  default: { get: (...args: any[]) => mockGet(...args) },
+}))
 vi.mock('@/composables/useI18n', () => ({
   useI18n: () => ({ t: (k: string) => k }),
 }))
@@ -11,12 +16,33 @@ vi.mock('@/composables/useToast', () => ({
 
 const mockIssue = {
   id: 42,
+  project_id: 7,
   sequence_id: 42,
   name: 'Test Issue',
   issue_type: { id: 1, name: 'Task', color: '#6366f1' },
 }
 
 describe('IssueDetailHeader', () => {
+  beforeEach(() => {
+    resetProjectPermissionsCache()
+    mockGet.mockReset()
+    mockGet.mockResolvedValue({ data: { permissions: ['issue:edit'], role_level: 15 } })
+  })
+
+  it('shows delete only to users who may delete in the project', async () => {
+    const member = mount(IssueDetailHeader, { props: { issue: mockIssue } })
+    await flushPromises()
+    expect(mockGet).toHaveBeenCalledWith('/projects/7/my-permissions')
+    expect(member.find('[data-test="delete-btn"]').exists()).toBe(false)
+
+    resetProjectPermissionsCache()
+    mockGet.mockResolvedValue({ data: { permissions: ['issue:edit', 'issue:delete'], role_level: 20 } })
+    const admin = mount(IssueDetailHeader, { props: { issue: mockIssue } })
+    await flushPromises()
+    await admin.find('[data-test="delete-btn"]').trigger('click')
+    expect(admin.emitted('delete')).toBeTruthy()
+  })
+
   it('renders the issue type badge and sequence ID', () => {
     const wrapper = mount(IssueDetailHeader, { props: { issue: mockIssue, projectIdentifier: 'DEV' } })
     expect(wrapper.text()).toContain('Task')

@@ -647,6 +647,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.DELETE("/:projectId", projectH.Delete)
 			projects.POST("/:projectId/archive", projectH.Archive)
 			projects.POST("/:projectId/restore", projectH.Restore)
+			projects.GET("/:projectId/my-permissions", projectAccess, handler.MyProjectPermissions(db))
 			projects.GET("/:projectId/approvals", approvalH.ListByProject)
 			projects.GET("/:projectId/members", projectH.ListMembers)            // ?only_active=
 			projects.POST("/:projectId/members", projectH.AddMember)             // ?user_id=&role=

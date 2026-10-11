@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
@@ -104,9 +105,43 @@ func paramID(c *gin.Context, key string) uint64 {
 // hasProjectPermission checks the system role matching the user's effective
 // level in the project: the higher of their workspace and project roles.
 func hasProjectPermission(db *gorm.DB, userID, projectID uint64, requiredPerm string) bool {
+	level := projectRoleLevel(db, userID, projectID)
+	if level == 0 {
+		return false
+	}
+	var count int64
+	systemRolePermissions(db, level).Where("p.code = ?", requiredPerm).Count(&count)
+	return count > 0
+}
+
+// ProjectPermissions lists the permission codes RequirePermission would grant
+// the user in the project, with their effective role level.
+func ProjectPermissions(db *gorm.DB, user *model.User, projectID uint64) ([]string, int) {
+	codes := []string{}
+	if user.IsSuperuser {
+		db.Model(&model.Permission{}).Order("code").Pluck("code", &codes)
+		return codes, common.RoleAdmin
+	}
+	level := projectRoleLevel(db, user.ID, projectID)
+	if level > 0 {
+		systemRolePermissions(db, level).Order("p.code").Pluck("p.code", &codes)
+	}
+	return codes, level
+}
+
+func systemRolePermissions(db *gorm.DB, level int) *gorm.DB {
+	return db.Table("role_permissions rp").
+		Joins("JOIN permissions p ON rp.permission_id = p.id").
+		Joins("JOIN roles r ON rp.role_id = r.id").
+		Where("r.level = ? AND r.workspace_id IS NULL AND r.is_system = ? AND r.deleted_at IS NULL", level, true)
+}
+
+// projectRoleLevel is the higher of the user's active workspace and project
+// roles for the project, or 0 when they have neither.
+func projectRoleLevel(db *gorm.DB, userID, projectID uint64) int {
 	var project model.Project
 	if db.Select("id", "workspace_id").First(&project, projectID).Error != nil {
-		return false
+		return 0
 	}
 	var wsRoles, prjRoles []int
 	db.Model(&model.WorkspaceMember{}).
@@ -121,16 +156,5 @@ func hasProjectPermission(db *gorm.DB, userID, projectID uint64, requiredPerm st
 			level = r
 		}
 	}
-	if level == 0 {
-		return false
-	}
-
-	var count int64
-	db.Table("role_permissions rp").
-		Joins("JOIN permissions p ON rp.permission_id = p.id").
-		Joins("JOIN roles r ON rp.role_id = r.id").
-		Where("r.level = ? AND r.workspace_id IS NULL AND r.is_system = ? AND r.deleted_at IS NULL AND p.code = ?",
-			level, true, requiredPerm).
-		Count(&count)
-	return count > 0
+	return level
 }

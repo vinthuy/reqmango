@@ -60,6 +60,7 @@
       <span v-if="copied" class="text-[10px] text-green-600">{{ t('issue.copied') }}</span>
 
       <button
+        v-if="canDelete"
         data-test="delete-btn"
         class="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-md hover:bg-red-50 transition-colors"
         @click="$emit('delete')"
@@ -71,9 +72,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
+import { useProjectPermissions } from '@/composables/usePermission'
 
 const props = defineProps<{
   issue: any
@@ -90,6 +92,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const toast = useToast()
+const { can } = useProjectPermissions(() => props.issue?.project_id)
+const canDelete = computed(() => can('issue:delete'))
 const copied = ref(false)
 const localTitle = ref(props.issue?.name || '')
 const savingTitle = ref(false)

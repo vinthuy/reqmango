@@ -51,6 +51,7 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
             </button>
             <button
+              v-if="can('issue:delete')"
               type="button"
               class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
               :title="t('common.delete')"
@@ -245,6 +246,7 @@ import api from '@/api'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { useProjectPermissions } from '@/composables/usePermission'
 import { agentApi } from '@/api/agent'
 import { issueAgentApi, type AgentStatus } from '@/api/issue-agent'
 import { buildDispatchTask } from '@/utils/agentDispatchTask'
@@ -287,6 +289,8 @@ const emit = defineEmits<{
   (e: 'delete', issue: any): void
   (e: 'refresh'): void
 }>()
+
+const { can } = useProjectPermissions(() => props.projectId)
 
 const issue = ref<any>(null)
 const loading = ref(false)

@@ -57,7 +57,7 @@
         </div>
       </div>
 
-      <button @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+      <button v-if="canDeleteIssues" @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
         {{ t('issueList.batchDelete') }}
       </button>
 
@@ -220,6 +220,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from '@/composables/useI18n'
+import { useProjectPermissions } from '@/composables/usePermission'
 import issueApi from '@/api/issue'
 import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
@@ -232,6 +233,8 @@ import * as issueTypeApi from '@/api/issue-type'
 import { VueDraggable } from 'vue-draggable-plus'
 
 const props = defineProps<{ projectId: number; workspaceId: number; projectIdentifier?: string; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string }>()
+const { can: canInProject } = useProjectPermissions(() => props.projectId)
+const canDeleteIssues = computed(() => canInProject('issue:delete'))
 const emit = defineEmits<{ (e: 'select', issue: any): void }>()
 const { t } = useI18n()
 const toast = useToast()

@@ -59,7 +59,7 @@
         </div>
       </div>
 
-      <button @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+      <button v-if="canDeleteIssues" @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
         {{ t('issueTreeView.batchDelete') }}
       </button>
 
@@ -136,8 +136,11 @@ import TreeNodeItem from './TreeNodeItem.vue'
 import UserSelect from '@/components/UserSelect.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
+import { useProjectPermissions } from '@/composables/usePermission'
 
 const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string }>()
+const { can: canInProject } = useProjectPermissions(() => props.projectId)
+const canDeleteIssues = computed(() => canInProject('issue:delete'))
 
 const emit = defineEmits<{
   (e: 'select', issue: any): void

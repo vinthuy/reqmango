@@ -100,7 +100,7 @@
         </div>
       </div>
 
-      <button @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-200 rounded-md bg-white text-red-500 hover:bg-red-50 transition-colors">
+      <button v-if="canDeleteIssues" @click="execBatchDelete" class="px-2.5 py-1 text-xs border border-red-200 rounded-md bg-white text-red-500 hover:bg-red-50 transition-colors">
         {{ t('issueList.batchDelete') }}
       </button>
 
@@ -376,6 +376,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
+import { useProjectPermissions } from '@/composables/usePermission'
 import { useToast } from '@/composables/useToast'
 import issueApi from '@/api/issue'
 import customFieldApi from '@/api/custom-field'
@@ -392,6 +393,8 @@ import type { IssueResponse } from '@/types/issue'
 import { markAutoTriagePending } from '@/utils/autoTriagePref'
 
 const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string; searchTerm?: string; columns?: string[] }>()
+const { can: canInProject } = useProjectPermissions(() => props.projectId)
+const canDeleteIssues = computed(() => canInProject('issue:delete'))
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()

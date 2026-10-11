@@ -1,67 +1,79 @@
-import { ref } from 'vue'
+import { computed, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from 'vue'
 import api from '@/api'
 
-export function usePermission() {
-  const permissions = ref<string[]>([])
-  const loaded = ref(false)
-  const userLevel = ref<number>(0)
+interface ProjectPermissions {
+  permissions: string[]
+  role_level: number
+}
 
-  async function loadPermissions(workspaceId?: number, projectId?: number) {
-    try {
-      const params: Record<string, number> = {}
-      if (workspaceId) params.workspace_id = workspaceId
-      if (projectId) params.project_id = projectId
-      
-      const resp = await api.get('/permissions', { params })
-      const data = resp.data
-      
-      // Handle different response formats
-      if (data && data.data && Array.isArray(data.data.permissions)) {
-        permissions.value = data.data.permissions
-        userLevel.value = data.data.role_level || 0
-      } else if (Array.isArray(data)) {
-        permissions.value = data.map((p: any) => p.code || p).filter(Boolean)
-      }
-      
-      loaded.value = true
-    } catch (e) {
-      console.error('Failed to load permissions:', e)
-      // Fallback to level-based check
-      loaded.value = true
-    }
+// One entry per project, shared by every component on the page. The cache is
+// dropped when the signed-in token changes so another user never sees it.
+const cache = new Map<number, Ref<ProjectPermissions | null>>()
+const inflight = new Map<number, Promise<void>>()
+let cacheToken: string | null = null
+
+function entry(projectId: number): Ref<ProjectPermissions | null> {
+  const token = localStorage.getItem('token')
+  if (token !== cacheToken) {
+    cache.clear()
+    inflight.clear()
+    cacheToken = token
   }
-
-  function can(permission: string): boolean {
-    // If we have actual permissions loaded, use them
-    if (permissions.value.length > 0) {
-      return permissions.value.includes(permission)
-    }
-    // Fallback to level-based check
-    const level = userLevel.value || 15
-    return checkPermissionByLevel(permission, level)
+  let e = cache.get(projectId)
+  if (!e) {
+    e = ref(null)
+    cache.set(projectId, e)
   }
+  return e
+}
 
-  function checkPermissionByLevel(permission: string, level: number): boolean {
-    if (level >= 20) return true
-    
-    const readPerms = ['view', 'view_all', 'view_project']
-    const permAction = permission.split(':')[1] || ''
-    
-    if (level <= 5) {
-      return readPerms.some(rp => permAction.includes(rp))
-    }
-    
-    const adminOnly = ['workspace:manage', 'workspace:delete', 'member:manage', 
-      'settings:manage', 'project:delete', 'agent:manage', 'automation:manage',
-      'role:manage', 'issue:delete', 'cycle:delete', 'module:delete',
-      'page:delete', 'comment:delete', 'attachment:delete', 'time_track:delete']
-    
-    if (level >= 15 && !adminOnly.includes(permission)) {
-      return true
-    }
-    
-    return false
+function load(projectId: number): Promise<void> {
+  const e = entry(projectId)
+  if (e.value) return Promise.resolve()
+  let p = inflight.get(projectId)
+  if (!p) {
+    p = api
+      .get(`/projects/${projectId}/my-permissions`)
+      .then((resp) => {
+        e.value = {
+          permissions: resp.data?.permissions ?? [],
+          role_level: resp.data?.role_level ?? 0,
+        }
+      })
+      .catch(() => {
+        // Leave it unloaded so the next mount retries; actions stay hidden.
+      })
+      .finally(() => inflight.delete(projectId))
+    inflight.set(projectId, p)
   }
+  return p
+}
 
-  return { permissions, loaded, can, loadPermissions }
+/**
+ * The caller's permission codes in a project, as the API enforces them.
+ * `can` is false until loaded, so guarded actions never flash in and out.
+ */
+export function useProjectPermissions(projectId: MaybeRefOrGetter<number | null | undefined>) {
+  const state = computed(() => {
+    const id = toValue(projectId)
+    return id ? entry(id).value : null
+  })
+  watch(
+    () => toValue(projectId),
+    (id) => {
+      if (id) load(id)
+    },
+    { immediate: true },
+  )
+  return {
+    loaded: computed(() => state.value !== null),
+    roleLevel: computed(() => state.value?.role_level ?? 0),
+    can: (code: string) => !!state.value?.permissions.includes(code),
+  }
+}
+
+export function resetProjectPermissionsCache() {
+  cache.clear()
+  inflight.clear()
+  cacheToken = null
 }

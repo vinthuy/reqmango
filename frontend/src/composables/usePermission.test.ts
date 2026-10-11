@@ -1,127 +1,88 @@
-/**
- * usePermission Composable 单元测试
- */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { nextTick, ref } from 'vue'
+import { flushPromises } from '@vue/test-utils'
 
 const mockGet = vi.fn()
 vi.mock('@/api', () => ({
-  default: {
-    get: (...args: any[]) => mockGet(...args),
-  },
+  default: { get: (...args: any[]) => mockGet(...args) },
 }))
 
-import { usePermission } from './usePermission'
+import { useProjectPermissions, resetProjectPermissionsCache } from './usePermission'
 
-describe('usePermission', () => {
+describe('useProjectPermissions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    resetProjectPermissionsCache()
+    localStorage.setItem('token', 'a')
   })
 
-  it('should initialize with empty permissions', () => {
-    const { permissions, loaded } = usePermission()
-    expect(permissions.value).toEqual([])
+  it('denies everything until loaded, then reflects the API', async () => {
+    mockGet.mockResolvedValue({ data: { permissions: ['issue:edit'], role_level: 15 } })
+    const { can, loaded, roleLevel } = useProjectPermissions(1)
     expect(loaded.value).toBe(false)
+    expect(can('issue:edit')).toBe(false)
+
+    await flushPromises()
+    expect(mockGet).toHaveBeenCalledWith('/projects/1/my-permissions')
+    expect(loaded.value).toBe(true)
+    expect(roleLevel.value).toBe(15)
+    expect(can('issue:edit')).toBe(true)
+    expect(can('issue:delete')).toBe(false)
   })
 
-  describe('loadPermissions', () => {
-    it('should load permissions from API (data.data.permissions format)', async () => {
-      mockGet.mockResolvedValue({
-        data: {
-          data: {
-            permissions: ['view_project', 'create_issue', 'delete_issue'],
-            role_level: 15,
-          },
-        },
-      })
-
-      const { permissions, loaded, loadPermissions } = usePermission()
-      await loadPermissions(1, 1)
-
-      expect(loaded.value).toBe(true)
-      expect(permissions.value).toContain('view_project')
-      expect(permissions.value).toHaveLength(3)
-    })
-
-    it('should handle array response format', async () => {
-      mockGet.mockResolvedValue({
-        data: [
-          { code: 'view_project' },
-          { code: 'create_issue' },
-        ],
-      })
-
-      const { permissions, loaded, loadPermissions } = usePermission()
-      await loadPermissions(1, 1)
-
-      expect(loaded.value).toBe(true)
-      expect(permissions.value).toContain('view_project')
-      expect(permissions.value).toHaveLength(2)
-    })
-
-    it('should pass workspace_id and project_id as params', async () => {
-      mockGet.mockResolvedValue({ data: { data: { permissions: [], role_level: 0 } } })
-
-      const { loadPermissions } = usePermission()
-      await loadPermissions(1, 2)
-
-      expect(mockGet).toHaveBeenCalledWith('/permissions', {
-        params: { workspace_id: 1, project_id: 2 },
-      })
-    })
-
-    it('should handle API error gracefully', async () => {
-      mockGet.mockRejectedValue(new Error('Network error'))
-
-      const { loaded, loadPermissions } = usePermission()
-      await loadPermissions()
-
-      // Should still mark as loaded (fallback)
-      expect(loaded.value).toBe(true)
-    })
+  it('shares one request per project across components', async () => {
+    mockGet.mockResolvedValue({ data: { permissions: ['issue:delete'], role_level: 20 } })
+    const a = useProjectPermissions(1)
+    const b = useProjectPermissions(1)
+    await flushPromises()
+    expect(mockGet).toHaveBeenCalledTimes(1)
+    expect(a.can('issue:delete')).toBe(true)
+    expect(b.can('issue:delete')).toBe(true)
   })
 
-  describe('can() with loaded permissions', () => {
-    it('should return true for existing permission', async () => {
-      mockGet.mockResolvedValue({
-        data: { data: { permissions: ['view_project', 'create_issue'], role_level: 15 } },
-      })
+  it('follows a reactive project id', async () => {
+    mockGet.mockImplementation((url: string) =>
+      Promise.resolve({ data: { permissions: url.includes('/2/') ? ['issue:delete'] : [], role_level: 15 } }),
+    )
+    const id = ref<number | null>(null)
+    const { can } = useProjectPermissions(id)
+    expect(mockGet).not.toHaveBeenCalled()
 
-      const { can, loadPermissions } = usePermission()
-      await loadPermissions()
+    id.value = 2
+    await nextTick()
+    await flushPromises()
+    expect(can('issue:delete')).toBe(true)
 
-      expect(can('view_project')).toBe(true)
-      expect(can('create_issue')).toBe(true)
-    })
-
-    it('should return false for missing permission', async () => {
-      mockGet.mockResolvedValue({
-        data: { data: { permissions: ['view_project'], role_level: 15 } },
-      })
-
-      const { can, loadPermissions } = usePermission()
-      await loadPermissions()
-
-      expect(can('delete_issue')).toBe(false)
-    })
+    id.value = 3
+    await nextTick()
+    await flushPromises()
+    expect(can('issue:delete')).toBe(false)
   })
 
-  describe('can() with level-based fallback', () => {
-    beforeEach(() => {
-      // No permissions loaded → fallback to level-based
-      mockGet.mockResolvedValue({ data: { data: { permissions: [], role_level: 20 } } })
-    })
+  it('stays denied and retries later when the request fails', async () => {
+    mockGet.mockRejectedValueOnce(new Error('boom'))
+    const first = useProjectPermissions(1)
+    await flushPromises()
+    expect(first.loaded.value).toBe(false)
+    expect(first.can('issue:edit')).toBe(false)
 
-    it('should grant all to level 20', async () => {
-      const { can, loadPermissions } = usePermission()
-      await loadPermissions()
-      expect(can('workspace:manage')).toBe(true)
-      expect(can('project:delete')).toBe(true)
-    })
+    mockGet.mockResolvedValue({ data: { permissions: ['issue:edit'], role_level: 15 } })
+    const second = useProjectPermissions(1)
+    await flushPromises()
+    expect(second.can('issue:edit')).toBe(true)
+    expect(first.can('issue:edit')).toBe(true)
+  })
 
-    it('should deny admin-only actions to low-level users', () => {
-      // No permissions, default level 15
-      const { can } = usePermission()
-      expect(can('view_project')).toBe(true)
-    })
+  it('refetches when the signed-in user changes', async () => {
+    mockGet.mockResolvedValue({ data: { permissions: ['issue:delete'], role_level: 20 } })
+    useProjectPermissions(1)
+    await flushPromises()
+
+    localStorage.setItem('token', 'b')
+    mockGet.mockResolvedValue({ data: { permissions: [], role_level: 15 } })
+    const { can } = useProjectPermissions(1)
+    await flushPromises()
+    expect(mockGet).toHaveBeenCalledTimes(2)
+    expect(can('issue:delete')).toBe(false)
   })
 })

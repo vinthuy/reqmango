@@ -130,4 +130,22 @@ func TestRequirePermission(t *testing.T) {
 
 	assert.Equal(t, 200, status("admin", "PUT", "/projects/"+uitoa(own.ID)+"/sla", ""))
 	assert.Equal(t, 403, status("member", "PUT", "/projects/"+uitoa(own.ID)+"/sla", ""))
+
+	for _, tc := range []struct {
+		user  uint64
+		codes []string
+		level int
+	}{
+		{admin, []string{"issue:delete", "issue:edit", "workflow:manage"}, 20},
+		{member, []string{"issue:edit"}, 15},
+		{guestWithProjectRole, []string{"issue:edit"}, 15},
+		{guest, []string{}, 5},
+		{outsider, []string{}, 0},
+	} {
+		codes, level := ProjectPermissions(db, &model.User{BaseModel: model.BaseModel{ID: tc.user}}, own.ID)
+		assert.Equal(t, tc.codes, codes, "user %d", tc.user)
+		assert.Equal(t, tc.level, level, "user %d", tc.user)
+	}
+	codes, _ := ProjectPermissions(db, &model.User{BaseModel: model.BaseModel{ID: root}, IsSuperuser: true}, own.ID)
+	assert.Len(t, codes, 3)
 }
