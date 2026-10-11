@@ -316,16 +316,12 @@ func (s *AgentService) ListWorkspaceActivity(workspaceID uint64, agentID *uint64
 		limit = 50
 	}
 	var agentIDs []uint64
+	agentQ := s.db.Model(&model.Agent{}).Where("workspace_id = ?", workspaceID)
 	if agentID != nil {
-		agentIDs = []uint64{*agentID}
-	} else {
-		var agents []model.Agent
-		if err := s.db.Model(&model.Agent{}).Where("workspace_id = ?", workspaceID).Pluck("id", &agents).Error; err != nil {
-			return nil, common.Internal("Failed to list agents")
-		}
-		for _, a := range agents {
-			agentIDs = append(agentIDs, a.ID)
-		}
+		agentQ = agentQ.Where("id = ?", *agentID)
+	}
+	if err := agentQ.Pluck("id", &agentIDs).Error; err != nil {
+		return nil, common.Internal("Failed to list agents")
 	}
 	if len(agentIDs) == 0 {
 		return []model.AgentActivity{}, nil
@@ -345,11 +341,13 @@ func (s *AgentService) ListWorkspaceActivity(workspaceID uint64, agentID *uint64
 }
 
 // UpdateActivityFeedback records user feedback (rating) for an agent activity.
-func (s *AgentService) UpdateActivityFeedback(activityID uint64, rating int) error {
+func (s *AgentService) UpdateActivityFeedback(workspaceID, activityID uint64, rating int) error {
 	if rating != 1 && rating != -1 {
 		return common.Validation("Rating must be 1 (positive) or -1 (negative)")
 	}
-	result := s.db.Model(&model.AgentActivity{}).Where("id = ?", activityID).Update("rating", rating)
+	result := s.db.Model(&model.AgentActivity{}).
+		Where("id = ? AND agent_id IN (SELECT id FROM agents WHERE workspace_id = ?)", activityID, workspaceID).
+		Update("rating", rating)
 	if result.Error != nil {
 		return common.Internal("Failed to update feedback")
 	}
@@ -406,6 +404,9 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 
 	if agent.Status != "active" {
 		return nil, common.Validation("Agent is not active")
+	}
+	if err := s.checkDispatchTenant(agent, ctx); err != nil {
+		return nil, err
 	}
 
 	// Check permission to invoke

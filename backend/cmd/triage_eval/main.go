@@ -106,8 +106,8 @@ func main() {
 	tx := db.Begin()
 	defer tx.Rollback()
 	// The server migrates on start; a dev database may lag behind the model.
-	if err := tx.AutoMigrate(&model.Comment{}); err != nil {
-		log.Fatalf("migrate comments: %v", err)
+	if err := tx.AutoMigrate(&model.Comment{}, &model.AgentActivity{}); err != nil {
+		log.Fatalf("migrate: %v", err)
 	}
 	fx, err := seed(tx)
 	if err != nil {

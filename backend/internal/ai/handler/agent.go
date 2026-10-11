@@ -90,9 +90,8 @@ func (h *AgentHandler) EnsurePM(c *gin.Context) {
 // Update handles PUT /workspaces/:wsParam/agents/:id
 func (h *AgentHandler) Update(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -111,9 +110,8 @@ func (h *AgentHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /workspaces/:wsParam/agents/:id
 func (h *AgentHandler) Delete(c *gin.Context) {
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -128,9 +126,8 @@ func (h *AgentHandler) Delete(c *gin.Context) {
 // Dispatch handles POST /workspaces/:wsParam/agents/:id/dispatch
 func (h *AgentHandler) Dispatch(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -161,9 +158,8 @@ func (h *AgentHandler) Dispatch(c *gin.Context) {
 
 // GetActivity handles GET /workspaces/:wsParam/agents/:id/activity
 func (h *AgentHandler) GetActivity(c *gin.Context) {
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -219,9 +215,8 @@ func (h *AgentHandler) ListWorkspaceActivity(c *gin.Context) {
 // AutoTriage handles POST /workspaces/:wsParam/agents/:id/auto-triage
 func (h *AgentHandler) AutoTriage(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -230,6 +225,10 @@ func (h *AgentHandler) AutoTriage(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	if !h.issueIn(c, req.IssueID, h.resolveWorkspaceID(c), 0) {
 		return
 	}
 
@@ -245,9 +244,8 @@ func (h *AgentHandler) AutoTriage(c *gin.Context) {
 // AutoAssign handles POST /workspaces/:wsParam/agents/:id/auto-assign
 func (h *AgentHandler) AutoAssign(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -256,6 +254,10 @@ func (h *AgentHandler) AutoAssign(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	if !h.issueIn(c, req.IssueID, h.resolveWorkspaceID(c), 0) {
 		return
 	}
 
@@ -301,9 +303,8 @@ func (h *AgentHandler) HandleMention(c *gin.Context) {
 
 // GetByID handles GET /workspaces/:wsParam/agents/:id (single agent)
 func (h *AgentHandler) GetByID(c *gin.Context) {
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -321,32 +322,32 @@ func (h *AgentHandler) AutoTriageProject(c *gin.Context) {
 	var req struct {
 		IssueID uint64 `json:"issue_id"`
 	}
-	if err := c.ShouldBindJSON(&req); err == nil && req.IssueID > 0 {
-		activity, svcErr := h.svc.AutoTriage(req.IssueID, user.ID)
-		if appError(c, svcErr) {
-			return
-		}
-		c.JSON(http.StatusOK, activity)
+	if err := c.ShouldBindJSON(&req); err != nil || req.IssueID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "issue_id is required"})
 		return
 	}
+	if !h.issueInRouteProject(c, req.IssueID) {
+		return
+	}
+	activity, svcErr := h.svc.AutoTriage(req.IssueID, user.ID)
+	if appError(c, svcErr) {
+		return
+	}
+	c.JSON(http.StatusOK, activity)
+}
 
-	cfg := struct {
-		Action  string `json:"action"`
-		IssueID uint64 `json:"issue_id"`
-	}{}
-	if err := c.ShouldBindJSON(&cfg); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
-		return
+// issueInRouteProject answers 404 unless the issue is in the :projectId project.
+func (h *AgentHandler) issueInRouteProject(c *gin.Context, issueID uint64) bool {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return false
 	}
-	if cfg.IssueID > 0 {
-		activity, svcErr := h.svc.AutoTriage(cfg.IssueID, user.ID)
-		if appError(c, svcErr) {
-			return
-		}
-		c.JSON(http.StatusOK, activity)
-		return
+	_, project, locErr := h.svc.IssueLocation(issueID)
+	if locErr == nil && project != projectID {
+		locErr = common.NotFound("Issue not found")
 	}
-	c.JSON(http.StatusBadRequest, gin.H{"message": "issue_id is required"})
+	return !appError(c, locErr)
 }
 
 // AutoAssignProject handles POST /projects/:projectId/agent/auto-assign (project-level, no agent ID needed).
@@ -360,6 +361,9 @@ func (h *AgentHandler) AutoAssignProject(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
+	if !h.issueInRouteProject(c, req.IssueID) {
+		return
+	}
 
 	activity, svcErr := h.svc.AutoAssign(req.IssueID, user.ID)
 	if appError(c, svcErr) {
@@ -369,6 +373,33 @@ func (h *AgentHandler) AutoAssignProject(c *gin.Context) {
 }
 
 // ==================== Helpers ====================
+
+// agentInWorkspace resolves the :id agent, answering 404 unless it belongs to
+// the :wsParam workspace.
+func (h *AgentHandler) agentInWorkspace(c *gin.Context) (uint64, bool) {
+	wsID := h.resolveWorkspaceID(c)
+	if wsID == 0 {
+		return 0, false
+	}
+	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+		return 0, false
+	}
+	if _, err := h.svc.AgentInWorkspace(wsID, agentID); appError(c, err) {
+		return 0, false
+	}
+	return agentID, true
+}
+
+// issueIn answers 404 unless the issue is in the given workspace (and project, when non-zero).
+func (h *AgentHandler) issueIn(c *gin.Context, issueID, workspaceID, projectID uint64) bool {
+	ws, project, err := h.svc.IssueLocation(issueID)
+	if err == nil && (ws != workspaceID || (projectID != 0 && project != projectID)) {
+		err = common.NotFound("Issue not found")
+	}
+	return !appError(c, err)
+}
 
 // resolveWorkspaceID extracts the workspace ID from the :wsParam route parameter,
 // trying numeric ID first, then looking up by slug via DB (simplified: numeric only for now).
@@ -386,9 +417,8 @@ func (h *AgentHandler) resolveWorkspaceID(c *gin.Context) uint64 {
 
 // GetPresence handles GET /workspaces/:wsParam/agents/:id/presence
 func (h *AgentHandler) GetPresence(c *gin.Context) {
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -415,9 +445,8 @@ func (h *AgentHandler) ListPresence(c *gin.Context) {
 
 // Heartbeat handles POST /workspaces/:wsParam/agents/:id/heartbeat
 func (h *AgentHandler) Heartbeat(c *gin.Context) {
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -429,9 +458,8 @@ func (h *AgentHandler) Heartbeat(c *gin.Context) {
 
 // UpdateAvailability handles PUT /workspaces/:wsParam/agents/:id/availability
 func (h *AgentHandler) UpdateAvailability(c *gin.Context) {
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -451,9 +479,8 @@ func (h *AgentHandler) UpdateAvailability(c *gin.Context) {
 
 // UpdateWorkload handles PUT /workspaces/:wsParam/agents/:id/workload
 func (h *AgentHandler) UpdateWorkload(c *gin.Context) {
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -473,9 +500,8 @@ func (h *AgentHandler) UpdateWorkload(c *gin.Context) {
 
 // GetSnapshots handles GET /workspaces/:wsParam/agents/:id/snapshots
 func (h *AgentHandler) GetSnapshots(c *gin.Context) {
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -488,9 +514,8 @@ func (h *AgentHandler) GetSnapshots(c *gin.Context) {
 
 // CreateSnapshot handles POST /workspaces/:wsParam/agents/:id/snapshots
 func (h *AgentHandler) CreateSnapshot(c *gin.Context) {
-	agentID, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid agent ID"})
+	agentID, ok := h.agentInWorkspace(c)
+	if !ok {
 		return
 	}
 
@@ -526,7 +551,11 @@ func (h *AgentHandler) UpdateActivityFeedback(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
-	if svcErr := h.svc.UpdateActivityFeedback(activityID, req.Rating); svcErr != nil {
+	wsID := h.resolveWorkspaceID(c)
+	if wsID == 0 {
+		return
+	}
+	if svcErr := h.svc.UpdateActivityFeedback(wsID, activityID, req.Rating); svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
 			return

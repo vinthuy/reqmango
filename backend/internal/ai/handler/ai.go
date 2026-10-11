@@ -115,8 +115,10 @@ func (h *AIHandler) buildContext(c *gin.Context) *service.AIContext {
 			actx.WorkspaceID = project.WorkspaceID
 		}
 	}
-	// Allow explicit workspace_id override (e.g. for workspace-level calls without a project)
-	if wid, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64); err == nil && wid > 0 {
+	// workspace_id is for workspace-level calls without a project. It also
+	// selects whose AI key is billed, so it must be the caller's workspace.
+	if wid, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64); err == nil && wid > 0 &&
+		actx.ProjectID == 0 && middleware.IsWorkspaceMember(h.db, wid, actx.UserID) {
 		actx.WorkspaceID = wid
 	}
 
@@ -159,7 +161,10 @@ func (h *AIHandler) enrichIssueContext(actx *service.AIContext) {
 		return
 	}
 	var issue model.Issue
-	if h.db.Select("id", "name", "sequence_id", "project_id").First(&issue, actx.IssueID).Error != nil {
+	if h.db.Select("id", "name", "sequence_id", "project_id").First(&issue, actx.IssueID).Error != nil ||
+		(actx.ProjectID != 0 && issue.ProjectID != actx.ProjectID) {
+		// The route authorised the project, not this issue.
+		actx.IssueID = 0
 		return
 	}
 	actx.IssueName = issue.Name

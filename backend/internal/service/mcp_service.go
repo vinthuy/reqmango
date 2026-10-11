@@ -100,6 +100,17 @@ func (s *MCPService) List(workspaceID uint64) ([]MCPResponse, error) {
 	return res, nil
 }
 
+// InWorkspace answers NotFound unless the config belongs to the workspace, so
+// a route's :id cannot use another tenant's MCP server and stored API key.
+func (s *MCPService) InWorkspace(id, workspaceID uint64) error {
+	var n int64
+	s.db.Model(&model.MCPConfig{}).Where("id = ? AND workspace_id = ?", id, workspaceID).Count(&n)
+	if n == 0 {
+		return common.NotFound("MCP config not found")
+	}
+	return nil
+}
+
 func (s *MCPService) Get(id uint64) (*MCPResponse, error) {
 	var cfg model.MCPConfig
 	if err := s.db.First(&cfg, id).Error; err != nil {

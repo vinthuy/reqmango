@@ -35,7 +35,10 @@ func (h *MCPHandler) List(c *gin.Context) {
 
 // Get handles GET /workspaces/:workspaceId/mcp/:id
 func (h *MCPHandler) Get(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, ok := h.configInWorkspace(c)
+	if !ok {
+		return
+	}
 	result, err := h.svc.Get(id)
 	if appError(c, err) {
 		return
@@ -60,7 +63,10 @@ func (h *MCPHandler) Create(c *gin.Context) {
 
 // Update handles PUT /workspaces/:wsParam/mcp/:id
 func (h *MCPHandler) Update(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, ok := h.configInWorkspace(c)
+	if !ok {
+		return
+	}
 	var req service.MCPUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"message": err.Error()})
@@ -75,7 +81,10 @@ func (h *MCPHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /workspaces/:wsParam/mcp/:id
 func (h *MCPHandler) Delete(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, ok := h.configInWorkspace(c)
+	if !ok {
+		return
+	}
 	if err := h.svc.Delete(id, middleware.GetCurrentUser(c).ID); err != nil {
 		appError(c, err)
 		return
@@ -85,7 +94,10 @@ func (h *MCPHandler) Delete(c *gin.Context) {
 
 // DiscoverTools handles POST /workspaces/:workspaceId/mcp/:id/discover
 func (h *MCPHandler) DiscoverTools(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, ok := h.configInWorkspace(c)
+	if !ok {
+		return
+	}
 	tools, err := h.svc.DiscoverTools(id)
 	if appError(c, err) {
 		return
@@ -95,7 +107,10 @@ func (h *MCPHandler) DiscoverTools(c *gin.Context) {
 
 // GetTools handles GET /workspaces/:workspaceId/mcp/:id/tools
 func (h *MCPHandler) GetTools(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, ok := h.configInWorkspace(c)
+	if !ok {
+		return
+	}
 	tools, err := h.svc.GetTools(id)
 	if appError(c, err) {
 		return
@@ -105,7 +120,10 @@ func (h *MCPHandler) GetTools(c *gin.Context) {
 
 // ExecuteTool handles POST /workspaces/:workspaceId/mcp/:id/execute
 func (h *MCPHandler) ExecuteTool(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, ok := h.configInWorkspace(c)
+	if !ok {
+		return
+	}
 	var req service.MCPExecuteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"message": err.Error()})
@@ -121,11 +139,33 @@ func (h *MCPHandler) ExecuteTool(c *gin.Context) {
 // SyncTools handles POST /workspaces/:wsParam/mcp/:id/sync
 func (h *MCPHandler) SyncTools(c *gin.Context) {
 	workspaceID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, ok := h.configInWorkspace(c)
+	if !ok {
+		return
+	}
 
 	added, updated, err := h.svc.SyncTools(workspaceID, id, middleware.GetCurrentUser(c).ID)
 	if appError(c, err) {
 		return
 	}
 	c.JSON(200, MCPSyncResult{Added: added, Updated: updated})
+}
+
+// configInWorkspace resolves the :id MCP config, answering 404 unless it
+// belongs to the :wsParam workspace.
+func (h *MCPHandler) configInWorkspace(c *gin.Context) (uint64, bool) {
+	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "Invalid workspace identifier"})
+		return 0, false
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "Invalid MCP config ID"})
+		return 0, false
+	}
+	if appError(c, h.svc.InWorkspace(id, workspaceID)) {
+		return 0, false
+	}
+	return id, true
 }
