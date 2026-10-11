@@ -30,6 +30,7 @@ import { githubApi } from '@/api/github';
 import { slackApi } from '@/api/slack';
 import { useConfirm } from '@/composables/useConfirm';
 import { useToast } from '@/composables/useToast';
+import { useWorkspacePermissions } from '@/composables/usePermission';
 
 const { confirm } = useConfirm();
 const { t } = useI18n();
@@ -41,6 +42,8 @@ const slug = computed(() => (route.params as any).slug as string || '');
 
 const loading = ref(false);
 const workspaceId = ref(0);
+const { can } = useWorkspacePermissions(() => workspaceId.value || null);
+const canManageSettings = computed(() => can('settings:manage'));
 const firstProjectId = ref(0);
 const workspaceProjects = ref<any[]>([]);
 const activeSection = ref('members');
@@ -310,7 +313,7 @@ watch(() => route.query.section, (section) => {
       </div>
 
       <!-- Workspace States Section -->
-      <div v-if="!loading && activeSection === 'states'" class="p-6 space-y-6">
+      <div v-if="!loading && activeSection === 'states'" data-test="workspace-states-section" class="p-6 space-y-6">
         <div class="flex items-center justify-between">
           <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.workItemStates') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.workspaceStatesDesc') }}</p></div>
         </div>
@@ -326,16 +329,16 @@ watch(() => route.query.section, (section) => {
               <span class="text-sm font-semibold text-gray-700 uppercase tracking-wide">{{ group.name }}</span>
               <span class="text-xs bg-gray-200 px-2 py-0.5 rounded-full">{{ group.states.length }}</span>
             </div>
-            <button @click="wsHandleAddState(group.id)" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">+ {{ t('settings.addState') }}</button>
+            <button v-if="canManageSettings" data-test="create-workspace-state-btn" @click="wsHandleAddState(group.id)" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">+ {{ t('settings.addState') }}</button>
           </div>
           <div class="divide-y divide-gray-100">
-            <div v-for="state in group.states" :key="state.id" class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer" @click="wsHandleEditState(group.id, state)">
+            <div v-for="state in group.states" :key="state.id" class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors" :class="canManageSettings ? 'cursor-pointer' : ''" @click="canManageSettings && wsHandleEditState(group.id, state)">
               <div class="flex items-center space-x-3">
                 <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: state.color }"></div>
                 <span class="text-sm text-gray-800">{{ state.name }}</span>
                 <span v-if="state.is_default" class="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">{{ t('settings.default') }}</span>
               </div>
-              <div class="flex items-center space-x-2">
+              <div v-if="canManageSettings" data-test="workspace-state-row-actions" class="flex items-center space-x-2">
                 <button @click.stop="wsHandleEditState(group.id, state)" class="p-1 text-gray-400 hover:text-gray-600">✏️</button>
                 <button @click.stop="wsHandleDeleteState(group.id, state)" class="p-1 text-gray-400 hover:text-red-500">🗑️</button>
               </div>
@@ -451,7 +454,7 @@ watch(() => route.query.section, (section) => {
         </div>
         <div class="flex justify-end space-x-3 mt-6">
           <button @click="wsShowStateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
-          <button @click="wsHandleSaveState" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ wsEditingState ? t('settings.update') : t('settings.create') }}</button>
+          <button v-if="canManageSettings" @click="wsHandleSaveState" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ wsEditingState ? t('settings.update') : t('settings.create') }}</button>
         </div>
       </div>
     </div>

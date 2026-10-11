@@ -38,6 +38,7 @@ const projectId = computed(() => parseInt((route.params as any).id as string, 10
 
 const { can } = useProjectPermissions(() => projectId.value)
 const canManageWorkflows = computed(() => can('workflow:manage'))
+const canManageSettings = computed(() => can('settings:manage'))
 
 const loading = ref(false)
 const workspaceId = ref(0)
@@ -883,11 +884,11 @@ watch(() => route.query.section, (section) => {
         </div>
 
         <!-- States -->
-        <div v-if="!loading && activeSection === 'states'" class="space-y-6">
+        <div v-if="!loading && activeSection === 'states'" data-test="project-states-section" class="space-y-6">
           <div class="flex items-center justify-between">
             <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.workItemStates') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.stateGroupsDesc') }}</p></div>
             <div class="flex gap-2">
-              <button v-if="states.length === 0" @click="handleCreateDefaultStates" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">{{ t('settings.createDefaultStates') }}</button>
+              <button v-if="canManageSettings && states.length === 0" @click="handleCreateDefaultStates" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">{{ t('settings.createDefaultStates') }}</button>
             </div>
           </div>
           <div v-for="group in stateGroups" :key="group.id" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -897,17 +898,17 @@ watch(() => route.query.section, (section) => {
                 <span class="text-xs text-gray-400">{{ group.description }}</span>
                 <span class="text-xs bg-gray-200 px-2 py-0.5 rounded-full">{{ group.states.length }}</span>
               </div>
-              <button @click="handleAddState(group.id)" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">+ {{ t('settings.addState') }}</button>
+              <button v-if="canManageSettings" data-test="create-state-btn" @click="handleAddState(group.id)" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">+ {{ t('settings.addState') }}</button>
             </div>
             <div class="divide-y divide-gray-100">
-              <div v-for="state in group.states" :key="state.id" class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer" @click="handleEditState(group.id, state)">
+              <div v-for="state in group.states" :key="state.id" class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors" :class="canManageSettings ? 'cursor-pointer' : ''" @click="canManageSettings && handleEditState(group.id, state)">
                 <div class="flex items-center space-x-3">
                   <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: state.color }"></div>
                   <span class="text-sm text-gray-800">{{ state.name }}</span>
                   <span v-if="state.is_default" class="px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs font-medium">{{ t('settings.default') }}</span>
                   <span v-if="state.is_inherited" class="px-2 py-0.5 bg-green-100 text-green-600 rounded text-xs font-medium">⚙️ {{ t('settings.inherited') }}</span>
                 </div>
-                <div class="flex items-center space-x-2">
+                <div v-if="canManageSettings" data-test="project-state-row-actions" class="flex items-center space-x-2">
                   <button v-if="!state.is_inherited" @click.stop="handleEditState(group.id, state)" class="p-1 text-gray-400 hover:text-gray-600">✏️</button>
                   <button v-if="!state.is_inherited" @click.stop="handleDeleteState(group.id, state)" class="p-1 text-gray-400 hover:text-red-500">🗑️</button>
                 </div>
@@ -918,17 +919,17 @@ watch(() => route.query.section, (section) => {
         </div>
 
         <!-- Labels -->
-        <div v-if="!loading && activeSection === 'labels'" class="space-y-6">
+        <div v-if="!loading && activeSection === 'labels'" data-test="project-labels-section" class="space-y-6">
           <div class="flex items-center justify-between">
             <div><h2 class="text-lg font-semibold text-gray-900">{{ t('settings.labels') }}</h2><p class="text-sm text-gray-500 mt-1">{{ t('settings.labelsDesc') }}</p></div>
-            <button @click="handleAddLabel" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.addLabel') }}</button>
+            <button v-if="canManageSettings" data-test="create-label-btn" @click="handleAddLabel" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.addLabel') }}</button>
           </div>
           <div class="bg-white rounded-xl border border-gray-200 p-6">
             <div class="flex flex-wrap gap-3">
-              <div v-for="label in labels" :key="label.id" @click="handleEditLabel(label)" class="inline-flex items-center px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity" :style="{ backgroundColor: label.color + '20', borderColor: label.color }">
+              <div v-for="label in labels" :key="label.id" class="inline-flex items-center px-3 py-1.5 rounded-full transition-opacity" :class="canManageSettings ? 'cursor-pointer hover:opacity-80' : ''" :style="{ backgroundColor: label.color + '20', borderColor: label.color }" @click="canManageSettings && handleEditLabel(label)">
                 <div class="w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: label.color }"></div>
                 <span class="text-sm font-medium" :style="{ color: label.color }">{{ label.name }}</span>
-                <button @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
+                <button v-if="canManageSettings" @click.stop="handleDeleteLabel(label)" class="ml-2 text-gray-400 hover:text-red-500">✕</button>
               </div>
               <div v-if="labels.length === 0" class="w-full text-center text-gray-400 py-8">{{ t('settings.noLabels') }}</div>
             </div>
@@ -1283,7 +1284,7 @@ watch(() => route.query.section, (section) => {
         </div>
         <div class="flex justify-end space-x-3 mt-6">
           <button @click="showStateModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
-          <button @click="handleSaveState" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingState ? t('settings.update') : t('settings.create') }}</button>
+          <button v-if="canManageSettings" @click="handleSaveState" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingState ? t('settings.update') : t('settings.create') }}</button>
         </div>
       </div>
     </div>
@@ -1299,7 +1300,7 @@ watch(() => route.query.section, (section) => {
         </div>
         <div class="flex justify-end space-x-3 mt-6">
           <button @click="showLabelModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">{{ t('settings.cancel') }}</button>
-          <button @click="handleSaveLabel" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingLabel ? t('settings.update') : t('settings.create') }}</button>
+          <button v-if="canManageSettings" @click="handleSaveLabel" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">{{ editingLabel ? t('settings.update') : t('settings.create') }}</button>
         </div>
       </div>
     </div>
