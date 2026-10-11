@@ -562,6 +562,35 @@ func (e *DefaultActionExecutor) handleArchive(action Action, context map[string]
 	return db.Model(&model.Issue{}).Where("id = ?", issueID).Update("archived", true).Error
 }
 
+const ruleActorKey = "rule_actor_id"
+
+// withRuleActor copies the event context for one rule, adding who the rule
+// acts as. The copy keeps one rule's actor from leaking into the next.
+func withRuleActor(base map[string]interface{}, rule model.AutomationRule) map[string]interface{} {
+	ctx := make(map[string]interface{}, len(base)+1)
+	for k, v := range base {
+		ctx[k] = v
+	}
+	if rule.CreatedByID != nil && *rule.CreatedByID != 0 {
+		ctx[ruleActorKey] = *rule.CreatedByID
+	}
+	return ctx
+}
+
+// automationActor is the user an automation acts as: the rule's creator, or
+// for rules saved before creators were recorded, the workspace owner. Agent
+// tools check this user's project membership, so it must be a real member.
+func automationActor(context map[string]interface{}, db *gorm.DB, workspaceID uint64) (uint64, error) {
+	if actor, ok := context[ruleActorKey].(uint64); ok && actor != 0 {
+		return actor, nil
+	}
+	var ws model.Workspace
+	if err := db.Select("id", "owner_id").First(&ws, workspaceID).Error; err != nil || ws.OwnerID == 0 {
+		return 0, fmt.Errorf("automation has no actor: rule creator unknown and workspace %d has no owner", workspaceID)
+	}
+	return ws.OwnerID, nil
+}
+
 func (e *DefaultActionExecutor) handleDispatchAgent(action Action, context map[string]interface{}, db *gorm.DB) error {
 	if e.agentClient == nil {
 		return fmt.Errorf("agent client not available")
@@ -597,8 +626,11 @@ func (e *DefaultActionExecutor) handleDispatchAgent(action Action, context map[s
 		return fmt.Errorf("agent not found: %w", err)
 	}
 
-	// Use system user (user ID 1) as the actor for automation-triggered dispatches
-	err := e.agentClient.DispatchAgent(agent.WorkspaceID, agentID, 1, task, issueIDPtr, projectIDPtr, "automation")
+	actor, err := automationActor(context, db, agent.WorkspaceID)
+	if err != nil {
+		return err
+	}
+	err = e.agentClient.DispatchAgent(agent.WorkspaceID, agentID, actor, task, issueIDPtr, projectIDPtr, "automation")
 	if err != nil {
 		log.Printf("[Automation] Agent dispatch failed: agent=%d issue=%d err=%v", agentID, issueID, err)
 		return err
@@ -1084,7 +1116,7 @@ func (s *AutomationService) handleAutomationEvent(ctx context.Context, event Eve
 		}
 
 		// 执行动作
-		results, err := s.actionExecutor.Execute(actions, event.Context)
+		results, err := s.actionExecutor.Execute(actions, withRuleActor(event.Context, rule))
 		if err != nil {
 			log.Printf("[Automation] Failed to execute actions for rule %d: %v", rule.ID, err)
 		}
