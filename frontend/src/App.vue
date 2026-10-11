@@ -11,10 +11,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const showShortcuts = ref(false)
 
-const showTopBar = computed(() => {
-  const name = (route.name as string || '').toLowerCase()
-  return name && !['login', 'register'].includes(name)
-})
+const showTopBar = computed(() => !!route.meta.requiresAuth)
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === '?' && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
@@ -24,7 +21,7 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
-  if (authStore.token) authStore.fetchUser()
+  if (route.meta.requiresAuth && authStore.token) authStore.fetchUser()
   document.addEventListener('keydown', onKeydown)
 })
 onUnmounted(() => document.removeEventListener('keydown', onKeydown))
