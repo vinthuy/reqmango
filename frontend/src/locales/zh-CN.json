@@ -4324,6 +4324,23 @@
     "lowConfidence": "低置信度",
     "time": "时间"
   },
+  "issueLabels": {
+    "mine": "我的",
+    "priority": {
+      "urgent": "紧急",
+      "high": "高",
+      "medium": "中",
+      "low": "低",
+      "none": "无"
+    },
+    "stateGroup": {
+      "backlog": "待办",
+      "todo": "计划中",
+      "in_progress": "进行中",
+      "done": "已完成",
+      "cancelled": "已取消"
+    }
+  },
   "reportBuilder": {
     "opEqual": "等于",
     "opNotEqual": "不等于",

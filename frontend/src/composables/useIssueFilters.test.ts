@@ -2,16 +2,20 @@
  * useIssueFilters Composable 单元测试
  * 覆盖：setFilter, removeFilter, clearAllFilters, buildFilterChips, getQueryParams
  */
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useIssueFilters } from './useIssueFilters'
+import { useI18n } from './useI18n'
 
 describe('useIssueFilters', () => {
   let instance: ReturnType<typeof useIssueFilters>
 
   beforeEach(() => {
+    useI18n().setLocale('zh-CN')
     instance = useIssueFilters()
     instance.clearAllFilters()
   })
+
+  afterEach(() => useI18n().setLocale('zh-CN'))
 
   describe('initial state', () => {
     it('should have empty search', () => {
@@ -152,6 +156,25 @@ describe('useIssueFilters', () => {
     it('should return empty chips when no filters set', () => {
       const chips = instance.buildFilterChips(states, cycles, labels, members)
       expect(chips.length).toBe(0)
+    })
+
+    it('should translate chip labels and priority on locale changes without changing filter values', () => {
+      instance.setFilter('state_id', 1)
+      instance.setFilter('priority', 'urgent')
+      instance.setFilter('cycle_id', 10)
+      instance.setFilter('assignee_id', 'me')
+      instance.setFilter('label_ids', [1])
+      const params = instance.getQueryParams()
+      const { setLocale } = useI18n()
+      setLocale('en-US')
+      const chips = instance.buildFilterChips(states, cycles, labels, members)
+      expect(chips.map(c => c.label)).toEqual(['State', 'Priority', 'Cycle', 'Labels', 'Assignee'])
+      expect(chips.find(c => c.key === 'priority')?.displayValue).toBe('Urgent')
+      expect(chips.find(c => c.value === 'me')?.displayValue).toBe('Mine')
+      expect(chips.find(c => c.key === 'state_id')?.displayValue).toBe('Backlog')
+      expect(instance.getQueryParams()).toEqual(params)
+      setLocale('zh-CN')
+      expect(instance.buildFilterChips(states, cycles, labels, members).find(c => c.key === 'priority')?.displayValue).toBe('紧急')
     })
   })
 

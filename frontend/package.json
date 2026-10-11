@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "i18n:check": "node --test scripts/scan-missing-i18n-keys.test.mjs && node scripts/scan-missing-i18n-keys.mjs"
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",

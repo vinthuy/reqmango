@@ -208,16 +208,7 @@ export interface CycleLite {
 /**
  * 获取优先级的显示名称
  */
-export function getPriorityName(priority: IssuePriority): string {
-  const names: Record<IssuePriority, string> = {
-    [IssuePriority.URGENT]: '紧急',
-    [IssuePriority.HIGH]: '高',
-    [IssuePriority.MEDIUM]: '中',
-    [IssuePriority.LOW]: '低',
-    [IssuePriority.NONE]: '无'
-  }
-  return names[priority] || priority
-}
+export { getPriorityName } from '@/utils/issue-labels'
 
 /**
  * 获取优先级的颜色
@@ -236,16 +227,7 @@ export function getPriorityColor(priority: IssuePriority): string {
 /**
  * 获取状态分组的显示名称
  */
-export function getStateGroupName(group: IssueStateGroup): string {
-  const names: Record<IssueStateGroup, string> = {
-    [IssueStateGroup.BACKLOG]: '待办',
-    [IssueStateGroup.TODO]: '计划中',
-    [IssueStateGroup.IN_PROGRESS]: '进行中',
-    [IssueStateGroup.DONE]: '已完成',
-    [IssueStateGroup.CANCELLED]: '已取消'
-  }
-  return names[group] || group
-}
+export { getStateGroupName } from '@/utils/issue-labels'
 
 /**
  * 获取状态分组的颜色

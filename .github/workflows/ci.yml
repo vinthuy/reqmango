@@ -40,6 +40,9 @@ jobs:
       - name: Frontend type-check
         run: cd frontend && npx vue-tsc --noEmit
 
+      - name: Frontend translation keys
+        run: cd frontend && npm run i18n:check
+
   security:
     name: Security
     runs-on: ubuntu-latest

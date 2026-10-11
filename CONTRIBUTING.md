@@ -109,6 +109,10 @@ Be respectful. Assume good intent. No harassment or personal attacks. Maintainer
 - GitHub About / Topics: [docs/dev/github-public-profile.md](docs/dev/github-public-profile.md)
 - Publishing curated tasks: [good-first-issues.md](docs/dev/good-first-issues.md)
 
+### Translation checks
+
+Run `cd frontend && npm run i18n:check` before submitting UI changes. It fails when a literal translation key is missing in either locale; dynamically concatenated keys need separate validation.
+
 ## License
 
 By contributing, you agree your contributions are licensed under the [MIT License](LICENSE).

@@ -69,6 +69,7 @@ docker compose up --build
 2. 只做与 Issue 相关的改动。
 3. 本地验证：
    - 前端：`cd frontend && npx vitest run`（动到类型时再跑 `npx vue-tsc --noEmit`）
+   - 翻译：`cd frontend && npm run i18n:check`（检查静态 key；动态拼接 key 需另行验证）
    - 后端：`cd backend && go test ./internal/...`
    - 手动走一遍复现路径或主流程
 4. 按 PR 模板提 PR，并关联 Issue（优先提到你克隆的那一侧；维护者会同步双远程）。
