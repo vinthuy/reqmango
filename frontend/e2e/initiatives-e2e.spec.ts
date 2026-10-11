@@ -174,14 +174,18 @@ test.describe('Initiatives UI Pages', () => {
 
   test('initiatives page loads with header and view toggle', async ({ page }) => {
     await goToApp(page, `/workspace/${_wsSlug}/initiatives`)
-    // Feature is gated by default — enable it when the soft-gate CTA is shown.
-    const enableBtn = page.locator('button:has-text("启用"), button:has-text("Enable")').first()
-    if (await enableBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    // Feature is gated by default — flip the local flag before asserting the real UI.
+    await page.evaluate(() => localStorage.setItem('rm_show_initiatives', '1'))
+    await page.reload()
+    await page.waitForTimeout(1000)
+    const enableBtn = page.locator('button:has-text("本机开启"), button:has-text("Enable on this device")').first()
+    if (await enableBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await enableBtn.click()
       await page.waitForTimeout(1000)
     }
     await expect(page.locator('h1')).toContainText(/Initiatives|战略目标/)
-    await expect(page.locator('button:has-text("列表")').or(page.locator('button:has-text("List")'))).toBeVisible({ timeout: 5000 })
+    // Gated title also contains「战略目标」— require the view toggle to prove the real page loaded.
+    await expect(page.locator('button:has-text("列表")').or(page.locator('button:has-text("List")'))).toBeVisible({ timeout: 8000 })
     await expect(page.locator('button:has-text("路线图")').or(page.locator('button:has-text("Roadmap")'))).toBeVisible({ timeout: 5000 })
   })
 

@@ -101,6 +101,24 @@ test.describe('Custom Fields — Full UI Journey', () => {
     const issue = await issueRes.json()
     const issueId = issue.id || issue.data?.id
 
+    // Create often omits type_id; values require a type binding, so assign a type then attach the field.
+    const typesRes = await request.get(`${API}/projects/${demo.projectId}/issue-types`, { headers: demo.headers })
+    const typesBody = await typesRes.json()
+    const types = Array.isArray(typesBody) ? typesBody : (typesBody.data || [])
+    const typeId = (types.find((t: any) => t.name === 'Task') || types[0])?.id
+    expect(typeId).toBeTruthy()
+    const typed = await request.put(`${API}/issues/${issueId}?workspace_id=${demo.workspaceId}`, {
+      headers: demo.headers,
+      data: { type_id: typeId },
+    })
+    expect(typed.status()).toBeLessThan(400)
+
+    const bind = await request.post(`${API}/issue-types/${typeId}/fields`, {
+      headers: demo.headers,
+      data: { field_id: field.id, is_required: false, sequence: 1 },
+    })
+    expect([200, 201]).toContain(bind.status())
+
     const setVal = await request.post(`${API}/custom-fields/issues/${issueId}/values?workspace_id=${demo.workspaceId}`, {
       headers: demo.headers,
       data: { field_id: field.id, value: 'Hello E2E' },

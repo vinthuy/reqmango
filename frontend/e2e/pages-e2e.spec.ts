@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { resolveDemo } from './helpers/demo'
 
 /**
  * ReqMango Pages E2E 测试
@@ -32,19 +33,22 @@ test.describe('ReqMango Pages E2E Tests', () => {
   // P03/P04 operate on pages another case had just removed.
   test.describe.configure({ mode: 'serial' })
 
-  // 测试目标：ReqMango 核心平台 (project 15), workspace reqmango-dev
-  let testProject: { id: number } = { id: 15 }
+  let testProject: { id: number } = { id: 0 }
   let testWorkspace: { slug: string } = { slug: 'reqmango-dev' }
+  let resolvedToken = TEST_TOKEN
 
-  test.beforeAll(async () => {
-    // Token must be set via env var or globalSetup
+  test.beforeAll(async ({ request }) => {
+    const demo = await resolveDemo(request)
+    testProject = { id: demo.projectId }
+    testWorkspace = { slug: demo.workspaceSlug }
+    resolvedToken = demo.token || TEST_TOKEN
   })
 
   // ── Test 1: Navigate to Pages ──
   test('E2E-P01: Navigate to Pages route and verify UI loads', async ({ page }) => {
-    test.skip(!TEST_TOKEN, 'TEST_TOKEN not configured')
+    test.skip(!resolvedToken, 'TEST_TOKEN not configured')
 
-    await loginViaStorage(page, TEST_TOKEN)
+    await loginViaStorage(page, resolvedToken)
 
     // Navigate to pages route
     await page.goto(`${BASE_URL}/workspace/${testWorkspace.slug}/project/${testProject.id}/pages`, {
@@ -58,9 +62,9 @@ test.describe('ReqMango Pages E2E Tests', () => {
 
   // ── Test 2: Create a new page ──
   test('E2E-P02: Create a new page and verify it appears in tree', async ({ page }) => {
-    test.skip(!TEST_TOKEN, 'TEST_TOKEN not configured')
+    test.skip(!resolvedToken, 'TEST_TOKEN not configured')
 
-    await loginViaStorage(page, TEST_TOKEN)
+    await loginViaStorage(page, resolvedToken)
     await page.goto(`${BASE_URL}/workspace/${testWorkspace.slug}/project/${testProject.id}/pages`)
     await page.waitForLoadState('networkidle')
 
@@ -90,9 +94,9 @@ test.describe('ReqMango Pages E2E Tests', () => {
 
   // ── Test 3: Page title editing and auto-save ──
   test('E2E-P03: Edit page title and verify auto-save indicator', async ({ page }) => {
-    test.skip(!TEST_TOKEN, 'TEST_TOKEN not configured')
+    test.skip(!resolvedToken, 'TEST_TOKEN not configured')
 
-    await loginViaStorage(page, TEST_TOKEN)
+    await loginViaStorage(page, resolvedToken)
     await page.goto(`${BASE_URL}/workspace/${testWorkspace.slug}/project/${testProject.id}/pages`)
     await page.waitForLoadState('networkidle')
 
@@ -143,9 +147,9 @@ test.describe('ReqMango Pages E2E Tests', () => {
 
   // ── Test 4: Create child page ──
   test('E2E-P04: Create a child page via tree "+" button', async ({ page }) => {
-    test.skip(!TEST_TOKEN, 'TEST_TOKEN not configured')
+    test.skip(!resolvedToken, 'TEST_TOKEN not configured')
 
-    await loginViaStorage(page, TEST_TOKEN)
+    await loginViaStorage(page, resolvedToken)
     await page.goto(`${BASE_URL}/workspace/${testWorkspace.slug}/project/${testProject.id}/pages`)
     await page.waitForLoadState('networkidle')
 
@@ -180,9 +184,9 @@ test.describe('ReqMango Pages E2E Tests', () => {
 
   // ── Test 5: Delete page ──
   test('E2E-P05: Delete a page via tree "✕" button', async ({ page }) => {
-    test.skip(!TEST_TOKEN, 'TEST_TOKEN not configured')
+    test.skip(!resolvedToken, 'TEST_TOKEN not configured')
 
-    await loginViaStorage(page, TEST_TOKEN)
+    await loginViaStorage(page, resolvedToken)
     await page.goto(`${BASE_URL}/workspace/${testWorkspace.slug}/project/${testProject.id}/pages`)
     await page.waitForLoadState('networkidle')
 
@@ -208,9 +212,9 @@ test.describe('ReqMango Pages E2E Tests', () => {
 
   // ── Test 6: Empty state test ──
   test('E2E-P06: Verify empty state shows when no page selected', async ({ page }) => {
-    test.skip(!TEST_TOKEN, 'TEST_TOKEN not configured')
+    test.skip(!resolvedToken, 'TEST_TOKEN not configured')
 
-    await loginViaStorage(page, TEST_TOKEN)
+    await loginViaStorage(page, resolvedToken)
     await page.goto(`${BASE_URL}/workspace/${testWorkspace.slug}/project/${testProject.id}/pages`)
     await page.waitForLoadState('networkidle')
 
@@ -221,9 +225,9 @@ test.describe('ReqMango Pages E2E Tests', () => {
 
   // ── Test 7: Back button navigation ──
   test('E2E-P07: "Back" button navigates to project view', async ({ page }) => {
-    test.skip(!TEST_TOKEN, 'TEST_TOKEN not configured')
+    test.skip(!resolvedToken, 'TEST_TOKEN not configured')
 
-    await loginViaStorage(page, TEST_TOKEN)
+    await loginViaStorage(page, resolvedToken)
     await page.goto(`${BASE_URL}/workspace/${testWorkspace.slug}/project/${testProject.id}/pages`)
     await page.waitForLoadState('networkidle')
 
@@ -247,9 +251,9 @@ test.describe('ReqMango Pages E2E Tests', () => {
 
   // ── Test 8: Archive and Restore ──
   test('E2E-P08: Archive and restore a page', async ({ page }) => {
-    test.skip(!TEST_TOKEN, 'TEST_TOKEN not configured')
+    test.skip(!resolvedToken, 'TEST_TOKEN not configured')
 
-    await loginViaStorage(page, TEST_TOKEN)
+    await loginViaStorage(page, resolvedToken)
     await page.goto(`${BASE_URL}/workspace/${testWorkspace.slug}/project/${testProject.id}/pages`)
     await page.waitForLoadState('networkidle')
 
