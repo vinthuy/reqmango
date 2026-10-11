@@ -12,6 +12,19 @@ import (
 	"time"
 )
 
+// ErrNotConfigured is returned when no usable API key is configured. Match it
+// with errors.Is; every variant of the message satisfies it.
+var ErrNotConfigured error = notConfiguredError{"AI 服务未配置：请在 工作空间设置 → AI 中配置有效的 API Key（当前 key 无效或为测试 key）"}
+
+type notConfiguredError struct{ msg string }
+
+func (e notConfiguredError) Error() string { return e.msg }
+
+func (notConfiguredError) Is(target error) bool {
+	_, ok := target.(notConfiguredError)
+	return ok
+}
+
 // ==================== LLM Types ====================
 
 // Message represents a chat message.
@@ -200,7 +213,7 @@ func (c *LLMClient) GenerateEmbedding(ctx context.Context, text string) ([]float
 		return nil, fmt.Errorf("embedding generation not supported for provider %q (use an OpenAI-compatible provider)", c.provider)
 	}
 	if !c.hasValidAPIKey() {
-		return nil, fmt.Errorf("AI 服务未配置：无法生成 embedding（API Key 无效）")
+		return nil, notConfiguredError{"AI 服务未配置：无法生成 embedding（API Key 无效）"}
 	}
 	if strings.TrimSpace(text) == "" {
 		return nil, fmt.Errorf("text is required for embedding")
@@ -267,7 +280,7 @@ type ToolExecutor func(name string, input json.RawMessage) (string, error)
 // ChatSync sends a synchronous (non-streaming) chat request.
 func (c *LLMClient) ChatSync(ctx context.Context, systemPrompt string, messages []Message, tools []Tool) (*ChatResponse, error) {
 	if !c.hasValidAPIKey() {
-		return nil, fmt.Errorf("AI 服务未配置：请在 工作空间设置 → AI 中配置有效的 API Key（当前 key 无效或为测试 key）")
+		return nil, ErrNotConfigured
 	}
 	req, err := c.buildRequest(systemPrompt, messages, tools, false)
 	if err != nil {
@@ -359,7 +372,7 @@ func (c *LLMClient) parseAnthropicResponse(body []byte) (*ChatResponse, error) {
 // ChatStream sends a streaming chat request. Returns a channel of StreamEvent.
 func (c *LLMClient) ChatStream(ctx context.Context, systemPrompt string, messages []Message, tools []Tool) (<-chan StreamEvent, error) {
 	if !c.hasValidAPIKey() {
-		return nil, fmt.Errorf("AI 服务未配置：请在 工作空间设置 → AI 中配置有效的 API Key（当前 key 无效或为测试 key）")
+		return nil, ErrNotConfigured
 	}
 	req, err := c.buildRequest(systemPrompt, messages, tools, true)
 	if err != nil {
@@ -401,7 +414,7 @@ const maxToolRounds = 8
 // ChatSyncWithTools sends a chat request with multi-turn tool execution.
 func (c *LLMClient) ChatSyncWithTools(ctx context.Context, systemPrompt string, messages []Message, tools []Tool, executor ToolExecutor) (*ChatResponse, error) {
 	if !c.hasValidAPIKey() {
-		return nil, fmt.Errorf("AI 服务未配置：请在 工作空间设置 → AI 中配置有效的 API Key（当前 key 无效或为测试 key）")
+		return nil, ErrNotConfigured
 	}
 	if len(tools) == 0 {
 		return c.ChatSync(ctx, systemPrompt, messages, nil)

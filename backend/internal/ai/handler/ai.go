@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,15 @@ import (
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
+
+// respondAIError reports a missing API key as 503 rather than a server fault.
+func respondAIError(c *gin.Context, err error) {
+	status := http.StatusInternalServerError
+	if errors.Is(err, llm.ErrNotConfigured) {
+		status = http.StatusServiceUnavailable
+	}
+	c.JSON(status, gin.H{"message": err.Error()})
+}
 
 // AIHandler handles AI endpoints.
 type AIHandler struct {
@@ -253,7 +263,7 @@ func (h *AIHandler) Search(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	result, err := svc.Search(c.Request.Context(), &req, actx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -269,7 +279,7 @@ func (h *AIHandler) Analyze(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	result, err := svc.Analyze(c.Request.Context(), actx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -287,7 +297,7 @@ func (h *AIHandler) CreatePreview(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	result, err := svc.CreatePreview(c.Request.Context(), &req, actx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -311,7 +321,7 @@ func (h *AIHandler) Chart(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	result, err := svc.GenerateChart(c.Request.Context(), &req, actx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result})
@@ -339,7 +349,7 @@ func (h *AIHandler) PageAI(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	result, err := svc.PageAI(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -356,7 +366,7 @@ func (h *AIHandler) AssistComment(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	r, err := svc.AssistComment(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(200, r)
@@ -374,7 +384,7 @@ func (h *AIHandler) SprintPlan(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	r, err := svc.SprintPlan(c.Request.Context(), pid, cycleID)
 	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(200, r)
@@ -395,7 +405,7 @@ func (h *AIHandler) SuggestLabels(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	r, err := svc.SuggestLabels(c.Request.Context(), pid, req.Name, req.Description)
 	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(200, r)
@@ -412,7 +422,7 @@ func (h *AIHandler) AutomationPreview(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	result, err := svc.AutomationPreview(c.Request.Context(), &req, actx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -426,7 +436,7 @@ func (h *AIHandler) TriageAnalyze(c *gin.Context) {
 	svc := h.resolveService(actx.WorkspaceID)
 	result, err := svc.TriageAnalyze(c.Request.Context(), issueID, projectID)
 	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error()})
+		respondAIError(c, err)
 		return
 	}
 	c.JSON(200, result)
