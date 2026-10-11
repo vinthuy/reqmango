@@ -4,6 +4,7 @@
       <div class="flex items-center justify-between">
         <h3 class="text-sm font-medium text-gray-700">{{ t('customField.customFields') }}</h3>
         <button
+          v-if="canManageWorkspace"
           @click="$emit('create')"
           class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 flex items-center space-x-1"
         >
@@ -36,7 +37,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           <p class="mt-2 text-gray-500">{{ t('customField.noCustomFields') }}</p>
-          <button @click="$emit('create')" class="mt-3 text-indigo-600 hover:text-indigo-800 text-sm">
+          <button v-if="canManageWorkspace" @click="$emit('create')" class="mt-3 text-indigo-600 hover:text-indigo-800 text-sm">
             {{ t('customField.createFirstField') }}
           </button>
         </div>
@@ -92,7 +93,7 @@
                 </div>
                 <div class="flex items-center space-x-2 ml-4">
                   <button
-                    v-if="field.project_id === null"
+                    v-if="canManageProject && field.project_id === null"
                     @click="toggleEnroll(field, false)"
                     class="p-1.5 text-green-600 hover:text-green-700 rounded"
                     :title="t('customField.disable')"
@@ -102,6 +103,7 @@
                     </svg>
                   </button>
                   <button
+                    v-if="canManageWorkspace"
                     @click="$emit('edit', field)"
                     class="p-1.5 text-gray-400 hover:text-indigo-600 rounded"
                     :title="t('common.edit')"
@@ -111,6 +113,7 @@
                     </svg>
                   </button>
                   <button
+                    v-if="canManageWorkspace"
                     @click="deleteField(field)"
                     class="p-1.5 text-gray-400 hover:text-red-600 rounded"
                     :title="t('common.delete')"
@@ -153,6 +156,7 @@
                 </div>
                 <div class="flex items-center space-x-2 ml-4">
                   <button
+                    v-if="canManageProject"
                     @click="toggleEnroll(item.field, true)"
                     class="p-1.5 text-gray-400 hover:text-indigo-600 rounded"
                     :title="t('customField.enable')"
@@ -177,6 +181,7 @@ import { useI18n } from '@/composables/useI18n'
 import customFieldApi from '@/api/custom-field'
 import { useConfirm } from '@/composables/useConfirm'
 import type { CustomField } from '@/types/custom-field'
+import { useProjectPermissions, useWorkspacePermissions } from '@/composables/usePermission'
 
 const { t } = useI18n()
 
@@ -184,6 +189,11 @@ const props = defineProps<{
   projectId: number
   workspaceId: number
 }>()
+
+const { can: canInProject } = useProjectPermissions(() => props.projectId)
+const { can: canInWorkspace } = useWorkspacePermissions(() => props.workspaceId)
+const canManageProject = computed(() => canInProject('settings:manage'))
+const canManageWorkspace = computed(() => canInWorkspace('settings:manage'))
 
 defineEmits<{
   (e: 'create'): void

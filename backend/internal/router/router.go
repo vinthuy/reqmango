@@ -263,6 +263,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PATCH("/:wsParam", workspaceH.Update)  // numeric ID or slug
 			workspaces.DELETE("/:wsParam", workspaceH.Delete) // numeric ID or slug
 			workspaces.GET("/:wsParam/members", workspaceH.ListMembers)
+			workspaces.GET("/:wsParam/my-permissions", handler.MyWorkspacePermissions(db))
 			workspaces.GET("/:wsParam/analytics", wsAnalyticsH.Get)
 			workspaces.GET("/:wsParam/analytics/loop", wsAnalyticsH.Loop)
 			workspaces.POST("/:wsParam/members", workspaceH.AddMember)

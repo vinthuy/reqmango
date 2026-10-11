@@ -8,7 +8,7 @@
           <p class="page-subtitle">{{ t('issueTypePage.description') }}</p>
         </div>
       </div>
-      <button @click="openCreateModal" class="create-btn">
+      <button v-if="canManage" @click="openCreateModal" class="create-btn">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -62,7 +62,7 @@
           </div>
         </div>
 
-        <div class="type-actions">
+        <div v-if="canManage" class="type-actions">
           <button
             v-if="!type.is_default"
             @click.stop="toggleActive(type)"
@@ -260,10 +260,10 @@
                 <div v-for="field in boundFields" :key="field.field_id" class="field-binding-item">
                   <span class="field-name">{{ field.name || `${t('issueTypePage.field')} #${field.field_id}` }}</span>
                   <label class="field-required-toggle">
-                    <input type="checkbox" :checked="field.is_required" @change="toggleFieldRequired(field)" />
+                    <input type="checkbox" :checked="field.is_required" :disabled="!canManage" @change="toggleFieldRequired(field)" />
                     <span>{{ t('issueTypePage.required') }}</span>
                   </label>
-                  <button @click="removeField(field)" class="field-remove-btn" :title="t('issueTypePage.removeField')">
+                  <button v-if="canManage" @click="removeField(field)" class="field-remove-btn" :title="t('issueTypePage.removeField')">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -273,7 +273,7 @@
                   {{ t('issueTypePage.noFieldsBound') }}
                 </div>
               </div>
-              <div class="add-field-section">
+              <div v-if="canManage" class="add-field-section">
                 <select v-model="selectedFieldToAdd" class="form-input field-select">
                   <option :value="null">{{ t('issueTypePage.selectFieldToAdd') }}</option>
                   <option v-for="field in availableFields" :key="field.id" :value="field.id">
@@ -289,7 +289,7 @@
 
           <div class="drawer-footer">
             <button @click="closeDrawer" class="btn btn-secondary">{{ t('issueTypePage.cancel') }}</button>
-            <button @click="submitForm" class="btn btn-primary" :disabled="!formData.name">
+            <button v-if="canManage" @click="submitForm" class="btn btn-primary" :disabled="!formData.name">
               {{ isCreating ? t('issueTypePage.createBtn') : t('issueTypePage.saveBtn') }}
             </button>
           </div>
@@ -309,6 +309,7 @@ import { useI18n } from '@/composables/useI18n'
 import { useConfirm } from '@/composables/useConfirm'
 import * as issueTypeApi from '@/api/issue-type'
 import api from '@/api/index'
+import { useWorkspacePermissions } from '@/composables/usePermission'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -316,6 +317,8 @@ const { confirm } = useConfirm()
 
 const projectId = computed(() => parseInt(route.params.projectId as string, 10))
 const workspaceId = computed(() => parseInt(route.params.workspaceId as string, 10))
+const { can } = useWorkspacePermissions(() => workspaceId.value || null)
+const canManage = computed(() => can('settings:manage'))
 
 // 状态
 const issueTypes = ref<IssueType[]>([])

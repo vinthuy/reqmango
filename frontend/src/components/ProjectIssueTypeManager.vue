@@ -6,7 +6,7 @@
         <p class="text-sm text-gray-500 mt-1">{{ $t('issueType.configureDesc') }}</p>
         <p class="text-xs text-gray-400 mt-1">{{ $t('issueType.importHint') }}</p>
       </div>
-      <div class="flex items-center gap-2">
+      <div v-if="canManageProject" class="flex items-center gap-2">
         <button @click="openImportModal" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium" :disabled="importing">
           {{ importing ? $t('issueType.importing') : $t('issueType.importFromWorkspace') }}
         </button>
@@ -14,7 +14,7 @@
     </div>
 
     <div
-      v-if="!loading && importableCount > 0 && !types.some(t => t.is_imported)"
+      v-if="canManageProject && !loading && importableCount > 0 && !types.some(t => t.is_imported)"
       class="mb-4 bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 text-sm text-indigo-900 flex items-center justify-between gap-3"
     >
       <div>
@@ -30,7 +30,7 @@
 
     <div v-else-if="types.length === 0" class="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
       <p class="text-gray-500 mb-4">{{ $t('issueType.noTypes') }}</p>
-      <div class="flex items-center justify-center gap-4">
+      <div v-if="canManageProject" class="flex items-center justify-center gap-4">
         <button @click="openImportModal" class="text-indigo-600 hover:text-indigo-700 font-medium">{{ $t('issueType.importFromWorkspace') }} →</button>
       </div>
     </div>
@@ -52,20 +52,20 @@
             <button @click="loadTypeFields(t)" class="px-2 py-1 text-xs text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded border border-gray-200">
               {{ t.fields?.length || 0 }} {{ $t('issueTypeManager.fields') }}
             </button>
-            <button v-if="t.is_imported" @click="handleUnimportType(t)" :disabled="unimportingId === t.id" class="px-2 py-1 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded border border-amber-200" :title="$t('issueType.unimport')">
+            <button v-if="canManageProject && t.is_imported" @click="handleUnimportType(t)" :disabled="unimportingId === t.id" class="px-2 py-1 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded border border-amber-200" :title="$t('issueType.unimport')">
               {{ unimportingId === t.id ? '...' : $t('issueType.unimport') }}
             </button>
-            <button v-if="!t.is_inherited" @click="moveUp(index)" :disabled="index === 0" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↑</button>
-            <button v-if="!t.is_inherited" @click="moveDown(index)" :disabled="index === types.length - 1" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↓</button>
-            <button v-if="!t.is_inherited && reorderDirty" @click="saveReorder" class="ml-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium">{{ $t('issueType.saveOrder') }}</button>
+            <button v-if="canManageProject && !t.is_inherited" @click="moveUp(index)" :disabled="index === 0" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↑</button>
+            <button v-if="canManageProject && !t.is_inherited" @click="moveDown(index)" :disabled="index === types.length - 1" class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">↓</button>
+            <button v-if="canManageProject && !t.is_inherited && reorderDirty" @click="saveReorder" class="ml-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium">{{ $t('issueType.saveOrder') }}</button>
           </div>
         </div>
 
         <div v-if="expandedType === t.id" class="border-t border-gray-200 p-4 bg-gray-50">
           <div class="flex items-center justify-between mb-3">
             <h4 class="text-sm font-medium text-gray-700">{{ $t('issueTypeManager.relatedFields') }}</h4>
-            <button v-if="!t.is_inherited" @click="openFieldBindModal" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ {{ $t('issueTypeManager.addField') }}</button>
-            <span v-else class="text-xs text-gray-400">{{ $t('issueType.imported') }} · {{ $t('issueTypeManager.relatedFields') }}</span>
+            <button v-if="canManageWorkspace && !t.is_inherited" @click="openFieldBindModal" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ {{ $t('issueTypeManager.addField') }}</button>
+            <span v-else-if="t.is_inherited" class="text-xs text-gray-400">{{ $t('issueType.imported') }} · {{ $t('issueTypeManager.relatedFields') }}</span>
           </div>
 
           <div v-if="!typeFieldsLoading && (typeFields.length === 0)" class="text-center py-4 text-gray-400 text-sm">
@@ -79,7 +79,7 @@
                 <span class="text-sm text-gray-700">{{ field.name }}</span>
                 <span v-if="field.is_required" class="text-xs text-red-600 font-medium">*</span>
               </div>
-              <button v-if="!t.is_inherited" @click="removeField(t.id, field.field_id, fIndex)" class="text-xs text-red-500 hover:text-red-700">{{ $t('issueTypeManager.remove') }}</button>
+              <button v-if="canManageWorkspace && !t.is_inherited" @click="removeField(t.id, field.field_id, fIndex)" class="text-xs text-red-500 hover:text-red-700">{{ $t('issueTypeManager.remove') }}</button>
             </div>
           </div>
         </div>
@@ -141,12 +141,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api'
 import customFieldApi from '@/api/custom-field'
 import issueTypeApi from '@/api/issue-type'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
+import { useProjectPermissions, useWorkspacePermissions } from '@/composables/usePermission'
 
 const { t: $t } = useI18n()
 const toast = useToast()
@@ -155,6 +156,12 @@ const props = defineProps<{
   projectId: number
   workspaceId: number
 }>()
+
+const { can: canInProject } = useProjectPermissions(() => props.projectId)
+const { can: canInWorkspace } = useWorkspacePermissions(() => props.workspaceId)
+const canManageProject = computed(() => canInProject('settings:manage'))
+// Field bindings live on the workspace type, so they need workspace-level rights.
+const canManageWorkspace = computed(() => canInWorkspace('settings:manage'))
 
 interface IssueType {
   id: number

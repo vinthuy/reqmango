@@ -6,7 +6,7 @@
         <h2 class="text-lg font-semibold text-gray-900">{{ t('customField.customFields') }}</h2>
         <p class="text-sm text-gray-500 mt-0.5">{{ t('customField.managerDescription') }}</p>
       </div>
-      <button v-if="mode !== 'display'" @click="openCreateModal" class="create-btn" data-testid="cf-create">
+      <button v-if="mode !== 'display' && canManage" @click="openCreateModal" class="create-btn" data-testid="cf-create">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -75,7 +75,7 @@
             </p>
           </div>
         </div>
-        <div class="field-row-actions">
+        <div v-if="canManage" class="field-row-actions">
           <button
             @click.stop="toggleActive(field)"
             class="icon-action"
@@ -325,7 +325,7 @@
 
           <div class="drawer-footer">
             <button @click="closeDrawer" class="btn btn-secondary">{{ t('common.cancel') }}</button>
-            <button @click="submitForm" class="btn btn-primary" :disabled="!formData.name" data-testid="cf-submit">
+            <button v-if="canManage" @click="submitForm" class="btn btn-primary" :disabled="!formData.name" data-testid="cf-submit">
               {{ isCreating ? t('common.create') : t('common.save') }}
             </button>
           </div>
@@ -365,6 +365,7 @@ import { CustomFieldTypeEnum, getFieldTypeName } from '@/types/custom-field'
 import { useConfirm } from '@/composables/useConfirm'
 import * as customFieldApi from '@/api/custom-field'
 import api from '@/api'
+import { useWorkspacePermissions } from '@/composables/usePermission'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -377,6 +378,9 @@ const props = defineProps<{
   mode?: string
   members?: any[]
 }>()
+
+const { can } = useWorkspacePermissions(() => props.workspaceId)
+const canManage = computed(() => can('settings:manage'))
 
 const emit = defineEmits<{
   (e: 'update:values', values: any[]): void

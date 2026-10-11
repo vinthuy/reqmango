@@ -51,6 +51,21 @@ func RequireWorkspacePermission(db *gorm.DB, requiredPerm string) gin.HandlerFun
 	}
 }
 
+// WorkspacePermissions lists the permission codes RequireWorkspacePermission
+// would grant the user in the workspace, with their workspace role level.
+func WorkspacePermissions(db *gorm.DB, user *model.User, workspaceID uint64) ([]string, int) {
+	codes := []string{}
+	if user.IsSuperuser {
+		db.Model(&model.Permission{}).Order("code").Pluck("code", &codes)
+		return codes, common.RoleAdmin
+	}
+	level := workspaceRoleLevel(db, user.ID, workspaceID)
+	if level > 0 {
+		systemRolePermissions(db, level).Order("p.code").Pluck("p.code", &codes)
+	}
+	return codes, level
+}
+
 func workspaceRoleLevel(db *gorm.DB, userID, workspaceID uint64) int {
 	var roles []int
 	db.Model(&model.WorkspaceMember{}).

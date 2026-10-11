@@ -6,7 +6,7 @@
         <h2 class="text-lg font-semibold text-gray-900">{{ t('workspaceIssueType.title') }}</h2>
         <p class="text-sm text-gray-500 mt-0.5">{{ t('workspaceIssueType.description') }}</p>
       </div>
-      <button @click="openCreateModal" class="create-btn">
+      <button v-if="canManage" data-test="create-type-btn" @click="openCreateModal" class="create-btn">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -57,7 +57,7 @@
             <p v-if="type.description" class="text-xs text-gray-500 mt-0.5 truncate">{{ type.description }}</p>
           </div>
         </div>
-        <div class="type-row-actions">
+        <div v-if="canManage" class="type-row-actions">
           <button
             v-if="!type.is_default"
             @click.stop="toggleActive(type)"
@@ -190,6 +190,7 @@
               <div class="flex items-center justify-between mb-3">
                 <label class="form-label mb-0">{{ t('workspaceIssueType.customProperties') }}</label>
                 <button
+                  v-if="canManage"
                   @click="showFieldBindModal = true"
                   class="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
                   :disabled="availableFields.length === 0"
@@ -208,7 +209,7 @@
                     <span class="text-sm text-gray-700">{{ f.name || f.field_name || '#' + (f.field_id || f.id) }}</span>
                     <span v-if="f.is_required" class="text-xs text-red-500">{{ t('workspaceIssueType.required') }}</span>
                   </div>
-                  <button @click="handleRemoveField(f)" class="text-gray-400 hover:text-red-500 p-1">✕</button>
+                  <button v-if="canManage" @click="handleRemoveField(f)" class="text-gray-400 hover:text-red-500 p-1">✕</button>
                 </div>
               </div>
               <div v-else class="text-center py-4 text-gray-400 text-sm border border-dashed border-gray-300 rounded-lg">
@@ -219,7 +220,7 @@
 
           <div class="drawer-footer">
             <button @click="closeDrawer" class="btn btn-secondary">{{ t('common.cancel') }}</button>
-            <button @click="submitForm" class="btn btn-primary" :disabled="!formData.name">
+            <button v-if="canManage" @click="submitForm" class="btn btn-primary" :disabled="!formData.name">
               {{ isCreating ? t('common.create') : t('common.save') }}
             </button>
           </div>
@@ -262,6 +263,7 @@ import { ISSUE_TYPE_ICONS, ISSUE_TYPE_COLORS, getIconName } from '@/types/issue-
 import { useConfirm } from '@/composables/useConfirm'
 import * as issueTypeApi from '@/api/issue-type'
 import * as customFieldApi from '@/api/custom-field'
+import { useWorkspacePermissions } from '@/composables/usePermission'
 
 const props = defineProps<{
   workspaceId: number
@@ -269,6 +271,8 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const { confirm } = useConfirm()
+const { can } = useWorkspacePermissions(() => props.workspaceId)
+const canManage = computed(() => can('settings:manage'))
 
 const issueTypes = ref<IssueType[]>([])
 const loading = ref(false)

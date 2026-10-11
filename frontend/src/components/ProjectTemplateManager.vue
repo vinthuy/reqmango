@@ -2,7 +2,7 @@
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
       <div><h1 class="text-xl font-semibold text-gray-900">{{ t('template.title') }}</h1><p class="text-sm text-gray-500 mt-1">{{ t('template.desc') }}</p></div>
-      <button @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">{{ t('template.create') }}</button>
+      <button v-if="canManage" @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">{{ t('template.create') }}</button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -39,9 +39,9 @@
           >{{ s.name }}</span>
         </div>
         <div class="pt-3 border-t border-gray-100 flex space-x-2">
-          <button @click="openAddTypes(tmpl)" class="text-xs text-indigo-600 hover:text-indigo-800">{{ t('template.addTypes') }}</button>
+          <button v-if="canManage" @click="openAddTypes(tmpl)" class="text-xs text-indigo-600 hover:text-indigo-800">{{ t('template.addTypes') }}</button>
           <button @click="openApplyModal(tmpl)" class="text-xs text-green-600 hover:text-green-800">{{ t('template.apply') }}</button>
-          <button @click="confirmDelete(tmpl)" class="text-xs text-red-500 hover:text-red-700">{{ t('common.delete') }}</button>
+          <button v-if="canManage" @click="confirmDelete(tmpl)" class="text-xs text-red-500 hover:text-red-700">{{ t('common.delete') }}</button>
         </div>
       </div>
     </div>
@@ -153,12 +153,15 @@ import * as issueTypeApi from '@/api/issue-type'
 import { createProject } from '@/api/project'
 import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
+import { useWorkspacePermissions } from '@/composables/usePermission'
 
 const props = defineProps<{ workspaceId: number }>()
 
 const router = useRouter()
 const { confirm } = useConfirm()
 const { t } = useI18n()
+const { can } = useWorkspacePermissions(() => props.workspaceId)
+const canManage = computed(() => can('settings:manage'))
 
 interface StateEntry {
   name: string

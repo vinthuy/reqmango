@@ -6,7 +6,7 @@
         <h1 class="text-xl font-semibold text-gray-900">{{ t('relationType.title') }}</h1>
         <p class="text-sm text-gray-500 mt-1">{{ t('relationType.desc') }}</p>
       </div>
-      <button @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">{{ t('relationType.create') }}</button>
+      <button v-if="canManage" @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">{{ t('relationType.create') }}</button>
     </div>
 
     <!-- Loading -->
@@ -21,7 +21,7 @@
       </div>
       <h3 class="text-lg font-medium text-gray-700 mb-2">{{ t('relationType.noTypes') }}</h3>
       <p class="text-gray-500 mb-4">{{ t('relationType.noTypesDesc') }}</p>
-      <button @click="openCreate" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+      <button v-if="canManage" @click="openCreate" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
         {{ t('relationType.create') }}
       </button>
     </div>
@@ -41,7 +41,7 @@
                 <span class="text-xs text-gray-500 mt-1">{{ t('relationType.typeLabel') }}</span>
               </div>
             </div>
-            <div class="flex items-center space-x-1">
+            <div v-if="canManage" class="flex items-center space-x-1">
               <button @click="openEdit(rt)" class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" :title="t('common.edit')">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
               </button>
@@ -142,16 +142,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import relationApi from '@/api/relation'
 import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
+import { useWorkspacePermissions } from '@/composables/usePermission'
 
 const props = defineProps<{ workspaceId: number }>()
 const { confirm } = useConfirm()
 const { t } = useI18n()
 const toast = useToast()
+const { can } = useWorkspacePermissions(() => props.workspaceId)
+const canManage = computed(() => can('settings:manage'))
 
 const types = ref<any[]>([])
 const loading = ref(false)
