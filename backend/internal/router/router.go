@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -145,6 +146,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	settingsH := handler.NewProjectSettingsHandler(settingsSvc)
 	issueH := handler.NewIssueHandler(issueSvc)
 	issueH.SetAutoTriager(agentSvc)
+	agentSvc.SetActivityNotifier(func(userID uint64, event string, data interface{}) {
+		b, _ := json.Marshal(data)
+		service.SSE.SendToUser(userID, event, string(b))
+	})
 	cycleH := handler.NewCycleHandler(cycleSvc)
 	moduleH := handler.NewModuleHandler(moduleSvc)
 	issueTypeH := handler.NewIssueTypeHandler(issueTypeSvc)

@@ -181,6 +181,10 @@ function ensureConnection(key: string): EventSource {
   es.addEventListener('squad.execution.cancelled', (e: MessageEvent) => {
     dispatch(key, 'squad.execution.cancelled', parseData(e.data))
   })
+  // Agent activity on an issue (e.g. create-time auto-triage finished)
+  es.addEventListener('agent_activity.created', (e: MessageEvent) => {
+    dispatch(key, 'agent_activity.created', parseData(e.data))
+  })
   es.addEventListener('notification', (e: MessageEvent) => {
     dispatch(key, 'notification', parseData(e.data))
   })

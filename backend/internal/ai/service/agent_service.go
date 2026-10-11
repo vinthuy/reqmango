@@ -23,11 +23,21 @@ type AgentService struct {
 	aiSvc    *AIService
 	memSvc   MemoryServiceInterface
 	skillSvc SkillExecutorInterface
+	notify   ActivityNotifier
 }
+
+// ActivityNotifier pushes a realtime event to one user. It is injected because
+// the SSE hub lives in a package that already imports this one.
+type ActivityNotifier func(userID uint64, event string, data interface{})
 
 // NewAgentService creates a new AgentService.
 func NewAgentService(db *gorm.DB, llmClient *llm.LLMClient, aiSvc *AIService) *AgentService {
 	return &AgentService{db: db, llm: llmClient, aiSvc: aiSvc}
+}
+
+// SetActivityNotifier enables realtime agent_activity.created events.
+func (s *AgentService) SetActivityNotifier(n ActivityNotifier) {
+	s.notify = n
 }
 
 // SetMemoryService sets the memory service
@@ -359,7 +369,19 @@ func (s *AgentService) recordActivity(agent *model.Agent, issueID *uint64, actio
 		TaskContext:   &taskCtx,
 	}
 	activity.CreatedByID = &userID
-	s.db.Create(&activity)
+	if err := s.db.Create(&activity).Error; err != nil {
+		return
+	}
+	// Lets an open issue page stop waiting (e.g. for auto-triage) without polling.
+	if s.notify != nil && issueID != nil && userID != 0 {
+		s.notify(userID, "agent_activity.created", map[string]interface{}{
+			"id":         activity.ID,
+			"agent_id":   agent.ID,
+			"agent_name": agent.Name,
+			"issue_id":   *issueID,
+			"action":     action,
+		})
+	}
 }
 
 // ======== AI Dispatch ========
