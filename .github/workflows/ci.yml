@@ -97,6 +97,8 @@ jobs:
         with: { go-version: '${{ env.GO_VERSION }}' }
 
       - name: Go tests
+        env:
+          TEST_DATABASE_URL: postgres://reqmango:reqmango@localhost:5432/reqmango_test?sslmode=disable
         run: |
           cd backend
           go test -race -coverprofile=coverage.out ./internal/...

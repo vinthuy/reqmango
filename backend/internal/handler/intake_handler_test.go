@@ -56,6 +56,9 @@ func TestIntakeHandler_Submit_NotifiesIssueCreated(t *testing.T) {
 
 	// The insert runs in a transaction so the issue and its activity land together.
 	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT "id" FROM "projects".*FOR UPDATE`).
+		WithArgs(projectID, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(projectID))
 
 	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence_id\), 0\) FROM "issues"`).
 		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(41))
@@ -119,6 +122,9 @@ func TestIntakeHandler_Submit_NilNotifierStillSucceeds(t *testing.T) {
 		}).AddRow(uint64(5), nil, nil, nil, nil, nil, "Backlog", uint64(10), uint64(1), true))
 
 	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT "id" FROM "projects".*FOR UPDATE`).
+		WithArgs(uint64(10), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uint64(10)))
 
 	mock.ExpectQuery(`SELECT COALESCE\(MAX\(sequence_id\), 0\) FROM "issues"`).
 		WillReturnRows(sqlmock.NewRows([]string{"coalesce"}).AddRow(41))
