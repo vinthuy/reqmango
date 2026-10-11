@@ -208,7 +208,8 @@ func adminOnlyPath(method, path string) bool {
 	if strings.Contains(path, "/conditional-fields/evaluate") {
 		return false
 	}
-	for _, p := range []string{"/issue-types", "/custom-fields", "/conditional-fields", "/templates", "/type-templates", "/relations/types"} {
+	// Workspace and project settings a member may read but not change.
+	for _, p := range []string{"/issue-types", "/custom-fields", "/conditional-fields", "/templates", "/type-templates", "/relations/types", "/settings/states", "/settings/labels"} {
 		if strings.Contains(path, p) && !strings.Contains(path, "/issues/") {
 			return true
 		}

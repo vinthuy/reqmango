@@ -187,6 +187,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	// endpoints check membership explicitly.
 	wsMember := middleware.RequireWorkspaceMember(db)
 	wsAdmin := middleware.RequireWorkspaceAdmin(db)
+	// Workspace settings mutations need settings:manage (admin); members only
+	// have settings:view.
+	settingsManage := middleware.RequireWorkspacePermission(db, "settings:manage")
 	projectAccess := middleware.RequireProjectAccess(db)
 	issueAccess := middleware.RequireIssueAccess(db)
 	pageAccess := middleware.RequirePageAccess(db)
@@ -593,10 +596,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 			// Workspace-level Settings: States
 			workspaces.GET("/:wsParam/settings/states", settingsH.ListWorkspaceStates)
-			workspaces.POST("/:wsParam/settings/states", settingsH.CreateWorkspaceState)
+			workspaces.POST("/:wsParam/settings/states", settingsManage, settingsH.CreateWorkspaceState)
 			workspaces.GET("/:wsParam/settings/states/:stateId", settingsH.GetWorkspaceState)
-			workspaces.PUT("/:wsParam/settings/states/:stateId", settingsH.UpdateWorkspaceState)
-			workspaces.DELETE("/:wsParam/settings/states/:stateId", settingsH.DeleteWorkspaceState)
+			workspaces.PUT("/:wsParam/settings/states/:stateId", settingsManage, settingsH.UpdateWorkspaceState)
+			workspaces.DELETE("/:wsParam/settings/states/:stateId", settingsManage, settingsH.DeleteWorkspaceState)
 
 			// Workspace-level Modules
 			workspaces.GET("/:wsParam/modules", moduleH.ListWorkspaceModules)
@@ -850,21 +853,23 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// ---- Project Settings: States + Labels ----
 			settings := projects.Group("/:projectId/settings", authMiddleware)
 			{
+				settingsManageProject := middleware.RequirePermission(db, "settings:manage", "project")
+
 				// States
-				settings.POST("/states", settingsH.CreateState)                 // ?workspace_id=
-				settings.GET("/states", settingsH.ListStates)                   // ?include_inactive=
-				settings.POST("/states/default", settingsH.CreateDefaultStates) // ?workspace_id=
+				settings.POST("/states", settingsManageProject, settingsH.CreateState)                 // ?workspace_id=
+				settings.GET("/states", settingsH.ListStates)                                         // ?include_inactive=
+				settings.POST("/states/default", settingsManageProject, settingsH.CreateDefaultStates) // ?workspace_id=
 				settings.GET("/states/:stateId", settingsH.GetState)
-				settings.PUT("/states/:stateId", settingsH.UpdateState)
-				settings.DELETE("/states/:stateId", settingsH.DeleteState)
+				settings.PUT("/states/:stateId", settingsManageProject, settingsH.UpdateState)
+				settings.DELETE("/states/:stateId", settingsManageProject, settingsH.DeleteState)
 
 				// Labels
-				settings.POST("/labels", settingsH.CreateLabel) // ?workspace_id=
+				settings.POST("/labels", settingsManageProject, settingsH.CreateLabel) // ?workspace_id=
 				settings.GET("/labels", settingsH.ListLabels)
 				settings.GET("/labels/search", settingsH.SearchLabels) // ?q=
 				settings.GET("/labels/:labelId", settingsH.GetLabel)
-				settings.PUT("/labels/:labelId", settingsH.UpdateLabel)
-				settings.DELETE("/labels/:labelId", settingsH.DeleteLabel)
+				settings.PUT("/labels/:labelId", settingsManageProject, settingsH.UpdateLabel)
+				settings.DELETE("/labels/:labelId", settingsManageProject, settingsH.DeleteLabel)
 			}
 
 			// ---- Project Page Tabs ----
@@ -1023,9 +1028,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			cycles.POST("/:cycleId/apply-auto-add", cycleH.ApplyAutoAddRules)
 			cycles.POST("/:cycleId/apply-auto-close", cycleH.ApplyAutoCloseRules)
 		}
-
-		// Workspace settings mutations need settings:manage (admin); members only have settings:view.
-		settingsManage := middleware.RequireWorkspacePermission(db, "settings:manage")
 
 		// ---- Issue Types (protected) ----
 		issueTypes := v1.Group("/issue-types", authMiddleware)
