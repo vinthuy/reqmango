@@ -105,3 +105,44 @@ for the `[Webhook]` line counting `429` responses.
 | BUG-58: state transitions for agent workflows are stubs | Medium | Implement once the data model is agreed (see docs/bug-list.md). |
 | `errorlint` / `nilerr` linting is off due to hundreds of pre-existing patterns | Low | Refactor in a dedicated PR when ready. |
 | `govulncheck` currently runs as advisory only | Low | Make blocking once the pinned Go toolchain version matches CI exactly. |
+
+---
+
+## 8. Tenancy guard and the route audit (`backend/cmd/route_audit`)
+
+`ScopedAuthMiddleware` is the single tenancy guard: it resolves the workspace,
+project and child-resource IDs a request carries in its path and query string
+and checks them against the caller's memberships. A route is therefore only as
+safe as the IDs it exposes, and nothing but a replay of every route proves it.
+`backend/cmd/route_audit` does that replay against a disposable copy of the
+database.
+
+The tool mutates the database it runs against, so point it at a copy whose
+name contains `audit` — it refuses to start otherwise — and keep outbound HTTP
+dead (it already forces a dead proxy for LLM and webhook calls):
+
+```bash
+createdb reqmango_audit
+pg_dump reqmango | psql reqmango_audit
+cd backend
+mkdir -p /tmp/audit
+ROUTE_AUDIT_DATABASE_URL='postgres://postgres:postgres@localhost:5432/reqmango_audit?sslmode=disable' \
+  go run ./cmd/route_audit -seed -cross -out /tmp/audit/cross.md
+```
+
+| Mode | Caller and IDs used | A hit means |
+|------|---------------------|-------------|
+| (default) | a user with no memberships, victim IDs in path *and* query | `LEAK` / `WRITE` — tenant data or writes reachable from outside |
+| `-no-query` | same, but only path IDs | the same, for routes that take their IDs from the path alone |
+| `-member` | a role-15 member of the victim workspace | `ESCALATE` — an admin-only route accepted a member |
+| `-cross` | admin of a second workspace, with victim child IDs behind its own parents | `XTENANT` — a route checks membership but not ownership |
+| `-seed` | — | inserts one victim-owned row for every path parameter without a fixture, so the route is probed instead of reported `unresolved` |
+
+A clean tree reports empty `XTENANT`, `ESCALATE`, `LEAK` and `WRITE` sections;
+the remaining `denied` / `invalid` / `ok-empty` counts are the guard refusing
+requests. `status500` and `status503` entries are unconfigured integrations
+(GitHub, Slack, MCP credentials) and the AI key check, not access results —
+verify those by hand before reading anything into them.
+
+Reports are generated output (`route_audit.md` / `.json`); they are gitignored,
+so keep them out of commits.

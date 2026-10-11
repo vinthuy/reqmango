@@ -90,6 +90,11 @@ tests/playwright-report/
 /frontend_e2e*.json
 /verify_fixes.json
 
+# Route audit reports (backend/cmd/route_audit)
+/backend/route_audit.md
+/backend/route_audit.json
+/backend/.audit/
+
 # Local tooling (lint binaries, scratch scripts, raw lint output)
 .tools/
 
