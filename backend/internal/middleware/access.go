@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -133,7 +134,7 @@ func allowProject(c *gin.Context, db *gorm.DB, projectID uint64) (*model.Project
 // RequireProjectWorkflow guards /projects/:projectId/workflows routes: the
 // caller must reach the project, :workflowId must belong to it, and any
 // :nodeId, :edgeId, :runId or :transitionId must belong to that workflow.
-// Transition routes address state workflows; the rest address agent workflows.
+// Transition scope follows the service: state workflows first, then agent workflows.
 func RequireProjectWorkflow(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
@@ -154,7 +155,7 @@ func RequireProjectWorkflow(db *gorm.DB) gin.HandlerFunc {
 		found := false
 		if strings.Contains(c.FullPath(), "/transitions") {
 			var wf model.Workflow
-			if db.Select("id", "project_id", "workspace_id").First(&wf, workflowID).Error == nil {
+			if err := db.Select("id", "project_id", "workspace_id").First(&wf, workflowID).Error; err == nil {
 				if wf.ProjectID != nil {
 					found = *wf.ProjectID == projectID
 				} else {
@@ -162,6 +163,10 @@ func RequireProjectWorkflow(db *gorm.DB) gin.HandlerFunc {
 					// but only editable from workspace settings.
 					found = wf.WorkspaceID == project.WorkspaceID && c.Request.Method == http.MethodGet
 				}
+			} else if errors.Is(err, gorm.ErrRecordNotFound) {
+				var n int64
+				db.Model(&model.AgentWorkflow{}).Where("id = ? AND project_id = ?", workflowID, projectID).Count(&n)
+				found = n > 0
 			}
 			found = found && childOf(db, &model.StateTransition{}, paramID(c, "transitionId"), workflowID)
 		} else {
