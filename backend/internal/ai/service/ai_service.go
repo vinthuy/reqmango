@@ -1624,10 +1624,12 @@ func (s *AIService) toolSearchIssues(args map[string]interface{}, actx *AIContex
 		return nil, err
 	}
 
+	identifier := s.projectIdentifier(projectID)
 	result := make([]map[string]interface{}, len(issues))
 	for i, iss := range issues {
 		result[i] = map[string]interface{}{
 			"id":          iss.ID,
+			"ref":         issueRef(identifier, iss.SequenceID),
 			"name":        iss.Name,
 			"sequence_id": iss.SequenceID,
 			"priority":    iss.Priority,
@@ -1635,6 +1637,23 @@ func (s *AIService) toolSearchIssues(args map[string]interface{}, actx *AIContex
 		}
 	}
 	return result, nil
+}
+
+// issueRef is how users name a work item (e.g. TRI-12); database ids mean
+// nothing to them.
+func issueRef(identifier string, sequenceID int) string {
+	if identifier == "" {
+		return fmt.Sprintf("#%d", sequenceID)
+	}
+	return fmt.Sprintf("%s-%d", identifier, sequenceID)
+}
+
+func (s *AIService) projectIdentifier(projectID uint64) string {
+	var project model.Project
+	if err := s.db.Select("id", "identifier").First(&project, projectID).Error; err != nil {
+		return ""
+	}
+	return project.Identifier
 }
 
 func (s *AIService) toolCreateIssue(args map[string]interface{}, actx *AIContext) (any, error) {
@@ -1678,7 +1697,8 @@ func (s *AIService) toolGetIssue(args map[string]interface{}) (any, error) {
 		return nil, err
 	}
 	return map[string]interface{}{
-		"id": iss.ID, "name": iss.Name, "sequence_id": iss.SequenceID,
+		"id": iss.ID, "ref": issueRef(s.projectIdentifier(iss.ProjectID), iss.SequenceID),
+		"name": iss.Name, "sequence_id": iss.SequenceID,
 		"priority": iss.Priority, "state": iss.State.Name,
 		"type": iss.IssueType.Name,
 	}, nil

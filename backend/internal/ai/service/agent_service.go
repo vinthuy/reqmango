@@ -930,7 +930,8 @@ func (s *AgentService) buildAgentSystemPrompt(agent *model.Agent, ctx *DispatchC
 	sb.WriteString("You have access to tools that let you read and modify project data. ")
 	sb.WriteString("When given a task, use the available tools to gather information, then provide your analysis or take action. ")
 	sb.WriteString("Always explain what you found or did in plain language. ")
-	sb.WriteString("Reply in the same language as the task (default to Simplified Chinese), and give your final answer directly rather than announcing what you are about to do.\n\n")
+	sb.WriteString("Reply in the same language as the task (default to Simplified Chinese), and give your final answer directly rather than announcing what you are about to do. ")
+	sb.WriteString("When you mention another work item, cite it by its ref (e.g. ABC-12) from tool results, never by its database id.\n\n")
 
 	if ctx != nil {
 		sb.WriteString(fmt.Sprintf("Current context: workspace_id=%d", ctx.WorkspaceID))
