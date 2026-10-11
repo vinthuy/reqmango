@@ -49,6 +49,21 @@ func (h *AgentPerformanceHandler) Overview(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
+// SuggestionAcceptance returns per-agent outcomes of proposed issue changes.
+// Query params: from, to (RFC3339) — optional period bounds.
+func (h *AgentPerformanceHandler) SuggestionAcceptance(c *gin.Context) {
+	wid, err := h.parseWorkspaceID(c)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "Invalid workspace id"})
+		return
+	}
+	resp, e := h.svc.SuggestionAcceptance(wid, c.Query("from"), c.Query("to"))
+	if h.respond(c, e) {
+		return
+	}
+	c.JSON(200, resp)
+}
+
 // ByTemplate returns per-template performance breakdown.
 // Query params: from, to (RFC3339) — optional period bounds.
 func (h *AgentPerformanceHandler) ByTemplate(c *gin.Context) {

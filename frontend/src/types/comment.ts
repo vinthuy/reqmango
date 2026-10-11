@@ -39,10 +39,23 @@ export interface Comment {
   replies?: Comment[]
   /** Present on agent replies that proposed concrete field changes. */
   suggestions?: IssueSuggestion[]
-  /** Set once the proposals have been adopted, so the actions stop rendering. */
+  /** What the user did with each proposal, keyed by field. */
+  suggestion_outcomes?: Partial<Record<SuggestionField, SuggestionOutcome>>
+  /** Set once every actionable proposal has an outcome, so the actions stop rendering. */
   suggestions_applied_at?: string
   created_at: string
   updated_at: string
+}
+
+export interface SuggestionOutcome {
+  status: 'applied' | 'dismissed' | 'failed'
+  reason?: string
+  user_id?: number
+  at: string
+}
+
+export interface DismissSuggestionsResult {
+  dismissed: SuggestionField[]
 }
 
 export interface SkippedSuggestion {

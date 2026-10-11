@@ -3,15 +3,19 @@ import { mount, flushPromises } from '@vue/test-utils'
 import CommentSuggestions from '@/components/CommentSuggestions.vue'
 import type { Comment, IssueSuggestion } from '@/types/comment'
 
-const { mockApply, mockToastSuccess, mockToastError, mockToastWarning } = vi.hoisted(() => ({
+const { mockApply, mockDismiss, mockToastSuccess, mockToastError, mockToastWarning } = vi.hoisted(() => ({
   mockApply: vi.fn(),
+  mockDismiss: vi.fn(),
   mockToastSuccess: vi.fn(),
   mockToastError: vi.fn(),
   mockToastWarning: vi.fn(),
 }))
 
 vi.mock('@/api/comment', () => ({
-  default: { applySuggestions: (...args: any[]) => mockApply(...args) },
+  default: {
+    applySuggestions: (...args: any[]) => mockApply(...args),
+    dismissSuggestions: (...args: any[]) => mockDismiss(...args),
+  },
 }))
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
@@ -197,6 +201,44 @@ describe('CommentSuggestions', () => {
     expect(mockToastError).toHaveBeenCalledWith('no permission')
     expect(wrapper.findAll('[data-test="suggestion-row"]')).toHaveLength(2)
     expect(wrapper.find('[data-test="apply-all-suggestions"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('hides proposals the server already has an outcome for', () => {
+    // Applying one field no longer settles the comment; on reload the rest
+    // must still be actionable and the decided one gone.
+    const wrapper = mountCard(makeComment(TITLE_AND_TYPE, {
+      suggestion_outcomes: { title: { status: 'applied', at: '2026-09-27T11:00:00Z' } },
+    }))
+
+    const rows = wrapper.findAll('[data-test="suggestion-row"]')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('Bug (type_id=3)')
+  })
+
+  it('dismisses a single proposal and keeps the rest', async () => {
+    mockDismiss.mockResolvedValue({ dismissed: ['type'] })
+    const comment = makeComment(TITLE_AND_TYPE)
+    const wrapper = mountCard(comment)
+
+    await wrapper.findAll('[data-test="dismiss-suggestion"]')[1].trigger('click')
+    await flushPromises()
+
+    expect(mockDismiss).toHaveBeenCalledWith(42, 11, ['type'])
+    expect(mockApply).not.toHaveBeenCalled()
+    const rows = wrapper.findAll('[data-test="suggestion-row"]')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('登录页返回 500')
+  })
+
+  it('dismiss-all collapses the block', async () => {
+    mockDismiss.mockResolvedValue({ dismissed: ['title', 'type'] })
+    const wrapper = mountCard(makeComment(TITLE_AND_TYPE))
+
+    await wrapper.find('[data-test="dismiss-all-suggestions"]').trigger('click')
+    await flushPromises()
+
+    expect(mockDismiss).toHaveBeenCalledWith(42, 11, ['title', 'type'])
+    expect(wrapper.find('[data-test="comment-suggestions"]').exists()).toBe(false)
   })
 
   it('does not fire a second apply while one is in flight', async () => {

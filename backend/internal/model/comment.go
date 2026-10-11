@@ -19,6 +19,22 @@ type IssueSuggestion struct {
 	NoOp bool `json:"noop,omitempty"`
 }
 
+// Outcomes a user can give one suggestion.
+const (
+	SuggestionApplied   = "applied"
+	SuggestionDismissed = "dismissed"
+	SuggestionFailed    = "failed" // the user tried to apply it but it was refused
+)
+
+// SuggestionOutcome records what the user did with one proposal, keyed by
+// field on the comment.
+type SuggestionOutcome struct {
+	Status string    `json:"status"`
+	Reason string    `json:"reason,omitempty"`
+	UserID uint64    `json:"user_id,omitempty"`
+	At     time.Time `json:"at"`
+}
+
 // Comment represents a comment on an issue.
 type Comment struct {
 	BaseModel
@@ -31,9 +47,11 @@ type Comment struct {
 	ParentID   *uint64 `json:"parent_id"` // for threaded replies
 
 	// Suggestions holds the structured proposals attached to an agent comment.
-	// SuggestionsAppliedAt is set once the user has applied (or dismissed) them,
-	// so the actions never render twice.
+	// SuggestionOutcomes maps field → SuggestionOutcome as the user acts on each
+	// one; SuggestionsAppliedAt is set once every actionable proposal has an
+	// outcome, so the actions never render twice.
 	Suggestions          json.RawMessage `gorm:"type:jsonb" json:"suggestions,omitempty"`
+	SuggestionOutcomes   json.RawMessage `gorm:"type:jsonb" json:"suggestion_outcomes,omitempty"`
 	SuggestionsAppliedAt *time.Time      `json:"suggestions_applied_at,omitempty"`
 
 	Issue  Issue  `gorm:"foreignKey:IssueID" json:"-"`

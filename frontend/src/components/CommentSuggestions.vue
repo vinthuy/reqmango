@@ -8,15 +8,24 @@
       <span class="text-[11px] font-semibold text-indigo-700">
         {{ t('comment.suggestionsTitle', { count: pending.length }) }}
       </span>
-      <button
-        v-if="applicable.length > 0"
-        data-test="apply-all-suggestions"
-        :disabled="busy !== null"
-        class="px-2 py-0.5 text-[11px] font-medium rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-        @click="applyAll()"
-      >
-        {{ busy === '__all__' ? t('comment.applying') : t('comment.applyAll') }}
-      </button>
+      <div v-if="applicable.length > 0" class="flex items-center gap-1.5">
+        <button
+          data-test="dismiss-all-suggestions"
+          :disabled="busy !== null"
+          class="px-2 py-0.5 text-[11px] rounded text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+          @click="dismissAll()"
+        >
+          {{ t('comment.dismissAll') }}
+        </button>
+        <button
+          data-test="apply-all-suggestions"
+          :disabled="busy !== null"
+          class="px-2 py-0.5 text-[11px] font-medium rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          @click="applyAll()"
+        >
+          {{ busy === '__all__' ? t('comment.applying') : t('comment.applyAll') }}
+        </button>
+      </div>
       <span v-else class="text-[11px] text-gray-400">{{ t('comment.noChangesNeeded') }}</span>
     </div>
 
@@ -38,15 +47,24 @@
           </template>
           <span v-if="sg.reason" class="block text-gray-500">{{ sg.reason }}</span>
         </span>
-        <button
-          v-if="!sg.noop"
-          data-test="apply-suggestion"
-          :disabled="busy !== null"
-          class="shrink-0 px-1.5 py-0.5 rounded border border-indigo-300 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
-          @click="apply([sg.field])"
-        >
-          {{ busy === sg.field ? t('comment.applying') : t('comment.apply') }}
-        </button>
+        <template v-if="!sg.noop">
+          <button
+            data-test="dismiss-suggestion"
+            :disabled="busy !== null"
+            class="shrink-0 px-1.5 py-0.5 rounded text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+            @click="dismiss([sg.field])"
+          >
+            {{ t('comment.dismiss') }}
+          </button>
+          <button
+            data-test="apply-suggestion"
+            :disabled="busy !== null"
+            class="shrink-0 px-1.5 py-0.5 rounded border border-indigo-300 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+            @click="apply([sg.field])"
+          >
+            {{ busy === sg.field ? t('comment.applying') : t('comment.apply') }}
+          </button>
+        </template>
         <span v-else data-test="suggestion-noop" class="shrink-0 px-1.5 py-0.5 text-gray-400">
           {{ t('comment.noChange') }}
         </span>
@@ -81,7 +99,8 @@ const settled = ref(false)
 
 const pending = computed(() => {
   if (settled.value || props.comment.suggestions_applied_at) return []
-  return props.comment.suggestions ?? []
+  const decided = props.comment.suggestion_outcomes ?? {}
+  return (props.comment.suggestions ?? []).filter(sg => !decided[sg.field])
 })
 
 /** Proposals that would actually change something; no-ops only carry reasoning. */
@@ -132,6 +151,36 @@ async function apply(fields: SuggestionField[]) {
       return
     }
     toast.error(e?.response?.data?.message || e?.message || t('comment.applyFailed'))
+  } finally {
+    busy.value = null
+  }
+}
+
+function dismissAll() {
+  return dismiss(applicable.value.map(sg => sg.field))
+}
+
+/** Decline proposals; the server keeps the decline for acceptance stats. */
+async function dismiss(fields: SuggestionField[]) {
+  if (busy.value !== null || fields.length === 0) return
+  busy.value = '__dismiss__'
+  try {
+    const result = await commentApi.dismissSuggestions(props.issueId, props.comment.id, fields)
+    const dismissed = result?.dismissed ?? []
+    const rest = (props.comment.suggestions ?? []).filter(sg => !dismissed.includes(sg.field))
+    props.comment.suggestions = rest
+    if (!rest.some(sg => !sg.noop)) {
+      settled.value = true
+    }
+    if (dismissed.length > 0) {
+      toast.success(t('comment.dismissSuccess', { count: dismissed.length }))
+    }
+  } catch (e: any) {
+    if (e?.response?.status === 409) {
+      settled.value = true
+      return
+    }
+    toast.error(e?.response?.data?.message || e?.message || t('comment.dismissFailed'))
   } finally {
     busy.value = null
   }

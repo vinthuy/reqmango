@@ -38,19 +38,9 @@ type ApplySuggestionsResult struct {
 // selected restricts the apply to a subset of field names; an empty selection
 // means "apply everything the agent proposed".
 func (s *IssueService) ApplyIssueSuggestions(issueID, commentID, userID uint64, selected []string) (*ApplySuggestionsResult, error) {
-	var comment model.Comment
-	if err := s.db.First(&comment, commentID).Error; err != nil {
-		return nil, common.NotFound("Comment not found")
-	}
-	if comment.IssueID != issueID {
-		return nil, common.BadRequest("Comment does not belong to this work item")
-	}
-	if comment.SuggestionsAppliedAt != nil {
-		return nil, common.Conflict("Suggestions on this comment have already been applied")
-	}
-	var suggestions []model.IssueSuggestion
-	if len(comment.Suggestions) == 0 || json.Unmarshal(comment.Suggestions, &suggestions) != nil || len(suggestions) == 0 {
-		return nil, common.BadRequest("This comment has no suggestions to apply")
+	comment, suggestions, outcomes, err := s.loadSuggestionComment(issueID, commentID)
+	if err != nil {
+		return nil, err
 	}
 
 	// Needed to tell whether an id in the proposals is still usable here; the
@@ -66,10 +56,15 @@ func (s *IssueService) ApplyIssueSuggestions(issueID, commentID, userID uint64, 
 		only[strings.TrimSpace(f)] = true
 	}
 
+	candidates := undecided(selectSuggestions(suggestions, only), outcomes)
+	if len(candidates) == 0 {
+		return nil, common.Conflict("Suggestions on this comment have already been handled")
+	}
+
 	req := &request.IssueUpdateRequest{}
 	applied := make([]string, 0, len(suggestions))
 	skipped := make([]SkippedSuggestion, 0)
-	for _, sg := range selectSuggestions(suggestions, only) {
+	for _, sg := range candidates {
 		if reason := s.suggestionBlockedReason(sg, &target, userID); reason != "" {
 			skipped = append(skipped, SkippedSuggestion{Field: sg.Field, Label: sg.Label, Reason: reason})
 			continue
@@ -94,12 +89,114 @@ func (s *IssueService) ApplyIssueSuggestions(issueID, commentID, userID uint64, 
 		return nil, err
 	}
 
-	// Mark applied so the action buttons disappear; the update is already
-	// committed, so a failure here must not fail the request.
+	// The update is already committed, so failing to record outcomes must not
+	// fail the request.
 	now := time.Now()
-	s.db.Model(&model.Comment{}).Where("id = ?", commentID).Update("suggestions_applied_at", now)
+	for _, f := range applied {
+		outcomes[f] = model.SuggestionOutcome{Status: model.SuggestionApplied, UserID: userID, At: now}
+	}
+	for _, sk := range skipped {
+		outcomes[sk.Field] = model.SuggestionOutcome{Status: model.SuggestionFailed, Reason: sk.Reason, UserID: userID, At: now}
+	}
+	s.saveSuggestionOutcomes(comment, suggestions, outcomes, now)
 
 	return &ApplySuggestionsResult{Applied: applied, Skipped: skipped, Issue: issue}, nil
+}
+
+// DismissSuggestionsResult is returned after the user declines proposals.
+type DismissSuggestionsResult struct {
+	Dismissed []string `json:"dismissed"`
+}
+
+// DismissIssueSuggestions records that the user declined some of an agent's
+// proposals (empty selection = every one still pending). Declines are kept so
+// acceptance can be measured and the agent can avoid repeating them.
+func (s *IssueService) DismissIssueSuggestions(issueID, commentID, userID uint64, selected []string) (*DismissSuggestionsResult, error) {
+	comment, suggestions, outcomes, err := s.loadSuggestionComment(issueID, commentID)
+	if err != nil {
+		return nil, err
+	}
+	only := make(map[string]bool, len(selected))
+	for _, f := range selected {
+		only[strings.TrimSpace(f)] = true
+	}
+	candidates := undecided(selectSuggestions(suggestions, only), outcomes)
+	if len(candidates) == 0 {
+		return nil, common.Conflict("Suggestions on this comment have already been handled")
+	}
+
+	now := time.Now()
+	dismissed := make([]string, 0, len(candidates))
+	for _, sg := range candidates {
+		outcomes[sg.Field] = model.SuggestionOutcome{Status: model.SuggestionDismissed, UserID: userID, At: now}
+		dismissed = append(dismissed, sg.Field)
+	}
+	if err := s.saveSuggestionOutcomes(comment, suggestions, outcomes, now); err != nil {
+		return nil, err
+	}
+	return &DismissSuggestionsResult{Dismissed: dismissed}, nil
+}
+
+// loadSuggestionComment loads an agent comment that still has proposals to act on.
+func (s *IssueService) loadSuggestionComment(issueID, commentID uint64) (*model.Comment, []model.IssueSuggestion, map[string]model.SuggestionOutcome, error) {
+	var comment model.Comment
+	if err := s.db.First(&comment, commentID).Error; err != nil {
+		return nil, nil, nil, common.NotFound("Comment not found")
+	}
+	if comment.IssueID != issueID {
+		return nil, nil, nil, common.BadRequest("Comment does not belong to this work item")
+	}
+	if comment.SuggestionsAppliedAt != nil {
+		return nil, nil, nil, common.Conflict("Suggestions on this comment have already been handled")
+	}
+	var suggestions []model.IssueSuggestion
+	if len(comment.Suggestions) == 0 || json.Unmarshal(comment.Suggestions, &suggestions) != nil || len(suggestions) == 0 {
+		return nil, nil, nil, common.BadRequest("This comment has no suggestions to apply")
+	}
+	return &comment, suggestions, DecodeSuggestionOutcomes(comment.SuggestionOutcomes), nil
+}
+
+// DecodeSuggestionOutcomes reads the field → outcome map; malformed or empty
+// data yields an empty map.
+func DecodeSuggestionOutcomes(raw json.RawMessage) map[string]model.SuggestionOutcome {
+	out := map[string]model.SuggestionOutcome{}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &out)
+	}
+	return out
+}
+
+func undecided(suggestions []model.IssueSuggestion, outcomes map[string]model.SuggestionOutcome) []model.IssueSuggestion {
+	out := make([]model.IssueSuggestion, 0, len(suggestions))
+	for _, sg := range suggestions {
+		if _, done := outcomes[sg.Field]; !done {
+			out = append(out, sg)
+		}
+	}
+	return out
+}
+
+// saveSuggestionOutcomes persists outcomes and settles the comment once every
+// actionable proposal has one; until then the rest stay actionable.
+func (s *IssueService) saveSuggestionOutcomes(comment *model.Comment, suggestions []model.IssueSuggestion, outcomes map[string]model.SuggestionOutcome, now time.Time) error {
+	raw, err := json.Marshal(outcomes)
+	if err != nil {
+		return err
+	}
+	upd := model.Comment{SuggestionOutcomes: raw}
+	columns := []string{"suggestion_outcomes"}
+	settled := true
+	for _, sg := range suggestions {
+		if _, done := outcomes[sg.Field]; !done && !sg.NoOp {
+			settled = false
+			break
+		}
+	}
+	if settled {
+		upd.SuggestionsAppliedAt = &now
+		columns = append(columns, "suggestions_applied_at")
+	}
+	return s.db.Model(&model.Comment{}).Where("id = ?", comment.ID).Select(columns).Updates(&upd).Error
 }
 
 // suggestionBlockedReason reports why a proposal cannot be written right now, or

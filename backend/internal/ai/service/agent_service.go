@@ -908,6 +908,12 @@ func (s *AgentService) buildAgentSystemPrompt(agent *model.Agent, ctx *DispatchC
 			sb.WriteString(fmt.Sprintf(", issue_id=%d", *ctx.IssueID))
 		}
 		sb.WriteString("\n")
+		if ctx.IssueID != nil {
+			if note := s.declinedSuggestionsNote(*ctx.IssueID); note != "" {
+				sb.WriteString("\n")
+				sb.WriteString(note)
+			}
+		}
 	}
 
 	return sb.String()

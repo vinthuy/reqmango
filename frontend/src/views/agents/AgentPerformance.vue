@@ -185,6 +185,53 @@
             </div>
           </section>
         </div>
+
+        <!-- Suggestion acceptance -->
+        <section class="bg-white border border-gray-200 rounded-xl p-5" data-test="suggestion-acceptance">
+          <h2 class="text-base font-semibold text-gray-800">Suggestion Acceptance by Agent</h2>
+          <p class="text-xs text-gray-500 mt-0.5 mb-4">
+            Acceptance = applied ÷ (applied + dismissed). Refused and undecided proposals are shown separately.
+          </p>
+          <div v-if="loadingSuggestions" class="text-sm text-gray-400 py-6 text-center">Loading…</div>
+          <div v-else-if="suggestionStats.length === 0" class="text-sm text-gray-400 py-6 text-center">
+            No agent suggestions in this period.
+          </div>
+          <div v-else class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-gray-200">
+                  <th class="py-2 pr-3">Agent</th>
+                  <th class="py-2 px-3">Proposed</th>
+                  <th class="py-2 px-3">Applied</th>
+                  <th class="py-2 px-3">Dismissed</th>
+                  <th class="py-2 px-3">Refused</th>
+                  <th class="py-2 px-3">Pending</th>
+                  <th class="py-2 px-3">Acceptance</th>
+                  <th class="py-2 pl-3">By field</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr v-for="s in suggestionStats" :key="s.agent_id" data-test="suggestion-agent-row">
+                  <td class="py-2 pr-3 font-medium text-gray-800">{{ s.agent_name || `#${s.agent_id}` }}</td>
+                  <td class="py-2 px-3 text-gray-700">{{ s.proposed }}</td>
+                  <td class="py-2 px-3 text-green-700">{{ s.applied }}</td>
+                  <td class="py-2 px-3 text-gray-600">{{ s.dismissed }}</td>
+                  <td class="py-2 px-3 text-red-600">{{ s.failed }}</td>
+                  <td class="py-2 px-3 text-amber-600">{{ s.pending }}</td>
+                  <td class="py-2 px-3" :class="decidedCount(s) ? successRateColor(s.acceptance_rate) : 'text-gray-400'">
+                    {{ decidedCount(s) ? `${s.acceptance_rate.toFixed(1)}%` : '—' }}
+                  </td>
+                  <td class="py-2 pl-3 text-xs text-gray-500">
+                    <span v-for="(c, field) in s.by_field" :key="field" class="inline-block mr-2">
+                      {{ field }} {{ decidedCount(c) ? `${c.acceptance_rate.toFixed(0)}%` : '—' }}
+                      <span class="text-gray-400">({{ c.applied }}/{{ c.applied + c.dismissed }})</span>
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -198,7 +245,9 @@ import {
   type TemplatePerformance,
   type TimelinePoint,
   type FailureBreakdown,
-  type BucketGranularity
+  type BucketGranularity,
+  type AgentSuggestionStats,
+  type SuggestionCounts
 } from '@/api/agent-performance'
 import { useWorkspaceId } from '@/composables/useWorkspaceId'
 
@@ -208,6 +257,12 @@ const overview = ref<AgentPerformanceOverview | null>(null)
 const templates = ref<TemplatePerformance[]>([])
 const timeline = ref<TimelinePoint[]>([])
 const failures = ref<FailureBreakdown[]>([])
+const suggestionStats = ref<AgentSuggestionStats[]>([])
+const loadingSuggestions = ref(false)
+
+function decidedCount(c: SuggestionCounts): number {
+  return c.applied + c.dismissed
+}
 
 const loadingOverview = ref(false)
 const loadingTemplates = ref(false)
@@ -327,8 +382,22 @@ async function loadFailures() {
   }
 }
 
+async function loadSuggestions() {
+  loadingSuggestions.value = true
+  try {
+    const wsId = await getWorkspaceId()
+    if (!wsId) return
+    suggestionStats.value = (await agentPerformanceApi.suggestions(wsId, period.value)) || []
+  } catch (err) {
+    console.error('Failed to load suggestion stats:', err)
+    suggestionStats.value = []
+  } finally {
+    loadingSuggestions.value = false
+  }
+}
+
 async function loadAll() {
-  await Promise.all([loadOverview(), loadTemplates(), loadTimeline(), loadFailures()])
+  await Promise.all([loadOverview(), loadTemplates(), loadTimeline(), loadFailures(), loadSuggestions()])
 }
 
 onMounted(loadAll)

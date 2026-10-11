@@ -2,7 +2,7 @@
  * Comment API - 评论API模块
  */
 import api from './index'
-import type { Comment, CommentCreate, CommentUpdate, CommentListResponse, SuggestionField, ApplySuggestionsResult } from '@/types/comment'
+import type { Comment, CommentCreate, CommentUpdate, CommentListResponse, SuggestionField, ApplySuggestionsResult, DismissSuggestionsResult } from '@/types/comment'
 
 const BASE_URL = '/comments'
 
@@ -96,6 +96,22 @@ export async function applySuggestions(
   return response.data
 }
 
+/**
+ * 忽略 Agent 的建议（记录为已拒绝，用于统计采纳率）。
+ * `fields` 为空表示忽略该评论上所有尚未处理的建议。
+ */
+export async function dismissSuggestions(
+  issueId: number,
+  commentId: number,
+  fields: SuggestionField[] = []
+): Promise<DismissSuggestionsResult> {
+  const response = await api.post(`/issues/${issueId}/suggestions/dismiss`, {
+    comment_id: commentId,
+    fields,
+  })
+  return response.data
+}
+
 export default {
   createComment,
   listIssueComments,
@@ -105,4 +121,5 @@ export default {
   resolveComment,
   unresolveComment,
   applySuggestions,
+  dismissSuggestions,
 }

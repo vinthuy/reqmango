@@ -351,6 +351,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.GET("/:wsParam/agent-performance/by-template", agentPerfH.ByTemplate)
 			workspaces.GET("/:wsParam/agent-performance/timeline", agentPerfH.Timeline)
 			workspaces.GET("/:wsParam/agent-performance/failures", agentPerfH.FailureBreakdown)
+			workspaces.GET("/:wsParam/agent-performance/suggestions", agentPerfH.SuggestionAcceptance)
 
 			// Squads (new)
 			squadSvc := service.NewSquadService(db)
@@ -912,6 +913,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.DELETE("/:issueId/assignees/:userId", middleware.RequirePermission(db, "issue:edit", "project"), issueH.RemoveAssignee)
 			// Adopt the structured field proposals an agent attached to its comment.
 			issues.POST("/:issueId/suggestions/apply", middleware.RequirePermission(db, "issue:edit", "project"), issueH.ApplySuggestions)
+			issues.POST("/:issueId/suggestions/dismiss", middleware.RequirePermission(db, "issue:edit", "project"), issueH.DismissSuggestions)
 
 			// Labels
 			issues.POST("/:issueId/labels", middleware.RequirePermission(db, "issue:edit", "project"), issueH.AddLabel) // ?label_id=

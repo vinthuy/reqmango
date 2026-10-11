@@ -48,6 +48,22 @@ export interface FailureBreakdown {
   percentage: number
 }
 
+// What users did with an agent's proposed issue changes.
+export interface SuggestionCounts {
+  proposed: number
+  applied: number
+  dismissed: number
+  failed: number
+  pending: number
+  acceptance_rate: number // 0-100, applied / (applied + dismissed)
+}
+
+export interface AgentSuggestionStats extends SuggestionCounts {
+  agent_id: number
+  agent_name: string
+  by_field: Record<string, SuggestionCounts>
+}
+
 export type BucketGranularity = 'day' | 'week' | 'month'
 
 export interface PeriodFilter {
@@ -90,6 +106,12 @@ export const agentPerformanceApi = {
   failureBreakdown(workspaceId: number, period: PeriodFilter = {}): Promise<FailureBreakdown[]> {
     return api
       .get(`/workspaces/${workspaceId}/agent-performance/failures`, { params: toParams(period) })
+      .then(res => res.data)
+  },
+
+  suggestions(workspaceId: number, period: PeriodFilter = {}): Promise<AgentSuggestionStats[]> {
+    return api
+      .get(`/workspaces/${workspaceId}/agent-performance/suggestions`, { params: toParams(period) })
       .then(res => res.data)
   }
 }

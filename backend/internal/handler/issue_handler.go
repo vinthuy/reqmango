@@ -595,6 +595,40 @@ func (h *IssueHandler) ApplySuggestions(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// DismissSuggestions handles POST /issues/:issueId/suggestions/dismiss.
+// It records that the user declined some of an agent's proposals.
+func (h *IssueHandler) DismissSuggestions(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	issueID, err := h.parseIssueID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid issue ID"})
+		return
+	}
+
+	var req applySuggestionsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	if req.CommentID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "comment_id is required"})
+		return
+	}
+
+	result, svcErr := h.svc.DismissIssueSuggestions(issueID, req.CommentID, user.ID, req.Fields)
+	if svcErr != nil {
+		if appErr, ok := svcErr.(*common.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 // ==================== Assignee Management ====================
 
 // AddAssignee handles POST /issues/:id/assignees?user_id=int
