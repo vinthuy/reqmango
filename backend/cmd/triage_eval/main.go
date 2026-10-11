@@ -341,6 +341,9 @@ func toUint(v interface{}) uint64 {
 	case float64:
 		return uint64(n)
 	case int:
+		if n < 0 {
+			return 0
+		}
 		return uint64(n)
 	}
 	return 0
