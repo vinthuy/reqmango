@@ -306,6 +306,7 @@ func TestPageVersionService_SaveAndRestore(t *testing.T) {
 	versions, err := vs.List(page.ID)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(versions), 2)
+	assert.Equal(t, "Test User", versions[0].CreatedByName)
 	t.Logf("Versions after 2 updates: %d", len(versions))
 
 	// Get by version number
@@ -329,18 +330,18 @@ func TestPageTemplateService_CRUD(t *testing.T) {
 		Content:     "# Meeting Notes\n\nDate: {{date}}\nAttendees: ",
 		IsDefault:   true,
 	}
-	tmpl, err := ts.Create(req, wsID, projID, userID)
+	tmpl, err := ts.Create(req, projID, userID)
 	require.NoError(t, err)
 	assert.True(t, tmpl.IsDefault)
+	assert.Equal(t, wsID, tmpl.WorkspaceID)
 
 	// List
-	pID := projID
-	templates, err := ts.List(wsID, &pID)
+	templates, err := ts.List(projID)
 	require.NoError(t, err)
 	assert.Len(t, templates, 1)
 
 	// Get
-	got, err := ts.Get(tmpl.ID)
+	got, err := ts.Get(tmpl.ID, projID)
 	require.NoError(t, err)
 	assert.Equal(t, "Meeting Notes", got.Name)
 
@@ -352,10 +353,40 @@ func TestPageTemplateService_CRUD(t *testing.T) {
 	// Delete
 	err = ts.Delete(tmpl.ID, projID, userID)
 	require.NoError(t, err)
-	_, err = ts.Get(tmpl.ID)
+	_, err = ts.Get(tmpl.ID, projID)
 	assert.Error(t, err)
 
 	t.Logf("✅ Template: created, updated, and deleted successfully")
+}
+
+func TestPageTemplateService_ScopedToProject(t *testing.T) {
+	db := setupTestDB(t)
+	_, projID, userID := seedTestData(t, db)
+	ts := NewPageTemplateService(db)
+
+	otherWS := &model.Workspace{Name: "Other", Slug: "other-ws"}
+	require.NoError(t, db.Create(otherWS).Error)
+	foreign := &model.PageTemplate{Name: "secret", WorkspaceID: otherWS.ID}
+	require.NoError(t, db.Create(foreign).Error)
+
+	_, err := ts.Get(foreign.ID, projID)
+	require.Error(t, err)
+	newName := "pwned"
+	_, err = ts.Update(foreign.ID, projID, userID, &request.PageTemplateUpdateRequest{Name: &newName})
+	require.Error(t, err)
+	require.Error(t, ts.Delete(foreign.ID, projID, userID))
+
+	var still model.PageTemplate
+	require.NoError(t, db.First(&still, foreign.ID).Error)
+	assert.Equal(t, "secret", still.Name)
+
+	list, err := ts.List(projID)
+	require.NoError(t, err)
+	assert.Empty(t, list)
+
+	other := uint64(9999)
+	_, err = ts.Create(&request.PageTemplateCreateRequest{Name: "x", ProjectID: &other}, projID, userID)
+	require.Error(t, err)
 }
 
 // ================ Export Tests ================

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/reqmango/backend/internal/common"
@@ -289,6 +290,11 @@ type SkillExecutionLogQueryParams struct {
 }
 
 // ListExecutionLogs retrieves skill execution logs with filtering and pagination.
+var skillLogSortColumns = map[string]bool{
+	"created_at": true, "updated_at": true, "status": true,
+	"duration_ms": true, "tokens_used": true, "skill_id": true,
+}
+
 func (s *SkillService) ListExecutionLogs(params SkillExecutionLogQueryParams) ([]response.SkillExecutionLogResponse, int64, error) {
 	var logs []model.SkillExecutionLog
 	var total int64
@@ -331,11 +337,11 @@ func (s *SkillService) ListExecutionLogs(params SkillExecutionLogQueryParams) ([
 
 	// Sorting
 	sortBy := params.SortBy
-	if sortBy == "" {
+	if !skillLogSortColumns[sortBy] {
 		sortBy = "created_at"
 	}
-	sortOrder := params.SortOrder
-	if sortOrder == "" {
+	sortOrder := strings.ToLower(params.SortOrder)
+	if sortOrder != "asc" {
 		sortOrder = "desc"
 	}
 	query = query.Order(sortBy + " " + sortOrder)

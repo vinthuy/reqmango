@@ -21,15 +21,15 @@ func NewPageVersionService(db *gorm.DB) *PageVersionService {
 func (s *PageVersionService) List(pageID uint64) ([]response.PageVersionResponse, error) {
 	var versions []model.PageVersion
 	if err := s.db.Where("page_id = ?", pageID).
-		Preload("CreatedBy").
 		Order("version_number DESC").
 		Find(&versions).Error; err != nil {
 		return nil, common.Internal("Failed to fetch page versions")
 	}
 
+	names := s.creatorNames(versions...)
 	resps := make([]response.PageVersionResponse, len(versions))
 	for i, v := range versions {
-		resps[i] = toVersionResponse(&v)
+		resps[i] = toVersionResponse(&v, names)
 	}
 	return resps, nil
 }
@@ -38,15 +38,34 @@ func (s *PageVersionService) List(pageID uint64) ([]response.PageVersionResponse
 func (s *PageVersionService) GetByVersion(pageID uint64, versionNumber int) (*response.PageVersionResponse, error) {
 	var v model.PageVersion
 	if err := s.db.Where("page_id = ? AND version_number = ?", pageID, versionNumber).
-		Preload("CreatedBy").
 		First(&v).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, common.NotFound("Page version not found")
 		}
 		return nil, common.Internal("Failed to fetch page version")
 	}
-	resp := toVersionResponse(&v)
+	resp := toVersionResponse(&v, s.creatorNames(v))
 	return &resp, nil
+}
+
+// creatorNames maps created_by_id to display name for the given versions.
+func (s *PageVersionService) creatorNames(versions ...model.PageVersion) map[uint64]string {
+	var ids []uint64
+	for _, v := range versions {
+		if v.CreatedByID != nil {
+			ids = append(ids, *v.CreatedByID)
+		}
+	}
+	names := map[uint64]string{}
+	if len(ids) == 0 {
+		return names
+	}
+	var users []model.User
+	s.db.Select("id, display_name").Where("id IN ?", ids).Find(&users)
+	for _, u := range users {
+		names[u.ID] = u.DisplayName
+	}
+	return names
 }
 
 // Restore restores a page to a specific version.
@@ -115,7 +134,7 @@ func (s *PageVersionService) SaveVersion(pageID uint64, title, content string, c
 	s.createVersion(pageID, title, content, contentJSON, userID)
 }
 
-func toVersionResponse(v *model.PageVersion) response.PageVersionResponse {
+func toVersionResponse(v *model.PageVersion, names map[uint64]string) response.PageVersionResponse {
 	resp := response.PageVersionResponse{
 		ID:            v.ID,
 		PageID:        v.PageID,
@@ -128,10 +147,7 @@ func toVersionResponse(v *model.PageVersion) response.PageVersionResponse {
 		CreatedByID:   v.CreatedByID,
 	}
 	if v.CreatedByID != nil {
-		resp.CreatedByID = v.CreatedByID
-	}
-	if v.CreatedBy != nil {
-		resp.CreatedByName = v.CreatedBy.DisplayName
+		resp.CreatedByName = names[*v.CreatedByID]
 	}
 	return resp
 }

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/service"
 )
@@ -19,25 +20,31 @@ func NewPageTemplateHandler(svc *service.PageTemplateService) *PageTemplateHandl
 	return &PageTemplateHandler{svc: svc}
 }
 
-// List handles GET /projects/:projectId/page-templates
-func (h *PageTemplateHandler) List(c *gin.Context) {
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+func parseProjectAndTemplate(c *gin.Context, withTemplate bool) (projectID, templateID uint64, ok bool) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
-		return
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return 0, 0, false
 	}
-
-	var projectID *uint64
-	if pidStr := c.Query("project_id"); pidStr != "" {
-		pid, err := strconv.ParseUint(pidStr, 10, 64)
-		if err == nil {
-			projectID = &pid
+	if withTemplate {
+		templateID, err = strconv.ParseUint(c.Param("templateId"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid template ID"})
+			return 0, 0, false
 		}
 	}
+	return projectID, templateID, true
+}
 
-	templates, svcErr := h.svc.List(workspaceID, projectID)
-	if svcErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": svcErr.Error()})
+// List handles GET /projects/:projectId/page-templates
+func (h *PageTemplateHandler) List(c *gin.Context) {
+	projectID, _, ok := parseProjectAndTemplate(c, false)
+	if !ok {
+		return
+	}
+	templates, err := h.svc.List(projectID)
+	if err != nil {
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, templates)
@@ -45,15 +52,13 @@ func (h *PageTemplateHandler) List(c *gin.Context) {
 
 // Get handles GET /projects/:projectId/page-templates/:templateId
 func (h *PageTemplateHandler) Get(c *gin.Context) {
-	templateID, err := strconv.ParseUint(c.Param("templateId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid template ID"})
+	projectID, templateID, ok := parseProjectAndTemplate(c, true)
+	if !ok {
 		return
 	}
-
-	template, svcErr := h.svc.Get(templateID)
-	if svcErr != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": svcErr.Error()})
+	template, err := h.svc.Get(templateID, projectID)
+	if err != nil {
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, template)
@@ -61,26 +66,18 @@ func (h *PageTemplateHandler) Get(c *gin.Context) {
 
 // Create handles POST /projects/:projectId/page-templates
 func (h *PageTemplateHandler) Create(c *gin.Context) {
-	workspaceID, err := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid workspace_id"})
+	projectID, _, ok := parseProjectAndTemplate(c, false)
+	if !ok {
 		return
 	}
-	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
 	var req request.PageTemplateCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
-
-	template, svcErr := h.svc.Create(&req, workspaceID, projectID, getUserIDFromContext(c))
-	if svcErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": svcErr.Error()})
+	template, err := h.svc.Create(&req, projectID, getUserIDFromContext(c))
+	if err != nil {
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, template)
@@ -88,26 +85,18 @@ func (h *PageTemplateHandler) Create(c *gin.Context) {
 
 // Update handles PUT /projects/:projectId/page-templates/:templateId
 func (h *PageTemplateHandler) Update(c *gin.Context) {
-	templateID, err := strconv.ParseUint(c.Param("templateId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid template ID"})
+	projectID, templateID, ok := parseProjectAndTemplate(c, true)
+	if !ok {
 		return
 	}
-	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
 	var req request.PageTemplateUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
-
-	template, svcErr := h.svc.Update(templateID, projectID, getUserIDFromContext(c), &req)
-	if svcErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": svcErr.Error()})
+	template, err := h.svc.Update(templateID, projectID, getUserIDFromContext(c), &req)
+	if err != nil {
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, template)
@@ -115,19 +104,12 @@ func (h *PageTemplateHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /projects/:projectId/page-templates/:templateId
 func (h *PageTemplateHandler) Delete(c *gin.Context) {
-	templateID, err := strconv.ParseUint(c.Param("templateId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid template ID"})
+	projectID, templateID, ok := parseProjectAndTemplate(c, true)
+	if !ok {
 		return
 	}
-	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
-		return
-	}
-
-	if svcErr := h.svc.Delete(templateID, projectID, getUserIDFromContext(c)); svcErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": svcErr.Error()})
+	if err := h.svc.Delete(templateID, projectID, getUserIDFromContext(c)); err != nil {
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Template deleted"})

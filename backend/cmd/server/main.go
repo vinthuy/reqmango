@@ -95,6 +95,8 @@ func main() {
 		&model.Notification{},
 		&model.SavedView{},
 		&model.Page{},
+		&model.PageTemplate{},
+		&model.PageVersion{},
 		&model.WorkItemTemplate{},
 		&model.Release{},
 		&model.ReleaseIssue{},

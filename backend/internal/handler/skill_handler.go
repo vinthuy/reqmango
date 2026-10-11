@@ -133,6 +133,12 @@ func (h *SkillHandler) ListSkillExecutionLogs(c *gin.Context) {
 	// Parse pagination
 	page, _ := strconv.Atoi(c.Query("page"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size"))
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
 
 	// Parse sorting
 	sortBy := c.Query("sort_by")

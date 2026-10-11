@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
@@ -72,8 +73,23 @@ func (s *IssueAgentService) Assign(issueID uint64, req AssignRequest) (*model.Ag
 		ProjectID   uint64
 		WorkspaceID uint64
 	}
+	if req.AgentID == 0 {
+		return nil, common.BadRequest("agent_id is required")
+	}
 	if err := s.db.Model(&model.Issue{}).Select("project_id, workspace_id").Where("id = ?", issueID).First(&issue).Error; err != nil {
-		return nil, fmt.Errorf("issue not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, common.NotFound("issue not found")
+		}
+		return nil, fmt.Errorf("issue lookup failed: %w", err)
+	}
+	var agentCount int64
+	if err := s.db.Model(&model.Agent{}).
+		Where("id = ? AND workspace_id = ?", req.AgentID, issue.WorkspaceID).
+		Count(&agentCount).Error; err != nil {
+		return nil, fmt.Errorf("agent lookup failed: %w", err)
+	}
+	if agentCount == 0 {
+		return nil, common.NotFound("agent not found")
 	}
 
 	// 1. Check budget

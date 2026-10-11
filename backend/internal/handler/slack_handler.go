@@ -15,9 +15,13 @@ func NewSlackHandler(svc *service.SlackService) *SlackHandler {
 	return &SlackHandler{svc: svc}
 }
 
-// List handles GET /workspaces/:workspaceId/slack
+// List handles GET /workspaces/:wsParam/slack
 func (h *SlackHandler) List(c *gin.Context) {
-	workspaceID, _ := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "invalid workspace"})
+		return
+	}
 	result, err := h.svc.List(workspaceID)
 	if appError(c, err) {
 		return
@@ -25,7 +29,7 @@ func (h *SlackHandler) List(c *gin.Context) {
 	c.JSON(200, result)
 }
 
-// Get handles GET /workspaces/:workspaceId/slack/:id
+// Get handles GET /workspaces/:wsParam/slack/:id
 func (h *SlackHandler) Get(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	result, err := h.svc.Get(id)
@@ -35,9 +39,13 @@ func (h *SlackHandler) Get(c *gin.Context) {
 	c.JSON(200, result)
 }
 
-// Create handles POST /workspaces/:workspaceId/slack
+// Create handles POST /workspaces/:wsParam/slack
 func (h *SlackHandler) Create(c *gin.Context) {
-	workspaceID, _ := strconv.ParseUint(c.Param("workspaceId"), 10, 64)
+	workspaceID, err := strconv.ParseUint(c.Param("wsParam"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"message": "invalid workspace"})
+		return
+	}
 	var req service.SlackCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"message": err.Error()})
@@ -50,7 +58,7 @@ func (h *SlackHandler) Create(c *gin.Context) {
 	c.JSON(201, result)
 }
 
-// Update handles PUT /workspaces/:workspaceId/slack/:id
+// Update handles PUT /workspaces/:wsParam/slack/:id
 func (h *SlackHandler) Update(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	var req service.SlackUpdateRequest
@@ -65,7 +73,7 @@ func (h *SlackHandler) Update(c *gin.Context) {
 	c.JSON(200, result)
 }
 
-// Delete handles DELETE /workspaces/:workspaceId/slack/:id
+// Delete handles DELETE /workspaces/:wsParam/slack/:id
 func (h *SlackHandler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err := h.svc.Delete(id); err != nil {
@@ -75,7 +83,7 @@ func (h *SlackHandler) Delete(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "deleted"})
 }
 
-// SendNotification handles POST /workspaces/:workspaceId/slack/:id/notify
+// SendNotification handles POST /workspaces/:wsParam/slack/:id/notify
 func (h *SlackHandler) SendNotification(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	var req service.SlackNotification
@@ -90,7 +98,7 @@ func (h *SlackHandler) SendNotification(c *gin.Context) {
 	c.JSON(200, gin.H{"status": "sent"})
 }
 
-// TestNotification handles POST /workspaces/:workspaceId/slack/:id/test
+// TestNotification handles POST /workspaces/:wsParam/slack/:id/test
 func (h *SlackHandler) TestNotification(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	result, err := h.svc.TestNotification(id)

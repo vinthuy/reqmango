@@ -14,6 +14,19 @@ func NewEstimateService(db *gorm.DB) *EstimateService {
 	return &EstimateService{db: db}
 }
 
+// projectWorkspaceID ignores any caller-supplied workspace so rows always land
+// in the project's own workspace.
+func (s *EstimateService) projectWorkspaceID(projectID uint64) (uint64, error) {
+	var p model.Project
+	if err := s.db.Select("id, workspace_id").First(&p, projectID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, common.NotFound("Project not found")
+		}
+		return 0, common.Internal("Failed to fetch project")
+	}
+	return p.WorkspaceID, nil
+}
+
 func (s *EstimateService) GetSettings(projectID uint64) (*model.ProjectEstimateSettings, error) {
 	var settings model.ProjectEstimateSettings
 	err := s.db.Where("project_id = ?", projectID).First(&settings).Error
@@ -26,7 +39,11 @@ func (s *EstimateService) GetSettings(projectID uint64) (*model.ProjectEstimateS
 	return &settings, nil
 }
 
-func (s *EstimateService) UpdateSettings(projectID, workspaceID uint64, mode model.EstimateMode) (*model.ProjectEstimateSettings, error) {
+func (s *EstimateService) UpdateSettings(projectID, _ uint64, mode model.EstimateMode) (*model.ProjectEstimateSettings, error) {
+	workspaceID, wsErr := s.projectWorkspaceID(projectID)
+	if wsErr != nil {
+		return nil, wsErr
+	}
 	var settings model.ProjectEstimateSettings
 	err := s.db.Where("project_id = ?", projectID).First(&settings).Error
 	if err == gorm.ErrRecordNotFound {
@@ -70,7 +87,11 @@ func (s *EstimateService) GetPoint(projectID, pointID uint64) (*model.EstimatePo
 	return &point, nil
 }
 
-func (s *EstimateService) CreatePoint(projectID, workspaceID uint64, name string, value int, isDefault bool, sequence int) (*model.EstimatePoint, error) {
+func (s *EstimateService) CreatePoint(projectID, _ uint64, name string, value int, isDefault bool, sequence int) (*model.EstimatePoint, error) {
+	workspaceID, wsErr := s.projectWorkspaceID(projectID)
+	if wsErr != nil {
+		return nil, wsErr
+	}
 	if isDefault {
 		s.db.Model(&model.EstimatePoint{}).Where("project_id = ? AND is_default = ?", projectID, true).Update("is_default", false)
 	}
@@ -141,7 +162,11 @@ func (s *EstimateService) ReorderPoints(projectID uint64, pointIDs []uint64) err
 	return nil
 }
 
-func (s *EstimateService) CreateDefaultPoints(projectID, workspaceID uint64) ([]model.EstimatePoint, error) {
+func (s *EstimateService) CreateDefaultPoints(projectID, _ uint64) ([]model.EstimatePoint, error) {
+	workspaceID, wsErr := s.projectWorkspaceID(projectID)
+	if wsErr != nil {
+		return nil, wsErr
+	}
 	s.db.Where("project_id = ?", projectID).Delete(&model.EstimatePoint{})
 
 	defaultPoints := []model.EstimatePoint{
@@ -162,12 +187,16 @@ func (s *EstimateService) CreateDefaultPoints(projectID, workspaceID uint64) ([]
 	return defaultPoints, nil
 }
 
-func (s *EstimateService) BulkCreatePoints(projectID, workspaceID uint64, points []struct {
+func (s *EstimateService) BulkCreatePoints(projectID, _ uint64, points []struct {
 	Name      string `json:"name"`
 	Value     int    `json:"value"`
 	IsDefault bool   `json:"is_default"`
 	Sequence  int    `json:"sequence"`
 }) ([]model.EstimatePoint, error) {
+	workspaceID, wsErr := s.projectWorkspaceID(projectID)
+	if wsErr != nil {
+		return nil, wsErr
+	}
 	var estimatePoints []model.EstimatePoint
 	for _, p := range points {
 		estimatePoints = append(estimatePoints, model.EstimatePoint{
@@ -197,7 +226,11 @@ func (s *EstimateService) ListCategories(projectID uint64) ([]model.EstimateCate
 	return categories, nil
 }
 
-func (s *EstimateService) CreateCategory(projectID, workspaceID uint64, name string, isDefault bool, sequence int) (*model.EstimateCategory, error) {
+func (s *EstimateService) CreateCategory(projectID, _ uint64, name string, isDefault bool, sequence int) (*model.EstimateCategory, error) {
+	workspaceID, wsErr := s.projectWorkspaceID(projectID)
+	if wsErr != nil {
+		return nil, wsErr
+	}
 	if isDefault {
 		s.db.Model(&model.EstimateCategory{}).Where("project_id = ? AND is_default = ?", projectID, true).Update("is_default", false)
 	}
@@ -218,7 +251,11 @@ func (s *EstimateService) CreateCategory(projectID, workspaceID uint64, name str
 	return &category, nil
 }
 
-func (s *EstimateService) CreateDefaultCategories(projectID, workspaceID uint64) ([]model.EstimateCategory, error) {
+func (s *EstimateService) CreateDefaultCategories(projectID, _ uint64) ([]model.EstimateCategory, error) {
+	workspaceID, wsErr := s.projectWorkspaceID(projectID)
+	if wsErr != nil {
+		return nil, wsErr
+	}
 	s.db.Where("project_id = ?", projectID).Delete(&model.EstimateCategory{})
 
 	defaultCategories := []model.EstimateCategory{
@@ -245,7 +282,11 @@ func (s *EstimateService) ListTime(projectID uint64) ([]model.EstimateTime, erro
 	return times, nil
 }
 
-func (s *EstimateService) CreateTime(projectID, workspaceID uint64, name string, minutes int, isDefault bool, sequence int) (*model.EstimateTime, error) {
+func (s *EstimateService) CreateTime(projectID, _ uint64, name string, minutes int, isDefault bool, sequence int) (*model.EstimateTime, error) {
+	workspaceID, wsErr := s.projectWorkspaceID(projectID)
+	if wsErr != nil {
+		return nil, wsErr
+	}
 	if isDefault {
 		s.db.Model(&model.EstimateTime{}).Where("project_id = ? AND is_default = ?", projectID, true).Update("is_default", false)
 	}
@@ -267,7 +308,11 @@ func (s *EstimateService) CreateTime(projectID, workspaceID uint64, name string,
 	return &etime, nil
 }
 
-func (s *EstimateService) CreateDefaultTime(projectID, workspaceID uint64) ([]model.EstimateTime, error) {
+func (s *EstimateService) CreateDefaultTime(projectID, _ uint64) ([]model.EstimateTime, error) {
+	workspaceID, wsErr := s.projectWorkspaceID(projectID)
+	if wsErr != nil {
+		return nil, wsErr
+	}
 	s.db.Where("project_id = ?", projectID).Delete(&model.EstimateTime{})
 
 	defaultTime := []model.EstimateTime{

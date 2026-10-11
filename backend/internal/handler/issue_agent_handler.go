@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -34,6 +36,11 @@ func (h *IssueAgentHandler) AssignAgent(c *gin.Context) {
 
 	task, err := h.issueAgentSvc.Assign(issueID, req)
 	if err != nil {
+		var ae *common.AppError
+		if errors.As(err, &ae) {
+			c.JSON(ae.Code, gin.H{"error": ae.Message})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

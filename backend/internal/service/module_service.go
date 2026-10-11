@@ -278,7 +278,7 @@ func (s *ModuleService) DeleteWorkspaceModule(workspaceID, moduleID uint64) erro
 			tx.Rollback()
 		}
 	}()
-	if err := tx.Where("parent_id = ?", moduleID).Update("parent_id", nil).Error; err != nil {
+	if err := tx.Model(&model.Module{}).Where("parent_id = ?", moduleID).Update("parent_id", nil).Error; err != nil {
 		tx.Rollback()
 		return common.Internal("Failed to update child modules")
 	}
@@ -373,7 +373,7 @@ func (s *ModuleService) Delete(moduleID, callerID uint64) error {
 			tx.Rollback()
 		}
 	}()
-	if err := tx.Where("parent_id = ?", moduleID).Update("parent_id", nil).Error; err != nil {
+	if err := tx.Model(&model.Module{}).Where("parent_id = ?", moduleID).Update("parent_id", nil).Error; err != nil {
 		tx.Rollback()
 		return common.Internal("Failed to update child modules")
 	}

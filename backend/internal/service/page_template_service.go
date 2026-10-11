@@ -31,13 +31,49 @@ func (s *PageTemplateService) checkProjectMembership(projectID, userID uint64) e
 	return nil
 }
 
-// List returns templates for a project (or workspace).
-func (s *PageTemplateService) List(workspaceID uint64, projectID *uint64) ([]response.PageTemplateResponse, error) {
-	var templates []model.PageTemplate
-	q := s.db.Where("workspace_id = ?", workspaceID)
-	if projectID != nil {
-		q = q.Where("project_id = ? OR project_id IS NULL", *projectID)
+func (s *PageTemplateService) projectWorkspaceID(projectID uint64) (uint64, error) {
+	var p model.Project
+	if err := s.db.Select("id, workspace_id").First(&p, projectID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, common.NotFound("Project not found")
+		}
+		return 0, common.Internal("Failed to fetch project")
 	}
+	return p.WorkspaceID, nil
+}
+
+// visibleTo limits templates to those a project can see: its own plus the
+// workspace-wide ones (project_id IS NULL) of the project's workspace.
+func (s *PageTemplateService) visibleTo(projectID uint64) (*gorm.DB, error) {
+	workspaceID, err := s.projectWorkspaceID(projectID)
+	if err != nil {
+		return nil, err
+	}
+	return s.db.Where("workspace_id = ? AND (project_id = ? OR project_id IS NULL)", workspaceID, projectID), nil
+}
+
+func (s *PageTemplateService) findVisible(id, projectID uint64) (*model.PageTemplate, error) {
+	q, err := s.visibleTo(projectID)
+	if err != nil {
+		return nil, err
+	}
+	var t model.PageTemplate
+	if err := q.First(&t, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, common.NotFound("Page template not found")
+		}
+		return nil, common.Internal("Failed to fetch page template")
+	}
+	return &t, nil
+}
+
+// List returns templates visible to a project.
+func (s *PageTemplateService) List(projectID uint64) ([]response.PageTemplateResponse, error) {
+	q, err := s.visibleTo(projectID)
+	if err != nil {
+		return nil, err
+	}
+	var templates []model.PageTemplate
 	if err := q.Order("is_default DESC, created_at DESC").Find(&templates).Error; err != nil {
 		return nil, common.Internal("Failed to fetch page templates")
 	}
@@ -49,22 +85,27 @@ func (s *PageTemplateService) List(workspaceID uint64, projectID *uint64) ([]res
 	return resps, nil
 }
 
-// Get returns a single template by ID.
-func (s *PageTemplateService) Get(id uint64) (*response.PageTemplateResponse, error) {
-	var t model.PageTemplate
-	if err := s.db.First(&t, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, common.NotFound("Page template not found")
-		}
-		return nil, common.Internal("Failed to fetch page template")
+// Get returns a single template visible to the project.
+func (s *PageTemplateService) Get(id, projectID uint64) (*response.PageTemplateResponse, error) {
+	t, err := s.findVisible(id, projectID)
+	if err != nil {
+		return nil, err
 	}
-	resp := toTemplateResponse(&t)
+	resp := toTemplateResponse(t)
 	return &resp, nil
 }
 
-// Create creates a new page template.
-func (s *PageTemplateService) Create(req *request.PageTemplateCreateRequest, workspaceID, projectID, userID uint64) (*response.PageTemplateResponse, error) {
+// Create creates a new page template in the project's workspace. A nil
+// req.ProjectID makes it workspace-wide; any other value must be projectID.
+func (s *PageTemplateService) Create(req *request.PageTemplateCreateRequest, projectID, userID uint64) (*response.PageTemplateResponse, error) {
 	if err := s.checkProjectMembership(projectID, userID); err != nil {
+		return nil, err
+	}
+	if req.ProjectID != nil && *req.ProjectID != projectID {
+		return nil, common.BadRequest("project_id must match the project in the URL")
+	}
+	workspaceID, err := s.projectWorkspaceID(projectID)
+	if err != nil {
 		return nil, err
 	}
 	// If setting as default, unset others first
@@ -97,12 +138,9 @@ func (s *PageTemplateService) Update(id, projectID, userID uint64, req *request.
 	if err := s.checkProjectMembership(projectID, userID); err != nil {
 		return nil, err
 	}
-	var t model.PageTemplate
-	if err := s.db.First(&t, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, common.NotFound("Page template not found")
-		}
-		return nil, common.Internal("Failed to fetch page template")
+	t, err := s.findVisible(id, projectID)
+	if err != nil {
+		return nil, err
 	}
 
 	updates := map[string]interface{}{}
@@ -130,12 +168,12 @@ func (s *PageTemplateService) Update(id, projectID, userID uint64, req *request.
 	updates["updated_by_id"] = userID
 
 	if len(updates) > 0 {
-		if err := s.db.Model(&t).Updates(updates).Error; err != nil {
+		if err := s.db.Model(t).Updates(updates).Error; err != nil {
 			return nil, common.Internal("Failed to update page template")
 		}
-		s.db.First(&t, t.ID)
+		s.db.First(t, t.ID)
 	}
-	resp := toTemplateResponse(&t)
+	resp := toTemplateResponse(t)
 	return &resp, nil
 }
 
@@ -144,12 +182,12 @@ func (s *PageTemplateService) Delete(id, projectID, callerID uint64) error {
 	if err := s.checkProjectMembership(projectID, callerID); err != nil {
 		return err
 	}
-	result := s.db.Delete(&model.PageTemplate{}, id)
-	if result.Error != nil {
-		return common.Internal("Failed to delete page template")
+	t, err := s.findVisible(id, projectID)
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected == 0 {
-		return common.NotFound("Page template not found")
+	if err := s.db.Delete(t).Error; err != nil {
+		return common.Internal("Failed to delete page template")
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -86,6 +87,10 @@ func (h *AgentMemberHandler) UpdateRole(c *gin.Context) {
 	}
 
 	if err := h.memberSvc.UpdateRoleByMemberID(projectID, memberID, req.Role); err != nil {
+		if errors.Is(err, service.ErrAgentMemberNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -108,6 +113,10 @@ func (h *AgentMemberHandler) Remove(c *gin.Context) {
 	}
 
 	if err := h.memberSvc.RemoveByMemberID(projectID, memberID); err != nil {
+		if errors.Is(err, service.ErrAgentMemberNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

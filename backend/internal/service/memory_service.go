@@ -446,10 +446,14 @@ func (s *MemoryService) GetMemorySession(ctx context.Context, id string, workspa
 // CloseMemorySession closes a memory session
 func (s *MemoryService) CloseMemorySession(ctx context.Context, id string, workspaceID uint64) error {
 	now := time.Now()
-	return s.db.WithContext(ctx).
+	result := s.db.WithContext(ctx).
 		Model(&model.MemorySession{}).
 		Where("id = ? AND workspace_id = ?", id, workspaceID).
-		Update("closed_at", now).Error
+		Update("closed_at", now)
+	if result.Error == nil && result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return result.Error
 }
 
 // AddMemoryToSession adds a memory entry to a session

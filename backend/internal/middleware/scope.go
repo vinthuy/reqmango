@@ -239,14 +239,17 @@ func (s *scopeChecker) check(c *gin.Context, user *model.User) bool {
 	fullPath := c.FullPath()
 	segs := strings.Split(fullPath, "/")
 	for i, seg := range segs {
-		if !strings.HasPrefix(seg, ":") || unscopedParams[seg[1:]] || i == 0 {
+		if !strings.HasPrefix(seg, ":") || i == 0 {
+			continue
+		}
+		table := pathTable(fullPath, segs[i-1])
+		if table == "" && unscopedParams[seg[1:]] {
 			continue
 		}
 		id := paramID(c, seg[1:])
 		if id == 0 {
 			continue
 		}
-		table := pathTable(fullPath, segs[i-1])
 		if table == "" {
 			table = segmentTables[segs[i-1]]
 		}

@@ -6,6 +6,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// ErrAgentMemberNotFound is returned when no membership row matched.
+var ErrAgentMemberNotFound = errors.New("agent member not found")
+
 // AgentMemberService manages agent membership in projects.
 type AgentMemberService struct {
 	db *gorm.DB
@@ -123,7 +126,7 @@ func (s *AgentMemberService) UpdateRole(projectID, agentID uint64, role string) 
 		Update("role", role)
 
 	if result.RowsAffected == 0 {
-		return errors.New("agent member not found")
+		return ErrAgentMemberNotFound
 	}
 
 	return result.Error
@@ -133,7 +136,7 @@ func (s *AgentMemberService) UpdateRole(projectID, agentID uint64, role string) 
 func (s *AgentMemberService) Remove(projectID, agentID uint64) error {
 	result := s.db.Where("project_id = ? AND agent_id = ?", projectID, agentID).Delete(&ProjectAgentMember{})
 	if result.RowsAffected == 0 {
-		return errors.New("agent member not found")
+		return ErrAgentMemberNotFound
 	}
 	return result.Error
 }
@@ -145,7 +148,7 @@ func (s *AgentMemberService) UpdateRoleByMemberID(projectID, memberID uint64, ro
 		Update("role", role)
 
 	if result.RowsAffected == 0 {
-		return errors.New("agent member not found")
+		return ErrAgentMemberNotFound
 	}
 
 	return result.Error
@@ -155,7 +158,7 @@ func (s *AgentMemberService) UpdateRoleByMemberID(projectID, memberID uint64, ro
 func (s *AgentMemberService) RemoveByMemberID(projectID, memberID uint64) error {
 	result := s.db.Where("id = ? AND project_id = ?", memberID, projectID).Delete(&ProjectAgentMember{})
 	if result.RowsAffected == 0 {
-		return errors.New("agent member not found")
+		return ErrAgentMemberNotFound
 	}
 	return result.Error
 }

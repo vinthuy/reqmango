@@ -11,8 +11,7 @@ type PageVersion struct {
 	VersionNumber int     `gorm:"not null;default:1" json:"version_number"`
 	ChangeSummary *string `gorm:"size:500" json:"change_summary"`
 
-	Page      Page  `gorm:"foreignKey:PageID" json:"-"`
-	CreatedBy *User `gorm:"foreignKey:CreatedByID" json:"created_by,omitempty"`
+	Page Page `gorm:"foreignKey:PageID" json:"-"`
 }
 
 func (PageVersion) TableName() string {

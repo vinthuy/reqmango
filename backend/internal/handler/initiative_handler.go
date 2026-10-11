@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
@@ -39,7 +40,7 @@ func (h *InitiativeHandler) Create(c *gin.Context) {
 	}
 	initiative, err := h.svc.Create(wsID, req, h.getUserID(c))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"data": initiative})
@@ -49,7 +50,7 @@ func (h *InitiativeHandler) List(c *gin.Context) {
 	wsID, _ := strconv.ParseUint(c.Param("wsParam"), 10, 64)
 	initiatives, err := h.svc.List(wsID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": initiatives})
@@ -64,7 +65,7 @@ func (h *InitiativeHandler) Search(c *gin.Context) {
 	}
 	initiatives, err := h.svc.Search(wsID, query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": initiatives})
@@ -89,7 +90,7 @@ func (h *InitiativeHandler) Update(c *gin.Context) {
 	}
 	i, err := h.svc.Update(id, h.getUserID(c), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": i})
@@ -98,7 +99,7 @@ func (h *InitiativeHandler) Update(c *gin.Context) {
 func (h *InitiativeHandler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("initiativeId"), 10, 64)
 	if err := h.svc.Delete(id, h.getUserID(c)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
@@ -108,7 +109,7 @@ func (h *InitiativeHandler) GetProgress(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("initiativeId"), 10, 64)
 	progress, err := h.svc.GetProgress(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		common.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": progress})

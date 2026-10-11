@@ -178,10 +178,15 @@ func (s *LoopService) StartLoop(workspaceID, loopID uint64, userID uint64) (*mod
 	return run, nil
 }
 
+func (s *LoopService) workspaceLoops(workspaceID uint64) *gorm.DB {
+	return s.db.Model(&model.Loop{}).Select("id").Where("workspace_id = ?", workspaceID)
+}
+
 func (s *LoopService) StopLoop(workspaceID, runID uint64) error {
 	reason := "manual"
 	now := time.Now()
-	result := s.db.Model(&model.LoopRun{}).Where("id = ? AND status = ?", runID, "running").
+	result := s.db.Model(&model.LoopRun{}).
+		Where("id = ? AND status = ? AND loop_id IN (?)", runID, "running", s.workspaceLoops(workspaceID)).
 		Updates(map[string]interface{}{"status": "stopped", "stopped_reason": &reason, "completed_at": &now})
 	if result.RowsAffected == 0 {
 		return common.NotFound("loop run not found or not running")
@@ -202,7 +207,7 @@ func (s *LoopService) GetLoopRuns(workspaceID, loopID uint64, limit int) ([]mode
 
 func (s *LoopService) GetLoopRun(workspaceID, runID uint64) (*model.LoopRun, []model.LoopIteration, error) {
 	var run model.LoopRun
-	if err := s.db.Where("id = ?", runID).First(&run).Error; err != nil {
+	if err := s.db.Where("id = ? AND loop_id IN (?)", runID, s.workspaceLoops(workspaceID)).First(&run).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil, common.NotFound("loop run not found")
 		}

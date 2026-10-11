@@ -174,7 +174,7 @@ func (h *EstimateHandler) BulkCreatePoints(c *gin.Context) {
 			Sequence  int    `json:"sequence"`
 		} `json:"points"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.Points) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}

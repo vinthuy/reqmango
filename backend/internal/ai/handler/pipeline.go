@@ -222,10 +222,16 @@ func (h *AgentPipelineHandler) GetRuns(c *gin.Context) {
 }
 
 func (h *AgentPipelineHandler) GetRun(c *gin.Context) {
-	_, _, _ = h.getWSAndUser(c)
+	wsID, _, err := h.getWSAndUser(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid workspace"})
+		return
+	}
 	runID, _ := strconv.ParseUint(c.Param("runId"), 10, 64)
 	var run model.PipelineRun
-	if err := h.db.First(&run, runID).Error; err != nil {
+	if err := h.db.Where("id = ? AND pipeline_id IN (?)", runID,
+		h.db.Model(&model.Pipeline{}).Select("id").Where("workspace_id = ?", wsID)).
+		First(&run).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"message": "run not found"})
 		return
 	}
