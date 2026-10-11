@@ -179,6 +179,13 @@
               {{ agentDispatching ? t('agent.dispatching') : t('agent.dispatchAgent') }}
             </button>
             <p class="text-[10px] text-gray-400 leading-snug">{{ t('agent.sidebarHint') }}</p>
+            <p
+              v-if="autoTriagePending"
+              data-test="auto-triage-pending"
+              class="text-[11px] text-violet-700 bg-violet-50 border border-violet-100 rounded-md px-2 py-1.5 leading-snug"
+            >
+              {{ t('issue.autoTriageRunning') }}
+            </p>
           </div>
         </div>
         <div v-if="agentActivities.length" class="mt-2 space-y-1.5">
@@ -308,6 +315,7 @@ const props = defineProps<{
   customFields: CustomFieldEntry[]
   workspaceId: number
   agentDispatching?: boolean
+  autoTriagePending?: boolean
   agentAssigning?: boolean
   agentStatus?: AgentStatus | null
   labels?: Array<{ id: number; name: string; color: string }>
@@ -386,6 +394,9 @@ async function loadAgentActivities() {
 
 watch(() => [props.issue?.id, props.workspaceId], loadAgentActivities, { immediate: true })
 watch(() => props.agentDispatching, (now, before) => {
+  if (before && !now) loadAgentActivities()
+})
+watch(() => props.autoTriagePending, (now, before) => {
   if (before && !now) loadAgentActivities()
 })
 

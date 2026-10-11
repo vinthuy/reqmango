@@ -389,6 +389,7 @@ import DecomposeIssueModal from '@/components/DecomposeIssueModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
 import { highlightSearchTerm } from '@/utils/highlight'
 import type { IssueResponse } from '@/types/issue'
+import { markAutoTriagePending } from '@/utils/autoTriagePref'
 
 const props = defineProps<{ projectId: number; workspaceId: number; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string; searchTerm?: string; columns?: string[] }>()
 const router = useRouter()
@@ -742,7 +743,15 @@ async function handleExport() {
     toast.error(t('issueList.exportFailed'))
   }
 }
-function onQuickCreated() { page.value = 1; loadIssues() }
+function onQuickCreated(issue?: any) {
+  page.value = 1
+  loadIssues()
+  if (issue?.auto_triage_started && issue.id) {
+    markAutoTriagePending(issue.id)
+    toast.success(t('issue.autoTriageStarted'))
+    emit('select', issue)
+  }
+}
 function onImportSuccess() { page.value = 1; loadIssues() }
 
 function toggleSelectAll() {

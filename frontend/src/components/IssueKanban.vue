@@ -224,14 +224,17 @@ import issueApi from '@/api/issue'
 import api from '@/api'
 import UserSelect from '@/components/UserSelect.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 import QuickCreateInput from '@/components/QuickCreateInput.vue'
+import { markAutoTriagePending } from '@/utils/autoTriagePref'
 import ImportIssuesModal from '@/components/ImportIssuesModal.vue'
 import * as issueTypeApi from '@/api/issue-type'
 import { VueDraggable } from 'vue-draggable-plus'
 
 const props = defineProps<{ projectId: number; workspaceId: number; projectIdentifier?: string; rql?: string; filterSortBy?: string; filterSortDir?: string; filterSortConfig?: string; filterGroupBy?: string; filterSubGroupBy?: string }>()
-defineEmits<{ (e: 'select', issue: any): void }>()
+const emit = defineEmits<{ (e: 'select', issue: any): void }>()
 const { t } = useI18n()
+const toast = useToast()
 
 const issues = ref<any[]>([])
 const states = ref<any[]>([])
@@ -666,7 +669,15 @@ async function onDragAdd(columnKey: string | number, newIndex: number, evt: any,
 const quickCreateStateId = ref<number | null>(null)
 function openQuickCreate(stateId: number) { quickCreateStateId.value = stateId }
 function closeQuickCreate() { quickCreateStateId.value = null }
-function onQuickCreated() { quickCreateStateId.value = null; loadIssues() }
+function onQuickCreated(issue?: any) {
+  quickCreateStateId.value = null
+  loadIssues()
+  if (issue?.auto_triage_started && issue.id) {
+    markAutoTriagePending(issue.id)
+    toast.success(t('issue.autoTriageStarted'))
+    emit('select', issue)
+  }
+}
 
 const showImportModal = ref(false)
 function onImportSuccess() { loadIssues() }

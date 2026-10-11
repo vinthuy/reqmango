@@ -450,8 +450,9 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	resp, llmErr := s.llm.ChatSyncWithTools(context.Background(), systemPrompt, []llm.Message{
 		{Role: "user", Content: task},
 	}, tools, exec)
+	action := dispatchActivityAction(ctx)
 	if llmErr != nil {
-		s.recordActivity(agent, ctx.IssueID, "dispatch",
+		s.recordActivity(agent, ctx.IssueID, action,
 			fmt.Sprintf("Failed: %v", llmErr), task, userID)
 		if ctx.IssueID != nil {
 			s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), agentFailureReply, nil)
@@ -461,7 +462,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 
 	s.retryClaimedSuggestions(context.Background(), systemPrompt, task, resp.Content, tools, exec, &suggestions)
 	reply := withSuggestionNotice(resp.Content, suggestions)
-	s.recordActivity(agent, ctx.IssueID, "dispatch", agentActivitySummary(reply, executedTools), task, userID)
+	s.recordActivity(agent, ctx.IssueID, action, agentActivitySummary(reply, executedTools), task, userID)
 	if ctx.IssueID != nil {
 		s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), reply, suggestions)
 	}
@@ -475,6 +476,17 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	}
 
 	return s.getLatestActivity(agent.ID)
+}
+
+// dispatchActivityAction prefers TriggeredBy (auto_triage / mention / …)
+// so the activity log can be filtered after async create-time triage.
+func dispatchActivityAction(ctx *DispatchContext) string {
+	if ctx != nil {
+		if a := strings.TrimSpace(ctx.TriggeredBy); a != "" {
+			return a
+		}
+	}
+	return "dispatch"
 }
 
 // retrieveAgentMemories retrieves relevant memories for an agent task.

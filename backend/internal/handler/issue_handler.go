@@ -76,6 +76,7 @@ func (h *IssueHandler) Create(c *gin.Context) {
 
 	if req.AutoTriage && h.autoTriager != nil && resp != nil && resp.ID > 0 {
 		issueID, userID := resp.ID, user.ID
+		resp.AutoTriageStarted = true
 		go func() {
 			_, _ = h.autoTriager.AutoTriage(issueID, userID)
 		}()

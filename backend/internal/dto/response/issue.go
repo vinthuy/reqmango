@@ -51,6 +51,10 @@ type IssueResponse struct {
 	UpdatedByID *uint64    `json:"updated_by_id"`
 	DeletedAt   *time.Time `json:"deleted_at"`
 	IsDeleted   bool       `json:"is_deleted"`
+
+	// AutoTriageStarted is set when create requested async auto-triage.
+	// The UI uses it to open the issue and poll for the triage activity.
+	AutoTriageStarted bool `json:"auto_triage_started,omitempty"`
 }
 
 // IssueLite is a compact issue representation.

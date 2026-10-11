@@ -173,6 +173,7 @@
                 :custom-fields="customFieldEntries"
                 :workspace-id="workspaceId"
                 :agent-dispatching="agentDispatching"
+                :auto-triage-pending="autoTriagePending"
                 :agent-assigning="agentAssigning"
                 :agent-status="agentStatus"
                 :labels="projectLabels"
@@ -247,6 +248,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { agentApi } from '@/api/agent'
 import { issueAgentApi, type AgentStatus } from '@/api/issue-agent'
 import { buildDispatchTask } from '@/utils/agentDispatchTask'
+import { useAutoTriageWatch } from '@/composables/useAutoTriageWatch'
 import { getIssueCustomFieldsWithDefinitions, updateIssueCustomFieldValue } from '@/api/custom-field'
 import relationApi from '@/api/relation'
 import IssuePropertySidebar from '@/components/IssuePropertySidebar.vue'
@@ -301,6 +303,17 @@ const customFieldEntries = ref<Array<{ field: any; value: string | null }>>([])
 const relationsTabRef = ref<InstanceType<typeof IssueTabRelations> | null>(null)
 const agentDispatching = ref(false)
 const commentsRefreshKey = ref(0)
+const watchIssueId = computed(() => issue.value?.id ?? props.issueId)
+const watchWorkspaceId = computed(() => props.workspaceId)
+const { pending: autoTriagePending } = useAutoTriageWatch({
+  workspaceId: watchWorkspaceId,
+  issueId: watchIssueId,
+  onRefreshComments: () => { commentsRefreshKey.value++ },
+  onDone: (ok) => {
+    if (ok) toast.success(t('issue.autoTriageDone'))
+    else toast.info(t('issue.autoTriageTimeout'))
+  },
+})
 const agentAssigning = ref(false)
 const agentStatus = ref<AgentStatus | null>(null)
 const workspaceAgents = ref<Agent[]>([])

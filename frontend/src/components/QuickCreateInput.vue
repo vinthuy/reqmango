@@ -83,6 +83,7 @@ import type { DuplicateIssueItem } from '@/api/issue'
 import { listWorkItemTemplates } from '@/api/work-item-template'
 import type { WorkItemTemplate } from '@/types/work-item-template'
 import { useI18n } from '@/composables/useI18n'
+import { getAutoTriagePref, setAutoTriagePref } from '@/utils/autoTriagePref'
 
 const { t } = useI18n()
 
@@ -114,7 +115,9 @@ const emit = defineEmits<{
 
 const titleInput = ref<HTMLInputElement | null>(null)
 const creating = ref(false)
-const autoTriage = ref(false)
+const autoTriage = ref(getAutoTriagePref(props.projectId))
+watch(autoTriage, (v) => setAutoTriagePref(props.projectId, v))
+watch(() => props.projectId, (id) => { autoTriage.value = getAutoTriagePref(id) })
 const duplicates = ref<DuplicateIssueItem[]>([])
 const templates = ref<WorkItemTemplate[]>([])
 const activeTemplate = ref<WorkItemTemplate | null>(null)
