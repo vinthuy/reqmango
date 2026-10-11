@@ -1,6 +1,6 @@
 # Pipeline Status（功能管线状态）
 
-最后更新：2026-09-26
+最后更新：2026-10-11
 
 ---
 
@@ -8,7 +8,7 @@
 
 | 功能 | Spec | Design | Plan | Implement | 备注 |
 |------|------|--------|------|-----------|------|
-| 存量质量 | — | — | — | 🔄 | 主路径已 PASS；不新开大功能 |
+| 存量质量 | — | — | — | 🔄 | 主路径已 PASS；不新开大功能。租户隔离与路由鉴权已按 [route audit](../security.md#8-tenancy-guard-and-the-route-audit-backendcmdroute_audit) 四模式复跑：无 XTENANT / ESCALATE / LEAK / WRITE |
 | （无新开功能） | | | | | |
 
 ---
