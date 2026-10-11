@@ -142,21 +142,31 @@ test.describe('AI Phase 1 — Agent Automation + Unified Copilot + Result Action
     await page.goto(`${BASE}/workspace/${demo.workspaceSlug}/project/${demo.projectId}`)
     await page.waitForTimeout(3000)
 
-    await page.keyboard.press('Control+KeyJ')
+    // Prefer the FAB — Ctrl+J can race with page load / focus.
+    const fab = page.locator('button[title*="AI Assistant"], button[title*="Ctrl+J"]').first()
+    if (await fab.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await fab.click()
+    } else {
+      await page.keyboard.press('Control+KeyJ')
+    }
     await page.waitForTimeout(1000)
 
+    // Scope to the Copilot drawer so we don't hit QuickCreate's disabled 「创建」.
+    const copilot = page.locator('div.fixed.right-0').filter({ hasText: /Ask|Build|构建|提问/ }).first()
+    await expect(copilot).toBeVisible({ timeout: 10000 })
+
     // Create is a Build sub-panel, not a top-level tab.
-    const buildTab = page.locator('button[title*="Build"], button[title*="构建"], button:has-text("Build"), button:has-text("构建")').first()
-    if (await buildTab.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await buildTab.click()
-      await page.waitForTimeout(500)
-    }
-    const createBtn = page.locator('button:has-text("创建"), button:has-text("Create")').first()
+    const buildTab = copilot.locator('button:has-text("Build"), button:has-text("构建")').first()
+    await expect(buildTab).toBeVisible({ timeout: 5000 })
+    await buildTab.click()
+    await page.waitForTimeout(500)
+
+    const createBtn = copilot.locator('button:has-text("✨")').first()
     await expect(createBtn).toBeVisible({ timeout: 10000 })
     await createBtn.click()
 
     await expect(
-      page.locator('button:has-text("生成预览"), button:has-text("Generate Preview")').first(),
+      copilot.locator('button:has-text("生成预览"), button:has-text("Generate Preview")').first(),
     ).toBeVisible({ timeout: 10000 })
   })
 

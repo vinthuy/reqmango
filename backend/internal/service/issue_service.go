@@ -13,6 +13,7 @@ import (
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
 	"github.com/reqmango/backend/internal/dto/response"
+	"github.com/reqmango/backend/internal/issuetype"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/rql"
 	"github.com/reqmango/backend/internal/security"
@@ -68,7 +69,10 @@ func validateLabelsBelongToProject(db *gorm.DB, labelIDs []uint64, projectID uin
 }
 
 // validateTypeVisibleInProject checks that the given issue type ID belongs to
-// the workspace and is visible in the project (either project-private or imported).
+// the workspace and is usable in the project. Visibility matches issuetype.Visible
+// (project-private, explicitly imported, or the legacy workspace fallback when
+// the project has neither imports nor private types) so the picker and write
+// path cannot disagree.
 func (s *IssueService) validateTypeVisibleInProject(typeID, projectID, workspaceID uint64) error {
 	var t model.IssueType
 	if err := s.db.First(&t, typeID).Error; err != nil {
@@ -77,19 +81,16 @@ func (s *IssueService) validateTypeVisibleInProject(typeID, projectID, workspace
 	if t.WorkspaceID != workspaceID {
 		return common.BadRequest("Issue type does not belong to this workspace")
 	}
-	if t.ProjectID != nil {
-		if *t.ProjectID != projectID {
-			return common.BadRequest("Issue type does not belong to this project")
+	visible, err := issuetype.Visible(s.db, workspaceID, &projectID)
+	if err != nil {
+		return common.Internal("Failed to resolve visible issue types")
+	}
+	for _, vt := range visible {
+		if vt.ID == typeID {
+			return nil
 		}
-		return nil
 	}
-	// Workspace-level type: must be explicitly imported by the project.
-	var imported int64
-	s.db.Model(&model.IssueTypeImport{}).Where("project_id = ? AND workspace_type_id = ?", projectID, typeID).Count(&imported)
-	if imported == 0 {
-		return common.BadRequest("This issue type has not been imported into the project")
-	}
-	return nil
+	return common.BadRequest("This issue type has not been imported into the project")
 }
 
 // Create creates a new issue.
