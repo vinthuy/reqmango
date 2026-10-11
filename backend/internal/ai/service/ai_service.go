@@ -1546,6 +1546,9 @@ func (s *AIService) ExecuteTool(name string, rawInput json.RawMessage, actx *AIC
 	if err := json.Unmarshal(rawInput, &args); err != nil {
 		args = map[string]interface{}{}
 	}
+	if err := s.checkToolScope(args, actx); err != nil {
+		return nil, err
+	}
 
 	switch name {
 	case "search_issues":

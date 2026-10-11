@@ -664,7 +664,11 @@ func (s *AgentService) findTriageAgent(workspaceID uint64) (*model.Agent, error)
 
 // AutoAssign analyzes the issue and project workload to suggest the best assignee.
 func (s *AgentService) AutoAssign(issueID, userID uint64) (*model.AgentActivity, error) {
-	agent, err := s.findAgentByCapability("analyze")
+	var issue model.Issue
+	if err := s.db.Select("id", "workspace_id").First(&issue, issueID).Error; err != nil {
+		return nil, common.NotFound("Issue not found")
+	}
+	agent, err := s.findAgentByCapability(issue.WorkspaceID, "analyze")
 	if err != nil {
 		return nil, err
 	}
@@ -712,7 +716,11 @@ func (s *AgentService) HandleMention(agentID, commentID, userID uint64, commentB
 
 // SummarizeCycle generates a natural-language summary of a cycle's progress.
 func (s *AgentService) SummarizeCycle(cycleID, userID uint64) (*model.AgentActivity, error) {
-	agent, err := s.findAgentByCapability("summarize")
+	var cycle model.Cycle
+	if err := s.db.Select("id", "project_id", "workspace_id").First(&cycle, cycleID).Error; err != nil {
+		return nil, common.NotFound("Cycle not found")
+	}
+	agent, err := s.findAgentByCapability(cycle.WorkspaceID, "summarize")
 	if err != nil {
 		return nil, err
 	}
@@ -721,8 +729,10 @@ func (s *AgentService) SummarizeCycle(cycleID, userID uint64) (*model.AgentActiv
 		"Summarize the progress of cycle %d. Get the cycle details, its issues, and their states. "+
 			"Provide a concise summary of: what's completed, what's in progress, what's at risk, and what's not started. Cycle ID: %d", cycleID, cycleID)
 
+	projectID := cycle.ProjectID
 	ctx := &DispatchContext{
 		WorkspaceID: agent.WorkspaceID,
+		ProjectID:   &projectID,
 		TriggeredBy: "custom",
 	}
 
@@ -873,9 +883,10 @@ func (s *AgentService) UpdatePresenceOnTaskStateChange(agentID, taskID uint64, t
 
 // ======== Internal Helpers ========
 
-func (s *AgentService) findAgentByCapability(capability string) (*model.Agent, error) {
+func (s *AgentService) findAgentByCapability(workspaceID uint64, capability string) (*model.Agent, error) {
 	var agents []model.Agent
-	if err := s.db.Where("status = ?", "active").Find(&agents).Error; err != nil {
+	if err := s.db.Where("workspace_id = ? AND status = ?", workspaceID, "active").
+		Order("id ASC").Find(&agents).Error; err != nil {
 		return nil, common.Internal("Failed to find agents")
 	}
 
