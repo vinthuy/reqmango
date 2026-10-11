@@ -96,9 +96,17 @@ test.describe('ReqMango Pages E2E Tests', () => {
     await page.goto(`${BASE_URL}/workspace/${testWorkspace.slug}/project/${testProject.id}/pages`)
     await page.waitForLoadState('networkidle')
 
-    // Click first page in tree
-    const firstPage = page.locator('.page-tree > div > div').first()
-    await firstPage.waitFor({ timeout: 5000 })
+    // Click first page in tree (seed may leave an empty tree — create via UI if needed)
+    let firstPage = page.locator('.page-tree > div > div').first()
+    if (!(await firstPage.isVisible({ timeout: 3000 }).catch(() => false))) {
+      const createBtn = page.locator('button:has-text("新建"), button:has-text("New"), button:has-text("创建")').first()
+      if (await createBtn.isVisible().catch(() => false)) {
+        await createBtn.click()
+        await page.waitForTimeout(1500)
+      }
+      firstPage = page.locator('.page-tree > div > div, [data-testid*="page"]').first()
+    }
+    await firstPage.waitFor({ timeout: 8000 })
     await firstPage.click()
     await page.waitForTimeout(1500)
 

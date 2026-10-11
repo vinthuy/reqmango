@@ -164,7 +164,7 @@ func postPRComment(integration *model.GitIntegration, repo string, number int, b
 		log.Printf("[git] PR comment on %s#%d failed: %v", repo, number, err)
 		return
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		log.Printf("[git] PR comment on %s#%d returned %d", repo, number, resp.StatusCode)
 	}

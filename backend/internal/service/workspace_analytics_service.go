@@ -59,16 +59,16 @@ type AnalyticsAssigneeRow struct {
 }
 
 type WorkspaceAnalytics struct {
-	Days         int                    `json:"days"`
-	Granularity  string                 `json:"granularity"`
-	Summary      AnalyticsSummary       `json:"summary"`
-	Trend        []AnalyticsTrendPoint  `json:"trend"`
-	StateGroups  []AnalyticsBucket      `json:"state_groups"`
-	Priorities   []AnalyticsBucket      `json:"priorities"`
-	IssueTypes   []AnalyticsBucket      `json:"issue_types"`
-	Projects     []AnalyticsProjectRow  `json:"projects"`
-	Assignees    []AnalyticsAssigneeRow `json:"assignees"`
-	GeneratedAt  time.Time              `json:"generated_at"`
+	Days        int                    `json:"days"`
+	Granularity string                 `json:"granularity"`
+	Summary     AnalyticsSummary       `json:"summary"`
+	Trend       []AnalyticsTrendPoint  `json:"trend"`
+	StateGroups []AnalyticsBucket      `json:"state_groups"`
+	Priorities  []AnalyticsBucket      `json:"priorities"`
+	IssueTypes  []AnalyticsBucket      `json:"issue_types"`
+	Projects    []AnalyticsProjectRow  `json:"projects"`
+	Assignees   []AnalyticsAssigneeRow `json:"assignees"`
+	GeneratedAt time.Time              `json:"generated_at"`
 }
 
 const openStateCond = "s.\"group\" NOT IN ('completed','cancelled')"

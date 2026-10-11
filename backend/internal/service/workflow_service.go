@@ -189,17 +189,17 @@ type UpdateStateWorkflowRequest struct {
 
 // StateWorkflowResponse is the UI-facing shape for state-machine workflows.
 type StateWorkflowResponse struct {
-	ID           uint64                    `json:"id"`
-	Name         string                    `json:"name"`
-	Description  string                    `json:"description"`
-	ProjectID    *uint64                   `json:"project_id"`
-	WorkspaceID  uint64                    `json:"workspace_id"`
-	IssueTypeID  *uint64                   `json:"issue_type_id"`
-	IssueTypeIDs []uint64                  `json:"issue_type_ids"`
-	IsActive     bool                      `json:"is_active"`
-	Transitions  []StateTransitionUIItem   `json:"transitions"`
-	CreatedAt    string                    `json:"created_at"`
-	UpdatedAt    string                    `json:"updated_at"`
+	ID           uint64                  `json:"id"`
+	Name         string                  `json:"name"`
+	Description  string                  `json:"description"`
+	ProjectID    *uint64                 `json:"project_id"`
+	WorkspaceID  uint64                  `json:"workspace_id"`
+	IssueTypeID  *uint64                 `json:"issue_type_id"`
+	IssueTypeIDs []uint64                `json:"issue_type_ids"`
+	IsActive     bool                    `json:"is_active"`
+	Transitions  []StateTransitionUIItem `json:"transitions"`
+	CreatedAt    string                  `json:"created_at"`
+	UpdatedAt    string                  `json:"updated_at"`
 }
 
 // StateTransitionUIItem matches WorkflowManager expectations (from_/to_ names).

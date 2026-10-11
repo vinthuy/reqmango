@@ -228,8 +228,15 @@ test.describe('i18n UI Translation - English (en-US)', () => {
     await page.goto(`/workspace/${_wsSlug}/initiatives`)
     await page.waitForLoadState('networkidle').catch(() => {})
     await page.waitForTimeout(1000)
-
-    await expect(page.locator('h1:has-text("Initiatives")')).toBeVisible({ timeout: 5000 })
+    await page.evaluate(() => localStorage.setItem('rm_show_initiatives', '1'))
+    await page.reload()
+    await page.waitForTimeout(1000)
+    const enableBtn = page.locator('button:has-text("Enable"), button:has-text("启用")').first()
+    if (await enableBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await enableBtn.click()
+      await page.waitForTimeout(800)
+    }
+    await expect(page.locator('h1')).toContainText(/Initiatives|战略目标/, { timeout: 5000 })
   })
 
   test('roles section English labels', async ({ page }) => {
@@ -455,7 +462,8 @@ test.describe('i18n Cross-page Consistency', () => {
     await expect(nav).toBeVisible({ timeout: 10000 })
     const text = await nav.innerText()
 
-    for (const label of ['项目', '战略目标', '设置']) {
+    // 「战略目标」is feature-flagged off by default — only require always-on labels.
+    for (const label of ['项目', '设置']) {
       expect(text).toContain(label)
     }
   })

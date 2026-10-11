@@ -1,50 +1,42 @@
 import { test, expect } from '@playwright/test'
+import { loginPage, resolveDemo, type DemoContext } from './helpers/demo'
 
 const API = 'http://localhost:8000/api/v1'
 const BASE = 'http://localhost:5173'
 
-// Helper: get a fresh token
-async function getToken(request: any) {
-  const r = await request.post(`${API}/auth/login`, {
-    data: { email: 'admin@reqmango.com', password: 'demo1234' },
-  })
-  const { access_token } = await r.json()
-  return access_token
+async function twoStateIds(request: any, demo: DemoContext): Promise<[number, number]> {
+  const res = await request.get(`${API}/projects/${demo.projectId}/settings/states`, { headers: demo.headers })
+  const body = await res.json()
+  const states = Array.isArray(body) ? body : (body.data || [])
+  expect(states.length).toBeGreaterThanOrEqual(2)
+  return [states[0].id, states[1].id]
 }
 
 test.describe('Workflow & Automation — Full UI Journey', () => {
 
   test('1. Login page → workspace → project settings renders', async ({ page, request }) => {
-    const token = await getToken(request)
+    const demo = await resolveDemo(request)
+    await loginPage(page, demo.token)
 
-    // Set auth and navigate
-    await page.goto(BASE + '/login')
-    await page.evaluate((t) => localStorage.setItem('token', t), token)
-
-    // Home page
     await page.goto(BASE + '/')
     await page.waitForTimeout(2000)
     console.log('Home title:', await page.title())
 
-    // Workspace Settings
-    await page.goto(BASE + '/workspace/reqmango-dev/settings')
+    await page.goto(`${BASE}/workspace/${demo.workspaceSlug}/settings`)
     await page.waitForTimeout(1500)
     const wsBody = await page.textContent('body')
     console.log('Workspace settings:', wsBody?.length, 'chars')
 
-    // Project Settings
-    await page.goto(BASE + '/workspace/reqmango-dev/project/15/settings')
+    await page.goto(`${BASE}/workspace/${demo.workspaceSlug}/project/${demo.projectId}/settings`)
     await page.waitForTimeout(2000)
     const psBody = await page.textContent('body')
     console.log('Project settings:', psBody?.length, 'chars')
   })
 
   test('2. States API — verify format matches WorkflowManager expectation', async ({ request }) => {
-    const token = await getToken(request)
-    const headers = { Authorization: `Bearer ${token}` }
+    const demo = await resolveDemo(request)
 
-    // WorkflowManager.vue line 56 expects: states.value = s.data
-    const res = await request.get(`${API}/projects/15/settings/states`, { headers })
+    const res = await request.get(`${API}/projects/${demo.projectId}/settings/states`, { headers: demo.headers })
     expect(res.status()).toBe(200)
     const body = await res.json()
 
@@ -57,83 +49,66 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
       }
     } else if (Array.isArray(body)) {
       console.log('⚠️ States return as raw array — WorkflowManager expects {data: [...]}')
-      console.log('   This means WorkflowManager.load() will fail because states.value = s.data is undefined')
-      console.log('   WorkflowManager line 56: states.value = s.data')
     } else {
       console.log('⚠️ Unknown format:', JSON.stringify(body).slice(0, 200))
     }
   })
 
   test('3. WorkflowManager — full CRUD via API (simulating UI actions)', async ({ request }) => {
-    const token = await getToken(request)
-    const H = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    const demo = await resolveDemo(request)
+    const [fromId, toId] = await twoStateIds(request, demo)
 
-    // Step 1: List workflows (WorkflowManager.load)
     console.log('--- Step 1: List workflows ---')
-    const list1 = await request.get(`${API}/projects/15/workflows`, { headers: H })
+    const list1 = await request.get(`${API}/projects/${demo.projectId}/workflows`, { headers: demo.headers })
     expect(list1.status()).toBe(200)
     const wfs1 = (await list1.json()).data || []
     console.log(`Existing workflows: ${wfs1.length}`)
-    for (const w of wfs1) {
-      console.log(`  [${w.id}] ${w.name} active=${w.is_active} transitions=${w.transitions?.length || 0}`)
-    }
 
-    // Step 2: Create workflow (WorkflowManager.save)
     console.log('\n--- Step 2: Create workflow ---')
-    const create = await request.post(`${API}/projects/15/workflows`, {
-      headers: H,
+    const create = await request.post(`${API}/projects/${demo.projectId}/workflows`, {
+      headers: demo.headers,
       data: { name: `[UI Flow Test] ${Date.now()}`, description: 'Created simulating UI flow' },
     })
     expect(create.status()).toBe(201)
     const wf = await create.json()
     console.log(`Created: [${wf.id}] ${wf.name}`)
 
-    // Step 3: Add transition (WorkflowManager.saveTrans)
     console.log('\n--- Step 3: Add transition ---')
-    const trans = await request.post(`${API}/projects/15/workflows/${wf.id}/transitions`, {
-      headers: H,
-      data: { name: 'Backlog→Todo', source_state_id: 85, target_state_id: 86 },
+    const trans = await request.post(`${API}/projects/${demo.projectId}/workflows/${wf.id}/transitions`, {
+      headers: demo.headers,
+      data: { name: 'A→B', source_state_id: fromId, target_state_id: toId },
     })
     expect(trans.status()).toBe(201)
     const transData = await trans.json()
     expect(transData).toHaveProperty('id')
-    expect(transData.rule_type).toBe('allow') // default
+    expect(transData.rule_type).toBe('allow')
     console.log('Created transition:', transData.id, transData.name)
 
-    // The GET endpoint now returns transitions in the workflow detail.
-    const wfDetail = await request.get(`${API}/projects/15/workflows/${wf.id}`, { headers: H })
+    const wfDetail = await request.get(`${API}/projects/${demo.projectId}/workflows/${wf.id}`, { headers: demo.headers })
     const detail = await wfDetail.json()
     expect(Array.isArray(detail.nodes)).toBe(true)
     expect(Array.isArray(detail.edges)).toBe(true)
     expect(Array.isArray(detail.transitions)).toBe(true)
     expect(detail.transitions.length).toBeGreaterThanOrEqual(1)
-    console.log(`Workflow detail: ${detail.nodes.length} nodes, ${detail.edges.length} edges, ${detail.transitions.length} transitions`)
 
-    // Step 4: Cleanup (WorkflowManager.confirmDel) — workflow deletion must succeed.
     console.log('\n--- Step 4: Delete workflow (cleanup) ---')
-    const del = await request.delete(`${API}/projects/15/workflows/${wf.id}`, { headers: H })
+    const del = await request.delete(`${API}/projects/${demo.projectId}/workflows/${wf.id}`, { headers: demo.headers })
     expect(del.status(), 'workflow delete must not return 500 (BUG-57)').toBeLessThan(400)
     console.log('Deleted test workflow')
   })
 
   test('4. AutomationManager — full CRUD via API (simulating UI actions)', async ({ request }) => {
-    const token = await getToken(request)
-    const H = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    const demo = await resolveDemo(request)
 
-    // List automations (AutomationManager.load)
     console.log('--- List automations ---')
-    const list = await request.get(`${API}/projects/15/automations`, { headers: H })
+    const list = await request.get(`${API}/projects/${demo.projectId}/automations`, { headers: demo.headers })
     expect(list.status()).toBe(200)
     const autos = await list.json()
     console.log(`Existing automations: ${autos.length}`)
-    for (const a of autos) {
-      console.log(`  [${a.id}] ${a.name} trigger=${a.trigger_type} enabled=${a.is_enabled} exec=${a.execution_count}`)
-    }
 
-    // Create automation (AutomationManager.save)
     console.log('\n--- Create automation ---')
-    const create = await request.post(`${API}/projects/15/automations`, {
-      headers: H,
+    const create = await request.post(`${API}/projects/${demo.projectId}/automations`, {
+      headers: demo.headers,
       data: {
         name: `[UI Flow Test] ${Date.now()}`,
         trigger_type: 'issue_created',
@@ -145,79 +120,58 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     const auto = await create.json()
     console.log(`Created: [${auto.id}] ${auto.name}`)
 
-    // Execute manually (AutomationHandler.Execute endpoint)
+    const issueRes = await request.post(
+      `${API}/issues?project_id=${demo.projectId}&workspace_id=${demo.workspaceId}`,
+      { headers: demo.headers, data: { name: `Auto exec ${Date.now()}`, description: 'e2e', priority: 'high' } },
+    )
+    const issue = await issueRes.json()
+    const issueId = issue.id || issue.data?.id
+
     console.log('\n--- Execute automation ---')
-    const exec = await request.post(`${API}/projects/15/automations/${auto.id}/execute`, {
-      headers: H,
-      data: { issue_id: 1227, context: { priority: 'high' } },
+    const exec = await request.post(`${API}/projects/${demo.projectId}/automations/${auto.id}/execute`, {
+      headers: demo.headers,
+      data: { issue_id: issueId, context: { priority: 'high' } },
     })
     expect(exec.status()).toBe(200)
     const execResult = await exec.json()
     console.log('Execute results:', execResult.results)
 
-    // Cleanup
     console.log('\n--- Delete automation (cleanup) ---')
-    await request.delete(`${API}/projects/15/automations/${auto.id}`, { headers: H })
+    await request.delete(`${API}/projects/${demo.projectId}/automations/${auto.id}`, { headers: demo.headers })
     console.log('Deleted test automation')
   })
 
   test('5. ⚠️ GAP: WorkflowManager missing approval fields', async ({ request }) => {
-    const token = await getToken(request)
-    const H = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    const demo = await resolveDemo(request)
+    const [fromId, toId] = await twoStateIds(request, demo)
 
-    console.log('=== WorkflowManager.vue Transition Form Audit ===')
-    console.log('Current form fields (from source code lines 31-36):')
-    console.log('  1. From State dropdown  ✅')
-    console.log('  2. To State dropdown    ✅')
-    console.log('  3. Description input    ✅')
-    console.log('')
-    console.log('MISSING from the UI form:')
-    console.log('  ❌ Rule Type dropdown (allow/approval)')
-    console.log('  ❌ Approver IDs input')
-    console.log('  ❌ Role Allowed input')
-    console.log('')
-    console.log('Impact: Users cannot create approval transitions from the UI.')
-    console.log('They can only create "allow" transitions.')
-    console.log('')
-
-    // Verify API supports it but UI doesn't expose it
-    const wfCreate = await request.post(`${API}/projects/15/workflows`, {
-      headers: H,
+    const wfCreate = await request.post(`${API}/projects/${demo.projectId}/workflows`, {
+      headers: demo.headers,
       data: { name: `[Gap Test] ${Date.now()}`, description: 'Approval gap test' },
     })
     const wf = await wfCreate.json()
 
-    // API supports approval rule_type + approver_ids
-    const tr = await request.post(`${API}/projects/15/workflows/${wf.id}/transitions`, {
-      headers: H,
+    const tr = await request.post(`${API}/projects/${demo.projectId}/workflows/${wf.id}/transitions`, {
+      headers: demo.headers,
       data: {
         name: 'Requires admin approval',
-        source_state_id: 85, target_state_id: 86,
-        rule_type: 'approval', approver_ids: '49',
+        source_state_id: fromId, target_state_id: toId,
+        rule_type: 'approval', approver_ids: '1',
       },
     })
     expect(tr.status()).toBe(201)
     const t = await tr.json()
     console.log(`API: Created approval transition (rule=${t.rule_type}, approvers=${t.approver_ids})`)
-    console.log('UI: Cannot create this — form has no rule_type or approver_ids fields')
-    console.log('')
-    console.log('FIX: Add to WorkflowManager.vue add-transition form:')
-    console.log('  - <select v-model="trans.rule_type"> with options allow/approval')
-    console.log('  - <input v-model="trans.approver_ids"> for comma-separated user IDs')
-    console.log('  - <input v-model="trans.role_allowed"> for role-based approval')
 
-    await request.delete(`${API}/projects/15/workflows/${wf.id}`, { headers: H })
+    await request.delete(`${API}/projects/${demo.projectId}/workflows/${wf.id}`, { headers: demo.headers })
   })
 
   test('6. ⚠️ States API response format check', async ({ request }) => {
-    const token = await getToken(request)
-    const headers = { Authorization: `Bearer ${token}` }
+    const demo = await resolveDemo(request)
 
-    const res = await request.get(`${API}/projects/15/settings/states`, { headers })
+    const res = await request.get(`${API}/projects/${demo.projectId}/settings/states`, { headers: demo.headers })
     const body = await res.json()
 
-    // WorkflowManager line 56: states.value = s.data
-    // If the API returns a raw array instead of {data: [...]}, the UI breaks
     const hasWrapper = 'data' in body && Array.isArray(body.data)
     const isArray = Array.isArray(body)
 
@@ -225,9 +179,6 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
 
     if (!hasWrapper) {
       console.log('⚠️ ISSUE: WorkflowManager.vue line 56 expects states.value = s.data')
-      console.log('   But the API returns a different format.')
-      console.log('   This means the UI will silently fail to load states,')
-      console.log('   and the "Add Transition" form will show empty dropdowns.')
     } else {
       console.log('✅ Format matches WorkflowManager expectation')
     }

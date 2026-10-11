@@ -174,8 +174,13 @@ test.describe('Initiatives UI Pages', () => {
 
   test('initiatives page loads with header and view toggle', async ({ page }) => {
     await goToApp(page, `/workspace/${_wsSlug}/initiatives`)
+    // Feature is gated by default — enable it when the soft-gate CTA is shown.
+    const enableBtn = page.locator('button:has-text("启用"), button:has-text("Enable")').first()
+    if (await enableBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await enableBtn.click()
+      await page.waitForTimeout(1000)
+    }
     await expect(page.locator('h1')).toContainText(/Initiatives|战略目标/)
-    // View toggle buttons exist
     await expect(page.locator('button:has-text("列表")').or(page.locator('button:has-text("List")'))).toBeVisible({ timeout: 5000 })
     await expect(page.locator('button:has-text("路线图")').or(page.locator('button:has-text("Roadmap")'))).toBeVisible({ timeout: 5000 })
   })

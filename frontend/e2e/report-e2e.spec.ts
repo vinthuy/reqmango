@@ -26,6 +26,20 @@ async function ensureSetup(request: APIRequestContext) {
   const adminRes = await request.post(BASE_API + '/auth/login', { data: { email: 'admin@reqmango.com', password: 'demo1234' } })
   const adminBody = await adminRes.json()
   _adminToken = adminBody.access_token
+
+  const wsRes = await request.get(BASE_API + '/workspaces', { headers: { Authorization: 'Bearer ' + _adminToken } })
+  const wsBody = await wsRes.json()
+  const workspaces = Array.isArray(wsBody) ? wsBody : (wsBody.data || [])
+  const workspace = workspaces.find((w: any) => w.slug === 'reqmango-dev') || workspaces[0]
+  if (workspace?.id) {
+    const projRes = await request.get(BASE_API + '/projects?workspace_id=' + workspace.id, {
+      headers: { Authorization: 'Bearer ' + _adminToken },
+    })
+    const projBody = await projRes.json()
+    const projects = Array.isArray(projBody) ? projBody : (projBody.data || [])
+    const project = projects.find((p: any) => p.identifier === 'CORE') || projects[0]
+    if (project?.id) _adminProjectId = project.id
+  }
 }
 
 function auth() { return { Authorization: 'Bearer ' + _token } }

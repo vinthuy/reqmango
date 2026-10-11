@@ -30,7 +30,7 @@ type Issue struct {
 	ExternalID       *string `gorm:"size:255" json:"external_id"`
 	ExternalSource   *string `gorm:"size:255" json:"external_source"`
 	CoverImageURL    *string `gorm:"size:500" json:"cover_image_url"`
-	IntakeSource     *string `gorm:"size:50" json:"intake_source"` // "form" | "email" | "webhook"
+	IntakeSource     *string `gorm:"size:50" json:"intake_source"`       // "form" | "email" | "webhook"
 	IntakeStatus     *string `gorm:"size:30;index" json:"intake_status"` // "pending" | "snoozed" | "accepted" | "rejected" | "duplicate"
 
 	IntakeSubmitter    *string    `gorm:"size:255" json:"intake_submitter,omitempty"`

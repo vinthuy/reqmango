@@ -118,7 +118,7 @@ type scoredDuplicate struct {
 
 func rankDuplicates(name, description string, candidates []scoredDuplicate) []scoredDuplicate {
 	type scored struct {
-		item scoredDuplicate
+		item  scoredDuplicate
 		score float64
 	}
 	var scoredList []scored

@@ -37,10 +37,10 @@ func newStatesFixture(t *testing.T) statesFixture {
 	}).Error)
 
 	states := map[string]model.State{}
-	for id, name := range map[uint64]string{1: "Backlog", 2: "Todo", 3: "In Progress", 4: "Done"} {
+	for i, name := range []string{"Backlog", "Todo", "In Progress", "Done"} {
 		st := model.State{
-			BaseModel: model.BaseModel{ID: id}, Name: name, ProjectID: ptrU64(1),
-			WorkspaceID: 1, IsActive: true, Sequence: int(id),
+			BaseModel: model.BaseModel{ID: uint64(i + 1)}, Name: name, ProjectID: ptrU64(1),
+			WorkspaceID: 1, IsActive: true, Sequence: i + 1,
 		}
 		require.NoError(t, db.Create(&st).Error)
 		states[name] = st

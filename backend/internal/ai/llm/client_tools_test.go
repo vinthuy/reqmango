@@ -20,12 +20,12 @@ func fakeToolServer(t *testing.T, toolRounds int32, finalText string) (*httptest
 		n := atomic.AddInt32(&calls, 1)
 		w.Header().Set("Content-Type", "application/json")
 		if n <= toolRounds {
-			fmt.Fprintf(w, `{"choices":[{"finish_reason":"tool_calls","message":{"content":"先查一下",
+			_, _ = fmt.Fprintf(w, `{"choices":[{"finish_reason":"tool_calls","message":{"content":"先查一下",
 				"tool_calls":[{"id":"c%d","type":"function","function":{"name":"get_issue","arguments":"{}"}}]}}]}`, n)
 			return
 		}
 		b, _ := json.Marshal(finalText)
-		fmt.Fprintf(w, `{"choices":[{"finish_reason":"stop","message":{"content":%s}}]}`, b)
+		_, _ = fmt.Fprintf(w, `{"choices":[{"finish_reason":"stop","message":{"content":%s}}]}`, b)
 	}))
 	t.Cleanup(srv.Close)
 	return srv, &calls

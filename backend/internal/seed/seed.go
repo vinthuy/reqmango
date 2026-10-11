@@ -2305,17 +2305,17 @@ func seedAgentTasks(db *gorm.DB, wsID uint64) {
 }
 
 func seedAgentActivities(db *gorm.DB, wsID uint64) {
-	var count int64
-	db.Model(&model.AgentActivity{}).Where("workspace_id = ?", wsID).Count(&count)
-	if count > 0 {
-		fmt.Println("  Agent activities already exist, skipping")
-		return
-	}
-
-	// Get first agent
+	// AgentActivity has no workspace_id column — scope through the workspace's agents.
 	var agent model.Agent
 	if err := db.Where("workspace_id = ?", wsID).First(&agent).Error; err != nil {
 		fmt.Println("  No agent found, skipping activities")
+		return
+	}
+
+	var count int64
+	db.Model(&model.AgentActivity{}).Where("agent_id = ?", agent.ID).Count(&count)
+	if count > 0 {
+		fmt.Println("  Agent activities already exist, skipping")
 		return
 	}
 

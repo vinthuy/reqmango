@@ -29,11 +29,11 @@ func fakeSuggestingLLM(t *testing.T) (*llm.LLMClient, *int32, *string) {
 		lastBody = string(b)
 		w.Header().Set("Content-Type", "application/json")
 		if n == 1 {
-			fmt.Fprint(w, `{"choices":[{"finish_reason":"tool_calls","message":{"content":"",
+			_, _ = fmt.Fprint(w, `{"choices":[{"finish_reason":"tool_calls","message":{"content":"",
 				"tool_calls":[{"id":"c1","type":"function","function":{"name":"suggest_issue_changes","arguments":"{}"}}]}}]}`)
 			return
 		}
-		fmt.Fprint(w, `{"choices":[{"finish_reason":"stop","message":{"content":"已提交"}}]}`)
+		_, _ = fmt.Fprint(w, `{"choices":[{"finish_reason":"stop","message":{"content":"已提交"}}]}`)
 	}))
 	t.Cleanup(srv.Close)
 	return llm.NewLLMClient("k-live", "deepseek-chat", srv.URL, "deepseek"), &calls, &lastBody

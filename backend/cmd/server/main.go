@@ -33,11 +33,16 @@ func main() {
 	}
 	fmt.Println("Database connected")
 
-	// Purge legacy workspace-level labels so project_id can become NOT NULL (project-only labels, project-scoped)
-	db.Exec(`DELETE FROM issue_labels WHERE label_id IN (SELECT id FROM labels WHERE project_id IS NULL)`)
-	db.Exec(`DELETE FROM labels WHERE project_id IS NULL`)
-	// GORM AutoMigrate does not tighten nullability on existing columns; enforce explicitly
-	db.Exec(`ALTER TABLE labels ALTER COLUMN project_id SET NOT NULL`)
+	// Purge legacy workspace-level labels so project_id can become NOT NULL (project-only labels, project-scoped).
+	// On a fresh DB these tables do not exist yet — guard so AutoMigrate can create them cleanly.
+	if db.Migrator().HasTable("labels") {
+		if db.Migrator().HasTable("issue_labels") {
+			db.Exec(`DELETE FROM issue_labels WHERE label_id IN (SELECT id FROM labels WHERE project_id IS NULL)`)
+		}
+		db.Exec(`DELETE FROM labels WHERE project_id IS NULL`)
+		// GORM AutoMigrate does not tighten nullability on existing columns; enforce explicitly
+		db.Exec(`ALTER TABLE labels ALTER COLUMN project_id SET NOT NULL`)
+	}
 
 	// Drop old foreign key constraint on automation_rules BEFORE AutoMigrate
 	// (workspace rules have project_id=0, GORM may validate FK during migration)

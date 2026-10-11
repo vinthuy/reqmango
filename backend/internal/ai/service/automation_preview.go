@@ -13,7 +13,7 @@ import (
 var allowedAutomationTriggers = map[string]bool{
 	"issue.created":         true,
 	"issue.updated":         true,
-	"issue.state_changed":    true,
+	"issue.state_changed":   true,
 	"issue.assigned":        true,
 	"issue.due_soon":        true,
 	"issue.due_date_passed": true,
@@ -53,12 +53,12 @@ type AIAutomationCondition struct {
 
 // AIAutomationPreviewResponse is returned to the UI for RuleBuilder prefill.
 type AIAutomationPreviewResponse struct {
-	Name        string                   `json:"name"`
-	Description string                   `json:"description,omitempty"`
-	TriggerType string                   `json:"trigger_type"`
-	Conditions  []AIAutomationCondition  `json:"conditions"`
-	Actions     []AIAutomationAction     `json:"actions"`
-	Warnings    []string                 `json:"warnings,omitempty"`
+	Name        string                  `json:"name"`
+	Description string                  `json:"description,omitempty"`
+	TriggerType string                  `json:"trigger_type"`
+	Conditions  []AIAutomationCondition `json:"conditions"`
+	Actions     []AIAutomationAction    `json:"actions"`
+	Warnings    []string                `json:"warnings,omitempty"`
 	// RuleShape mirrors persisted automation fields so the frontend can pass
 	// it straight into AutomationRuleBuilder as :rule.
 	TriggerTypeJSON string `json:"trigger_type_json"`

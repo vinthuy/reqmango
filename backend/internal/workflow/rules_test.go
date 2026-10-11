@@ -40,10 +40,10 @@ func newFixture(t *testing.T) *fixture {
 	}).Error)
 
 	f := &fixture{db: db, states: map[string]model.State{}}
-	for id, name := range map[uint64]string{1: "Backlog", 2: "Todo", 3: "In Progress", 4: "Done"} {
+	for i, name := range []string{"Backlog", "Todo", "In Progress", "Done"} {
 		st := model.State{
-			BaseModel: model.BaseModel{ID: id}, Name: name,
-			WorkspaceID: 1, ProjectID: u64(1), IsActive: true, Sequence: int(id),
+			BaseModel: model.BaseModel{ID: uint64(i + 1)}, Name: name,
+			WorkspaceID: 1, ProjectID: u64(1), IsActive: true, Sequence: i + 1,
 		}
 		require.NoError(t, db.Create(&st).Error)
 		f.states[name] = st
