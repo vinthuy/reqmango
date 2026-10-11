@@ -47,6 +47,8 @@ func main() {
 	out := flag.String("out", "route_audit.md", "report path")
 	noQuery := flag.Bool("no-query", false, "omit workspace_id/project_id/issue_id query params")
 	member := flag.Bool("member", false, "probe as a role-15 member for admin-only escalation")
+	seed := flag.Bool("seed", false, "insert victim-owned rows for path params that have none")
+	cross := flag.Bool("cross", false, "probe as admin of another workspace, using its own workspace/project/issue in the path and victim child IDs")
 	flag.Parse()
 
 	dsn := os.Getenv("ROUTE_AUDIT_DATABASE_URL")
@@ -77,6 +79,9 @@ func main() {
 	outTok, _, _ := auth.GenerateTokenForTest(outsider.ID)
 	inTok, _, _ := auth.GenerateTokenForTest(a.insider)
 	probeTok := outTok
+	if *cross {
+		a.setupAttacker(outsider.ID)
+	}
 	if *member {
 		a.db.Exec(`UPDATE workspace_members SET role = 15 WHERE workspace_id = ? AND user_id = ?`, a.ws, a.insider)
 		a.db.Exec(`UPDATE project_members SET role = 15 WHERE project_id = ? AND user_id = ?`, a.ids["project"], a.insider)
@@ -113,6 +118,10 @@ func main() {
 		return routes[i].Path < routes[j].Path
 	})
 
+	if *seed {
+		a.seedRoutes(routes)
+	}
+
 	var results []result
 	for _, rt := range routes {
 		if skip(rt.Path) {
@@ -128,7 +137,14 @@ func main() {
 		res.URL = url
 		full := srv.URL + url
 		if !*noQuery {
-			full += fmt.Sprintf("?workspace_id=%d&project_id=%d&issue_id=%d", a.ws, a.ids["project"], a.ids["issue"])
+			ws, project, issue := a.ws, a.ids["project"], a.ids["issue"]
+			if a.attacker != nil {
+				ws, project, issue = a.attacker.ws, a.attacker.project, a.attacker.issue
+			}
+			full += fmt.Sprintf("?workspace_id=%d&project_id=%d&issue_id=%d", ws, project, issue)
+		}
+		if a.attacker != nil && !hasChildParam(rt.Path) {
+			continue
 		}
 		var body string
 		res.Outsider, body = call(client, rt.Method, full, probeTok)
@@ -138,6 +154,8 @@ func main() {
 		res.Body = body
 		if *member {
 			res.Verdict = a.classifyMember(rt.Method, rt.Path, res.Outsider, body)
+		} else if a.attacker != nil {
+			res.Verdict = classifyCross(res.Outsider)
 		} else {
 			res.Verdict = a.classify(rt.Method, res.Outsider, res.Insider, body)
 		}
@@ -220,12 +238,15 @@ func (a *auditor) classifyMember(method, path string, code int, body string) str
 }
 
 type auditor struct {
-	db      *gorm.DB
-	ws      uint64
-	insider uint64
-	ids     map[string]uint64 // resolved by table name, plus "project"/"issue"
-	markers []string
+	db       *gorm.DB
+	ws       uint64
+	insider  uint64
+	ids      map[string]uint64 // resolved by table name, plus "project"/"issue"
+	markers  []string
+	attacker *tenant // set in -cross mode
 }
+
+type tenant struct{ ws, project, issue uint64 }
 
 func (a *auditor) pickFixtures() {
 	var project struct{ ID uint64; Identifier string }
@@ -263,13 +284,14 @@ func (a *auditor) fill(path string) (string, bool, string) {
 			continue
 		}
 		name := s[1:]
-		prev := ""
-		if i > 0 {
-			prev = segs[i-1]
-		}
+		prev := pathContext(strings.Split(path, "/"), i)
 		id, ok := a.resolve(name, prev, resolved)
 		if !ok {
-			return "", false, name
+			if text, ok := a.resolveText(name, prev); ok {
+				segs[i] = text
+				continue
+			}
+			return "", false, name + "@" + prev
 		}
 		segs[i] = strconv.FormatUint(id, 10)
 	}
@@ -307,11 +329,45 @@ var overrides = map[string][]string{
 	"squads":              {"squads"},
 	"options":             {"custom_field_options"},
 	"widgets":             {"dashboard_widgets"},
+	"loops":               {"agent_loops"},
+	"pipelines":           {"agent_pipelines"},
+	"github":              {"github_connections"},
+	"slack":               {"slack_connections"},
+	"memory-sessions":     {"memory_sessions"},
+	"agent-sessions":      {"agent_sessions"},
+	"stages":              {"sdlc_stages"},
+	"activity":            {"agent_activities"},
+	"relations":           {"issue_relations"},
+	"values":              {"custom_fields"},
+
+	"cicd/builds":             {"build_records", "cicd_builds"},
+	"developer-agent/jobs":    {"developer_jobs"},
+	"tester-agent/jobs":       {"tester_jobs"},
+	":taskId/executions":      {"autopilot_executions"},
+	":squadId/executions":     {"squad_executions"},
+	":squadId/members":        {"squad_members"},
+	"relations/types":         {"relation_types"},
+	":templateId/types":       {"project_template_types", "issue_types"},
+	":typeId/fields":          {"custom_fields"},
+	":id/fields":              {"custom_fields"},
+	":wsParam/memories":       {"memory_entries"},
+	":fieldId/options":        {"custom_field_options"},
+	":pageId/versions":        {"page_versions"},
 }
 
 var snakeRe = regexp.MustCompile(`([a-z0-9])([A-Z])`)
 
 func (a *auditor) resolve(name, prev string, resolved map[string]uint64) (uint64, bool) {
+	if a.attacker != nil {
+		switch name {
+		case "wsParam":
+			return a.attacker.ws, true
+		case "projectId":
+			return a.attacker.project, true
+		case "issueId":
+			return a.attacker.issue, true
+		}
+	}
 	switch name {
 	case "wsParam":
 		return a.ws, true
@@ -326,7 +382,35 @@ func (a *auditor) resolve(name, prev string, resolved map[string]uint64) (uint64
 		a.db.Raw(`SELECT user_id FROM workspace_members WHERE workspace_id = ? AND user_id <> ? ORDER BY user_id LIMIT 1`, a.ws, a.insider).Scan(&uid)
 		return uid, uid != 0
 	}
+	for _, table := range candidates(name, prev) {
+		if id, ok := a.victimRow(table, resolved); ok {
+			resolved[table] = id
+			return id, true
+		}
+	}
+	return 0, false
+}
+
+// pathContext returns "grandparent/parent" for the param at segs[i].
+func pathContext(segs []string, i int) string {
+	switch {
+	case i >= 2:
+		return segs[i-2] + "/" + segs[i-1]
+	case i == 1:
+		return segs[0]
+	}
+	return ""
+}
+
+// candidates lists the tables a :name path param may refer to, most likely
+// first. ctx is "grandparent/parent"; overrides may key on either form.
+func candidates(name, ctx string) []string {
+	prev := ctx
+	if j := strings.LastIndex(ctx, "/"); j >= 0 {
+		prev = ctx[j+1:]
+	}
 	var cands []string
+	cands = append(cands, overrides[ctx]...)
 	cands = append(cands, overrides[prev]...)
 	if prev != "" && !strings.HasPrefix(prev, ":") {
 		cands = append(cands, strings.ReplaceAll(prev, "-", "_"))
@@ -336,13 +420,7 @@ func (a *auditor) resolve(name, prev string, resolved map[string]uint64) (uint64
 		cands = append(cands, overrides[base+"s"]...)
 		cands = append(cands, base+"s", base, base+"es")
 	}
-	for _, table := range cands {
-		if id, ok := a.victimRow(table, resolved); ok {
-			resolved[table] = id
-			return id, true
-		}
-	}
-	return 0, false
+	return cands
 }
 
 // victimRow finds a row of table owned by the victim workspace, preferring
@@ -392,7 +470,30 @@ func (a *auditor) victimRow(table string, resolved map[string]uint64) (uint64, b
 			return id, true
 		}
 	}
+	var cols []string
+	a.db.Raw(`SELECT column_name FROM information_schema.columns
+		WHERE table_schema = current_schema() AND table_name = ? AND column_name LIKE '%\_id'`, table).Scan(&cols)
+	for _, c := range cols {
+		if _, pid, ok := parentLink(strings.TrimSuffix(c, "_id"), resolved); ok {
+			var id uint64
+			a.db.Raw(fmt.Sprintf(`SELECT id FROM %s WHERE %s = ?%s ORDER BY id LIMIT 1`, table, c, soft), pid).Scan(&id)
+			if id != 0 {
+				return id, true
+			}
+		}
+	}
 	return 0, false
+}
+
+// parentLink finds the resolved parent table a base_id column plausibly
+// points at, e.g. custom_fields for field_id or issue_types for type_id.
+func parentLink(base string, resolved map[string]uint64) (string, uint64, bool) {
+	for t, id := range resolved {
+		if t == base+"s" || t == base+"es" || strings.HasSuffix(t, "_"+base+"s") || strings.HasSuffix(t, "_"+base+"es") {
+			return t, id, true
+		}
+	}
+	return "", 0, false
 }
 
 func skip(path string) bool {
@@ -471,7 +572,7 @@ func writeReport(path string, a *auditor, results []result) {
 	for _, k := range keys {
 		fmt.Fprintf(&b, "- %s: %d\n", k, counts[k])
 	}
-	for _, section := range []string{"ESCALATE", "WRITE", "LEAK", "READ", "status500", "unresolved"} {
+	for _, section := range []string{"XTENANT", "ESCALATE", "WRITE", "LEAK", "READ", "status500", "unresolved"} {
 		fmt.Fprintf(&b, "\n## %s\n\n", section)
 		for _, r := range results {
 			if r.Verdict == section || section == "unresolved" && strings.HasPrefix(r.Verdict, "unresolved") ||
