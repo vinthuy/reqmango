@@ -4326,6 +4326,10 @@
   },
   "issueLabels": {
     "mine": "我的",
+    "settingsStateGroup": {
+      "backlog": "待办池",
+      "todo": "待办"
+    },
     "priority": {
       "urgent": "紧急",
       "high": "高",

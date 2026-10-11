@@ -4326,6 +4326,10 @@
   },
   "issueLabels": {
     "mine": "Mine",
+    "settingsStateGroup": {
+      "backlog": "Backlog",
+      "todo": "Todo"
+    },
     "priority": {
       "urgent": "Urgent",
       "high": "High",

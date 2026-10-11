@@ -23,3 +23,12 @@ export function getStateGroupName(group: string): string {
   }
   return names[group] || group
 }
+
+export function getSettingsStateGroupName(group: string): string {
+  const { t } = useI18n()
+  const names: Record<string, string> = {
+    backlog: t('issueLabels.settingsStateGroup.backlog'),
+    todo: t('issueLabels.settingsStateGroup.todo'),
+  }
+  return names[group] || getStateGroupName(group)
+}

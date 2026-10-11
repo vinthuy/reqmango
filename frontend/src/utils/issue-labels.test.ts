@@ -13,6 +13,7 @@ describe('issue labels', () => {
     setLocale('zh-CN')
     expect(priorities.map(getPriorityName)).toEqual(['紧急', '高', '中', '低', '无'])
     expect(groups.map(getStateGroupName)).toEqual(['待办', '计划中', '进行中', '已完成', '已取消'])
+    expect(groups.map(settingsState)).toEqual(['待办池', '待办', '进行中', '已完成', '已取消'])
     setLocale('en-US')
     expect(priorities.map(getPriorityName)).toEqual(['Urgent', 'High', 'Medium', 'Low', 'None'])
     expect(groups.map(getStateGroupName)).toEqual(['Backlog', 'Todo', 'In Progress', 'Done', 'Cancelled'])
@@ -23,5 +24,6 @@ describe('issue labels', () => {
   it('preserves unknown values as a fallback', () => {
     expect(getPriorityName('custom')).toBe('custom')
     expect(getStateGroupName('custom')).toBe('custom')
+    expect(settingsState('custom')).toBe('custom')
   })
 })

@@ -72,6 +72,8 @@ docker compose up --build
 - 翻译：`cd frontend && npm run i18n:check`（检查静态 key；动态拼接 key 需另行验证）
 
 编号并发回归：设置 PostgreSQL 连接变量 `TEST_DATABASE_URL`，运行 `cd backend && go test ./internal/service -run TestIssueSequence`。测试会创建并清理独立 schema，数据库角色需有创建 schema 的权限；未设置变量时跳过，CI 已配置。
+
+E2E 必须使用临时 PostgreSQL 数据库，不要连接生产环境：测试会创建账户并修改种子数据。Intake fixture 会删除工作区，但注册账户保留到测试库被丢弃；CI 会在每个任务结束后丢弃数据库。
    - 后端：`cd backend && go test ./internal/...`
    - 手动走一遍复现路径或主流程
 4. 按 PR 模板提 PR，并关联 Issue（优先提到你克隆的那一侧；维护者会同步双远程）。

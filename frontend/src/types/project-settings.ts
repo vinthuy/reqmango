@@ -143,7 +143,7 @@ export interface LabelLite {
 /**
  * 获取状态分组的显示名称
  */
-export { getStateGroupName } from '@/utils/issue-labels'
+export { getSettingsStateGroupName as getStateGroupName } from '@/utils/issue-labels'
 
 /**
  * 获取优先级的显示名称

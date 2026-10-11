@@ -76,6 +76,8 @@ Keep **zh-CN and en-US in sync** when you add UI strings. Prefer `t('namespace.k
 
 CI (`.github/workflows/ci.yml`) runs lint, Go tests, frontend tests, and e2e — PRs should stay green.
 
+Run E2E against a disposable PostgreSQL database, not production: tests create accounts and mutate seed data. Intake fixtures delete their workspace, but registered accounts remain until the test database is discarded; CI discards its database after each job.
+
 ## What we welcome
 
 - Bug fixes with a clear repro
