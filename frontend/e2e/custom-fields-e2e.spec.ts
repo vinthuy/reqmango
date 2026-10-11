@@ -107,6 +107,11 @@ test.describe('Custom Fields — Full UI Journey', () => {
     const types = Array.isArray(typesBody) ? typesBody : (typesBody.data || [])
     const typeId = (types.find((t: any) => t.name === 'Task') || types[0])?.id
     expect(typeId).toBeTruthy()
+    // Seeded projects may list workspace types via legacy fallback without an
+    // import row — import first (200/201/409 all fine) so the write path accepts it.
+    await request.post(`${API}/projects/${demo.projectId}/issue-types/${typeId}/import`, {
+      headers: demo.headers,
+    })
     const typed = await request.put(`${API}/issues/${issueId}?workspace_id=${demo.workspaceId}`, {
       headers: demo.headers,
       data: { type_id: typeId },
