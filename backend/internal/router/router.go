@@ -208,7 +208,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	sessionH := aihandler.NewAgentSessionHandler(db)
 
 	// JWT middleware
-	authMiddleware := middleware.AuthMiddleware(db, cfg.SecretKey)
+	authMiddleware := middleware.ScopedAuthMiddleware(db, cfg.SecretKey)
 
 	// Language detection middleware
 	r.Use(middleware.LanguageMiddleware())

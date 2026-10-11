@@ -31,95 +31,115 @@ func msg(c *gin.Context, key, fallback string) string {
 // AuthMiddleware validates JWT tokens and sets the current user in context.
 func AuthMiddleware(db *gorm.DB, secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "missing_auth_header", "Missing authorization header")})
-			c.Abort()
-			return
-		}
-
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "invalid_format", "Invalid authorization header format")})
-			c.Abort()
-			return
-		}
-
-		tokenStr := parts[1]
-
-		// Personal access tokens take precedence: long-lived credentials
-		// stored as SHA-256 hashes (used by CLI / MCP / CI).
-		if strings.HasPrefix(tokenStr, service.PATPrefix) {
-			patSvc := service.NewPATService(db)
-			user, err := patSvc.Authenticate(tokenStr)
-			if err != nil {
-				if appErr, ok := err.(*common.AppError); ok {
-					c.JSON(appErr.Code, gin.H{"message": appErr.Message})
-				} else {
-					c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid token")})
-				}
-				c.Abort()
-				return
-			}
-			c.Set("currentUser", user)
+		if authenticate(c, db, secret) != nil {
 			c.Next()
-			return
 		}
-
-		// Parse and validate JWT
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return []byte(secret), nil
-		})
-
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid or expired token")})
-			c.Abort()
-			return
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid token claims")})
-			c.Abort()
-			return
-		}
-
-		// Extract user ID from "sub" claim
-		sub, ok := claims["sub"].(string)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid token subject")})
-			c.Abort()
-			return
-		}
-
-		userID, err := strconv.ParseUint(sub, 10, 64)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid user ID in token")})
-			c.Abort()
-			return
-		}
-
-		// Look up user
-		var user model.User
-		if err := db.First(&user, userID).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "user_not_found", "User not found")})
-			c.Abort()
-			return
-		}
-
-		if !user.IsActive || user.DeletedAt.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "forbidden", "Account is disabled")})
-			c.Abort()
-			return
-		}
-
-		// Set user in context
-		c.Set("currentUser", &user)
-		c.Next()
 	}
+}
+
+// ScopedAuthMiddleware is AuthMiddleware followed by the tenancy checks in
+// scope.go, so every authenticated route is confined to the caller's
+// workspaces and projects.
+func ScopedAuthMiddleware(db *gorm.DB, secret string) gin.HandlerFunc {
+	scope := newScopeChecker(db)
+	return func(c *gin.Context) {
+		user := authenticate(c, db, secret)
+		if user != nil && scope.check(c, user) {
+			c.Next()
+		}
+	}
+}
+
+// authenticate sets currentUser from the bearer token, or aborts and
+// returns nil.
+func authenticate(c *gin.Context, db *gorm.DB, secret string) *model.User {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "missing_auth_header", "Missing authorization header")})
+		c.Abort()
+		return nil
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "invalid_format", "Invalid authorization header format")})
+		c.Abort()
+		return nil
+	}
+
+	tokenStr := parts[1]
+
+	// Personal access tokens take precedence: long-lived credentials
+	// stored as SHA-256 hashes (used by CLI / MCP / CI).
+	if strings.HasPrefix(tokenStr, service.PATPrefix) {
+		patSvc := service.NewPATService(db)
+		user, err := patSvc.Authenticate(tokenStr)
+		if err != nil {
+			if appErr, ok := err.(*common.AppError); ok {
+				c.JSON(appErr.Code, gin.H{"message": appErr.Message})
+			} else {
+				c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid token")})
+			}
+			c.Abort()
+			return nil
+		}
+		c.Set("currentUser", user)
+		return user
+	}
+
+	// Parse and validate JWT
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+
+	if err != nil || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid or expired token")})
+		c.Abort()
+		return nil
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid token claims")})
+		c.Abort()
+		return nil
+	}
+
+	// Extract user ID from "sub" claim
+	sub, ok := claims["sub"].(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid token subject")})
+		c.Abort()
+		return nil
+	}
+
+	userID, err := strconv.ParseUint(sub, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "unauthorized", "Invalid user ID in token")})
+		c.Abort()
+		return nil
+	}
+
+	// Look up user
+	var user model.User
+	if err := db.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "user_not_found", "User not found")})
+		c.Abort()
+		return nil
+	}
+
+	if !user.IsActive || user.DeletedAt.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": msg(c, "forbidden", "Account is disabled")})
+		c.Abort()
+		return nil
+	}
+
+	// Set user in context
+	c.Set("currentUser", &user)
+	return &user
 }
 
 // GetCurrentUser extracts the current user from the Gin context.
