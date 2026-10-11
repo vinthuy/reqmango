@@ -97,7 +97,7 @@
           :default-type-id="defaultTypeId"
           :default-state-id="defaultStateId"
           :inline="true"
-          @created="triggerRefresh"
+          @created="onQuickCreated"
         />
         <FilterBar
           :key="'filter-' + projectId"
@@ -366,6 +366,7 @@ import type { CycleResponse } from '@/types/cycle'
 import type { ModuleResponse } from '@/types/module'
 import { useModuleStore } from '@/stores/module'
 import { extractSearchTerm } from '@/utils/highlight'
+import { markAutoTriagePending } from '@/utils/autoTriagePref'
 
 const route = useRoute()
 const router = useRouter()
@@ -599,6 +600,15 @@ function openDetailPanel(issue: any) {
       issue: String(issue.id),
     },
   })
+}
+
+function onQuickCreated(issue: any) {
+  triggerRefresh()
+  if (issue?.auto_triage_started && issue.id) {
+    markAutoTriagePending(issue.id)
+    toast.success(t('issue.autoTriageStarted'))
+    openDetailPanel(issue)
+  }
 }
 
 function closeDetailPanel() {

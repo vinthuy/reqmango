@@ -88,6 +88,8 @@ export interface IssueResponse extends IssueBase {
   completed_at?: string
   is_draft: boolean
   archived_at?: string
+  /** Present when create requested async auto-triage. */
+  auto_triage_started?: boolean
   
   project_id: number
   workspace_id: number

@@ -42,6 +42,13 @@ func TestFindTriageAgent_PrefersNamedTriage(t *testing.T) {
 	assert.Equal(t, "请求分诊", got.Name)
 }
 
+func TestDispatchActivityAction_UsesTriggeredBy(t *testing.T) {
+	assert.Equal(t, "dispatch", dispatchActivityAction(nil))
+	assert.Equal(t, "dispatch", dispatchActivityAction(&DispatchContext{}))
+	assert.Equal(t, "auto_triage", dispatchActivityAction(&DispatchContext{TriggeredBy: "auto_triage"}))
+	assert.Equal(t, "mention", dispatchActivityAction(&DispatchContext{TriggeredBy: "  mention  "}))
+}
+
 func TestFindTriageAgent_FallsBackToSuggestCapability(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:triage_fallback?mode=memory&cache=shared"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),

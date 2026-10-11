@@ -243,6 +243,7 @@ import { workspaceApi } from '@/api/workspace'
 
 import * as workItemTemplateApi from '@/api/work-item-template'
 import type { WorkItemTemplate } from '@/types/work-item-template'
+import { getAutoTriagePref, markAutoTriagePending, setAutoTriagePref } from '@/utils/autoTriagePref'
 
 const route = useRoute()
 const router = useRouter()
@@ -279,7 +280,9 @@ const projectMembers = ref<User[]>([])
 const selectedTypeId = ref<number | null>(null)
 const customFieldValues = ref<Record<number, IssueCustomFieldValueUpdate>>({})
 const saving = ref(false)
-const autoTriage = ref(false)
+const autoTriage = ref(getAutoTriagePref(projectId.value))
+watch(autoTriage, (v) => setAutoTriagePref(projectId.value, v))
+watch(projectId, (id) => { autoTriage.value = getAutoTriagePref(id) })
 
 const templates = ref<WorkItemTemplate[]>([])
 const selectedTemplateId = ref<number | null>(null)
@@ -685,21 +688,23 @@ async function submitForm() {
       data.custom_field_values = cfValues
     }
 
-    console.log('Creating issue with data:', data)
     const issue = await issueApi.createIssue(projectId.value, workspaceId.value, data)
-    console.log('Created issue:', issue)
 
-    // 显示成功提示
-    toast.success(t('issue.createSuccess'))
+    if (issue?.auto_triage_started && issue.id) {
+      markAutoTriagePending(issue.id)
+      toast.success(t('issue.autoTriageStarted'))
+    } else {
+      toast.success(t('issue.createSuccess'))
+    }
 
-    // 刷新工作项列表
     emit('created', issue)
 
-    // 返回到项目页面，并保持当前的视图状态
+    const query: Record<string, string> = { view: returnView.value }
+    if (issue?.id) query.issue = String(issue.id)
     if (slug.value) {
-      router.push(`/workspace/${slug.value}/project/${projectId.value}?view=${returnView.value}`)
+      router.push({ path: `/workspace/${slug.value}/project/${projectId.value}`, query })
     } else {
-      router.push(`/workspaces/${workspaceId.value}/projects/${projectId.value}?view=${returnView.value}`)
+      router.push({ path: `/workspaces/${workspaceId.value}/projects/${projectId.value}`, query })
     }
   } catch (error: any) {
     console.error('Failed to create issue:', error)
