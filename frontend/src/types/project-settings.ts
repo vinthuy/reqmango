@@ -143,30 +143,12 @@ export interface LabelLite {
 /**
  * 获取状态分组的显示名称
  */
-export function getStateGroupName(group: StateGroupEnum): string {
-  const names: Record<StateGroupEnum, string> = {
-    [StateGroupEnum.BACKLOG]: '待办池',
-    [StateGroupEnum.TODO]: '待办',
-    [StateGroupEnum.IN_PROGRESS]: '进行中',
-    [StateGroupEnum.DONE]: '已完成',
-    [StateGroupEnum.CANCELLED]: '已取消'
-  }
-  return names[group] || group
-}
+export { getStateGroupName } from '@/utils/issue-labels'
 
 /**
  * 获取优先级的显示名称
  */
-export function getPriorityName(priority: IssuePriorityEnum): string {
-  const names: Record<IssuePriorityEnum, string> = {
-    [IssuePriorityEnum.URGENT]: '紧急',
-    [IssuePriorityEnum.HIGH]: '高',
-    [IssuePriorityEnum.MEDIUM]: '中',
-    [IssuePriorityEnum.LOW]: '低',
-    [IssuePriorityEnum.NONE]: '无'
-  }
-  return names[priority] || priority
-}
+export { getPriorityName } from '@/utils/issue-labels'
 
 /**
  * 获取优先级的颜色

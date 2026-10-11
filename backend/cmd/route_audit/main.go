@@ -53,9 +53,15 @@ func main() {
 	if dsn == "" || !strings.Contains(dsn, "audit") {
 		log.Fatal("set ROUTE_AUDIT_DATABASE_URL to a disposable database whose name contains 'audit'")
 	}
-	os.Setenv("HTTP_PROXY", "http://127.0.0.1:9")
-	os.Setenv("HTTPS_PROXY", "http://127.0.0.1:9")
-	os.Setenv("NO_PROXY", "")
+	if err := os.Setenv("HTTP_PROXY", "http://127.0.0.1:9"); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.Setenv("HTTPS_PROXY", "http://127.0.0.1:9"); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.Setenv("NO_PROXY", ""); err != nil {
+		log.Fatal(err)
+	}
 
 	cfg := config.Load()
 	cfg.DatabaseURL = dsn
@@ -228,7 +234,10 @@ type auditor struct {
 }
 
 func (a *auditor) pickFixtures() {
-	var project struct{ ID uint64; Identifier string }
+	var project struct {
+		ID         uint64
+		Identifier string
+	}
 	a.db.Raw(`SELECT p.id, p.identifier FROM projects p WHERE p.workspace_id = ? AND p.deleted_at IS NULL
 		ORDER BY (SELECT count(*) FROM issues i WHERE i.project_id = p.id) DESC LIMIT 1`, a.ws).Scan(&project)
 	var issue uint64
@@ -251,8 +260,6 @@ func (a *auditor) pickFixtures() {
 	a.markers = []string{`"` + slug + `"`, `"` + project.Identifier + `"`}
 	fmt.Printf("victim workspace=%d project=%d (%s) issue=%d insider=%d\n", a.ws, project.ID, project.Identifier, issue, a.insider)
 }
-
-var paramRe = regexp.MustCompile(`:(\w+)`)
 
 // fill substitutes every :param in path with a victim-owned ID.
 func (a *auditor) fill(path string) (string, bool, string) {
@@ -416,7 +423,7 @@ func call(c *http.Client, method, url, token string) (int, string) {
 	if err != nil {
 		return 0, err.Error()
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	return resp.StatusCode, string(b)
 }
@@ -489,8 +496,8 @@ func writeReport(path string, a *auditor, results []result) {
 		}
 	}
 	raw, _ := json.MarshalIndent(results, "", " ")
-	_ = os.WriteFile(strings.TrimSuffix(path, ".md")+".json", raw, 0o644)
-	_ = os.WriteFile(path, []byte(b.String()), 0o644)
+	_ = os.WriteFile(strings.TrimSuffix(path, ".md")+".json", raw, 0o600)
+	_ = os.WriteFile(path, []byte(b.String()), 0o600)
 	fmt.Printf("\nreport: %s\n", path)
 	for _, k := range keys {
 		fmt.Printf("  %s: %d\n", k, counts[k])

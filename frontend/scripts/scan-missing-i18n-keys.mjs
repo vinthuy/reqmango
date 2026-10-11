@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import zh from '../src/locales/zh-CN.json' with { type: 'json' }
-import en from '../src/locales/en-US.json' with { type: 'json' }
+const zh = JSON.parse(fs.readFileSync(new URL('../src/locales/zh-CN.json', import.meta.url), 'utf8'))
+const en = JSON.parse(fs.readFileSync(new URL('../src/locales/en-US.json', import.meta.url), 'utf8'))
 
 function flatten(o, p = '') {
   const r = {}
@@ -26,14 +26,15 @@ function walk(d, acc = []) {
 const z = flatten(zh)
 const e = flatten(en)
 const files = walk('./src')
-const keyRe = /\bt\(\s*['"]([a-zA-Z0-9_.]+)['"]/g
+const keyRe = /\bt\(\s*(['"])([a-zA-Z0-9_.]+)\1\s*(\+)?/g
 const used = new Map()
 
 for (const f of files) {
   const text = fs.readFileSync(f, 'utf8')
   let m
   while ((m = keyRe.exec(text))) {
-    const k = m[1]
+    if (m[3]) continue // Concatenated keys are dynamic, not missing literal keys.
+    const k = m[2]
     if (!used.has(k)) used.set(k, [])
     used.get(k).push(f.replaceAll('\\', '/'))
   }
@@ -47,8 +48,7 @@ for (const [k, refs] of used) {
 }
 missing.sort((a, b) => a.k.localeCompare(b.k))
 console.log(`used=${used.size} missing=${missing.length}`)
-console.log('common.refresh in zh?', 'common.refresh' in z, z['common.refresh'])
-console.log('refresh under other?', Object.keys(z).filter((k) => k.endsWith('.refresh')).slice(0, 20))
 for (const x of missing) {
   console.log(`${!x.inZ && !x.inE ? 'BOTH' : !x.inZ ? 'ZH' : 'EN'}\t${x.k}\t${x.sample}`)
 }
+if (missing.length) process.exitCode = 1

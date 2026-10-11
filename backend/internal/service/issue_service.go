@@ -19,6 +19,7 @@ import (
 	"github.com/reqmango/backend/internal/security"
 	"github.com/reqmango/backend/internal/workflow"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type IssueService struct {
@@ -93,6 +94,20 @@ func (s *IssueService) validateTypeVisibleInProject(typeID, projectID, workspace
 	return common.BadRequest("This issue type has not been imported into the project")
 }
 
+// nextIssueSequence holds the project lock until the caller's transaction ends.
+func nextIssueSequence(tx *gorm.DB, projectID uint64) (int, error) {
+	var project model.Project
+	if err := tx.Select("id").Clauses(clause.Locking{Strength: "UPDATE"}).First(&project, projectID).Error; err != nil {
+		return 0, err
+	}
+	var maxSeq int
+	if err := tx.Unscoped().Model(&model.Issue{}).Where("project_id = ?", projectID).
+		Select("COALESCE(MAX(sequence_id), 0)").Scan(&maxSeq).Error; err != nil {
+		return 0, err
+	}
+	return maxSeq + 1, nil
+}
+
 // Create creates a new issue.
 func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, workspaceID, userID uint64) (*response.IssueResponse, error) {
 	// Validate project exists
@@ -123,8 +138,6 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 		}
 		stateID = defaultState.ID
 	}
-
-	// SequenceID will be assigned inside the transaction below to prevent race conditions
 
 	priority := req.Priority
 	if priority == "" {
@@ -261,12 +274,15 @@ func (s *IssueService) Create(req *request.IssueCreateRequest, projectID, worksp
 	}
 
 	tx := s.db.Begin()
-
-	// Auto-increment sequence_id (inside transaction to prevent race conditions)
-	var maxSeq int
-	tx.Model(&model.Issue{}).Where("project_id = ?", projectID).
-		Select("COALESCE(MAX(sequence_id), 0)").Scan(&maxSeq)
-	issue.SequenceID = maxSeq + 1
+	if tx.Error != nil {
+		return nil, common.Internal("Failed to begin transaction")
+	}
+	sequenceID, err := nextIssueSequence(tx, projectID)
+	if err != nil {
+		tx.Rollback()
+		return nil, common.Internal("Failed to allocate issue number")
+	}
+	issue.SequenceID = sequenceID
 
 	if err := tx.Create(issue).Error; err != nil {
 		tx.Rollback()
