@@ -49,3 +49,18 @@ func TestBuildAgentSystemPrompt_ListsDeclinedSuggestionsForTheIssue(t *testing.T
 	other := uint64(99)
 	assert.NotContains(t, s.buildAgentSystemPrompt(&model.Agent{Name: "x"}, &DispatchContext{IssueID: &other}), "未被采纳")
 }
+
+func TestBuildAgentSystemPrompt_IssueDispatchStatesTheIssuesProject(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Issue{}, &model.Comment{}))
+	issue := model.Issue{Name: "支付失败", ProjectID: 3015, WorkspaceID: 3658, StateID: 1}
+	require.NoError(t, db.Create(&issue).Error)
+
+	s := &AgentService{db: db}
+	prompt := s.buildAgentSystemPrompt(&model.Agent{Name: "请求分诊"},
+		&DispatchContext{WorkspaceID: 3658, IssueID: &issue.ID})
+
+	assert.Contains(t, prompt, "project_id=3015",
+		"without it the model guesses workspace_id as project_id and list_states/list_labels come back empty")
+}

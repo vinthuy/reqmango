@@ -923,8 +923,8 @@ func (s *AgentService) buildAgentSystemPrompt(agent *model.Agent, ctx *DispatchC
 
 	if ctx != nil {
 		sb.WriteString(fmt.Sprintf("Current context: workspace_id=%d", ctx.WorkspaceID))
-		if ctx.ProjectID != nil {
-			sb.WriteString(fmt.Sprintf(", project_id=%d", *ctx.ProjectID))
+		if pid := s.dispatchProjectID(ctx); pid != 0 {
+			sb.WriteString(fmt.Sprintf(", project_id=%d", pid))
 		}
 		if ctx.IssueID != nil {
 			sb.WriteString(fmt.Sprintf(", issue_id=%d", *ctx.IssueID))
@@ -939,6 +939,23 @@ func (s *AgentService) buildAgentSystemPrompt(agent *model.Agent, ctx *DispatchC
 	}
 
 	return sb.String()
+}
+
+// dispatchProjectID is the project the agent works in: the explicit one, else
+// the issue's. Leaving it out of the prompt makes models pass workspace_id as
+// project_id, which silently empties every project-scoped tool.
+func (s *AgentService) dispatchProjectID(ctx *DispatchContext) uint64 {
+	if ctx.ProjectID != nil {
+		return *ctx.ProjectID
+	}
+	if ctx.IssueID == nil || s.db == nil {
+		return 0
+	}
+	var issue model.Issue
+	if err := s.db.Select("project_id").First(&issue, *ctx.IssueID).Error; err != nil {
+		return 0
+	}
+	return issue.ProjectID
 }
 
 // ======== Monitoring Dashboard ========
