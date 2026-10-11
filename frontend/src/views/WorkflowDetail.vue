@@ -5,6 +5,7 @@ import WorkflowVisualization from '@/components/WorkflowVisualization.vue';
 import api from '@/api';
 import { workflowApi } from '@/api/workflow';
 import { useI18n } from '@/composables/useI18n';
+import { useProjectPermissions } from '@/composables/usePermission';
 
 const { t } = useI18n();
 
@@ -14,6 +15,9 @@ const router = useRouter();
 const workflowId = ref(0);
 const projectId = ref(0);
 const workspaceId = ref(0);
+
+const { can } = useProjectPermissions(() => projectId.value || null);
+const canManageWorkflows = computed(() => can('workflow:manage'));
 
 const workflowName = ref('');
 const workflowDescription = ref('');
@@ -305,6 +309,7 @@ onMounted(loadData);
                 <p class="text-xs text-gray-500 mt-1">{{ t('workflow.issueTypeDesc') }}</p>
               </div>
               <button
+                v-if="canManageWorkflows"
                 @click="saveIssueTypes"
                 :disabled="savingIssueTypes"
                 class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
@@ -313,7 +318,7 @@ onMounted(loadData);
               </button>
             </div>
             <div class="p-6">
-              <div class="flex items-center space-x-2 mb-3">
+              <div v-if="canManageWorkflows" class="flex items-center space-x-2 mb-3">
                 <button @click="selectAllIssueTypes" class="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100 transition-colors">{{ t('issueList.selectAll') || 'Select All' }}</button>
                 <button @click="deselectAllIssueTypes" class="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100 transition-colors">{{ t('issueList.deselectAll') || 'Deselect All' }}</button>
               </div>
@@ -326,6 +331,7 @@ onMounted(loadData);
                   <input
                     type="checkbox"
                     :checked="selectedIssueTypeIds.includes(it.id)"
+                    :disabled="!canManageWorkflows"
                     @change="toggleIssueType(it.id)"
                     class="rounded text-purple-600 focus:ring-purple-500"
                   />
@@ -384,7 +390,7 @@ onMounted(loadData);
                   <div class="p-4 border-t border-gray-200">
                     <div class="flex items-center justify-between mb-3">
                       <span class="text-sm text-gray-500">{{ t('settings.transitions') }}</span>
-                      <button @click="handleAddTransition(state.id)" class="text-blue-600 hover:text-blue-700 text-sm">+ {{ t('workflow.addTransition') }}</button>
+                      <button v-if="canManageWorkflows" @click="handleAddTransition(state.id)" class="text-blue-600 hover:text-blue-700 text-sm">+ {{ t('workflow.addTransition') }}</button>
                     </div>
                     <div class="space-y-2">
                       <div v-for="tr in getTransitionsFromState(state.id)" :key="tr.id" class="p-3 bg-gray-50 rounded-lg">
@@ -411,7 +417,7 @@ onMounted(loadData);
                             </template>
                             <span v-if="tr.description" class="text-xs text-gray-400">{{ tr.description }}</span>
                           </div>
-                          <button @click="handleDeleteTransition(tr.id)" class="text-gray-400 hover:text-red-500">✕</button>
+                          <button v-if="canManageWorkflows" @click="handleDeleteTransition(tr.id)" class="text-gray-400 hover:text-red-500">✕</button>
                         </div>
                       </div>
                       <div v-if="getTransitionsFromState(state.id).length === 0" class="text-center py-4 text-gray-400 text-sm">{{ t('workflow.noTransitionsDefined') }}</div>

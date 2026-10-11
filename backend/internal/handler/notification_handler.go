@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/dto/request"
+	"github.com/reqmango/backend/internal/middleware"
 	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
@@ -125,6 +126,11 @@ func (h *NotificationHandler) Delete(c *gin.Context) {
 }
 
 func (h *NotificationHandler) CheckDueReminders(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil || !user.IsSuperuser {
+		common.RespondError(c, common.Forbidden("Superuser required"))
+		return
+	}
 	if err := h.svc.CheckDueDateReminders(); err != nil {
 		common.RespondError(c, common.Internal("Failed to check due date reminders"))
 		return

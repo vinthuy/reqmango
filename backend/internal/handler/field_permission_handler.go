@@ -21,6 +21,11 @@ func NewFieldPermissionHandler(svc *service.FieldPermissionService) *FieldPermis
 func (h *FieldPermissionHandler) List(c *gin.Context) {
 	projectID, _ := strconv.ParseUint(c.Query("project_id"), 10, 64)
 	workspaceID, _ := strconv.ParseUint(c.Query("workspace_id"), 10, 64)
+	if workspaceID == 0 {
+		if id, err := h.svc.ResolveWorkspaceID(c.Param("wsParam")); err == nil {
+			workspaceID = id
+		}
+	}
 	perms, err := h.svc.List(projectID, workspaceID)
 	if err != nil {
 		common.RespondError(c, err)

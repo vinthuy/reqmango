@@ -1,6 +1,6 @@
 <template>
   <div class="p-6">
-    <div class="flex items-center justify-between mb-6"><div><h1 class="text-xl font-semibold text-gray-900">{{ t('workflow.title') }}</h1><p class="text-sm text-gray-500 mt-1">{{ t('workflow.desc') }}</p></div><button @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">+ {{ t('workflow.create') }}</button></div>
+    <div class="flex items-center justify-between mb-6"><div><h1 class="text-xl font-semibold text-gray-900">{{ t('workflow.title') }}</h1><p class="text-sm text-gray-500 mt-1">{{ t('workflow.desc') }}</p></div><button v-if="canManageWorkflows" @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">+ {{ t('workflow.create') }}</button></div>
     <div class="space-y-4">
       <div v-for="w in workflows" :key="w.id" class="bg-white rounded-xl border p-4">
         <div class="flex items-center justify-between mb-3">
@@ -18,7 +18,7 @@
               </span>
             </div>
           </div>
-          <div class="flex space-x-2"><button @click="openAddTrans(w)" class="text-xs text-indigo-600">+ {{ t('workflow.transition') }}</button><button @click="confirmDel(w)" class="text-xs text-red-500">{{ t('common.delete') }}</button></div>
+          <div v-if="canManageWorkflows" class="flex space-x-2"><button @click="openAddTrans(w)" class="text-xs text-indigo-600">+ {{ t('workflow.transition') }}</button><button @click="confirmDel(w)" class="text-xs text-red-500">{{ t('common.delete') }}</button></div>
         </div>
         <div v-if="w.transitions?.length" class="space-y-1">
           <div v-for="t in w.transitions" :key="t.id" class="flex items-center text-sm text-gray-600 bg-gray-50 rounded px-3 py-1.5">
@@ -26,7 +26,7 @@
             <span class="mx-2 text-gray-400">→</span>
             <span class="font-medium">{{ t.to_name || t.target_name || '#'+t.to_state_id }}</span>
             <span v-if="t.rule_type" class="ml-2 text-xs bg-blue-100 text-blue-700 px-1 rounded">{{ t.rule_type }}</span>
-            <button @click="delTrans(t.id)" class="ml-auto text-xs text-red-400 hover:text-red-600">×</button>
+            <button v-if="canManageWorkflows" @click="delTrans(t.id)" class="ml-auto text-xs text-red-400 hover:text-red-600">×</button>
           </div>
         </div>
       </div>
@@ -77,8 +77,10 @@ import { useI18n } from '@/composables/useI18n'
 import { workflowApi, listWorkspaceWorkflows, createWorkspaceWorkflow, deleteWorkspaceWorkflow, addWorkspaceTransition, deleteWorkspaceTransition } from '@/api/workflow'
 import api from '@/api'
 import { useConfirm } from '@/composables/useConfirm'
+import { useProjectPermissions } from '@/composables/usePermission'
+import { useAuthStore } from '@/stores/auth'
 
-const props = defineProps<{ projectId?: number; workspaceId?: number }>()
+const props = defineProps<{ projectId?: number; workspaceId?: number; canManage?: boolean }>()
 const { t } = useI18n()
 const { confirm } = useConfirm()
 const workflows = ref<any[]>([])
@@ -89,6 +91,32 @@ const form = ref<{ name: string; desc: string; selectedTypeIds: number[] }>({ na
 const trans = ref({ from: 0, to: 0, desc: '', rule_type: 'allow', approver_ids: '', role_allowed: '', approve_target_state_id: 0, reject_target_state_id: 0, approval_mode: 'any' })
 
 const isWorkspaceMode = computed(() => !!props.workspaceId && !props.projectId)
+
+const authStore = useAuthStore()
+const workspaceMemberRole = ref<number | null>(null)
+const { can } = useProjectPermissions(() => props.projectId)
+const canManageWorkflows = computed(() => {
+  if (props.canManage !== undefined) return props.canManage
+  if (props.projectId) return can('workflow:manage')
+  if (isWorkspaceMode.value && props.workspaceId) {
+    if (authStore.user?.is_superuser) return true
+    return (workspaceMemberRole.value ?? 0) >= 20
+  }
+  return false
+})
+
+async function loadWorkspaceManagePermission() {
+  if (!isWorkspaceMode.value || !props.workspaceId) return
+  try {
+    const res = await api.get(`/workspaces/${props.workspaceId}/members`)
+    const members = Array.isArray(res.data) ? res.data : (res.data?.data || [])
+    const uid = authStore.user?.id
+    const me = members.find((m: any) => (m.user_id ?? m.user?.id) === uid)
+    workspaceMemberRole.value = me?.role ?? 0
+  } catch {
+    workspaceMemberRole.value = 0
+  }
+}
 
 function getIssueTypeName(id: number) {
   const it = issueTypes.value.find((i: any) => i.id === id)
@@ -204,5 +232,8 @@ async function delTrans(tid:number) {
   load() 
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadWorkspaceManagePermission()
+})
 </script>

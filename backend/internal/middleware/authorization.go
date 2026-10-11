@@ -3,6 +3,7 @@ package middleware
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -13,6 +14,107 @@ import (
 	"github.com/reqmango/backend/internal/model"
 	"gorm.io/gorm"
 )
+
+// RequireWorkspacePermission admits users whose workspace role grants
+// requiredPerm. The workspace is resolved from :wsParam, ?workspace_id=,
+// ?project_id=, or resource IDs such as :typeId / :fieldId / :templateId.
+func RequireWorkspacePermission(db *gorm.DB, requiredPerm string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user, ok := accessUser(c)
+		if !ok {
+			return
+		}
+		if user.IsSuperuser {
+			c.Next()
+			return
+		}
+		wsID := permissionWorkspace(c, db)
+		if wsID == 0 {
+			c.Next()
+			return
+		}
+		level := workspaceRoleLevel(db, user.ID, wsID)
+		if level == 0 {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"message": "Not a member of this workspace"})
+			return
+		}
+		var count int64
+		systemRolePermissions(db, level).Where("p.code = ?", requiredPerm).Count(&count)
+		if count == 0 {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"message":  "Permission denied",
+				"required": requiredPerm,
+			})
+			return
+		}
+		c.Next()
+	}
+}
+
+func workspaceRoleLevel(db *gorm.DB, userID, workspaceID uint64) int {
+	var roles []int
+	db.Model(&model.WorkspaceMember{}).
+		Where("workspace_id = ? AND user_id = ? AND is_active = ?", workspaceID, userID, true).
+		Pluck("role", &roles)
+	level := 0
+	for _, r := range roles {
+		if r > level {
+			level = r
+		}
+	}
+	return level
+}
+
+func permissionWorkspace(c *gin.Context, db *gorm.DB) uint64 {
+	if id := queryID(c, "workspace_id"); id != 0 {
+		return id
+	}
+	if c.Param("wsParam") != "" {
+		if id, ok := workspaceFromParam(c, db); ok {
+			return id
+		}
+	}
+	if pid := queryID(c, "project_id"); pid != 0 {
+		var ws uint64
+		db.Raw("SELECT workspace_id FROM projects WHERE id = ?", pid).Scan(&ws)
+		if ws != 0 {
+			return ws
+		}
+	}
+	lookups := []struct{ param, table string }{
+		{"typeId", "issue_types"},
+		{"fieldId", "custom_fields"},
+		{"templateId", "project_templates"},
+		{"cycleId", "cycles"},
+		{"initiativeId", "initiatives"},
+		{"id", ""}, // table depends on path
+	}
+	for _, l := range lookups {
+		id := paramID(c, l.param)
+		if id == 0 {
+			continue
+		}
+		table := l.table
+		if table == "" {
+			switch {
+			case strings.Contains(c.FullPath(), "/conditional-fields"):
+				table = "conditional_fields"
+			case strings.Contains(c.FullPath(), "/type-templates"):
+				table = "issue_type_templates"
+			case strings.Contains(c.FullPath(), "/templates"):
+				table = "project_templates"
+			default:
+				continue
+			}
+		}
+		var ws uint64
+		db.Raw(fmt.Sprintf("SELECT workspace_id FROM %s WHERE id = ?", table), id).Scan(&ws)
+		if ws != 0 {
+			return ws
+		}
+	}
+	return 0
+}
 
 // RequirePermission admits users whose role grants requiredPerm in every
 // project the request touches. The project is resolved from the route
@@ -61,6 +163,7 @@ func permissionProjects(c *gin.Context, db *gorm.DB) []uint64 {
 			add(issue.ProjectID)
 		}
 	}
+
 	if id, err := strconv.ParseUint(c.Query("project_id"), 10, 64); err == nil {
 		add(id)
 	}

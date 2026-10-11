@@ -672,8 +672,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.POST("/:projectId/metrics/charts/reorder", metricH.ReorderCharts)
 			projects.GET("/:projectId/metrics/filter-values", metricH.GetFilterValues)
 			projects.GET("/:projectId/metrics/custom-fields", metricH.GetCustomFields)
-			projects.POST("/:projectId/custom-fields/:fieldId/enroll", customFieldH.EnrollField)
-			projects.POST("/:projectId/custom-fields/:fieldId/unenroll", customFieldH.UnenrollField)
+			projects.POST("/:projectId/custom-fields/:fieldId/enroll", middleware.RequirePermission(db, "settings:manage", "project"), customFieldH.EnrollField)
+			projects.POST("/:projectId/custom-fields/:fieldId/unenroll", middleware.RequirePermission(db, "settings:manage", "project"), customFieldH.UnenrollField)
 			projects.GET("/:projectId/intake", intakeH.List)
 			projects.GET("/:projectId/intake/metrics", intakeH.Metrics)
 			projects.GET("/:projectId/intake/settings", intakeH.GetSettings)
@@ -740,13 +740,13 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projTypes := projects.Group("/:projectId/issue-types", authMiddleware)
 			{
 				projTypes.GET("", projectIssueTypeH.ListProjectTypes)
-				projTypes.POST("", projectIssueTypeH.CreateProjectType)
-				projTypes.PATCH("/reorder", projectIssueTypeH.Reorder)
+				projTypes.POST("", middleware.RequirePermission(db, "settings:manage", "project"), projectIssueTypeH.CreateProjectType)
+				projTypes.PATCH("/reorder", middleware.RequirePermission(db, "settings:manage", "project"), projectIssueTypeH.Reorder)
 
 				// workspace-type Import model (project references workspace type by link)
 				projTypes.GET("/importable", projectIssueTypeH.ListImportable)
-				projTypes.POST("/:typeId/import", projectIssueTypeH.ImportType)
-				projTypes.DELETE("/:typeId/import", projectIssueTypeH.UnimportType)
+				projTypes.POST("/:typeId/import", middleware.RequirePermission(db, "settings:manage", "project"), projectIssueTypeH.ImportType)
+				projTypes.DELETE("/:typeId/import", middleware.RequirePermission(db, "settings:manage", "project"), projectIssueTypeH.UnimportType)
 			}
 
 			// ---- Saved Views ----
@@ -1023,38 +1023,41 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			cycles.POST("/:cycleId/apply-auto-close", cycleH.ApplyAutoCloseRules)
 		}
 
+		// Workspace settings mutations need settings:manage (admin); members only have settings:view.
+		settingsManage := middleware.RequireWorkspacePermission(db, "settings:manage")
+
 		// ---- Issue Types (protected) ----
 		issueTypes := v1.Group("/issue-types", authMiddleware)
 		{
-			issueTypes.POST("", issueTypeH.Create)
+			issueTypes.POST("", settingsManage, issueTypeH.Create)
 			issueTypes.GET("", issueTypeH.List)
 			issueTypes.GET("/:typeId", issueTypeH.Get)
-			issueTypes.PUT("/:typeId", issueTypeH.Update)
-			issueTypes.DELETE("/:typeId", issueTypeH.Delete)
-			issueTypes.PATCH("/:typeId/disable", issueTypeH.Disable)
-			issueTypes.PATCH("/reorder-workspace", issueTypeH.ReorderWorkspace) // ?workspace_id=
+			issueTypes.PUT("/:typeId", settingsManage, issueTypeH.Update)
+			issueTypes.DELETE("/:typeId", settingsManage, issueTypeH.Delete)
+			issueTypes.PATCH("/:typeId/disable", settingsManage, issueTypeH.Disable)
+			issueTypes.PATCH("/reorder-workspace", settingsManage, issueTypeH.ReorderWorkspace) // ?workspace_id=
 			issueTypes.GET("/:typeId/fields", issueTypeH.ListFields)
-			issueTypes.POST("/:typeId/fields", issueTypeH.AddField)
-			issueTypes.PUT("/:typeId/fields/:fieldId", issueTypeH.UpdateField)
-			issueTypes.DELETE("/:typeId/fields/:fieldId", issueTypeH.RemoveField)
+			issueTypes.POST("/:typeId/fields", settingsManage, issueTypeH.AddField)
+			issueTypes.PUT("/:typeId/fields/:fieldId", settingsManage, issueTypeH.UpdateField)
+			issueTypes.DELETE("/:typeId/fields/:fieldId", settingsManage, issueTypeH.RemoveField)
 		}
 
 		// ---- Custom Fields (protected) ----
 		customFields := v1.Group("/custom-fields", authMiddleware)
 		{
-			customFields.POST("", customFieldH.Create)
+			customFields.POST("", settingsManage, customFieldH.Create)
 			customFields.GET("", customFieldH.List)
 			customFields.GET("/:fieldId", customFieldH.Get)
-			customFields.PUT("/:fieldId", customFieldH.Update)
-			customFields.DELETE("/:fieldId", customFieldH.Delete)
-			customFields.POST("/:fieldId/options", customFieldH.CreateOption)
-			customFields.PUT("/:fieldId/options/:optionId", customFieldH.UpdateOption)
-			customFields.DELETE("/:fieldId/options/:optionId", customFieldH.DeleteOption)
-			customFields.POST("/issues/:issueId/values", customFieldH.SetIssueValue)
+			customFields.PUT("/:fieldId", settingsManage, customFieldH.Update)
+			customFields.DELETE("/:fieldId", settingsManage, customFieldH.Delete)
+			customFields.POST("/:fieldId/options", settingsManage, customFieldH.CreateOption)
+			customFields.PUT("/:fieldId/options/:optionId", settingsManage, customFieldH.UpdateOption)
+			customFields.DELETE("/:fieldId/options/:optionId", settingsManage, customFieldH.DeleteOption)
+			customFields.POST("/issues/:issueId/values", middleware.RequirePermission(db, "issue:edit", "project"), customFieldH.SetIssueValue)
 			customFields.GET("/issues/:issueId/values", customFieldH.ListIssueValues)
-			customFields.POST("/issues/:issueId/values/bulk", customFieldH.BulkSetIssueValues)
-			customFields.PUT("/issues/:issueId/values/:fieldId", customFieldH.UpdateIssueValue)
-			customFields.DELETE("/issues/:issueId/values/:fieldId", customFieldH.DeleteIssueValue)
+			customFields.POST("/issues/:issueId/values/bulk", middleware.RequirePermission(db, "issue:edit", "project"), customFieldH.BulkSetIssueValues)
+			customFields.PUT("/issues/:issueId/values/:fieldId", middleware.RequirePermission(db, "issue:edit", "project"), customFieldH.UpdateIssueValue)
+			customFields.DELETE("/issues/:issueId/values/:fieldId", middleware.RequirePermission(db, "issue:edit", "project"), customFieldH.DeleteIssueValue)
 			customFields.GET("/issues/:issueId/fields", customFieldH.GetIssueFieldsWithValues)
 			customFields.GET("/workspace-fields", customFieldH.ListWorkspaceFieldsWithEnrollment)
 		}
@@ -1062,44 +1065,44 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		// ---- Conditional Fields (protected) ----
 		conditionalFields := v1.Group("/conditional-fields", authMiddleware)
 		{
-			conditionalFields.POST("", conditionalFieldH.Create)                           // ?workspace_id=
-			conditionalFields.GET("", conditionalFieldH.List)                              // ?workspace_id=&field_id=
-			conditionalFields.GET("/:id", conditionalFieldH.Get)                           // ?workspace_id=
-			conditionalFields.PUT("/:id", conditionalFieldH.Update)                        // ?workspace_id=
-			conditionalFields.DELETE("/:id", conditionalFieldH.Delete)                     // ?workspace_id=
-			conditionalFields.POST("/evaluate", conditionalFieldH.EvaluateFieldVisibility) // ?workspace_id=
+			conditionalFields.POST("", settingsManage, conditionalFieldH.Create)                           // ?workspace_id=
+			conditionalFields.GET("", conditionalFieldH.List)                                              // ?workspace_id=&field_id=
+			conditionalFields.GET("/:id", conditionalFieldH.Get)                                           // ?workspace_id=
+			conditionalFields.PUT("/:id", settingsManage, conditionalFieldH.Update)                        // ?workspace_id=
+			conditionalFields.DELETE("/:id", settingsManage, conditionalFieldH.Delete)                     // ?workspace_id=
+			conditionalFields.POST("/evaluate", conditionalFieldH.EvaluateFieldVisibility)                 // ?workspace_id=
 		}
 
 		// ---- Project Templates (protected) ----
 		templates := v1.Group("/templates", authMiddleware)
 		{
-			templates.POST("", templateH.Create)
+			templates.POST("", settingsManage, templateH.Create)
 			templates.GET("", templateH.List)
 			templates.GET("/:templateId", templateH.Get)
-			templates.PUT("/:templateId", templateH.Update)
-			templates.DELETE("/:templateId", templateH.Delete)
-			templates.POST("/:templateId/types", templateH.AddType)
-			templates.DELETE("/:templateId/types/:typeId", templateH.RemoveType)
-			templates.POST("/:templateId/apply", templateH.Apply)
+			templates.PUT("/:templateId", settingsManage, templateH.Update)
+			templates.DELETE("/:templateId", settingsManage, templateH.Delete)
+			templates.POST("/:templateId/types", settingsManage, templateH.AddType)
+			templates.DELETE("/:templateId/types/:typeId", settingsManage, templateH.RemoveType)
+			templates.POST("/:templateId/apply", settingsManage, templateH.Apply)
 		}
 		// ---- Type Templates (Workspace-level) ----
 		typeTemplates := v1.Group("/type-templates", authMiddleware)
 		{
-			typeTemplates.POST("", typeTemplateH.Create)
+			typeTemplates.POST("", settingsManage, typeTemplateH.Create)
 			typeTemplates.GET("", typeTemplateH.List)
 			typeTemplates.GET("/:id", typeTemplateH.Get)
-			typeTemplates.PUT("/:id", typeTemplateH.Update)
-			typeTemplates.DELETE("/:id", typeTemplateH.Delete)
-			typeTemplates.POST("/:id/fields", typeTemplateH.BindField)
-			typeTemplates.DELETE("/:id/fields/:fieldId", typeTemplateH.UnbindField)
+			typeTemplates.PUT("/:id", settingsManage, typeTemplateH.Update)
+			typeTemplates.DELETE("/:id", settingsManage, typeTemplateH.Delete)
+			typeTemplates.POST("/:id/fields", settingsManage, typeTemplateH.BindField)
+			typeTemplates.DELETE("/:id/fields/:fieldId", settingsManage, typeTemplateH.UnbindField)
 		}
 		// ---- Relations (Workspace-level) ----
 		relations := v1.Group("/relations", authMiddleware)
 		{
-			relations.POST("/types", relationH.CreateType)
+			relations.POST("/types", settingsManage, relationH.CreateType)
 			relations.GET("/types", relationH.ListTypes)
-			relations.PUT("/types/:id", relationH.UpdateType)
-			relations.DELETE("/types/:id", relationH.DeleteType)
+			relations.PUT("/types/:id", settingsManage, relationH.UpdateType)
+			relations.DELETE("/types/:id", settingsManage, relationH.DeleteType)
 		}
 		// ---- Issue Relations ----
 		issues.POST("/:issueId/relations", relationH.CreateRelation)

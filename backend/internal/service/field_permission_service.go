@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/reqmango/backend/internal/common"
 	"github.com/reqmango/backend/internal/model"
@@ -58,18 +59,34 @@ func (s *FieldPermissionService) assertCallerCanManagePerm(perm *model.FieldPerm
 }
 
 // List returns field permissions for a project or workspace.
+// Both IDs zero is rejected so callers cannot dump every tenant's rows.
 func (s *FieldPermissionService) List(projectID, workspaceID uint64) ([]model.FieldPermission, error) {
+	if projectID == 0 && workspaceID == 0 {
+		return nil, common.BadRequest("workspace_id or project_id is required")
+	}
 	var perms []model.FieldPermission
 	query := s.db.Where("deleted_at IS NULL")
 	if projectID > 0 {
 		query = query.Where("project_id = ?", projectID)
-	} else if workspaceID > 0 {
-		query = query.Where("workspace_id = ? AND project_id IS NULL", workspaceID)
+	} else {
+		query = query.Where("workspace_id = ?", workspaceID)
 	}
 	if err := query.Find(&perms).Error; err != nil {
 		return nil, common.Internal("Failed to list field permissions")
 	}
 	return perms, nil
+}
+
+// ResolveWorkspaceID resolves a numeric id or slug to a workspace id.
+func (s *FieldPermissionService) ResolveWorkspaceID(wsParam string) (uint64, error) {
+	if id, err := strconv.ParseUint(wsParam, 10, 64); err == nil {
+		return id, nil
+	}
+	var ws model.Workspace
+	if err := s.db.Select("id").Where("slug = ?", wsParam).First(&ws).Error; err != nil {
+		return 0, common.NotFound("Workspace not found")
+	}
+	return ws.ID, nil
 }
 
 // Create adds a new field permission rule.

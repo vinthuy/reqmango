@@ -9,6 +9,8 @@ export interface User {
   cover_image_url?: string
   is_active: boolean
   is_email_verified: boolean
+  is_superuser?: boolean
+  role_level?: number
   user_timezone: string
   last_active?: string
   created_at: string

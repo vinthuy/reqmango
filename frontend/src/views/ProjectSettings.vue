@@ -25,6 +25,7 @@ import AutomationRuleBuilder from '@/components/AutomationRuleBuilder.vue'
 import AutomationExecutionLog from '@/components/AutomationExecutionLog.vue'
 import TriagePanel from '@/components/TriagePanel.vue'
 import relationApi from '@/api/relation'
+import { useProjectPermissions } from '@/composables/usePermission'
 
 const { confirm } = useConfirm()
 const { t } = useI18n()
@@ -34,6 +35,9 @@ const route = useRoute()
 const router = useRouter()
 const slug = computed(() => (route.params as any).slug as string)
 const projectId = computed(() => parseInt((route.params as any).id as string, 10))
+
+const { can } = useProjectPermissions(() => projectId.value)
+const canManageWorkflows = computed(() => can('workflow:manage'))
 
 const loading = ref(false)
 const workspaceId = ref(0)
@@ -1014,7 +1018,7 @@ watch(() => route.query.section, (section) => {
               <p class="text-sm text-gray-500 mt-1">{{ t('settings.agentWorkflowsDesc') }}</p>
               <p v-if="hiddenE2EWorkflowCount > 0" class="text-xs text-gray-400 mt-1">{{ t('settings.hideE2EWorkflows', { count: hiddenE2EWorkflowCount }) }}</p>
             </div>
-            <button @click="handleAddWorkflow" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createAgentWorkflow') }}</button>
+            <button v-if="canManageWorkflows" @click="handleAddWorkflow" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">+ {{ t('settings.createAgentWorkflow') }}</button>
           </div>
           <div class="grid gap-4">
             <div v-for="workflow in visibleAgentWorkflows" :key="workflow.id" class="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-md transition-all">
@@ -1053,7 +1057,7 @@ watch(() => route.query.section, (section) => {
                     {{ runningWorkflowId === workflow.id ? '…' : t('settings.runAgentWorkflow') }}
                   </button>
                   <button
-                    v-if="!workflow.is_inherited"
+                    v-if="canManageWorkflows && !workflow.is_inherited"
                     @click.stop="handleToggleWorkflowStatus(workflow)"
                     :disabled="togglingWorkflowId === workflow.id"
                     :class="['p-1 text-sm hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed', workflow.is_active ? 'text-gray-400 hover:text-gray-600' : 'text-green-500 hover:text-green-600']"
@@ -1061,7 +1065,7 @@ watch(() => route.query.section, (section) => {
                   >
                     {{ workflow.is_active ? '⏸️' : '▶️' }}
                   </button>
-                  <button v-if="!workflow.is_inherited" @click.stop="handleDeleteWorkflow(workflow)" class="text-gray-400 hover:text-red-500 p-1" :title="t('common.delete')">✕</button>
+                  <button v-if="canManageWorkflows && !workflow.is_inherited" @click.stop="handleDeleteWorkflow(workflow)" class="text-gray-400 hover:text-red-500 p-1" :title="t('common.delete')">✕</button>
                 </div>
               </div>
             </div>

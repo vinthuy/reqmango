@@ -12,6 +12,7 @@
           v-model:value="workflowName"
           class="workflow-name-input"
           :bordered="false"
+          :readonly="!canManageWorkflows"
           :placeholder="t('workflowsPage.workflow')"
           @blur="handleNameChange"
         />
@@ -32,7 +33,7 @@
         </a-button-group>
       </div>
       <div class="toolbar-right">
-        <a-button @click="handleSave" :loading="saving">
+        <a-button v-if="canManageWorkflows" @click="handleSave" :loading="saving">
             <template #icon><SaveOutlined /></template>
             {{ t('common.save') }}
           </a-button>
@@ -45,7 +46,7 @@
 
     <div class="designer-body">
       <!-- Left Panel: Node Palette -->
-      <div class="left-panel">
+      <div class="left-panel" :class="{ 'left-panel-readonly': !canManageWorkflows }">
         <div class="panel-header">{{ t('workflowDesigner.nodePanel') }}</div>
         <div class="node-palette">
           <div
@@ -218,7 +219,7 @@
           class="context-menu"
           :style="{ left: edgeContextMenu.x + 'px', top: edgeContextMenu.y + 'px' }"
         >
-          <div class="context-menu-item danger" @click="deleteEdgeFromMenu">
+          <div v-if="canManageWorkflows" class="context-menu-item danger" @click="deleteEdgeFromMenu">
             <DeleteOutlined /> {{ t('workflowDesigner.deleteEdge') }}
           </div>
         </div>
@@ -355,7 +356,7 @@
           </template>
 
           <a-divider />
-          <a-button danger block @click="deleteSelectedNode">
+          <a-button v-if="canManageWorkflows" danger block @click="deleteSelectedNode">
             <template #icon><DeleteOutlined /></template>
             {{ t('workflowDesigner.deleteNode') }}
           </a-button>
@@ -386,7 +387,7 @@
             <a-input :value="getNodeNameById(selectedEdge.targetNodeId)" size="small" disabled />
           </div>
           <a-divider />
-          <a-button danger block @click="deleteSelectedEdge">
+          <a-button v-if="canManageWorkflows" danger block @click="deleteSelectedEdge">
             <template #icon><DeleteOutlined /></template>
             {{ t('workflowDesigner.deleteEdge') }}
           </a-button>
@@ -419,6 +420,7 @@ import { workflowApi } from '@/api/workflow'
 import { agentMemberApi } from '@/api/agent-member'
 import type { AgentMember } from '@/api/agent-member'
 import type { WorkflowDetail } from '@/api/workflow'
+import { useProjectPermissions } from '@/composables/usePermission'
 
 // ==================== Types ====================
 
@@ -457,6 +459,9 @@ const { t } = useI18n()
 
 const projectId = computed(() => Number(route.params.id || route.params.projectId))
 const workflowId = computed(() => Number(route.params.workflowId))
+
+const { can } = useProjectPermissions(() => projectId.value)
+const canManageWorkflows = computed(() => can('workflow:manage'))
 
 // ==================== Palette ====================
 
@@ -1044,6 +1049,7 @@ function handleNameChange() {
 
 function onKeyDown(event: KeyboardEvent) {
   if (event.key === 'Delete' || event.key === 'Backspace') {
+    if (!canManageWorkflows.value) return
     if (selectedNodeId.value && !(event.target as HTMLElement).closest('input, textarea, [contenteditable]')) {
       deleteSelectedNode()
     }
@@ -1146,6 +1152,11 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex-shrink: 0;
   overflow-y: auto;
+}
+
+.left-panel-readonly {
+  pointer-events: none;
+  opacity: 0.65;
 }
 
 .panel-header {

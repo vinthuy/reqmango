@@ -45,6 +45,8 @@ type result struct {
 func main() {
 	wsFlag := flag.Uint64("workspace", 1, "victim workspace id")
 	out := flag.String("out", "route_audit.md", "report path")
+	noQuery := flag.Bool("no-query", false, "omit workspace_id/project_id/issue_id query params")
+	member := flag.Bool("member", false, "probe as a role-15 member for admin-only escalation")
 	flag.Parse()
 
 	dsn := os.Getenv("ROUTE_AUDIT_DATABASE_URL")
@@ -74,6 +76,13 @@ func main() {
 	}
 	outTok, _, _ := auth.GenerateTokenForTest(outsider.ID)
 	inTok, _, _ := auth.GenerateTokenForTest(a.insider)
+	probeTok := outTok
+	if *member {
+		a.db.Exec(`UPDATE workspace_members SET role = 15 WHERE workspace_id = ? AND user_id = ?`, a.ws, a.insider)
+		a.db.Exec(`UPDATE project_members SET role = 15 WHERE project_id = ? AND user_id = ?`, a.ids["project"], a.insider)
+		probeTok = inTok
+		fmt.Printf("member probe: user=%d role=15\n", a.insider)
+	}
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -117,19 +126,97 @@ func main() {
 			continue
 		}
 		res.URL = url
-		q := fmt.Sprintf("workspace_id=%d&project_id=%d&issue_id=%d", a.ws, a.ids["project"], a.ids["issue"])
-		full := srv.URL + url + "?" + q
+		full := srv.URL + url
+		if !*noQuery {
+			full += fmt.Sprintf("?workspace_id=%d&project_id=%d&issue_id=%d", a.ws, a.ids["project"], a.ids["issue"])
+		}
 		var body string
-		res.Outsider, body = call(client, rt.Method, full, outTok)
-		if rt.Method == http.MethodGet {
+		res.Outsider, body = call(client, rt.Method, full, probeTok)
+		if !*member && rt.Method == http.MethodGet {
 			res.Insider, _ = call(client, rt.Method, full, inTok)
 		}
 		res.Body = body
-		res.Verdict = a.classify(rt.Method, res.Outsider, res.Insider, body)
+		if *member {
+			res.Verdict = a.classifyMember(rt.Method, rt.Path, res.Outsider, body)
+		} else {
+			res.Verdict = a.classify(rt.Method, res.Outsider, res.Insider, body)
+		}
 		results = append(results, res)
 		fmt.Printf("%-6s %3d %3d %-10s %s\n", rt.Method, res.Outsider, res.Insider, res.Verdict, rt.Path)
 	}
 	writeReport(*out, a, results)
+}
+
+// adminOnlyPath is true for routes a role-15 member must not mutate.
+func adminOnlyPath(method, path string) bool {
+	if path == "/api/v1/notifications/check-due-reminders" {
+		return true
+	}
+	key := method + " " + path
+	for _, p := range []string{
+		"PATCH /api/v1/workspaces/:wsParam",
+		"DELETE /api/v1/workspaces/:wsParam",
+		"POST /api/v1/workspaces/:wsParam/members",
+		"PATCH /api/v1/workspaces/:wsParam/members/:userId",
+		"DELETE /api/v1/workspaces/:wsParam/members/:userId",
+		"PATCH /api/v1/projects/:projectId",
+		"DELETE /api/v1/projects/:projectId",
+		"POST /api/v1/projects/:projectId/archive",
+		"POST /api/v1/projects/:projectId/restore",
+		"PATCH /api/v1/projects/:projectId/lead",
+		"POST /api/v1/projects/:projectId/members",
+		"PATCH /api/v1/projects/:projectId/members/:userId",
+		"DELETE /api/v1/projects/:projectId/members/:userId",
+		"DELETE /api/v1/issues/:issueId",
+		"POST /api/v1/issues/bulk/delete",
+	} {
+		if key == p {
+			return true
+		}
+	}
+	if method == http.MethodGet {
+		return false
+	}
+	if strings.Contains(path, "/execute") {
+		return false
+	}
+	if strings.Contains(path, "/workflows") || strings.Contains(path, "/agent-members") {
+		return true
+	}
+	if strings.HasSuffix(path, "/budget") || strings.HasSuffix(path, "/sla") {
+		return method == http.MethodPut || method == http.MethodPatch
+	}
+	// Workspace settings: members have settings:view only.
+	if strings.Contains(path, "/conditional-fields/evaluate") {
+		return false
+	}
+	for _, p := range []string{"/issue-types", "/custom-fields", "/conditional-fields", "/templates", "/type-templates", "/relations/types"} {
+		if strings.Contains(path, p) && !strings.Contains(path, "/issues/") {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *auditor) classifyMember(method, path string, code int, body string) string {
+	if code < 200 || code >= 300 {
+		switch {
+		case code == 401 || code == 403 || code == 404:
+			return "denied"
+		case code == 400 || code == 422 || code == 409:
+			return "invalid"
+		default:
+			return fmt.Sprintf("status%d", code)
+		}
+	}
+	if adminOnlyPath(method, path) {
+		return "ESCALATE"
+	}
+	if method != http.MethodGet {
+		return "WRITE-ok" // member is allowed to edit issues etc.
+	}
+	// Members reading their own workspace is expected; do not call it LEAK.
+	return "READ-ok"
 }
 
 type auditor struct {
@@ -384,7 +471,7 @@ func writeReport(path string, a *auditor, results []result) {
 	for _, k := range keys {
 		fmt.Fprintf(&b, "- %s: %d\n", k, counts[k])
 	}
-	for _, section := range []string{"WRITE", "LEAK", "READ", "status500", "unresolved"} {
+	for _, section := range []string{"ESCALATE", "WRITE", "LEAK", "READ", "status500", "unresolved"} {
 		fmt.Fprintf(&b, "\n## %s\n\n", section)
 		for _, r := range results {
 			if r.Verdict == section || section == "unresolved" && strings.HasPrefix(r.Verdict, "unresolved") ||

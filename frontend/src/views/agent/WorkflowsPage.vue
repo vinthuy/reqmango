@@ -4,7 +4,12 @@
       <template #title>
         <div style="display: flex; align-items: center; justify-content: space-between;">
           <span style="font-size: 20px; font-weight: 600;">{{ t('workflowsPage.title') }}</span>
-          <a-button type="primary" @click="openCreateModal">
+          <a-button
+            v-if="canManageWorkflows"
+            type="primary"
+            data-test="create-workflow-btn"
+            @click="openCreateModal"
+          >
             {{ t('workflowsPage.createWorkflow') }}
           </a-button>
         </div>
@@ -55,11 +60,11 @@
               </template>
               <template v-if="column.key === 'actions'">
                 <a-space>
-                  <a-button size="small" @click="openEditModal(record)">{{ t('common.edit') }}</a-button>
-                  <a-button size="small" type="primary" ghost @click="goToDesign(record)">{{ t('workflowsPage.design') }}</a-button>
+                  <a-button v-if="canManageWorkflows" size="small" @click="openEditModal(record)">{{ t('common.edit') }}</a-button>
+                  <a-button v-if="canManageWorkflows" size="small" type="primary" ghost @click="goToDesign(record)">{{ t('workflowsPage.design') }}</a-button>
                   <a-button size="small" type="primary" @click="openRunModal(record)">{{ t('workflowsPage.run') }}</a-button>
                   <a-button
-                    v-if="!record.is_active"
+                    v-if="canManageWorkflows && !record.is_active"
                     size="small"
                     type="success"
                     ghost
@@ -68,7 +73,7 @@
                     {{ t('workflowsPage.activate') }}
                   </a-button>
                   <a-button
-                    v-if="record.is_active"
+                    v-if="canManageWorkflows && record.is_active"
                     size="small"
                     warning
                     ghost
@@ -77,6 +82,7 @@
                     {{ t('workflowsPage.archive') }}
                   </a-button>
                   <a-popconfirm
+                    v-if="canManageWorkflows"
                     :title="t('workflowsPage.deleteConfirm')"
                     :okText="t('common.confirm')"
                     :cancelText="t('common.cancel')"
@@ -210,6 +216,7 @@ import { message } from 'ant-design-vue'
 import { useI18n } from '@/composables/useI18n'
 import { workflowApi } from '@/api/workflow'
 import type { Workflow, WorkflowRun } from '@/api/workflow'
+import { useProjectPermissions } from '@/composables/usePermission'
 
 const route = useRoute()
 const router = useRouter()
@@ -218,6 +225,9 @@ const { t } = useI18n()
 const projectId = computed(() => {
   return Number(route.params.projectId || route.params.id)
 })
+
+const { can } = useProjectPermissions(() => projectId.value)
+const canManageWorkflows = computed(() => can('workflow:manage'))
 
 const activeTab = ref<string>('workflows')
 const loadingWorkflows = ref(false)
