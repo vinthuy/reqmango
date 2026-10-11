@@ -2277,6 +2277,8 @@
     "aiSearchFailed": "AI 搜索失败",
     "aiSearchNeedQuery": "请先输入要查找的内容",
     "aiSearchApplyFilter": "应用到筛选",
+    "aiSearchSourceFilter": "AI 生成的筛选条件（应用后可在筛选栏中修改）",
+    "aiSearchSourceList": "未能生成通用筛选条件，以下为 AI 逐条匹配的结果",
     "fieldSequenceId": "编号",
     "fieldTitle": "标题",
     "fieldState": "状态",

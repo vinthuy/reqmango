@@ -59,6 +59,11 @@ const showAIResults = ref(false)
 const aiExplanation = ref('')
 const aiResults = ref<IssueLite[]>([])
 const aiRQL = ref('')
+/** 'list' when the backend fell back to the matched sequence ids instead of a real filter. */
+const aiRQLSource = computed<'filter' | 'list' | null>(() => {
+  if (!aiRQL.value) return null
+  return /^sequence_id\b/.test(aiRQL.value) ? 'list' : 'filter'
+})
 const aiResultIndex = ref(-1)
 
 watch(() => props.projectIdentifier, (id) => {
@@ -958,6 +963,19 @@ onUnmounted(() => {
                 >{{ t('filter.aiSearchApplyFilter') }}</button>
                 <button type="button" class="text-gray-400 hover:text-gray-600" @mousedown.prevent="clearAIResults">✕</button>
               </div>
+            </div>
+            <div
+              v-if="aiRQLSource"
+              data-test="ai-search-source"
+              class="px-3 py-1.5 text-[11px] border-b border-gray-50"
+              :class="aiRQLSource === 'filter' ? 'text-gray-500' : 'text-amber-600'"
+            >
+              <div>{{ aiRQLSource === 'filter' ? t('filter.aiSearchSourceFilter') : t('filter.aiSearchSourceList') }}</div>
+              <code
+                v-if="aiRQLSource === 'filter'"
+                data-test="ai-search-rql"
+                class="block mt-0.5 font-mono text-[11px] text-indigo-700 break-all"
+              >{{ aiRQL }}</code>
             </div>
             <p v-if="aiExplanation" class="px-3 py-2 text-xs text-gray-600 whitespace-pre-wrap border-b border-gray-50 max-h-28 overflow-y-auto">{{ aiExplanation }}</p>
             <template v-if="aiResults.length > 0">
