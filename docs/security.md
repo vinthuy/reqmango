@@ -144,5 +144,11 @@ requests. `status500` and `status503` entries are unconfigured integrations
 (GitHub, Slack, MCP credentials) and the AI key check, not access results —
 verify those by hand before reading anything into them.
 
+Pass `-seed` to **every** mode, not just `-cross`. The member probe performs
+the writes a member is allowed, which deletes the very fixture rows later
+routes need, so on the same copy `unresolved` climbs from run to run and
+coverage quietly shrinks (4 → 35 in one session here). Seeding first keeps it
+at one or two unresolvable parameters per mode.
+
 Reports are generated output (`route_audit.md` / `.json`); they are gitignored,
 so keep them out of commits.
