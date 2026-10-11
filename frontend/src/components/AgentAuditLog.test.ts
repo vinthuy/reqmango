@@ -43,6 +43,41 @@ describe('AgentAuditLog', () => {
     })
   })
 
+  describe('tool call trace', () => {
+    it('expands to show each call, flagging rejected ones', async () => {
+      ;(agentApi.listWorkspaceActivity as any).mockResolvedValue([
+        {
+          id: 1, agent_id: 10, agent_name: '请求分诊', action: 'auto_triage',
+          result_summary: '完成', executed_at: '2026-01-15T10:00:00Z', issue_id: 42, rating: null,
+          tool_calls: [
+            { name: 'list_states', input: { project_id: 3015 }, duration_ms: 12 },
+            { name: 'get_issue', input: { issue_id: 9 }, error: 'issue_id=9 超出当前范围', duration_ms: 1 },
+          ],
+        },
+        {
+          id: 2, agent_id: 10, agent_name: '请求分诊', action: 'dispatch',
+          result_summary: '无工具', executed_at: '2026-01-15T10:00:00Z', rating: null,
+        },
+      ])
+      const wrapper = mount(AgentAuditLog, { props: { workspaceId: 1 } })
+      await nextTick()
+      await new Promise(r => setTimeout(r, 10))
+
+      const toggles = wrapper.findAll('[data-test="tool-calls-toggle"]')
+      expect(toggles).toHaveLength(1)
+      expect(toggles[0].text()).toContain('2')
+      expect(wrapper.find('[data-test="tool-call"]').exists()).toBe(false)
+
+      await toggles[0].trigger('click')
+      const calls = wrapper.findAll('[data-test="tool-call"]')
+      expect(calls).toHaveLength(2)
+      expect(calls[0].text()).toContain('list_states')
+      expect(calls[0].text()).toContain('"project_id":3015')
+      expect(calls[1].text()).toContain('issue_id=9 超出当前范围')
+      expect(calls[1].classes()).toContain('text-red-600')
+    })
+  })
+
   describe('timeline rendering', () => {
     it('should render activity cards', async () => {
       ;(agentApi.list as any).mockResolvedValue([{ id: 10, name: 'Test Agent', avatar: '🤖' }])

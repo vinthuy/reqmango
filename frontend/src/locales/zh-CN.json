@@ -3434,6 +3434,8 @@
     "auditTimeRange": "时间范围",
     "auditNoRecords": "暂无审计记录",
     "auditIssueId": "相关工作项",
+    "toolCalls": "执行过程",
+    "toolCallsFailed": "{count} 次失败或被拒绝",
     "dispatchAgent": "派发 AI 智能体",
     "dispatchTask": "请分析并处理工作项 #{seq}：{name}",
     "dispatchTaskTriage": "请对工作项 #{seq}「{name}」做分诊：判断类型、优先级、下一步应流转到什么状态，并用 suggest_issue_changes 给出可一键采纳的字段建议。",

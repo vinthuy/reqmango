@@ -33,8 +33,8 @@ func TestRecordActivity_NotifiesTheTriggeringUser(t *testing.T) {
 
 	agent := &model.Agent{BaseModel: model.BaseModel{ID: 3}, Name: "请求分诊"}
 	issueID := uint64(42)
-	s.recordActivity(agent, &issueID, "auto_triage", "完成", "task", 7)
-	s.recordActivity(agent, nil, "dispatch", "无工作项", "task", 7)
+	s.recordActivity(agent, &issueID, "auto_triage", "完成", "task", 7, nil)
+	s.recordActivity(agent, nil, "dispatch", "无工作项", "task", 7, nil)
 
 	require.Len(t, got, 1, "only issue-scoped activity is pushed")
 	assert.EqualValues(t, 7, got[0].userID)

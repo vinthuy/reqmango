@@ -3434,6 +3434,8 @@
     "auditTimeRange": "Time Range",
     "auditNoRecords": "No audit records found",
     "auditIssueId": "Related Issue",
+    "toolCalls": "Tool calls",
+    "toolCallsFailed": "{count} failed or rejected",
     "dispatchAgent": "Dispatch AI Agent",
     "dispatchTask": "Analyze and handle issue #{seq}: {name}",
     "dispatchTaskTriage": "Triage issue #{seq} \"{name}\": recommend type, priority, and the next legal state, then submit one-click field suggestions via suggest_issue_changes.",

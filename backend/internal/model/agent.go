@@ -101,10 +101,20 @@ type AgentActivity struct {
 	ExecutedAt    time.Time `gorm:"autoCreateTime" json:"executed_at"`
 	AgentName     string    `gorm:"size:128" json:"agent_name"`              // denormalized for audit readability
 	TaskContext   *string   `gorm:"type:text" json:"task_context,omitempty"` // the prompt/task sent to the LLM
+	// ToolCalls is the []AgentToolCall trace of the run.
+	ToolCalls json.RawMessage `gorm:"type:jsonb" json:"tool_calls,omitempty"`
 
 	// Relationships
 	Agent Agent  `gorm:"foreignKey:AgentID" json:"-"`
 	Issue *Issue `gorm:"foreignKey:IssueID" json:"-"`
+}
+
+// AgentToolCall is one tool invocation in an agent run, kept for audit.
+type AgentToolCall struct {
+	Name       string          `json:"name"`
+	Input      json.RawMessage `json:"input"`
+	Error      string          `json:"error,omitempty"`
+	DurationMs int64           `json:"duration_ms"`
 }
 
 func (AgentActivity) TableName() string { return "agent_activities" }

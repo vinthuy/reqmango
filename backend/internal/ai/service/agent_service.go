@@ -359,7 +359,7 @@ func (s *AgentService) UpdateActivityFeedback(activityID uint64, rating int) err
 	return nil
 }
 
-func (s *AgentService) recordActivity(agent *model.Agent, issueID *uint64, action, summary, taskCtx string, userID uint64) {
+func (s *AgentService) recordActivity(agent *model.Agent, issueID *uint64, action, summary, taskCtx string, userID uint64, toolCalls json.RawMessage) {
 	activity := model.AgentActivity{
 		AgentID:       agent.ID,
 		IssueID:       issueID,
@@ -367,6 +367,7 @@ func (s *AgentService) recordActivity(agent *model.Agent, issueID *uint64, actio
 		ResultSummary: summary,
 		AgentName:     agent.Name,
 		TaskContext:   &taskCtx,
+		ToolCalls:     toolCalls,
 	}
 	activity.CreatedByID = &userID
 	if err := s.db.Create(&activity).Error; err != nil {
@@ -460,8 +461,11 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	}
 
 	executedTools := make([]string, 0)
+	var trace toolTrace
 	exec := func(name string, input json.RawMessage) (string, error) {
+		start := time.Now()
 		result, execErr := s.aiSvc.ExecuteTool(name, input, actx)
+		trace.add(name, input, execErr, time.Since(start))
 		if execErr != nil {
 			return toolErrorJSON(execErr.Error()), nil
 		}
@@ -475,7 +479,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 	action := dispatchActivityAction(ctx)
 	if llmErr != nil {
 		s.recordActivity(agent, ctx.IssueID, action,
-			fmt.Sprintf("Failed: %v", llmErr), task, userID)
+			fmt.Sprintf("Failed: %v", llmErr), task, userID, trace.JSON())
 		if ctx.IssueID != nil {
 			s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), agentFailureReply, nil)
 		}
@@ -484,7 +488,7 @@ func (s *AgentService) DispatchAgent(agentID, userID uint64, task string, ctx *D
 
 	s.retryClaimedSuggestions(context.Background(), systemPrompt, task, resp.Content, tools, exec, &suggestions)
 	reply := withSuggestionNotice(resp.Content, suggestions)
-	s.recordActivity(agent, ctx.IssueID, action, agentActivitySummary(reply, executedTools), task, userID)
+	s.recordActivity(agent, ctx.IssueID, action, agentActivitySummary(reply, executedTools), task, userID, trace.JSON())
 	if ctx.IssueID != nil {
 		s.postAgentComment(agent, *ctx.IssueID, s.threadRootID(ctx.ReplyToCommentID), reply, suggestions)
 	}

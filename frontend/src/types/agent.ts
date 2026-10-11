@@ -24,8 +24,17 @@ export interface AgentActivity {
   executed_at: string
   agent_name: string
   task_context?: string
+  tool_calls?: AgentToolCall[]
   rating?: number | null                     // 1=positive, -1=negative, null=no feedback
   created_at: string
+}
+
+/** One tool invocation in an agent run; error is set when it failed or was rejected. */
+export interface AgentToolCall {
+  name: string
+  input: unknown
+  error?: string
+  duration_ms: number
 }
 
 /** Request body for dispatching a task to an agent. */

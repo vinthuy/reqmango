@@ -93,6 +93,29 @@
           <div v-if="act.task_context" class="mt-1.5 pt-1.5 border-t border-gray-50">
             <p class="text-xs text-gray-400 line-clamp-3 italic">"{{ act.task_context }}"</p>
           </div>
+          <div v-if="act.tool_calls?.length" class="mt-1.5 pt-1.5 border-t border-gray-50">
+            <button
+              data-test="tool-calls-toggle"
+              class="text-xs text-violet-600 hover:text-violet-800"
+              @click.stop="toggleToolCalls(act.id)"
+            >
+              {{ expandedToolCalls.has(act.id) ? '▾' : '▸' }}
+              {{ t('agent.toolCalls') }} ({{ act.tool_calls.length }})
+              <span v-if="failedCount(act) > 0" class="text-red-500">· {{ t('agent.toolCallsFailed', { count: failedCount(act) }) }}</span>
+            </button>
+            <ol v-if="expandedToolCalls.has(act.id)" class="mt-1 space-y-1">
+              <li
+                v-for="(call, i) in act.tool_calls"
+                :key="i"
+                data-test="tool-call"
+                :class="['text-xs font-mono break-all', call.error ? 'text-red-600' : 'text-gray-500']"
+              >
+                <span class="font-semibold">{{ call.name }}</span>({{ formatInput(call.input) }})
+                <span class="text-gray-400">{{ call.duration_ms }}ms</span>
+                <div v-if="call.error" class="font-sans">⚠ {{ call.error }}</div>
+              </li>
+            </ol>
+          </div>
         </div>
       </div>
     </div>
@@ -118,6 +141,22 @@ const loading = ref(false)
 const filterAgentId = ref<string>('')
 const filterAction = ref<string>('')
 const feedbackSubmitting = ref<number | null>(null)
+const expandedToolCalls = ref(new Set<number>())
+
+function toggleToolCalls(id: number) {
+  const next = new Set(expandedToolCalls.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedToolCalls.value = next
+}
+
+function failedCount(act: AgentActivity): number {
+  return (act.tool_calls || []).filter(c => c.error).length
+}
+
+function formatInput(input: unknown): string {
+  return typeof input === 'string' ? input : JSON.stringify(input ?? {})
+}
 
 function actionColor(action: string): string {
   const map: Record<string, string> = {
