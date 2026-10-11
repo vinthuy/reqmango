@@ -256,13 +256,12 @@ func (p *Parser) parseComparison() Node {
 	}
 }
 
-// parseInValue parses a value inside an IN clause (string or number)
+// parseInValue parses a value inside an IN clause. Bare identifiers are
+// accepted, matching a regular comparison (`priority IN (high, urgent)`).
 func (p *Parser) parseInValue() interface{} {
 	token := p.current()
 	switch token.Type {
-	case TOKEN_STRING:
-		return p.advance().Value
-	case TOKEN_NUMBER:
+	case TOKEN_STRING, TOKEN_NUMBER, TOKEN_IDENTIFIER, TOKEN_DATE:
 		return p.advance().Value
 	default:
 		return p.expect(TOKEN_STRING, "期望字符串或数字值").Value

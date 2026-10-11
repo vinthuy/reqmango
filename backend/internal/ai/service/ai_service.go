@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -841,7 +842,11 @@ func (s *AIService) Search(ctx context.Context, req *AISearchRequest, actx *AICo
 	// express the request or the filter matches nothing.
 	genRQL, genExplanation, genOK := s.translateSearchRQL(ctx, req.Query, actx)
 	if genOK {
-		if found, err := s.runSearchRQL(genRQL, actx); err == nil && len(found) > 0 {
+		found, err := s.runSearchRQL(genRQL, actx)
+		if err != nil {
+			log.Printf("ai search: generated RQL %q failed: %v", genRQL, err)
+			genOK = false
+		} else if len(found) > 0 {
 			return &AISearchResponse{RQL: genRQL, Explanation: genExplanation, Issues: found}, nil
 		}
 	}

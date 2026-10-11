@@ -953,26 +953,27 @@ func (e *GORMExecutor) buildNullRaw(expr *NullCheck, ctx *QueryContext) (*rawCon
 
 	isNull := expr.Operator == "IS NULL"
 
+	// The *_id variants live in join tables too; there is no such column on issues.
 	switch mapping.FieldType {
-	case "user":
+	case "user", "user_id":
 		if isNull {
 			return &rawCondition{SQL: "NOT EXISTS (SELECT 1 FROM issue_assignees WHERE issue_assignees.issue_id = issues.id)"}, nil
 		}
 		return &rawCondition{SQL: "EXISTS (SELECT 1 FROM issue_assignees WHERE issue_assignees.issue_id = issues.id)"}, nil
 
-	case "label":
+	case "label", "label_id":
 		if isNull {
 			return &rawCondition{SQL: "NOT EXISTS (SELECT 1 FROM issue_labels WHERE issue_labels.issue_id = issues.id)"}, nil
 		}
 		return &rawCondition{SQL: "EXISTS (SELECT 1 FROM issue_labels WHERE issue_labels.issue_id = issues.id)"}, nil
 
-	case "cycle":
+	case "cycle", "cycle_id":
 		if isNull {
 			return &rawCondition{SQL: "NOT EXISTS (SELECT 1 FROM issue_cycles WHERE issue_cycles.issue_id = issues.id)"}, nil
 		}
 		return &rawCondition{SQL: "EXISTS (SELECT 1 FROM issue_cycles WHERE issue_cycles.issue_id = issues.id)"}, nil
 
-	case "module":
+	case "module", "module_id":
 		if isNull {
 			return &rawCondition{SQL: "NOT EXISTS (SELECT 1 FROM module_issues WHERE module_issues.issue_id = issues.id)"}, nil
 		}

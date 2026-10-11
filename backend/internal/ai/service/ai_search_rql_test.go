@@ -26,6 +26,7 @@ func TestValidateAISearchRQL(t *testing.T) {
 		`assignee_id = $CURRENT_USER AND state_group IN ("unstarted", "started")`,
 		`(priority = "high" OR priority = "urgent") AND target_date < $TODAY`,
 		`cycle_id IS NULL`,
+		`assignee_id = $CURRENT_USER AND state_group IN (backlog, unstarted, started)`,
 	}
 	for _, q := range valid {
 		assert.NoError(t, validateAISearchRQL(q), q)

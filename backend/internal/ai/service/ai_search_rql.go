@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/reqmango/backend/internal/issuetype"
@@ -94,7 +95,7 @@ func (s *AIService) translateSearchRQL(ctx context.Context, query string, actx *
 - start_date、target_date、created_at、updated_at：日期 "YYYY-MM-DD"，可用 $TODAY、$ONE_WEEK_AGO、$END_OF_WEEK
 
 语法：field = 值、!=、>、<、>=、<=、field IN (a, b)、field LIKE "%%x%%"、field IS NULL、field IS NOT NULL，
-用 AND / OR 组合，可加括号。不要用 NOT，不要排序。
+用 AND / OR 组合，可加括号。字符串值一律加双引号，如 state_group IN ("backlog", "started")。不要用 NOT，不要排序。
 
 本项目的状态（ID:名称(分组)）：%s
 类型（ID:名称）：%s
@@ -116,7 +117,11 @@ func (s *AIService) translateSearchRQL(ctx context.Context, query string, actx *
 		return "", "", false
 	}
 	q = strings.TrimSpace(getStrArg(out, "rql", ""))
-	if validateAISearchRQL(q) != nil {
+	if q == "" {
+		return "", "", false
+	}
+	if err := validateAISearchRQL(q); err != nil {
+		log.Printf("ai search: rejected generated RQL %q: %v", q, err)
 		return "", "", false
 	}
 	return q, strings.TrimSpace(getStrArg(out, "explanation", "")), true
