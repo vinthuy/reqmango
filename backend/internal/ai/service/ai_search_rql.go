@@ -25,6 +25,8 @@ var aiSearchRQLFields = map[string]bool{
 	"cycle_id":      true,
 	"module_id":     true,
 	"issue_type_id": true,
+	"created_by":    true,
+	"milestone":     true,
 	"start_date":    true,
 	"target_date":   true,
 	"created_at":    true,
@@ -91,6 +93,7 @@ func (s *AIService) translateSearchRQL(ctx context.Context, query string, actx *
 - priority：urgent | high | medium | low | none
 - state_id：状态 ID；state_group：backlog | unstarted | started | completed | cancelled
 - issue_type_id：类型 ID；label：标签 ID；assignee_id：负责人用户 ID（"我的"用 $CURRENT_USER）
+- created_by：创建人用户 ID（"我创建的"用 $CURRENT_USER）；milestone：里程碑 ID
 - cycle_id、module_id、sequence_id
 - start_date、target_date、created_at、updated_at：日期 "YYYY-MM-DD"，可用 $TODAY、$ONE_WEEK_AGO、$END_OF_WEEK
 
@@ -101,12 +104,13 @@ func (s *AIService) translateSearchRQL(ctx context.Context, query string, actx *
 类型（ID:名称）：%s
 标签（ID:名称）：%s
 成员（用户ID:名称）：%s
+里程碑（ID:名称）：%s
 
 用户需求：%s
 
 只输出纯 JSON：{"rql": "筛选条件", "explanation": "一句中文说明筛了什么"}。
 如果需求无法用上述字段表达，rql 输出空字符串。`,
-		s.searchStatesInfo(actx), s.searchTypesInfo(actx), s.searchLabelsInfo(actx), s.searchMembersInfo(actx), query)
+		s.searchStatesInfo(actx), s.searchTypesInfo(actx), s.searchLabelsInfo(actx), s.searchMembersInfo(actx), s.searchMilestonesInfo(actx), query)
 
 	content, err := s.llm.Complete(ctx, "你是查询翻译器，只输出纯 JSON。", prompt)
 	if err != nil {
@@ -176,6 +180,16 @@ func (s *AIService) searchLabelsInfo(actx *AIContext) string {
 	parts := make([]string, len(labels))
 	for i, l := range labels {
 		parts[i] = fmt.Sprintf("%d:%s", l.ID, l.Name)
+	}
+	return strings.Join(parts, ", ")
+}
+
+func (s *AIService) searchMilestonesInfo(actx *AIContext) string {
+	var releases []model.Release
+	s.db.Where("project_id = ?", actx.ProjectID).Order("id").Find(&releases)
+	parts := make([]string, len(releases))
+	for i, r := range releases {
+		parts[i] = fmt.Sprintf("%d:%s", r.ID, r.Name)
 	}
 	return strings.Join(parts, ", ")
 }

@@ -75,7 +75,17 @@ var cases = []evalCase{
 	{"截止日期在今天之后的", [][]int{{2, 7}}},
 	{"高优先级或紧急的未完成任务", [][]int{{1, 2, 4}}},
 	{"低优先级的已完成工作", [][]int{{5}}},
+	{"我创建的", [][]int{{1, 3, 4, 6, 8}}},
+	{"鲍勃创建的", [][]int{{2, 5, 7}}},
+	{"v1.0 里程碑里的", [][]int{{1, 2}}},
+	{"没有关联里程碑的", [][]int{{5, 6, 7, 8}}},
 }
+
+// Bob created these sequence ids; Alice created the rest.
+var createdByBob = map[int]bool{2: true, 5: true, 7: true}
+
+// Milestone name → sequence ids.
+var milestones = map[string][]int{"v1.0": {1, 2}, "v2.0": {3, 4}}
 
 func main() {
 	runPattern := flag.String("run", "", "only run cases whose query matches this regexp")
@@ -218,11 +228,17 @@ func seed(tx *gorm.DB) (*aiservice.AIContext, error) {
 	}
 
 	today := time.Now().Truncate(24 * time.Hour)
+	issueIDs := map[int]uint64{}
 	for i, fi := range fixture {
+		creator := users["alice"].ID
+		if createdByBob[i+1] {
+			creator = users["bob"].ID
+		}
 		issue := model.Issue{
 			Name: fi.name, Priority: fi.priority, SequenceID: i + 1,
 			ProjectID: project.ID, WorkspaceID: ws.ID, StateID: states[fi.state],
 		}
+		issue.CreatedByID = &creator
 		if fi.dueInDays != nil {
 			due := today.AddDate(0, 0, *fi.dueInDays)
 			issue.TargetDate = &due
@@ -230,6 +246,7 @@ func seed(tx *gorm.DB) (*aiservice.AIContext, error) {
 		if err := tx.Create(&issue).Error; err != nil {
 			return nil, err
 		}
+		issueIDs[i+1] = issue.ID
 		for _, l := range fi.labels {
 			if err := tx.Create(&model.IssueLabel{IssueID: issue.ID, LabelID: labels[l]}).Error; err != nil {
 				return nil, err
@@ -237,6 +254,18 @@ func seed(tx *gorm.DB) (*aiservice.AIContext, error) {
 		}
 		if u := users[fi.assignee]; u != nil {
 			if err := tx.Create(&model.IssueAssignee{IssueID: issue.ID, UserID: u.ID}).Error; err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	for _, name := range []string{"v1.0", "v2.0"} {
+		rel := model.Release{Name: name, Version: name, ProjectID: project.ID}
+		if err := tx.Create(&rel).Error; err != nil {
+			return nil, err
+		}
+		for _, seq := range milestones[name] {
+			if err := tx.Create(&model.ReleaseIssue{ReleaseID: rel.ID, IssueID: issueIDs[seq]}).Error; err != nil {
 				return nil, err
 			}
 		}

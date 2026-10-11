@@ -27,6 +27,8 @@ func TestValidateAISearchRQL(t *testing.T) {
 		`(priority = "high" OR priority = "urgent") AND target_date < $TODAY`,
 		`cycle_id IS NULL`,
 		`assignee_id = $CURRENT_USER AND state_group IN (backlog, unstarted, started)`,
+		`created_by = $CURRENT_USER`,
+		`milestone IN (3, 4) OR milestone IS NULL`,
 	}
 	for _, q := range valid {
 		assert.NoError(t, validateAISearchRQL(q), q)
@@ -68,7 +70,7 @@ func searchFixtureDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&model.Project{}, &model.State{}, &model.Issue{}, &model.Label{},
-		&model.IssueType{}, &model.IssueTypeImport{}, &model.ProjectMember{}, &model.User{}))
+		&model.IssueType{}, &model.IssueTypeImport{}, &model.ProjectMember{}, &model.User{}, &model.Release{}))
 	require.NoError(t, db.Create(&model.Project{
 		BaseModel: model.BaseModel{ID: 1}, Name: "P", Identifier: "CORE", WorkspaceID: 1,
 	}).Error)

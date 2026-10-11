@@ -88,6 +88,8 @@ func NewIssueQueryContext(db *gorm.DB, projectID uint64) *QueryContext {
 			"module":        {ColumnName: "issues.id", FieldType: "module"},
 			"module_id":     {ColumnName: "module_id", FieldType: "module_id", JoinTable: "module_issues"},
 			"issue_type_id": {ColumnName: "issues.issue_type_id", FieldType: "number"},
+			"created_by":    {ColumnName: "issues.created_by_id", FieldType: "number"},
+			"milestone":     {ColumnName: "release_id", FieldType: "release_id", JoinTable: "release_issues"},
 			"project_id":    {ColumnName: "issues.project_id", FieldType: "number"},
 			"workspace_id":  {ColumnName: "issues.workspace_id", FieldType: "number"},
 			"created_at":    {ColumnName: "issues.created_at", FieldType: "date"},
@@ -151,8 +153,13 @@ func (e *GORMExecutor) Execute(db *gorm.DB, node Node, ctx *QueryContext) (*gorm
 		return db, err
 	}
 
-	// 应用 JOIN
+	// 应用 JOIN（同一 JOIN 只加一次，例如两个 state_group 条件都需要 states）
+	seenJoins := make(map[string]bool, len(cond.Joins))
 	for _, join := range cond.Joins {
+		if seenJoins[join] {
+			continue
+		}
+		seenJoins[join] = true
 		db = db.Joins(join)
 	}
 
@@ -434,6 +441,14 @@ func (e *GORMExecutor) buildEqualRaw(value interface{}, mapping FieldMapping) (*
 			SQL:  "issues.id IN (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id = ?)",
 			Args: []interface{}{value},
 		}, nil
+	case "release_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("milestone requires a numeric value, got %v", value)
+		}
+		return &rawCondition{
+			SQL:  "issues.id IN (SELECT ri.issue_id FROM release_issues ri WHERE ri.release_id = ?)",
+			Args: []interface{}{value},
+		}, nil
 
 	default:
 		return &rawCondition{SQL: fmt.Sprintf("%s = ?", mapping.ColumnName), Args: []interface{}{value}}, nil
@@ -542,6 +557,14 @@ func (e *GORMExecutor) buildNotEqualRaw(value interface{}, mapping FieldMapping)
 		}
 		return &rawCondition{
 			SQL:  "issues.id NOT IN (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id = ?)",
+			Args: []interface{}{value},
+		}, nil
+	case "release_id":
+		if !isNumericValue(value) {
+			return nil, fmt.Errorf("milestone requires a numeric value, got %v", value)
+		}
+		return &rawCondition{
+			SQL:  "issues.id NOT IN (SELECT ri.issue_id FROM release_issues ri WHERE ri.release_id = ?)",
 			Args: []interface{}{value},
 		}, nil
 	}
@@ -868,6 +891,16 @@ func (e *GORMExecutor) buildInRaw(expr *InExpr, ctx *QueryContext) (*rawConditio
 			SQL:  fmt.Sprintf("issues.id %s (SELECT mi.issue_id FROM module_issues mi WHERE mi.module_id IN (%s))", op, placeholderList),
 			Args: args,
 		}, nil
+	case "release_id":
+		for _, v := range expr.Values {
+			if !isNumericValue(v) {
+				return nil, fmt.Errorf("milestone requires numeric values, got %v", v)
+			}
+		}
+		return &rawCondition{
+			SQL:  fmt.Sprintf("issues.id %s (SELECT ri.issue_id FROM release_issues ri WHERE ri.release_id IN (%s))", op, placeholderList),
+			Args: args,
+		}, nil
 	}
 
 	sql := fmt.Sprintf("%s %s (%s)", mapping.ColumnName, op, placeholderList)
@@ -972,6 +1005,12 @@ func (e *GORMExecutor) buildNullRaw(expr *NullCheck, ctx *QueryContext) (*rawCon
 			return &rawCondition{SQL: "NOT EXISTS (SELECT 1 FROM issue_cycles WHERE issue_cycles.issue_id = issues.id)"}, nil
 		}
 		return &rawCondition{SQL: "EXISTS (SELECT 1 FROM issue_cycles WHERE issue_cycles.issue_id = issues.id)"}, nil
+
+	case "release_id":
+		if isNull {
+			return &rawCondition{SQL: "NOT EXISTS (SELECT 1 FROM release_issues WHERE release_issues.issue_id = issues.id)"}, nil
+		}
+		return &rawCondition{SQL: "EXISTS (SELECT 1 FROM release_issues WHERE release_issues.issue_id = issues.id)"}, nil
 
 	case "module", "module_id":
 		if isNull {
