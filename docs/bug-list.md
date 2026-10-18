@@ -3,12 +3,18 @@
 > 生成时间：2026-07-10
 > 测试方法：代码静态审查 + API 端到端测试 + Playwright 浏览器 E2E 测试
 > 测试环境：Windows 11 / Go 1.25 / Node 24 / PostgreSQL 18 / Vite 5 / Vue 3
+>
+> **核验（2026-10-18）**：59 条全部已修复。此前有 10 条只写了修复方案却没标状态
+> （BUG-01/02/03/08/09/10/12/22/23/25/36/39/43/44），逐条回代码取证后补上「核实」
+> 结论；其中 BUG-43 随 Agent 平台降级删除整个视图目录而消失。若再发现回归，请附
+> 复现路径重新开工，不要仅凭本表的 ✅ 判定。安全类缺陷的持续验证交给
+> `backend/cmd/route_audit` 的 CI 门禁（见 [security.md](security.md) §8）。
 
 ---
 
 ## 🔴 严重（阻塞商用）
 
-### BUG-01 SubIssuesPanel.vue 重复 defineEmits() → Project 页面白屏
+### BUG-01 SubIssuesPanel.vue 重复 defineEmits() → Project 页面白屏 ✅ 已核实已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -18,10 +24,11 @@
 | **原因** | `<script setup>` 中同时存在 `defineEmits<{...}>()` 和 `const emit = defineEmits<{...}>()` |
 | **复现** | 访问 `/workspace/:slug/project/:id` 或运行 `vite build` |
 | **影响范围** | Project.vue、IssueDetail.vue、IssueTabDetails.vue |
+| **核实（2026-10-18）** | 该组件仅剩一处 `defineEmits`，`vue-tsc --noEmit` 与 `vite build` 均通过 |
 
 ---
 
-### BUG-02 RBAC 权限中间件在 99% 路由上未注册
+### BUG-02 RBAC 权限中间件在 99% 路由上未注册 ✅ 已核实已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -31,10 +38,11 @@
 | **原因** | `RequirePermission` 中间件仅在 4 个工作流管理路由注册（行 686-691） |
 | **复现** | `PUT /api/v1/issues/5048` 成功修改（已实测验证） |
 | **修复** | 为所有变更类路由挂 `RequirePermission` |
+| **核实（2026-10-18）** | 现在每条已登录路由都经过 `ScopedAuthMiddleware` 的租户校验，变更类路由另挂 `RequirePermission`；`cmd/route_audit` 四模式（base / `-no-query` / `-member` / `-cross`）在 CI 中以 `-strict` 运行，任何 `LEAK`/`WRITE`/`XTENANT`/`ESCALATE` 都会让构建失败 |
 
 ---
 
-### BUG-03 Issue Update/Delete/Archive/Bulk 系列无权限/成员资格校验
+### BUG-03 Issue Update/Delete/Archive/Bulk 系列无权限/成员资格校验 ✅ 已核实已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -43,6 +51,7 @@
 | **影响** | 知道 Issue ID 的用户可随意修改/删除他人 Issue |
 | **原因** | Get 端点有成员资格检查但变更端点全都没有 |
 | **复现** | `PUT /api/v1/issues/5048 {"name":"被篡改"}` → 200 OK（已实测） |
+| **核实（2026-10-18）** | 上述端点在 `router.go` 均挂 `RequirePermission(db, "issue:edit"/"issue:delete", "project")`，其项目由 `:issueId`、`?project_id` 或请求体中的 `issue_ids`/`target_project_id` 解析；租户守卫另行拒绝跨工作区请求 |
 
 ---
 
@@ -98,7 +107,7 @@
 
 ---
 
-### BUG-08 DescriptionStripped 从未填充 → 新 Issue 无法通过描述搜索
+### BUG-08 DescriptionStripped 从未填充 → 新 Issue 无法通过描述搜索 ✅ 已核实已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -107,12 +116,13 @@
 | **影响** | 所有新创建的 Issue 无法通过描述内容搜索到 |
 | **原因** | `Issue.DescriptionStripped` 字段定义在 model 中但 Create/Update 从未设置 |
 | **修复** | 在 Create/Update 中剥离 HTML 标签后填充该字段 |
+| **核实（2026-10-18）** | `issue_service.go:146-154` Create 与 `:741-745` Update 均调用 `security.StripHTMLTags` 后写入；全新库审计里 `issues` 全文索引依赖此列 |
 
 ---
 
 ## 🟡 高优先级
 
-### BUG-09 IssueCreate slug 路由参数解析为 NaN
+### BUG-09 IssueCreate slug 路由参数解析为 NaN ✅ 已核实已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -121,10 +131,11 @@
 | **影响** | `/workspace/:slug/project/:id/issues/new` 下所有 API 调用失败（workspace_id=NaN） |
 | **原因** | 路由参数是 `:slug` 和 `:id`，但组件读 `route.params.workspaceId` 和 `route.params.projectId` |
 | **实测** | 浏览器 Console：`GET /api/v1/issue-types?workspace_id=NaN → 400` ×6 个端点 |
+| **核实（2026-10-18）** | `projectId` 兼容 `:id` 与 `:projectId` 两种路由形态并回退到 0；`workspaceId` 不再取自路由参数而是解析后赋值，不再出现 `NaN` |
 
 ---
 
-### BUG-10 评论 Update/Delete 无作者权限校验
+### BUG-10 评论 Update/Delete 无作者权限校验 ✅ 已核实已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -132,6 +143,7 @@
 | **类型** | 安全漏洞 |
 | **影响** | 任何已登录用户可修改/删除任何人的评论 |
 | **原因** | Handler 没有传递 `user.ID`，Service 没有校验 `AuthorID == userID` |
+| **核实（2026-10-18）** | Handler 传 `user.ID`；`comment_service.go:226-228`（Update）与 `:269-271`（Delete）校验 `AuthorID`，不匹配返回 `Forbidden` |
 
 ---
 
@@ -146,7 +158,7 @@
 
 ---
 
-### BUG-12 SSE 实时推送死代码
+### BUG-12 SSE 实时推送死代码 ✅ 已核实已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -154,6 +166,7 @@
 | **类型** | 功能不可用 |
 | **影响** | 通知/更新不会实时推送；多 Tab 不同步 |
 | **原因** | `SSEHub.SendToUser` / `NotifyUser` 已实现但全项目无任何代码调用 |
+| **核实（2026-10-18）** | 已有调用方：`comment_service.go:66`、`issue_service.go:1086`、`chat_service.go:172` 用 `NotifyUser`；工具/CI/SDLC/代理任务等用 `BroadcastEvent` |
 
 ---
 
@@ -270,17 +283,18 @@
 
 ---
 
-### BUG-22 删除父模块/状态/标签不处理子数据
+### BUG-22 删除父模块/状态/标签不处理子数据 ✅ 已核实已修复
 
 | 文件 | 影响 |
 |------|------|
 | `backend/internal/service/module_service.go:141-148` | 删除父模块 → 子模块在树视图中不可见 |
 | `backend/internal/service/project_settings_service.go:130-137` | 删除状态 → Issue 外键悬空 |
 | `backend/internal/service/project_settings_service.go:277-284` | 删除标签 → issue_labels 关联悬空 |
+| **核实（2026-10-18）** | 三者均改为事务：子模块 `parent_id` 置空、`module_issues`/继承覆盖删除；删除状态先把 Issue 迁到默认状态再删；删除标签先删 `issue_labels` |
 
 ---
 
-### BUG-23 燃尽图只有两个数据点（起点和终点）
+### BUG-23 燃尽图只有两个数据点（起点和终点） ✅ 已核实已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -288,6 +302,7 @@
 | **类型** | 功能不完整 |
 | **影响** | 燃尽图显示为直线而非真实走势 |
 | **原因** | 无每日快照数据表 |
+| **核实（2026-10-18）** | `buildDailyBurndownPoints`（`cycle_service.go:880-940`）按 `issues.completed_at` 聚合每日完成量并逐日累计，返回完整日序列；无需快照表 |
 
 ---
 
@@ -302,13 +317,14 @@
 
 ---
 
-### BUG-25 五个 Issue 视图数据加载模式不一致
+### BUG-25 五个 Issue 视图数据加载模式不一致 ✅ 已核实已修复
 
 | 视图 | 问题 |
 |------|------|
 | IssueGantt | 无 `workspace_id` 参数、硬编码 `limit=500` |
 | IssueCalendar | 同上 |
 | IssueTreeView | 使用独立 `/issues/tree` 端点、筛选条件子集 |
+| **核实（2026-10-18）** | 五个视图统一接收 `projectId/workspaceId/rql/sort` 并传给 `listIssues`；`IssueTreeView` 的 `listTreeIssues` 同样透传 `rql` 与排序参数。`limit=500` 保留为视图页上限，不再是唯一分页来源 |
 
 ---
 
@@ -400,9 +416,10 @@
 
 ---
 
-### BUG-36 自动化 AND/OR/NOT 条件组合不支持
+### BUG-36 自动化 AND/OR/NOT 条件组合不支持 ✅ 已核实已修复
 
 `backend/internal/service/automation_service.go:106` 有 TODO 注释。
+**核实（2026-10-18）**：`evaluateConditions`（`automation_service.go:121-160`）已实现递归 AND/OR/NOT，`Condition` 结构支持 `Logic` 与嵌套 `Conditions`。
 
 ---
 
@@ -424,7 +441,7 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 
 ## 🆕 UAT 验收新发现（2026-08-28）
 
-### BUG-39 项目创建 API 尾斜杠导致 404
+### BUG-39 项目创建 API 尾斜杠导致 404 ✅ 已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -433,6 +450,7 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **影响** | 点击"创建项目"按钮弹窗填写后提交，项目无法创建，提示"创建项目失败" |
 | **原因** | URL 拼接为 `/projects/?workspace_id=`（含尾斜杠），Gin 的 `RedirectTrailingSlash=false` 导致404 |
 | **修复** | 已修复：移除尾斜杠改为 `/projects?workspace_id=` |
+| **核实（2026-10-18）** | `createProject` 现拼接 `/projects?workspace_id=`，无尾斜杠 |
 
 ---
 
@@ -472,7 +490,7 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 
 ---
 
-### BUG-43 AI Agents 多个链接 URL 包含 `[object Promise]`
+### BUG-43 AI Agents 多个链接 URL 包含 `[object Promise]` ✅ 已随功能下线消失
 
 | 字段 | 内容 |
 |------|------|
@@ -481,10 +499,11 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **影响** | Model Configs、Tasks、Loop Configurations、Memory Management 等链接的 URL 为 `/workspaces/[object Promise]/agents/xxx`，点击后跳转到错误页面 |
 | **原因** | workspaceId 是 Promise 但未 await 就直接拼接进 URL 字符串 |
 | **复现** | 访问 AI Agents 仪表盘，检查 Model Configs 等链接的 href |
+| **核实（2026-10-18）** | `frontend/src/views/agents/` 整个目录已随 Agent 平台降级（`docs/dev/debt/2026-09-25-agent-platform-demotion.md`）移除，缺陷不再存在 |
 
 ---
 
-### BUG-44 新项目 Issue 类型下拉一直 "加载中..."
+### BUG-44 新项目 Issue 类型下拉一直 "加载中..." ✅ 已核实已修复
 
 | 字段 | 内容 |
 |------|------|
@@ -492,6 +511,7 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **类型** | 功能缺失 |
 | **影响** | 新创建的项目，Issue 类型筛选下拉始终显示"加载中..."，无法选择类型 |
 | **原因** | 新项目未自动创建默认 Issue 类型（Bug/Feature/Task），API 返回空列表导致下拉无选项 |
+| **核实（2026-10-18）** | `project_service.go` 创建项目时优先导入工作区类型（写 `IssueTypeImport`），没有工作区类型时回退到项目私有默认类型，新项目不会出现空列表 |
 
 ---
 

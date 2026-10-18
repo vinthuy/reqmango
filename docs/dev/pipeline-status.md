@@ -1,6 +1,6 @@
 # Pipeline Status（功能管线状态）
 
-最后更新：2026-10-11
+最后更新：2026-10-18
 
 ---
 
@@ -8,8 +8,18 @@
 
 | 功能 | Spec | Design | Plan | Implement | 备注 |
 |------|------|--------|------|-----------|------|
-| 存量质量 | — | — | — | 🔄 | 主路径已 PASS；不新开大功能。租户隔离与路由鉴权已按 [route audit](../security.md#8-tenancy-guard-and-the-route-audit-backendcmdroute_audit) 四模式复跑：无 XTENANT / ESCALATE / LEAK / WRITE |
+| 存量质量 | — | — | — | 🔄 | 主路径已 PASS；不新开大功能。租户隔离与路由鉴权由 [route audit](../security.md#8-tenancy-guard-and-the-route-audit-backendcmdroute_audit) 的 CI 门禁持续验证：四模式均以 `-strict` 跑在全新 `AutoMigrate` 库上，无 XTENANT / ESCALATE / LEAK / WRITE / unresolved |
 | （无新开功能） | | | | | |
+
+### 2026-10-18 运维与质量补强（已完成）
+
+| 项 | 内容 | 文档 |
+|----|------|------|
+| 健康探针 | `/health`（无依赖存活）、`/readyz`（2s 内 DB ping），注册在限流与语言中间件之前；Dockerfile `HEALTHCHECK` 与 CI/E2E 启动等待均改用探针 | [security.md §9](../security.md#9-health-and-readiness-probes) |
+| 审计门禁 | 新增 `-strict`，CI job `Tenancy audit` 四模式逐份新库运行，任何越权/未覆盖/500 直接失败 | [security.md §8](../security.md#8-tenancy-guard-and-the-route-audit-backendcmdroute_audit) |
+| 请求指标 | 按路由模板聚合请求量/4xx/5xx/P95，超阈值慢请求打 `[SLOW]` 日志；`GET /api/v1/metrics` 仅超管 | [security.md §10](../security.md#10-request-metrics-and-slow-request-logging) |
+| 工作流转换 | 引入 `workflow_kind` 判别 `workflows` 与 `agent_workflows`，修复 ID 重叠导致的串数据 | [security.md §11](../security.md#11-workflow-transition-kinds-state-vs-agent) |
+| 全新库缺陷 | 补 6 个缺失 AutoMigrate 模型、autopilot 跨租户读取、报表空 `IN ()`、initiative 歧义列 | [security.md §12](../security.md#12-gaps-the-fresh-database-audit-found) |
 
 ---
 
