@@ -98,7 +98,7 @@ func (s *IssueService) ApplyIssueSuggestions(issueID, commentID, userID uint64, 
 	for _, sk := range skipped {
 		outcomes[sk.Field] = model.SuggestionOutcome{Status: model.SuggestionFailed, Reason: sk.Reason, UserID: userID, At: now}
 	}
-	s.saveSuggestionOutcomes(comment, suggestions, outcomes, now)
+	_ = s.saveSuggestionOutcomes(comment, suggestions, outcomes, now)
 
 	return &ApplySuggestionsResult{Applied: applied, Skipped: skipped, Issue: issue}, nil
 }

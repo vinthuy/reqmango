@@ -2,6 +2,8 @@
  * useIssueFilters — Shared filter state across all issue views
  */
 import { ref, computed, reactive } from 'vue'
+import { useI18n } from './useI18n'
+import { getPriorityName } from '@/utils/issue-labels'
 
 export interface IssueFilter {
   key: string
@@ -11,6 +13,7 @@ export interface IssueFilter {
 }
 
 export function useIssueFilters() {
+  const { t } = useI18n()
   const search = ref('')
   const filters = reactive<Record<string, any>>({})
   const activeFilterObj = ref<IssueFilter[]>([])
@@ -20,26 +23,25 @@ export function useIssueFilters() {
     const chips: IssueFilter[] = []
     if (filters.state_id > 0) {
       const s = states.find((x: any) => x.id === filters.state_id)
-      chips.push({ key: 'state_id', label: '状态', value: String(filters.state_id), displayValue: s?.name || String(filters.state_id) })
+      chips.push({ key: 'state_id', label: t('common.state'), value: String(filters.state_id), displayValue: s?.name || String(filters.state_id) })
     }
     if (filters.priority) {
-      const map: Record<string, string> = { urgent: '紧急', high: '高', medium: '中', low: '低', none: '无' }
-      chips.push({ key: 'priority', label: '优先级', value: filters.priority, displayValue: map[filters.priority] || filters.priority })
+      chips.push({ key: 'priority', label: t('common.priority'), value: filters.priority, displayValue: getPriorityName(filters.priority) })
     }
     if (filters.cycle_id > 0) {
       const c = cycles.find((x: any) => x.id === filters.cycle_id)
-      chips.push({ key: 'cycle_id', label: '周期', value: String(filters.cycle_id), displayValue: c?.name || String(filters.cycle_id) })
+      chips.push({ key: 'cycle_id', label: t('common.cycle'), value: String(filters.cycle_id), displayValue: c?.name || String(filters.cycle_id) })
     }
     if (filters.assignee_id > 0) {
       const m = members.find((x: any) => x.user_id === filters.assignee_id || x.id === filters.assignee_id)
-      chips.push({ key: 'assignee_id', label: '负责人', value: String(filters.assignee_id), displayValue: m?.display_name || m?.user?.display_name || String(filters.assignee_id) })
+      chips.push({ key: 'assignee_id', label: t('common.assignee'), value: String(filters.assignee_id), displayValue: m?.display_name || m?.user?.display_name || String(filters.assignee_id) })
     }
     if (filters.label_ids?.length) {
       const names = filters.label_ids.map((id: number) => labels.find((l: any) => l.id === id)?.name || String(id))
-      chips.push({ key: 'label_ids', label: '标签', value: filters.label_ids.join(','), displayValue: names.join(', ') })
+      chips.push({ key: 'label_ids', label: t('common.labels'), value: filters.label_ids.join(','), displayValue: names.join(', ') })
     }
     if (filters.assignee_id === 'me') {
-      chips.push({ key: 'assignee_id', label: '负责人', value: 'me', displayValue: '我的' })
+      chips.push({ key: 'assignee_id', label: t('common.assignee'), value: 'me', displayValue: t('issueLabels.mine') })
     }
     return chips
   }

@@ -226,9 +226,11 @@ func (s *IntakeService) Submit(projectID uint64, source string, in IntakeSubmiss
 	}
 
 	err = s.db.Transaction(func(tx *gorm.DB) error {
-		var maxSeq int
-		tx.Model(&model.Issue{}).Where("project_id = ?", projectID).Select("COALESCE(MAX(sequence_id), 0)").Scan(&maxSeq)
-		issue.SequenceID = maxSeq + 1
+		sequenceID, err := nextIssueSequence(tx, projectID)
+		if err != nil {
+			return err
+		}
+		issue.SequenceID = sequenceID
 		if err := tx.Create(issue).Error; err != nil {
 			return err
 		}

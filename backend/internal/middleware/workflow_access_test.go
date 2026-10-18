@@ -48,6 +48,17 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	mk(&swOwn)
 	mk(&swWs)
 	mk(&swForeign)
+	awNew := model.AgentWorkflow{BaseModel: model.BaseModel{ID: 100}, Name: "new", ProjectID: own.ID, WorkspaceID: 10}
+	awNewForeign := model.AgentWorkflow{BaseModel: model.BaseModel{ID: 101}, Name: "new foreign", ProjectID: foreign.ID, WorkspaceID: 20}
+	awDeleted := model.AgentWorkflow{BaseModel: model.BaseModel{ID: 102}, Name: "deleted", ProjectID: own.ID, WorkspaceID: 10}
+	mk(&awNew)
+	mk(&awNewForeign)
+	mk(&awDeleted)
+	require.NoError(t, db.Delete(&awDeleted).Error)
+	tNew := model.StateTransition{Name: "new transition", WorkflowID: awNew.ID, SourceStateID: 1, TargetStateID: 2}
+	tNewForeign := model.StateTransition{Name: "foreign transition", WorkflowID: awNewForeign.ID, SourceStateID: 1, TargetStateID: 2}
+	mk(&tNew)
+	mk(&tNewForeign)
 	tOwn := model.StateTransition{Name: "t", WorkflowID: swOwn.ID, SourceStateID: 1, TargetStateID: 2}
 	tForeign := model.StateTransition{Name: "t", WorkflowID: swForeign.ID, SourceStateID: 1, TargetStateID: 2}
 	mk(&tOwn)
@@ -100,6 +111,15 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	assert.Equal(t, 404, status("alice", "GET", p+uitoa(swForeign.ID)+"/transitions"))
 	assert.Equal(t, 200, status("alice", "PUT", p+uitoa(swOwn.ID)+"/transitions/"+uitoa(tOwn.ID)))
 	assert.Equal(t, 404, status("alice", "PUT", p+uitoa(swOwn.ID)+"/transitions/"+uitoa(tForeign.ID)))
+	assert.Equal(t, 200, status("bob", "POST", p+uitoa(awNew.ID)+"/transitions"), "new project workflows do not need a matching legacy row")
+	assert.Equal(t, 200, status("alice", "GET", p+uitoa(awNew.ID)+"/transitions"))
+	assert.Equal(t, 200, status("bob", "PUT", p+uitoa(awNew.ID)+"/transitions/"+uitoa(tNew.ID)))
+	assert.Equal(t, 404, status("bob", "PUT", p+uitoa(awNew.ID)+"/transitions/"+uitoa(tNewForeign.ID)))
+	assert.Equal(t, 404, status("bob", "POST", p+uitoa(awNewForeign.ID)+"/transitions"))
+	assert.Equal(t, 404, status("bob", "POST", p+uitoa(awDeleted.ID)+"/transitions"))
+	assert.Equal(t, 403, status("carol", "POST", p+uitoa(awNew.ID)+"/transitions"))
+	mk(&model.Workflow{BaseModel: model.BaseModel{ID: awNew.ID}, Name: "colliding foreign state workflow", ProjectID: &foreign.ID, WorkspaceID: 20})
+	assert.Equal(t, 404, status("bob", "POST", p+uitoa(awNew.ID)+"/transitions"), "an existing foreign state workflow must not fall back to a local agent workflow")
 
 	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows"))
 	assert.Equal(t, 200, status("alice", "GET", "/workspaces/acme/workflows"), "slugs resolve")

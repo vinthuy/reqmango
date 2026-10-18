@@ -1068,12 +1068,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 		// ---- Conditional Fields (protected) ----
 		conditionalFields := v1.Group("/conditional-fields", authMiddleware)
 		{
-			conditionalFields.POST("", settingsManage, conditionalFieldH.Create)                           // ?workspace_id=
-			conditionalFields.GET("", conditionalFieldH.List)                                              // ?workspace_id=&field_id=
-			conditionalFields.GET("/:id", conditionalFieldH.Get)                                           // ?workspace_id=
-			conditionalFields.PUT("/:id", settingsManage, conditionalFieldH.Update)                        // ?workspace_id=
-			conditionalFields.DELETE("/:id", settingsManage, conditionalFieldH.Delete)                     // ?workspace_id=
-			conditionalFields.POST("/evaluate", conditionalFieldH.EvaluateFieldVisibility)                 // ?workspace_id=
+			conditionalFields.POST("", settingsManage, conditionalFieldH.Create)           // ?workspace_id=
+			conditionalFields.GET("", conditionalFieldH.List)                              // ?workspace_id=&field_id=
+			conditionalFields.GET("/:id", conditionalFieldH.Get)                           // ?workspace_id=
+			conditionalFields.PUT("/:id", settingsManage, conditionalFieldH.Update)        // ?workspace_id=
+			conditionalFields.DELETE("/:id", settingsManage, conditionalFieldH.Delete)     // ?workspace_id=
+			conditionalFields.POST("/evaluate", conditionalFieldH.EvaluateFieldVisibility) // ?workspace_id=
 		}
 
 		// ---- Project Templates (protected) ----

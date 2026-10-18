@@ -40,6 +40,9 @@ jobs:
       - name: Frontend type-check
         run: cd frontend && npx vue-tsc --noEmit
 
+      - name: Frontend translation keys
+        run: cd frontend && npm run i18n:check
+
   security:
     name: Security
     runs-on: ubuntu-latest
@@ -94,6 +97,8 @@ jobs:
         with: { go-version: '${{ env.GO_VERSION }}' }
 
       - name: Go tests
+        env:
+          TEST_DATABASE_URL: postgres://reqmango:reqmango@localhost:5432/reqmango_test?sslmode=disable
         run: |
           cd backend
           go test -race -coverprofile=coverage.out ./internal/...

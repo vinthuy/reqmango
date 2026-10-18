@@ -76,6 +76,8 @@ Keep **zh-CN and en-US in sync** when you add UI strings. Prefer `t('namespace.k
 
 CI (`.github/workflows/ci.yml`) runs lint, Go tests, frontend tests, and e2e — PRs should stay green.
 
+Run E2E against a disposable PostgreSQL database, not production: tests create accounts and mutate seed data. Intake fixtures delete their workspace, but registered accounts remain until the test database is discarded; CI discards its database after each job.
+
 ## What we welcome
 
 - Bug fixes with a clear repro
@@ -108,6 +110,14 @@ Be respectful. Assume good intent. No harassment or personal attacks. Maintainer
 - Dual-remote sync: [docs/dev/dual-remote.md](docs/dev/dual-remote.md)
 - GitHub About / Topics: [docs/dev/github-public-profile.md](docs/dev/github-public-profile.md)
 - Publishing curated tasks: [good-first-issues.md](docs/dev/good-first-issues.md)
+
+### Translation checks
+
+Run `cd frontend && npm run i18n:check` before submitting UI changes. It fails when a literal translation key is missing in either locale; dynamically concatenated keys need separate validation.
+
+### PostgreSQL numbering regression
+
+Set `TEST_DATABASE_URL` to a PostgreSQL URL and run `cd backend && go test ./internal/service -run TestIssueSequence`. These tests create and clean up an isolated schema, so the database role needs schema creation permission. Without this variable they are skipped; CI supplies it.
 
 ## License
 

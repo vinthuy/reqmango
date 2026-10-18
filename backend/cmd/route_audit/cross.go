@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"time"
 
 	"github.com/reqmango/backend/internal/model"
 )
+
+var paramRe = regexp.MustCompile(`:(\w+)`)
 
 // ownParams are path params that -cross mode fills with the attacker's own
 // IDs; any other param carries a victim ID.
