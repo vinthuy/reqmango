@@ -435,6 +435,16 @@ func TestPageService_ConvertToIssue(t *testing.T) {
 	assert.Contains(t, issue.DescriptionHTML, "Something is broken")
 	assert.Equal(t, projID, issue.ProjectID)
 
+	// The states foreign key rejects a zero state_id, so the conversion must
+	// resolve one; issue numbers must also come from the project sequence
+	// rather than the column default of 1.
+	require.NotZero(t, issue.StateID, "converted issue must carry a project state")
+	assert.Equal(t, 1, issue.SequenceID)
+
+	second, err := svc.ConvertToIssue(page.ID, projID, userID, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 2, second.SequenceID, "conversions allocate increasing issue numbers")
+
 	t.Logf("✅ Convert: page → issue ID=%d, name=%s", issue.ID, issue.Name)
 }
 

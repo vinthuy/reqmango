@@ -327,12 +327,23 @@ func (s *PageService) ConvertToIssue(pageID, projectID, userID uint64, issueType
 		return nil, common.Internal("Failed to fetch page")
 	}
 
+	// Resolve the state the new issue starts in. The states foreign key is
+	// enforced, so leaving StateID at zero fails the insert; prefer the
+	// project's default state and fall back to the oldest active one.
+	var state model.State
+	if err := s.db.Where("project_id = ? AND is_active = ?", projectID, true).
+		Order("is_default DESC, id ASC").First(&state).Error; err != nil {
+		return nil, common.NotFound("No state found for project")
+	}
+
 	// Create issue from page content
 	issue := &model.Issue{
 		Name:            p.Title,
 		DescriptionHTML: p.Content,
 		ProjectID:       p.ProjectID,
 		WorkspaceID:     p.WorkspaceID,
+		StateID:         state.ID,
+		SortOrder:       65535,
 	}
 	issue.CreatedByID = &userID
 
@@ -340,12 +351,31 @@ func (s *PageService) ConvertToIssue(pageID, projectID, userID uint64, issueType
 		issue.IssueTypeID = issueTypeID
 	}
 
-	if err := s.db.Create(issue).Error; err != nil {
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return nil, common.Internal("Failed to create issue from page")
+	}
+	sequenceID, err := nextIssueSequence(tx, projectID)
+	if err != nil {
+		tx.Rollback()
+		return nil, common.Internal("Failed to allocate issue number")
+	}
+	issue.SequenceID = sequenceID
+
+	if err := tx.Create(issue).Error; err != nil {
+		tx.Rollback()
 		return nil, common.Internal("Failed to create issue from page")
 	}
 
 	// Link the page to the issue
-	s.db.Exec("INSERT INTO issue_pages (issue_id, page_id) VALUES (?, ?) ON CONFLICT DO NOTHING", issue.ID, p.ID)
+	if err := tx.Exec("INSERT INTO issue_pages (issue_id, page_id) VALUES (?, ?) ON CONFLICT DO NOTHING", issue.ID, p.ID).Error; err != nil {
+		tx.Rollback()
+		return nil, common.Internal("Failed to link page to issue")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, common.Internal("Failed to create issue from page")
+	}
 
 	return issue, nil
 }
