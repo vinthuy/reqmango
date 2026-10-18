@@ -134,6 +134,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	agentTaskSvc := service.NewAgentTaskService(db)
 	agentTaskSvc.SetPresenceService(agentSvc)
 	contextPayloadSvc := service.NewContextPayloadService(db)
+	stateWorkflowSvc := service.NewStateWorkflowService(db)
 	workflowSvc := service.NewWorkflowService(db, contextPayloadSvc, agentDecisionSvc, agentBudgetSvc)
 	workflowExecutor := service.NewWorkflowExecutor(db, workflowSvc, contextPayloadSvc, agentDecisionSvc, agentBudgetSvc, agentSLASvc)
 	workflowExecutor.SetAgentExecutor(&aiAgentExecutorAdapter{agentSvc: agentSvc})
@@ -158,7 +159,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	templateH := handler.NewProjectTemplateHandler(templateSvc)
 	typeTemplateH := handler.NewTypeTemplateHandler(typeTemplateSvc)
 	relationH := handler.NewRelationHandler(relationSvc)
-	workflowH := handler.NewWorkflowHandler(workflowSvc, workflowExecutor)
+	workflowH := handler.NewWorkflowHandler(stateWorkflowSvc, workflowSvc, workflowExecutor)
 	agentMemberH := handler.NewAgentMemberHandler(agentMemberSvc)
 	issueAgentH := handler.NewIssueAgentHandler(issueAgentSvc)
 	budgetH := handler.NewBudgetHandler(agentBudgetSvc)
@@ -606,7 +607,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.POST("/:wsParam/workflows/:workflowId/transitions", wsWorkflow, workflowH.AddWorkspaceTransition)
 			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", wsWorkflow, workflowH.UpdateWorkspaceTransition)
 			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", wsWorkflow, workflowH.DeleteWorkspaceTransition)
-			// Alias /edges → transitions for WorkflowManager compatibility
+			// Alias /edges → transitions for StateWorkflowManager compatibility
 			workspaces.POST("/:wsParam/workflows/:workflowId/edges", wsWorkflow, workflowH.AddWorkspaceTransition)
 			workspaces.DELETE("/:wsParam/workflows/:workflowId/edges/:transitionId", wsWorkflow, workflowH.DeleteWorkspaceTransition)
 
@@ -1141,10 +1142,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workflows.POST("", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.CreateWorkflow)
 			workflows.PUT("/:workflowId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateWorkflow)
 			workflows.DELETE("/:workflowId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.DeleteWorkflow)
-			workflows.GET("/:workflowId/transitions", workflowH.ListTransitions)
-			workflows.POST("/:workflowId/transitions", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.AddTransition)
-			workflows.PUT("/:workflowId/transitions/:transitionId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateTransition)
-			workflows.DELETE("/:workflowId/transitions/:transitionId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.DeleteTransition)
+			// Transitions belong to state-machine workflows, served under
+			// /workspaces/:wsParam/workflows. This group is agent orchestration:
+			// its structure is nodes and edges, so there is no transition CRUD.
 			// --- Agent-Project Integration: Workflow nodes, edges, execute, runs ---
 			workflows.POST("/:workflowId/nodes", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.AddNode)
 			workflows.PUT("/:workflowId/nodes/:nodeId", middleware.RequirePermission(db, "workflow:manage", "project"), workflowH.UpdateNode)

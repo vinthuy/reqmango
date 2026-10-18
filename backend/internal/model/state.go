@@ -24,14 +24,15 @@ func (State) TableName() string {
 	return "states"
 }
 
-// StateTransition represents a workflow transition between states.
+// StateTransition represents a workflow transition between states. It belongs
+// to the state machine (`workflows`) and never to an agent workflow: those keep
+// their DAG in workflow_nodes / workflow_edges.
 type StateTransition struct {
 	BaseModel
 
 	Name                 string  `gorm:"size:255;not null" json:"name"`
 	Description          *string `gorm:"size:500" json:"description"`
 	WorkflowID           uint64  `gorm:"not null;index" json:"workflow_id"`
-	WorkflowKind         string  `gorm:"size:16;not null;default:'state';index" json:"workflow_kind"`
 	SourceStateID        uint64  `gorm:"not null" json:"source_state_id"`
 	TargetStateID        uint64  `gorm:"not null" json:"target_state_id"`
 	IssueTypeID          *uint64 `json:"issue_type_id"`
@@ -45,21 +46,14 @@ type StateTransition struct {
 	ProjectID            *uint64 `json:"project_id"`
 	WorkspaceID          uint64  `gorm:"not null" json:"workspace_id"`
 
-	// Workflow relationship removed: AutoMigrate re-created the FK
-	// fk_workflows_transitions pointing at the legacy `workflows` table on every
-	// start, which prevented inserting transitions for agent workflows.  The FK
-	// is now dropped by the archived migration 000021 (see migrations/archive/).
-	SourceState State `gorm:"foreignKey:SourceStateID" json:"-"`
-	TargetState State `gorm:"foreignKey:TargetStateID" json:"-"`
+	// The foreign key to `workflows` is correct now that agent transitions no
+	// longer exist: before, it had to be dropped because an agent transition's
+	// workflow_id pointed at agent_workflows and could not satisfy it.
+	Workflow    Workflow `gorm:"foreignKey:WorkflowID" json:"-"`
+	SourceState State    `gorm:"foreignKey:SourceStateID" json:"-"`
+	TargetState State    `gorm:"foreignKey:TargetStateID" json:"-"`
 }
 
 func (StateTransition) TableName() string {
 	return "state_transitions"
 }
-
-// Workflow kinds. `workflows` and `agent_workflows` are independent tables with
-// overlapping id ranges, so a transition must record which one it belongs to.
-const (
-	TransitionKindState = "state"
-	TransitionKindAgent = "agent"
-)

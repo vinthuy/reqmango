@@ -70,7 +70,6 @@ func (f *fixture) edge(t *testing.T, workflowID uint64, from, to string, ruleTyp
 	require.NoError(t, f.db.Create(&model.StateTransition{
 		Name:          from + "→" + to,
 		WorkflowID:    workflowID,
-		WorkflowKind:  model.TransitionKindState,
 		SourceStateID: f.states[from].ID,
 		TargetStateID: f.states[to].ID,
 		RuleType:      ruleType,
@@ -123,19 +122,15 @@ func TestLoad_AllowsEverythingWhenWorkflowDefinesNoEdges(t *testing.T) {
 	assert.Equal(t, Allowed, rules.Check(f.states["Backlog"], f.states["Todo"]).Outcome)
 }
 
-func TestLoad_IgnoresAgentWorkflowTransitionsWithACollidingID(t *testing.T) {
-	// `workflows` and `agent_workflows` have overlapping id values. A
-	// transition created for an agent workflow must not constrain the state
-	// machine that happens to share its numeric id.
+func TestLoad_IgnoresTransitionsWithoutAWorkflow(t *testing.T) {
+	// workflow_id must now name a `workflows` row. A stale transition left
+	// behind by the retired agent kind has no such parent, so it must not
+	// constrain anything.
 	f := newFixture(t)
-	wf := f.workflow(t, model.Workflow{Name: "agent-owned id"})
-	require.NoError(t, f.db.Create(&model.AgentWorkflow{
-		BaseModel: model.BaseModel{ID: wf.ID}, Name: "agent", ProjectID: 1, WorkspaceID: 1,
-	}).Error)
+	f.workflow(t, model.Workflow{Name: "empty"})
 	require.NoError(t, f.db.Create(&model.StateTransition{
-		Name:          "agent edge",
-		WorkflowID:    wf.ID,
-		WorkflowKind:  model.TransitionKindAgent,
+		Name:          "stale edge",
+		WorkflowID:    9999,
 		SourceStateID: f.states["Backlog"].ID,
 		TargetStateID: f.states["Done"].ID,
 		RuleType:      "approval",
@@ -145,7 +140,7 @@ func TestLoad_IgnoresAgentWorkflowTransitionsWithACollidingID(t *testing.T) {
 
 	rules := f.load(t, nil)
 
-	assert.False(t, rules.Restricts, "an agent transition restricts nothing here")
+	assert.False(t, rules.Restricts, "an orphaned transition restricts nothing")
 	assert.Equal(t, Allowed, rules.Check(f.states["Backlog"], f.states["Done"]).Outcome)
 }
 

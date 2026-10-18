@@ -55,6 +55,15 @@ func main() {
 	END $$`)
 	fmt.Println("Automation rules FK cleanup completed")
 
+	// Retire the state_transitions.workflow_kind discriminator before
+	// AutoMigrate restores the foreign key to `workflows`: a leftover agent
+	// transition would make that constraint impossible to create. Migration
+	// 000002 does the same for deployments that run cmd/migrate; this keeps the
+	// AutoMigrate-only path (the Docker image) converging on the same schema.
+	if err := retireStateTransitionKind(db); err != nil {
+		log.Fatalf("Failed to retire state_transitions.workflow_kind: %v", err)
+	}
+
 	if err := db.AutoMigrate(
 		&model.User{},
 		&model.Workspace{},
@@ -207,20 +216,6 @@ func main() {
 	}
 	fmt.Println("Database migration completed")
 
-	// Backfill state_transitions.workflow_kind. AutoMigrate adds the column with
-	// a 'state' default but cannot infer which rows belong to agent workflows;
-	// deployments that never run cmd/migrate would otherwise keep the wrong
-	// value and keep reporting an unrelated workflow's transitions.
-	// Idempotent: the same project/ownership test is applied on every start.
-	db.Exec(`UPDATE state_transitions t SET workflow_kind = 'agent'
-		WHERE EXISTS (SELECT 1 FROM agent_workflows a WHERE a.id = t.workflow_id)
-		  AND NOT EXISTS (SELECT 1 FROM workflows w WHERE w.id = t.workflow_id)`)
-	db.Exec(`UPDATE state_transitions t SET workflow_kind = 'agent'
-		WHERE EXISTS (SELECT 1 FROM agent_workflows a
-		              WHERE a.id = t.workflow_id AND COALESCE(a.project_id, 0) = COALESCE(t.project_id, 0))
-		  AND NOT EXISTS (SELECT 1 FROM workflows w
-		                  WHERE w.id = t.workflow_id AND COALESCE(w.project_id, 0) = COALESCE(t.project_id, 0))`)
-
 	// Register built-in tools
 	toolSvc := service.NewToolService(db)
 	if err := toolSvc.RegisterBuiltinTools(0); err != nil {
@@ -299,4 +294,49 @@ func main() {
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+// retireStateTransitionKind converges a database that predates migration 000002
+// onto the single-owner schema AutoMigrate expects. It is a no-op once the
+// column is gone, so it costs one catalogue query per start.
+func retireStateTransitionKind(db *gorm.DB) error {
+	var hasColumn bool
+	if err := db.Raw(`SELECT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'state_transitions'
+		  AND column_name = 'workflow_kind')`).Scan(&hasColumn).Error; err != nil {
+		return err
+	}
+	if !hasColumn {
+		return nil
+	}
+
+	// Rows are archived, never dropped: agent transitions and transitions whose
+	// workflow row is gone cannot satisfy the restored foreign key.
+	steps := []string{
+		`CREATE TABLE IF NOT EXISTS state_transitions_agent_archive
+			(LIKE state_transitions INCLUDING DEFAULTS)`,
+		`ALTER TABLE state_transitions_agent_archive
+			ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ DEFAULT now()`,
+		`INSERT INTO state_transitions_agent_archive
+			SELECT t.*, now() FROM state_transitions t
+			WHERE t.workflow_kind = 'agent'
+			  AND NOT EXISTS (SELECT 1 FROM state_transitions_agent_archive a WHERE a.id = t.id)`,
+		`INSERT INTO state_transitions_agent_archive
+			SELECT t.*, now() FROM state_transitions t
+			WHERE t.workflow_kind <> 'agent'
+			  AND NOT EXISTS (SELECT 1 FROM workflows w WHERE w.id = t.workflow_id)
+			  AND NOT EXISTS (SELECT 1 FROM state_transitions_agent_archive a WHERE a.id = t.id)`,
+		`DELETE FROM state_transitions t
+			WHERE t.workflow_kind = 'agent'
+			   OR NOT EXISTS (SELECT 1 FROM workflows w WHERE w.id = t.workflow_id)`,
+		`ALTER TABLE state_transitions DROP COLUMN IF EXISTS workflow_kind`,
+	}
+	for _, step := range steps {
+		if err := db.Exec(step).Error; err != nil {
+			return err
+		}
+	}
+	fmt.Println("Retired state_transitions.workflow_kind")
+	return nil
 }

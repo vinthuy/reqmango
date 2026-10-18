@@ -57,17 +57,11 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	mk(&awNewForeign)
 	mk(&awDeleted)
 	require.NoError(t, db.Delete(&awDeleted).Error)
-	tNew := model.StateTransition{Name: "new transition", WorkflowID: awNew.ID, WorkflowKind: model.TransitionKindAgent, SourceStateID: 1, TargetStateID: 2}
-	tNewForeign := model.StateTransition{Name: "foreign transition", WorkflowID: awNewForeign.ID, WorkflowKind: model.TransitionKindAgent, SourceStateID: 1, TargetStateID: 2}
-	mk(&tNew)
-	mk(&tNewForeign)
-	// A state-machine transition whose workflow_id happens to equal the agent
-	// workflow's id: the kind must keep it out of the agent workflow's routes.
-	tColliding := model.StateTransition{Name: "state transition with colliding id", WorkflowID: awNew.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
-	mk(&tColliding)
-	tOwn := model.StateTransition{Name: "t", WorkflowID: swOwn.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
-	tForeign := model.StateTransition{Name: "t", WorkflowID: swForeign.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
-	tWs := model.StateTransition{Name: "t ws", WorkflowID: swWs.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
+	// State-machine transitions live in `state_transitions` and point at
+	// `workflows`. They are reachable only through the workspace group.
+	tOwn := model.StateTransition{Name: "t", WorkflowID: swOwn.ID, SourceStateID: 1, TargetStateID: 2}
+	tForeign := model.StateTransition{Name: "t", WorkflowID: swForeign.ID, SourceStateID: 1, TargetStateID: 2}
+	tWs := model.StateTransition{Name: "t ws", WorkflowID: swWs.ID, SourceStateID: 1, TargetStateID: 2}
 	mk(&tOwn)
 	mk(&tForeign)
 	mk(&tWs)
@@ -87,9 +81,6 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	pw.GET("/:workflowId", ok)
 	pw.PUT("/:workflowId/nodes/:nodeId", ok)
 	pw.GET("/:workflowId/runs/:runId", ok)
-	pw.GET("/:workflowId/transitions", ok)
-	pw.POST("/:workflowId/transitions", ok)
-	pw.PUT("/:workflowId/transitions/:transitionId", ok)
 	ww := r.Group("/workspaces/:wsParam/workflows", RequireWorkspaceWorkflow(db))
 	ww.GET("", ok)
 	ww.GET("/:workflowId", ok)
@@ -112,18 +103,10 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	assert.Equal(t, 403, status("carol", "GET", p+uitoa(awOwn.ID)))
 	assert.Equal(t, 404, status("alice", "PUT", p+uitoa(awOwn.ID)+"/nodes/"+uitoa(nodeForeign.ID)))
 	assert.Equal(t, 404, status("alice", "GET", p+uitoa(awOwn.ID)+"/runs/"+uitoa(runForeign.ID)))
-
-	assert.Equal(t, 200, status("alice", "GET", p+uitoa(awNew.ID)+"/transitions"))
-	assert.Equal(t, 200, status("bob", "PUT", p+uitoa(awNew.ID)+"/transitions/"+uitoa(tNew.ID)))
-	assert.Equal(t, 404, status("bob", "PUT", p+uitoa(awNew.ID)+"/transitions/"+uitoa(tNewForeign.ID)))
-	assert.Equal(t, 404, status("bob", "PUT", p+uitoa(awNew.ID)+"/transitions/"+uitoa(tColliding.ID)), "a state transition is not addressable through an agent workflow")
-	assert.Equal(t, 404, status("bob", "POST", p+uitoa(awNewForeign.ID)+"/transitions"))
-	assert.Equal(t, 404, status("bob", "POST", p+uitoa(awDeleted.ID)+"/transitions"))
-	assert.Equal(t, 403, status("carol", "POST", p+uitoa(awNew.ID)+"/transitions"))
-	// The two id spaces overlap; a legacy workflow with the same id must not
-	// shadow the agent workflow these routes actually address.
-	mk(&model.Workflow{BaseModel: model.BaseModel{ID: awNew.ID}, Name: "colliding foreign state workflow", ProjectID: &foreign.ID, WorkspaceID: 20})
-	assert.Equal(t, 200, status("bob", "POST", p+uitoa(awNew.ID)+"/transitions"), "the agent workflow wins, not the colliding legacy row")
+	// Transitions are not part of agent orchestration: the retired routes stay
+	// unregistered, so callers get a plain 404 rather than a wrong-table read.
+	assert.Equal(t, 404, status("alice", "GET", p+uitoa(awOwn.ID)+"/transitions"))
+	assert.Equal(t, 404, status("bob", "POST", p+uitoa(awOwn.ID)+"/transitions"))
 
 	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows"))
 	assert.Equal(t, 200, status("alice", "GET", "/workspaces/acme/workflows"), "slugs resolve")

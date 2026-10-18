@@ -21,10 +21,10 @@ type Workflow struct {
 
 	// Relationships
 	Project Project `gorm:"foreignKey:ProjectID" json:"-"`
-	// Transitions relationship removed: it caused AutoMigrate to create
-	// fk_workflows_transitions (state_transitions.workflow_id → workflows.id)
-	// on every start, which prevented inserting transitions for agent workflows.
-	// The FK is now managed via migration 000021 only.
+	// A transition belongs to exactly one of these tables now: state-machine
+	// transitions point here, and agent orchestration keeps its DAG in
+	// workflow_nodes / workflow_edges. There is no `workflow_kind` discriminator.
+	Transitions []StateTransition `gorm:"foreignKey:WorkflowID" json:"-"`
 }
 
 func (Workflow) TableName() string {

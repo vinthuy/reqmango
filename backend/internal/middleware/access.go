@@ -3,7 +3,6 @@ package middleware
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
@@ -132,9 +131,9 @@ func allowProject(c *gin.Context, db *gorm.DB, projectID uint64) (*model.Project
 
 // RequireProjectWorkflow guards /projects/:projectId/workflows routes: the
 // caller must reach the project, :workflowId must belong to it, and any
-// :nodeId, :edgeId, :runId or :transitionId must belong to that workflow.
-// Every route in this group addresses an agent workflow (`agent_workflows`);
-// the legacy `workflows` table shares id values but is unrelated.
+// :nodeId, :edgeId or :runId must belong to that workflow. Every route in this
+// group addresses an agent workflow (`agent_workflows`); the legacy `workflows`
+// table shares id values but is unrelated and is served under /workspaces.
 func RequireProjectWorkflow(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
@@ -151,23 +150,12 @@ func RequireProjectWorkflow(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		found := false
-		if strings.Contains(c.FullPath(), "/transitions") || strings.Contains(c.FullPath(), "/edges") {
-			// Transition and edge routes address agent workflows: that is what
-			// /projects/:id/workflows lists. Binding them to the legacy
-			// `workflows` table by id silently matched an unrelated workflow,
-			// because the two id ranges overlap.
-			var n int64
-			db.Model(&model.AgentWorkflow{}).Where("id = ? AND project_id = ?", workflowID, projectID).Count(&n)
-			found = n > 0 && transitionChildOf(db, model.TransitionKindAgent, paramID(c, "transitionId"), workflowID)
-		} else {
-			var n int64
-			db.Model(&model.AgentWorkflow{}).Where("id = ? AND project_id = ?", workflowID, projectID).Count(&n)
-			found = n > 0 &&
-				childOf(db, &model.WorkflowNode{}, paramID(c, "nodeId"), workflowID) &&
-				childOf(db, &model.WorkflowEdge{}, paramID(c, "edgeId"), workflowID) &&
-				childOf(db, &model.WorkflowRun{}, paramID(c, "runId"), workflowID)
-		}
+		var n int64
+		db.Model(&model.AgentWorkflow{}).Where("id = ? AND project_id = ?", workflowID, projectID).Count(&n)
+		found := n > 0 &&
+			childOf(db, &model.WorkflowNode{}, paramID(c, "nodeId"), workflowID) &&
+			childOf(db, &model.WorkflowEdge{}, paramID(c, "edgeId"), workflowID) &&
+			childOf(db, &model.WorkflowRun{}, paramID(c, "runId"), workflowID)
 		if !found {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Workflow not found"})
 			return
@@ -216,7 +204,7 @@ func RequireWorkspaceWorkflow(db *gorm.DB) gin.HandlerFunc {
 			if transitionID := paramID(c, "transitionId"); transitionID != 0 {
 				var transitions int64
 				db.Model(&model.StateTransition{}).
-					Where("id = ? AND workflow_id = ? AND workflow_kind = ?", transitionID, workflowID, model.TransitionKindState).
+					Where("id = ? AND workflow_id = ?", transitionID, workflowID).
 					Count(&transitions)
 				if transitions == 0 {
 					c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Workflow not found"})
@@ -259,19 +247,6 @@ func RequireWorkspaceAutopilotTask(db *gorm.DB) gin.HandlerFunc {
 		}
 		c.Next()
 	}
-}
-
-// transitionChildOf is childOf for state_transitions, which needs the workflow
-// kind: `workflows` and `agent_workflows` have overlapping id ranges, so
-// id + workflow_id alone can match a transition of the other kind.
-func transitionChildOf(db *gorm.DB, kind string, id, workflowID uint64) bool {
-	if id == 0 {
-		return true
-	}
-	var n int64
-	db.Model(&model.StateTransition{}).
-		Where("id = ? AND workflow_id = ? AND workflow_kind = ?", id, workflowID, kind).Count(&n)
-	return n > 0
 }
 
 // childOf reports whether row id of the given model has workflow_id =
