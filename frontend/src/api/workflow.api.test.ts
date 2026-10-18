@@ -26,7 +26,6 @@ import {
   createWorkspaceWorkflow, deleteWorkspaceWorkflow,
   addWorkspaceTransition, deleteWorkspaceTransition,
   listStateTransitions, createStateTransition, updateStateTransition, deleteStateTransition,
-  listAutomationRules, toggleAutomationRule, listAutomationTemplates,
   budgetApi, slaApi, decisionApi,
 } from './workflow'
 
@@ -209,26 +208,6 @@ describe('State Transitions API', () => {
     mockDelete.mockResolvedValue({ data: null })
     await deleteStateTransition(1, 5, 9)
     expect(mockDelete).toHaveBeenCalledWith('/projects/1/workflows/5/transitions/9')
-  })
-})
-
-describe('Automation Rules API', () => {
-  it('listAutomationRules should GET', async () => {
-    mockGet.mockResolvedValue({ data: [] })
-    await listAutomationRules(1)
-    expect(mockGet).toHaveBeenCalledWith('/projects/1/automation-rules')
-  })
-
-  it('toggleAutomationRule should PUT', async () => {
-    mockPut.mockResolvedValue({ data: { id: 5, is_enabled: false } })
-    await toggleAutomationRule(1, 5, false)
-    expect(mockPut).toHaveBeenCalledWith('/projects/1/automation-rules/5', { is_enabled: false })
-  })
-
-  it('listAutomationTemplates should GET', async () => {
-    mockGet.mockResolvedValue({ data: [] })
-    await listAutomationTemplates()
-    expect(mockGet).toHaveBeenCalledWith('/automation-templates')
   })
 })
 

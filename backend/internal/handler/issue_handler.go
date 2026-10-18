@@ -1204,6 +1204,48 @@ func (h *IssueHandler) ConvertType(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// BulkConvertType handles POST /issues/bulk/convert-type?project_id=int.
+// Converts every listed issue to one type and reports per-issue failures
+// instead of aborting on the first one, matching the other bulk endpoints.
+func (h *IssueHandler) BulkConvertType(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
+	var req struct {
+		IssueIDs    []uint64 `json:"issue_ids"`
+		IssueTypeID uint64   `json:"issue_type_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	if len(req.IssueIDs) == 0 || req.IssueTypeID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "issue_ids and issue_type_id are required"})
+		return
+	}
+
+	converted := make([]uint64, 0, len(req.IssueIDs))
+	failed := make([]map[string]interface{}, 0)
+	for _, id := range req.IssueIDs {
+		convertReq := &request.ConvertTypeRequest{TargetTypeID: req.IssueTypeID}
+		if _, err := h.svc.ConvertType(id, convertReq, user.ID); err != nil {
+			msg := err.Error()
+			if appErr, ok := err.(*common.AppError); ok {
+				msg = appErr.Message
+			}
+			failed = append(failed, map[string]interface{}{"issue_id": id, "message": msg})
+			continue
+		}
+		converted = append(converted, id)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success_count": len(converted),
+		"failed_count":  len(failed),
+		"converted_ids": converted,
+		"failed_items":  failed,
+	})
+}
+
 // ==================== Tree View ====================
 
 // Tree handles GET /issues/tree?project_id=int&limit=&offset=&search=&state_id=&priority=

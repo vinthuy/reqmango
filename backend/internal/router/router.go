@@ -922,6 +922,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.POST("/bulk/update", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkUpdate) // ?project_id=
 			issues.POST("/bulk/delete", middleware.RequirePermission(db, "issue:delete", "project"), issueH.BulkDelete)
 			issues.POST("/bulk/copy", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkCopy)
+			issues.POST("/bulk/convert-type", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkConvertType)
 			issues.POST("/bulk/move", middleware.RequirePermission(db, "issue:edit", "project"), issueH.BulkMove)
 			issues.POST("/merge", issueH.MergeDuplicates)
 

@@ -234,18 +234,13 @@ export function deleteStateTransition(projectId: number, workflowId: number, tra
 }
 
 // ==================== Automation Rules ====================
-
-export function listAutomationRules(projectId: number) {
-  return apiClient.get(`/projects/${projectId}/automation-rules`).then(r => r.data)
-}
-
-export function toggleAutomationRule(projectId: number, ruleId: number, enabled: boolean) {
-  return apiClient.put(`/projects/${projectId}/automation-rules/${ruleId}`, { is_enabled: enabled }).then(r => r.data)
-}
-
-export function listAutomationTemplates() {
-  return apiClient.get('/automation-templates').then(r => r.data)
-}
+//
+// The rule endpoints live under /automations (see backend/internal/router).
+// These three helpers pointed at /automation-rules and /automation-templates,
+// which were never registered, and their only consumers (WorkflowRuleList and
+// AutomationTemplateList) were unreferenced components. Both were removed
+// rather than repointed: nothing imported them, so fixing the URLs would only
+// have preserved dead code with a passing test that asserted the wrong URL.
 
 // ==================== Budget API ====================
 

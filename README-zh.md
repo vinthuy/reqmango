@@ -87,6 +87,22 @@ EOF
 go run ./cmd/server/
 ```
 
+服务启动时会自动迁移并写入种子数据，因此新建环境只需这一步。
+
+### 数据库迁移
+
+若希望把建表作为一个独立、可审阅的步骤，用 `cmd/migrate`：
+
+```bash
+cd backend
+go run ./cmd/migrate up      # 应用基线
+go run ./cmd/migrate version # 1, dirty=false
+```
+
+`migrations/000001_baseline.up.sql` 是单一幂等基线，空库和「已由服务 AutoMigrate
+建好的库」都能直接跑。压缩基线之前建好的旧库需要一次性
+`go run ./cmd/migrate force 1`，详见[债务说明](docs/dev/debt/2026-10-18-sql-migration-chain.md)。
+
 种子数据含 `demo@example.com` / `demo1234`、工作区 `reqmango-dev`（项目 `CORE` / `MOBILE` / `AI` / `OPENAPI`），以及示例 Sprint / 模块 / 工作项。
 
 ```bash

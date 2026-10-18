@@ -87,6 +87,25 @@ EOF
 go run ./cmd/server/
 ```
 
+The server migrates and seeds on start, so this is all a new environment needs.
+
+### Database migrations
+
+`cmd/migrate` is the explicit alternative for environments that want a reviewed
+schema step separate from the application boot:
+
+```bash
+cd backend
+go run ./cmd/migrate up      # apply the baseline
+go run ./cmd/migrate version # 1, dirty=false
+```
+
+`migrations/000001_baseline.up.sql` is a single idempotent baseline, so it runs
+on an empty database *and* on one already created by the server's AutoMigrate.
+An existing database that predates the squash needs a one-time
+`go run ./cmd/migrate force 1`; see
+[the debt note](docs/dev/debt/2026-10-18-sql-migration-chain.md).
+
 Seed data includes `demo@example.com` / `demo1234`, workspace `reqmango-dev` (projects `CORE` / `MOBILE` / `AI` / `OPENAPI`), sample sprints / modules / issues.
 
 ```bash
