@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict dQIpgiUggGs6y8yAccH6qYAWe7lVbdlon8SC5dMhWyfgQe0K6c3PVZYM3VTK2S3
 
 -- Dumped from database version 18.4
 -- Dumped by pg_dump version 18.4
@@ -13,7 +12,6 @@ SET idle_in_transaction_session_timeout = 0;
 SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
 SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
@@ -4764,5 +4762,4 @@ ALTER TABLE ONLY public.projects
 -- PostgreSQL database dump complete
 --
 
-\unrestrict dQIpgiUggGs6y8yAccH6qYAWe7lVbdlon8SC5dMhWyfgQe0K6c3PVZYM3VTK2S3
 
