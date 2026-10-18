@@ -103,39 +103,6 @@ export const ActionTypeOptions = [
   { value: 'rollup_to_parent', label: '状态卷积到父级', icon: '⬆️' },
 ]
 
-// ==================== State Transition ====================
-
-export interface StateTransition {
-  id: number
-  name: string
-  description?: string
-  source_state_id: number
-  target_state_id: number
-  issue_type_id?: number
-  is_auto: boolean
-  project_id: number
-  workspace_id: number
-  is_deleted: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface StateTransitionCreate {
-  name: string
-  description?: string
-  source_state_id: number
-  target_state_id: number
-  issue_type_id?: number
-  is_auto?: boolean
-}
-
-export interface StateTransitionUpdate {
-  name?: string
-  description?: string
-  is_auto?: boolean
-  issue_type_id?: number
-}
-
 // ==================== Automation Rule ====================
 
 export interface Trigger {

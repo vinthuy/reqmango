@@ -14,7 +14,7 @@ import WorkspaceIntegrations from '@/components/WorkspaceIntegrations.vue'
 import AIToolConnect from '@/components/AIToolConnect.vue'
 import RoleManagement from '@/components/RoleManagement.vue';
 import PluginManager from '@/views/PluginManager.vue';
-import WorkflowManager from '@/components/WorkflowManager.vue';
+import StateWorkflowManager from '@/components/StateWorkflowManager.vue';
 import * as workflowApi from '@/api/workflow';
 import * as issueTypeApi from '@/api/issue-type';
 import api from '@/api';
@@ -365,7 +365,7 @@ watch(() => route.query.section, (section) => {
 
       <!-- Workflows Section (workspace-level) -->
       <div v-if="!loading && activeSection === 'workflows'" class="p-6">
-        <WorkflowManager :workspace-id="workspaceId" />
+        <StateWorkflowManager :workspace-id="workspaceId" />
       </div>
 
       <!-- Automations Section (workspace-level) -->

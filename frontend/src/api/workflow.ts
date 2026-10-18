@@ -215,24 +215,6 @@ export function deleteWorkspaceTransition(workspaceId: number, workflowId: numbe
   return apiClient.delete(`/workspaces/${workspaceId}/workflows/${workflowId}/transitions/${edgeId}`)
 }
 
-// ==================== State Transitions ====================
-
-export function listStateTransitions(projectId: number, workflowId: number) {
-  return apiClient.get(`/projects/${projectId}/workflows/${workflowId}/transitions`).then(r => r.data)
-}
-
-export function createStateTransition(projectId: number, workflowId: number, data: any) {
-  return apiClient.post(`/projects/${projectId}/workflows/${workflowId}/transitions`, data).then(r => r.data)
-}
-
-export function updateStateTransition(projectId: number, workflowId: number, transitionId: number, data: any) {
-  return apiClient.put(`/projects/${projectId}/workflows/${workflowId}/transitions/${transitionId}`, data).then(r => r.data)
-}
-
-export function deleteStateTransition(projectId: number, workflowId: number, transitionId: number) {
-  return apiClient.delete(`/projects/${projectId}/workflows/${workflowId}/transitions/${transitionId}`)
-}
-
 // ==================== Automation Rules ====================
 //
 // The rule endpoints live under /automations (see backend/internal/router).

@@ -18,7 +18,6 @@ import {
   getActionIcon,
 } from './workflow'
 import type {
-  StateTransition,
   AutomationRule,
   AutomationRuleCreate,
   AutomationRuleUpdate,
@@ -165,20 +164,6 @@ describe('getActionIcon', () => {
 })
 
 // ==================== Type Validation ====================
-describe('StateTransition type', () => {
-  it('should accept valid transition', () => {
-    const t: StateTransition = {
-      id: 1, name: 'Start Progress',
-      source_state_id: 1, target_state_id: 2,
-      is_auto: false, project_id: 1, workspace_id: 1,
-      is_deleted: false,
-      created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
-    }
-    expect(t.source_state_id).toBe(1)
-    expect(t.target_state_id).toBe(2)
-  })
-})
-
 describe('AutomationRule type', () => {
   it('should accept valid automation rule', () => {
     const rule: AutomationRule = {

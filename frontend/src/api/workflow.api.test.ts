@@ -25,7 +25,6 @@ import {
   createWorkspaceAutomation, updateWorkspaceAutomation, deleteWorkspaceAutomation,
   createWorkspaceWorkflow, deleteWorkspaceWorkflow,
   addWorkspaceTransition, deleteWorkspaceTransition,
-  listStateTransitions, createStateTransition, updateStateTransition, deleteStateTransition,
   budgetApi, slaApi, decisionApi,
 } from './workflow'
 
@@ -182,32 +181,6 @@ describe('Workspace-level API', () => {
     mockDelete.mockResolvedValue({ data: null })
     await deleteWorkspaceTransition(1, 5, 9)
     expect(mockDelete).toHaveBeenCalledWith('/workspaces/1/workflows/5/transitions/9')
-  })
-})
-
-describe('State Transitions API', () => {
-  it('listStateTransitions should GET', async () => {
-    mockGet.mockResolvedValue({ data: [] })
-    await listStateTransitions(1, 5)
-    expect(mockGet).toHaveBeenCalledWith('/projects/1/workflows/5/transitions')
-  })
-
-  it('createStateTransition should POST', async () => {
-    mockPost.mockResolvedValue({ data: { id: 1 } })
-    await createStateTransition(1, 5, { source_state_id: 1, target_state_id: 2 })
-    expect(mockPost).toHaveBeenCalledWith('/projects/1/workflows/5/transitions', { source_state_id: 1, target_state_id: 2 })
-  })
-
-  it('updateStateTransition should PUT', async () => {
-    mockPut.mockResolvedValue({ data: { id: 9 } })
-    await updateStateTransition(1, 5, 9, { name: 'T' })
-    expect(mockPut).toHaveBeenCalledWith('/projects/1/workflows/5/transitions/9', { name: 'T' })
-  })
-
-  it('deleteStateTransition should DELETE', async () => {
-    mockDelete.mockResolvedValue({ data: null })
-    await deleteStateTransition(1, 5, 9)
-    expect(mockDelete).toHaveBeenCalledWith('/projects/1/workflows/5/transitions/9')
   })
 })
 

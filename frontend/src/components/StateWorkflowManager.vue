@@ -74,13 +74,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
-import { workflowApi, listWorkspaceWorkflows, createWorkspaceWorkflow, deleteWorkspaceWorkflow, addWorkspaceTransition, deleteWorkspaceTransition } from '@/api/workflow'
+import { listWorkspaceWorkflows, createWorkspaceWorkflow, deleteWorkspaceWorkflow, addWorkspaceTransition, deleteWorkspaceTransition } from '@/api/workflow'
 import api from '@/api'
 import { useConfirm } from '@/composables/useConfirm'
-import { useProjectPermissions } from '@/composables/usePermission'
 import { useAuthStore } from '@/stores/auth'
 
-const props = defineProps<{ projectId?: number; workspaceId?: number; canManage?: boolean }>()
+// State-machine workflows only. Agent orchestration (agent_workflows) is
+// edited in the project workflow designer, never here.
+const props = defineProps<{ workspaceId: number; canManage?: boolean }>()
 const { t } = useI18n()
 const { confirm } = useConfirm()
 const workflows = ref<any[]>([])
@@ -90,23 +91,15 @@ const showModal = ref(false); const showTrans = ref(false); const selWid = ref(0
 const form = ref<{ name: string; desc: string; selectedTypeIds: number[] }>({ name: '', desc: '', selectedTypeIds: [] })
 const trans = ref({ from: 0, to: 0, desc: '', rule_type: 'allow', approver_ids: '', role_allowed: '', approve_target_state_id: 0, reject_target_state_id: 0, approval_mode: 'any' })
 
-const isWorkspaceMode = computed(() => !!props.workspaceId && !props.projectId)
-
 const authStore = useAuthStore()
 const workspaceMemberRole = ref<number | null>(null)
-const { can } = useProjectPermissions(() => props.projectId)
 const canManageWorkflows = computed(() => {
   if (props.canManage !== undefined) return props.canManage
-  if (props.projectId) return can('workflow:manage')
-  if (isWorkspaceMode.value && props.workspaceId) {
-    if (authStore.user?.is_superuser) return true
-    return (workspaceMemberRole.value ?? 0) >= 20
-  }
-  return false
+  if (authStore.user?.is_superuser) return true
+  return (workspaceMemberRole.value ?? 0) >= 20
 })
 
 async function loadWorkspaceManagePermission() {
-  if (!isWorkspaceMode.value || !props.workspaceId) return
   try {
     const res = await api.get(`/workspaces/${props.workspaceId}/members`)
     const members = Array.isArray(res.data) ? res.data : (res.data?.data || [])
@@ -131,12 +124,8 @@ function parseIssueTypeIds(ids: string | null | undefined): number[] {
 async function load() {
   try {
     const [wResult, sResult] = await Promise.allSettled([
-      isWorkspaceMode.value
-        ? listWorkspaceWorkflows(props.workspaceId!)
-        : workflowApi.list(props.projectId!),
-      isWorkspaceMode.value
-        ? api.get(`/workspaces/${props.workspaceId}/settings/states`)
-        : api.get(`/projects/${props.projectId}/settings/states`)
+      listWorkspaceWorkflows(props.workspaceId),
+      api.get(`/workspaces/${props.workspaceId}/settings/states`)
     ]);
     const w = wResult.status === 'fulfilled' ? wResult.value : [];
     const s = sResult.status === 'fulfilled' ? sResult.value : null;
@@ -145,7 +134,7 @@ async function load() {
     let loadedStates = Array.isArray(statesBody?.data) ? statesBody.data : (Array.isArray(statesBody) ? statesBody : [])
     // Workspace workflows need ≥2 states to define transitions; if workspace has none,
     // fall back to states from the first project in this workspace so the editor is usable.
-    if (isWorkspaceMode.value && loadedStates.length < 2) {
+    if (loadedStates.length < 2) {
       try {
         const projectsRes = await api.get(`/projects`, { params: { workspace_id: props.workspaceId } })
         const projects = Array.isArray(projectsRes?.data) ? projectsRes.data : (projectsRes?.data?.data || [])
@@ -159,39 +148,31 @@ async function load() {
       } catch { /* keep workspace states */ }
     }
     states.value = loadedStates
-    
+
     // Load issue types
     try {
-      const itRes = await api.get('/issue-types', { params: { workspace_id: props.workspaceId || undefined, project_id: props.projectId || undefined } })
+      const itRes = await api.get('/issue-types', { params: { workspace_id: props.workspaceId } })
       issueTypes.value = itRes?.data?.data || itRes?.data || []
     } catch { issueTypes.value = [] }
-  } catch(e){ console.error(e) } 
+  } catch(e){ console.error(e) }
 }
 
 function openCreate() { form.value = { name: '', desc: '', selectedTypeIds: [] }; showModal.value = true }
 
-async function save() { 
+async function save() {
   const data: any = { name: form.value.name, description: form.value.desc }
   if (form.value.selectedTypeIds.length > 0) {
     data.issue_type_ids = form.value.selectedTypeIds
   }
-  if (isWorkspaceMode.value) {
-    await createWorkspaceWorkflow(props.workspaceId!, data)
-  } else {
-    await workflowApi.create(props.projectId!, data)
-  }
-  showModal.value = false; load() 
+  await createWorkspaceWorkflow(props.workspaceId, data)
+  showModal.value = false; load()
 }
 
-async function confirmDel(w:any) { 
-  if(await confirm(t('workflow.confirmDelete'))) { 
-    if (isWorkspaceMode.value) {
-      await deleteWorkspaceWorkflow(props.workspaceId!, w.id)
-    } else {
-      await workflowApi.delete(props.projectId!, w.id)
-    }
-    load() 
-  } 
+async function confirmDel(w:any) {
+  if(await confirm(t('workflow.confirmDelete'))) {
+    await deleteWorkspaceWorkflow(props.workspaceId, w.id)
+    load()
+  }
 }
 
 function openAddTrans(w:any) {
@@ -211,25 +192,17 @@ async function saveTrans() {
     data.approval_mode = trans.value.approval_mode || 'any'
   }
   try {
-    if (isWorkspaceMode.value) {
-      await addWorkspaceTransition(props.workspaceId!, selWid.value, data)
-    } else {
-      await workflowApi.addEdge(props.projectId!, selWid.value, data as any)
-    }
+    await addWorkspaceTransition(props.workspaceId, selWid.value, data)
     showTrans.value = false; load()
   } catch (e) {
     console.error(e)
   }
 }
 
-async function delTrans(tid:number) { 
+async function delTrans(tid:number) {
   const wid = selWid.value || (workflows.value.find(w=>w.transitions?.some((t:any)=>t.id===tid))?.id||0)
-  if (isWorkspaceMode.value) {
-    await deleteWorkspaceTransition(props.workspaceId!, wid, tid)
-  } else {
-    await workflowApi.deleteEdge(props.projectId!, wid, tid)
-  }
-  load() 
+  await deleteWorkspaceTransition(props.workspaceId, wid, tid)
+  load()
 }
 
 onMounted(() => {
