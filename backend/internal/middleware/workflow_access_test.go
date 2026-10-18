@@ -67,8 +67,10 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	mk(&tColliding)
 	tOwn := model.StateTransition{Name: "t", WorkflowID: swOwn.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
 	tForeign := model.StateTransition{Name: "t", WorkflowID: swForeign.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
+	tWs := model.StateTransition{Name: "t ws", WorkflowID: swWs.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
 	mk(&tOwn)
 	mk(&tForeign)
+	mk(&tWs)
 
 	ownPage := model.Page{Title: "p", ProjectID: own.ID, WorkspaceID: 10}
 	foreignPage := model.Page{Title: "p", ProjectID: foreign.ID, WorkspaceID: 20}
@@ -127,13 +129,18 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	assert.Equal(t, 200, status("alice", "GET", "/workspaces/acme/workflows"), "slugs resolve")
 	assert.Equal(t, 404, status("alice", "GET", "/workspaces/nope/workflows"))
 	assert.Equal(t, 403, status("carol", "GET", "/workspaces/10/workflows"))
-	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(awOwn.ID)))
-	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(awNew.ID)+"/transitions"))
-	assert.Equal(t, 404, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions"), "state workflows are not served here")
-	assert.Equal(t, 403, status("alice", "POST", "/workspaces/10/workflows/"+uitoa(awNew.ID)+"/transitions"), "members cannot change workflows")
-	assert.Equal(t, 200, status("bob", "POST", "/workspaces/10/workflows/"+uitoa(awNew.ID)+"/transitions"))
+	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(swWs.ID)), "workspace routes address state workflows")
+	assert.Equal(t, 404, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(awNew.ID)), "an agent workflow id is not a state workflow")
+	assert.Equal(t, 404, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(swForeign.ID)), "a foreign workspace workflow is unreachable")
+	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions"))
+	assert.Equal(t, 404, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(swForeign.ID)+"/transitions"))
+	assert.Equal(t, 403, status("alice", "POST", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions"), "members cannot change workflows")
+	assert.Equal(t, 200, status("bob", "POST", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions"))
 	assert.Equal(t, 404, status("bob", "POST", "/workspaces/10/workflows/"+uitoa(awNewForeign.ID)+"/transitions"))
-	assert.Equal(t, 404, status("bob", "DELETE", "/workspaces/10/workflows/"+uitoa(awNew.ID)+"/transitions/"+uitoa(tNewForeign.ID)))
+	assert.Equal(t, 404, status("bob", "POST", "/workspaces/10/workflows/"+uitoa(awNew.ID)+"/transitions"), "an agent workflow id is not a state workflow")
+	assert.Equal(t, 200, status("bob", "DELETE", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions/"+uitoa(tWs.ID)))
+	assert.Equal(t, 404, status("bob", "DELETE", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions/"+uitoa(tForeign.ID)), "a transition of another workflow is unreachable")
+	assert.Equal(t, 404, status("alice", "GET", p+uitoa(swOwn.ID)), "a state workflow id is not an agent workflow")
 
 	assert.Equal(t, 200, status("alice", "POST", "/pages/"+uitoa(ownPage.ID)+"/ai"))
 	assert.Equal(t, 403, status("alice", "POST", "/pages/"+uitoa(foreignPage.ID)+"/ai"))

@@ -834,7 +834,8 @@ func (s *WorkflowService) toStateWorkflowResponse(wf *model.Workflow) StateWorkf
 	}
 
 	var transitions []model.StateTransition
-	s.db.Where("workflow_id = ? AND deleted_at IS NULL", wf.ID).Order("id ASC").Find(&transitions)
+	s.db.Where("workflow_id = ? AND workflow_kind = ? AND deleted_at IS NULL", wf.ID, model.TransitionKindState).
+		Order("id ASC").Find(&transitions)
 	for _, t := range transitions {
 		item := StateTransitionUIItem{
 			ID:                   t.ID,
@@ -878,6 +879,18 @@ func (s *WorkflowService) ListStateWorkflowsByWorkspace(workspaceID uint64) ([]S
 		result = append(result, s.toStateWorkflowResponse(&workflows[i]))
 	}
 	return result, nil
+}
+
+// GetStateWorkflow returns one state-machine workflow in a workspace. It reads
+// the `workflows` table, never `agent_workflows`: the two have overlapping ids
+// and the workspace routes address the former.
+func (s *WorkflowService) GetStateWorkflow(workspaceID, workflowID uint64) (*StateWorkflowResponse, error) {
+	var wf model.Workflow
+	if err := s.db.Where("id = ? AND workspace_id = ? AND deleted_at IS NULL", workflowID, workspaceID).First(&wf).Error; err != nil {
+		return nil, errors.New("workflow not found")
+	}
+	resp := s.toStateWorkflowResponse(&wf)
+	return &resp, nil
 }
 
 // CreateStateWorkflow creates a workspace-level (or project-scoped) state-machine workflow.
@@ -942,7 +955,8 @@ func (s *WorkflowService) DeleteStateWorkflow(workspaceID, workflowID uint64) er
 	if err := s.db.Where("id = ? AND workspace_id = ?", workflowID, workspaceID).First(&wf).Error; err != nil {
 		return errors.New("workflow not found")
 	}
-	if err := s.db.Where("workflow_id = ?", workflowID).Delete(&model.StateTransition{}).Error; err != nil {
+	if err := s.db.Where("workflow_id = ? AND workflow_kind = ?", workflowID, model.TransitionKindState).
+		Delete(&model.StateTransition{}).Error; err != nil {
 		return err
 	}
 	result := s.db.Delete(&wf)

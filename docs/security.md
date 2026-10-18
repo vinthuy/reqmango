@@ -207,23 +207,31 @@ metrics dependency. Add an exporter if dashboards or alerting are needed.
 
 ## 11. Workflow transition kinds (`state` vs `agent`)
 
-`state_transitions.workflow_id` points at one of two independent tables whose id
-ranges overlap:
+`state_transitions.workflow_id` can point at one of two independent tables whose
+id ranges overlap:
 
-| Kind | Table | Read by |
-|------|-------|---------|
-| `state` | `workflows` | the transition rules engine (`internal/workflow`), seed data |
-| `agent` | `agent_workflows` | every `/projects/:id/workflows/*` and `/workspaces/:ws/workflows/*` route |
+| Kind | Table | Routes that address it |
+|------|-------|------------------------|
+| `state` | `workflows` | `/workspaces/:wsParam/workflows/*`, read by the rules engine (`internal/workflow`) |
+| `agent` | `agent_workflows` | `/projects/:projectId/workflows/*` |
 
 Filtering on `workflow_id` alone therefore mixed them: agent workflow 1 also
 resolved the state workflow with id 1, so listing edges returned 22 unrelated
 state transitions, and creating one attached it to the wrong project. The row
-now carries `workflow_kind`, and:
+carries `workflow_kind`, and each route group owns exactly one kind:
 
-- `/projects/:id/workflows/:workflowId/transitions` and `/edges` bind to
-  `agent_workflows`; a state workflow id is `404` there.
-- `RequireProjectWorkflow` / `RequireWorkspaceWorkflow` validate `:workflowId`
-  and `:transitionId` within the agent kind.
+- `/projects/:id/workflows/:workflowId/transitions` binds to `agent_workflows`;
+  `RequireProjectWorkflow` validates `:workflowId` and `:transitionId` there.
+- `/workspaces/:wsParam/workflows/:workflowId/transitions` (and the `/edges`
+  alias) binds to `workflows`; `RequireWorkspaceWorkflow` validates the id
+  against that table and the transition against `workflow_kind = 'state'`.
+  Before this was corrected, the workspace routes reused the project handlers
+  and the agent kind, so every workspace detail, update, delete and transition
+  route returned 404, and a create would have been attributed to an agent
+  workflow that shared the id.
+- Workspace detail and list responses filter transitions by `state`; they used
+  to select by `workflow_id` alone, which let an agent transition appear under a
+  state workflow.
 - The rules engine reads only `workflow_kind = 'state'`.
 
 `migrations/archive/000022_state_transition_kind.up.sql` added the column and
@@ -234,6 +242,10 @@ and `cmd/server` repeats the backfill after `AutoMigrate`, so a deployment that
 never runs `cmd/migrate` converges too. Both statements are idempotent.
 
 New transitions inherit the kind from the route, never from the id.
+
+The column is a stopgap. The target design gives each table a single owner and
+drops `workflow_kind` entirely; see
+`docs/superpowers/specs/2026-10-18-workflow-model-separation-design.md`.
 
 ---
 

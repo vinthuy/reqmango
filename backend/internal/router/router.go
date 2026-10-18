@@ -599,16 +599,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// Workspace-level Workflows (state-machine)
 			workspaces.GET("/:wsParam/workflows", wsWorkflow, workflowH.ListWorkspaceWorkflows)
 			workspaces.POST("/:wsParam/workflows", wsWorkflow, workflowH.CreateWorkspaceWorkflow)
-			workspaces.GET("/:wsParam/workflows/:workflowId", wsWorkflow, workflowH.GetWorkflow)
+			workspaces.GET("/:wsParam/workflows/:workflowId", wsWorkflow, workflowH.GetStateWorkflow)
 			workspaces.PUT("/:wsParam/workflows/:workflowId", wsWorkflow, workflowH.UpdateWorkspaceWorkflow)
 			workspaces.DELETE("/:wsParam/workflows/:workflowId", wsWorkflow, workflowH.DeleteWorkspaceWorkflow)
-			workspaces.GET("/:wsParam/workflows/:workflowId/transitions", wsWorkflow, workflowH.ListTransitions)
-			workspaces.POST("/:wsParam/workflows/:workflowId/transitions", wsWorkflow, workflowH.AddTransition)
-			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", wsWorkflow, workflowH.UpdateTransition)
-			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", wsWorkflow, workflowH.DeleteTransition)
+			workspaces.GET("/:wsParam/workflows/:workflowId/transitions", wsWorkflow, workflowH.ListWorkspaceTransitions)
+			workspaces.POST("/:wsParam/workflows/:workflowId/transitions", wsWorkflow, workflowH.AddWorkspaceTransition)
+			workspaces.PUT("/:wsParam/workflows/:workflowId/transitions/:transitionId", wsWorkflow, workflowH.UpdateWorkspaceTransition)
+			workspaces.DELETE("/:wsParam/workflows/:workflowId/transitions/:transitionId", wsWorkflow, workflowH.DeleteWorkspaceTransition)
 			// Alias /edges → transitions for WorkflowManager compatibility
-			workspaces.POST("/:wsParam/workflows/:workflowId/edges", wsWorkflow, workflowH.AddTransition)
-			workspaces.DELETE("/:wsParam/workflows/:workflowId/edges/:transitionId", wsWorkflow, workflowH.DeleteTransition)
+			workspaces.POST("/:wsParam/workflows/:workflowId/edges", wsWorkflow, workflowH.AddWorkspaceTransition)
+			workspaces.DELETE("/:wsParam/workflows/:workflowId/edges/:transitionId", wsWorkflow, workflowH.DeleteWorkspaceTransition)
 
 			// Workspace-level Approvals
 			workspaces.GET("/:wsParam/approvals", approvalH.ListByWorkspace)

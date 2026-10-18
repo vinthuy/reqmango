@@ -60,3 +60,63 @@ func TestTransitionKindSeparation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, stateList, "an agent transition must not appear under the state workflow")
 }
+
+// TestStateWorkflowReadPathsStayInWorkflows covers the read path that the kind
+// column did not cover: the workspace detail and list responses used to select
+// transitions by workflow_id alone, so an agent transition with a colliding id
+// showed up under a state workflow.
+func TestStateWorkflowReadPathsStayInWorkflows(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Workspace{}, &model.Project{}, &model.State{}, &model.StateTransition{},
+		&model.Workflow{}, &model.AgentWorkflow{}))
+
+	require.NoError(t, db.Create(&model.Workspace{BaseModel: model.BaseModel{ID: 10}, Name: "ws", Slug: "ws"}).Error)
+	own := model.Project{Name: "own", Identifier: "OWN", WorkspaceID: 10}
+	require.NoError(t, db.Create(&own).Error)
+	to := model.State{Name: "Done", ProjectID: &own.ID, WorkspaceID: 10}
+	require.NoError(t, db.Create(&to).Error)
+
+	const sharedID uint64 = 7
+	stateWF := model.Workflow{BaseModel: model.BaseModel{ID: sharedID}, Name: "state", WorkspaceID: 10}
+	agentWF := model.AgentWorkflow{BaseModel: model.BaseModel{ID: sharedID}, Name: "agent", ProjectID: own.ID, WorkspaceID: 10}
+	require.NoError(t, db.Create(&stateWF).Error)
+	require.NoError(t, db.Create(&agentWF).Error)
+
+	require.NoError(t, db.Create(&model.StateTransition{
+		Name: "agent edge", WorkflowID: sharedID, WorkflowKind: model.TransitionKindAgent,
+		SourceStateID: to.ID, TargetStateID: to.ID, WorkspaceID: 10,
+	}).Error)
+	stateTransition := model.StateTransition{
+		Name: "state edge", WorkflowID: sharedID, WorkflowKind: model.TransitionKindState,
+		SourceStateID: to.ID, TargetStateID: to.ID, WorkspaceID: 10,
+	}
+	require.NoError(t, db.Create(&stateTransition).Error)
+
+	svc := NewWorkflowService(db, nil, nil, nil)
+
+	detail, err := svc.GetStateWorkflow(10, sharedID)
+	require.NoError(t, err)
+	require.Len(t, detail.Transitions, 1, "only the state transition belongs to the state workflow")
+	assert.Equal(t, stateTransition.ID, detail.Transitions[0].ID)
+
+	list, err := svc.ListStateWorkflowsByWorkspace(10)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	require.Len(t, list[0].Transitions, 1, "the list response must not mix kinds either")
+	assert.Equal(t, stateTransition.ID, list[0].Transitions[0].ID)
+
+	// An id that exists only in agent_workflows must not resolve here.
+	agentOnly := model.AgentWorkflow{BaseModel: model.BaseModel{ID: 8}, Name: "agent only", ProjectID: own.ID, WorkspaceID: 10}
+	require.NoError(t, db.Create(&agentOnly).Error)
+	_, err = svc.GetStateWorkflow(10, agentOnly.ID)
+	assert.Error(t, err, "an agent workflow id is not a state workflow")
+
+	// Deleting the state workflow must not delete the agent transition that
+	// happens to share the workflow id.
+	require.NoError(t, svc.DeleteStateWorkflow(10, sharedID))
+	var agentRows int64
+	require.NoError(t, db.Model(&model.StateTransition{}).
+		Where("workflow_id = ? AND workflow_kind = ?", sharedID, model.TransitionKindAgent).Count(&agentRows).Error)
+	assert.Equal(t, int64(1), agentRows)
+}

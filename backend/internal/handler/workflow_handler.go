@@ -81,6 +81,30 @@ func (h *WorkflowHandler) GetWorkflow(c *gin.Context) {
 	c.JSON(http.StatusOK, workflow)
 }
 
+// GetStateWorkflow returns a workspace state-machine workflow. The workspace
+// routes address `workflows`; GetWorkflow reads `agent_workflows`, whose ids
+// overlap.
+func (h *WorkflowHandler) GetStateWorkflow(c *gin.Context) {
+	workspaceID, err := h.workflowSvc.ResolveWorkspaceID(c.Param("wsParam"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workspace"})
+		return
+	}
+	workflowID, err := strconv.ParseUint(c.Param("workflowId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workflow ID"})
+		return
+	}
+
+	workflow, err := h.workflowSvc.GetStateWorkflow(workspaceID, workflowID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "workflow not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, workflow)
+}
+
 // UpdateWorkflow updates a workflow.
 func (h *WorkflowHandler) UpdateWorkflow(c *gin.Context) {
 	workflowID, err := strconv.ParseUint(c.Param("workflowId"), 10, 64)
@@ -412,18 +436,26 @@ func (h *WorkflowHandler) DeleteWorkspaceWorkflow(c *gin.Context) {
 
 // --- State transition methods ---
 
-// ListTransitions returns the state transitions attached to a workflow.
-// These routes address agent workflows: /projects/:id/workflows lists them and
-// the workspace routes read them, so the transitions must be scoped to the same
-// kind. State workflows keep their own transitions, read by the rules engine.
+// ListTransitions returns the state transitions attached to an agent workflow.
+// The workspace routes use ListWorkspaceTransitions instead: they address
+// `workflows`, a different table with overlapping ids.
 func (h *WorkflowHandler) ListTransitions(c *gin.Context) {
+	h.listTransitions(c, model.TransitionKindAgent)
+}
+
+// ListWorkspaceTransitions returns the transitions of a workspace state workflow.
+func (h *WorkflowHandler) ListWorkspaceTransitions(c *gin.Context) {
+	h.listTransitions(c, model.TransitionKindState)
+}
+
+func (h *WorkflowHandler) listTransitions(c *gin.Context, kind string) {
 	workflowID, err := strconv.ParseUint(c.Param("workflowId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workflow ID"})
 		return
 	}
 
-	transitions, err := h.workflowSvc.ListTransitions(model.TransitionKindAgent, workflowID)
+	transitions, err := h.workflowSvc.ListTransitions(kind, workflowID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -432,8 +464,17 @@ func (h *WorkflowHandler) ListTransitions(c *gin.Context) {
 	c.JSON(http.StatusOK, transitions)
 }
 
-// AddTransition creates a new state transition for a workflow.
+// AddTransition creates a state transition for an agent workflow.
 func (h *WorkflowHandler) AddTransition(c *gin.Context) {
+	h.addTransition(c, model.TransitionKindAgent)
+}
+
+// AddWorkspaceTransition creates a transition for a workspace state workflow.
+func (h *WorkflowHandler) AddWorkspaceTransition(c *gin.Context) {
+	h.addTransition(c, model.TransitionKindState)
+}
+
+func (h *WorkflowHandler) addTransition(c *gin.Context, kind string) {
 	workflowID, err := strconv.ParseUint(c.Param("workflowId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workflow ID"})
@@ -446,7 +487,7 @@ func (h *WorkflowHandler) AddTransition(c *gin.Context) {
 		return
 	}
 
-	transition, err := h.workflowSvc.AddTransition(model.TransitionKindAgent, workflowID, req)
+	transition, err := h.workflowSvc.AddTransition(kind, workflowID, req)
 	if err != nil {
 		respondTransitionError(c, err)
 		return
@@ -455,8 +496,17 @@ func (h *WorkflowHandler) AddTransition(c *gin.Context) {
 	c.JSON(http.StatusCreated, transition)
 }
 
-// UpdateTransition updates a state transition.
+// UpdateTransition updates an agent workflow transition.
 func (h *WorkflowHandler) UpdateTransition(c *gin.Context) {
+	h.updateTransition(c, model.TransitionKindAgent)
+}
+
+// UpdateWorkspaceTransition updates a workspace state workflow transition.
+func (h *WorkflowHandler) UpdateWorkspaceTransition(c *gin.Context) {
+	h.updateTransition(c, model.TransitionKindState)
+}
+
+func (h *WorkflowHandler) updateTransition(c *gin.Context, kind string) {
 	transitionID, err := strconv.ParseUint(c.Param("transitionId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transition ID"})
@@ -469,7 +519,7 @@ func (h *WorkflowHandler) UpdateTransition(c *gin.Context) {
 		return
 	}
 
-	if err := h.workflowSvc.UpdateTransition(model.TransitionKindAgent, transitionID, req); err != nil {
+	if err := h.workflowSvc.UpdateTransition(kind, transitionID, req); err != nil {
 		respondTransitionError(c, err)
 		return
 	}
@@ -477,15 +527,24 @@ func (h *WorkflowHandler) UpdateTransition(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "transition updated"})
 }
 
-// DeleteTransition deletes a state transition.
+// DeleteTransition deletes an agent workflow transition.
 func (h *WorkflowHandler) DeleteTransition(c *gin.Context) {
+	h.deleteTransition(c, model.TransitionKindAgent)
+}
+
+// DeleteWorkspaceTransition deletes a workspace state workflow transition.
+func (h *WorkflowHandler) DeleteWorkspaceTransition(c *gin.Context) {
+	h.deleteTransition(c, model.TransitionKindState)
+}
+
+func (h *WorkflowHandler) deleteTransition(c *gin.Context, kind string) {
 	transitionID, err := strconv.ParseUint(c.Param("transitionId"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid transition ID"})
 		return
 	}
 
-	if err := h.workflowSvc.DeleteTransition(model.TransitionKindAgent, transitionID); err != nil {
+	if err := h.workflowSvc.DeleteTransition(kind, transitionID); err != nil {
 		respondTransitionError(c, err)
 		return
 	}

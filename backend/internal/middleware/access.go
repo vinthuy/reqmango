@@ -204,14 +204,24 @@ func RequireWorkspaceWorkflow(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 		if workflowID := paramID(c, "workflowId"); workflowID != 0 {
-			// Every route in this group now addresses an agent workflow; the
-			// id overlap with the legacy `workflows` table made the old
-			// method-based split match the wrong row.
+			// These routes address `workflows` (state machine). Validating the
+			// id against `agent_workflows` made every detail, update, delete
+			// and transition route 404.
 			var n int64
-			db.Model(&model.AgentWorkflow{}).Where("id = ? AND workspace_id = ?", workflowID, wsID).Count(&n)
-			if n == 0 || !transitionChildOf(db, model.TransitionKindAgent, paramID(c, "transitionId"), workflowID) {
+			db.Model(&model.Workflow{}).Where("id = ? AND workspace_id = ?", workflowID, wsID).Count(&n)
+			if n == 0 {
 				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Workflow not found"})
 				return
+			}
+			if transitionID := paramID(c, "transitionId"); transitionID != 0 {
+				var transitions int64
+				db.Model(&model.StateTransition{}).
+					Where("id = ? AND workflow_id = ? AND workflow_kind = ?", transitionID, workflowID, model.TransitionKindState).
+					Count(&transitions)
+				if transitions == 0 {
+					c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Workflow not found"})
+					return
+				}
 			}
 		}
 		c.Next()

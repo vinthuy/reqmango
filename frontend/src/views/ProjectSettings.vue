@@ -509,7 +509,7 @@ const showWorkflowModal = ref(false)
 const newWorkflowForm = ref({ name: '', description: '' })
 
 function handleViewWorkflow(workflowId: number) {
-  router.push(`/workspace/${slug.value}/project/${projectId.value}/settings/workflows/${workflowId}`)
+  router.push(`/workspace/${slug.value}/project/${projectId.value}/workflow/${workflowId}/design`)
 }
 function handleAddWorkflow() {
   newWorkflowForm.value = { name: '', description: '' }
