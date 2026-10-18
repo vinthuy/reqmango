@@ -673,7 +673,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.POST("/:projectId/restore", projectH.Restore)
 			projects.GET("/:projectId/my-permissions", projectAccess, handler.MyProjectPermissions(db))
 			projects.GET("/:projectId/approvals", approvalH.ListByProject)
-			projects.GET("/:projectId/members", projectH.ListMembers)            // ?only_active=
+			projects.GET("/:projectId/members", projectH.ListMembers) // ?only_active=
 			projects.GET("/:projectId/member-candidates", middleware.RequirePermission(db, "member:manage_project", "project"), projectH.ListMemberCandidates)
 			projects.POST("/:projectId/members", projectH.AddMember)             // ?user_id=&role=
 			projects.PATCH("/:projectId/members/:userId", projectH.UpdateMember) // ?role=
