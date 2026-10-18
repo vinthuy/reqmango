@@ -17,6 +17,17 @@ sql = open(src, encoding="utf-8").read()
 sql = re.sub(r"(?m)^\\(?:un)?restrict [^\n]*\n", "", sql)
 sql = re.sub(r"(?m)^SELECT pg_catalog\.set_config\('search_path', '', false\);\n", "", sql)
 
+# pg_dump emits SET statements that describe the source database, not the target:
+# some name parameters an older server rejects outright (`transaction_timeout`
+# is PostgreSQL 17+), and session settings such as search_path would leak into
+# the migrations that follow on a pooled connection.
+sql = re.sub(r"(?m)^SET [^\n]*;\n", "", sql)
+
+# Guard against the dump being regenerated from a newer server than CI runs.
+for needle in ("transaction_timeout", "ANY_VALUE(", "RETURNING OLD", "NULLS NOT DISTINCT"):
+    if needle in sql:
+        sys.exit("baseline still contains %r, which older PostgreSQL rejects" % needle)
+
 sql = re.sub(r"(?m)^CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", sql)
 sql = re.sub(r"(?m)^CREATE SEQUENCE ", "CREATE SEQUENCE IF NOT EXISTS ", sql)
 sql = re.sub(r"(?m)^CREATE (UNIQUE )?INDEX ", lambda m: "CREATE %sINDEX IF NOT EXISTS " % (m.group(1) or ""), sql)
