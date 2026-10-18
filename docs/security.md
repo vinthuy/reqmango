@@ -177,3 +177,28 @@ that could still serve cached and read-only paths.
 
 `backend/Dockerfile` wires `/health` into `HEALTHCHECK`. Orchestrators should
 route on `/readyz`, not on the liveness endpoint.
+
+---
+
+## 10. Request metrics and slow-request logging
+
+`middleware.MetricsCollector` aggregates request counts, 4xx/5xx counts and a
+latency histogram per **route template** (`c.FullPath()`), so memory is bounded
+by the number of registered routes rather than by the URLs seen. Unmatched
+paths collapse into `<unmatched>`. `/health` and `/readyz` are excluded so
+orchestrator polling cannot drown real traffic.
+
+`GET /api/v1/metrics` returns the snapshot. It is process-wide and spans every
+tenant, so it requires a **superuser**; a member gets `403`. The payload has
+`uptime_seconds`, `slow_threshold_ms`, and per route `requests`,
+`client_errors`, `server_errors`, `avg_ms`, `max_ms`, `p95_ms` (estimated from
+the histogram bucket, i.e. accurate to the bucket edge and never below the true
+value).
+
+Requests slower than `SLOW_REQUEST_MS` (default 1000, `0` disables) are logged
+as `[SLOW] <method> <route> <status> <duration>`. The route template is used
+instead of the raw path, so no path IDs and no query string reach the log.
+
+This is intentionally a minimal in-process view, not a Prometheus exporter: it
+answers "which route is slow and how often does it fail" without adding a
+metrics dependency. Add an exporter if dashboards or alerting are needed.

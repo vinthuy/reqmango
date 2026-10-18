@@ -29,6 +29,7 @@ type Config struct {
 	AIBaseURL            string
 	RateLimitRequests    int
 	RateLimitWindowSec   int
+	SlowRequestMS        int
 }
 
 func Load() *Config {
@@ -56,6 +57,7 @@ func Load() *Config {
 		AIBaseURL:            getEnv("AI_BASE_URL", "https://api.deepseek.com/v1"),
 		RateLimitRequests:    getEnvInt("RATE_LIMIT_REQUESTS", 500),
 		RateLimitWindowSec:   getEnvInt("RATE_LIMIT_WINDOW_SEC", 60),
+		SlowRequestMS:        getEnvInt("SLOW_REQUEST_MS", 1000),
 	}
 
 	fmt.Printf("Config loaded: port=%s, db_url=%s\n", cfg.Port, maskDSN(cfg.DatabaseURL))

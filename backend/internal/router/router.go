@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	aihandler "github.com/reqmango/backend/internal/ai/handler"
@@ -222,6 +223,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	// Language detection middleware
 	r.Use(middleware.LanguageMiddleware())
 
+	// Request metrics and slow-request logging. Grouped by route template, so
+	// cardinality is bounded by the routes registered below.
+	metricsCollector := middleware.NewMetricsCollector(time.Duration(cfg.SlowRequestMS) * time.Millisecond)
+	r.Use(metricsCollector.Middleware())
+
 	// Rate limiter: global middleware (applied before routes)
 	rateLimiter := middleware.NewRateLimiter(cfg.RateLimitRequests, cfg.RateLimitWindowSec)
 	r.Use(rateLimiter.Middleware())
@@ -233,6 +239,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	// ==================== API v1 ====================
 	v1 := r.Group("/api/v1")
 	{
+		// ---- Operational metrics (superuser only) ----
+		v1.GET("/metrics", authMiddleware, middleware.MetricsHandler(metricsCollector))
+
 		// ---- Intake (public) ----
 		v1.POST("/intake/:projectId", intakeH.Submit)
 		v1.GET("/intake/:projectId/info", intakeH.Info)
