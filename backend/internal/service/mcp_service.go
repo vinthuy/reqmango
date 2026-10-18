@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -222,6 +223,9 @@ func (s *MCPService) DiscoverTools(id uint64) ([]MCPTool, error) {
 
 	tools, err := s.fetchToolsFromServer(cfg.ServerURL, cfg.APIKey)
 	if err != nil {
+		if u, perr := url.Parse(cfg.ServerURL); perr != nil || (u.Scheme != "http" && u.Scheme != "https") {
+			return nil, common.BadRequest("MCP server URL must use http or https")
+		}
 		return nil, common.Internal(fmt.Sprintf("Failed to discover tools: %v", err))
 	}
 

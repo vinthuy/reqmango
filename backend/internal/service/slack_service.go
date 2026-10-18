@@ -208,6 +208,10 @@ func (s *SlackService) SendNotification(id uint64, notif *SlackNotification) err
 		return nil
 	}
 
+	if err := validateSlackWebhookURL(conn.WebhookURL); err != nil {
+		return common.BadRequest(fmt.Sprintf("Invalid Slack webhook URL: %v", err))
+	}
+
 	// Check notification rules
 	switch notif.Event {
 	case "created":
@@ -248,6 +252,9 @@ func (s *SlackService) TestNotification(id uint64) (map[string]interface{}, erro
 
 	err := s.sendToSlack(conn.WebhookURL, testNotif)
 	if err != nil {
+		if _, verr := url.Parse(conn.WebhookURL); verr != nil || validateSlackWebhookURL(conn.WebhookURL) != nil {
+			return nil, common.BadRequest(fmt.Sprintf("Invalid Slack webhook URL: %v", err))
+		}
 		return nil, common.Internal(fmt.Sprintf("Failed to send test: %v", err))
 	}
 	return map[string]interface{}{"status": "sent", "channel": conn.ChannelName}, nil
