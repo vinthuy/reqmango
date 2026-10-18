@@ -226,11 +226,12 @@ now carries `workflow_kind`, and:
   and `:transitionId` within the agent kind.
 - The rules engine reads only `workflow_kind = 'state'`.
 
-`migrations/000022_state_transition_kind.up.sql` adds the column and backfills:
-rows whose workflow exists only as an agent workflow become `agent`, and for
-colliding ids the transition's own `project_id` decides. `cmd/server` repeats
-that backfill after `AutoMigrate`, so a deployment that never runs
-`cmd/migrate` converges too. Both statements are idempotent.
+`migrations/archive/000022_state_transition_kind.up.sql` added the column and
+backfilled: rows whose workflow exists only as an agent workflow became
+`agent`, and for colliding ids the transition's own `project_id` decided. That
+file is archived — the squashed `000001_baseline` already contains the column —
+and `cmd/server` repeats the backfill after `AutoMigrate`, so a deployment that
+never runs `cmd/migrate` converges too. Both statements are idempotent.
 
 New transitions inherit the kind from the route, never from the id.
 

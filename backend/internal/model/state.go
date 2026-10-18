@@ -48,7 +48,7 @@ type StateTransition struct {
 	// Workflow relationship removed: AutoMigrate re-created the FK
 	// fk_workflows_transitions pointing at the legacy `workflows` table on every
 	// start, which prevented inserting transitions for agent workflows.  The FK
-	// is now managed via migration 000021 only.
+	// is now dropped by the archived migration 000021 (see migrations/archive/).
 	SourceState State `gorm:"foreignKey:SourceStateID" json:"-"`
 	TargetState State `gorm:"foreignKey:TargetStateID" json:"-"`
 }

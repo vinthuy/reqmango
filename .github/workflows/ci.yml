@@ -324,10 +324,76 @@ jobs:
           path: /tmp/audit/
           retention-days: 7
 
+  migrate:
+    name: Migration path
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: reqmango
+          POSTGRES_PASSWORD: reqmango
+          POSTGRES_DB: reqmango_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with: { go-version: '${{ env.GO_VERSION }}' }
+
+      - name: Grant database permissions
+        run: |
+          PGPASSWORD=reqmango psql -h localhost -U reqmango -d reqmango_test -c "
+            ALTER DATABASE reqmango_test OWNER TO reqmango;
+            ALTER SCHEMA public OWNER TO reqmango;
+          "
+
+      # Production applies migrations and then the server runs AutoMigrate over
+      # the same tables. The two disagree on constraint names (SQL uses Postgres
+      # defaults, GORM uses uni_<table>_<column>), so only this order catches a
+      # tag GORM would try to drop. Booting on an empty database — what every
+      # other job does — hides it.
+      - name: Apply the baseline
+        env:
+          DATABASE_URL: postgres://reqmango:reqmango@localhost:5432/reqmango_test?sslmode=disable
+        run: |
+          cd backend
+          go run ./cmd/migrate up
+          # Re-running must be a no-op (the baseline is idempotent).
+          go run ./cmd/migrate up
+
+      - name: Start the server over the migrated schema
+        env:
+          DATABASE_URL: postgres://reqmango:reqmango@localhost:5432/reqmango_test?sslmode=disable
+          RATE_LIMIT_REQUESTS: '200000'
+          SECRET_KEY: ci-migrate-secret-key-not-for-production
+          DEBUG: 'false'
+          DB_LOG_LEVEL: 'error'
+        run: |
+          cd backend
+          go build -o ../migrate-server ./cmd/server
+          ../migrate-server > /tmp/migrate-server.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:8000/readyz >/dev/null 2>&1; then
+              echo "server ready after $((i*2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "server did not become ready; last log lines:"
+          tail -40 /tmp/migrate-server.log
+          exit 1
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, security, test, e2e, audit]
+    needs: [lint, security, test, e2e, audit, migrate]
     steps:
       - uses: actions/checkout@v4
 
