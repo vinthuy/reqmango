@@ -161,7 +161,7 @@ func main() {
 		if *member {
 			res.Verdict = a.classifyMember(rt.Method, rt.Path, res.Outsider, body)
 		} else if a.attacker != nil {
-			res.Verdict = classifyCross(res.Outsider)
+			res.Verdict = classifyCross(res.Outsider, body)
 		} else {
 			res.Verdict = a.classify(rt.Method, res.Outsider, res.Insider, body)
 		}
@@ -359,6 +359,7 @@ var overrides = map[string][]string{
 	":typeId/fields":          {"custom_fields"},
 	":id/fields":              {"custom_fields"},
 	":wsParam/memories":       {"memory_entries"},
+	"memories/context":        {"memory_entries"},
 	":fieldId/options":        {"custom_field_options"},
 	":pageId/versions":        {"page_versions"},
 }

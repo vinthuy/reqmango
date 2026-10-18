@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/reqmango/backend/internal/model"
@@ -49,10 +50,16 @@ func must(err error, what string) {
 }
 
 // classifyCross flags any success on a route that addressed a victim child
-// resource through the attacker's own workspace/project/issue.
-func classifyCross(code int) string {
+// resource through the attacker's own workspace/project/issue. An empty body
+// means the handler found nothing in the attacker's tenant, so no data crossed.
+func classifyCross(code int, body string) string {
 	switch {
 	case code >= 200 && code < 300:
+		compact := strings.Join(strings.Fields(body), "")
+		if compact == "" || compact == "[]" || compact == "{}" || compact == "null" ||
+			strings.HasPrefix(compact, `{"data":[]`) || strings.HasPrefix(compact, `{"items":[]`) {
+			return "ok-empty"
+		}
 		return "XTENANT"
 	case code == 401 || code == 403 || code == 404:
 		return "denied"

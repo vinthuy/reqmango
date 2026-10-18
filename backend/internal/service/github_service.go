@@ -222,7 +222,7 @@ func (s *GitHubService) SyncIssues(connID uint64) ([]GitHubIssue, error) {
 
 	issues, err := s.fetchIssuesFromGitHub(conn.RepoOwner, conn.RepoName, conn.AccessToken)
 	if err != nil {
-		return nil, common.Internal(fmt.Sprintf("Failed to sync issues: %v", err))
+		return nil, common.Upstream(fmt.Sprintf("Failed to sync issues: %v", err))
 	}
 
 	// Import issues into the project

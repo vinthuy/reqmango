@@ -58,6 +58,9 @@ const (
 	ErrAIAPIFailure    ErrorCode = "AI_API_FAILURE"
 	ErrAITimeout       ErrorCode = "AI_TIMEOUT"
 	ErrAIQuotaExceeded ErrorCode = "AI_QUOTA_EXCEEDED"
+
+	// Upstream integrations (GitHub, Slack, MCP, webhooks)
+	ErrUpstreamFailure ErrorCode = "UPSTREAM_FAILURE"
 )
 
 // StatusCode maps error codes to HTTP status codes.
@@ -80,7 +83,7 @@ func (e ErrorCode) HTTPStatus() int {
 		return 422
 	case e == ErrStateTransition || e == ErrWorkflowViolation:
 		return 422
-	case e == ErrAIAPIFailure || e == ErrAITimeout:
+	case e == ErrAIAPIFailure || e == ErrAITimeout || e == ErrUpstreamFailure:
 		return 502
 	case e == ErrAIQuotaExceeded:
 		return 429

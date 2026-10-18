@@ -226,7 +226,7 @@ func (s *MCPService) DiscoverTools(id uint64) ([]MCPTool, error) {
 		if u, perr := url.Parse(cfg.ServerURL); perr != nil || (u.Scheme != "http" && u.Scheme != "https") {
 			return nil, common.BadRequest("MCP server URL must use http or https")
 		}
-		return nil, common.Internal(fmt.Sprintf("Failed to discover tools: %v", err))
+		return nil, common.Upstream(fmt.Sprintf("Failed to discover tools: %v", err))
 	}
 
 	// Cache tools in config

@@ -147,13 +147,27 @@ func (a *auditor) seedRow(table string, resolved map[string]uint64, depth int) (
 	return id, nil
 }
 
-// resolveText resolves params of tables keyed by a non-integer id.
+// resolveText resolves params addressed by a text column rather than the
+// integer primary key: either a uuid-style id, or a column named after the
+// param (e.g. :contextKey -> memory_entries.context_key).
 func (a *auditor) resolveText(name, ctx string) (string, bool) {
+	key := strings.ToLower(snakeRe.ReplaceAllString(name, "${1}_${2}"))
 	for _, t := range candidates(name, ctx) {
+		if !a.db.Migrator().HasTable(t) || !a.db.Migrator().HasColumn(t, "workspace_id") {
+			continue
+		}
+		if a.db.Migrator().HasColumn(t, key) {
+			var v string
+			a.db.Raw(fmt.Sprintf(`SELECT %q::text FROM %q WHERE workspace_id = ? AND %q IS NOT NULL AND %q <> '' ORDER BY 1 LIMIT 1`,
+				key, t, key, key), a.ws).Scan(&v)
+			if v != "" {
+				return v, true
+			}
+		}
 		var udt string
 		a.db.Raw(`SELECT udt_name FROM information_schema.columns
 			WHERE table_schema = current_schema() AND table_name = ? AND column_name = 'id'`, t).Scan(&udt)
-		if udt == "" || strings.HasPrefix(udt, "int") || !a.db.Migrator().HasColumn(t, "workspace_id") {
+		if udt == "" || strings.HasPrefix(udt, "int") {
 			continue
 		}
 		var id string

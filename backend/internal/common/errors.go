@@ -42,6 +42,9 @@ func Validation(msg string) *AppError   { return NewError(ErrValidation, msg) }
 func Internal(msg string) *AppError     { return NewError(ErrInternal, msg) }
 func BadRequest(msg string) *AppError   { return NewError(ErrBadRequest, msg) }
 
+// Upstream reports a failure calling an external service the caller configured.
+func Upstream(msg string) *AppError { return NewError(ErrUpstreamFailure, msg) }
+
 // ProjectNotFound etc.
 func ProjectNotFound() *AppError    { return NewError(ErrProjectNotFound, "Project not found") }
 func IssueNotFound() *AppError      { return NewError(ErrIssueNotFound, "Issue not found") }

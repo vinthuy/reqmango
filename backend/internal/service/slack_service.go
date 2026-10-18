@@ -232,7 +232,10 @@ func (s *SlackService) SendNotification(id uint64, notif *SlackNotification) err
 		}
 	}
 
-	return s.sendToSlack(conn.WebhookURL, notif)
+	if err := s.sendToSlack(conn.WebhookURL, notif); err != nil {
+		return common.Upstream(fmt.Sprintf("Failed to notify Slack: %v", err))
+	}
+	return nil
 }
 
 // TestNotification sends a test message to verify the Slack connection.
@@ -255,7 +258,7 @@ func (s *SlackService) TestNotification(id uint64) (map[string]interface{}, erro
 		if _, verr := url.Parse(conn.WebhookURL); verr != nil || validateSlackWebhookURL(conn.WebhookURL) != nil {
 			return nil, common.BadRequest(fmt.Sprintf("Invalid Slack webhook URL: %v", err))
 		}
-		return nil, common.Internal(fmt.Sprintf("Failed to send test: %v", err))
+		return nil, common.Upstream(fmt.Sprintf("Failed to send test: %v", err))
 	}
 	return map[string]interface{}{"status": "sent", "channel": conn.ChannelName}, nil
 }
