@@ -102,7 +102,7 @@ for the `[Webhook]` line counting `429` responses.
 |---------|----------|----------------|
 | `.env` / `.claude/settings.local.json` contain live provider keys locally | Medium | Rotate keys if the files were ever shared. Both are gitignored and never committed. |
 | `backend/config.yaml` was deleted; the file carried a placeholder JWT secret | Low | Delete ignored copies locally if any remain; the app no longer reads this file. |
-| BUG-58: state transitions for agent workflows are stubs | Medium | Implement once the data model is agreed (see docs/bug-list.md). |
+| BUG-58: state transitions were keyed only by `workflow_id`, which is ambiguous | **Fixed** | `state_transitions.workflow_kind` (`state`/`agent`) now disambiguates the two id spaces; see section 11. |
 | `errorlint` / `nilerr` linting is off due to hundreds of pre-existing patterns | Low | Refactor in a dedicated PR when ready. |
 | `govulncheck` currently runs as advisory only | Low | Make blocking once the pinned Go toolchain version matches CI exactly. |
 
@@ -200,5 +200,36 @@ as `[SLOW] <method> <route> <status> <duration>`. The route template is used
 instead of the raw path, so no path IDs and no query string reach the log.
 
 This is intentionally a minimal in-process view, not a Prometheus exporter: it
-answers "which route is slow and how often does it fail" without adding a
+answers "which route is slow and how often it fails" without adding a
 metrics dependency. Add an exporter if dashboards or alerting are needed.
+
+---
+
+## 11. Workflow transition kinds (`state` vs `agent`)
+
+`state_transitions.workflow_id` points at one of two independent tables whose id
+ranges overlap:
+
+| Kind | Table | Read by |
+|------|-------|---------|
+| `state` | `workflows` | the transition rules engine (`internal/workflow`), seed data |
+| `agent` | `agent_workflows` | every `/projects/:id/workflows/*` and `/workspaces/:ws/workflows/*` route |
+
+Filtering on `workflow_id` alone therefore mixed them: agent workflow 1 also
+resolved the state workflow with id 1, so listing edges returned 22 unrelated
+state transitions, and creating one attached it to the wrong project. The row
+now carries `workflow_kind`, and:
+
+- `/projects/:id/workflows/:workflowId/transitions` and `/edges` bind to
+  `agent_workflows`; a state workflow id is `404` there.
+- `RequireProjectWorkflow` / `RequireWorkspaceWorkflow` validate `:workflowId`
+  and `:transitionId` within the agent kind.
+- The rules engine reads only `workflow_kind = 'state'`.
+
+`migrations/000022_state_transition_kind.up.sql` adds the column and backfills:
+rows whose workflow exists only as an agent workflow become `agent`, and for
+colliding ids the transition's own `project_id` decides. `cmd/server` repeats
+that backfill after `AutoMigrate`, so a deployment that never runs
+`cmd/migrate` converges too. Both statements are idempotent.
+
+New transitions inherit the kind from the route, never from the id.

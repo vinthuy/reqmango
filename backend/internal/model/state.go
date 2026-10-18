@@ -31,6 +31,7 @@ type StateTransition struct {
 	Name                 string  `gorm:"size:255;not null" json:"name"`
 	Description          *string `gorm:"size:500" json:"description"`
 	WorkflowID           uint64  `gorm:"not null;index" json:"workflow_id"`
+	WorkflowKind         string  `gorm:"size:16;not null;default:'state';index" json:"workflow_kind"`
 	SourceStateID        uint64  `gorm:"not null" json:"source_state_id"`
 	TargetStateID        uint64  `gorm:"not null" json:"target_state_id"`
 	IssueTypeID          *uint64 `json:"issue_type_id"`
@@ -55,3 +56,10 @@ type StateTransition struct {
 func (StateTransition) TableName() string {
 	return "state_transitions"
 }
+
+// Workflow kinds. `workflows` and `agent_workflows` are independent tables with
+// overlapping id ranges, so a transition must record which one it belongs to.
+const (
+	TransitionKindState = "state"
+	TransitionKindAgent = "agent"
+)

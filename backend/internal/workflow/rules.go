@@ -92,7 +92,7 @@ func Load(db *gorm.DB, projectID uint64, issueTypeID *uint64) (*Rules, error) {
 			continue
 		}
 		var transitions []model.StateTransition
-		if err := db.Where("workflow_id = ?", wf.ID).Find(&transitions).Error; err != nil {
+		if err := db.Where("workflow_id = ? AND workflow_kind = ?", wf.ID, model.TransitionKindState).Find(&transitions).Error; err != nil {
 			return nil, err
 		}
 		if len(transitions) > 0 {

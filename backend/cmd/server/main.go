@@ -198,6 +198,20 @@ func main() {
 	}
 	fmt.Println("Database migration completed")
 
+	// Backfill state_transitions.workflow_kind. AutoMigrate adds the column with
+	// a 'state' default but cannot infer which rows belong to agent workflows;
+	// deployments that never run cmd/migrate would otherwise keep the wrong
+	// value and keep reporting an unrelated workflow's transitions.
+	// Idempotent: the same project/ownership test is applied on every start.
+	db.Exec(`UPDATE state_transitions t SET workflow_kind = 'agent'
+		WHERE EXISTS (SELECT 1 FROM agent_workflows a WHERE a.id = t.workflow_id)
+		  AND NOT EXISTS (SELECT 1 FROM workflows w WHERE w.id = t.workflow_id)`)
+	db.Exec(`UPDATE state_transitions t SET workflow_kind = 'agent'
+		WHERE EXISTS (SELECT 1 FROM agent_workflows a
+		              WHERE a.id = t.workflow_id AND COALESCE(a.project_id, 0) = COALESCE(t.project_id, 0))
+		  AND NOT EXISTS (SELECT 1 FROM workflows w
+		                  WHERE w.id = t.workflow_id AND COALESCE(w.project_id, 0) = COALESCE(t.project_id, 0))`)
+
 	// Register built-in tools
 	toolSvc := service.NewToolService(db)
 	if err := toolSvc.RegisterBuiltinTools(0); err != nil {

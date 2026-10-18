@@ -713,7 +713,9 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **文件** | `backend/internal/handler/workflow_handler.go`（`AddTransition`/`UpdateTransition`/`DeleteTransition`）、`backend/internal/router/router.go`、`frontend/src/api/workflow.ts:215-229`、`frontend/src/components/StateTransition.vue:254` |
 | **类型** | 🟠 功能缺口 |
 | **影响** | ① `POST/PUT/DELETE /projects/:id/workflows/:workflowId/transitions` 是**占位实现**：直接返回 `{"message":"transition added"}`，不写任何数据；② **不存在 GET 路由**，而前端 `listStateTransitions()` 会调用它 → 转换列表 404/永远为空；③ `state_transitions.workflow_id` 外键指向**遗留表 `workflows`**，与当前项目工作流使用的 `agent_workflows` 无关联，因此即使插入数据也不会出现在工作流详情里；④ 审批（approval）创建要求存在 `rule_type='approval'` 的转换，API 无法创建 → **"创建审批"流程在 API 层不可达**（返回 400） |
-| **修复** | ① 工作流处理器已实现真实的 CRUD 操作（非占位）；② 添加工作空间级 GET 路由；③ 迁移 `000021_drop_legacy_workflow_fk` 移除旧外键约束；④ 服务层 `AddTransition`/`UpdateTransition`/`DeleteTransition` 已实现完整数据库操作 |
+| **修复（第一轮）** | ① 工作流处理器已实现真实的 CRUD 操作（非占位）；② 添加工作空间级 GET 路由；③ 迁移 `000021_drop_legacy_workflow_fk` 移除旧外键约束；④ 服务层 `AddTransition`/`UpdateTransition`/`DeleteTransition` 已实现完整数据库操作 |
+| **残留缺陷（第二轮）** | 转换表只按 `workflow_id` 关联，而 `workflows` 与 `agent_workflows` 的 ID 区间重叠（生产数据中 35/36 重叠）。结果：给 agent 工作流建的转换会出现在同号的状态工作流下，反之亦然；实测工作流 1 的转换列表返回了另一条状态工作流的 22 条转换，且新建转换被记到错误项目 |
+| **修复（第二轮）** | 新增 `state_transitions.workflow_kind`（`state`/`agent`）判别列与 `000022` 迁移；转换路由统一绑定 `agent_workflows`；规则引擎只读 `state`；中间件按 kind 校验 `workflowId`/`transitionId`；启动时幂等回填（20 条孤儿行归为 `agent`，38 条归为 `state`） |
 
 ### BUG-59 `/projects/:id/settings/states` 返回裸数组，与 `WorkflowManager` 期望不一致 ✅ 已修复
 

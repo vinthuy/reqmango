@@ -20,7 +20,7 @@ func newRulesDB(t *testing.T) *gorm.DB {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Project{}, &model.State{}, &model.Workflow{}, &model.StateTransition{}))
+	require.NoError(t, db.AutoMigrate(&model.Project{}, &model.State{}, &model.Workflow{}, &model.AgentWorkflow{}, &model.StateTransition{}))
 	return db
 }
 
@@ -70,6 +70,7 @@ func (f *fixture) edge(t *testing.T, workflowID uint64, from, to string, ruleTyp
 	require.NoError(t, f.db.Create(&model.StateTransition{
 		Name:          from + "→" + to,
 		WorkflowID:    workflowID,
+		WorkflowKind:  model.TransitionKindState,
 		SourceStateID: f.states[from].ID,
 		TargetStateID: f.states[to].ID,
 		RuleType:      ruleType,
@@ -120,6 +121,32 @@ func TestLoad_AllowsEverythingWhenWorkflowDefinesNoEdges(t *testing.T) {
 
 	assert.False(t, rules.Restricts)
 	assert.Equal(t, Allowed, rules.Check(f.states["Backlog"], f.states["Todo"]).Outcome)
+}
+
+func TestLoad_IgnoresAgentWorkflowTransitionsWithACollidingID(t *testing.T) {
+	// `workflows` and `agent_workflows` have overlapping id values. A
+	// transition created for an agent workflow must not constrain the state
+	// machine that happens to share its numeric id.
+	f := newFixture(t)
+	wf := f.workflow(t, model.Workflow{Name: "agent-owned id"})
+	require.NoError(t, f.db.Create(&model.AgentWorkflow{
+		BaseModel: model.BaseModel{ID: wf.ID}, Name: "agent", ProjectID: 1, WorkspaceID: 1,
+	}).Error)
+	require.NoError(t, f.db.Create(&model.StateTransition{
+		Name:          "agent edge",
+		WorkflowID:    wf.ID,
+		WorkflowKind:  model.TransitionKindAgent,
+		SourceStateID: f.states["Backlog"].ID,
+		TargetStateID: f.states["Done"].ID,
+		RuleType:      "approval",
+		WorkspaceID:   1,
+		ProjectID:     u64(1),
+	}).Error)
+
+	rules := f.load(t, nil)
+
+	assert.False(t, rules.Restricts, "an agent transition restricts nothing here")
+	assert.Equal(t, Allowed, rules.Check(f.states["Backlog"], f.states["Done"]).Outcome)
 }
 
 func TestLoad_RequiresApprovalAndReportsTheEdge(t *testing.T) {

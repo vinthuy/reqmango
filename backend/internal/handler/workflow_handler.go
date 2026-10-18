@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/middleware"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/reqmango/backend/internal/service"
 )
 
@@ -412,6 +413,9 @@ func (h *WorkflowHandler) DeleteWorkspaceWorkflow(c *gin.Context) {
 // --- State transition methods ---
 
 // ListTransitions returns the state transitions attached to a workflow.
+// These routes address agent workflows: /projects/:id/workflows lists them and
+// the workspace routes read them, so the transitions must be scoped to the same
+// kind. State workflows keep their own transitions, read by the rules engine.
 func (h *WorkflowHandler) ListTransitions(c *gin.Context) {
 	workflowID, err := strconv.ParseUint(c.Param("workflowId"), 10, 64)
 	if err != nil {
@@ -419,7 +423,7 @@ func (h *WorkflowHandler) ListTransitions(c *gin.Context) {
 		return
 	}
 
-	transitions, err := h.workflowSvc.ListTransitions(workflowID)
+	transitions, err := h.workflowSvc.ListTransitions(model.TransitionKindAgent, workflowID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -442,9 +446,9 @@ func (h *WorkflowHandler) AddTransition(c *gin.Context) {
 		return
 	}
 
-	transition, err := h.workflowSvc.AddTransition(workflowID, req)
+	transition, err := h.workflowSvc.AddTransition(model.TransitionKindAgent, workflowID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondTransitionError(c, err)
 		return
 	}
 
@@ -465,8 +469,8 @@ func (h *WorkflowHandler) UpdateTransition(c *gin.Context) {
 		return
 	}
 
-	if err := h.workflowSvc.UpdateTransition(transitionID, req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.workflowSvc.UpdateTransition(model.TransitionKindAgent, transitionID, req); err != nil {
+		respondTransitionError(c, err)
 		return
 	}
 
@@ -481,10 +485,21 @@ func (h *WorkflowHandler) DeleteTransition(c *gin.Context) {
 		return
 	}
 
-	if err := h.workflowSvc.DeleteTransition(transitionID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.workflowSvc.DeleteTransition(model.TransitionKindAgent, transitionID); err != nil {
+		respondTransitionError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "transition deleted"})
+}
+
+// respondTransitionError maps a bad workflow or transition id to 404; anything
+// else stays a server error.
+func respondTransitionError(c *gin.Context, err error) {
+	msg := err.Error()
+	if msg == "workflow not found" || msg == "transition not found" {
+		c.JSON(http.StatusNotFound, gin.H{"error": msg})
+		return
+	}
+	c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 }

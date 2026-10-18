@@ -124,6 +124,7 @@ type StateTransitionResponse struct {
 	Name                 string  `json:"name"`
 	Description          *string `json:"description"`
 	WorkflowID           uint64  `json:"workflow_id"`
+	WorkflowKind         string  `json:"workflow_kind"`
 	SourceStateID        uint64  `json:"source_state_id"`
 	TargetStateID        uint64  `json:"target_state_id"`
 	IsAuto               bool    `json:"is_auto"`
@@ -490,7 +491,7 @@ func (s *WorkflowService) Get(workflowID uint64) (*WorkflowDetail, error) {
 	}
 
 	// Get transitions
-	transitions, err := s.ListTransitions(workflowID)
+	transitions, err := s.ListTransitions(model.TransitionKindAgent, workflowID)
 	if err == nil {
 		detail.Transitions = transitions
 	}
@@ -696,10 +697,12 @@ func (s *WorkflowService) DeleteEdge(edgeID uint64) error {
 // State transitions
 // ---------------------------------------------------------------------------
 
-// ListTransitions returns all state transitions attached to a workflow.
-func (s *WorkflowService) ListTransitions(workflowID uint64) ([]StateTransitionResponse, error) {
+// ListTransitions returns all state transitions attached to a workflow of the
+// given kind. The kind matters: `workflows` and `agent_workflows` have
+// overlapping IDs, so filtering on workflow_id alone mixes them.
+func (s *WorkflowService) ListTransitions(kind string, workflowID uint64) ([]StateTransitionResponse, error) {
 	var transitions []model.StateTransition
-	if err := s.db.Where("workflow_id = ? AND deleted_at IS NULL", workflowID).
+	if err := s.db.Where("workflow_id = ? AND workflow_kind = ? AND deleted_at IS NULL", workflowID, kind).
 		Order("id ASC").Find(&transitions).Error; err != nil {
 		return nil, err
 	}
@@ -712,12 +715,12 @@ func (s *WorkflowService) ListTransitions(workflowID uint64) ([]StateTransitionR
 }
 
 // AddTransition creates a new state transition for a workflow.
-func (s *WorkflowService) AddTransition(workflowID uint64, req AddTransitionRequest) (*StateTransitionResponse, error) {
+func (s *WorkflowService) AddTransition(kind string, workflowID uint64, req AddTransitionRequest) (*StateTransitionResponse, error) {
 	if err := req.normalize(); err != nil {
 		return nil, err
 	}
 
-	workspaceID, projectID, err := s.resolveWorkflowScope(workflowID)
+	workspaceID, projectID, err := s.resolveWorkflowScope(kind, workflowID)
 	if err != nil {
 		return nil, err
 	}
@@ -741,6 +744,7 @@ func (s *WorkflowService) AddTransition(workflowID uint64, req AddTransitionRequ
 		Name:                 req.Name,
 		Description:          desc,
 		WorkflowID:           workflowID,
+		WorkflowKind:         kind,
 		SourceStateID:        req.SourceStateID,
 		TargetStateID:        req.TargetStateID,
 		RuleType:             ruleType,
@@ -761,18 +765,23 @@ func (s *WorkflowService) AddTransition(workflowID uint64, req AddTransitionRequ
 	return &resp, nil
 }
 
-// resolveWorkflowScope finds workspace/project for either a state-machine or agent workflow.
-func (s *WorkflowService) resolveWorkflowScope(workflowID uint64) (uint64, *uint64, error) {
-	var sw model.Workflow
-	if err := s.db.First(&sw, workflowID).Error; err == nil {
-		return sw.WorkspaceID, sw.ProjectID, nil
-	}
-	var aw model.AgentWorkflow
-	if err := s.db.First(&aw, workflowID).Error; err == nil {
+// resolveWorkflowScope finds workspace/project for the workflow of the given
+// kind. It must not fall back to the other table: the ID spaces overlap, so a
+// fallback would attribute a transition to an unrelated workflow's project.
+func (s *WorkflowService) resolveWorkflowScope(kind string, workflowID uint64) (uint64, *uint64, error) {
+	if kind == model.TransitionKindAgent {
+		var aw model.AgentWorkflow
+		if err := s.db.First(&aw, workflowID).Error; err != nil {
+			return 0, nil, errors.New("workflow not found")
+		}
 		pid := aw.ProjectID
 		return aw.WorkspaceID, &pid, nil
 	}
-	return 0, nil, errors.New("workflow not found")
+	var sw model.Workflow
+	if err := s.db.First(&sw, workflowID).Error; err != nil {
+		return 0, nil, errors.New("workflow not found")
+	}
+	return sw.WorkspaceID, sw.ProjectID, nil
 }
 
 // ResolveWorkspaceID resolves a numeric id or slug to a workspace id.
@@ -943,8 +952,8 @@ func (s *WorkflowService) DeleteStateWorkflow(workspaceID, workflowID uint64) er
 	return result.Error
 }
 
-// UpdateTransition updates a state transition.
-func (s *WorkflowService) UpdateTransition(transitionID uint64, req UpdateTransitionRequest) error {
+// UpdateTransition updates a state transition of the given kind.
+func (s *WorkflowService) UpdateTransition(kind string, transitionID uint64, req UpdateTransitionRequest) error {
 	updates := map[string]interface{}{}
 
 	if req.Name != nil {
@@ -979,16 +988,17 @@ func (s *WorkflowService) UpdateTransition(transitionID uint64, req UpdateTransi
 		return nil
 	}
 
-	result := s.db.Model(&model.StateTransition{}).Where("id = ?", transitionID).Updates(updates)
+	result := s.db.Model(&model.StateTransition{}).
+		Where("id = ? AND workflow_kind = ?", transitionID, kind).Updates(updates)
 	if result.RowsAffected == 0 {
 		return errors.New("transition not found")
 	}
 	return result.Error
 }
 
-// DeleteTransition deletes a state transition.
-func (s *WorkflowService) DeleteTransition(transitionID uint64) error {
-	result := s.db.Where("id = ?", transitionID).Delete(&model.StateTransition{})
+// DeleteTransition deletes a state transition of the given kind.
+func (s *WorkflowService) DeleteTransition(kind string, transitionID uint64) error {
+	result := s.db.Where("id = ? AND workflow_kind = ?", transitionID, kind).Delete(&model.StateTransition{})
 	if result.RowsAffected == 0 {
 		return errors.New("transition not found")
 	}
@@ -1001,6 +1011,7 @@ func (s *WorkflowService) toTransitionResponse(t *model.StateTransition) StateTr
 		Name:                 t.Name,
 		Description:          t.Description,
 		WorkflowID:           t.WorkflowID,
+		WorkflowKind:         t.WorkflowKind,
 		SourceStateID:        t.SourceStateID,
 		TargetStateID:        t.TargetStateID,
 		IsAuto:               t.IsAuto,

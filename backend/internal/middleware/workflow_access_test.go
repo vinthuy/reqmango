@@ -42,9 +42,11 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	mk(&runForeign)
 
 	ownPID := own.ID
-	swOwn := model.Workflow{Name: "s1", ProjectID: &ownPID, WorkspaceID: 10}
-	swWs := model.Workflow{Name: "s2", WorkspaceID: 10}
-	swForeign := model.Workflow{Name: "s3", WorkspaceID: 20}
+	// State workflows live in a separate table whose ids overlap agent
+	// workflows, so pin them to ids no agent workflow uses.
+	swOwn := model.Workflow{BaseModel: model.BaseModel{ID: 200}, Name: "s1", ProjectID: &ownPID, WorkspaceID: 10}
+	swWs := model.Workflow{BaseModel: model.BaseModel{ID: 201}, Name: "s2", WorkspaceID: 10}
+	swForeign := model.Workflow{BaseModel: model.BaseModel{ID: 202}, Name: "s3", WorkspaceID: 20}
 	mk(&swOwn)
 	mk(&swWs)
 	mk(&swForeign)
@@ -55,12 +57,16 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	mk(&awNewForeign)
 	mk(&awDeleted)
 	require.NoError(t, db.Delete(&awDeleted).Error)
-	tNew := model.StateTransition{Name: "new transition", WorkflowID: awNew.ID, SourceStateID: 1, TargetStateID: 2}
-	tNewForeign := model.StateTransition{Name: "foreign transition", WorkflowID: awNewForeign.ID, SourceStateID: 1, TargetStateID: 2}
+	tNew := model.StateTransition{Name: "new transition", WorkflowID: awNew.ID, WorkflowKind: model.TransitionKindAgent, SourceStateID: 1, TargetStateID: 2}
+	tNewForeign := model.StateTransition{Name: "foreign transition", WorkflowID: awNewForeign.ID, WorkflowKind: model.TransitionKindAgent, SourceStateID: 1, TargetStateID: 2}
 	mk(&tNew)
 	mk(&tNewForeign)
-	tOwn := model.StateTransition{Name: "t", WorkflowID: swOwn.ID, SourceStateID: 1, TargetStateID: 2}
-	tForeign := model.StateTransition{Name: "t", WorkflowID: swForeign.ID, SourceStateID: 1, TargetStateID: 2}
+	// A state-machine transition whose workflow_id happens to equal the agent
+	// workflow's id: the kind must keep it out of the agent workflow's routes.
+	tColliding := model.StateTransition{Name: "state transition with colliding id", WorkflowID: awNew.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
+	mk(&tColliding)
+	tOwn := model.StateTransition{Name: "t", WorkflowID: swOwn.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
+	tForeign := model.StateTransition{Name: "t", WorkflowID: swForeign.ID, WorkflowKind: model.TransitionKindState, SourceStateID: 1, TargetStateID: 2}
 	mk(&tOwn)
 	mk(&tForeign)
 
@@ -105,32 +111,29 @@ func TestWorkflowAndPageAccess(t *testing.T) {
 	assert.Equal(t, 404, status("alice", "PUT", p+uitoa(awOwn.ID)+"/nodes/"+uitoa(nodeForeign.ID)))
 	assert.Equal(t, 404, status("alice", "GET", p+uitoa(awOwn.ID)+"/runs/"+uitoa(runForeign.ID)))
 
-	assert.Equal(t, 200, status("alice", "GET", p+uitoa(swOwn.ID)+"/transitions"))
-	assert.Equal(t, 200, status("alice", "GET", p+uitoa(swWs.ID)+"/transitions"), "workspace-wide workflows are readable")
-	assert.Equal(t, 404, status("bob", "POST", p+uitoa(swWs.ID)+"/transitions"), "but not editable from a project")
-	assert.Equal(t, 404, status("alice", "GET", p+uitoa(swForeign.ID)+"/transitions"))
-	assert.Equal(t, 200, status("alice", "PUT", p+uitoa(swOwn.ID)+"/transitions/"+uitoa(tOwn.ID)))
-	assert.Equal(t, 404, status("alice", "PUT", p+uitoa(swOwn.ID)+"/transitions/"+uitoa(tForeign.ID)))
-	assert.Equal(t, 200, status("bob", "POST", p+uitoa(awNew.ID)+"/transitions"), "new project workflows do not need a matching legacy row")
 	assert.Equal(t, 200, status("alice", "GET", p+uitoa(awNew.ID)+"/transitions"))
 	assert.Equal(t, 200, status("bob", "PUT", p+uitoa(awNew.ID)+"/transitions/"+uitoa(tNew.ID)))
 	assert.Equal(t, 404, status("bob", "PUT", p+uitoa(awNew.ID)+"/transitions/"+uitoa(tNewForeign.ID)))
+	assert.Equal(t, 404, status("bob", "PUT", p+uitoa(awNew.ID)+"/transitions/"+uitoa(tColliding.ID)), "a state transition is not addressable through an agent workflow")
 	assert.Equal(t, 404, status("bob", "POST", p+uitoa(awNewForeign.ID)+"/transitions"))
 	assert.Equal(t, 404, status("bob", "POST", p+uitoa(awDeleted.ID)+"/transitions"))
 	assert.Equal(t, 403, status("carol", "POST", p+uitoa(awNew.ID)+"/transitions"))
+	// The two id spaces overlap; a legacy workflow with the same id must not
+	// shadow the agent workflow these routes actually address.
 	mk(&model.Workflow{BaseModel: model.BaseModel{ID: awNew.ID}, Name: "colliding foreign state workflow", ProjectID: &foreign.ID, WorkspaceID: 20})
-	assert.Equal(t, 404, status("bob", "POST", p+uitoa(awNew.ID)+"/transitions"), "an existing foreign state workflow must not fall back to a local agent workflow")
+	assert.Equal(t, 200, status("bob", "POST", p+uitoa(awNew.ID)+"/transitions"), "the agent workflow wins, not the colliding legacy row")
 
 	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows"))
 	assert.Equal(t, 200, status("alice", "GET", "/workspaces/acme/workflows"), "slugs resolve")
 	assert.Equal(t, 404, status("alice", "GET", "/workspaces/nope/workflows"))
 	assert.Equal(t, 403, status("carol", "GET", "/workspaces/10/workflows"))
 	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(awOwn.ID)))
-	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions"))
-	assert.Equal(t, 403, status("alice", "POST", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions"), "members cannot change workflows")
-	assert.Equal(t, 200, status("bob", "POST", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions"))
-	assert.Equal(t, 404, status("bob", "POST", "/workspaces/10/workflows/"+uitoa(swForeign.ID)+"/transitions"))
-	assert.Equal(t, 404, status("bob", "DELETE", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions/"+uitoa(tForeign.ID)))
+	assert.Equal(t, 200, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(awNew.ID)+"/transitions"))
+	assert.Equal(t, 404, status("alice", "GET", "/workspaces/10/workflows/"+uitoa(swWs.ID)+"/transitions"), "state workflows are not served here")
+	assert.Equal(t, 403, status("alice", "POST", "/workspaces/10/workflows/"+uitoa(awNew.ID)+"/transitions"), "members cannot change workflows")
+	assert.Equal(t, 200, status("bob", "POST", "/workspaces/10/workflows/"+uitoa(awNew.ID)+"/transitions"))
+	assert.Equal(t, 404, status("bob", "POST", "/workspaces/10/workflows/"+uitoa(awNewForeign.ID)+"/transitions"))
+	assert.Equal(t, 404, status("bob", "DELETE", "/workspaces/10/workflows/"+uitoa(awNew.ID)+"/transitions/"+uitoa(tNewForeign.ID)))
 
 	assert.Equal(t, 200, status("alice", "POST", "/pages/"+uitoa(ownPage.ID)+"/ai"))
 	assert.Equal(t, 403, status("alice", "POST", "/pages/"+uitoa(foreignPage.ID)+"/ai"))
