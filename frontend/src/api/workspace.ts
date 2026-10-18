@@ -1,5 +1,6 @@
 import api from './index'
 import type { Workspace, WorkspaceCreate, WorkspaceMember } from '@/types'
+import type { UserLite } from './auth'
 
 export const workspaceApi = {
   create: async (data: WorkspaceCreate): Promise<Workspace> => {
@@ -19,6 +20,13 @@ export const workspaceApi = {
 
   listMembers: async (wsParam: string): Promise<WorkspaceMember[]> => {
     const response = await api.get(`/workspaces/${wsParam}/members`)
+    return response.data
+  },
+
+  // Users who can still be added to the workspace. Admin-only on the server;
+  // a global user directory is deliberately not exposed.
+  listMemberCandidates: async (wsParam: string, q = ''): Promise<UserLite[]> => {
+    const response = await api.get(`/workspaces/${wsParam}/member-candidates`, { params: q ? { q } : {} })
     return response.data
   },
 

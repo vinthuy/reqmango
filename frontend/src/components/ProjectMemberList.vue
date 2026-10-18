@@ -6,6 +6,7 @@
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-medium text-gray-700">{{ t('projectMember.title') }}</h3>
           <button
+            v-if="canManageMembers"
             @click="openInviteModal"
             class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 flex items-center space-x-1"
           >
@@ -51,6 +52,7 @@
           <div class="flex items-center space-x-3">
             <!-- 角色 -->
             <select
+              v-if="canManageMembers"
               :value="getRoleLabel(member.role)"
               @change="updateMemberRole(member.user_id, ($event.target as HTMLSelectElement).value)"
               class="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -62,6 +64,7 @@
 
             <!-- 移除 -->
             <button
+              v-if="canManageMembers"
               @click="removeMember(member.user_id)"
               class="p-1 text-gray-400 hover:text-red-600"
             >
@@ -179,11 +182,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import projectApi from '@/api/project'
-import { authApi } from '@/api/auth'
 import type { ProjectMember } from '@/types/project'
 import { useConfirm } from '@/composables/useConfirm'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
+import { useProjectPermissions } from '@/composables/usePermission'
 import type { UserLite } from '@/types'
 
 const { t } = useI18n()
@@ -194,6 +197,11 @@ const props = defineProps<{
   projectId: number
   workspaceId: number
 }>()
+
+// Adding and changing members needs member:manage_project; members get a
+// read-only list rather than buttons the API would refuse.
+const { roleLevel } = useProjectPermissions(() => props.projectId)
+const canManageMembers = computed(() => roleLevel.value >= 20)
 
 // Emits
 const emit = defineEmits<{
@@ -237,7 +245,7 @@ async function loadMembers() {
   loading.value = true
   try {
     members.value = await projectApi.listProjectMembers(props.projectId)
-    await loadUsers()
+    if (canManageMembers.value) await loadUsers()
   } catch (error) {
     console.error('Failed to load members:', error)
   } finally {
@@ -247,9 +255,9 @@ async function loadMembers() {
 
 async function loadUsers() {
   try {
-    allUsers.value = await authApi.listUsers()
-  } catch (error) {
-    console.error('Failed to load users:', error)
+    allUsers.value = await projectApi.listProjectMemberCandidates(props.projectId)
+  } catch {
+    allUsers.value = []
   }
 }
 

@@ -281,6 +281,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			workspaces.PATCH("/:wsParam", workspaceH.Update)  // numeric ID or slug
 			workspaces.DELETE("/:wsParam", workspaceH.Delete) // numeric ID or slug
 			workspaces.GET("/:wsParam/members", workspaceH.ListMembers)
+			workspaces.GET("/:wsParam/member-candidates", middleware.RequireWorkspacePermission(db, "member:manage"), workspaceH.ListMemberCandidates)
 			workspaces.GET("/:wsParam/my-permissions", handler.MyWorkspacePermissions(db))
 			workspaces.GET("/:wsParam/analytics", wsAnalyticsH.Get)
 			workspaces.GET("/:wsParam/analytics/loop", wsAnalyticsH.Loop)
@@ -673,6 +674,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			projects.GET("/:projectId/my-permissions", projectAccess, handler.MyProjectPermissions(db))
 			projects.GET("/:projectId/approvals", approvalH.ListByProject)
 			projects.GET("/:projectId/members", projectH.ListMembers)            // ?only_active=
+			projects.GET("/:projectId/member-candidates", middleware.RequirePermission(db, "member:manage_project", "project"), projectH.ListMemberCandidates)
 			projects.POST("/:projectId/members", projectH.AddMember)             // ?user_id=&role=
 			projects.PATCH("/:projectId/members/:userId", projectH.UpdateMember) // ?role=
 			projects.DELETE("/:projectId/members/:userId", projectH.RemoveMember)

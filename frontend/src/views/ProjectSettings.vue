@@ -36,8 +36,11 @@ const router = useRouter()
 const slug = computed(() => (route.params as any).slug as string)
 const projectId = computed(() => parseInt((route.params as any).id as string, 10))
 
-const { can } = useProjectPermissions(() => projectId.value)
+const { can, roleLevel } = useProjectPermissions(() => projectId.value)
 const canManageWorkflows = computed(() => can('workflow:manage'))
+// Editing, archiving or deleting a project needs project admin (role >= 20);
+// the API refuses these for members, so the controls are hidden.
+const canManageProject = computed(() => roleLevel.value >= 20)
 const canManageSettings = computed(() => can('settings:manage'))
 
 const loading = ref(false)
@@ -797,7 +800,7 @@ watch(() => route.query.section, (section) => {
             </div>
           </div>
           <div class="px-6 py-4 border-t border-gray-200">
-            <button @click="handleEditProject" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">{{ t('settings.editProject') }}</button>
+            <button v-if="canManageProject" @click="handleEditProject" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition">{{ t('settings.editProject') }}</button>
           </div>
         </div>
 
@@ -1203,7 +1206,7 @@ watch(() => route.query.section, (section) => {
                 <p class="text-sm text-red-700 mt-1">{{ t('settings.deleteProjectDesc') }}</p>
               </div>
             </div>
-            <button @click="showDeleteConfirm = true" class="mt-4 w-full px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition">
+            <button v-if="canManageProject" @click="showDeleteConfirm = true" class="mt-4 w-full px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition">
               {{ t('settings.deleteProject') }}
             </button>
           </div>

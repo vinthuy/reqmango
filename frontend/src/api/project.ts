@@ -113,6 +113,20 @@ export async function listProjectMembers(
 }
 
 /**
+ * 可加入项目的候选人（工作区成员中尚未加入项目的）。
+ * 服务端要求 member:manage_project。
+ */
+export async function listProjectMemberCandidates(
+  projectId: number,
+  q = ''
+): Promise<Array<{ id: number; display_name: string; email: string; avatar_url?: string }>> {
+  const response = await api.get(`/projects/${projectId}/member-candidates`, {
+    params: q ? { q } : {},
+  })
+  return response.data
+}
+
+/**
  * 添加项目成员
  */
 export async function addProjectMember(
@@ -285,6 +299,7 @@ export const projectApi = {
   
   // Members
   listProjectMembers,
+  listProjectMemberCandidates,
   addProjectMember,
   updateProjectMember,
   removeProjectMember,

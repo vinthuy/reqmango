@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
@@ -128,6 +129,44 @@ func (h *WorkspaceHandler) ListMembers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, members)
+}
+
+// ListMemberCandidates handles GET /workspaces/:wsParam/member-candidates.
+// It answers the only question the add-member form asks — which users can still
+// be added — instead of exposing a global user directory.
+func (h *WorkspaceHandler) ListMemberCandidates(c *gin.Context) {
+	workspaceID, ok := h.resolveWsParam(c)
+	if !ok {
+		return
+	}
+
+	type candidate struct {
+		ID          uint64  `json:"id"`
+		DisplayName string  `json:"display_name"`
+		Email       string  `json:"email"`
+		Avatar      *string `json:"avatar_url"`
+	}
+	var out []candidate
+
+	q := strings.TrimSpace(c.Query("q"))
+	query := h.svc.DB().Model(&model.User{}).
+		Select("users.id, users.display_name, users.email, users.avatar AS avatar_url").
+		Where("users.deleted_at IS NULL AND users.is_active = ?", true).
+		Where(`NOT EXISTS (SELECT 1 FROM workspace_members m
+			WHERE m.user_id = users.id AND m.workspace_id = ? AND m.is_active = ? AND m.deleted_at IS NULL)`,
+			workspaceID, true)
+	if q != "" {
+		like := "%" + strings.ToLower(q) + "%"
+		query = query.Where("LOWER(users.display_name) LIKE ? OR LOWER(users.email) LIKE ? OR LOWER(users.username) LIKE ?", like, like, like)
+	}
+	if err := query.Order("users.display_name").Limit(50).Scan(&out).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to list candidates"})
+		return
+	}
+	if out == nil {
+		out = []candidate{}
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 // AddMember handles POST /workspaces/:wsParam/members

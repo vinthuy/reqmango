@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/reqmango/backend/internal/common"
@@ -237,6 +238,51 @@ func (h *ProjectHandler) ListMembers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, members)
+}
+
+// ListMemberCandidates handles GET /projects/:projectId/member-candidates.
+// Candidates are workspace members who are not yet active project members.
+func (h *ProjectHandler) ListMemberCandidates(c *gin.Context) {
+	projectID, err := strconv.ParseUint(c.Param("projectId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid project ID"})
+		return
+	}
+
+	type candidate struct {
+		ID          uint64  `json:"id"`
+		DisplayName string  `json:"display_name"`
+		Email       string  `json:"email"`
+		Avatar      *string `json:"avatar_url"`
+	}
+	var out []candidate
+
+	var workspaceID uint64
+	if err := h.svc.DB().Table("projects").Select("workspace_id").Where("id = ?", projectID).Scan(&workspaceID).Error; err != nil || workspaceID == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Project not found"})
+		return
+	}
+
+	q := strings.TrimSpace(c.Query("q"))
+	query := h.svc.DB().Model(&model.User{}).
+		Select("users.id, users.display_name, users.email, users.avatar AS avatar_url").
+		Where("users.deleted_at IS NULL AND users.is_active = ?", true).
+		Where(`EXISTS (SELECT 1 FROM workspace_members wm
+			WHERE wm.user_id = users.id AND wm.workspace_id = ? AND wm.is_active = ? AND wm.deleted_at IS NULL)`, workspaceID, true).
+		Where(`NOT EXISTS (SELECT 1 FROM project_members pm
+			WHERE pm.user_id = users.id AND pm.project_id = ? AND pm.is_active = ? AND pm.deleted_at IS NULL)`, projectID, true)
+	if q != "" {
+		like := "%" + strings.ToLower(q) + "%"
+		query = query.Where("LOWER(users.display_name) LIKE ? OR LOWER(users.email) LIKE ? OR LOWER(users.username) LIKE ?", like, like, like)
+	}
+	if err := query.Order("users.display_name").Limit(50).Scan(&out).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to list candidates"})
+		return
+	}
+	if out == nil {
+		out = []candidate{}
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 // AddMember handles POST /projects/:id/members?user_id=int&role=int

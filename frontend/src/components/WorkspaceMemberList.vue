@@ -6,6 +6,7 @@
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-medium text-gray-700">{{ t('workspaceMember.memberManagement') }}</h3>
           <button
+            v-if="canManageMembers"
             @click="openInviteModal"
             class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 flex items-center space-x-1"
           >
@@ -51,6 +52,7 @@
           <div class="flex items-center space-x-3">
             <!-- 角色 -->
             <select
+              v-if="canManageMembers"
               :value="String(member.role)"
               @change="updateMemberRole(member.user_id, Number(($event.target as HTMLSelectElement).value))"
               class="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -62,6 +64,7 @@
 
             <!-- 移除 -->
             <button
+              v-if="canManageMembers"
               @click="removeMember(member.user_id)"
               class="p-1 text-gray-400 hover:text-red-600"
             >
@@ -182,10 +185,10 @@ import { ref, onMounted, computed } from 'vue'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import { workspaceApi } from '@/api/workspace'
-import { authApi } from '@/api/auth'
 import type { WorkspaceMember } from '@/types'
 import type { UserLite } from '@/api/auth'
 import { useConfirm } from '@/composables/useConfirm'
+import { useWorkspacePermissions } from '@/composables/usePermission'
 
 // Props
 const props = defineProps<{
@@ -205,6 +208,11 @@ const { confirm } = useConfirm()
 const members = ref<WorkspaceMember[]>([])
 const allUsers = ref<UserLite[]>([])
 const loading = ref(false)
+
+// Member management is admin-only on the server (member:manage). Hiding the
+// controls keeps the UI from offering actions the API would refuse.
+const { roleLevel: workspaceRole } = useWorkspacePermissions(() => props.workspaceSlug)
+const canManageMembers = computed(() => workspaceRole.value >= 20)
 const showInviteModal = ref(false)
 const submitting = ref(false)
 const userSearchQuery = ref('')
@@ -235,7 +243,9 @@ async function loadMembers() {
   loading.value = true
   try {
     members.value = await workspaceApi.listMembers(props.workspaceSlug)
-    await loadUsers()
+    // Candidates need member:manage; skip the request entirely for members so
+    // the page does not log a 403.
+    if (canManageMembers.value) await loadUsers()
   } catch (error) {
     console.error('Failed to load members:', error)
   } finally {
@@ -245,9 +255,10 @@ async function loadMembers() {
 
 async function loadUsers() {
   try {
-    allUsers.value = await authApi.listUsers()
+    allUsers.value = await workspaceApi.listMemberCandidates(props.workspaceSlug)
   } catch (error) {
-    console.error('Failed to load users:', error)
+    // Only admins may ask for candidates; a member's add form is hidden anyway.
+    allUsers.value = []
   }
 }
 
