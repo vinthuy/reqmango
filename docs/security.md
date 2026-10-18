@@ -233,3 +233,20 @@ that backfill after `AutoMigrate`, so a deployment that never runs
 `cmd/migrate` converges too. Both statements are idempotent.
 
 New transitions inherit the kind from the route, never from the id.
+
+---
+
+## 12. Gaps the fresh-database audit found
+
+Probing a database built only by `AutoMigrate` (the Docker path) rather than by
+`cmd/migrate` exposed three defects that a long-lived local database hides:
+
+| Defect | Effect | Fix |
+|--------|--------|-----|
+| Six models were missing from `AutoMigrate`: `ProjectAgentMember`, `AgentDecision`, `AgentCostBudget`, `AgentSLA`, `TaskLog`, `PersonalAccessToken` | every handler reading them returned 500 on a fresh install | added to the `AutoMigrate` list in `cmd/server` |
+| `GET /workspaces/:ws/autopilot-tasks/:taskId` and `/executions[/:executionId]` loaded the row by id only | an admin of another workspace could read or act on a victim task by guessing its id (`XTENANT`) | `middleware.RequireWorkspaceAutopilotTask` binds both ids to `:wsParam`, returning 404 |
+| `distribution` reports built `issues.id IN ()` when an RQL filter matched nothing | PostgreSQL syntax error surfaced as a failed report | empty match returns an empty report |
+| `initiative` progress counted `project_id` after joining `states` | ambiguous column, progress silently stayed 0 | filter qualified as `issues.project_id` |
+
+`-strict` in CI now runs against a database seeded the same way, so these
+regressions fail the build instead of accumulating.

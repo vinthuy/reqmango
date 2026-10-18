@@ -405,15 +405,19 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			// Autopilot (new)
 			autopilotSvc := service.NewAutopilotService(db)
 			autopilotH := handler.NewAutopilotHandler(autopilotSvc)
+			// The handlers read the resource by id only, so bind :taskId and
+			// :executionId to :wsParam here; otherwise any workspace admin who
+			// guessed an id could read another tenant's task and executions.
+			autopilotScope := middleware.RequireWorkspaceAutopilotTask(db)
 			workspaces.GET("/:wsParam/autopilot-tasks", autopilotH.ListTasks)
 			workspaces.POST("/:wsParam/autopilot-tasks", autopilotH.CreateTask)
-			workspaces.GET("/:wsParam/autopilot-tasks/:taskId", autopilotH.GetTask)
-			workspaces.PUT("/:wsParam/autopilot-tasks/:taskId", autopilotH.UpdateTask)
-			workspaces.DELETE("/:wsParam/autopilot-tasks/:taskId", autopilotH.DeleteTask)
-			workspaces.POST("/:wsParam/autopilot-tasks/:taskId/toggle", autopilotH.ToggleTask)
-			workspaces.POST("/:wsParam/autopilot-tasks/:taskId/execute", autopilotH.ExecuteTask)
-			workspaces.GET("/:wsParam/autopilot-tasks/:taskId/executions", autopilotH.ListExecutions)
-			workspaces.GET("/:wsParam/autopilot-tasks/:taskId/executions/:executionId", autopilotH.GetExecution)
+			workspaces.GET("/:wsParam/autopilot-tasks/:taskId", autopilotScope, autopilotH.GetTask)
+			workspaces.PUT("/:wsParam/autopilot-tasks/:taskId", autopilotScope, autopilotH.UpdateTask)
+			workspaces.DELETE("/:wsParam/autopilot-tasks/:taskId", autopilotScope, autopilotH.DeleteTask)
+			workspaces.POST("/:wsParam/autopilot-tasks/:taskId/toggle", autopilotScope, autopilotH.ToggleTask)
+			workspaces.POST("/:wsParam/autopilot-tasks/:taskId/execute", autopilotScope, autopilotH.ExecuteTask)
+			workspaces.GET("/:wsParam/autopilot-tasks/:taskId/executions", autopilotScope, autopilotH.ListExecutions)
+			workspaces.GET("/:wsParam/autopilot-tasks/:taskId/executions/:executionId", autopilotScope, autopilotH.GetExecution)
 			// Public webhook trigger (no auth) so external systems can fire it.
 			v1.POST("/autopilot/webhook/:token", autopilotH.TriggerWebhook)
 
@@ -872,7 +876,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 
 				// States
 				settings.POST("/states", settingsManageProject, settingsH.CreateState)                 // ?workspace_id=
-				settings.GET("/states", settingsH.ListStates)                                         // ?include_inactive=
+				settings.GET("/states", settingsH.ListStates)                                          // ?include_inactive=
 				settings.POST("/states/default", settingsManageProject, settingsH.CreateDefaultStates) // ?workspace_id=
 				settings.GET("/states/:stateId", settingsH.GetState)
 				settings.PUT("/states/:stateId", settingsManageProject, settingsH.UpdateState)

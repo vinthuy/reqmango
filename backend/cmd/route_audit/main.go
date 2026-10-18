@@ -243,6 +243,10 @@ func adminOnlyPath(method, path string) bool {
 	if strings.Contains(path, "/execute") {
 		return false
 	}
+	// Cancelling a run is operational, like executing one: members may do it.
+	if strings.HasSuffix(path, "/cancel") {
+		return false
+	}
 	if strings.Contains(path, "/workflows") || strings.Contains(path, "/agent-members") {
 		return true
 	}
@@ -387,20 +391,20 @@ var overrides = map[string][]string{
 	"relations":           {"issue_relations"},
 	"values":              {"custom_fields"},
 
-	"cicd/builds":             {"build_records", "cicd_builds"},
-	"developer-agent/jobs":    {"developer_jobs"},
-	"tester-agent/jobs":       {"tester_jobs"},
-	":taskId/executions":      {"autopilot_executions"},
-	":squadId/executions":     {"squad_executions"},
-	":squadId/members":        {"squad_members"},
-	"relations/types":         {"relation_types"},
-	":templateId/types":       {"project_template_types", "issue_types"},
-	":typeId/fields":          {"custom_fields"},
-	":id/fields":              {"custom_fields"},
-	":wsParam/memories":       {"memory_entries"},
-	"memories/context":        {"memory_entries"},
-	":fieldId/options":        {"custom_field_options"},
-	":pageId/versions":        {"page_versions"},
+	"cicd/builds":          {"build_records", "cicd_builds"},
+	"developer-agent/jobs": {"developer_jobs"},
+	"tester-agent/jobs":    {"tester_jobs"},
+	":taskId/executions":   {"autopilot_executions"},
+	":squadId/executions":  {"squad_executions"},
+	":squadId/members":     {"squad_members"},
+	"relations/types":      {"relation_types"},
+	":templateId/types":    {"project_template_types", "issue_types"},
+	":typeId/fields":       {"custom_fields"},
+	":id/fields":           {"custom_fields"},
+	":wsParam/memories":    {"memory_entries"},
+	"memories/context":     {"memory_entries"},
+	":fieldId/options":     {"custom_field_options"},
+	":pageId/versions":     {"page_versions"},
 }
 
 var snakeRe = regexp.MustCompile(`([a-z0-9])([A-Z])`)

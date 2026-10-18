@@ -491,6 +491,11 @@ func (s *ReportService) distribution(projectID uint64, req *ReportRequest) (*Rep
 	args := []interface{}{projectID}
 
 	if ids != nil {
+		// A filter that matches nothing must return an empty report, not
+		// "IN ()" — PostgreSQL rejects an empty value list with a syntax error.
+		if len(ids) == 0 {
+			return &ReportResponse{Type: req.GroupBy, GroupBy: req.GroupBy, Labels: []string{}, Values: []int{}}, nil
+		}
 		// RQL 过滤
 		placeholders := make([]string, len(ids))
 		vals := make([]interface{}, len(ids))

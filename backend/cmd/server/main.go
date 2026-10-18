@@ -193,6 +193,15 @@ func main() {
 		&model.SDLCWorkflow{},
 		&model.SDLCStage{},
 		&model.DataMigration{},
+		// Models that only had SQL migrations. A deployment that relies on
+		// AutoMigrate alone (the Docker image) got 500s from every handler
+		// reading these tables, so they belong in the same list.
+		&model.ProjectAgentMember{},
+		&model.AgentDecision{},
+		&model.AgentCostBudget{},
+		&model.AgentSLA{},
+		&model.TaskLog{},
+		&model.PersonalAccessToken{},
 	); err != nil {
 		log.Fatalf("Failed to auto-migrate: %v", err)
 	}

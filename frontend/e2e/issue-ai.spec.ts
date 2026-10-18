@@ -167,8 +167,9 @@ test.describe('AI Chart Generation', () => {
       // 10s action timeout, so allow a realistic budget before failing.
       timeout: 60000,
     })
-    // 200 = success, 500 = AI key issue (expected), 429 = rate limit (expected)
-    expect([200, 500, 429]).toContain(res.status())
+    // 200 = success; 503 = no AI key configured (expected in CI); 502 = upstream
+    // failure; 429 = rate limit. A 500 would be an unhandled server error.
+    expect([200, 502, 503, 429]).toContain(res.status())
   })
 
   test('should open AI sidebar on project page', async ({ page }) => {

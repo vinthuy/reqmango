@@ -171,8 +171,9 @@ func (s *InitiativeService) GetProgress(id uint64) (map[string]interface{}, erro
 
 	var totalIssues, completedIssues int64
 	if len(projectIDs) > 0 {
-		s.db.Model(&model.Issue{}).Where("project_id IN ? AND archived_at IS NULL", projectIDs).Count(&totalIssues)
-		s.db.Model(&model.Issue{}).Where("project_id IN ? AND archived_at IS NULL", projectIDs).
+		s.db.Model(&model.Issue{}).Where("issues.project_id IN ? AND issues.archived_at IS NULL", projectIDs).Count(&totalIssues)
+		// states also has a project_id column, so the filter must be qualified.
+		s.db.Model(&model.Issue{}).Where("issues.project_id IN ? AND issues.archived_at IS NULL", projectIDs).
 			Joins("JOIN states ON states.id = issues.state_id AND states.group IN ('completed','cancelled')").Count(&completedIssues)
 	}
 

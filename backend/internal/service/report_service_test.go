@@ -4,8 +4,35 @@ import (
 	"testing"
 	"time"
 
+	"github.com/glebarez/sqlite"
+	"github.com/reqmango/backend/internal/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
+
+// TestDistributionWithNoMatchingIssues covers a filter that matches nothing:
+// the generated SQL used to contain "IN ()", which PostgreSQL rejects.
+func TestDistributionWithNoMatchingIssues(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Project{}, &model.State{}, &model.Issue{}))
+
+	project := model.Project{Name: "p", Identifier: "P", WorkspaceID: 1}
+	require.NoError(t, db.Create(&project).Error)
+	svc := NewReportService(db)
+
+	resp, err := svc.Generate(project.ID, &ReportRequest{
+		ReportType: "distribution",
+		GroupBy:    "state",
+		RQL:        `priority = "urgent"`,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Empty(t, resp.Labels)
+	assert.Empty(t, resp.Values)
+}
 
 // ==================== buildAggregation ====================
 

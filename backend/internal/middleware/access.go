@@ -218,6 +218,39 @@ func RequireWorkspaceWorkflow(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// RequireWorkspaceAutopilotTask binds :taskId and :executionId to :wsParam.
+// The autopilot handlers load their resource by id alone, so without this a
+// caller who may reach one workspace could read or act on another's tasks by
+// guessing an id. Unknown or foreign ids are reported as 404.
+func RequireWorkspaceAutopilotTask(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		wsID, ok := workspaceFromParam(c, db)
+		if !ok {
+			return
+		}
+		if taskID := paramID(c, "taskId"); taskID != 0 {
+			var n int64
+			db.Model(&model.AutopilotTask{}).Where("id = ? AND workspace_id = ?", taskID, wsID).Count(&n)
+			if n == 0 {
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Autopilot task not found"})
+				return
+			}
+		}
+		if execID := paramID(c, "executionId"); execID != 0 {
+			var n int64
+			db.Table("autopilot_executions e").
+				Joins("JOIN autopilot_tasks t ON t.id = e.task_id").
+				Where("e.id = ? AND t.workspace_id = ?", execID, wsID).
+				Count(&n)
+			if n == 0 {
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"message": "Autopilot execution not found"})
+				return
+			}
+		}
+		c.Next()
+	}
+}
+
 // transitionChildOf is childOf for state_transitions, which needs the workflow
 // kind: `workflows` and `agent_workflows` have overlapping id ranges, so
 // id + workflow_id alone can match a transition of the other kind.
