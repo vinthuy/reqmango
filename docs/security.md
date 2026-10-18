@@ -144,6 +144,13 @@ requests. `status500` and `status503` entries are unconfigured integrations
 (GitHub, Slack, MCP credentials) and the AI key check, not access results —
 verify those by hand before reading anything into them.
 
+`-strict` turns the report into a gate: it exits non-zero on any `XTENANT`,
+`ESCALATE`, `LEAK`, `WRITE`, `status500` or `unresolved` route. The CI job
+`Tenancy audit` runs all four modes this way, each against a fresh copy of the
+seeded database. Routes that intentionally carry no tenant data — the
+permissions catalog, the static import template, and the caller's own
+`notifications/read-all` — are allowlisted in `benignPublic` and still probed.
+
 Pass `-seed` to **every** mode, not just `-cross`. The member probe performs
 the writes a member is allowed, which deletes the very fixture rows later
 routes need, so on the same copy `unresolved` climbs from run to run and
@@ -152,3 +159,21 @@ at one or two unresolvable parameters per mode.
 
 Reports are generated output (`route_audit.md` / `.json`); they are gitignored,
 so keep them out of commits.
+
+---
+
+## 9. Health and readiness probes
+
+| Endpoint | Meaning | Use |
+|----------|---------|-----|
+| `GET /health` | the process is running; touches no dependency | container `HEALTHCHECK`, restart decisions |
+| `GET /readyz` | the database answers a ping within 2 s; `503` otherwise | load balancers, CI/E2E startup, rollout gates |
+
+Both are public and registered before the language middleware and the rate
+limiter, so probe traffic is cheap and cannot be throttled. Liveness stays
+green when the database is down on purpose: a liveness failure restarts the
+container, which would not fix a broken database and would drop the process
+that could still serve cached and read-only paths.
+
+`backend/Dockerfile` wires `/health` into `HEALTHCHECK`. Orchestrators should
+route on `/readyz`, not on the liveness endpoint.

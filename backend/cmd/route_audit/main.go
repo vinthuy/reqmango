@@ -49,6 +49,7 @@ func main() {
 	member := flag.Bool("member", false, "probe as a role-15 member for admin-only escalation")
 	seed := flag.Bool("seed", false, "insert victim-owned rows for path params that have none")
 	cross := flag.Bool("cross", false, "probe as admin of another workspace, using its own workspace/project/issue in the path and victim child IDs")
+	strict := flag.Bool("strict", false, "exit non-zero on any violation, unresolved route or 500")
 	flag.Parse()
 
 	dsn := os.Getenv("ROUTE_AUDIT_DATABASE_URL")
@@ -169,6 +170,44 @@ func main() {
 		fmt.Printf("%-6s %3d %3d %-10s %s\n", rt.Method, res.Outsider, res.Insider, res.Verdict, rt.Path)
 	}
 	writeReport(*out, a, results)
+	if *strict {
+		os.Exit(exitCode(results))
+	}
+}
+
+// benignPublic lists routes that intentionally carry no tenant data: global
+// catalogs, a static import template, and the caller's own notifications.
+// They are still probed; they just do not fail the strict gate.
+var benignPublic = map[string]bool{
+	"GET /api/v1/permissions":             true,
+	"GET /api/v1/issues/import/template":  true,
+	"POST /api/v1/notifications/read-all": true,
+}
+
+// exitCode is the CI gate: any cross-tenant access, privilege escalation,
+// leak or write from an unauthorised caller is a failure, as is a route the
+// audit could not probe or a handler that returned 500.
+func exitCode(results []result) int {
+	bad := 0
+	for _, r := range results {
+		if benignPublic[r.Method+" "+r.Path] {
+			continue
+		}
+		switch {
+		case r.Verdict == "XTENANT", r.Verdict == "ESCALATE",
+			r.Verdict == "LEAK", r.Verdict == "WRITE":
+			bad++
+		case strings.HasPrefix(r.Verdict, "unresolved"):
+			bad++
+		case r.Verdict == "status500":
+			bad++
+		}
+	}
+	if bad > 0 {
+		fmt.Printf("\nstrict: %d violation(s)\n", bad)
+		return 1
+	}
+	return 0
 }
 
 // adminOnlyPath is true for routes a role-15 member must not mutate.
@@ -506,7 +545,7 @@ func parentLink(base string, resolved map[string]uint64) (string, uint64, bool) 
 }
 
 func skip(path string) bool {
-	for _, p := range []string{"/api/v1/auth", "/api/v1/sse", "/api/v1/intake/", "/api/v1/intake-channels", "/health", "/api/v1/health"} {
+	for _, p := range []string{"/api/v1/auth", "/api/v1/sse", "/api/v1/intake/", "/api/v1/intake-channels", "/health", "/api/v1/health", "/readyz"} {
 		if strings.HasPrefix(path, p) {
 			return true
 		}

@@ -19,4 +19,9 @@ COPY --from=builder /app/server .
 
 EXPOSE 8000
 
+# /health is a liveness probe only: a missing database must not restart the
+# container. Readiness (/readyz) is what orchestrators should route on.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+    CMD wget -qO- "http://127.0.0.1:${PORT:-8000}/health" >/dev/null || exit 1
+
 CMD ["./server"]

@@ -213,6 +213,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	// JWT middleware
 	authMiddleware := middleware.ScopedAuthMiddleware(db, cfg.SecretKey)
 
+	// Probes are registered before the language middleware and the rate limiter
+	// so they stay cheap and cannot be throttled by an orchestrator's polling.
+	healthH := handler.NewHealthHandler(db)
+	r.GET("/health", healthH.Live)
+	r.GET("/readyz", healthH.Ready)
+
 	// Language detection middleware
 	r.Use(middleware.LanguageMiddleware())
 
