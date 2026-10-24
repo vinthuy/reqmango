@@ -175,6 +175,8 @@ jobs:
           SECRET_KEY: ci-e2e-secret-key-not-for-production
           DEBUG: 'false'
           DB_LOG_LEVEL: 'warn'
+          # Demo accounts are opt-in; the suite logs in as admin@reqmango.com.
+          SEED_DEMO: 'true'
         run: |
           cd backend
           ../backend-server &
@@ -270,6 +272,8 @@ jobs:
           SECRET_KEY: ci-audit-secret-key-not-for-production
           DEBUG: 'false'
           DB_LOG_LEVEL: 'error'
+          # The probes need a populated tenant (members, projects, issues).
+          SEED_DEMO: 'true'
         run: |
           cd backend
           go build -o ../audit-seed-server ./cmd/server

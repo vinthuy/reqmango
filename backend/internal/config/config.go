@@ -30,6 +30,21 @@ type Config struct {
 	RateLimitRequests    int
 	RateLimitWindowSec   int
 	SlowRequestMS        int
+
+	// SeedDemo enables the demo dataset: sample workspaces/projects/issues and
+	// the well-known demo accounts (admin@reqmango.com, demo@example.com, all
+	// with the password demo1234). It is opt-in because those credentials are
+	// public: leaving it on in a reachable deployment hands anyone an admin
+	// session. SEED_DEMO=true is the "docker compose up" demo experience.
+	SeedDemo bool
+	// SeedE2E enables test fixtures (qa_tester@reqmango.com, workspace qa-test,
+	// project QAT). Also public credentials, also opt-in.
+	SeedE2E bool
+	// AdminEmail/AdminPassword bootstrap the first superuser on an empty
+	// database when demo seeding is off. An empty password means one is
+	// generated and printed once to the server log.
+	AdminEmail    string
+	AdminPassword string
 }
 
 func Load() *Config {
@@ -58,6 +73,12 @@ func Load() *Config {
 		RateLimitRequests:    getEnvInt("RATE_LIMIT_REQUESTS", 500),
 		RateLimitWindowSec:   getEnvInt("RATE_LIMIT_WINDOW_SEC", 60),
 		SlowRequestMS:        getEnvInt("SLOW_REQUEST_MS", 1000),
+
+		// Demo/E2E data is opt-in: both ship accounts with published passwords.
+		SeedDemo:      getEnvBool("SEED_DEMO", false),
+		SeedE2E:       getEnvBool("SEED_E2E", false),
+		AdminEmail:    getEnv("ADMIN_EMAIL", "admin@reqmango.com"),
+		AdminPassword: getEnv("ADMIN_PASSWORD", ""),
 	}
 
 	fmt.Printf("Config loaded: port=%s, db_url=%s\n", cfg.Port, maskDSN(cfg.DatabaseURL))

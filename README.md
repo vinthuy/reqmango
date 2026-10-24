@@ -83,11 +83,12 @@ SECRET_KEY=$(openssl rand -hex 32)
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 PORT=8000
 DEBUG=true
+SEED_DEMO=true
 EOF
 go run ./cmd/server/
 ```
 
-The server migrates and seeds on start, so this is all a new environment needs.
+The server migrates and seeds on start, so this is all a new environment needs. `SEED_DEMO=true` creates the demo accounts; drop that line and the first boot instead creates one admin and prints a random password to the log (see [production deployment](docs/deploy/production.md)).
 
 ### Database migrations
 
@@ -106,7 +107,7 @@ An existing database that predates the squash needs a one-time
 `go run ./cmd/migrate force 1`; see
 [the debt note](docs/dev/debt/2026-10-18-sql-migration-chain.md).
 
-Seed data includes `demo@example.com` / `demo1234`, workspace `reqmango-dev` (projects `CORE` / `MOBILE` / `AI` / `OPENAPI`), sample sprints / modules / issues.
+Seed data includes `demo@example.com` / `demo1234`, workspace `reqmango-dev` (projects `CORE` / `MOBILE` / `AI` / `OPENAPI`), sample sprints / modules / issues. Those demo passwords are public, so the demo is for local evaluation only.
 
 ```bash
 # Frontend (API on :8000)
@@ -143,6 +144,7 @@ reqmango/
 
 - [API Reference](docs/API.md)
 - [Architecture](docs/kb/architecture/) — [tech stack](docs/kb/architecture/tech-stack.md), [Go backend](docs/kb/architecture/backend-go.md), [frontend](docs/kb/architecture/frontend.md), [data model](docs/kb/architecture/data-model.md)
+- [Production deployment](docs/deploy/production.md) — secrets, demo data off, TLS, backups
 
 ---
 
@@ -152,6 +154,7 @@ We welcome Issues and Pull Requests — especially small, focused changes.
 
 - [Contributing guide](CONTRIBUTING.md) · [中文](CONTRIBUTING-zh.md)
 - [Good first issues](docs/dev/good-first-issues.md) (curated starter tasks)
+- [Security policy](SECURITY.md) — report vulnerabilities privately, never in a public issue
 - **CN collaboration hub:** [GitCode](https://gitcode.com/yongfeng9m-/reqmanpy) · **International mirror:** [GitHub](https://github.com/vinthuy/reqmango) — same code, same product story ([dual-remote](docs/dev/dual-remote.md))
 
 ## License

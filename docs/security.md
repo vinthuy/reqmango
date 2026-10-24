@@ -263,3 +263,32 @@ Probing a database built only by `AutoMigrate` (the Docker path) rather than by
 
 `-strict` in CI now runs against a database seeded the same way, so these
 regressions fail the build instead of accumulating.
+
+---
+
+## 13. Seed data and the bootstrap admin (`SEED_DEMO`)
+
+The server seeds on every boot. Two of those seed phases create accounts with
+passwords published in this repository, so they are opt-in:
+
+| Setting | Creates | Default |
+|---------|---------|---------|
+| `SEED_DEMO=true` | Sample workspaces/projects/issues, plus `admin@reqmango.com` and `demo@example.com` with password `demo1234` | **off** |
+| `SEED_E2E=true` | `qa_tester@reqmango.com` with password `Test@12345`, workspace `qa-test`, project `QAT` | **off** |
+
+CI sets both where the suites need them. Local development opts in through
+`.env.example` (`SEED_DEMO=true`); the Compose demo path is the only place that
+should be on.
+
+With both off, a fresh database would have no way in, so the server bootstraps
+one superuser when — and only when — no superuser exists:
+
+- `ADMIN_EMAIL` (default `admin@reqmango.com`) and `ADMIN_PASSWORD` if set;
+- otherwise a random 24-character password printed once to the log;
+- an existing account with that email is **never** promoted automatically
+  (otherwise the first person to register would get admin).
+
+Deployments that predate this flag keep whatever rows they already have:
+turning `SEED_DEMO` off does not delete the demo accounts. Change their
+passwords or remove them by hand. See
+[deploy/production.md](deploy/production.md) for the full deployment checklist.

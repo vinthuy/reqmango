@@ -40,7 +40,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-打开 http://localhost — `demo@example.com` / `demo1234`。
+打开 http://localhost — `demo@example.com` / `demo1234`。这两个账号来自
+`.env.example` 里的 `SEED_DEMO=true`，密码是公开的，只适合本地使用
+（见[生产部署](docs/deploy/production.md)）。
 
 可选 AI：在 `.env` 设置 `AI_API_KEY` 后重启。
 
@@ -49,6 +51,9 @@ docker compose up --build
 - Go **1.25+**、PostgreSQL **16+**、Node.js **20+**
 - 后端：`cd backend && go run ./cmd/server/`（`:8000`）
 - 前端：`cd frontend && npm install && npm run dev`（http://localhost:5173）
+
+E2E 套件用演示账号登录，所以本地后端需要在 `backend/.env` 里设
+`SEED_DEMO=true`（见 README）。不设时服务只创建一个引导管理员，并打印一次随机密码。
 
 账号与环境变量见 README。
 

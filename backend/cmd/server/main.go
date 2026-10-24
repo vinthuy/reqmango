@@ -258,7 +258,8 @@ func main() {
 		log.Printf("WARNING: failed to create labels unique index: %v", err)
 	}
 
-	seed.SeedAll(db)
+	seed.SeedAll(db, seed.Options{Demo: cfg.SeedDemo, E2E: cfg.SeedE2E})
+	seed.EnsureBootstrapAdmin(db, cfg.AdminEmail, cfg.AdminPassword)
 
 	go func() {
 		ran, filled, expired, err := aiservice.RunAgentMemoryBackfillOnce(db)

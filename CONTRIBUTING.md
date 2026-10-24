@@ -41,7 +41,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open http://localhost — `demo@example.com` / `demo1234`.
+Open http://localhost — `demo@example.com` / `demo1234`. Those accounts come from
+`SEED_DEMO=true` in `.env.example`; they are public, so use them locally only
+(see [production deployment](docs/deploy/production.md)).
 
 Optional AI: set `AI_API_KEY` in `.env`, restart.
 
@@ -50,6 +52,10 @@ Optional AI: set `AI_API_KEY` in `.env`, restart.
 - Go **1.25+**, PostgreSQL **16+**, Node.js **20+**
 - Backend: `cd backend && go run ./cmd/server/` (API on `:8000`)
 - Frontend: `cd frontend && npm install && npm run dev` (http://localhost:5173)
+
+The E2E suite signs in as the demo accounts, so a local backend needs
+`SEED_DEMO=true` in `backend/.env` (see README). Without it the server creates a
+single bootstrap admin instead and prints its password once.
 
 See README for seed accounts and env details.
 

@@ -3,6 +3,7 @@ package config
 import (
 	"testing"
 
+	"github.com/spf13/viper"
 	"gorm.io/gorm/logger"
 )
 
@@ -60,5 +61,43 @@ func TestResolveSecretKey_RejectsPlaceholderAndEmpty(t *testing.T) {
 	t.Setenv("SECRET_KEY", "a-real-configured-secret")
 	if got := resolveSecretKey(); got != "a-real-configured-secret" {
 		t.Fatalf("configured SECRET_KEY = %q, want it to be used verbatim", got)
+	}
+}
+
+func TestLoad_SeedFlagsFollowEnvironment(t *testing.T) {
+	// Demo and E2E data create accounts with published passwords, so the flag
+	// must be read from the environment and must not be forced on by code.
+	t.Cleanup(viper.Reset)
+
+	t.Setenv("SEED_DEMO", "true")
+	t.Setenv("SEED_E2E", "false")
+	cfg := Load()
+	if !cfg.SeedDemo {
+		t.Error("SEED_DEMO=true: SeedDemo should be true")
+	}
+	if cfg.SeedE2E {
+		t.Error("SEED_E2E=false: SeedE2E should be false")
+	}
+
+	t.Setenv("SEED_DEMO", "false")
+	t.Setenv("SEED_E2E", "true")
+	cfg = Load()
+	if cfg.SeedDemo {
+		t.Error("SEED_DEMO=false: SeedDemo should be false")
+	}
+	if !cfg.SeedE2E {
+		t.Error("SEED_E2E=true: SeedE2E should be true")
+	}
+}
+
+func TestLoad_BootstrapAdminDefaults(t *testing.T) {
+	t.Cleanup(viper.Reset)
+
+	t.Setenv("ADMIN_EMAIL", "ops@example.com")
+	t.Setenv("ADMIN_PASSWORD", "configured")
+	cfg := Load()
+	if cfg.AdminEmail != "ops@example.com" || cfg.AdminPassword != "configured" {
+		t.Errorf("configured bootstrap admin = %q/%q, want ops@example.com/configured",
+			cfg.AdminEmail, cfg.AdminPassword)
 	}
 }

@@ -83,11 +83,12 @@ SECRET_KEY=$(openssl rand -hex 32)
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 PORT=8000
 DEBUG=true
+SEED_DEMO=true
 EOF
 go run ./cmd/server/
 ```
 
-服务启动时会自动迁移并写入种子数据，因此新建环境只需这一步。
+服务启动时会自动迁移并写入种子数据，因此新建环境只需这一步。`SEED_DEMO=true` 会创建演示账号；不需要演示数据时删掉这一行，首次启动会创建一个管理员并把随机密码打印在日志里（见[生产部署](docs/deploy/production.md)）。
 
 ### 数据库迁移
 
@@ -103,7 +104,7 @@ go run ./cmd/migrate version # 1, dirty=false
 建好的库」都能直接跑。压缩基线之前建好的旧库需要一次性
 `go run ./cmd/migrate force 1`，详见[债务说明](docs/dev/debt/2026-10-18-sql-migration-chain.md)。
 
-种子数据含 `demo@example.com` / `demo1234`、工作区 `reqmango-dev`（项目 `CORE` / `MOBILE` / `AI` / `OPENAPI`），以及示例 Sprint / 模块 / 工作项。
+种子数据含 `demo@example.com` / `demo1234`、工作区 `reqmango-dev`（项目 `CORE` / `MOBILE` / `AI` / `OPENAPI`），以及示例 Sprint / 模块 / 工作项。演示账号的密码是公开的，**只适合本地试用**。
 
 ```bash
 # 前端（API 在 :8000）
@@ -140,6 +141,7 @@ reqmango/
 
 - [API 参考](docs/API.md)
 - [架构文档](docs/kb/architecture/) — [技术栈](docs/kb/architecture/tech-stack.md)、[Go 后端](docs/kb/architecture/backend-go.md)、[前端](docs/kb/architecture/frontend.md)、[数据模型](docs/kb/architecture/data-model.md)
+- [生产部署](docs/deploy/production.md) — 密钥、关闭演示数据、TLS、备份
 
 ---
 
@@ -149,6 +151,7 @@ reqmango/
 
 - [贡献指南](CONTRIBUTING-zh.md) · [English](CONTRIBUTING.md)
 - [适合新手的任务清单](docs/dev/good-first-issues.md)
+- [安全策略](SECURITY.md) — 漏洞请走私密渠道，不要开公开 Issue
 - **国内共建主场：** [GitCode](https://gitcode.com/yongfeng9m-/reqmanpy) · **国际镜像：** [GitHub](https://github.com/vinthuy/reqmango) — 同一套源码与产品叙事（[双远程说明](docs/dev/dual-remote.md)）
 
 ## License

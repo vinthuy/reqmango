@@ -33,6 +33,8 @@ reqmango 项目管理平台的文档中心。
 | 前端 | [kb/architecture/frontend.md](kb/architecture/frontend.md) |
 | 数据模型 | [kb/architecture/data-model.md](kb/architecture/data-model.md) |
 | API 约定 | [kb/architecture/api-conventions.md](kb/architecture/api-conventions.md) |
+| 生产部署 | [deploy/production.md](deploy/production.md) |
+| 安全与运维 | [security.md](security.md) |
 | 管线状态 | [dev/pipeline-status.md](dev/pipeline-status.md) |
 | 当前焦点 | [dev/active/](dev/active/) |
 | 历史归档 | [superseded/README.md](superseded/README.md) |
@@ -75,6 +77,7 @@ reqmango 项目管理平台的文档中心。
 docs/
 ├── README.md
 ├── kb/                 # 全量知识库（真相）
+├── deploy/             # 生产部署清单
 ├── dev/                # 管线 / 验收 / debt
 ├── superpowers/        # 设计与计划（含现行 redesign）
 ├── superseded/         # 历史：python-era + agent-platform

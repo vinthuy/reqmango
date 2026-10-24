@@ -1,8 +1,11 @@
 package seed
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/reqmango/backend/internal/common"
@@ -12,28 +15,148 @@ import (
 	"gorm.io/gorm"
 )
 
+// Options selects which seed phases run.
+//
+// Demo and E2E data both create accounts with passwords that are published in
+// the repository, so neither may run on an internet-reachable deployment
+// without the operator asking for it.
+type Options struct {
+	Demo bool
+	E2E  bool
+}
+
 func strPtr(s string) *string  { return &s }
 func uintPtr(u uint64) *uint64 { return &u }
 
-func SeedAll(db *gorm.DB) {
+func SeedAll(db *gorm.DB, opts Options) {
 	fmt.Println("=== Starting data initialization ===")
 
+	// System data: needed for a working install, safe in every environment.
 	SeedRBACData(db)
 	SeedIssueTypesForAllWorkspaces(db)
-	SeedDemoData(db)
-	SeedDemoLoginUser(db)
+
+	// Demo data ships accounts whose passwords are published in the README, so
+	// it is opt-in (SEED_DEMO=true). See EnsureBootstrapAdmin for the
+	// no-demo path.
+	if opts.Demo {
+		SeedDemoData(db)
+		SeedDemoLoginUser(db)
+	} else {
+		fmt.Println("Demo data disabled (SEED_DEMO=false): no sample workspaces or demo accounts created")
+	}
+
 	SeedConfigData(db)
 	SeedRelationTypesForAllWorkspaces(db)
 	SeedReleasesForAllProjects(db)
 	BackfillIssueTypeIDs(db)
 	FixIssueTypeHierarchy(db)
 	SeedSearchTemplates(db)
-	SeedAutomationRulesForAllWorkspaces(db)
-	SeedWebhookDemoExecutionLogs(db)
-	SeedAIData(db)
-	SeedE2EFixtures(db)
+
+	if opts.Demo {
+		SeedAutomationRulesForAllWorkspaces(db)
+		SeedWebhookDemoExecutionLogs(db)
+		SeedAIData(db)
+		fmt.Println("[SECURITY WARNING] Demo data was seeded with published passwords " +
+			"(admin@reqmango.com / demo@example.com, password demo1234). " +
+			"Never expose this instance to the internet; run real deployments with SEED_DEMO=false.")
+	}
+
+	// Test fixtures create a superuser with a published password too.
+	if opts.E2E {
+		SeedE2EFixtures(db)
+	}
 
 	fmt.Println("=== Data initialization complete ===")
+}
+
+// EnsureBootstrapAdmin guarantees a fresh deployment has a way in when the demo
+// accounts are disabled (the default).
+//
+// It only acts when no superuser exists, so restarts are no-ops and an existing
+// operator account is never modified. An empty password generates a random one
+// and prints it once; that keeps a known credential out of every install. The
+// return value reports whether an account was created.
+func EnsureBootstrapAdmin(db *gorm.DB, email, password string) bool {
+	var superusers int64
+	if err := db.Model(&model.User{}).Where("is_superuser = ?", true).Count(&superusers).Error; err != nil {
+		fmt.Printf("[BOOTSTRAP] WARNING: cannot check for an existing superuser: %v\n", err)
+		return false
+	}
+	if superusers > 0 {
+		return false
+	}
+
+	email = strings.TrimSpace(email)
+	if email == "" {
+		email = "admin@reqmango.com"
+	}
+
+	// Never promote a pre-registered account: whoever signs up first would
+	// otherwise receive admin. Tell the operator how to recover instead.
+	var existing model.User
+	if err := db.Where("email = ?", email).First(&existing).Error; err == nil {
+		fmt.Printf("[BOOTSTRAP] A user with email %s already exists but no superuser is configured.\n", email)
+		fmt.Println("[BOOTSTRAP] Refusing to promote it automatically. Set ADMIN_EMAIL to another address and restart.")
+		return false
+	}
+
+	generated := password == ""
+	if generated {
+		password = randomPassword()
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Printf("[BOOTSTRAP] WARNING: cannot hash the bootstrap password: %v\n", err)
+		return false
+	}
+
+	username := strings.SplitN(email, "@", 2)[0]
+	user := model.User{
+		Email:        email,
+		Username:     username,
+		DisplayName:  "Administrator",
+		PasswordHash: string(hash),
+		IsActive:     true,
+		IsSuperuser:  true,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		// The username is derived from the email local part, which may already
+		// belong to someone else. Retry once with a random suffix rather than
+		// leaving the deployment without an admin.
+		user.Username = username + "-" + randomToken(3)
+		if err := db.Create(&user).Error; err != nil {
+			fmt.Printf("[BOOTSTRAP] WARNING: cannot create bootstrap admin %s: %v\n", email, err)
+			return false
+		}
+	}
+
+	fmt.Println("============================================================")
+	fmt.Println("Bootstrap superuser created")
+	fmt.Printf("  email:    %s\n", email)
+	if generated {
+		fmt.Printf("  password: %s\n", password)
+		fmt.Println("  Shown once. Store it now and change it after signing in.")
+	} else {
+		fmt.Println("  password: (value of ADMIN_PASSWORD)")
+	}
+	fmt.Println("============================================================")
+	return true
+}
+
+// randomPassword returns a 24-character URL-safe random password.
+func randomPassword() string {
+	// 18 bytes encode to exactly 24 base64 characters.
+	return randomToken(18)
+}
+
+func randomToken(n int) string {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		// crypto/rand failing means the process cannot be trusted with secrets.
+		panic(fmt.Sprintf("seed: cannot generate a random token: %v", err))
+	}
+	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
 // SeedReleasesForAllProjects creates default releases for every project that has none.

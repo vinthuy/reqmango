@@ -97,6 +97,8 @@ $backendErr = Join-Path $Artifacts 'backend.err.log'
 # 后端会返回 HTTP 429，导致大量"假失败"（实测 4 worker 下出现过 1880 次 429）。
 $env:RATE_LIMIT_REQUESTS = '200000'
 $env:RATE_LIMIT_WINDOW_SEC = '60'
+# 演示账号是显式开关（见 docs/security.md §13）；本套件用 admin@reqmango.com 登录。
+$env:SEED_DEMO = 'true'
 $backendProc = Start-Process -FilePath 'go' `
   -ArgumentList 'run', './cmd/server/' `
   -WorkingDirectory $Backend `
