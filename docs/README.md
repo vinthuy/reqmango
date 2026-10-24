@@ -36,6 +36,8 @@ reqmango 项目管理平台的文档中心。
 | 生产部署 | [deploy/production.md](deploy/production.md) |
 | 安全与运维 | [security.md](security.md) |
 | 管线状态 | [dev/pipeline-status.md](dev/pipeline-status.md) |
+| 路线图（做什么 / 不做什么） | [../ROADMAP.md](../ROADMAP.md) |
+| 提问与支持入口 | [../SUPPORT.md](../SUPPORT.md) |
 | 发布流程 | [dev/release.md](dev/release.md) |
 | 当前焦点 | [dev/active/](dev/active/) |
 | 历史归档 | [superseded/README.md](superseded/README.md) |

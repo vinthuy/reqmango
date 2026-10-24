@@ -17,7 +17,7 @@ status (Chinese) lives in [docs/dev/pipeline-status.md](docs/dev/pipeline-status
       quickstart, deployment, configuration and API reference
 - [ ] Language handling that follows the browser on first visit instead of
       hardcoding Chinese, with a visible switcher
-- [ ] Community files and automation: code of conduct, support guide,
+- [x] Community files and automation: code of conduct, support guide,
       Dependabot, protected `master`, public roadmap (this file)
 - [ ] Screenshots/GIF refresh for the README, covering intake, triage, issues,
       cycles and reports

@@ -3,13 +3,19 @@ version: 2
 # Weekly, grouped updates. The point is to know when a dependency rots, not to
 # open a PR per module every Monday: minor and patch bumps arrive as one PR per
 # ecosystem, majors arrive on their own so they can be read.
+#
+# `open-pull-requests-limit` is deliberately low. Every Dependabot PR runs the
+# full CI matrix (including the E2E suite), and on first enablement all
+# ecosystems report at once: thirteen PRs and about 120 jobs queue behind the
+# twenty-concurrent-job limit for a public repo. Three open PRs per ecosystem
+# keeps the queue movable; a bump that cannot fit waits for the next week.
 updates:
   - package-ecosystem: gomod
     directory: /backend
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     groups:
       go-minor-patch:
         patterns: ['*']
@@ -42,7 +48,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     groups:
       npm-minor-patch:
         patterns: ['*']
@@ -77,7 +83,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     groups:
       actions:
         patterns: ['*']
