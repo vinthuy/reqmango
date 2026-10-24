@@ -252,4 +252,4 @@ User     1──N Notification
 ## 🌐 Language
 
 - **English** (this document)
-- [中文文档](data-model.md)
+- [中文文档](https://vinthuy.github.io/reqmango/kb/architecture/data-model/)

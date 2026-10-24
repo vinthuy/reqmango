@@ -134,7 +134,7 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 - **现行**：原生 PM + 原生 AI 项目管理路径 AI（Intake / Analyze / 自动化预览 / i_summary）
 - **核心门禁**：工作项类型 / 自定义字段 / 工作流（含 workspace 状态机）/ 自动化 — 验收 §H
-- **废止**：Harness / Loop / 独立 Agent 平台 Agent 控制台产品化 → [superseded/agent-platform](../../superseded/agent-platform/README.md)
+- **废止**：Harness / Loop / 独立 Agent 平台 Agent 控制台产品化 → [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md)
 - **Stage B**：/agents* 默认重定向，解锁键 
 m_advanced_agents=1
 
@@ -147,4 +147,4 @@ m_advanced_agents=1
 ## 🌐 语言
 
 - **中文** (本文档)
-- [English](README.en.md)
+- [English](https://vinthuy.github.io/reqmango/en/kb/architecture/)

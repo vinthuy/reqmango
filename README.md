@@ -8,7 +8,7 @@
 **Self-hosted project management where new requests are triaged first.**  
 Type, priority, and likely duplicates are suggested before work lands in the backlog — you only decide the uncertain ones.
 
-[中文文档](README-zh.md) · [Contributing](CONTRIBUTING.md) · [国内共建主场 GitCode](https://gitcode.com/yongfeng9m-/reqmanpy) · [GitHub mirror](https://github.com/vinthuy/reqmango)
+[中文文档](README-zh.md) · [Docs site](https://vinthuy.github.io/reqmango/) · [Contributing](CONTRIBUTING.md) · [国内共建主场 GitCode](https://gitcode.com/yongfeng9m-/reqmanpy) · [GitHub mirror](https://github.com/vinthuy/reqmango)
 
 ---
 
@@ -155,9 +155,12 @@ reqmango/
 
 ## Docs
 
+The same content is published as a site — [vinthuy.github.io/reqmango](https://vinthuy.github.io/reqmango/) ([English](https://vinthuy.github.io/reqmango/en/)) — built from `docs/` by MkDocs.
+
 - [API Reference](docs/API.md)
 - [Architecture](docs/kb/architecture/) — [tech stack](docs/kb/architecture/tech-stack.md), [Go backend](docs/kb/architecture/backend-go.md), [frontend](docs/kb/architecture/frontend.md), [data model](docs/kb/architecture/data-model.md)
 - [Production deployment](docs/deploy/production.md) — secrets, demo data off, TLS, backups
+- [Configuration](docs/configuration.md) — every environment variable and its default
 
 ---
 

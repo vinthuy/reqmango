@@ -1,7 +1,7 @@
 # Release process
 
 Releases are tag-driven. Pushing a `v*` tag runs
-[`.github/workflows/release.yml`](../../.github/workflows/release.yml), which
+[`.github/workflows/release.yml`](https://github.com/vinthuy/reqmango/blob/master/.github/workflows/release.yml), which
 publishes multi-arch images and creates the GitHub Release.
 
 ## One-time setup

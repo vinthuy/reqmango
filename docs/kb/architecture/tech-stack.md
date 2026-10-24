@@ -66,4 +66,4 @@
 ## 🌐 语言
 
 - **中文** (本文档)
-- [English](tech-stack.en.md)
+- [English](https://vinthuy.github.io/reqmango/en/kb/architecture/tech-stack/)

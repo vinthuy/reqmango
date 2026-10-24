@@ -13,7 +13,7 @@ status (Chinese) lives in [docs/dev/pipeline-status.md](docs/dev/pipeline-status
 - [x] One-time security baseline: demo seed data opt-in, bootstrap admin,
       `SECURITY.md`, production checklist (v0.1.0)
 - [x] Tagged releases and multi-arch `ghcr.io` images (v0.1.0)
-- [ ] Documentation site (MkDocs, published from `docs/`) with a browsable
+- [x] Documentation site (MkDocs, published from `docs/`) with a browsable
       quickstart, deployment, configuration and API reference
 - [ ] Language handling that follows the browser on first visit instead of
       hardcoding Chinese, with a visible switcher

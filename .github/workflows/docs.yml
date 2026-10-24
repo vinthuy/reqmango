@@ -1,0 +1,70 @@
+name: Docs
+
+# The site is a rendered view of `docs/`, so it only needs to run when the
+# markdown, the config or the pinned doc dependencies change. `--strict` makes
+# a broken internal link a red build instead of a dead link on the site: that is
+# the whole point of moving the docs behind a build.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time: never cancel a half-finished Pages deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install docs dependencies
+        run: pip install -r requirements-docs.txt
+
+      - name: "Build site (strict: broken links fail)"
+        run: mkdocs build --clean --strict
+
+      - uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request'
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: site
+
+  deploy:
+    name: Deploy
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -5,8 +5,7 @@ reach. It assumes Docker Compose, but the settings apply to a bare binary as
 well. For the local demo, the README quickstart is enough — this page is about
 not getting owned.
 
-Related: [security & operations](../../docs/security.md),
-[security policy](../../SECURITY.md).
+Related: [security and operations](../security.md), [security policy](https://github.com/vinthuy/reqmango/blob/master/SECURITY.md), [configuration](../configuration.md).
 
 ---
 

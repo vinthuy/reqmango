@@ -415,4 +415,4 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 ## 🌐 语言
 
 - **中文** (本文档)
-- [English](backend-go.en.md)
+- [English](https://vinthuy.github.io/reqmango/en/kb/architecture/backend-go/)

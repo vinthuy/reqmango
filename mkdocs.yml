@@ -1,0 +1,187 @@
+# Documentation site (MkDocs Material).
+#
+# Build locally:
+#   python -m venv .venv-docs
+#   .venv-docs/Scripts/pip install -r requirements-docs.txt   # Windows
+#   .venv-docs/Scripts/mkdocs serve
+#
+# CI publishes it to GitHub Pages on every push to master that touches `docs/`
+# (see .github/workflows/docs.yml). The repository stays the source of truth:
+# the site is a rendered view of `docs/`, not a second copy of it.
+#
+# The i18n plugin uses the `*.en.md` suffix convention that the knowledge base
+# already follows. Pages without an English sibling fall back to Chinese, which
+# is why `fallback_to_default` is on: a half-translated site is better than a
+# 404, and the gaps are visible in the language switcher.
+site_name: Reqmango
+site_description: 自建项目管理平台：新需求先分诊再进待办。类型、优先级、疑似重复先给建议，人只决定拿不准的。
+site_url: https://vinthuy.github.io/reqmango/
+repo_url: https://github.com/vinthuy/reqmango
+repo_name: vinthuy/reqmango
+edit_uri: edit/master/docs/
+copyright: MIT licensed · <a href="https://gitcode.com/yongfeng9m-/reqmanpy">国内共建主场 GitCode</a>
+
+docs_dir: docs
+
+theme:
+  name: material
+  language: zh
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - navigation.footer
+    - content.action.edit
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: 切换到深色模式
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: 切换到浅色模式
+
+nav:
+  - 首页: index.md
+  - 部署:
+      - 生产部署: deploy/production.md
+      - 配置项: configuration.md
+      - 安全与运维: security.md
+  - 架构:
+      - 总览: kb/architecture/README.md
+      - 技术栈: kb/architecture/tech-stack.md
+      - Go 后端: kb/architecture/backend-go.md
+      - 前端: kb/architecture/frontend.md
+      - 数据模型: kb/architecture/data-model.md
+      - API 约定: kb/architecture/api-conventions.md
+  - API 参考: API.md
+  - 产品:
+      - 产品需求（PRD）: kb/PRD.md
+  - 参与开发:
+      - 发布流程: dev/release.md
+      - 双远程同步: dev/dual-remote.md
+      - 新手任务清单: dev/good-first-issues.md
+      - 贡献指南: https://github.com/vinthuy/reqmango/blob/master/CONTRIBUTING-zh.md
+      - 路线图: https://github.com/vinthuy/reqmango/blob/master/ROADMAP.md
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: zh
+          default: true
+          name: 中文
+          build: true
+        - locale: en
+          name: English
+          build: true
+          nav_translations:
+            首页: Home
+            部署: Deployment
+            生产部署: Production deployment
+            配置项: Configuration
+            安全与运维: Security and operations
+            架构: Architecture
+            总览: Overview
+            技术栈: Tech stack
+            Go 后端: Go backend
+            前端: Frontend
+            数据模型: Data model
+            API 约定: API conventions
+            API 参考: API reference
+            产品: Product
+            产品需求（PRD）: Product requirements (PRD)
+            参与开发: Contributing
+            发布流程: Release process
+            双远程同步: Dual remotes
+            新手任务清单: Good first issues
+            贡献指南: Contributing guide
+            路线图: Roadmap
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+# Paths here are relative to docs_dir and a leading slash anchors them to the
+# root: without it, a pattern like `README.md` would match every README in the
+# tree and silently drop `kb/architecture/README.md` from the build.
+exclude_docs: |
+  /README.md
+  /assets/README.md
+  /kb/README.md
+  /kb/README.en.md
+  /kb/changelog/**
+  /kb/architecture/backend-python.md
+  /superpowers/**
+  /superseded/**
+  /prs/**
+  /specs/**
+  /dev/README.md
+  /dev/pipeline-status.md
+  /dev/plane-gap-implementation-plan.md
+  /dev/gitcode-welcome-issue.md
+  /dev/promo-*.md
+  /dev/acceptance/**
+  /dev/active/**
+  /dev/archive/**
+  /dev/debt/**
+  /dev/features/**
+  /dev/templates/**
+  /AI_AGENT_PRD.md
+  /ARCH-Agent-Project-Integration.md
+  /ARCH-Design-Review.md
+  /PRD-Agent-Project-Integration.md
+  /PRD-Review-Meeting.md
+  /PRD-Review-Supplement.md
+  /agent-project-integration-plan.md
+  /E2E_COVERAGE_REPORT.md
+  /TEST_REPORT.md
+  /bug-list.md
+  /metrics-test-cases.md
+  /reqmango-catchup-tasks.md
+  /reqmango-vs-competitor.md
+
+# Architecture design notes: reachable and searchable, but not worth four more
+# sidebar entries. `dev/github-public-profile.md` is linked from the dual-remote
+# guide, so it stays built (an orphan page) rather than 404.
+not_in_nav: |
+  kb/architecture/notification-design.md
+  kb/architecture/pages-design.md
+  kb/architecture/project-layout.md
+  kb/architecture/relation-system-design.md
+  kb/architecture/saved-views-design.md
+  kb/architecture/type-hierarchy-template-design.md
+  dev/github-public-profile.md

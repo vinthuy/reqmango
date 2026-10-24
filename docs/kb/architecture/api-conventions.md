@@ -227,4 +227,4 @@ api.interceptors.response.use(
 ## 🌐 语言
 
 - **中文** (本文档)
-- [English](api-conventions.en.md)
+- [English](https://vinthuy.github.io/reqmango/en/kb/architecture/api-conventions/)

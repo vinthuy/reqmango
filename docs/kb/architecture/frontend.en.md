@@ -201,4 +201,4 @@ const api = axios.create({ baseURL: '/api/v1' })
 ## 🌐 Language
 
 - **English** (this document)
-- [中文文档](frontend.md)
+- [中文文档](https://vinthuy.github.io/reqmango/kb/architecture/frontend/)

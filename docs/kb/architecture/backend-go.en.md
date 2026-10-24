@@ -322,4 +322,4 @@ Configured via environment variables + `config.yaml`:
 ## 🌐 Language
 
 - **English** (this document)
-- [中文文档](backend-go.md)
+- [中文文档](https://vinthuy.github.io/reqmango/kb/architecture/backend-go/)

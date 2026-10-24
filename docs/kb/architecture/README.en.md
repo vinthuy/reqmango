@@ -136,4 +136,4 @@ reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-s
 ## 🌐 Language
 
 - **English** (this document)
-- [中文文档](README.md)
+- [中文文档](https://vinthuy.github.io/reqmango/kb/architecture/)

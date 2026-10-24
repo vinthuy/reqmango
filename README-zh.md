@@ -8,7 +8,7 @@
 **自建项目管理：新需求先分诊，再进待办。**  
 提交后先给出类型、优先级与疑似重复建议，拿不准的才由人决定。
 
-[English](README.md) · [贡献指南](CONTRIBUTING-zh.md) · [GitCode 国内主场](https://gitcode.com/yongfeng9m-/reqmanpy) · [GitHub 国际镜像](https://github.com/vinthuy/reqmango)
+[English](README.md) · [文档站](https://vinthuy.github.io/reqmango/) · [贡献指南](CONTRIBUTING-zh.md) · [GitCode 国内主场](https://gitcode.com/yongfeng9m-/reqmanpy) · [GitHub 国际镜像](https://github.com/vinthuy/reqmango)
 
 ---
 
@@ -152,9 +152,12 @@ reqmango/
 
 ## 文档
 
+同样的内容有在线站点：[vinthuy.github.io/reqmango](https://vinthuy.github.io/reqmango/)（[English](https://vinthuy.github.io/reqmango/en/)），由 MkDocs 从 `docs/` 构建。
+
 - [API 参考](docs/API.md)
 - [架构文档](docs/kb/architecture/) — [技术栈](docs/kb/architecture/tech-stack.md)、[Go 后端](docs/kb/architecture/backend-go.md)、[前端](docs/kb/architecture/frontend.md)、[数据模型](docs/kb/architecture/data-model.md)
 - [生产部署](docs/deploy/production.md) — 密钥、关闭演示数据、TLS、备份
+- [配置项](docs/configuration.md) — 全部环境变量与默认值
 
 ---
 

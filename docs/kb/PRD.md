@@ -3,7 +3,7 @@
 > **最后更新**: 2026-09-26  
 > **状态**: 现行（KB 真相来源）  
 > **产品方向**: 原生项目管理 + 原生 AI 项目管理路径 AI（Intake / Analyze / 自动化 / 仪表盘摘要）。  
-> **非方向**: Harness / Loop / 独立 Agent 控制台式 Agent 控制台产品化（已归档，见 [superseded/agent-platform](../superseded/agent-platform/README.md)）。
+> **非方向**: Harness / Loop / 独立 Agent 控制台式 Agent 控制台产品化（已归档，见 [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md)）。
 
 ---
 
@@ -19,7 +19,7 @@ reqmango 是一款现代化的项目管理平台：工作空间内管理项目�
 | **自定义工作项类型、自定义字段、自定义工作流、自动化规则**（验收门禁） | 默认暴露 `/agents/*` 控制台（需 `rm_advanced_agents=1`） |
 | Intake 分诊、Issue/项目 Analyze、NL→自动化预览、`ai_summary` widget | 独立 Agent 平台「Agent as Teammates / 全 SDLC」排期 |
 
-权威设计：[AI PM redesign](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) · 验收：[product-core-qa](../dev/acceptance/2026-09-25-product-core-qa.md)
+权威设计：[AI PM redesign](https://github.com/vinthuy/reqmango/blob/master/docs/superpowers/specs/2026-09-25-ai-project-management-redesign.md) · 验收：[product-core-qa](https://github.com/vinthuy/reqmango/blob/master/docs/dev/acceptance/2026-09-25-product-core-qa.md)
 
 ### 1.1 核心价值
 
@@ -756,9 +756,9 @@ erDiagram
 
 | 里程碑 | 状态 | 文档 |
 |--------|------|------|
-| 原生 PM 主路径 | ✅ PASS | [product-core-qa](../dev/acceptance/2026-09-25-product-core-qa.md) |
-| AI PM 原生 AI 项目管理路径 | ✅ PASS | [redesign](../superpowers/specs/2026-09-25-ai-project-management-redesign.md) |
-| Agent 平台产品化 | ❌ 废止 | [superseded/agent-platform](../superseded/agent-platform/README.md) |
+| 原生 PM 主路径 | ✅ PASS | [product-core-qa](https://github.com/vinthuy/reqmango/blob/master/docs/dev/acceptance/2026-09-25-product-core-qa.md) |
+| AI PM 原生 AI 项目管理路径 | ✅ PASS | [redesign](https://github.com/vinthuy/reqmango/blob/master/docs/superpowers/specs/2026-09-25-ai-project-management-redesign.md) |
+| Agent 平台产品化 | ❌ 废止 | [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md) |
 | 下一阶段 | 存量质量 | 不新开 AI 大功能 |
 
 ---
