@@ -20,6 +20,7 @@ import (
 	"github.com/reqmango/backend/internal/rql"
 	"github.com/reqmango/backend/internal/scheduler"
 	"github.com/reqmango/backend/internal/service"
+	"github.com/reqmango/backend/internal/version"
 	"gorm.io/gorm"
 )
 
@@ -220,6 +221,13 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 	healthH := handler.NewHealthHandler(db)
 	r.GET("/health", healthH.Live)
 	r.GET("/readyz", healthH.Ready)
+
+	// Build identity. Registered next to the probes (and before the rate
+	// limiter) so an operator can answer "which version is deployed?" without
+	// a token and without being throttled.
+	r.GET("/version", func(c *gin.Context) {
+		c.JSON(200, version.Current())
+	})
 
 	// Language detection middleware
 	r.Use(middleware.LanguageMiddleware())

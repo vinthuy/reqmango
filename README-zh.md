@@ -1,5 +1,10 @@
 # Reqmango
 
+[![CI](https://github.com/vinthuy/reqmango/actions/workflows/ci.yml/badge.svg)](https://github.com/vinthuy/reqmango/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/vinthuy/reqmango?sort=semver)](https://github.com/vinthuy/reqmango/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![容器镜像](https://img.shields.io/badge/ghcr.io-reqmango-2496ED?logo=docker&logoColor=white)](https://github.com/vinthuy/reqmango/pkgs/container/reqmango-backend)
+
 **自建项目管理：新需求先分诊，再进待办。**  
 提交后先给出类型、优先级与疑似重复建议，拿不准的才由人决定。
 
@@ -7,7 +12,9 @@
 
 ---
 
-## 一条命令试用
+## 快速试用
+
+预构建多架构镜像（`linux/amd64`、`linux/arm64`），最快：
 
 ```bash
 # 国内推荐 GitCode 主场
@@ -15,12 +22,18 @@ git clone https://gitcode.com/yongfeng9m-/reqmanpy.git reqmango
 # 国际镜像: git clone https://github.com/vinthuy/reqmango.git
 cd reqmango
 cp .env.example .env
+docker compose pull
+docker compose up -d
+```
+
+或者在本地构建两个镜像（冷缓存需要几分钟）：
+
+```bash
 docker compose up --build
 ```
 
-**首次启动：** `docker compose up --build` 会在本地构建后端和前端镜像，
-耗时可能达到几分钟，具体取决于网络和机器性能。请等待服务启动完成后再打开
-页面；构建期间页面暂时无法打开或空白，并不代表启动失败。
+**首次启动：** 请等两个服务都就绪后再打开页面；前端镜像启动期间页面短暂空白
+并不代表启动失败。`curl localhost/version` 可以确认当前运行的版本。
 
 浏览器打开 **http://localhost**，登录：
 

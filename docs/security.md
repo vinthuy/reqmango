@@ -168,6 +168,12 @@ so keep them out of commits.
 |----------|---------|-----|
 | `GET /health` | the process is running; touches no dependency | container `HEALTHCHECK`, restart decisions |
 | `GET /readyz` | the database answers a ping within 2 s; `503` otherwise | load balancers, CI/E2E startup, rollout gates |
+| `GET /version` | build identity: version, commit, build date, Go version | "what is deployed?", support reports |
+
+Public on purpose: none of the three reveals tenant data, and an operator
+should not need a token to answer them. `/version` is injected at build time
+(`-ldflags -X .../internal/version.Version=...`); a local `go run` reports
+`"dev"`.
 
 Both are public and registered before the language middleware and the rate
 limiter, so probe traffic is cheap and cannot be throttled. Liveness stays

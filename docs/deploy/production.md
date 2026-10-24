@@ -167,9 +167,21 @@ into a scratch database periodically — an untested backup is a guess.
 ## 5. Upgrades
 
 1. Back up first (see above).
-2. `git pull` (or pull the new image tag).
-3. `docker compose up -d --build`.
-4. Watch `docker compose logs -f backend` until readiness passes.
+2. Pick a release tag — **pin it**, don't float on `latest` in production:
+
+   ```bash
+   REQMANGO_TAG=0.2.0 docker compose pull
+   REQMANGO_TAG=0.2.0 docker compose up -d
+   ```
+
+   Building from a checkout (`git pull && docker compose up -d --build`) is
+   equivalent, just slower.
+3. Confirm the running build, then watch the logs:
+
+   ```bash
+   curl -s localhost/version
+   docker compose logs -f backend
+   ```
 
 On boot the server applies `AutoMigrate` and the idempotent SQL baseline. If you
 prefer an explicit migration step (`cmd/migrate`), see the README — the two
@@ -186,6 +198,7 @@ configuration changes.
 |----------|-----|
 | `GET /health` | liveness; container healthcheck |
 | `GET /readyz` | readiness; load balancer / rollout gate (pings the database) |
+| `GET /version` | build identity — version, commit, build date, Go version |
 | `GET /api/v1/metrics` | in-process request metrics; **superuser only** |
 
 `DB_LOG_LEVEL=warn` keeps SQL parameters out of the logs. Requests slower than

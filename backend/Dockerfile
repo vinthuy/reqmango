@@ -1,16 +1,44 @@
 # Build stage
 # Must be >= the `go` directive in go.mod (1.25.0).
-FROM golang:1.25-alpine AS builder
+#
+# Cross-compilation: buildx runs this stage on the build platform and Go
+# produces the target binary, so a multi-arch release does not pay for QEMU.
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
+# Injected into internal/version (see `GET /version`).
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
 
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+    go build -trimpath \
+      -ldflags="-s -w \
+        -X github.com/reqmango/backend/internal/version.Version=${VERSION} \
+        -X github.com/reqmango/backend/internal/version.Commit=${COMMIT} \
+        -X github.com/reqmango/backend/internal/version.BuildDate=${BUILD_DATE}" \
+      -o /app/server ./cmd/server
 
 # Runtime stage
 FROM alpine:3.20
+
+ARG VERSION=dev
+ARG COMMIT=unknown
+
+LABEL org.opencontainers.image.title="reqmango-backend" \
+      org.opencontainers.image.description="Reqmango API server" \
+      org.opencontainers.image.source="https://github.com/vinthuy/reqmango" \
+      org.opencontainers.image.url="https://github.com/vinthuy/reqmango" \
+      org.opencontainers.image.documentation="https://github.com/vinthuy/reqmango/blob/master/README.md" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}"
 
 RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app

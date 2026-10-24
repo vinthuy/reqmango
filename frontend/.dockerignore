@@ -1,0 +1,12 @@
+# Build context is ./frontend. Without this file `COPY . .` overwrites the
+# container's npm ci output with the host's node_modules (wrong platform), and
+# ships local tokens and test output into the build cache.
+node_modules/
+dist/
+playwright-report/
+test-results/
+coverage/
+.env
+.env.*
+.e2e-admin-token
+*.log

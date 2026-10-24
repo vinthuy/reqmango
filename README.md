@@ -1,5 +1,10 @@
 # Reqmango
 
+[![CI](https://github.com/vinthuy/reqmango/actions/workflows/ci.yml/badge.svg)](https://github.com/vinthuy/reqmango/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/vinthuy/reqmango?sort=semver)](https://github.com/vinthuy/reqmango/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Container images](https://img.shields.io/badge/ghcr.io-reqmango-2496ED?logo=docker&logoColor=white)](https://github.com/vinthuy/reqmango/pkgs/container/reqmango-backend)
+
 **Self-hosted project management where new requests are triaged first.**  
 Type, priority, and likely duplicates are suggested before work lands in the backlog — you only decide the uncertain ones.
 
@@ -7,20 +12,28 @@ Type, priority, and likely duplicates are suggested before work lands in the bac
 
 ---
 
-## Try it in one command
+## Try it
+
+Prebuilt multi-arch images (`linux/amd64`, `linux/arm64`) — fastest:
 
 ```bash
 git clone https://github.com/vinthuy/reqmango.git
 # China: git clone https://gitcode.com/yongfeng9m-/reqmanpy.git reqmango
 cd reqmango
 cp .env.example .env
+docker compose pull
+docker compose up -d
+```
+
+Or build both images locally (several minutes on a cold cache):
+
+```bash
 docker compose up --build
 ```
 
-**First run:** `docker compose up --build` builds the backend and frontend
-images locally. This can take several minutes depending on your network and
-machine. Wait for the services to finish starting before opening the app; a
-temporary blank page during the build does not mean startup failed.
+**First run:** wait for both services to be healthy before opening the app; a
+temporary blank page while the frontend image is still starting does not mean
+startup failed. `curl localhost/version` answers which build is running.
 
 Open **http://localhost** and sign in:
 

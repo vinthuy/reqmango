@@ -1,0 +1,10 @@
+# Build context is ./backend (docker-compose.yml and .github/workflows/release.yml).
+# Keep local secrets, binaries and logs out of the context and the build cache.
+.env
+.env.*
+*.exe
+*.test
+bin/
+logs/
+*.log
+coverage.out

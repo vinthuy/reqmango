@@ -103,6 +103,8 @@ CI 见 `.github/workflows/ci.yml`，请保持绿色。
 
 双远程同步说明：[docs/dev/dual-remote.md](docs/dev/dual-remote.md)
 
+发布流程（打 tag → 多架构镜像 → GitHub Release）：[docs/dev/release.md](docs/dev/release.md)
+
 ## License
 
 贡献内容按 [MIT License](LICENSE) 授权。

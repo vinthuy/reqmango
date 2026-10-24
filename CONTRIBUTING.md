@@ -114,6 +114,7 @@ Be respectful. Assume good intent. No harassment or personal attacks. Maintainer
 ## Maintainers
 
 - Dual-remote sync: [docs/dev/dual-remote.md](docs/dev/dual-remote.md)
+- Release process: [docs/dev/release.md](docs/dev/release.md)
 - GitHub About / Topics: [docs/dev/github-public-profile.md](docs/dev/github-public-profile.md)
 - Publishing curated tasks: [good-first-issues.md](docs/dev/good-first-issues.md)
 
