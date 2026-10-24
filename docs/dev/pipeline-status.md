@@ -18,7 +18,7 @@
 | 健康探针 | `/health`（无依赖存活）、`/readyz`（2s 内 DB ping），注册在限流与语言中间件之前；Dockerfile `HEALTHCHECK` 与 CI/E2E 启动等待均改用探针 | [security.md §9](../security.md#9-health-and-readiness-probes) |
 | 审计门禁 | 新增 `-strict`，CI job `Tenancy audit` 四模式逐份新库运行，任何越权/未覆盖/500 直接失败 | [security.md §8](../security.md#8-tenancy-guard-and-the-route-audit-backendcmdroute_audit) |
 | 请求指标 | 按路由模板聚合请求量/4xx/5xx/P95，超阈值慢请求打 `[SLOW]` 日志；`GET /api/v1/metrics` 仅超管 | [security.md §10](../security.md#10-request-metrics-and-slow-request-logging) |
-| 工作流转换 | 引入 `workflow_kind` 判别 `workflows` 与 `agent_workflows`，修复 ID 重叠导致的串数据 | [security.md §11](../security.md#11-workflow-transition-kinds-state-vs-agent) |
+| 工作流转换 | 一张表一个属主：`state_transitions` 只属于 `workflows`（`StateWorkflowService`），编排归 `agent_workflows`（`WorkflowService`）；退役 `workflow_kind` 并恢复外键 | [security.md §11](../security.md#11-workflow-ownership-one-table-per-domain) · [spec](../superpowers/specs/2026-10-18-workflow-model-separation-design.md) |
 | 全新库缺陷 | 补 6 个缺失 AutoMigrate 模型、autopilot 跨租户读取、报表空 `IN ()`、initiative 歧义列 | [security.md §12](../security.md#12-gaps-the-fresh-database-audit-found) |
 
 ---

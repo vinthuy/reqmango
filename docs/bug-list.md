@@ -713,7 +713,7 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 |------|------|--------|
 | 🔐 安全/凭据泄露（BUG-50 ~ BUG-55） | 6 | 6 |
 | 🐞 扫描发现的真实代码缺陷（BUG-56） | 6 | 6 |
-| 🧩 `frontend/e2e` 复跑暴露的产品缺陷（BUG-57 ~ BUG-58） | 2 | 1（BUG-58 为功能缺口，未实现） |
+| 🧩 `frontend/e2e` 复跑暴露的产品缺陷（BUG-57 ~ BUG-58） | 2 | 2 |
 
 ### BUG-57 工作流/节点/边删除返回 500（SQL 表名为空）✅ 已修复
 
@@ -736,6 +736,9 @@ LLM 调用 create_issue/update_issue 时不检查当前用户权限。
 | **修复（第一轮）** | ① 工作流处理器已实现真实的 CRUD 操作（非占位）；② 添加工作空间级 GET 路由；③ 迁移 `000021_drop_legacy_workflow_fk` 移除旧外键约束（该文件已随迁移链压缩归档，见 `migrations/archive/`）；④ 服务层 `AddTransition`/`UpdateTransition`/`DeleteTransition` 已实现完整数据库操作 |
 | **残留缺陷（第二轮）** | 转换表只按 `workflow_id` 关联，而 `workflows` 与 `agent_workflows` 的 ID 区间重叠（生产数据中 35/36 重叠）。结果：给 agent 工作流建的转换会出现在同号的状态工作流下，反之亦然；实测工作流 1 的转换列表返回了另一条状态工作流的 22 条转换，且新建转换被记到错误项目 |
 | **修复（第二轮）** | 新增 `state_transitions.workflow_kind`（`state`/`agent`）判别列与 `000022` 迁移（已归档）；转换路由统一绑定 `agent_workflows`；规则引擎只读 `state`；中间件按 kind 校验 `workflowId`/`transitionId`；启动时幂等回填（20 条孤儿行归为 `agent`，38 条归为 `state`） |
+| **残留缺陷（第三轮）** | `workflow_kind` 只是查询期补丁：① 工作空间路由复用项目处理器，`workflowId` 校验打到 `agent_workflows`，导致详情/更新/删除/转换一律 404，新建还会记到同号的 agent 工作流；② 列表/详情按 `workflow_id` 单条件查，把另一域的转换混入状态工作流；③ `WorkflowDetail.vue` 把状态当节点渲染，节点 id 与状态 id 混用 |
+| **修复（第三轮）** | 按"一张表一个属主"重构：`workflows` + `state_transitions` 归 `StateWorkflowService`（状态机），`agent_workflows` + `workflow_nodes`/`workflow_edges`/`workflow_runs` 归 `WorkflowService`（编排）；迁移 `000002_separate_state_transitions` 把 `agent`/孤儿转换归档到 `state_transitions_agent_archive`、删除 `workflow_kind`、恢复 `fk_workflows_transitions`；`cmd/server` 在 `AutoMigrate` 前执行同样的退役逻辑（纯 AutoMigrate 部署也会收敛）；项目组不再有 transitions 路由，前端删除死代码 `StateTransition.vue`，`WorkflowManager.vue` 更名为 `StateWorkflowManager.vue` 并只服务工作空间状态流 |
+| **回归（第三轮）** | `frontend/e2e/workflow-automation-ui.spec.ts` 第 3 项（状态流 CRUD，走工作空间路由）与第 3b 项（项目组只返回 nodes/edges，不返回 transitions）、第 5 项（审批字段往返）；`workflow-approval*.spec.ts` 的转换创建全部改走 `/workspaces/:ws/workflows/:id/transitions` |
 
 ### BUG-59 `/projects/:id/settings/states` 返回裸数组，与 `WorkflowManager` 期望不一致 ✅ 已修复
 

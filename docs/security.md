@@ -205,47 +205,47 @@ metrics dependency. Add an exporter if dashboards or alerting are needed.
 
 ---
 
-## 11. Workflow transition kinds (`state` vs `agent`)
+## 11. Workflow ownership: one table per domain
 
-`state_transitions.workflow_id` can point at one of two independent tables whose
-id ranges overlap:
+Two workflow tables exist, each owned by exactly one domain and one service:
 
-| Kind | Table | Routes that address it |
-|------|-------|------------------------|
-| `state` | `workflows` | `/workspaces/:wsParam/workflows/*`, read by the rules engine (`internal/workflow`) |
-| `agent` | `agent_workflows` | `/projects/:projectId/workflows/*` |
+| Table | Domain | Owner | Routes |
+|-------|--------|-------|--------|
+| `workflows` (+ `state_transitions`) | issue status machine | `StateWorkflowService` | `/workspaces/:wsParam/workflows/*`, read by the rules engine (`internal/workflow`) |
+| `agent_workflows` (+ `workflow_nodes`, `workflow_edges`, `workflow_runs`) | multi-agent DAG orchestration | `WorkflowService` | `/projects/:projectId/workflows/*` |
 
-Filtering on `workflow_id` alone therefore mixed them: agent workflow 1 also
-resolved the state workflow with id 1, so listing edges returned 22 unrelated
-state transitions, and creating one attached it to the wrong project. The row
-carries `workflow_kind`, and each route group owns exactly one kind:
+Their id ranges overlap, but no table references the other, so a query filtered
+on `workflow_id` alone can no longer mix domains: `state_transitions.workflow_id`
+carries a foreign key (`fk_workflows_transitions`) to `workflows(id)` only, and
+`workflow_nodes`/`workflow_edges` reference `agent_workflows(id)`.
 
-- `/projects/:id/workflows/:workflowId/transitions` binds to `agent_workflows`;
-  `RequireProjectWorkflow` validates `:workflowId` and `:transitionId` there.
-- `/workspaces/:wsParam/workflows/:workflowId/transitions` (and the `/edges`
-  alias) binds to `workflows`; `RequireWorkspaceWorkflow` validates the id
-  against that table and the transition against `workflow_kind = 'state'`.
-  Before this was corrected, the workspace routes reused the project handlers
-  and the agent kind, so every workspace detail, update, delete and transition
-  route returned 404, and a create would have been attributed to an agent
-  workflow that shared the id.
-- Workspace detail and list responses filter transitions by `state`; they used
-  to select by `workflow_id` alone, which let an agent transition appear under a
-  state workflow.
-- The rules engine reads only `workflow_kind = 'state'`.
+Each route group binds to the table it addresses:
 
-`migrations/archive/000022_state_transition_kind.up.sql` added the column and
-backfilled: rows whose workflow exists only as an agent workflow became
-`agent`, and for colliding ids the transition's own `project_id` decided. That
-file is archived — the squashed `000001_baseline` already contains the column —
-and `cmd/server` repeats the backfill after `AutoMigrate`, so a deployment that
-never runs `cmd/migrate` converges too. Both statements are idempotent.
+- `/projects/:id/workflows/:workflowId/*` addresses `agent_workflows`;
+  `RequireProjectWorkflow` validates `:workflowId`, `:nodeId` and `:edgeId`
+  there. This group has no transition routes — agent orchestration has nodes and
+  edges, not states.
+- `/workspaces/:wsParam/workflows/:workflowId/*` addresses `workflows`;
+  `RequireWorkspaceWorkflow` validates the id against that table and the
+  transition against `transition.workflow_id = :workflowId`.
+- Workspace detail and list responses read transitions through the FK, so a
+  transition from another domain cannot appear under a state workflow.
+- The rules engine reads `workflows` and their transitions for the workspace,
+  scoped by project or workspace-level default.
 
-New transitions inherit the kind from the route, never from the id.
-
-The column is a stopgap. The target design gives each table a single owner and
-drops `workflow_kind` entirely; see
+Historically a `workflow_kind` discriminator (`state` / `agent`) was added to
+`state_transitions` to keep the two apart at query time, and both route groups
+wrote into that one table. It was a stopgap: the column had to be threaded
+through every query, the project group owned transitions that were really state
+machine rows, and a wrong kind silently attached a row to the other domain. It
+was removed in `000002_separate_state_transitions`: agent and orphan transitions
+were archived to `state_transitions_agent_archive`, the column was dropped, and
+the foreign key to `workflows` was restored. `cmd/server` performs the same
+retirement before `AutoMigrate`, so a deployment that only ever runs
+`AutoMigrate` converges to the same schema. See
 `docs/superpowers/specs/2026-10-18-workflow-model-separation-design.md`.
+
+New transitions inherit their parent from the route, never from the id.
 
 ---
 

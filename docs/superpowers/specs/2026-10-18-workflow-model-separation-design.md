@@ -1,7 +1,7 @@
 # Workflow Model Separation Design
 
 > Date: 2026-10-18
-> Status: Approved (design), implementation not started
+> Status: Implemented (Tasks 1-3 in `docs/superpowers/plans/2026-10-18-workflow-model-separation.md`; commits `dd78cc8`, `e5c2478`)
 > Owner: reqmango team
 > Supersedes part of: `docs/superpowers/specs/2026-07-19-workflow-approval-design.md`
 > (that spec's approval flow stays valid; only table ownership changes)
