@@ -44,7 +44,24 @@ Open **http://localhost** and sign in:
 
 Optional AI (Intake triage / analyze / labels): set `AI_API_KEY` in `.env`, then restart.
 
-![Intake → triage demo](docs/assets/demo.gif)
+![Triage queue](docs/assets/screenshot-02-triage-queue.png)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshot-01-intake-form.png" alt="Intake form"><br><sub><b>Intake form</b> — one public link collects requests from people who have no account</sub></td>
+    <td width="50%"><img src="docs/assets/screenshot-03-issues.png" alt="Issue list"><br><sub><b>Issues</b> — list, kanban, tree, calendar and gantt over the same filters</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/screenshot-04-issue-detail.png" alt="Issue detail"><br><sub><b>Issue detail</b> — properties, relations, activity and the AI panel in one place</sub></td>
+    <td><img src="docs/assets/screenshot-05-cycles.png" alt="Cycles"><br><sub><b>Cycles</b> — sprints with scope, progress and what slipped</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/screenshot-06-analytics.png" alt="Analytics"><br><sub><b>Analytics</b> — priority mix, workload and completion over time</sub></td>
+    <td><img src="docs/assets/screenshot-07-workspace.png" alt="Workspace"><br><sub><b>Workspace</b> — several projects, one team, one login</sub></td>
+  </tr>
+</table>
+
+The UI follows the browser language on first visit (Chinese or English) and can be switched from any page.
 
 ### 60-second walkthrough
 

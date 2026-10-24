@@ -19,8 +19,8 @@ status (Chinese) lives in [docs/dev/pipeline-status.md](docs/dev/pipeline-status
       hardcoding Chinese, with a visible switcher
 - [x] Community files and automation: code of conduct, support guide,
       Dependabot, protected `master`, public roadmap (this file)
-- [ ] Screenshots/GIF refresh for the README, covering intake, triage, issues,
-      cycles and reports
+- [x] Screenshots for the README, covering intake, triage, issues, cycles and
+      analytics (`docs/assets/screenshot-*.png`)
 
 ## Next — close the remaining work-item gaps
 

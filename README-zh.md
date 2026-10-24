@@ -44,7 +44,24 @@ docker compose up --build
 
 可选 AI（Intake 分诊 / 分析 / 标签建议）：在 `.env` 中设置 `AI_API_KEY` 后重启。
 
-![Intake 提交 → 分诊队列](docs/assets/demo.gif)
+![需求分诊队列](docs/assets/screenshot-02-triage-queue.png)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshot-01-intake-form.png" alt="需求提交表单"><br><sub><b>需求入口</b> — 一个公开链接，收没有账号的人提的需求</sub></td>
+    <td width="50%"><img src="docs/assets/screenshot-03-issues.png" alt="工作项列表"><br><sub><b>工作项</b> — 列表 / 看板 / 树形 / 日历 / 甘特，共用同一套筛选</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/screenshot-04-issue-detail.png" alt="工作项详情"><br><sub><b>工作项详情</b> — 属性、关联、动态与 AI 面板在一屏内</sub></td>
+    <td><img src="docs/assets/screenshot-05-cycles.png" alt="周期"><br><sub><b>周期</b> — Sprint 范围、进度和延期项一目了然</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/screenshot-06-analytics.png" alt="分析"><br><sub><b>分析</b> — 优先级分布、工作量与完成趋势</sub></td>
+    <td><img src="docs/assets/screenshot-07-workspace.png" alt="工作空间"><br><sub><b>工作空间</b> — 多个项目、一个团队、一次登录</sub></td>
+  </tr>
+</table>
+
+界面首次访问会跟随浏览器语言（中文 / English），任何页面右上角都能切换。
 
 ### 一分钟走查
 

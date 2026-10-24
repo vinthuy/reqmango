@@ -41,7 +41,24 @@ For AI triage, set `AI_API_KEY` in `.env` and restart the backend.
 
 The first boot can show a blank page while the frontend container starts. `curl localhost/version` tells you which build is actually running.
 
-![Intake to triage queue](assets/demo-04-triage-queue.png)
+![Triage queue](assets/screenshot-02-triage-queue.png)
+
+<table>
+  <tr>
+    <td width="50%"><img src="assets/screenshot-01-intake-form.png" alt="Intake form"><br><sub><b>Intake form</b> — one public link collects requests from people who have no account</sub></td>
+    <td width="50%"><img src="assets/screenshot-03-issues.png" alt="Issue list"><br><sub><b>Issues</b> — list, kanban, tree, calendar and gantt over the same filters</sub></td>
+  </tr>
+  <tr>
+    <td><img src="assets/screenshot-04-issue-detail.png" alt="Issue detail"><br><sub><b>Issue detail</b> — properties, relations, activity and the AI panel in one place</sub></td>
+    <td><img src="assets/screenshot-05-cycles.png" alt="Cycles"><br><sub><b>Cycles</b> — sprints with scope, progress and what slipped</sub></td>
+  </tr>
+  <tr>
+    <td><img src="assets/screenshot-06-analytics.png" alt="Analytics"><br><sub><b>Analytics</b> — priority mix, workload and completion over time</sub></td>
+    <td><img src="assets/screenshot-07-workspace.png" alt="Workspace"><br><sub><b>Workspace</b> — several projects, one team, one login</sub></td>
+  </tr>
+</table>
+
+The screenshots show the Chinese UI; the app picks Chinese or English from the browser on first visit and the switcher is on every page.
 
 ---
 
