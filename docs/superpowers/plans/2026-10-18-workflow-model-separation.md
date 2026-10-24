@@ -535,19 +535,19 @@ git commit -m "refactor(workflows): drop the frontend paths for a single workflo
 - Modify: `docs/superpowers/specs/2026-10-18-workflow-model-separation-design.md` (status line)
 - Modify: `docs/dev/pipeline-status.md` (entry for this work)
 
-- [ ] **Step 1: Rewrite `docs/security.md` §11**
+- [x] **Step 1: Rewrite `docs/security.md` §11**
 
 Replace the "stopgap" framing with ownership: one table per domain, transitions FK to `workflows`, no discriminator. Keep the historical paragraph explaining why the column existed, wrapped in past tense.
 
-- [ ] **Step 2: Update BUG-58**
+- [x] **Step 2: Update BUG-58**
 
 Add a third-round line: the workspace detail/transition 404s, the unfiltered list, and `WorkflowDetail.vue`'s state-as-node ids; link to the spec.
 
-- [ ] **Step 3: Mark the spec implemented**
+- [x] **Step 3: Mark the spec implemented**
 
 Change the header to `Status: Implemented` and add the commit range.
 
-- [ ] **Step 4: Run the gates locally**
+- [x] **Step 4: Run the gates locally**
 
 ```bash
 cd backend && go build ./... && go test ./... -count=1
@@ -556,7 +556,9 @@ cd ../frontend && npx vue-tsc --noEmit && npx vitest run
 
 Then push and confirm the GitHub Actions run is green in all seven jobs: Lint, Security, Test, E2E, Tenancy audit, Migration path, Build.
 
-- [ ] **Step 5: Commit**
+Result: run `40076190420` (commit `fa323aa`) green in all seven.
+
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs
