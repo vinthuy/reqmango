@@ -539,3 +539,47 @@ test.describe('i18n Format Validation', () => {
     }
   })
 })
+
+// ============================================================
+// Browser locale negotiation (first visit)
+//
+// The suite pins `locale: 'zh-CN'` globally so the Chinese assertions are
+// meaningful; these tests opt out per describe block to prove that the app
+// actually follows the browser on a first visit, on a page that needs no login.
+// ============================================================
+test.describe('i18n First-visit browser language', () => {
+  test.describe('English browser', () => {
+    test.use({ locale: 'en-US' })
+
+    test('login page renders English and offers a switcher', async ({ page }) => {
+      await page.goto('/login')
+
+      await expect(page.locator('text=Sign in to your account')).toBeVisible({ timeout: 10000 })
+      await expect(page.locator('input[placeholder*="email" i]')).toBeVisible()
+      // The switcher is the escape hatch when the guess is wrong; inside the
+      // English UI its tooltip offers Chinese.
+      await expect(page.locator('button[title*="Switch to Chinese"]')).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.lang)).toBe('en')
+    })
+
+    test('stored preference beats the browser language', async ({ page }) => {
+      await page.goto('/login')
+      await page.evaluate(() => localStorage.setItem('locale', 'zh-CN'))
+      await page.reload()
+
+      await expect(page.locator('input[placeholder*="邮箱"]')).toBeVisible({ timeout: 10000 })
+      expect(await page.evaluate(() => document.documentElement.lang)).toBe('zh-CN')
+    })
+  })
+
+  test.describe('Traditional Chinese browser', () => {
+    test.use({ locale: 'zh-TW' })
+
+    test('falls back to simplified Chinese rather than English', async ({ page }) => {
+      await page.goto('/login')
+
+      await expect(page.locator('input[placeholder*="邮箱"]')).toBeVisible({ timeout: 10000 })
+      expect(await page.evaluate(() => document.documentElement.lang)).toBe('zh-CN')
+    })
+  })
+})

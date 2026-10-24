@@ -13,6 +13,12 @@ export default defineConfig({
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:5173',
+    // The suite asserts on Chinese labels. The UI now negotiates its language
+    // from the browser on first visit, and Playwright's default is en-US, so
+    // without this every locator would look for a string the app no longer
+    // renders. Pin the context instead of weakening the assertions; the
+    // negotiation rules themselves are covered by frontend unit tests.
+    locale: 'zh-CN',
     trace: 'on-first-retry',
     video: 'retain-on-failure',
     // Bound individual actions so a target that never becomes actionable fails
