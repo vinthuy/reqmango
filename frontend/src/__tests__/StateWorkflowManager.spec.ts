@@ -49,4 +49,40 @@ describe('StateWorkflowManager', () => {
     expect(wrapper.text()).toContain('Todo')
     expect(wrapper.text()).toContain('Done')
   })
+
+  // `canManage` is declared as an optional boolean. Vue casts an absent
+  // boolean prop to `false`, so a `!== undefined` guard silently hides every
+  // mutating control unless the prop carries an explicit `default: undefined`.
+  it('shows the create control when canManage is omitted and the user is a superuser', async () => {
+    get.mockImplementation(() => Promise.resolve({ data: [] }))
+    const wrapper = mount(StateWorkflowManager, { props: { workspaceId: 1 } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('workflow.create')
+  })
+
+  it('hides the create control when canManage is explicitly false', async () => {
+    get.mockImplementation(() => Promise.resolve({ data: [] }))
+    const wrapper = mount(StateWorkflowManager, { props: { workspaceId: 1, canManage: false } })
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('workflow.create')
+  })
+
+  // The empty-state hint must wait for the request to settle; showing it while
+  // the list is still in flight makes a populated workspace look empty.
+  it('shows the empty hint only after the workflow request settles', async () => {
+    let resolveWorkflows: (value: unknown) => void = () => {}
+    get.mockImplementation((url: string) => {
+      if (url === '/workspaces/1/workflows') {
+        return new Promise((resolve) => { resolveWorkflows = resolve })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    const wrapper = mount(StateWorkflowManager, { props: { workspaceId: 1 } })
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('workflow.empty')
+
+    resolveWorkflows({ data: [] })
+    await flushPromises()
+    expect(wrapper.text()).toContain('workflow.empty')
+  })
 })

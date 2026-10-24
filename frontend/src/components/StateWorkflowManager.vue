@@ -2,6 +2,7 @@
   <div class="p-6">
     <div class="flex items-center justify-between mb-6"><div><h1 class="text-xl font-semibold text-gray-900">{{ t('workflow.title') }}</h1><p class="text-sm text-gray-500 mt-1">{{ t('workflow.desc') }}</p></div><button v-if="canManageWorkflows" @click="openCreate" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">+ {{ t('workflow.create') }}</button></div>
     <div class="space-y-4">
+      <p v-if="loaded && !workflows.length" class="text-sm text-gray-500">{{ t('workflow.empty') }}</p>
       <div v-for="w in workflows" :key="w.id" class="bg-white rounded-xl border p-4">
         <div class="flex items-center justify-between mb-3">
           <div>
@@ -81,10 +82,19 @@ import { useAuthStore } from '@/stores/auth'
 
 // State-machine workflows only. Agent orchestration (agent_workflows) is
 // edited in the project workflow designer, never here.
-const props = defineProps<{ workspaceId: number; canManage?: boolean }>()
+// `canManage` must default to `undefined` rather than being left implicit:
+// Vue casts an absent boolean prop to `false`, which would make the
+// `canManage !== undefined` fallback below unreachable and hide every mutating
+// control even for superusers.
+const props = withDefaults(defineProps<{ workspaceId: number; canManage?: boolean }>(), {
+  canManage: undefined,
+})
 const { t } = useI18n()
 const { confirm } = useConfirm()
 const workflows = ref<any[]>([])
+// Guards the empty-state hint: without it the panel claims "no workflows yet"
+// during the initial request, which reads as a broken page for a moment.
+const loaded = ref(false)
 const states = ref<any[]>([])
 const issueTypes = ref<any[]>([])
 const showModal = ref(false); const showTrans = ref(false); const selWid = ref(0)
@@ -155,6 +165,7 @@ async function load() {
       issueTypes.value = itRes?.data?.data || itRes?.data || []
     } catch { issueTypes.value = [] }
   } catch(e){ console.error(e) }
+  finally { loaded.value = true }
 }
 
 function openCreate() { form.value = { name: '', desc: '', selectedTypeIds: [] }; showModal.value = true }

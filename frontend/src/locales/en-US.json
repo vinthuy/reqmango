@@ -3214,6 +3214,7 @@
     "title": "Workflows",
     "desc": "Define state transition rules",
     "create": "Create Workflow",
+    "empty": "No workflows yet. Create one to define transitions and approval rules between states.",
     "createTitle": "Create Workflow",
     "name": "Name",
     "description": "Description",

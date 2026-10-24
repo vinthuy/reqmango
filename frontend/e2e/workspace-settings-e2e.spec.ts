@@ -103,6 +103,23 @@ test.describe('Workspace Settings Navigation', () => {
       await expect(page.locator('main main')).toBeVisible({ timeout: 5000 })
     })
   }
+
+  // The workflow editor is the only place workspace state transitions can be
+  // created. Its `canManage` prop is an optional boolean, and Vue casts an
+  // absent boolean prop to `false` — which once hid every mutating control for
+  // every user, superusers included. The control must be reachable by the
+  // workspace's own admin, who is not a superuser.
+  test('workflows section offers the create control and opens the modal', async ({ page }) => {
+    await goToApp(page, `/workspace/${_wsSlug}/settings?section=workflows`)
+    await expect(page.locator('aside')).toBeVisible({ timeout: 10000 })
+
+    const create = page.getByRole('button', { name: /创建工作流|Create workflow/i })
+    await expect(create).toBeVisible({ timeout: 8000 })
+
+    await create.click()
+    await expect(page.getByRole('heading', { name: /创建工作流|Create workflow/i })).toBeVisible({ timeout: 5000 })
+    await page.getByRole('button', { name: /取消|Cancel/i }).click()
+  })
 })
 
 // ============================================================
