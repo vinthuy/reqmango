@@ -10,10 +10,16 @@ publishes multi-arch images and creates the GitHub Release.
   **Settings → Actions → General → Workflow permissions → Read and write** (the
   workflow asks for `packages: write`, which is not enough on its own if the
   repository default is read-only).
-- GHCR packages created by the first release default to **private**. For
-  anonymous `docker pull` to work, open each package
-  (`reqmango-backend`, `reqmango-frontend`) → **Package settings → Change
-  visibility → Public**. Do this once after the first tag.
+- On a public repository the GHCR packages inherit public visibility, so
+  anonymous `docker pull` works after the first release. Verify:
+
+  ```bash
+  curl -s "https://ghcr.io/token?scope=repository:vinthuy/reqmango-backend:pull&service=ghcr.io"
+  ```
+
+  A token (rather than `DENIED`) means the package is readable without
+  credentials. If you ever make the repository or the package private, restore
+  it under **Package settings → Change visibility → Public**.
 
 ## Cutting a release
 
@@ -51,11 +57,13 @@ publishes multi-arch images and creates the GitHub Release.
    ```bash
    REQMANGO_TAG=0.2.0 docker compose pull
    REQMANGO_TAG=0.2.0 docker compose up -d
-   curl -s localhost/version        # version should be v0.2.0 (or 0.2.0)
+   curl -s localhost/version        # version should be v0.2.0
    ```
 
-   The workflow injects `VERSION`, `COMMIT` (short SHA) and `BUILD_DATE` into
-   `internal/version`; a local `go run` reports `dev`.
+   The workflow injects `VERSION` (the tag, e.g. `v0.1.0`), `COMMIT` (short
+   SHA) and `BUILD_DATE` into `internal/version`; a local `go run` reports
+   `dev`. Image tags drop the `v` (`0.1.0`), because Docker tags are the semver
+   numbers themselves.
 
 ## If the workflow fails
 
