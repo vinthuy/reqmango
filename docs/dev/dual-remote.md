@@ -30,6 +30,10 @@ Optional helper (PowerShell):
 git push origin master; if ($LASTEXITCODE -eq 0) { git push github master }
 ```
 
+The `gitee` remote is a read-only convenience mirror for users who cannot reach
+GitHub. Push `master` there after the two above; it runs no CI, so a green
+GitHub run is the signal, not Gitee.
+
 Tag releases on both remotes with the **same** tag name and changelog (ZH + short EN).
 
 ## Where contributors should open PRs
@@ -40,6 +44,29 @@ Tag releases on both remotes with the **same** tag name and changelog (ZH + shor
 | International / English | GitHub Issue + PR → mirror; maintainers cherry-pick or merge then sync both |
 
 If the same fix lands on both sides, reconcile on `master` once, then push both remotes — never diverge product scope.
+
+## Branch protection on the GitHub mirror
+
+`master` on GitHub is protected. GitCode/Gitee have no equivalent gate, so the
+GitHub mirror is where a red build is actually enforced.
+
+| Rule | Value | Why |
+|------|-------|-----|
+| Required checks | `Lint`, `Security`, `Test`, `E2E`, `Tenancy audit`, `Migration path`, `Build`, `Docker Build (backend)`, `Docker Build (frontend)` | Must match the job names in `ci.yml` **verbatim** |
+| Force push / branch deletion | blocked | History is public and mirrored |
+| Admin bypass | allowed | Single maintainer; a hotfix can land directly, PRs still need green checks |
+| Unresolved conversations block merge | yes | Review comments should not be silently ignored |
+| Require branch up to date | no | Otherwise every PR has to be rebased on each merge |
+
+The two `Docker Build` entries come from the job's matrix, not from the job
+name. Renaming `docker:` or editing `matrix.component` silently disables half
+the gate — update the rule in the same change:
+
+```bash
+# required-checks.json: {"strict": false, "contexts": ["Lint", ...]}
+gh api -X PATCH /repos/vinthuy/reqmango/branches/master/protection/required_status_checks \
+  --input required-checks.json
+```
 
 ## GitHub About / Topics
 

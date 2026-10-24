@@ -423,6 +423,11 @@ jobs:
     # Release tags are covered by release.yml, which builds and pushes both
     # images for real.
     if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+    # The matrix produces the check names "Docker Build (backend)" and
+    # "Docker Build (frontend)", and both are required status checks on
+    # master. Renaming the job or touching the matrix silently disables that
+    # half of the gate, so update the branch protection rule in the same
+    # change (docs/dev/dual-remote.md lists the current rule).
     strategy:
       fail-fast: false
       matrix:
