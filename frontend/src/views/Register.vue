@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { useAuthStore } from '@/stores/auth'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -48,7 +49,11 @@ const handleRegister = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50">
+  <div class="min-h-screen flex items-center justify-center bg-gray-50 relative">
+    <!-- Same reason as Login.vue: the first screen should be switchable. -->
+    <div class="absolute top-4 right-4">
+      <LanguageSwitcher />
+    </div>
     <div class="w-full max-w-md">
       <div class="bg-white rounded-xl shadow-lg p-8">
         <div class="text-center mb-8">

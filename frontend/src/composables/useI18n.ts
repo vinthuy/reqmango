@@ -1,14 +1,16 @@
 import { ref, computed } from 'vue'
 import zhCN from '@/locales/zh-CN.json'
 import enUS from '@/locales/en-US.json'
+import { browserLanguages, resolveInitialLocale, type Locale } from '@/utils/locale'
 
 type DeepRecord = { [key: string]: string | DeepRecord }
-type Locale = 'zh-CN' | 'en-US'
 
 const messages: Record<Locale, DeepRecord> = { 'zh-CN': zhCN as DeepRecord, 'en-US': enUS as DeepRecord }
 
-// Module-scoped reactive locale — shared across all components
-const currentLocale = ref<Locale>((localStorage.getItem('locale') as Locale) || 'zh-CN')
+// Module-scoped reactive locale — shared across all components.
+// First visit follows the browser; an explicit choice in the switcher is stored
+// under `locale` and always wins after that.
+const currentLocale = ref<Locale>(resolveInitialLocale(localStorage.getItem('locale'), browserLanguages()))
 
 // Map locale to html lang
 const langMap: Record<Locale, string> = { 'zh-CN': 'zh-CN', 'en-US': 'en' }
@@ -48,8 +50,10 @@ export function useI18n() {
   const locale = computed(() => currentLocale.value)
   const isZh = computed(() => currentLocale.value === 'zh-CN')
 
-  // Initialize html lang on first use
-  if (!document.documentElement.lang || document.documentElement.lang === 'zh-CN') {
+  // Keep <html lang> honest: screen readers and hyphenation key off it, and it
+  // starts as the value hardcoded in index.html, which may not be what the
+  // negotiation above picked.
+  if (typeof document !== 'undefined') {
     document.documentElement.lang = langMap[currentLocale.value]
   }
 

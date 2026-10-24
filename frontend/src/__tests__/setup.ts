@@ -25,4 +25,12 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
+// Pin the browser language. `useI18n` negotiates the locale once, at import
+// time, from localStorage and `navigator.languages`; jsdom reports en-US, which
+// would flip every component assertion that expects the Chinese default. The
+// negotiation rules themselves are covered by `src/utils/locale.test.ts`, which
+// stubs these fields per case.
+Object.defineProperty(window.navigator, 'language', { value: 'zh-CN', configurable: true })
+Object.defineProperty(window.navigator, 'languages', { value: ['zh-CN'], configurable: true })
+
 export {}  

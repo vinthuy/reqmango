@@ -76,6 +76,15 @@ describe('useI18n', () => {
     expect(localStorage.getItem('locale')).toBe('zh-CN')
   })
 
+  it('should keep the html lang attribute in sync', () => {
+    const { setLocale } = useI18n()
+    setLocale('en-US')
+    expect(document.documentElement.lang).toBe('en')
+
+    setLocale('zh-CN')
+    expect(document.documentElement.lang).toBe('zh-CN')
+  })
+
   it('isZh should reflect zh-CN status', () => {
     const { isZh, setLocale } = useI18n()
     expect(isZh.value).toBe(true)

@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router';
 import { useI18n } from '@/composables/useI18n';
 import { useAuthStore } from '@/stores/auth';
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 const router = useRouter();
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -29,7 +30,13 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50">
+  <div class="min-h-screen flex items-center justify-center bg-gray-50 relative">
+    <!-- The switcher lives here too: the login screen is the first page a new
+         user sees, and it should not be stuck in whatever language the browser
+         negotiation guessed. -->
+    <div class="absolute top-4 right-4">
+      <LanguageSwitcher />
+    </div>
     <div class="w-full max-w-md">
       <div class="bg-white rounded-xl shadow-lg p-8">
         <div class="text-center mb-8">
