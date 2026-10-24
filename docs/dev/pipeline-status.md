@@ -21,6 +21,15 @@
 | 工作流转换 | 一张表一个属主：`state_transitions` 只属于 `workflows`（`StateWorkflowService`），编排归 `agent_workflows`（`WorkflowService`）；退役 `workflow_kind` 并恢复外键 | [security.md §11](../security.md#11-workflow-ownership-one-table-per-domain) · [spec](../superpowers/specs/2026-10-18-workflow-model-separation-design.md) |
 | 全新库缺陷 | 补 6 个缺失 AutoMigrate 模型、autopilot 跨租户读取、报表空 `IN ()`、initiative 歧义列 | [security.md §12](../security.md#12-gaps-the-fresh-database-audit-found) |
 
+### 2026-10-24 开源就绪（L1–L4，已完成）
+
+| 层 | 内容 | 文档 |
+|----|------|------|
+| L1 安全 | 演示 / E2E 种子账号改为显式开关，默认不存在；生产清单列明必须关闭的项 | [security.md](../security.md) · [production](../deploy/production.md) |
+| L2 发布 | 版本化构建、多架构 `ghcr.io` 镜像、tag 驱动的 Release 工作流 | [release](release.md) · [CHANGELOG](../../CHANGELOG.md) |
+| L3 社区 | 行为准则、支持指南、Dependabot（限流）、公开 ROADMAP、受保护的 `master`（9 项必需检查） | [CONTRIBUTING](../../CONTRIBUTING.md) · [ROADMAP](../../ROADMAP.md) |
+| L4 文档与语言 | MkDocs 站点（中英双语、`--strict` 构建）发布到 GitHub Pages；前端首访按浏览器语言协商，登录 / 注册页可见切换器 | [docs 站](https://vinthuy.github.io/reqmango/) · [configuration](../configuration.md) |
+
 ---
 
 ## 已完成（近期）

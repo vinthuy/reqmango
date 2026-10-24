@@ -15,7 +15,7 @@ status (Chinese) lives in [docs/dev/pipeline-status.md](docs/dev/pipeline-status
 - [x] Tagged releases and multi-arch `ghcr.io` images (v0.1.0)
 - [x] Documentation site (MkDocs, published from `docs/`) with a browsable
       quickstart, deployment, configuration and API reference
-- [ ] Language handling that follows the browser on first visit instead of
+- [x] Language handling that follows the browser on first visit instead of
       hardcoding Chinese, with a visible switcher
 - [x] Community files and automation: code of conduct, support guide,
       Dependabot, protected `master`, public roadmap (this file)
