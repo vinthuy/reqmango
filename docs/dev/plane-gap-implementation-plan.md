@@ -84,7 +84,7 @@
 |---|------|--------|------|--------|------|
 | 1 | Work Item Templates 工作项模板 | **P0** | 新建 | 9 | - |
 | 2 | Quick Create 行内快速创建 | **P0** | 前端 | 3 | - |
-| 3 | Bulk Import CSV/JSON | **P0** | 新建 | 5 | - |
+| 3 | Bulk Import CSV/JSON ✅ 已完成 | **P0** | 新建 | 5 | 预校验 + 字段映射 |
 | 4 | Sub-items Panel 子工作项面板 | P1 | 前端 | 2 | - |
 | 5 | Page Linking 关联文档页面 | P1 | 修改 | 3 | 已有 Pages |
 | 6 | Release Management + Release Picker | P1 | 新建 | 9 | - |
@@ -170,29 +170,35 @@ type WorkItemTemplate struct {
 
 ---
 
-## Task 3: Bulk Import CSV/JSON
+## Task 3: Bulk Import CSV/JSON  ✅ 已完成（2026-10-24）
 
 **功能**: 从 CSV/JSON 文件批量导入工作项，含字段映射 UI。
 
-### API
+> 计划里的路由与实际实现不同：导入/导出挂在 `/issues/*` 上并用 `?project_id=` 定位项目，
+> 未新建 `import_export_service.go` / `ImportDialog.vue`。原有实现只有"一把梭"导入，
+> 本轮补齐预校验、字段映射与限额，详见
+> [设计](../superpowers/specs/2026-10-24-issue-import-preview-design.md) ·
+> [计划](../superpowers/plans/2026-10-24-issue-import-preview.md)。
+
+### API（实际）
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/projects/:projectId/import/csv` | multipart/form-data |
-| POST | `/projects/:projectId/import/json` | JSON body |
-| GET | `/projects/:projectId/export/csv` | 导出 CSV |
-| GET | `/projects/:projectId/export/json` | 导出 JSON |
+| POST | `/issues/import/csv?project_id=&workspace_id=` | multipart/form-data；新增 `dry_run` 与 `mapping` 表单字段 |
+| POST | `/issues/import/json?project_id=&workspace_id=` | JSON body；新增 `dry_run` |
+| GET | `/issues/import/template` | 下载 CSV 模板 |
+| GET | `/issues/export?project_id=&format=csv\|json` | 导出 |
 
-### 涉及文件
+### 涉及文件（实际）
 
 | 类型 | 文件 |
 |------|------|
-| 新建 | `service/import_export_service.go` |
-| 新建 | `frontend/src/components/ImportDialog.vue` |
-| 修改 | `handler/issue_handler.go` 添加 4 个方法 |
-| 修改 | `router/router.go` |
-| 修改 | `frontend/src/components/IssueList.vue` 添加导入/导出按钮 |
-
+| 修改 | `service/issue_service.go`（`importItems` / `parseCSVRecords`） |
+| 修改 | `handler/issue_handler.go`（`dry_run`、`mapping`、5 MB 上限） |
+| 修改 | `dto/request/issue.go`、`dto/response/issue.go` |
+| 修改 | `frontend/src/components/ImportIssuesModal.vue`（预览 + 映射） |
+| 修改 | `frontend/src/api/issue.ts`（`previewImportCSV/JSON`） |
+| 新建 | `service/issue_import_test.go`、`handler/issue_import_test.go`、`__tests__/ImportIssuesModal.spec.ts`、`e2e/issue-import-preview.spec.ts` |
 ---
 
 ## Task 4: Sub-items Panel 子工作项可展开面板

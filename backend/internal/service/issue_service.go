@@ -2079,10 +2079,61 @@ func (s *IssueService) runAutomations(issueID uint64, triggerType string, contex
 	}
 }
 
+// maxImportRows caps a single bulk import so one request cannot pin the
+// process, and so a truncated file is rejected instead of half-applied.
+const maxImportRows = 5000
+
+// importFieldAliases lists the CSV header spellings accepted for each
+// canonical import field, covering ReqMango, Jira, Linear and Plane exports.
+var importFieldAliases = map[string][]string{
+	"name":         {"name", "标题", "summary", "title"},
+	"description":  {"description", "描述", "详情"},
+	"priority":     {"priority", "优先级"},
+	"state":        {"state", "状态", "status"},
+	"type":         {"type", "类型", "issue type", "类型名称"},
+	"assignees":    {"assignees", "assignee", "负责人", "经办人"},
+	"labels":       {"labels", "label", "标签"},
+	"start_date":   {"start_date", "start date", "开始日期"},
+	"target_date":  {"target_date", "target date", "due date", "截止日期", "结束日期"},
+	"parent_title": {"parent_title", "parent", "父标题"},
+	"module":       {"module", "模块"},
+	"cycle":        {"cycle", "周期"},
+	"estimate":     {"estimate", "估点", "story points"},
+}
+
+// ImportFields lists the canonical fields the CSV importer understands, in the
+// order the mapping UI presents them.
+var ImportFields = []string{
+	"name", "description", "priority", "state", "type", "assignees", "labels",
+	"start_date", "target_date", "parent_title", "module", "cycle", "estimate",
+}
+
 // ImportFromJSON imports issues from a JSON array.
-func (s *IssueService) ImportFromJSON(projectID, workspaceID, userID uint64, items []request.ImportIssueItem) (*response.ImportResult, error) {
+func (s *IssueService) ImportFromJSON(projectID, workspaceID, userID uint64, items []request.ImportIssueItem, opts request.ImportOptions) (*response.ImportResult, error) {
+	return s.importItems(projectID, workspaceID, userID, items, opts)
+}
+
+// importItems validates every row, then creates the valid ones unless
+// opts.DryRun is set. Validation and creation share this single pass so a
+// preview cannot disagree with the real import.
+func (s *IssueService) importItems(projectID, workspaceID, userID uint64, items []request.ImportIssueItem, opts request.ImportOptions) (*response.ImportResult, error) {
+	if len(items) > maxImportRows {
+		return nil, common.BadRequest(fmt.Sprintf("单次导入最多 %d 行，当前 %d 行", maxImportRows, len(items)))
+	}
+
+	var project model.Project
+	if err := s.db.Select("id", "workspace_id").First(&project, projectID).Error; err != nil {
+		return nil, common.NotFound("Project not found")
+	}
+	if project.WorkspaceID != workspaceID {
+		return nil, common.BadRequest("项目不属于所选工作空间")
+	}
+
 	result := &response.ImportResult{
+		DryRun:      opts.DryRun,
+		TotalRows:   len(items),
 		Errors:      []response.ImportError{},
+		Warnings:    []response.ImportWarning{},
 		ImportedIDs: []uint64{},
 	}
 
@@ -2103,18 +2154,57 @@ func (s *IssueService) ImportFromJSON(projectID, workspaceID, userID uint64, ite
 		return nil, err
 	}
 
-	titleToID := make(map[string]uint64)
-	var pendingParents []struct {
-		idx   int
-		item  request.ImportIssueItem
-		title string
+	// Create() rejects assignees who are not on the project and types that were
+	// never imported into it. Resolve both up front so the preview reports the
+	// same outcome as the real import instead of failing later.
+	var projectMemberIDs []uint64
+	if err := s.db.Model(&model.ProjectMember{}).
+		Where("project_id = ? AND is_active = ?", projectID, true).
+		Pluck("user_id", &projectMemberIDs).Error; err != nil {
+		return nil, err
+	}
+	projectMembers := make(map[uint64]bool, len(projectMemberIDs))
+	for _, id := range projectMemberIDs {
+		projectMembers[id] = true
+	}
+	visibleTypes, err := issuetype.Visible(s.db, workspaceID, &projectID)
+	if err != nil {
+		return nil, err
+	}
+	visibleTypeIDs := make(map[uint64]bool, len(visibleTypes))
+	for _, vt := range visibleTypes {
+		visibleTypeIDs[vt.ID] = true
 	}
 
+	// parent_title can only point at a row of this import, so collect the
+	// titles up front and flag references that cannot be satisfied.
+	titles := make(map[string]bool, len(items))
+	for _, item := range items {
+		if name := strings.TrimSpace(item.Name); name != "" {
+			titles[name] = true
+		}
+	}
+
+	type resolvedRow struct {
+		row         int
+		item        request.ImportIssueItem
+		stateID     uint64
+		typeID      uint64
+		labelIDs    []uint64
+		assigneeIDs []uint64
+	}
+
+	warn := func(row int, field, message string) {
+		result.Warnings = append(result.Warnings, response.ImportWarning{Row: row, Field: field, Message: message})
+	}
+
+	rows := make([]resolvedRow, 0, len(items))
 	for i, item := range items {
-		if item.Name == "" {
+		row := i + 1
+		if strings.TrimSpace(item.Name) == "" {
 			result.FailCount++
 			result.Errors = append(result.Errors, response.ImportError{
-				Row:     i + 1,
+				Row:     row,
 				Title:   item.Name,
 				Message: "标题不能为空",
 			})
@@ -2125,56 +2215,91 @@ func (s *IssueService) ImportFromJSON(projectID, workspaceID, userID uint64, ite
 		if item.StateName != "" {
 			if id, ok := stateMap[item.StateName]; ok {
 				stateID = id
+			} else {
+				warn(row, "state", fmt.Sprintf("未找到状态 %q，将使用项目默认状态", item.StateName))
 			}
 		}
 
 		typeID := uint64(0)
 		if item.TypeName != "" {
 			if id, ok := typeMap[item.TypeName]; ok {
-				typeID = id
+				if visibleTypeIDs[id] {
+					typeID = id
+				} else {
+					warn(row, "type", fmt.Sprintf("类型 %q 尚未导入该项目，该行将不带类型", item.TypeName))
+				}
+			} else {
+				warn(row, "type", fmt.Sprintf("未找到类型 %q，该行将不带类型", item.TypeName))
 			}
 		}
 
+		seenLabel := map[uint64]bool{}
 		labelIDs := []uint64{}
 		for _, ln := range item.LabelNames {
 			if id, ok := labelMap[ln]; ok {
-				labelIDs = append(labelIDs, id)
+				if !seenLabel[id] {
+					seenLabel[id] = true
+					labelIDs = append(labelIDs, id)
+				}
+			} else {
+				warn(row, "label", fmt.Sprintf("未找到标签 %q，已忽略", ln))
 			}
 		}
 
+		seenAssignee := map[uint64]bool{}
 		assigneeIDs := []uint64{}
 		for _, email := range item.AssigneeEmails {
 			if id, ok := userMap[strings.ToLower(email)]; ok {
-				assigneeIDs = append(assigneeIDs, id)
-			}
-		}
-
-		var parentID *uint64
-		if item.ParentTitle != "" {
-			if id, ok := titleToID[item.ParentTitle]; ok {
-				parentID = &id
+				if !projectMembers[id] {
+					warn(row, "assignee", fmt.Sprintf("负责人 %q 不是该项目成员，已忽略", email))
+					continue
+				}
+				if !seenAssignee[id] {
+					seenAssignee[id] = true
+					assigneeIDs = append(assigneeIDs, id)
+				}
 			} else {
-				pendingParents = append(pendingParents, struct {
-					idx   int
-					item  request.ImportIssueItem
-					title string
-				}{i, item, item.ParentTitle})
-				continue
+				warn(row, "assignee", fmt.Sprintf("负责人 %q 不是该工作空间成员，已忽略", email))
 			}
 		}
 
+		if item.ParentTitle != "" && !titles[item.ParentTitle] {
+			warn(row, "parent", fmt.Sprintf("父标题 %q 不在本次导入中，该行将作为顶层工作项", item.ParentTitle))
+		}
+
+		rows = append(rows, resolvedRow{
+			row:         row,
+			item:        item,
+			stateID:     stateID,
+			typeID:      typeID,
+			labelIDs:    labelIDs,
+			assigneeIDs: assigneeIDs,
+		})
+	}
+
+	if opts.DryRun {
+		// Nothing is written; every row that passed validation would be created.
+		result.SuccessCount = len(rows)
+		return result, nil
+	}
+
+	titleToID := make(map[string]uint64, len(rows))
+	create := func(r resolvedRow, parentID *uint64, originalRow int) {
+		item := r.item
 		createReq := &request.IssueCreateRequest{
 			Name:            item.Name,
 			DescriptionHTML: "<p>" + item.Description + "</p>",
 			Priority:        item.Priority,
-			LabelIDs:        labelIDs,
-			AssigneeIDs:     assigneeIDs,
+			LabelIDs:        r.labelIDs,
+			AssigneeIDs:     r.assigneeIDs,
 			ParentID:        parentID,
 		}
-		if stateID > 0 {
+		if r.stateID > 0 {
+			stateID := r.stateID
 			createReq.StateID = &stateID
 		}
-		if typeID > 0 {
+		if r.typeID > 0 {
+			typeID := r.typeID
 			createReq.TypeID = &typeID
 		}
 		if item.StartDate != "" {
@@ -2188,88 +2313,148 @@ func (s *IssueService) ImportFromJSON(projectID, workspaceID, userID uint64, ite
 		if svcErr != nil {
 			result.FailCount++
 			result.Errors = append(result.Errors, response.ImportError{
-				Row:     i + 1,
+				Row:     originalRow,
 				Title:   item.Name,
 				Message: fmt.Sprintf("创建失败: %v", svcErr),
 			})
-			continue
+			return
 		}
-
 		result.SuccessCount++
 		result.ImportedIDs = append(result.ImportedIDs, resp.ID)
 		titleToID[item.Name] = resp.ID
 	}
 
-	for _, pp := range pendingParents {
-		item := pp.item
-		stateID := uint64(0)
-		if item.StateName != "" {
-			if id, ok := stateMap[item.StateName]; ok {
-				stateID = id
+	pending := make([]resolvedRow, 0)
+	for _, r := range rows {
+		if r.item.ParentTitle != "" {
+			if id, ok := titleToID[r.item.ParentTitle]; ok {
+				parentID := id
+				create(r, &parentID, r.row)
+				continue
 			}
-		}
-		typeID := uint64(0)
-		if item.TypeName != "" {
-			if id, ok := typeMap[item.TypeName]; ok {
-				typeID = id
-			}
-		}
-		labelIDs := []uint64{}
-		for _, ln := range item.LabelNames {
-			if id, ok := labelMap[ln]; ok {
-				labelIDs = append(labelIDs, id)
-			}
-		}
-		assigneeIDs := []uint64{}
-		for _, email := range item.AssigneeEmails {
-			if id, ok := userMap[strings.ToLower(email)]; ok {
-				assigneeIDs = append(assigneeIDs, id)
-			}
-		}
-
-		var parentID *uint64
-		if id, ok := titleToID[pp.title]; ok {
-			parentID = &id
-		}
-
-		createReq := &request.IssueCreateRequest{
-			Name:            item.Name,
-			DescriptionHTML: "<p>" + item.Description + "</p>",
-			Priority:        item.Priority,
-			LabelIDs:        labelIDs,
-			AssigneeIDs:     assigneeIDs,
-			ParentID:        parentID,
-		}
-		if stateID > 0 {
-			createReq.StateID = &stateID
-		}
-		if typeID > 0 {
-			createReq.TypeID = &typeID
-		}
-		if item.StartDate != "" {
-			createReq.StartDate = &item.StartDate
-		}
-		if item.TargetDate != "" {
-			createReq.TargetDate = &item.TargetDate
-		}
-
-		resp, svcErr := s.Create(createReq, projectID, workspaceID, userID)
-		if svcErr != nil {
-			result.FailCount++
-			result.Errors = append(result.Errors, response.ImportError{
-				Row:     pp.idx + 1,
-				Title:   item.Name,
-				Message: fmt.Sprintf("创建失败: %v", svcErr),
-			})
+			pending = append(pending, r)
 			continue
 		}
+		create(r, nil, r.row)
+	}
 
-		result.SuccessCount++
-		result.ImportedIDs = append(result.ImportedIDs, resp.ID)
-		titleToID[item.Name] = resp.ID
+	// Second pass: rows whose parent appears later in the file.
+	for _, r := range pending {
+		var parentID *uint64
+		if id, ok := titleToID[r.item.ParentTitle]; ok {
+			parentID = &id
+		}
+		create(r, parentID, r.row)
 	}
 
 	return result, nil
+}
+
+// parseCSVRecords turns CSV rows into import items. mapping wins over the
+// built-in aliases; unresolved mapping targets are a request error so the UI
+// cannot silently import into the wrong column.
+func parseCSVRecords(records [][]string, mapping map[string]string) (headers []string, applied map[string]string, items []request.ImportIssueItem, err error) {
+	if len(records) == 0 {
+		return nil, nil, nil, common.BadRequest("CSV 内容为空")
+	}
+
+	headers = make([]string, len(records[0]))
+	headerIdx := make(map[string]int, len(records[0]))
+	for i, h := range records[0] {
+		trimmed := strings.TrimSpace(h)
+		headers[i] = trimmed
+		headerIdx[normalizeCSVHeader(trimmed)] = i
+	}
+
+	column := make(map[string]int)
+	applied = make(map[string]string)
+	// An explicit mapping replaces alias detection entirely: fields the user
+	// left unmapped stay unmapped instead of silently picking up a column with
+	// a familiar name.
+	explicit := len(mapping) > 0
+	for field, source := range mapping {
+		source = strings.TrimSpace(source)
+		if source == "" {
+			continue
+		}
+		idx, ok := headerIdx[normalizeCSVHeader(source)]
+		if !ok {
+			return nil, nil, nil, common.BadRequest(fmt.Sprintf("映射的列不存在: %s", source))
+		}
+		column[field] = idx
+		applied[field] = headers[idx]
+	}
+	if !explicit {
+		for field, aliases := range importFieldAliases {
+			if _, ok := column[field]; ok {
+				continue
+			}
+			for _, alias := range aliases {
+				if idx, ok := headerIdx[normalizeCSVHeader(alias)]; ok {
+					column[field] = idx
+					applied[field] = headers[idx]
+					break
+				}
+			}
+		}
+	}
+	if _, ok := column["name"]; !ok {
+		return nil, nil, nil, common.BadRequest("CSV 缺少标题列（name / 标题 / summary / title）")
+	}
+
+	cell := func(record []string, field string) string {
+		idx, ok := column[field]
+		if !ok || idx >= len(record) {
+			return ""
+		}
+		return strings.TrimSpace(record[idx])
+	}
+
+	items = make([]request.ImportIssueItem, 0, len(records)-1)
+	for row := 1; row < len(records); row++ {
+		record := records[row]
+		if csvRecordEmpty(record) {
+			continue
+		}
+		item := request.ImportIssueItem{
+			Name:        cell(record, "name"),
+			Description: cell(record, "description"),
+			Priority:    cell(record, "priority"),
+			StateName:   cell(record, "state"),
+			TypeName:    cell(record, "type"),
+			StartDate:   cell(record, "start_date"),
+			TargetDate:  cell(record, "target_date"),
+			ParentTitle: cell(record, "parent_title"),
+			ModuleName:  cell(record, "module"),
+			CycleName:   cell(record, "cycle"),
+		}
+		if v := cell(record, "assignees"); v != "" {
+			item.AssigneeEmails = splitAndTrim(v, ",")
+		}
+		if v := cell(record, "labels"); v != "" {
+			item.LabelNames = splitAndTrim(v, ",")
+		}
+		if v := cell(record, "estimate"); v != "" {
+			if points, parseErr := strconv.ParseFloat(v, 64); parseErr == nil {
+				item.EstimatePoints = &points
+			}
+		}
+		items = append(items, item)
+	}
+	return headers, applied, items, nil
+}
+
+func normalizeCSVHeader(h string) string {
+	return strings.ToLower(strings.ReplaceAll(strings.TrimSpace(h), " ", ""))
+}
+
+func csvRecordEmpty(record []string) bool {
+	for _, c := range record {
+		if strings.TrimSpace(c) != "" {
+			return false
+		}
+	}
+	return true
 }
 
 func stripBOM(r io.Reader) io.Reader {
@@ -2300,134 +2485,30 @@ func (bs *bomStripper) Read(p []byte) (int, error) {
 }
 
 // ImportFromCSV imports issues from CSV content.
-func (s *IssueService) ImportFromCSV(projectID, workspaceID, userID uint64, csvContent io.Reader) (*response.ImportResult, error) {
+func (s *IssueService) ImportFromCSV(projectID, workspaceID, userID uint64, csvContent io.Reader, opts request.ImportOptions) (*response.ImportResult, error) {
 	reader := csv.NewReader(stripBOM(csvContent))
+	// Ragged rows are common in hand-edited exports; pad instead of failing.
+	reader.FieldsPerRecord = -1
 	records, err := reader.ReadAll()
 	if err != nil {
 		return nil, common.BadRequest("CSV 解析失败: " + err.Error())
 	}
-
 	if len(records) < 2 {
 		return nil, common.BadRequest("CSV 至少需要包含表头和一行数据")
 	}
 
-	headers := records[0]
-	headerIdx := make(map[string]int)
-	for i, h := range headers {
-		headerIdx[strings.ToLower(strings.TrimSpace(h))] = i
+	headers, applied, items, parseErr := parseCSVRecords(records, opts.Mapping)
+	if parseErr != nil {
+		return nil, parseErr
 	}
 
-	var items []request.ImportIssueItem
-	for row := 1; row < len(records); row++ {
-		record := records[row]
-		item := request.ImportIssueItem{}
-
-		if idx, ok := headerIdx["name"]; ok && idx < len(record) {
-			item.Name = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["标题"]; ok && idx < len(record) {
-			item.Name = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["summary"]; ok && idx < len(record) {
-			item.Name = strings.TrimSpace(record[idx]) // Jira
-		} else if idx, ok := headerIdx["title"]; ok && idx < len(record) {
-			item.Name = strings.TrimSpace(record[idx]) // Linear
-		}
-
-		if idx, ok := headerIdx["description"]; ok && idx < len(record) {
-			item.Description = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["描述"]; ok && idx < len(record) {
-			item.Description = strings.TrimSpace(record[idx])
-		}
-
-		if idx, ok := headerIdx["priority"]; ok && idx < len(record) {
-			item.Priority = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["优先级"]; ok && idx < len(record) {
-			item.Priority = strings.TrimSpace(record[idx])
-		}
-
-		if idx, ok := headerIdx["state"]; ok && idx < len(record) {
-			item.StateName = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["状态"]; ok && idx < len(record) {
-			item.StateName = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["status"]; ok && idx < len(record) {
-			item.StateName = strings.TrimSpace(record[idx]) // Jira/Linear
-		}
-
-		if idx, ok := headerIdx["type"]; ok && idx < len(record) {
-			item.TypeName = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["类型"]; ok && idx < len(record) {
-			item.TypeName = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["issue type"]; ok && idx < len(record) {
-			item.TypeName = strings.TrimSpace(record[idx]) // Jira
-		}
-
-		if idx, ok := headerIdx["assignees"]; ok && idx < len(record) {
-			item.AssigneeEmails = splitAndTrim(record[idx], ",")
-		} else if idx, ok := headerIdx["负责人"]; ok && idx < len(record) {
-			item.AssigneeEmails = splitAndTrim(record[idx], ",")
-		} else if idx, ok := headerIdx["assignee"]; ok && idx < len(record) {
-			item.AssigneeEmails = splitAndTrim(record[idx], ",") // Jira/Linear
-		} else if idx, ok := headerIdx["reporter"]; ok && idx < len(record) {
-			item.AssigneeEmails = splitAndTrim(record[idx], ",") // Jira fallback
-		}
-
-		if idx, ok := headerIdx["labels"]; ok && idx < len(record) {
-			item.LabelNames = splitAndTrim(record[idx], ",")
-		} else if idx, ok := headerIdx["标签"]; ok && idx < len(record) {
-			item.LabelNames = splitAndTrim(record[idx], ",")
-		}
-
-		if idx, ok := headerIdx["start_date"]; ok && idx < len(record) {
-			item.StartDate = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["开始日期"]; ok && idx < len(record) {
-			item.StartDate = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["created"]; ok && idx < len(record) {
-			item.StartDate = strings.TrimSpace(record[idx]) // Jira
-		} else if idx, ok := headerIdx["created at"]; ok && idx < len(record) {
-			item.StartDate = strings.TrimSpace(record[idx]) // Linear
-		}
-
-		if idx, ok := headerIdx["target_date"]; ok && idx < len(record) {
-			item.TargetDate = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["截止日期"]; ok && idx < len(record) {
-			item.TargetDate = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["due date"]; ok && idx < len(record) {
-			item.TargetDate = strings.TrimSpace(record[idx]) // Jira/Linear
-		}
-
-		if idx, ok := headerIdx["parent_title"]; ok && idx < len(record) {
-			item.ParentTitle = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["父标题"]; ok && idx < len(record) {
-			item.ParentTitle = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["parent"]; ok && idx < len(record) {
-			item.ParentTitle = strings.TrimSpace(record[idx]) // Jira/Linear
-		}
-
-		if idx, ok := headerIdx["module"]; ok && idx < len(record) {
-			item.ModuleName = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["模块"]; ok && idx < len(record) {
-			item.ModuleName = strings.TrimSpace(record[idx])
-		}
-
-		if idx, ok := headerIdx["cycle"]; ok && idx < len(record) {
-			item.CycleName = strings.TrimSpace(record[idx])
-		} else if idx, ok := headerIdx["周期"]; ok && idx < len(record) {
-			item.CycleName = strings.TrimSpace(record[idx])
-		}
-
-		if idx, ok := headerIdx["estimate"]; ok && idx < len(record) {
-			if v, err := strconv.ParseFloat(strings.TrimSpace(record[idx]), 64); err == nil {
-				item.EstimatePoints = &v
-			}
-		} else if idx, ok := headerIdx["估点"]; ok && idx < len(record) {
-			if v, err := strconv.ParseFloat(strings.TrimSpace(record[idx]), 64); err == nil {
-				item.EstimatePoints = &v
-			}
-		}
-
-		items = append(items, item)
+	result, err := s.importItems(projectID, workspaceID, userID, items, opts)
+	if err != nil {
+		return nil, err
 	}
-
-	return s.ImportFromJSON(projectID, workspaceID, userID, items)
+	result.Headers = headers
+	result.Mapping = applied
+	return result, nil
 }
 
 func (s *IssueService) loadStateMap(projectID uint64) (map[string]uint64, error) {

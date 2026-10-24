@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -843,7 +844,9 @@ func (h *IssueHandler) ImportJSON(c *gin.Context) {
 		return
 	}
 
-	result, svcErr := h.svc.ImportFromJSON(projectID, workspaceID, user.ID, items)
+	result, svcErr := h.svc.ImportFromJSON(projectID, workspaceID, user.ID, items, request.ImportOptions{
+		DryRun: isDryRun(c),
+	})
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -908,7 +911,10 @@ func (h *IssueHandler) Export(c *gin.Context) {
 	}
 }
 
-// ImportCSV handles POST /issues/import/csv?project_id=int&workspace_id=int
+// maxImportUploadBytes caps a CSV upload; the service separately caps rows.
+const maxImportUploadBytes = 5 << 20
+
+// ImportCSV handles POST /issues/import/csv?project_id=int&workspace_id=int&dry_run=bool
 func (h *IssueHandler) ImportCSV(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 
@@ -924,14 +930,29 @@ func (h *IssueHandler) ImportCSV(c *gin.Context) {
 		return
 	}
 
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxImportUploadBytes)
 	file, _, err := c.Request.FormFile("file")
 	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"message": "CSV 文件不能超过 5 MB"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"message": "请上传 CSV 文件"})
 		return
 	}
 	defer func() { _ = file.Close() }()
 
-	result, svcErr := h.svc.ImportFromCSV(projectID, workspaceID, user.ID, file)
+	mapping, err := parseImportMapping(c.PostForm("mapping"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	result, svcErr := h.svc.ImportFromCSV(projectID, workspaceID, user.ID, file, request.ImportOptions{
+		DryRun:  isDryRun(c),
+		Mapping: mapping,
+	})
 	if svcErr != nil {
 		if appErr, ok := svcErr.(*common.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"message": appErr.Message})
@@ -942,6 +963,24 @@ func (h *IssueHandler) ImportCSV(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+// isDryRun reports whether the caller only wants validation.
+func isDryRun(c *gin.Context) bool {
+	v := strings.ToLower(strings.TrimSpace(c.Query("dry_run")))
+	return v == "1" || v == "true" || v == "yes"
+}
+
+// parseImportMapping decodes the optional CSV column mapping form field.
+func parseImportMapping(raw string) (map[string]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	var mapping map[string]string
+	if err := json.Unmarshal([]byte(raw), &mapping); err != nil {
+		return nil, fmt.Errorf("mapping 不是合法的 JSON 对象")
+	}
+	return mapping, nil
 }
 
 // ExportCSVTemplate downloads a CSV template for issue import.

@@ -194,6 +194,22 @@ type ImportResult struct {
 	FailCount    int           `json:"fail_count"`
 	Errors       []ImportError `json:"errors"`
 	ImportedIDs  []uint64      `json:"imported_ids"`
+
+	// DryRun marks a preview: nothing was written and success_count is the
+	// number of rows that would have been created.
+	DryRun    bool              `json:"dry_run,omitempty"`
+	TotalRows int               `json:"total_rows"`
+	Headers   []string          `json:"headers,omitempty"` // CSV source headers, in file order
+	Mapping   map[string]string `json:"mapping,omitempty"` // canonical field -> CSV header
+	Warnings  []ImportWarning   `json:"warnings,omitempty"`
+}
+
+// ImportWarning records a value that was accepted but silently degraded, such
+// as a state name that does not exist and therefore falls back to the default.
+type ImportWarning struct {
+	Row     int    `json:"row"`
+	Field   string `json:"field"`
+	Message string `json:"message"`
 }
 
 // ImportError represents an error for a specific row in the import.

@@ -115,5 +115,15 @@ type ImportIssueItem struct {
 	EstimatePoints *float64 `json:"estimate_points"`
 }
 
+// ImportOptions tunes a bulk import. The zero value performs a real import
+// using the built-in header aliases.
+type ImportOptions struct {
+	// DryRun parses and validates without creating anything.
+	DryRun bool
+	// Mapping maps canonical fields (name, state, type, ...) to the CSV header
+	// that carries them. Headers without an entry fall back to aliases.
+	Mapping map[string]string
+}
+
 // CSVImportRow represents a row parsed from CSV.
 type CSVImportRow map[string]string

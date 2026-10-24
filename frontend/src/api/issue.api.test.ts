@@ -193,6 +193,24 @@ describe('bulk operations API', () => {
     expect(result.success_count).toBe(1)
   })
 
+  it('previewImportCSV should dry-run with the mapping', async () => {
+    mockPost.mockResolvedValue({ data: { success_count: 1, fail_count: 0, errors: [], imported_ids: [], dry_run: true } })
+    const file = new File(['title\nA\n'], 'issues.csv', { type: 'text/csv' })
+    const { previewImportCSV } = await import('./issue')
+    await previewImportCSV(1, 2, file, { name: 'title' })
+
+    const [url, body] = mockPost.mock.calls[0]
+    expect(url).toBe('/issues/import/csv?project_id=1&workspace_id=2&dry_run=true')
+    expect((body as FormData).get('mapping')).toBe(JSON.stringify({ name: 'title' }))
+  })
+
+  it('previewImportJSON should dry-run', async () => {
+    mockPost.mockResolvedValue({ data: { success_count: 1, fail_count: 0, errors: [], imported_ids: [], dry_run: true } })
+    const { previewImportJSON } = await import('./issue')
+    await previewImportJSON(1, 2, [{ name: 'A' }])
+    expect(mockPost).toHaveBeenCalledWith('/issues/import/json?project_id=1&workspace_id=2&dry_run=true', [{ name: 'A' }])
+  })
+
   it('bulkConvertIssueType should POST convert', async () => {
     mockPost.mockResolvedValue({ data: { message: 'ok' } })
     await bulkConvertIssueType(1, [1, 2], 5)

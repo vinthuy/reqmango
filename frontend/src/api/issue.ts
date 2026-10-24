@@ -235,6 +235,52 @@ export interface ImportResult {
   fail_count: number
   errors: ImportError[]
   imported_ids: number[]
+  dry_run?: boolean
+  total_rows?: number
+  headers?: string[]
+  mapping?: Record<string, string>
+  warnings?: ImportWarning[]
+}
+
+export interface ImportWarning {
+  row: number
+  field: string
+  message: string
+}
+
+/** Canonical CSV fields the importer accepts, in display order. */
+export const IMPORT_FIELDS = [
+  'name',
+  'description',
+  'priority',
+  'state',
+  'type',
+  'assignees',
+  'labels',
+  'start_date',
+  'target_date',
+  'parent_title',
+  'module',
+  'cycle',
+  'estimate',
+] as const
+
+export type ImportField = (typeof IMPORT_FIELDS)[number]
+
+export interface ImportOptions {
+  /** Validate only; the server writes nothing. */
+  dryRun?: boolean
+  /** Canonical field -> CSV header. */
+  mapping?: Record<string, string>
+}
+
+function importQuery(projectId: number, workspaceId: number, opts?: ImportOptions): string {
+  const params = new URLSearchParams({
+    project_id: String(projectId),
+    workspace_id: String(workspaceId),
+  })
+  if (opts?.dryRun) params.set('dry_run', 'true')
+  return params.toString()
 }
 
 export interface ImportIssueItem {
@@ -256,10 +302,11 @@ export interface ImportIssueItem {
 export async function importIssuesJSON(
   projectId: number,
   workspaceId: number,
-  items: ImportIssueItem[]
+  items: ImportIssueItem[],
+  opts?: ImportOptions
 ): Promise<ImportResult> {
   const response = await api.post(
-    `/issues/import/json?project_id=${projectId}&workspace_id=${workspaceId}`,
+    `/issues/import/json?${importQuery(projectId, workspaceId, opts)}`,
     items
   )
   return response.data
@@ -271,12 +318,16 @@ export async function importIssuesJSON(
 export async function importIssuesCSV(
   projectId: number,
   workspaceId: number,
-  file: File
+  file: File,
+  opts?: ImportOptions
 ): Promise<ImportResult> {
   const formData = new FormData()
   formData.append('file', file)
+  if (opts?.mapping && Object.keys(opts.mapping).length > 0) {
+    formData.append('mapping', JSON.stringify(opts.mapping))
+  }
   const response = await api.post(
-    `/issues/import/csv?project_id=${projectId}&workspace_id=${workspaceId}`,
+    `/issues/import/csv?${importQuery(projectId, workspaceId, opts)}`,
     formData,
     {
       headers: {
@@ -285,6 +336,29 @@ export async function importIssuesCSV(
     }
   )
   return response.data
+}
+
+/**
+ * 只校验不落库：返回表头、自动识别的字段映射与逐行结果。
+ */
+export function previewImportCSV(
+  projectId: number,
+  workspaceId: number,
+  file: File,
+  mapping?: Record<string, string>
+): Promise<ImportResult> {
+  return importIssuesCSV(projectId, workspaceId, file, { dryRun: true, mapping })
+}
+
+/**
+ * 只校验不落库（JSON）。
+ */
+export function previewImportJSON(
+  projectId: number,
+  workspaceId: number,
+  items: ImportIssueItem[]
+): Promise<ImportResult> {
+  return importIssuesJSON(projectId, workspaceId, items, { dryRun: true })
 }
 
 /**
@@ -646,6 +720,8 @@ export const issueApi = {
   bulkDeleteIssues,
   importIssuesJSON,
   importIssuesCSV,
+  previewImportCSV,
+  previewImportJSON,
   
   // Assignee
   addIssueAssignee,
