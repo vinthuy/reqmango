@@ -6,3 +6,9 @@ contact_links:
   - name: Good first issues list
     url: https://github.com/vinthuy/reqmango/blob/master/docs/dev/good-first-issues.md
     about: Curated starter tasks with file paths and acceptance criteria.
+  - name: Report a security vulnerability
+    url: https://github.com/vinthuy/reqmango/blob/master/SECURITY.md
+    about: Never open a public issue for a vulnerability — use the private channel described here.
+  - name: Support and troubleshooting
+    url: https://github.com/vinthuy/reqmango/blob/master/SUPPORT.md
+    about: Install problems, configuration, and where each kind of question belongs.

@@ -163,6 +163,9 @@ reqmango/
 欢迎提交 Issue 与 Pull Request，尤其是小而清晰的改动。
 
 - [贡献指南](CONTRIBUTING-zh.md) · [English](CONTRIBUTING.md)
+- [路线图](ROADMAP.md) — 接下来做什么，以及明确不做什么
+- [支持与提问](SUPPORT.md) — 哪类问题去哪里问
+- [行为准则](CODE_OF_CONDUCT.md) — Contributor Covenant 2.1
 - [适合新手的任务清单](docs/dev/good-first-issues.md)
 - [安全策略](SECURITY.md) — 漏洞请走私密渠道，不要开公开 Issue
 - **国内共建主场：** [GitCode](https://gitcode.com/yongfeng9m-/reqmanpy) · **国际镜像：** [GitHub](https://github.com/vinthuy/reqmango) — 同一套源码与产品叙事（[双远程说明](docs/dev/dual-remote.md)）

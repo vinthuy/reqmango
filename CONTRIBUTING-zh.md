@@ -99,6 +99,14 @@ CI 见 `.github/workflows/ci.yml`，请保持绿色。
 - 无功能需求的依赖大升级
 - 提交密钥、真实 `.env`、大体积二进制
 
+## 行为准则
+
+参与本项目即表示同意遵守 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)（Contributor Covenant 2.1）。举报发到 **vinthuy@qq.com**，标题加 `[conduct]`。
+
+## 提问与求助
+
+安装问题、“这算 bug 吗”、使用咨询请看 [SUPPORT.md](SUPPORT.md) 或 GitHub Discussions，不要开 Issue。安全问题只走 [SECURITY.md](SECURITY.md)。
+
 ## 维护者
 
 双远程同步说明：[docs/dev/dual-remote.md](docs/dev/dual-remote.md)

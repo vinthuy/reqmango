@@ -166,6 +166,9 @@ reqmango/
 We welcome Issues and Pull Requests — especially small, focused changes.
 
 - [Contributing guide](CONTRIBUTING.md) · [中文](CONTRIBUTING-zh.md)
+- [Roadmap](ROADMAP.md) — what we're building next, and what we're not
+- [Support](SUPPORT.md) — questions, bug reports, and where to ask what
+- [Code of Conduct](CODE_OF_CONDUCT.md) — Contributor Covenant 2.1
 - [Good first issues](docs/dev/good-first-issues.md) (curated starter tasks)
 - [Security policy](SECURITY.md) — report vulnerabilities privately, never in a public issue
 - **CN collaboration hub:** [GitCode](https://gitcode.com/yongfeng9m-/reqmanpy) · **International mirror:** [GitHub](https://github.com/vinthuy/reqmango) — same code, same product story ([dual-remote](docs/dev/dual-remote.md))

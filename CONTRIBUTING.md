@@ -109,7 +109,15 @@ Run E2E against a disposable PostgreSQL database, not production: tests create a
 
 ## Code of conduct
 
-Be respectful. Assume good intent. No harassment or personal attacks. Maintainers may close out-of-scope or hostile threads.
+Participation is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+(Contributor Covenant 2.1). Report incidents to **vinthuy@qq.com** with
+`[conduct]` in the subject.
+
+## Support
+
+Questions, setup problems and "is this supposed to work like this?" belong in
+[SUPPORT.md](SUPPORT.md) / GitHub Discussions, not the issue tracker. Security
+reports go through [SECURITY.md](SECURITY.md) only.
 
 ## Maintainers
 
