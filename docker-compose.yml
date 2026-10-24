@@ -39,6 +39,13 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: "${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}"
       PORT: "8000"
       DEBUG: "${DEBUG:-false}"
+      # Logging and rate limiting: these are read from the process environment,
+      # so Compose has to forward them explicitly or setting them in .env does
+      # nothing (it silently used the code defaults before).
+      DB_LOG_LEVEL: "${DB_LOG_LEVEL:-}"
+      SLOW_REQUEST_MS: "${SLOW_REQUEST_MS:-1000}"
+      RATE_LIMIT_REQUESTS: "${RATE_LIMIT_REQUESTS:-500}"
+      RATE_LIMIT_WINDOW_SEC: "${RATE_LIMIT_WINDOW_SEC:-60}"
       AI_API_KEY: ${AI_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-deepseek-chat}
