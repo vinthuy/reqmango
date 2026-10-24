@@ -79,15 +79,18 @@ test.describe('工作流审批功能', () => {
     const fromState = states[0]
     const toState = states.find((s: any) => s.id !== fromState.id) || states[1]
 
-    // 2. Create a workflow with an approval transition
-    const workflowRes = await request.post(`http://localhost:8000/api/v1/projects/${projectId}/workflows`, {
+    // 2. Create a state workflow with an approval transition. Transitions
+    // belong to `workflows`, served under the workspace group; the project
+    // group is agent orchestration and has no transition routes.
+    const WS = `http://localhost:8000/api/v1/workspaces/${workspaceId}/workflows`
+    const workflowRes = await request.post(WS, {
       headers: H,
       data: { name: `[E2E 审批] ${Date.now()}` },
     })
     expect(workflowRes.ok()).toBeTruthy()
     const workflow = await workflowRes.json()
 
-    const transRes = await request.post(`http://localhost:8000/api/v1/projects/${projectId}/workflows/${workflow.id}/transitions`, {
+    const transRes = await request.post(`${WS}/${workflow.id}/transitions`, {
       headers: H,
       data: {
         name: '审批流转',
@@ -140,7 +143,7 @@ test.describe('工作流审批功能', () => {
     console.log('审批批准成功')
 
     // Cleanup
-    await request.delete(`http://localhost:8000/api/v1/projects/${projectId}/workflows/${workflow.id}`, {
+    await request.delete(`${WS}/${workflow.id}`, {
       headers: H,
     })
   })

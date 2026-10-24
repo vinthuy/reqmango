@@ -33,7 +33,7 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     console.log('Project settings:', psBody?.length, 'chars')
   })
 
-  test('2. States API — verify format matches WorkflowManager expectation', async ({ request }) => {
+  test('2. States API — verify format matches StateWorkflowManager expectation', async ({ request }) => {
     const demo = await resolveDemo(request)
 
     const res = await request.get(`${API}/projects/${demo.projectId}/settings/states`, { headers: demo.headers })
@@ -42,30 +42,31 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
 
     console.log('States response keys:', Object.keys(body).join(', '))
     if ('data' in body) {
-      console.log('✅ States wrap in {data: [...]} — WorkflowManager expects this')
+      console.log('✅ States wrap in {data: [...]} — StateWorkflowManager expects this')
       console.log('States count:', body.data.length)
       for (const s of body.data.slice(0, 5)) {
         console.log(`  State: ${s.name} (id=${s.id}, group=${s.group})`)
       }
     } else if (Array.isArray(body)) {
-      console.log('⚠️ States return as raw array — WorkflowManager expects {data: [...]}')
+      console.log('⚠️ States return as raw array — StateWorkflowManager expects {data: [...]}')
     } else {
       console.log('⚠️ Unknown format:', JSON.stringify(body).slice(0, 200))
     }
   })
 
-  test('3. WorkflowManager — full CRUD via API (simulating UI actions)', async ({ request }) => {
+  test('3. StateWorkflowManager — state workflow CRUD via workspace routes', async ({ request }) => {
     const demo = await resolveDemo(request)
     const [fromId, toId] = await twoStateIds(request, demo)
+    const WS = `${API}/workspaces/${demo.workspaceId}/workflows`
 
-    console.log('--- Step 1: List workflows ---')
-    const list1 = await request.get(`${API}/projects/${demo.projectId}/workflows`, { headers: demo.headers })
+    console.log('--- Step 1: List workspace workflows ---')
+    const list1 = await request.get(WS, { headers: demo.headers })
     expect(list1.status()).toBe(200)
-    const wfs1 = (await list1.json()).data || []
-    console.log(`Existing workflows: ${wfs1.length}`)
+    const wfs1 = (await list1.json()) || []
+    console.log(`Existing workspace workflows: ${wfs1.length}`)
 
     console.log('\n--- Step 2: Create workflow ---')
-    const create = await request.post(`${API}/projects/${demo.projectId}/workflows`, {
+    const create = await request.post(WS, {
       headers: demo.headers,
       data: { name: `[UI Flow Test] ${Date.now()}`, description: 'Created simulating UI flow' },
     })
@@ -74,7 +75,10 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     console.log(`Created: [${wf.id}] ${wf.name}`)
 
     console.log('\n--- Step 3: Add transition ---')
-    const trans = await request.post(`${API}/projects/${demo.projectId}/workflows/${wf.id}/transitions`, {
+    // State transitions belong to `workflows` and are served under the
+    // workspace group; the project group is agent orchestration and has no
+    // transition routes.
+    const trans = await request.post(`${WS}/${wf.id}/transitions`, {
       headers: demo.headers,
       data: { name: 'A→B', source_state_id: fromId, target_state_id: toId },
     })
@@ -84,17 +88,40 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     expect(transData.rule_type).toBe('allow')
     console.log('Created transition:', transData.id, transData.name)
 
-    const wfDetail = await request.get(`${API}/projects/${demo.projectId}/workflows/${wf.id}`, { headers: demo.headers })
+    const wfDetail = await request.get(`${WS}/${wf.id}`, { headers: demo.headers })
+    expect(wfDetail.status()).toBe(200)
     const detail = await wfDetail.json()
-    expect(Array.isArray(detail.nodes)).toBe(true)
-    expect(Array.isArray(detail.edges)).toBe(true)
     expect(Array.isArray(detail.transitions)).toBe(true)
     expect(detail.transitions.length).toBeGreaterThanOrEqual(1)
 
     console.log('\n--- Step 4: Delete workflow (cleanup) ---')
-    const del = await request.delete(`${API}/projects/${demo.projectId}/workflows/${wf.id}`, { headers: demo.headers })
+    const del = await request.delete(`${WS}/${wf.id}`, { headers: demo.headers })
     expect(del.status(), 'workflow delete must not return 500 (BUG-57)').toBeLessThan(400)
     console.log('Deleted test workflow')
+  })
+
+  test('3b. Project workflow group — agent orchestration detail', async ({ request }) => {
+    // The project group addresses agent_workflows. Its structure is nodes and
+    // edges, so the detail response must not carry `transitions` at all.
+    const demo = await resolveDemo(request)
+    const P = `${API}/projects/${demo.projectId}/workflows`
+
+    const create = await request.post(P, {
+      headers: demo.headers,
+      data: { name: `[Agent Flow Test] ${Date.now()}`, description: 'orchestration' },
+    })
+    expect(create.status()).toBe(201)
+    const wf = await create.json()
+
+    const detailRes = await request.get(`${P}/${wf.id}`, { headers: demo.headers })
+    expect(detailRes.status()).toBe(200)
+    const detail = await detailRes.json()
+    expect(Array.isArray(detail.nodes)).toBe(true)
+    expect(Array.isArray(detail.edges)).toBe(true)
+    expect(detail.transitions).toBeUndefined()
+
+    const del = await request.delete(`${P}/${wf.id}`, { headers: demo.headers })
+    expect(del.status()).toBeLessThan(400)
   })
 
   test('4. AutomationManager — full CRUD via API (simulating UI actions)', async ({ request }) => {
@@ -141,17 +168,19 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     console.log('Deleted test automation')
   })
 
-  test('5. ⚠️ GAP: WorkflowManager missing approval fields', async ({ request }) => {
+  test('5. Approval fields round-trip through a workspace state workflow', async ({ request }) => {
     const demo = await resolveDemo(request)
     const [fromId, toId] = await twoStateIds(request, demo)
+    const WS = `${API}/workspaces/${demo.workspaceId}/workflows`
 
-    const wfCreate = await request.post(`${API}/projects/${demo.projectId}/workflows`, {
+    const wfCreate = await request.post(WS, {
       headers: demo.headers,
       data: { name: `[Gap Test] ${Date.now()}`, description: 'Approval gap test' },
     })
+    expect(wfCreate.status()).toBe(201)
     const wf = await wfCreate.json()
 
-    const tr = await request.post(`${API}/projects/${demo.projectId}/workflows/${wf.id}/transitions`, {
+    const tr = await request.post(`${WS}/${wf.id}/transitions`, {
       headers: demo.headers,
       data: {
         name: 'Requires admin approval',
@@ -161,9 +190,11 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     })
     expect(tr.status()).toBe(201)
     const t = await tr.json()
+    expect(t.rule_type).toBe('approval')
+    expect(t.approver_ids).toBe('1')
     console.log(`API: Created approval transition (rule=${t.rule_type}, approvers=${t.approver_ids})`)
 
-    await request.delete(`${API}/projects/${demo.projectId}/workflows/${wf.id}`, { headers: demo.headers })
+    await request.delete(`${WS}/${wf.id}`, { headers: demo.headers })
   })
 
   test('6. ⚠️ States API response format check', async ({ request }) => {
@@ -178,9 +209,9 @@ test.describe('Workflow & Automation — Full UI Journey', () => {
     console.log(`States API format: ${hasWrapper ? '{data:[...]}' : isArray ? 'raw array' : 'other'}`)
 
     if (!hasWrapper) {
-      console.log('⚠️ ISSUE: WorkflowManager.vue line 56 expects states.value = s.data')
+      console.log('⚠️ ISSUE: StateWorkflowManager.vue line 56 expects states.value = s.data')
     } else {
-      console.log('✅ Format matches WorkflowManager expectation')
+      console.log('✅ Format matches StateWorkflowManager expectation')
     }
   })
 })

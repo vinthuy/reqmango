@@ -115,8 +115,11 @@ test.describe('审批功能 - API测试', () => {
     const projects = await projectsResponse.json()
     const project = projects.find((p: any) => p.identifier === 'CORE')
 
-    // Create a dedicated workflow.
-    const createResponse = await request.post(`http://localhost:8000/api/v1/projects/${project.id}/workflows`, {
+    // Create a dedicated state workflow. Transitions belong to `workflows`,
+    // which the workspace group serves; the project group is agent
+    // orchestration (nodes/edges) and has no transition routes.
+    const WS = `http://localhost:8000/api/v1/workspaces/${workspace.id}/workflows`
+    const createResponse = await request.post(WS, {
       headers: H,
       data: { name: `[E2E 审批转换] ${Date.now()}`, description: 'transition contract test' },
     })
@@ -130,7 +133,7 @@ test.describe('审批功能 - API测试', () => {
     const fromStateId = Array.isArray(states) ? states[0]?.id : undefined
     const toStateId = Array.isArray(states) && states.length > 1 ? states[1]?.id : undefined
 
-    const transitionResponse = await request.post(`http://localhost:8000/api/v1/projects/${project.id}/workflows/${workflow.id}/transitions`, {
+    const transitionResponse = await request.post(`${WS}/${workflow.id}/transitions`, {
       headers: H,
       data: {
         name: 'E2E审批转换',
@@ -148,7 +151,7 @@ test.describe('审批功能 - API测试', () => {
     console.log('创建审批转换成功:', transition.id, transition.rule_type)
 
     // Cleanup — also exercises the workflow DELETE path fixed in BUG-57.
-    const deleteResponse = await request.delete(`http://localhost:8000/api/v1/projects/${project.id}/workflows/${workflow.id}`, {
+    const deleteResponse = await request.delete(`${WS}/${workflow.id}`, {
       headers: H,
     })
     expect(deleteResponse.status()).toBeLessThan(400)
