@@ -1,6 +1,6 @@
 # Pipeline Status（功能管线状态）
 
-最后更新：2026-10-24
+最后更新：2026-10-25
 
 ---
 
@@ -26,7 +26,7 @@
 | 层 | 内容 | 文档 |
 |----|------|------|
 | L1 安全 | 演示 / E2E 种子账号改为显式开关，默认不存在；生产清单列明必须关闭的项 | [security.md](../security.md) · [production](../deploy/production.md) |
-| L2 发布 | 版本化构建、多架构 `ghcr.io` 镜像、tag 驱动的 Release 工作流 | [release](release.md) · [CHANGELOG](../../CHANGELOG.md) |
+| L2 发布 | 版本化构建、多架构 `ghcr.io` 镜像、tag 驱动的 Release 工作流；已用一次性 rc tag 端到端预演过一次（amd64+arm64、provenance/SBOM、prerelease 标记），预演流程见 release 文档 | [release](release.md#rehearsing-the-workflow) · [CHANGELOG](../../CHANGELOG.md) |
 | L3 社区 | 行为准则、支持指南、Dependabot（限流）、公开 ROADMAP、受保护的 `master`（9 项必需检查） | [CONTRIBUTING](../../CONTRIBUTING.md) · [ROADMAP](../../ROADMAP.md) |
 | L4 文档与语言 | MkDocs 站点（中英双语、`--strict` 构建）发布到 GitHub Pages；前端首访按浏览器语言协商，登录 / 注册页可见切换器 | [docs 站](https://vinthuy.github.io/reqmango/) · [configuration](../configuration.md) |
 

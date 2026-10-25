@@ -49,8 +49,11 @@ publishes multi-arch images and creates the GitHub Release.
    | `ghcr.io/vinthuy/reqmango-backend` | `0.2.0`, `0.2`, `latest` |
    | `ghcr.io/vinthuy/reqmango-frontend` | `0.2.0`, `0.2`, `latest` |
 
-   Pre-release tags (`v0.2.0-rc1`) get no `latest` and the GitHub Release is
-   marked as a pre-release.
+   A pre-release tag behaves differently. `v0.2.0-rc1` publishes **only**
+   `0.2.0-rc1` — no `0.2` and no `latest` (`docker/metadata-action` extends just
+   `{{version}}` for pre-releases, because a `0.2` tag pointing at an rc is a
+   trap for anyone who pinned the minor). The GitHub Release is marked as a
+   pre-release too.
 
 5. Verify the published build:
 
@@ -78,6 +81,32 @@ git push github :refs/tags/v0.2.0
 
 Re-running the workflow from the Actions UI is also safe: image pushes are
 idempotent per tag.
+
+## Rehearsing the workflow
+
+To exercise the publish path without spending a version number, push a
+throwaway pre-release tag. It creates every artifact the real thing does
+(multi-arch images, attestations, the release) and touches nothing anyone
+depends on, because a pre-release only publishes its exact tag:
+
+```bash
+git tag -a v0.0.0-rc.1 -m "release workflow dry run"
+git push github refs/tags/v0.0.0-rc.1
+gh run watch                                    # ~4 min for both images
+```
+
+Verify, then tear down:
+
+```bash
+gh release view v0.0.0-rc.1 --json isPrerelease,body
+gh release delete v0.0.0-rc.1 --yes --cleanup-tag   # release + remote tag
+git tag -d v0.0.0-rc.1 2>/dev/null || true          # if a local copy is left
+```
+
+The image tags need a token with `delete:packages` (`gh auth refresh -s
+delete:packages`), or the package UI: **Package settings → Manage versions →
+delete `0.0.0-rc.1`** for both packages. The workflow itself never deletes
+anything, and `GITHUB_TOKEN` only has to publish.
 
 ## Versioning
 

@@ -23,6 +23,12 @@ under **Changed** / **Upgrade notes**.
   browser dependencies. Move the label once CI is green on 26.
 - The backend runtime image moved from `alpine:3.20` to `alpine:3.24`; 3.20 had
   stopped receiving packages in 2026, and the builder stage was already on 3.24.
+- The release workflow has now been exercised end to end against a throwaway
+  `v0.0.0-rc.1` tag: both images published for `linux/amd64` and `linux/arm64`
+  with provenance and SBOM attestations, `latest` and `0.1` stayed on 0.1.0, and
+  the GitHub Release came out as a pre-release. `docs/dev/release.md` records
+  the rehearsal and one correction it turned up: a pre-release publishes only
+  its exact version tag, never `0.2` or `latest`.
 - The frontend now builds and tests on **Node.js 24** (LTS) instead of Node 20,
   which reached end-of-life in April 2026. CI runs 24, the image builder is
   `node:24-alpine`, `frontend/package.json` declares `engines.node >= 24`, and
