@@ -2,7 +2,10 @@
 
 reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
-**最后更新**: 2026-09-26
+**最后更新**: 2026-10-25
+
+> 本文描述**分层与职责**，不维护文件数/路由数这类会随手改的清单数字。
+> 需要具体清单时，直接看对应目录，或 `backend/internal/router/router.go`（全部路由注册的唯一入口）。
 
 ---
 
@@ -10,17 +13,19 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 | 层级 | 技术 | 状态 |
 |------|------|------|
-| 后端框架 | Go 1.24.0 + Gin 1.x | ✅ 主力 |
-| ORM | GORM v1.30.0 | ✅ |
+| 后端框架 | Go 1.25 + Gin | ✅ 主力 |
+| ORM | GORM | ✅ |
 | 数据库 | PostgreSQL 16+ | ✅ |
-| 认证 | JWT (golang-jwt/v5.2.1) | ✅ |
+| 认证 | JWT (golang-jwt/v5) | ✅ |
 | LLM 集成 | DeepSeek / Anthropic / OpenAI-compatible | ✅ |
-| 前端框架 | Vue 3.4.21 + Composition API | ✅ |
-| 前端构建 | Vite | ✅ |
+| 前端框架 | Vue 3 + Composition API | ✅ |
+| 前端构建 | Vite 5 | ✅ |
 | 状态管理 | Pinia | ✅ |
 | CSS | Tailwind CSS | ✅ |
 | 类型系统 | TypeScript | ✅ |
-| E2E 测试 | Playwright 1.61.1 | ✅ |
+| E2E 测试 | Playwright | ✅ |
+
+版本以 `backend/go.mod` 与 `frontend/package.json` 为准，详见[技术栈](tech-stack.md)。
 
 ---
 
@@ -50,26 +55,28 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 | 层 | 目录 | 职责 |
 |----|------|------|
-| Handler | `internal/handler/` (~70) | HTTP 请求绑定，调用 Service，写响应。不含业务逻辑 |
-| Service | `internal/service/` (~90) | 纯业务逻辑，跨 Model 操作，返回 AppError |
-| Model | `internal/model/` (67) | GORM 模型定义，表结构映射 |
+| Handler | `internal/handler/` | HTTP 请求绑定，调用 Service，写响应。不含业务逻辑 |
+| Service | `internal/service/` | 纯业务逻辑，跨 Model 操作，返回 AppError |
+| Model | `internal/model/` | GORM 模型定义，表结构映射 |
 | DTO | `internal/dto/` | 请求/响应结构体，与 Model 解耦 |
-| Middleware | `internal/middleware/` | JWT 认证、RBAC 鉴权、CORS、日志 |
+| Middleware | `internal/middleware/` | JWT 认证、RBAC 鉴权、租户收敛、CORS、日志、限流 |
 | Router | `internal/router/` | 路由注册，挂载中间件和 Handler |
 | Common | `internal/common/` | 错误类型、常量、分页工具 |
 | RQL | `internal/rql/` | ReqMan Query Language (lexer/parser/executor) |
+| AI | `internal/ai/` | LLM 客户端、harness、分诊与对话编排 |
+| Workflow | `internal/workflow/` | 工作流执行引擎 |
 
 ## 前端分层职责
 
 | 层 | 目录 | 职责 |
 |----|------|------|
-| Views | `src/views/` (52) | 页面级组件，对应路由 |
-| Components | `src/components/` (~120) | 可复用组件 |
-| Stores | `src/stores/` (3) | Pinia 状态管理 |
-| API | `src/api/` (41+) | Axios 封装，后端 API 调用 |
-| Types | `src/types/` (21) | TypeScript 类型定义（含 filters.ts） |
-| Composables | `src/composables/` (5) | 组合式函数 (useConfirm, useRQL, useAI, usePermission, useFilters) |
-| Router | `src/router/` | Vue Router 配置 (16 条路由，含 minRoleLevel 守卫) |
+| Views | `src/views/` | 页面级组件，对应路由（含 `views/agent/`、`views/agents/` 的 Agent 控制台，默认隐藏） |
+| Components | `src/components/` | 可复用组件 |
+| Stores | `src/stores/` | Pinia 状态管理（auth / cycle / module / issue / project / notification / agentLoop / agentPipeline） |
+| API | `src/api/` | Axios 封装，按后端资源一模块一文件 |
+| Types | `src/types/` | TypeScript 类型定义（含 filters.ts） |
+| Composables | `src/composables/` | 组合式函数（useAI / useRQL / useFilters / usePermission / useSSE / useI18n …） |
+| Router | `src/router/` | Vue Router 配置（含 minRoleLevel 守卫） |
 
 ---
 
@@ -132,11 +139,10 @@ reqmango 采用前后端分离架构，Go + Vue 3 全栈。
 
 ## 产品方向备忘
 
-- **现行**：原生 PM + 原生 AI 项目管理路径 AI（Intake / Analyze / 自动化预览 / i_summary）
+- **现行**：原生 PM + 原生 AI 项目管理路径 AI（Intake / Analyze / 自动化预览 / `ai_summary`）
 - **核心门禁**：工作项类型 / 自定义字段 / 工作流（含 workspace 状态机）/ 自动化 — 验收 §H
 - **废止**：Harness / Loop / 独立 Agent 平台 Agent 控制台产品化 → [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md)
-- **Stage B**：/agents* 默认重定向，解锁键 
-m_advanced_agents=1
+- **Stage B**：`/agents*` 默认重定向，解锁键 `localStorage.rm_advanced_agents=1`
 
 ## 未来可扩展
 

@@ -68,7 +68,7 @@ docker compose up -d
 | 工作流与自动化 | 状态转换、审批、角色门禁；触发 → 条件 → 动作 |
 | 关系与检索 | 阻塞 / 关联 / 重复；RQL 与多字段筛选 |
 | 通知与安全 | 未读数；bluemonday XSS 清洗；JWT + RBAC |
-| API | 100+ REST 端点，附 [API 参考](API.md) |
+| API | REST API，附 [API 参考](API.md) |
 
 AI 是项目管理之上的一层，不是默认主线。日常路径是 Issue、Cycle、Intake、Pages。
 

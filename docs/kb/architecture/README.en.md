@@ -1,8 +1,13 @@
 # Architecture Overview
 
-reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-stack.
+reqmango uses a decoupled frontend-backend architecture: Go + Vue 3, full stack.
 
-**Last Updated**: 2026-09-25
+**Last updated**: 2026-10-25
+
+> This page describes **layers and responsibilities**, and deliberately does not maintain
+> inventory numbers (file counts, route counts) that change with every commit. For the
+> concrete list, read the directory — or `backend/internal/router/router.go`, the single
+> place where all routes are registered.
 
 ---
 
@@ -10,16 +15,19 @@ reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-s
 
 | Layer | Technology | Status |
 |-------|------------|--------|
-| Backend Framework | Go + Gin 1.x | ✅ Primary |
-| ORM | GORM 2.x | ✅ |
+| Backend framework | Go 1.25 + Gin | ✅ Primary |
+| ORM | GORM | ✅ |
 | Database | PostgreSQL 16+ | ✅ |
 | Authentication | JWT (golang-jwt/v5) | ✅ |
-| LLM Integration | DeepSeek / Anthropic / OpenAI-compatible | ✅ |
-| Frontend Framework | Vue 3 + Composition API | ✅ |
-| Frontend Build | Vite | ✅ |
-| State Management | Pinia | ✅ |
+| LLM integration | DeepSeek / Anthropic / OpenAI-compatible | ✅ |
+| Frontend framework | Vue 3 + Composition API | ✅ |
+| Frontend build | Vite 5 | ✅ |
+| State management | Pinia | ✅ |
 | CSS | Tailwind CSS | ✅ |
-| Type System | TypeScript | ✅ |
+| Type system | TypeScript | ✅ |
+| E2E tests | Playwright | ✅ |
+
+Versions come from `backend/go.mod` and `frontend/package.json`; see [Tech Stack](tech-stack.md).
 
 ---
 
@@ -49,26 +57,28 @@ reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-s
 
 | Layer | Directory | Responsibility |
 |-------|-----------|----------------|
-| Handler | `internal/handler/` (28) | HTTP request binding, call Service, write response. No business logic |
-| Service | `internal/service/` (27) | Pure business logic, cross-Model operations, returns AppError |
-| Model | `internal/model/` (28) | GORM model definitions, table structure mapping |
+| Handler | `internal/handler/` | Binds HTTP requests, calls Service, writes responses. No business logic |
+| Service | `internal/service/` | Pure business logic, cross-model operations, returns `AppError` |
+| Model | `internal/model/` | GORM model definitions, table mapping |
 | DTO | `internal/dto/` | Request/response structs, decoupled from Model |
-| Middleware | `internal/middleware/` | JWT auth, RBAC, CORS, logging |
-| Router | `internal/router/` | Route registration, middleware and Handler mounting |
-| Common | `internal/common/` | Error types, constants, pagination utilities |
+| Middleware | `internal/middleware/` | JWT auth, RBAC, tenant scoping, CORS, logging, rate limiting |
+| Router | `internal/router/` | Route registration; mounts middleware and handlers |
+| Common | `internal/common/` | Error types, constants, pagination helpers |
 | RQL | `internal/rql/` | ReqMan Query Language (lexer/parser/executor) |
+| AI | `internal/ai/` | LLM client, harness, triage and chat orchestration |
+| Workflow | `internal/workflow/` | Workflow execution engine |
 
 ## Frontend Layer Responsibilities
 
 | Layer | Directory | Responsibility |
 |-------|-----------|----------------|
-| Views | `src/views/` (16) | Page-level components, corresponding to routes |
-| Components | `src/components/` (58) | Reusable components |
-| Stores | `src/stores/` (3) | Pinia state management |
-| API | `src/api/` (23) | Axios wrapper, backend API calls |
-| Types | `src/types/` (21) | TypeScript type definitions (including filters.ts) |
-| Composables | `src/composables/` (5) | Composables (useConfirm, useRQL, useAI, usePermission, useFilters) |
-| Router | `src/router/` | Vue Router configuration (16 routes, with minRoleLevel guard) |
+| Views | `src/views/` | Page-level components mapped to routes (includes the hidden Agent consoles under `views/agent/`, `views/agents/`) |
+| Components | `src/components/` | Reusable components |
+| Stores | `src/stores/` | Pinia state (auth / cycle / module / issue / project / notification / agentLoop / agentPipeline) |
+| API | `src/api/` | Axios wrappers, one module per backend resource |
+| Types | `src/types/` | TypeScript definitions (including `filters.ts`) |
+| Composables | `src/composables/` | Composables (useAI / useRQL / useFilters / usePermission / useSSE / useI18n …) |
+| Router | `src/router/` | Vue Router config (with the `minRoleLevel` guard) |
 
 ---
 
@@ -113,8 +123,13 @@ reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-s
 | Quick Create | ✅ | ✅ | Inline quick issue creation |
 | Git Integration | ✅ | ✅ | GitHub/GitLab native integration + Webhook |
 | Project CustomField Enrollment | ✅ | ✅ | Project-level custom field enable/disable |
-| Workspace Workflow | ✅ | ✅ | Workspace-level workflow + project-level override |
-| AI Agent system | ✅ | ✅ | Out-of-box PM agents (ensure-pm) + issue assign/activity; advanced Templates/Loops exist in code but are **not** the product north star |
+| Workspace Workflow | ✅ | ✅ | State machine CRUD + transitions (CORE-04 fixed); projects can override |
+| Calendar/Gantt View | ✅ | ✅ | Calendar (IssueCalendar.vue) + Gantt (IssueGantt.vue) |
+| AI Agent system | ✅ | 🔒 | Out-of-box PM agents + assign/@agent; console hidden by default (Stage B); Harness/Loop **not productized** |
+| Chat system | ✅ | ✅ | Chat, Messages, SSE streaming |
+| Page versioning | ✅ | ✅ | PageVersion, PageTemplate |
+| Approvals | ✅ | ✅ | Approval |
+| Workflow visualisation | ✅ | ✅ | Workflow Nodes/Edges/Execute/Runs |
 
 ---
 
@@ -122,14 +137,18 @@ reqmango adopts a decoupled frontend-backend architecture with Go + Vue 3 full-s
 
 | Module | Description |
 |--------|-------------|
-| FilterBar Unified Filter | Unified filter entry + RQL bidirectional sync + semantic operators + State Group + Group By/Order By |
-| SavedView Enhancement | New sort_config / columns / group_by fields, complete Views restore chain |
+| Existing quality | Main product path and the core-customization gate PASS; focus stays on stability and data quality, no new large AI features |
+
+## Product Direction Notes
+
+- **Current**: native PM plus a native AI project-management path (Intake / Analyze / automation preview / `ai_summary`)
+- **Core gate**: issue types / custom fields / workflows (including workspace state machines) / automation — acceptance §H
+- **Retired**: Harness / Loop / productizing a standalone Agent platform console → [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md)
+- **Stage B**: `/agents*` redirects by default; unlock with `localStorage.rm_advanced_agents=1`
 
 ## Future Extensions
 
-| Module | Description |
-|--------|-------------|
-| Calendar/Gantt View | Calendar/Gantt chart view |
+(None scheduled; a standalone Agent platform is not on the roadmap.)
 
 ---
 

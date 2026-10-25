@@ -1,7 +1,11 @@
 # Reqmango API Documentation
 
-> Generated: 2026-09-25
+> Generated: 2026-09-25 · revised 2026-10-25
 > Base URL: `/api/v1`
+>
+> This is a **main-path reference**, not an exhaustive spec: it covers the endpoints most
+> integrations need. The complete, always-current route list is
+> `backend/internal/router/router.go` (or `go run ./cmd/route_audit`).
 
 ---
 
@@ -24,8 +28,16 @@ Content-Type: application/json
   "password": "password"
 }
 
-Response: { "token": "eyJ...", "user": { ... } }
+Response:
+{
+  "access_token": "eyJ...",
+  "token_type": "Bearer",
+  "expires_at": "2026-11-01T12:00:00Z"
+}
 ```
+
+The token response carries no user object; call `GET /api/v1/auth/me` with the token to get
+the current user.
 
 ### Register
 
@@ -39,6 +51,8 @@ Content-Type: application/json
   "display_name": "User Name"
 }
 ```
+
+Returns `201` with the created user object.
 
 ---
 
@@ -342,10 +356,14 @@ All errors follow this format:
 
 ```json
 {
-  "message": "Error description",
-  "code": "ERROR_CODE"
+  "error_code": "ISSUE_NOT_FOUND",
+  "message": "Issue not found",
+  "detail": "optional, only when the handler adds context"
 }
 ```
+
+`error_code` is the stable identifier (see `backend/internal/common/error_codes.go`);
+`message` is already localized according to the request's `Accept-Language` / `lang`.
 
 **Common HTTP Status Codes:**
 - `400` - Bad Request (invalid input)

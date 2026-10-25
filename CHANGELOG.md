@@ -34,6 +34,27 @@ under **Changed** / **Upgrade notes**.
   `node:24-alpine`, `frontend/package.json` declares `engines.node >= 24`, and
   `.nvmrc` pins the same major. `@types/node` moved to 24 to match.
 
+### Fixed
+
+- Documentation drift in the published knowledge base, corrected against the
+  code instead of re-translated. `backend-go.md` claimed `PORT` defaults to
+  8080 (it is 8000) and listed `config.yaml` as a config source (the backend
+  reads `.env` plus environment variables); `API.md` documented the login
+  response as `{token, user}` (it is `access_token` / `token_type` /
+  `expires_at`, with no user object) and the error body as `{message, code}`
+  (it is `error_code` / `message` / `detail`); `project-layout.md` described
+  the runtime image as distroless (it is Alpine) and listed three paths that do
+  not exist. A truncated line in `kb/architecture/README.md` rendered as a bare
+  `m_advanced_agents=1`.
+- Inventory numbers were **removed** from the architecture pages rather than
+  refreshed. File, module and route counts disagreed with each other across
+  four documents and with the code; each page now points at the directory or
+  `internal/router/router.go` as the source of truth, and `tech-stack.md` no
+  longer transcribes patch versions.
+- `PRD.en.md` was an abridged copy (266 lines against 601); it is now a
+  complete translation of the v5.0 Chinese PRD, including the sections the
+  abridgement had dropped.
+
 ## [0.1.0] - 2026-10-24
 
 First tagged release. Reqmango is a self-hosted project manager whose intake

@@ -68,7 +68,7 @@ reqmango 项目管理平台的文档中心。
 | 层 | 当前 | 状态 |
 |----|------|------|
 | 后端 | Go + Gin + GORM + PostgreSQL 16 | 主力 |
-| MCP | Go (stdio/SSE) | 独立模块 |
+| MCP | Go (stdio / streamable HTTP) | 独立模块 |
 | 前端 | Vue 3 + TypeScript + Pinia + Tailwind | 主力 |
 | 遗留后端 | Python + FastAPI | 已淘汰 → superseded/python-era |
 

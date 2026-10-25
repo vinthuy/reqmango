@@ -2,6 +2,10 @@
 
 **Last Updated**: 2026-07-13
 
+> ⚠️ This page covers the **core tables**. Modules added after 2026-08 (Squad / Skill / Runtime /
+> Memory / Tool / Autopilot / CI-CD / SDLC / workflow nodes and runs / approvals / chat / PAT /
+> intake, …) are not listed yet. `backend/internal/model/` is the source of truth.
+
 ---
 
 ## Common Fields

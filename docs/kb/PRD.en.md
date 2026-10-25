@@ -1,356 +1,773 @@
 # reqmango Product Requirements Document
 
-> **Canonical Chinese PRD:** [PRD.md](PRD.md) (refreshed 2026-09-26). English copy may lag.
-> **Not product direction:** Agent console / Harness / Loop — see [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md).
-
-
-> **Last Updated**: 2026-07-13
+> **Last updated**: 2026-09-26
+> **Status**: Current (source of truth for the knowledge base)
+> **Product direction**: native project management plus a native AI project-management path (Intake / Analyze / automation / dashboard summaries).
+> **Not the direction**: productizing Harness / Loop / a standalone Agent console (archived — see [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md)).
+>
+> Canonical Chinese original: [PRD.md](PRD.md).
 
 ---
 
 ## 1. Product Overview
 
-reqmango is a modern project management platform designed to help teams efficiently plan, track, and deliver work. The platform provides flexible workspace management, intuitive kanban views, powerful automation capabilities, AI assistant, Git integration, and quick create functionality, enabling teams to manage the entire workflow from project planning to delivery in a unified platform.
+reqmango is a modern project management platform: manage projects, work items, cycles, and documents inside a workspace; adapt the platform to a team's process with **customizable types / fields / workflows / automation**; and keep AI embedded in the PM path to help with triage, analysis, and rule drafts — not as a separate agent operations console.
 
-### 1.1 Core Values
+### 1.0 Product direction (2026-09)
 
-- **Unified Work Hub**: Integrates projects, work items, documents, and team collaboration in one platform
-- **Flexible Customization**: Supports custom work item types, workflow states, and automation rules
-- **AI-Powered Efficiency**: Interact with project data through natural language for quick insights
-- **Seamless Integration**: Deep integration with GitHub, GitLab, Slack, and other mainstream tools
+| Do | Don't |
+|----|-------|
+| Issue / Cycle / Module / Pages / Dashboard | Start new productization of Harness · Loop · multi-agent pipelines |
+| **Custom issue types, custom fields, custom workflows, automation rules** (acceptance gate) | Expose the `/agents/*` console by default (requires `rm_advanced_agents=1`) |
+| Intake triage, issue/project Analyze, NL→automation preview, `ai_summary` widget | Schedule a standalone Agent platform ("Agent as Teammates / full SDLC") |
 
-### 1.2 Target Users
+Authoritative design: [AI PM redesign](https://github.com/vinthuy/reqmango/blob/master/docs/superpowers/specs/2026-09-25-ai-project-management-redesign.md) · Acceptance: [product-core-qa](https://github.com/vinthuy/reqmango/blob/master/docs/dev/acceptance/2026-09-25-product-core-qa.md)
 
-This product is designed for various teams that need collaborative project management, including but not limited to:
+### 1.1 Core values
 
-- Software development teams
-- Product management teams
-- Design and creative teams
-- Cross-functional project teams
+- **A unified work hub**: projects, work items, documents, and collaboration in one platform
+- **A configurable process core**: types, fields, state workflows, and automation rules are first-class capabilities
+- **AI embedded in the workflow**: triage, analysis, rule drafts, dashboard summaries — with a preview before anything is written
+- **Seamless integration**: GitHub / Slack and friends (as actually shipped)
+
+### 1.2 Target users
+
+Software, product, and cross-functional teams that deliver collaboratively — admins configure the process, members move work items forward.
 
 ---
 
-## 2. Functional Architecture
+## 2. Functional architecture
 
-### 2.1 Product Function Matrix
+### 2.1 Product function matrix
 
 ```mermaid
 flowchart TB
-    subgraph Workspace["Workspace Layer"]
-        A[Workspace Management]
-        B[Member Management]
-        C[Role Permissions]
-        D[Integration Config]
+    subgraph Workspace["Workspace layer"]
+        A[Workspace management]
+        B[Members / roles]
+        C[Types · fields · workflows · automation]
+        D[Integration config]
     end
-    
-    subgraph Project["Project Layer"]
-        E[Project Management]
-        F[Work Items]
-        G[Cycle Management]
-        H[Module Management]
-        I[Pages/Docs]
+
+    subgraph Project["Project layer"]
+        E[Project]
+        F[Work items]
+        G[Cycles]
+        H[Modules]
+        I[Pages / dashboards]
     end
-    
-    subgraph AI["AI Intelligence Layer"]
-        J[AI Chat Assistant]
-        K[Natural Language Search]
-        L[Smart Create]
-        M[Data Analysis]
+
+    subgraph AI["AI (embedded in PM)"]
+        J[Copilot Ask/Build]
+        K[Intake / Analyze]
+        L[Automation preview]
+        M[Dashboard summary]
     end
-    
-    subgraph Automation["Automation Layer"]
-        N[Trigger Config]
-        O[Action Execution]
-        P[Condition Evaluation]
-    end
-    
+
     Workspace --> Project
     AI --> Project
-    AI --> Workspace
-    Automation --> Project
 ```
 
-### 2.2 Core Functional Modules
+### 2.2 Core functional modules
 
-| Module | Feature Count | Priority | Description |
-|--------|--------------|----------|-------------|
-| Workspace Management | 8 | P0 | Base container, includes all other functions |
-| Project Management | 10 | P0 | Core work organization unit |
-| Work Item Management | 12 | P0 | Task, bug, and requirement carrier |
-| Cycle & Module | 6 | P1 | Iteration planning and function grouping |
-| Pages/Docs | 8 | P1 | Knowledge management and collaborative writing |
-| AI Assistant | 5 | P1 | Natural language interaction |
-| Automation Workflow | 4 | P2 | Rule-driven automation |
-| Third-party Integration | 6 | P2 | External tool connectivity |
+| Module | Priority | Description |
+|--------|----------|-------------|
+| Workspace / project / work items | P0 | Main path |
+| **Custom types / fields / workflows / automation** | **P0 (gate)** | Required for commercialization; see acceptance §H |
+| Cycles and modules | P0 | Iterations and feature grouping |
+| Pages / dashboards / metrics | P1 | Documents and visualisation |
+| AI (Intake / Analyze / preview / summary) | P1 | Embedded in PM, not a standalone platform |
+| Third-party integrations | P2 | Git / Slack, etc. |
 
 ---
 
-## 3. Workspace Management
+## 3. Workspace management
 
 ### 3.1 Overview
 
-Workspaces are the top-level container in reqmango, similar to an organization or company concept. They contain all resources needed for team collaboration, including projects, members, settings, and configurations.
+A workspace is the top-level container in reqmango, similar to an organization or company. It holds everything the team needs to collaborate: projects, members, settings, and configuration.
 
-### 3.2 Core Features
+### 3.2 Core features
 
-| Feature | Description | User Action Path |
-|---------|-------------|-----------------|
-| Create Workspace | First registration or additional workspace creation | Click workspace name → Create Workspace |
-| Workspace Settings | Configure members, integrations, import/export | Workspace name → Settings |
-| Member Management | Invite, remove, assign roles | Settings → Members |
-| Role Permissions | Admin, Member, Guest three-level permissions | Settings → Role Management |
-| Workspace Switch | Quick switch between multiple workspaces | Workspace name → Select |
-| Delete Workspace | Permanent deletion (Admin permission required) | Settings → General → Delete Workspace |
+| Feature | Description | User action path |
+|---------|-------------|------------------|
+| Create workspace | First registration, or an additional workspace | Click workspace name → Create workspace |
+| Workspace settings | Configure members, integrations, import/export | Workspace name → Settings |
+| Member management | Invite, remove, assign roles | Settings → Members |
+| Role permissions | Admin / Member / Guest, three levels | Settings → Role management |
+| Workspace switch | Quick switch between workspaces | Workspace name → Select |
+| Delete workspace | Permanent deletion (Admin required) | Settings → General → Delete workspace |
 
-### 3.3 Member Roles
+### 3.3 Member roles
 
-| Role | Permission Scope | Use Case |
-|------|-----------------|----------|
-| Admin | Full control | Team leads, project managers |
+| Role | Permission scope | Typical user |
+|------|------------------|--------------|
+| Admin | Full control | Team lead, project manager |
 | Member | Create and edit resources | Team members, developers |
 | Guest | Read-only or limited access | External collaborators, clients |
 
+### 3.4 Workspace data flow
+
+```mermaid
+flowchart LR
+    A[User registers] --> B[Create workspace]
+    B --> C[Invite members]
+    C --> D[Assign roles]
+    D --> E[Create project]
+    E --> F[Assign work items]
+    F --> G[Iterate]
+    G --> H[Deliver]
+```
+
 ---
 
-## 4. Project Management
+## 4. Project management
 
 ### 4.1 Overview
 
-Projects are the core unit for organizing team work. Each project can contain work items, cycles, modules, pages, and other resources to achieve specific business goals.
+A project is the core unit for organizing team work. Each project can hold work items, cycles, modules, pages, and other resources aimed at a specific business goal.
 
-### 4.2 Core Features
+### 4.2 Core features
 
 | Feature | Description | Shortcut |
 |---------|-------------|----------|
-| Create Project | Create new project with basic configuration | N → P |
-| Visibility | Public or Private | Project Settings |
-| Project Config | Identifier, timezone, feature toggles | Project Settings |
-| Feature Enable | Cycles, Modules, Views, etc. | Project Settings → Features |
-| Archive Project | Preserve data but hide from display | Project Settings |
-| Restore Project | Restore from archived state | Project List |
-| Delete Project | Permanent deletion (confirmation required) | Project Settings |
+| Create project | New project with basic configuration | N → P |
+| Visibility | Public or Private | Project settings |
+| Project configuration | Identifier, timezone, feature toggles | Project settings |
+| Enable features | Cycles, Modules, Views, etc. | Project settings → Features |
+| Archive project | Keep the data, hide it from view | Project settings |
+| Restore project | Bring back from archived state | Project list |
+| Delete project | Permanent deletion (confirmation required) | Project settings |
+
+### 4.3 Project configuration
+
+| Item | Description | Example |
+|------|-------------|---------|
+| Project name | Describes the project's purpose | User authentication |
+| Project identifier | Unique code prefixed to every work item | UA-123 |
+| Visibility | Who can access the project | Public / Private |
+| Timezone | Used for time calculations | Asia/Shanghai |
+| Feature toggles | Enable/disable Cycles, Modules, etc. | Enable Cycles |
+
+### 4.4 Project lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Planning: Create project
+    Planning --> Active: Start project
+    Active --> Paused: Pause
+    Paused --> Active: Resume
+    Active --> Completed: Deliver
+    Completed --> Archived: Archive
+    Archived --> Active: Reactivate
+    Completed --> [*]: Delete
+```
 
 ---
 
-## 5. Work Item Management
+## 5. Work item management
 
 ### 5.1 Overview
 
-Work items are the most basic task carrier in a project. reqmango supports multiple work item types including Issue, Task, Bug, etc., each customizable with states, priorities, and fields.
+A work item is the basic carrier of work in a project. reqmango supports multiple work item types — Issue, Task, Bug, and more — each with customizable states, priorities, and fields.
 
-### 5.2 Core Features
+### 5.2 Core features
 
 | Feature | Description |
 |---------|-------------|
-| Create Work Item | Quickly create tasks, bugs, or features |
-| Assign Owner | Specify assignee for work item |
-| Set State | Todo, In Progress, Done, etc. |
-| Set Priority | Urgent, High, Medium, Low |
-| Add Labels | Custom category labels |
-| Rich Description | Markdown supported |
-| Associate Cycle | Assign to iteration |
-| Associate Module | Group by functional module |
-| Associate Page | Attach related documents |
-| Comment | Discuss under work item |
-| Attachments | Upload file attachments |
-| Activity Log | View change history |
+| Create work item | Quickly create a task, bug, or feature |
+| Assign owner | Set who handles the work item |
+| Set state | From Todo through In Progress to Done |
+| Set priority | Urgent, High, Medium, Low |
+| Add labels | Custom classification labels |
+| Description | Rich text, Markdown supported |
+| Associate cycle | Put the work item into an iteration |
+| Associate module | Group by functional module |
+| Associate page | Attach related documentation |
+| Comments | Discuss under the work item |
+| Attachments | Add file attachments |
+| Activity log | View change history |
 
-### 5.3 Custom Fields
+### 5.3 Work item state flow
 
-Custom fields allow users to add specific attributes for different work item types, enabling more flexible data management.
+```mermaid
+flowchart LR
+    A[Backlog] --> B[Todo]
+    B --> C[In Progress]
+    C --> D[In Review]
+    D --> E[Done]
+    E --> F[Cancelled]
+    B --> F
+    C --> B
+```
 
-**Field Types:**
-- Text (single line, paragraph, read-only)
-- Number (with default values)
-- Dropdown (single/multi-select)
-- Boolean (True/False)
-- Date (date format)
-- Member Selector (single/multi-select)
-- Release Selector (multi-select)
-- URL (external links)
+### 5.4 Work item type definitions
+
+| Type | Purpose | Typical scenario |
+|------|---------|------------------|
+| Issue | General problem or task | Requirements, feature points |
+| Task | Concrete execution task | Implementation, documentation |
+| Bug | Defect report | Fixing errors |
+| Story | User story | Agile development |
+| Epic | Large feature set | Long-term planning |
+
+### 5.5 Custom fields (custom properties)
+
+Custom fields let users attach type-specific attributes to work items, giving teams more flexible data management.
+
+#### 5.5.1 Field types
+
+| Field type | Attributes | Description |
+|------------|------------|-------------|
+| **Text** | Single line, paragraph, read-only | Short text or long descriptions |
+| **Number** | Default value | Counts, estimates, and other numeric values |
+| **Dropdown** | Single select, multi select | Predefined option lists |
+| **Boolean** | True/False | Switch-like attributes |
+| **Date** | Date format | Date selection |
+| **Member selector** | Single select, multi select | Link project members |
+| **Release selector** | Multi select | Link releases |
+| **URL** | Link | External resources |
+
+#### 5.5.2 Core features
+
+| Feature | Description |
+|---------|-------------|
+| Create custom field | Add a custom attribute to a work item type |
+| Field attributes | Required, optional, read-only |
+| Default value | Set defaults for number, dropdown, etc. |
+| Manage dropdown options | Add, edit, delete options |
+| Update field values | Edit custom field values on a work item |
+| Activity tracking | Record changes to custom field values |
+
+#### 5.5.3 Examples
+
+**Bug type custom fields:**
+- Affected version (dropdown)
+- Fix version (dropdown)
+- Environment (dropdown: dev, staging, production)
+- Reproduction steps (paragraph text)
+- Approval status (dropdown)
+
+**Product release type fields:**
+- Release date (date)
+- Target markets (dropdown, multi select)
+- Budget (number)
+- Approval status (dropdown)
+- Owner (member selector)
+
+#### 5.5.4 Validation rules
+
+- Required fields must be filled in when creating a work item
+- Read-only fields cannot be edited
+- Number fields can define a valid range
+- Dropdown fields can allow or disallow multiple selection
 
 ---
 
-## 6. Cycle Management
+## 6. Cycle management
 
-Cycles are used to organize and manage iterative work. They help teams complete a set of related work items within a fixed timebox, similar to Sprints in Scrum.
+### 6.1 Overview
 
-### 6.1 Core Features
+Cycles organize and manage iterative work. They help a team finish a set of related work items inside a fixed timebox — reqmango's version of a Scrum sprint.
+
+### 6.2 Core features
 
 | Feature | Description |
 |---------|-------------|
-| Create Cycle | Set name and time range |
-| Assign Work Items | Add work items to cycle |
-| Track Progress | View cycle completion rate |
-| Start/End Cycle | Control cycle active state |
-| Burndown Chart | Visual progress tracking |
-| Cycle Templates | Reuse cycle configurations |
+| Create cycle | Set name and date range |
+| Assign work items | Bring work items into the cycle |
+| Track progress | See the cycle completion rate |
+| Start/end cycle | Control whether the cycle is active |
+| Cycle reports | Burndown chart, statistics views |
+| Cycle templates | Reuse a cycle configuration |
+
+### 6.3 Cycle view
+
+```mermaid
+gantt
+    title Example iteration cycles
+    dateFormat YYYY-MM-DD
+    section Sprint 1
+    Requirements review  :a1, 2026-06-01, 2d
+    Development          :a2, after a1, 5d
+    Test and verification:a3, after a2, 2d
+    section Sprint 2
+    Improvements         :b1, 2026-06-13, 3d
+    Deployment           :b2, after b1, 2d
+```
 
 ---
 
-## 7. Module Management
+## 7. Module management
 
-Modules are used to group work items by function or business domain. Unlike cycles (time dimension), modules are functional organization.
+### 7.1 Overview
 
-### 7.1 Core Features
+Modules group work items by feature or business domain. Unlike cycles, which slice by time, modules organize along functional lines.
+
+### 7.2 Core features
 
 | Feature | Description |
 |---------|-------------|
-| Create Module | Define functional module names |
-| Add Work Items | Include related work items |
-| Module Progress | View overall completion |
-| Module Members | Assign owners |
-| Module Timeline | Set goals and deadlines |
+| Create module | Define a functional module name |
+| Add work items | Bring related work items into the module |
+| Module progress | See overall completion |
+| Module members | Assign owners |
+| Module timeline | Set target and due dates |
 
 ---
 
-## 8. Pages & Documents
+## 8. Pages and documents
 
-Pages is reqmango's document and knowledge management tool. Teams can use it to write product specs, meeting notes, team guidelines, etc., with real-time collaboration support.
+### 8.1 Overview
 
-### 8.1 Core Features
+Pages is reqmango's documentation and knowledge management tool. Teams use it for product specs, meeting notes, team guidelines, and more, with collaborative editing.
+
+### 8.2 Core features
 
 | Feature | Description |
 |---------|-------------|
-| Create Page | New blank page |
-| Rich Text Editor | Formatting, lists, tables |
-| Markdown Support | Full Markdown syntax |
-| AI Assistance | Generate, summarize, translate |
-| Mention Work Items | @ reference work items |
-| Block Operations | Copy, delete, convert |
-| Version History | View and restore history |
+| Create page | New blank page |
+| Rich text editing | Formatting, lists, tables |
+| Markdown support | Full Markdown syntax |
+| AI assistance | Generate content, summarise, translate |
+| Mention work items | @-mention work items in a document |
+| Block operations | Copy link, copy, delete blocks |
+| Convert to work item | Turn text into a work item |
+| Full-width mode | Expand the editing area |
+| Page lock | Prevent accidental edits |
+| Version history | View and restore previous versions |
 | Export | Export to Markdown, PDF |
+| Move page | Change the page hierarchy |
+
+### 8.3 Page editor capabilities
+
+```mermaid
+flowchart TB
+    A[Page editor] --> B[Text formatting]
+    A --> C[AI assistant]
+    A --> D[Mentions]
+    A --> E[Block operations]
+
+    B --> B1[Headings/lists/tables]
+    C --> C1[Generate content]
+    C --> C2[Summarise]
+    C --> C3[Translate]
+    D --> D1[@work item]
+    D --> D2[Link navigation]
+    E --> E1[Copy/delete]
+    E --> E2[Convert to work item]
+```
 
 ---
 
-## 9. AI Assistant
+## 9. AI assistant
 
-reqmango AI is an integrated AI assistant that allows users to interact with project data through natural language for quick information retrieval, content creation, and operation execution.
+### 9.1 Overview
 
-### 9.1 Core Features
+reqmango AI is an assistant built into the platform: users talk to project data in natural language to get information, create content, and perform actions quickly.
+
+### 9.2 Core features
 
 | Feature | Description |
 |---------|-------------|
-| AI Chat | Ask project questions via conversation (Ask read-only / Build write) |
-| Natural Language Search | Search work items with everyday language |
-| Smart Create | Describe needs; AI generates work items |
-| Data Analysis | Issue- or project-level Analyze: summary, insights, bottlenecks |
-| Project summary → Page | One-click project AI summary, optional save as Page |
-| Dashboard AI summary | `ai_summary` widget; load on open, refreshable |
-| Context Awareness | AI understands current project, issue, page context |
-| Out-of-box PM agents | ensure-pm; issue assign / @Agent / activity audit |
+| AI chat | Ask project questions in conversation (Ask is read-only / Build can write) |
+| Natural language search | Search work items in everyday language |
+| Smart create | Describe a need; AI generates work items |
+| Data analysis | Issue- or project-level Analyze: summary, insights, bottlenecks |
+| Project summary → Page | One-click AI summary of a project, optionally saved as a Page |
+| Dashboard AI summary | `ai_summary` widget on dashboards; loads on open, refreshable |
+| Context awareness | AI understands the current project, issue, and page |
+| Out-of-box PM agent | ensure-pm; issue assignment / @Agent in comments / activity audit |
 
-### 9.2 AI Interaction Modes
+### 9.3 AI conversation modes
 
 | Mode | Purpose |
 |------|---------|
-| Ask Mode | Query information, get answers |
-| Build Mode | Create work items, execute operations |
+| Ask | Query information and get answers |
+| Build | Create work items and execute operations |
+
+### 9.4 AI operation flow
+
+```mermaid
+flowchart TD
+    A[User enters natural language] --> B{AI infers intent}
+    B -->|Query| C[Gather information]
+    B -->|Create| D[Generate a plan]
+    B -->|Analyze| E[Analyze data]
+
+    C --> F[Show result]
+    D --> G[Preview operation]
+    E --> H[Generate insights]
+
+    G --> I{User confirms}
+    I -->|Confirm| J[Execute]
+    I -->|Cancel| K[Go back]
+
+    J --> L[Operation complete]
+    F --> M[Continue conversation]
+    H --> M
+    L --> M
+    M --> A
+```
 
 ---
 
-## 10. Automation Workflow
+## 14. Automation workflows
 
-reqmango supports flexible automation rules to help teams reduce repetitive operations. When specific conditions are met, predefined actions are automatically executed.
+### 14.1 Overview
 
-### 10.1 Automation Components
+reqmango supports flexible automation rules so teams can cut repetitive work: when specific conditions hold, predefined actions run automatically.
+
+### 14.2 Automation components
 
 | Component | Description |
 |-----------|-------------|
-| Trigger | Defines when automation activates |
-| Condition | Filters target objects |
-| Action | Automated operations to execute |
+| Trigger | Defines when the automation fires |
+| Condition | Filters the target objects |
+| Action | The operations to perform |
 
-### 10.2 Common Automation Scenarios
+### 14.3 Common automation scenarios
 
 | Scenario | Trigger | Action |
 |----------|---------|--------|
-| Auto-assign | New work item created | Assign to owner |
-| Status Sync | Work item completed | Update related items |
-| Notification | Deadline approaching | Send reminder |
-| Label Management | Specific condition met | Auto-add label |
-| AI triage/risk/spec templates | `issue.created` etc. | `dispatch_agent` (one-click templates) |
-| NL rule setup | User describes intent | `automation-preview` draft → RuleBuilder confirm |
+| Auto-assign | Work item created | Assign to owner |
+| Status sync | Work item completed | Update related work items |
+| Reminders | Due date approaching | Send a reminder |
+| Label management | Specific condition met | Add a label automatically |
+| AI triage/risk/spec templates | `issue.created` etc. | `dispatch_agent` etc. (one-click templates in settings) |
+| Natural-language rules | User describes intent | `automation-preview` drafts a rule → confirm in RuleBuilder and save |
 
 ---
 
-## 11. Time Tracking
+## 15. Time tracking
 
-reqmango provides native time tracking functionality for teams to record and manage work hours.
+### 15.1 Overview
 
-### 11.1 Core Features
+reqmango ships native time tracking so teams can record and manage working hours.
+
+### 15.2 Core features
 
 | Feature | Description |
 |---------|-------------|
-| Time Recording | Manual or automatic time logging |
-| Time Estimation | Set estimated time for work items |
-| Time Reports | View statistics and trends |
-| Time Approval | Approval process for time records |
+| **Time entries** | Log time manually or automatically |
+| **Time estimates** | Set an estimate on a work item |
+| **Time reports** | View statistics and trends |
+| **Time approval** | Approval flow for time entries |
 
 ---
 
-## 12. Third-party Integration
+## 16. Custom dashboards
 
-reqmango offers rich native integrations to seamlessly connect with tools teams use daily, avoiding switching between multiple platforms.
+### 16.1 Overview
 
-### 12.1 Supported Integrations
+Custom dashboards let teams build personalised data views and monitor project progress and team performance in real time.
 
-| Integration | Features |
-|-------------|----------|
-| GitHub | Sync Issues and Pull Requests |
+### 16.2 Core features
+
+| Feature | Description |
+|---------|-------------|
+| **Dashboard creation** | Custom dashboard layouts |
+| **Chart widgets** | Multiple chart types (bar, pie, line) |
+| **Data filtering** | Filter by project, cycle, member |
+| **Live updates** | Data refreshes in sync |
+| **Workspace analytics** | Workspace-wide data analysis |
+
+---
+
+## 17. Command K navigation
+
+### 17.1 Overview
+
+Command K is reqmango's keyboard-first quick action surface: navigate and act without leaving the keyboard.
+
+### 17.2 Core features
+
+| Feature | Description |
+|---------|-------------|
+| **Quick search** | Search work items, projects, pages |
+| **Quick navigation** | Jump to any page |
+| **Quick actions** | Create, update, delete work items |
+| **Shortcuts** | Full keyboard operation |
+
+---
+
+## 18. Third-party integrations
+
+### 18.1 Overview
+
+reqmango offers native integrations that connect to the tools teams already use, so nobody has to switch platforms mid-task.
+
+### 18.2 Supported integrations
+
+| Integration | Capability |
+|-------------|------------|
+| GitHub | Sync issues and pull requests |
+| GitHub Enterprise | Enterprise GitHub integration |
 | GitLab | Automated MR tracking |
 | Slack | Create work items, sync discussions |
 | Sentry | Auto-create work items, sync errors |
+| Draw.io | Embed diagrams in pages |
 | Jira | Data import and migration |
 | API/Webhooks | Custom integrations |
 
+### 18.3 Integration architecture
+
+```mermaid
+flowchart LR
+    Reqmango[reqmango] <-->|Webhook| GitHub[GitHub]
+    Reqmango <-->|Webhook| GitLab[GitLab]
+    Reqmango <-->|API| Slack[Slack]
+    Reqmango <-->|Webhook| Sentry[Sentry]
+
+    GitHub -->|sync| Issues[Work items]
+    GitLab -->|sync| Issues
+    Slack -->|create| Issues
+    Sentry -->|create| Issues
+```
+
 ---
 
-## 13. Technology Architecture
+## 19. Audit and compliance
 
-### 13.1 Tech Stack
+### 19.1 Overview
 
-| Layer | Technology | Description |
-|-------|------------|-------------|
-| Frontend Framework | Vue 3 + Composition API | Component-based development, reactive system |
-| Build Tool | Vite | Fast development experience |
-| CSS | TailwindCSS | Atomic CSS |
-| State Management | Pinia | Vue3 recommended state management |
-| Type System | TypeScript | Type safety |
-| Backend Framework | Go + Gin 1.x | High-performance HTTP framework |
-| ORM | GORM 2.x | Go ORM framework |
-| Database | PostgreSQL 16+ | Relational database |
+reqmango provides audit logs and compliance records for enterprise requirements.
+
+### 19.2 Core features
+
+| Feature | Description |
+|---------|-------------|
+| **Audit log** | Record every operation |
+| **Compliance records** | Compliance check records |
+| **Data export** | Export audit data |
+| **Access control** | Role-based access to audit data |
+
+---
+
+## 20. Enterprise authentication
+
+### 20.1 Overview
+
+reqmango supports enterprise authentication methods that satisfy organisational security and compliance requirements.
+
+### 20.2 Supported methods
+
+| Method | Description |
+|--------|-------------|
+| **SSO** | Single sign-on |
+| **SAML** | SAML 2.0 |
+| **OIDC** | OpenID Connect |
+| **LDAP** | LDAP / Active Directory integration |
+
+---
+
+## 21. User interface design
+
+### 21.1 Design principles
+
+- **Clear and direct**: important information at a glance
+- **Efficient**: fewer clicks, keyboard shortcuts
+- **Consistent**: one visual language and interaction model
+- **Responsive**: desktop, tablet, mobile
+
+### 21.2 Colour scheme
+
+| Purpose | Value | Notes |
+|---------|-------|-------|
+| Primary | #6366F1 | Indigo, for primary buttons and emphasis |
+| Secondary | #8B5CF6 | Violet, for AI-related surfaces |
+| Success | #10B981 | Green, completed states |
+| Warning | #F59E0B | Orange, pending items |
+| Error | #EF4444 | Red, errors or urgency |
+| Background | #FFFFFF / #F9FAFB | White / light grey |
+| Text | #111827 / #6B7280 | Dark grey / mid grey |
+
+### 21.3 Layout
+
+| Region | Content |
+|--------|---------|
+| Sidebar | Workspace, project, cycle, module, page navigation |
+| Top bar | Search, AI assistant, notifications, user menu |
+| Main area | Work item list, board, detail pages |
+| Right panel | Work item detail, comments (collapsible) |
+
+---
+
+## 22. Technical architecture
+
+### 22.1 System architecture
+
+```mermaid
+flowchart TB
+    subgraph Client["Client layer"]
+        Web[Web app]
+        Mobile[Mobile]
+        Desktop[Desktop]
+    end
+
+    subgraph Gateway["Gateway layer"]
+        API[API gateway]
+        Auth[Auth service]
+    end
+
+    subgraph Service["Service layer"]
+        Workspace[Workspace service]
+        Project[Project service]
+        WorkItem[Work item service]
+        Cycle[Cycle service]
+        Module[Module service]
+        Page[Page service]
+        AI[AI service]
+        Webhook[Webhook service]
+    end
+
+    subgraph Data["Data layer"]
+        DB[(PostgreSQL)]
+        Cache[(Redis)]
+        Storage[(Object storage)]
+    end
+
+    subgraph External["External services"]
+        LLM[LLM API]
+        GitHub[GitHub API]
+        Slack[Slack API]
+    end
+
+    Client --> Gateway
+    Gateway --> Service
+    Service --> Data
+    Service --> External
+    Service --> LLM
+```
+
+### 22.2 Technology choices
+
+The project uses **Vue 3 + Go + Gin + GORM**.
+
+| Layer | Technology | Notes |
+|-------|------------|-------|
+| Frontend framework | Vue 3 + Composition API | Component-based, reactive |
+| Build tool | Vite | Fast development loop |
+| Styling | TailwindCSS | Utility-first CSS |
+| State management | Pinia | The Vue 3 default |
+| Frontend types | TypeScript | Type safety |
+| Backend framework | Go + Gin 1.x | High-performance HTTP |
+| Validation | Gin ShouldBindJSON | Request binding and validation |
+| ORM | GORM 2.x | Go ORM |
+| Database | PostgreSQL 16+ | Relational store |
 | Authentication | JWT (golang-jwt/v5) | Bearer token auth |
-| AI Integration | DeepSeek / Anthropic / OpenAI | LLM support (SSE streaming) |
-| Query Language | RQL (custom) | Advanced work item search |
+| File storage | Local filesystem | Attachment uploads |
+| AI integration | DeepSeek / Anthropic / OpenAI | LLM support (SSE streaming) |
+| Query language | RQL (custom) | Advanced work item search |
+
+### 22.3 Database model (core entities)
+
+```mermaid
+erDiagram
+    WORKSPACE ||--o{ PROJECT : contains
+    WORKSPACE ||--o{ MEMBER : has
+    PROJECT ||--o{ WORKITEM : contains
+    PROJECT ||--o{ CYCLE : has
+    PROJECT ||--o{ MODULE : has
+    PROJECT ||--o{ PAGE : has
+    WORKITEM }o--o{ CYCLE : assigned
+    WORKITEM }o--o{ MODULE : grouped
+    WORKITEM ||--o{ COMMENT : has
+    WORKITEM ||--o{ ATTACHMENT : has
+
+    WORKSPACE {
+        uuid id PK
+        string name
+        string slug
+        timestamp created_at
+    }
+
+    PROJECT {
+        uuid id PK
+        uuid workspace_id FK
+        string name
+        string identifier
+        boolean is_public
+    }
+
+    WORKITEM {
+        uuid id PK
+        uuid project_id FK
+        string type
+        string title
+        string status
+        int priority
+    }
+
+    CYCLE {
+        uuid id PK
+        uuid project_id FK
+        string name
+        date start_date
+        date end_date
+    }
+
+    MODULE {
+        uuid id PK
+        uuid project_id FK
+        string name
+    }
+
+    PAGE {
+        uuid id PK
+        uuid project_id FK
+        string title
+        text content
+    }
+```
 
 ---
 
-## 14. Non-functional Requirements
+## 23. Non-functional requirements
 
-### 14.1 Performance Metrics
+### 23.1 Performance
 
 | Metric | Target |
 |--------|--------|
-| Page Load Time | < 2 seconds |
-| API Response Time | < 500ms |
-| AI Chat Response Time | < 5 seconds |
-| Concurrent Users | 1000+ |
+| Page load time | < 2 seconds |
+| API response time | < 500 ms |
+| AI response time | < 5 seconds |
+| Concurrent users | 1000+ |
 
-### 14.2 Security Requirements
+### 23.2 Security
 
-- All data transmission uses HTTPS encryption
+- All data in transit uses HTTPS
 - Sensitive data encrypted at rest
 - Role-based access control (RBAC)
 - Operation audit logs
-- SSO/SAML enterprise authentication support
+- SSO / SAML enterprise authentication
 
-### 14.3 Availability Requirements
+### 23.3 Availability
 
-- Service availability 99.9%
+- 99.9% service availability
 - Multi-timezone, multi-language support
-- Comprehensive error messages and documentation
-- Data backup and recovery mechanisms
+- Clear error messages and help documentation
+- Backup and restore
+
+---
+
+## 24. Implementation status (summary)
+
+The main path, AI PM (P1–2 + B1–C2), and native PM acceptance (including the core-customization gate) are **complete**.
+The detailed phase tables and schema lists are historical planning and no longer drive scheduling; code and acceptance documents are authoritative.
+
+| Milestone | Status | Documentation |
+|-----------|--------|---------------|
+| Native PM main path | ✅ PASS | [product-core-qa](https://github.com/vinthuy/reqmango/blob/master/docs/dev/acceptance/2026-09-25-product-core-qa.md) |
+| AI PM native AI project-management path | ✅ PASS | [redesign](https://github.com/vinthuy/reqmango/blob/master/docs/superpowers/specs/2026-09-25-ai-project-management-redesign.md) |
+| Agent platform productization | ❌ Retired | [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md) |
+| Next stage | Existing-product quality | No new large AI features |
+
+---
+
+**Document version**: v5.0 (product direction refresh + core-customization gate)
+**Created**: 2026-06-13 · **Refreshed**: 2026-09-26
+**Project**: reqmango
 
 ---
 

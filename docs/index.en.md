@@ -72,7 +72,7 @@ The screenshots show the Chinese UI; the app picks Chinese or English from the b
 | Workflow and automation | Transitions, approvals, role gates; trigger → condition → action |
 | Relations and search | Blocks / relates / duplicates; RQL and multi-field filters |
 | Notifications and security | Unread counts; bluemonday XSS sanitising; JWT + RBAC |
-| API | 100+ REST endpoints, see the [API reference](API.md) |
+| API | REST API, see the [API reference](API.md) |
 
 AI sits on top of project management rather than replacing it. The daily path is issues, cycles, intake and pages.
 

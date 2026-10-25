@@ -1,6 +1,8 @@
 # Project Layout（项目目录结构）
 
-**最后更新**: 2026-08-30
+**最后更新**: 2026-10-25
+
+> 只写**目录职责与边界**。文件数量变化很快，具体清单以目录为准。
 
 ---
 
@@ -10,54 +12,61 @@
 reqmango/
 ├── backend/              # Go 后端（主力）
 │   ├── cmd/server/          # 入口 (main.go)
-│   ├── internal/            # 内部代码
-│   │   ├── common/          # 公共工具（错误码、常量、分页）
-│   │   ├── config/          # 配置加载（Viper + 环境变量）
-│   │   ├── model/           # GORM 数据模型（67 文件）
-│   │   ├── dto/             # 请求/响应 DTO（~67 文件: request ~37 + response ~27）
-│   │   ├── service/         # 业务逻辑（~90 文件）
-│   │   ├── handler/         # HTTP 处理器（~70 文件）
-│   │   ├── rql/             # RQL 查询语言引擎（9 文件）
-│   │   ├── middleware/      # 中间件（Auth/Authz/CORS/Lang/Log/RateLimit）
+│   ├── cmd/route_audit/     # 路由审计工具
+│   ├── internal/            # 内部代码（见下方模块边界）
+│   │   ├── router/          # 路由注册（全部端点在这里）
+│   │   ├── middleware/      # Auth / Authz / Access / Scope / CORS / Lang / Log / Metrics / Recovery / RateLimit
+│   │   ├── handler/         # HTTP 处理器
+│   │   ├── service/         # 业务逻辑
+│   │   ├── model/           # GORM 数据模型
+│   │   ├── dto/             # request / response
+│   │   ├── ai/              # LLM 客户端、harness、Agent 编排
+│   │   ├── rql/             # RQL 查询语言引擎
+│   │   ├── workflow/        # 状态机规则
+│   │   ├── plugin/          # 插件注册表 + 钩子
+│   │   ├── security/        # HTML 清洗
+│   │   ├── scheduler/       # 后台定时任务
 │   │   ├── i18n/            # 后端国际化 (en/zh JSON)
-│   │   ├── seed/            # 种子数据
-│   │   └── router/          # 路由注册（80+ 端点）
-│   ├── config/              # YAML 配置文件
+│   │   ├── version/         # 构建信息（GET /version）
+│   │   └── seed/            # 种子数据
 │   ├── go.mod / go.sum      # Go 模块依赖
-│   ├── Dockerfile            # 多阶段构建（distroless）
-│   └── test_api.sh           # API 测试脚本
+│   └── Dockerfile           # 多阶段构建：golang builder → Alpine 运行时
 │
 ├── sdk/                     # MCP server + CLI 共享模块（github.com/reqmango/tools）
 │   ├── client/              #   共享 API 客户端 + DTO + 错误映射
-│   ├── mcp/                 #   MCP server（mcp-go，24 tools，stdio + HTTP）
+│   ├── mcp/                 #   MCP server（mcp-go，stdio + streamable HTTP）
 │   ├── cli/                 #   reqmango CLI（cobra）
 │   └── cmd/                 #   两个二进制入口
 │
 ├── frontend/                # Vue 3 前端
 │   ├── src/
-│   │   ├── api/             # 41+ 个 API 模块
-│   │   ├── types/           # 30+ 个 TypeScript 类型文件（含 filters.ts）
-│   │   ├── stores/          # Pinia 状态管理（Auth/Cycle/Module）
-│   │   ├── composables/     # 14 个组合式函数（含 useFilters.ts）
-│   │   ├── views/           # 52 个页面级路由组件
-│   │   ├── components/      # ~120 个可复用组件（含 FilterBar.vue）
-│   │   ├── router/          # 26+ 个路由定义
-│   │   └── locales/         # 前端 i18n (en-US / zh-CN，含 filter.* 命名空间)
-│   ├── e2e/                 # Playwright E2E 测试（24 文件）
-│   ├── tests/               # Vitest 单元测试（6 文件）+ src/__tests__/（13 文件）
+│   │   ├── api/             # 一个后端资源一个 API 模块
+│   │   ├── types/           # TypeScript 类型（含 filters.ts）
+│   │   ├── stores/          # Pinia 状态管理
+│   │   ├── composables/     # 组合式函数（含 useFilters.ts）
+│   │   ├── views/           # 页面级路由组件（含 agent/、agents/）
+│   │   ├── components/      # 可复用组件（含 FilterBar.vue）
+│   │   ├── router/          # 路由定义 + minRoleLevel 守卫
+│   │   └── locales/         # 前端 i18n (en-US / zh-CN)
+│   ├── e2e/                 # Playwright E2E 测试
+│   ├── tests/               # Vitest 独立测试目录
+│   ├── src/__tests__/       # 与源码同放的单元测试
 │   ├── index.html / vite.config.ts / tailwind.config.js
 │   ├── nginx.conf / Dockerfile
 │   └── package.json
 │
+├── tests/                   # 早期的 API / E2E 场景套件（按 00-home…21-legacy-routes 分组）
+├── scripts/                 # 运维与开发辅助脚本（E2E、种子数据、报告生成）
 ├── docs/                    # 项目文档
-│   ├── kb/                  # 全量知识库
-│   ├── dev/                 # 增量需求开发
-│   ├── superpowers/         # AI 辅助设计文档
-│   └── superseded/          # 历史归档（Python 时代）
+│   ├── kb/                  # 知识库（架构 / PRD / changelog）
+│   ├── dev/                 # 增量需求开发、发布流程、运维
+│   ├── superpowers/         # AI 辅助设计文档（历史，不发布）
+│   └── superseded/          # 历史归档（Python 时代 / 已废止的 Agent 平台）
 │
-├── .private/                # 私有文档（不入 git）
+├── site/                    # mkdocs 本地构建产物（生成物，勿手改）
 ├── docker-compose.yml       # 3 服务编排（db/backend/frontend）
 ├── Makefile                 # Docker 管理命令
+├── mkdocs.yml               # 文档站配置
 ├── LICENSE                  # MIT 许可证
 └── README.md                # 项目说明
 ```
@@ -69,16 +78,17 @@ reqmango/
 | 文件 | 用途 |
 |------|------|
 | `backend/cmd/server/main.go` | Go 服务启动：初始化 DB、注册路由、启动 HTTP |
-| `backend/internal/router/router.go` | 所有 API 路由定义（80+ 端点） |
+| `backend/internal/router/router.go` | 所有 API 路由定义（唯一注册入口） |
 | `backend/internal/middleware/auth.go` | JWT 认证中间件 |
 | `backend/internal/middleware/authorization.go` | RBAC 鉴权中间件（RequirePermission + RequireRoleLevel） |
+| `backend/internal/middleware/scope.go` | 租户收敛中间件（资源归属校验） |
 | `backend/internal/model/role.go` | 角色模型（Role + Level 枚举） |
 | `backend/internal/model/permission.go` | 权限模型（Permission + RolePermission 关联） |
-| `backend/internal/service/role_service.go` | RBAC 角色服务（8 方法） |
+| `backend/internal/service/role_service.go` | RBAC 角色服务 |
 | `backend/internal/seed/seed_rbac.go` | RBAC 种子数据（55 权限 + 3 角色） |
-| `backend/config/config.yaml` | 默认配置 |
+| `backend/internal/config/config.go` | 配置默认值（以这里为准） |
 | `frontend/src/main.ts` | Vue 应用入口 |
-| `frontend/src/router/index.ts` | 前端 26+ 个路由定义 |
+| `frontend/src/router/index.ts` | 前端路由定义 |
 | `frontend/src/api/index.ts` | Axios 实例 + 拦截器 |
 | `sdk/cmd/reqmango-mcp/main.go` | MCP Server 二进制入口（stdio + streamable HTTP） |
 
@@ -135,16 +145,18 @@ src/
 
 | 层 | 技术 |
 |----|------|
-| 后端框架 | Go 1.24.0 + Gin |
+| 后端框架 | Go 1.25 + Gin |
 | ORM | GORM (PostgreSQL 16) |
 | 鉴权 | RBAC 自定义角色 + 细粒度权限（resource:action） |
 | 认证 | JWT (golang-jwt/v5) + bcrypt |
-| 配置 | Viper (YAML + 环境变量) |
-| 前端框架 | Vue 3 + TypeScript + Vite |
+| 配置 | Viper (`.env` + 环境变量) |
+| 前端框架 | Vue 3 + TypeScript + Vite 5 |
 | UI | Tailwind CSS + Headless UI |
 | 状态管理 | Pinia |
 | 图表 | Chart.js + ECharts |
 | 富文本 | Tiptap |
-| MCP | sdk/mcp 模块（mcp-go v1.0.0；stdio + streamable HTTP，24 个工具） |
+| MCP | sdk/mcp 模块（mcp-go；stdio + streamable HTTP） |
 | 容器化 | Docker Compose（3 服务） + Nginx 反向代理 |
 | 测试 | Go testing + Vitest + Playwright |
+
+版本细节见[技术栈](tech-stack.md)。

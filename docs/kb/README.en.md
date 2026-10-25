@@ -2,49 +2,52 @@
 
 The KB is the **single source of truth** for the reqmango system, always describing the current actual state.
 
-**Last Updated**: 2026-09-25
+**Last Updated**: 2026-10-25
 
 ## Maintenance Principles
 
-- **Timeliness**: When a feature is implemented, the corresponding KB document must be updated synchronously
-- **Accuracy**: KB describes what the code actually does, not what was intended during design
-- **Conciseness**: KB is a reference document, not a development log. Keep core information, remove procedural content
+- **Timeliness**: when a feature ships, the corresponding KB document is updated in the same change
+- **Accuracy**: the KB describes what the code actually does, not what was intended at design time
+- **Conciseness**: the KB is a reference, not a development log. Keep the core, drop the procedure
 
 ## KB Update Triggers
 
-| Event | Update Scope |
+| Event | Update scope |
 |-------|--------------|
-| New feature completed | Update `architecture/README.en.md` module table + `data-model.en.md` table list + `frontend.en.md` |
-| API changes | Update `api-conventions.en.md` |
-| Data model changes | Update `data-model.en.md` |
-| Tech stack upgrade | Update `architecture/README.en.md` |
+| New feature completed | `architecture/README.md` module table + `data-model.md` tables + `frontend.md` |
+| API changes | `api-conventions.md` |
+| Data model changes | `data-model.md` |
+| Tech stack upgrade | `tech-stack.md` + `architecture/README.md` |
 
 ## KB Document List
 
-### Product Layer
-- [PRD.en.md](PRD.en.md) — Product Requirements Document
+### Product layer
+- [PRD.md](PRD.md) — Product requirements (Chinese, canonical) · [English](PRD.en.md)
 
-### Architecture Layer
-- [architecture/README.en.md](architecture/README.en.md) — Architecture overview + module status
-- [architecture/project-layout.en.md](architecture/project-layout.en.md) — Project directory structure
-- [architecture/backend-go.en.md](architecture/backend-go.en.md) — Go backend architecture
-- [architecture/frontend.en.md](architecture/frontend.en.md) — Frontend architecture
-- [architecture/data-model.en.md](architecture/data-model.en.md) — Data model
-- [architecture/api-conventions.en.md](architecture/api-conventions.en.md) — API design conventions
-- [architecture/tech-stack.en.md](architecture/tech-stack.en.md) — Tech stack details
+### Architecture layer
+- [architecture/README.md](architecture/README.md) — Architecture overview + module status
+- [architecture/project-layout.md](architecture/project-layout.md) — Project directory structure (Chinese only)
+- [architecture/backend-go.md](architecture/backend-go.md) — Go backend architecture
+- [architecture/frontend.md](architecture/frontend.md) — Frontend architecture (views / components / API modules)
+- [architecture/data-model.md](architecture/data-model.md) — Data model (core tables; newer module tables pending — `internal/model/` is authoritative)
+- [architecture/api-conventions.md](architecture/api-conventions.md) — API design conventions
+- [architecture/tech-stack.md](architecture/tech-stack.md) — Tech stack details
+- E2E tests — Playwright suites under `frontend/e2e/`, covering the main path and core customization
 
-### Feature Design Documents
-- [architecture/saved-views-design.en.md](architecture/saved-views-design.en.md) — Saved Views
-- [architecture/pages-design.en.md](architecture/pages-design.en.md) — Pages/Wiki
-- [architecture/notification-design.en.md](architecture/notification-design.en.md) — Notification system
-- [architecture/type-hierarchy-template-design.en.md](architecture/type-hierarchy-template-design.en.md) — Type hierarchy & templates
-- [architecture/relation-system-design.en.md](architecture/relation-system-design.en.md) — Relation type system
+### Feature design documents
+
+These are Chinese only; there are no English siblings yet.
+- [architecture/saved-views-design.md](architecture/saved-views-design.md) — Saved views
+- [architecture/pages-design.md](architecture/pages-design.md) — Pages/Wiki
+- [architecture/notification-design.md](architecture/notification-design.md) — Notifications
+- [architecture/type-hierarchy-template-design.md](architecture/type-hierarchy-template-design.md) — Type hierarchy and templates
+- [architecture/relation-system-design.md](architecture/relation-system-design.md) — Relation types
 
 ### Legacy
-- [architecture/backend-python.en.md](architecture/backend-python.en.md) — Python backend (deprecated)
+- [architecture/backend-python.md](architecture/backend-python.md) — Python backend (retired)
 
 ### Changelog
-- [changelog/README.en.md](changelog/README.en.md) — KB update history
+- [changelog/README.md](changelog/README.md) — KB update history
 
 ---
 

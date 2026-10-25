@@ -1,6 +1,9 @@
 # Go Backend Architecture（Go 后端架构）
 
-**最后更新**: 2026-08-30
+**最后更新**: 2026-10-25
+
+> 目录树只列**主链路**和代表性文件。文件会持续增删，具体清单以目录为准——
+> 这份文档承诺的是分层职责和扩展点，不是文件数量。
 
 ---
 
@@ -9,254 +12,93 @@
 ```
 backend/
 ├── cmd/server/main.go              # 入口
+├── cmd/route_audit/                # 路由审计工具（列出/校验注册的路由）
 ├── internal/
-│   ├── config/config.go            # 配置加载（Viper + 环境变量）
+│   ├── config/config.go            # 配置加载（Viper + 环境变量 + .env）
 │   ├── common/
 │   │   ├── constants.go            # 角色、优先级、状态组常量
 │   │   ├── error_codes.go          # 错误码定义（含 i18n 消息）
-│   │   ├── errors.go              # AppError 类型
-│   │   └── pagination.go          # 分页辅助
-│   ├── model/                      # GORM 模型（67 个文件）
+│   │   ├── errors.go               # AppError 类型
+│   │   └── pagination.go           # 分页辅助
+│   ├── model/                      # GORM 模型（领域见「数据模型」）
 │   │   ├── base.go                # BaseModel 嵌入结构（ID/CreatedAt/UpdatedAt/DeletedAt）
 │   │   ├── user.go                # User（含 IsSuperuser、GetID、IsSuper 方法）
 │   │   ├── workspace.go           # Workspace, WorkspaceMember
 │   │   ├── project.go             # Project, ProjectMember
 │   │   ├── issue.go               # Issue, IssueAssignee, IssueLabel, IssueActivity
 │   │   ├── issue_type.go          # IssueType + 字段绑定
-│   │   ├── issue_type_template.go # Workspace 级问题类型模板
 │   │   ├── state.go               # State, StateTransition
-│   │   ├── label.go               # Label
-│   │   ├── cycle.go               # Cycle
-│   │   ├── module.go              # Module, ModuleIssue
-│   │   ├── page.go                # Page（层级文档）
-│   │   ├── page_template.go       # PageTemplate
-│   │   ├── page_version.go        # PageVersion
-│   │   ├── comment.go             # Comment（线程回复）
-│   │   ├── relation.go            # RelationType, IssueRelation
+│   │   ├── cycle.go / module.go   # 周期、模块
+│   │   ├── page.go                # Page（层级文档）+ 模板 + 版本
 │   │   ├── workflow.go            # Workflow + AutomationRule + AutomationExecution
-│   │   ├── attachment.go          # Attachment
-│   │   ├── estimate.go            # EstimatePoint, EstimateCategory, EstimateTime, ProjectEstimateSettings
-│   │   ├── time_track.go          # TimeTrack
-│   │   ├── recurrence_rule.go     # RecurrenceRule（周期性问题）
-│   │   ├── notification.go        # Notification（9 种类型）
-│   │   ├── webhook.go             # Webhook 配置
-│   │   ├── slack.go               # Slack 集成
-│   │   ├── github.go              # GitHub 集成
-│   │   ├── agent.go               # AI Agent + AgentActivity
-│   │   ├── ai_config.go           # AI 配置（用户级）
-│   │   ├── mcp.go                 # MCP Server 配置
-│   │   ├── saved_view.go          # SavedView（视图预设，含 sort_config/columns/group_by/RQL）
-│   │   ├── saved_dashboard.go     # SavedDashboard
-│   │   ├── saved_report.go        # SavedReport
-│   │   ├── dashboard_widget.go    # DashboardWidget
-│   │   ├── search_template.go     # SearchTemplate
-│   │   ├── plugin.go              # Plugin + PluginEventLog
-│   │   ├── project_page_tab.go    # 项目页面 Tab 配置
-│   │   ├── project_update.go      # ProjectUpdate（状态时间线）
-│   │   ├── project_template.go    # ProjectTemplate
-│   │   ├── work_item_template.go  # WorkItemTemplate
 │   │   ├── custom_field.go        # CustomField + 7 种类型
-│   │   ├── conditional_field.go   # ConditionalField（条件可见性）
-│   │   ├── initiative.go          # Initiative + InitiativeProject（跨项目战略目标）
-│   │   ├── release.go             # Release + Roadmap
-│   │   ├── role.go                # Role + RoleLevel（Admin=20/Member=15/Guest=5）
-│   │   └── permission.go          # Permission + RolePermission 关联表
+│   │   ├── role.go / permission.go # RBAC
+│   │   └── …                      # 其余模型见 internal/model/
 │   ├── dto/
-│   │   ├── request/               # 请求 DTO（31 个文件）
-│   │   │   ├── auth.go, workspace.go, project.go
-│   │   │   ├── issue.go, cycle.go, module.go, page.go
-│   │   │   ├── custom_field.go, conditional_field.go
-│   │   │   ├── workflow.go, state.go, label.go
-│   │   │   ├── relation.go, notification.go
-│   │   │   ├── time_track.go, recurrence.go
-│   │   │   ├── project_template.go, work_item_template.go
-│   │   │   ├── type_template.go, issue_type.go
-│   │   │   ├── initiative.go, release.go, saved_view.go
-│   │   │   ├── role.go, rql.go
-│   │   │   ├── dashboard.go, page_lock.go, page_template.go
-│   │   │   ├── page_version.go, plugin.go, saved_report.go
-│   │   │   └── project.go
-│   │   └── response/              # 响应 DTO（27 个文件）
-│   │       ├── auth.go, workspace.go, project.go
-│   │       ├── issue.go, cycle.go, module.go, page.go
-│   │       ├── page_template.go, page_version.go
-│   │       ├── custom_field.go, conditional_field.go
-│   │       ├── workflow.go, state.go, label.go
-│   │       ├── relation.go, notification.go
-│   │       ├── time_track.go, recurrence.go
-│   │       ├── project_template.go, work_item_template.go
-│   │       ├── type_template.go, issue_type.go
-│   │       ├── release.go, saved_view.go
-│   │       ├── role.go
-│   │       ├── dashboard.go, plugin.go, search_template.go, saved_report.go
-│   │       └── corresponding request files
-│   ├── service/                    # 业务逻辑（~90 个文件，含测试）
-│   │   ├── auth_service.go            # JWT 签发与验证
-│   │   ├── workspace_service.go       # Workspace CRUD + 成员
-│   │   ├── project_service.go         # Project CRUD + 成员 + 统计 + 归档
-│   │   ├── issue_service.go           # Issue CRUD + 搜索 + 批量 + 导入/导出 + 关联
-│   │   ├── cycle_service.go           # Cycle CRUD + 状态流转 + 进度 + 燃尽图 + 搜索
-│   │   ├── module_service.go          # Module CRUD + 树形 + Issue 关联 + 统计 + 搜索
-│   │   ├── page_service.go            # Page CRUD + 树形 + 归档 + 搜索
-│   │   ├── page_template_service.go   # PageTemplate CRUD
-│   │   ├── page_version_service.go    # PageVersion 管理
-│   │   ├── comment_service.go         # Comment CRUD + 回复 + 解决
-│   │   ├── relation_service.go        # RelationType CRUD + Issue 关联管理
-│   │   ├── workflow_service.go        # Workflow CRUD + 转换验证
-│   │   ├── workflow_executor.go       # Workflow 执行引擎
-│   │   ├── attachment_service.go      # Attachment CRUD
-│   │   ├── estimate_service.go        # 3 种估算模式管理
-│   │   ├── time_track_service.go      # 工时记录
-│   │   ├── recurrence_service.go      # 周期性 Issue 生成
-│   │   ├── notification_service.go    # 9 种通知 + 标记已读 + 提醒
-│   │   ├── webhook_service.go         # Webhook 发送 + HMAC-SHA256 签名
-│   │   ├── slack_service.go           # Slack 通知格式化 + 发送
-│   │   ├── github_service.go          # GitHub Issues 同步 + Webhook 接收
-│   │   ├── git_service.go             # Git 集成服务
-│   │   ├── ai_service.go              # AI 对话/搜索/创建/分析/图表/分诊
-│   │   ├── chat_service.go            # AI Chat 服务
-│   │   ├── chat_debouncer.go          # Chat 防抖处理
-│   │   ├── agent_service.go           # AI Agent CRUD + Dispatch/Triage/Assign
-│   │   ├── agent_config_service.go    # Agent 配置管理
-│   │   ├── agent_member_service.go    # Agent 成员管理
-│   │   ├── agent_template_service.go  # Agent 模板管理
-│   │   ├── agent_task_service.go      # Agent 任务调度
-│   │   ├── agent_sla_service.go       # Agent SLA 管理
-│   │   ├── agent_performance_service.go # Agent 性能监控
-│   │   ├── agent_decision_service.go  # Agent 决策引擎
-│   │   ├── agent_cost_budget_service.go # Agent 成本预算
-│   │   ├── mcp_service.go             # MCP Server 配置 + 连接管理
-│   │   ├── automation_service.go      # 自动化规则 CRUD + 触发执行
-│   │   ├── saved_view_service.go      # 视图预设管理
-│   │   ├── custom_field_service.go     # 自定义字段 7 种类型 + 条件规则
-│   │   ├── conditional_field_service.go # 条件可见性评估
-│   │   ├── project_settings_service.go # State/Label CRUD + 默认值 + 搜索
-│   │   ├── project_page_tab_service.go  # 页面 Tab 配置
-│   │   ├── project_update_service.go    # 项目状态更新
-│   │   ├── project_template_service.go  # 项目模板
-│   │   ├── work_item_template_service.go # 工作项模板
-│   │   ├── issue_type_service.go        # 问题类型 CRUD + 字段绑定 + 排序 + 复制
-│   │   ├── type_template_service.go     # Workspace 类型模板
-│   │   ├── initiative_service.go        # Initiative CRUD + 搜索
-│   │   ├── release_service.go           # Release + Roadmap + 搜索
-│   │   ├── role_service.go              # RBAC 角色 + 权限查询（8 方法）
-│   │   ├── approval_service.go          # 审批流程管理
-│   │   ├── report_service.go            # 报表生成 + 图表数据
-│   │   ├── metric_service.go            # 指标/图表服务
-│   │   ├── plugin_service.go            # Plugin 管理
-│   │   ├── search_template_service.go   # SearchTemplate CRUD
-│   │   ├── saved_report_service.go      # SavedReport 管理
-│   │   ├── dashboard_service.go         # Dashboard CRUD + Widget 渲染
-│   │   ├── dashboard_ai_summary.go      # ai_summary widget → 项目级 Analyze
-│   │   ├── field_permission_service.go  # 字段权限管理
-│   │   ├── context_payload_service.go   # 上下文载荷服务
-│   │   ├── squad_service.go             # Squad 协作组管理
-│   │   ├── developer_agent_service.go   # 开发者 Agent 服务
-│   │   ├── tester_agent_service.go      # 测试 Agent 服务
-│   │   ├── cicd_service.go              # CI/CD 流水线管理
-│   │   ├── sdlc_service.go              # SDLC 生命周期管理
-│   │   ├── autopilot_service.go         # 自动驾驶 Agent 服务
-│   │   ├── memory_service.go            # Agent 记忆管理
-│   │   ├── skill_service.go             # Agent 技能管理
-│   │   ├── skill_presets.go             # 技能预设配置
-│   │   ├── runtime_service.go           # Agent 运行时管理
-│   │   ├── tool_service.go              # Agent 工具管理
-│   │   ├── issue_agent_service.go       # Issue Agent 服务
-│   │   ├── sse_hub.go                   # SSE 实时事件中心
-│   │   └── *_test.go                    # 测试文件
-│   ├── handler/                    # HTTP Handler（~70 个文件，含测试）
-│   │   ├── auth_handler.go             # 认证
-│   │   ├── workspace_handler.go        # Workspace
-│   │   ├── project_handler.go          # Project
-│   │   ├── issue_handler.go            # Issue
-│   │   ├── cycle_handler.go            # Cycle
-│   │   ├── module_handler.go           # Module
-│   │   ├── page_handler.go             # Page
-│   │   ├── page_template_handler.go    # PageTemplate
-│   │   ├── page_version_handler.go     # PageVersion
-│   │   ├── comment_handler.go          # Comment
-│   │   ├── relation_handler.go         # Relation
-│   │   ├── workflow_handler.go         # Workflow
-│   │   ├── attachment_handler.go       # Attachment
-│   │   ├── estimate_handler.go         # Estimate
-│   │   ├── time_track_handler.go       # TimeTrack
-│   │   ├── recurrence_handler.go       # Recurrence
-│   │   ├── notification_handler.go     # Notification
-│   │   ├── webhook_handler.go          # Webhook
-│   │   ├── slack_handler.go            # Slack
-│   │   ├── github_handler.go           # GitHub
-│   │   ├── ai_handler.go               # AI
-│   │   ├── agent_handler.go            # Agent
-│   │   ├── agent_config_handler.go     # Agent 配置
-│   │   ├── agent_member_handler.go     # Agent 成员
-│   │   ├── agent_template_handler.go   # Agent 模板
-│   │   ├── agent_task_handler.go       # Agent 任务
-│   │   ├── agent_budget_sla_handler.go # Agent 预算/SLA
-│   │   ├── agent_performance_handler.go # Agent 性能
-│   │   ├── mcp_handler.go              # MCP
-│   │   ├── automation_handler.go       # Automation
-│   │   ├── saved_view_handler.go       # SavedView
-│   │   ├── custom_field_handler.go     # CustomField
-│   │   ├── conditional_field_handler.go # ConditionalField
-│   │   ├── project_settings_handler.go # ProjectSettings
-│   │   ├── project_page_tab_handler.go # ProjectPageTab
-│   │   ├── project_update_handler.go   # ProjectUpdate
-│   │   ├── project_template_handler.go # ProjectTemplate
-│   │   ├── work_item_template_handler.go # WorkItemTemplate
-│   │   ├── issue_type_handler.go       # IssueType
-│   │   ├── type_template_handler.go    # TypeTemplate
-│   │   ├── initiative_handler.go       # Initiative
-│   │   ├── release_handler.go          # Release
-│   │   ├── role_handler.go             # RBAC 角色
-│   │   ├── field_permission_handler.go # 字段权限
-│   │   ├── approval_handler.go         # 审批
-│   │   ├── report_handler.go           # 报表
-│   │   ├── metric_handler.go           # 指标
-│   │   ├── plugin_handler.go           # Plugin
-│   │   ├── search_template_handler.go  # SearchTemplate
-│   │   ├── saved_report_handler.go     # SavedReport
-│   │   ├── dashboard_handler.go        # Dashboard
-│   │   ├── project_issue_type_handler.go # 项目问题类型
-│   │   ├── intake_handler.go           # Intake 公开提交
-│   │   ├── chat_handler.go             # Chat
-│   │   ├── git_integration_handler.go  # Git 集成
-│   │   ├── git_webhook_handler.go      # Git Webhook
-│   │   ├── squad_handler.go            # Squad 协作组
-│   │   ├── developer_agent_handler.go  # 开发者 Agent
-│   │   ├── tester_agent_handler.go     # 测试 Agent
-│   │   ├── cicd_handler.go             # CI/CD
-│   │   ├── sdlc_handler.go             # SDLC
-│   │   ├── autopilot_handler.go        # 自动驾驶 Agent
-│   │   ├── memory_handler.go           # Agent 记忆
-│   │   ├── skill_handler.go            # Agent 技能
-│   │   ├── runtime_handler.go          # Agent 运行时
-│   │   ├── tool_handler.go             # Agent 工具
-│   │   ├── issue_agent_handler.go      # Issue Agent
-│   │   ├── sse_handler.go              # SSE 端点
-│   │   └── *_test.go                   # 测试文件
-│   ├── rql/                        # RQL 查询语言引擎（10 文件：7 源文件 + 3 测试）
-│   │   ├── lexer.go               # 词法分析（tokenize）
-│   │   ├── parser.go              # 语法分析（AST 构建）
-│   │   ├── ast.go                 # 抽象语法树类型定义
-│   │   ├── builder.go             # AST → SQL/GORM 查询
-│   │   ├── executor.go            # 查询执行器
-│   │   ├── handler.go             # HTTP 端点 `/api/v1/rql/search`
-│   │   ├── service.go             # 查询服务
-│   │   └── *_test.go              # 3 个测试文件
-│   ├── middleware/                  # 中间件（6 个）
-│   │   ├── auth.go                # JWT 认证：解析 Bearer token → 注入 currentUser
-│   │   ├── authorization.go       # RBAC 鉴权：RequirePermission / RequireRoleLevel
+│   │   ├── request/               # 请求 DTO，带 binding 校验标签
+│   │   └── response/              # 响应 DTO，与 Model 解耦
+│   ├── service/                    # 业务逻辑，按资源一文件（*_service.go）
+│   │   ├── auth_service.go        # JWT 签发与验证
+│   │   ├── workspace_service.go   # Workspace CRUD + 成员
+│   │   ├── project_service.go     # Project CRUD + 成员 + 统计 + 归档
+│   │   ├── issue_service.go       # Issue CRUD + 搜索 + 批量 + 导入/导出 + 关联
+│   │   ├── cycle_service.go       # Cycle CRUD + 状态流转 + 进度 + 燃尽图
+│   │   ├── module_service.go      # Module CRUD + 树形 + 统计
+│   │   ├── page_service.go        # Page CRUD + 树形 + 归档
+│   │   ├── workflow_service.go    # Workflow CRUD + 转换验证
+│   │   ├── workflow_executor.go   # Workflow 执行引擎
+│   │   ├── notification_service.go # 通知 + 标记已读 + 提醒
+│   │   ├── webhook_service.go     # Webhook 发送 + HMAC-SHA256 签名
+│   │   ├── automation_service.go  # 自动化规则 CRUD + 触发执行
+│   │   ├── role_service.go        # RBAC 角色 + 权限查询
+│   │   ├── sse_hub.go             # SSE 实时事件中心
+│   │   └── …                      # 其余服务见 internal/service/
+│   ├── handler/                    # HTTP Handler，一资源一文件
+│   │   ├── auth_handler.go / workspace_handler.go / project_handler.go
+│   │   ├── issue_handler.go / cycle_handler.go / module_handler.go
+│   │   ├── workflow_handler.go / notification_handler.go / webhook_handler.go
+│   │   ├── sse_handler.go         # SSE 端点
+│   │   └── …                      # 其余见 internal/handler/
+│   ├── router/router.go            # 全部路由注册的唯一入口
+│   ├── middleware/                 # 中间件（10 个）
+│   │   ├── auth.go                # JWT：解析 Bearer token → 注入 currentUser
+│   │   ├── authorization.go       # RBAC：RequirePermission / RequireRoleLevel
+│   │   ├── access.go              # 工作空间成员准入：RequireWorkspaceMember
+│   │   ├── scope.go               # 租户收敛：所有认证路由统一校验资源归属
+│   │   ├── metrics.go             # 延迟直方图 + 慢请求日志
+│   │   ├── recovery.go            # panic 恢复，统一 JSON 错误
 │   │   ├── cors.go                # CORS 策略
 │   │   ├── language.go            # i18n 语言检测（Header/Query）
 │   │   ├── logger.go              # 请求日志
 │   │   └── rate_limiter.go        # Token Bucket 限流（默认 500 req/min，0=禁用）
+│   ├── ai/                         # AI 子系统
+│   │   ├── llm/client.go          # LLM 客户端（DeepSeek / Anthropic）
+│   │   ├── service/               # AI 对话、分诊、分析、Agent 编排
+│   │   ├── harness/               # 工具/技能执行、pipeline、reviewer
+│   │   ├── loop/                  # Loop 运行时（已废止产品化）
+│   │   └── handler/               # AI / Agent / Loop / Pipeline 端点
+│   ├── rql/                        # RQL 查询语言引擎
+│   │   ├── lexer.go / parser.go / ast.go   # 词法 → 语法 → AST
+│   │   ├── builder.go / executor.go        # AST → SQL/GORM、执行
+│   │   ├── handler.go / service.go         # HTTP 端点与查询服务
+│   │   └── *_test.go
+│   ├── workflow/rules.go           # 状态机规则
+│   ├── plugin/                     # 插件注册表 + 钩子
+│   ├── security/sanitize.go        # HTML 清洗（bluemonday）
+│   ├── scheduler/                  # 后台定时任务（记忆清理等）
+│   ├── version/version.go          # 构建信息，供 GET /version
 │   ├── i18n/
-│   │   ├── i18n.go / i18n_test.go # 国际化逻辑
-│   │   ├── messages_en.json       # 英文错误消息
-│   │   └── messages_zh.json       # 中文错误消息
+│   │   ├── i18n.go                 # 国际化逻辑
+│   │   ├── messages_en.json        # 英文错误消息
+│   │   └── messages_zh.json        # 中文错误消息
+│   ├── client/agent_client.go      # Agent 调用客户端
+│   ├── issuetype/visible.go        # 类型可见性判定
+│   ├── randutil/randutil.go        # 随机串（密码/密钥）
+│   ├── testutil/                   # 测试夹具（DB / HTTP / fixtures）
 │   └── seed/
-│       ├── seed.go                # 种子数据（20 用户 + 1000 Issues + Workspace/Project）
-│       └── seed_rbac.go           # RBAC 种子（55 权限 + 3 默认角色）
+│       ├── seed.go                 # 种子数据（演示用户 + Issues + Workspace/Project）
+│       └── seed_rbac.go            # RBAC 种子（55 权限 + 3 默认角色）
+```
 
 ---
 
@@ -265,9 +107,9 @@ backend/
 ```
 Router ──→ Middleware Chain ──→ Handler ──→ Service ──→ Model (GORM)
     │           │                    │            │
-    │     Auth/CORS/Lang             │            └── DB 操作
-    │     Logger/RateLimit           └── DTO 绑定 + HTTP 响应
-    └── Gin 路由树（580+ 端点）
+    │     Auth/RBAC/Scope            │            └── DB 操作
+    │     CORS/Lang/Log/RateLimit    └── DTO 绑定 + HTTP 响应
+    └── Gin 路由树（数百个端点，全部注册在 internal/router/router.go）
 ```
 
 ### Handler 层
@@ -332,14 +174,17 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 
 ### 认证流程
 
-1. `POST /api/v1/auth/login` — bcrypt 验证密码，返回 JWT + token_type + expires_at
+1. `POST /api/v1/auth/login` — bcrypt 验证密码，返回 `access_token` + `token_type` + `expires_at`
 2. 后续请求在 `Authorization: Bearer <token>` 头中携带 JWT
 3. Auth 中间件解析 JWT，查询用户，注入 `c.Set("currentUser", user)`
 4. Handler 通过 `c.MustGet("currentUser").(*model.User)` 获取
 
-### RBAC 鉴权
+### RBAC 与租户收敛
 
 - `authorization.go` 提供 `RequirePermission(db, permCode)` 和 `RequireRoleLevel(db, minLevel)` 两个中间件
+- `access.go` 提供 `RequireWorkspaceMember`，挡住非成员
+- `scope.go` 在每条认证路由上统一校验「请求里的 workspace/project 与资源真实归属一致」，
+  handler 忘了检查也不会跨租户读写
 - 超级用户（IsSuperuser=true）自动旁路所有权限检查
 - 权限格式：`resource:action`（如 `issue:create`, `workspace:manage`）
 - 角色级别：Admin=20（全部权限）、Member=15（创建编辑）、Guest=5（只读）
@@ -348,7 +193,7 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 
 ### 限流
 
-- Token Bucket 算法，按用户 ID 或 IP 分组
+- Token Bucket 算法，按客户端 IP 分组
 - 默认 500 req/min（可通过 `RATE_LIMIT_REQUESTS` 环境变量配置）
 - `limit=0` 时完全禁用（开发/CI 环境）
 - 响应头：`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
@@ -357,13 +202,14 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 
 - `sse_hub.go` — 广播 Hub 实现
 - `sse_handler.go` — SSE 端点 `/api/v1/sse`
-- 9 种通知类型通过 SSE 实时推送到前端
+- 通知类型通过 SSE 实时推送到前端
 
 ---
 
 ## API 路由总览
 
-所有路由前缀 `/api/v1`，580+ 端点：
+所有路由前缀 `/api/v1`。下表按路由组给资源范围；完整路径以 `internal/router/router.go` 为准
+（需要机器可读的清单时用 `go run ./cmd/route_audit`）：
 
 | 路由组 | 资源 |
 |--------|------|
@@ -388,27 +234,29 @@ func ParsePagination(c *gin.Context) (limit int, offset int)
 | `/webhook/github/:id` | GitHub Webhook 接收（公开端点） |
 | `/intake/:projectId` | 公开问题提交（无需认证） |
 | `/sse` | 实时事件推送 |
-| `/roles/` | RBAC 角色 CRUD + 权限列表 |
-| `/permissions/` | 全局权限枚举查询 |
+| `/workspaces/:wsParam/roles` | RBAC 角色 CRUD |
+| `/permissions` | 全局权限枚举查询 |
 
 ---
 
 ## 配置
 
-通过环境变量 + `config.yaml` 配置：
+通过环境变量 + `.env` 文件配置（Viper 依次在 `.`、`..`、`../..` 找 `.env`）。
+完整清单见[配置项](../../configuration.md)，`backend-go` 只列影响架构的几个：
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `DATABASE_URL` | PostgreSQL DSN | — |
-| `SECRET_KEY` | JWT 签名密钥 | — |
-| `PORT` | 监听端口 | 8080 |
+| `DATABASE_URL` | PostgreSQL DSN | `postgres://postgres:postgres@localhost:5432/reqmango?sslmode=disable` |
+| `SECRET_KEY` | JWT 签名密钥 | 未设置时随机生成并告警 |
+| `PORT` | 监听端口 | `8000` |
 | `RATE_LIMIT_REQUESTS` | 限流阈值（req/min） | 500 |
 | `RATE_LIMIT_WINDOW_SEC` | 限流窗口 | 60 |
+| `AI_API_KEY` | AI 密钥（也读 `DEEPSEEK_API_KEY`） | 空 |
 | `AI_PROVIDER` | AI 提供商 | deepseek |
 | `AI_MODEL` | AI 模型 | deepseek-chat |
-| `AI_BASE_URL` | AI API 地址 | api.deepseek.com |
-| `DEBUG` | 调试模式 | false |
-| `LANGUAGE` | 默认语言 | zh |
+| `AI_BASE_URL` | AI API 地址 | `https://api.deepseek.com/v1` |
+| `DEBUG` | Gin 调试模式 | true |
+| `SLOW_REQUEST_MS` | 慢请求阈值（ms，0 关闭） | 1000 |
 
 ---
 

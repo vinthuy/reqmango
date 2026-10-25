@@ -2,6 +2,10 @@
 
 **最后更新**: 2026-07-13
 
+> ⚠️ 本文覆盖**核心表**。2026-08 之后新增的模块（Squad / Skill / Runtime / Memory / Tool /
+> Autopilot / CI·CD / SDLC / 工作流节点与运行 / 审批 / Chat / PAT / Intake 等）尚未收录，
+> 完整清单以 `backend/internal/model/` 为准。
+
 ---
 
 ## 通用字段

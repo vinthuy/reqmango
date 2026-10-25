@@ -1,24 +1,29 @@
 # Frontend Architecture
 
-**Last Updated**: 2026-07-13
+**Last updated**: 2026-10-25
+
+> The tree documents **structure and conventions**. File counts grow fast; when in doubt read
+> `frontend/src/`.
 
 ---
 
-## Tech Stack
+## Tech stack
 
-| Component | Selection |
-|-----------|-----------|
+| Component | Choice |
+|-----------|--------|
 | Framework | Vue 3 (Composition API + `<script setup>`) |
-| Build | Vite |
+| Build | Vite 5 |
 | Language | TypeScript |
-| State Management | Pinia |
-| Router | Vue Router 4 |
+| State | Pinia |
+| Routing | Vue Router 4 |
 | CSS | Tailwind CSS |
 | HTTP | Axios |
-| Rich Text | TipTap |
+| Rich text | TipTap |
 | SSE | fetch + ReadableStream (AI streaming) |
 
-## Project Structure
+The runtime (Node 24) is documented in [Tech Stack](tech-stack.md).
+
+## Project structure
 
 ```
 frontend/src/
@@ -26,175 +31,159 @@ frontend/src/
 ├── App.vue
 ├── style.css
 │
-├── api/ (41 modules)
-│   ├── index.ts          — Axios instance + JWT interceptors
-│   ├── ai.ts             — AI Chat SSE / Search / Create
-│   ├── agent.ts, initiative.ts, plugin.ts
-│   ├── search-template.ts, report.ts, dashboard.ts
-│   ├── role.ts, webhook.ts, type-template.ts
-│   ├── slack.ts, project-update.ts, mcp.ts
-│   ├── github.ts, intake.ts, conditional-field.ts
-│   ├── automation.ts, recurrence.ts, time-track.ts
-│   ├── auth.ts, workspace.ts, project.ts
-│   ├── issue.ts, cycle.ts, module.ts
-│   ├── project-settings.ts, custom-field.ts
-│   ├── workflow.ts, issue-type.ts, estimate-point.ts
-│   ├── comment.ts, notification.ts, attachment.ts
-│   ├── saved-view.ts, page.ts, template.ts
-│   ├── release.ts, work-item-template.ts, relation.ts
-│   └── rql.ts
+├── api/                  — Axios wrappers, one module per backend resource
+│   ├── index.ts          — Axios instance + JWT interceptor
+│   ├── auth.ts / workspace.ts / project.ts
+│   ├── issue.ts / cycle.ts / module.ts / page.ts
+│   ├── ai.ts             — AI chat SSE / search / create
+│   ├── workflow.ts / automation.ts / issue-type.ts
+│   ├── custom-field.ts / conditional-field.ts / saved-view.ts
+│   ├── dashboard.ts / report.ts / metric.ts
+│   ├── agent.ts / plugin.ts / mcp.ts / role.ts
+│   └── …                 — see api/ for the rest
 │
-├── types/ (29 modules)
+├── types/                — TypeScript types, split per module
 │   ├── index.ts
-│   ├── ai.ts, attachment.ts, comment.ts
-│   ├── agent.ts, initiative.ts, plugin.ts
-│   ├── search-template.ts, dashboard.ts
-│   ├── project-page-tab.ts, role.ts
-│   ├── recurrence.ts, time-track.ts
-│   ├── custom-field.ts, cycle.ts, estimate-point.ts
-│   ├── filters.ts          — Filter types + FILTER_FIELDS + buildRQL/parseRQL
-│   ├── issue.ts, issue-type.ts, module.ts
-│   ├── notification.ts, page.ts, project.ts
-│   ├── project-settings.ts, release.ts, saved-view.ts
-│   ├── template.ts, workflow.ts, work-item-template.ts
+│   ├── filters.ts        — filter types + FILTER_FIELDS + buildRQL/parseRQL
+│   ├── issue.ts / project.ts / cycle.ts / module.ts
+│   └── …                 — see types/ for the rest
 │
-├── stores/ (3 stores)
-│   ├── auth.ts   — Authentication state
-│   ├── cycle.ts  — Cycle CRUD + progress
-│   └── module.ts — Module CRUD + tree
+├── stores/               — Pinia
+│   ├── auth.ts           — auth state
+│   ├── cycle.ts          — cycle CRUD + progress
+│   ├── module.ts         — module CRUD + tree
+│   ├── issue.ts / project.ts
+│   ├── notification.ts
+│   └── agentLoop.ts / agentPipeline.ts
 │
-├── router/index.ts — 26 routes
-
-├── views/ (23 views)
+├── router/index.ts       — Vue Router config (with the minRoleLevel guard)
+│
+├── views/                — page-level components
 │   ├── Login.vue, Register.vue, Home.vue
 │   ├── Workspace.vue, WorkspaceSettings.vue, WorkspaceOverview.vue
 │   ├── WorkspaceAnalytics.vue, Analytics.vue
-│   ├── Project.vue, ProjectPages.vue, ProjectSettings.vue
+│   ├── Project.vue, ProjectPages.vue, ProjectSettings.vue, ProjectIntake.vue
 │   ├── IssueCreate.vue, IssueDetail.vue
 │   ├── CycleCreate.vue, CycleDetail.vue
 │   ├── CustomFields.vue, IssueTypeList.vue
-│   ├── IntakeForm.vue, WorkflowDetail.vue
-│   ├── Roadmap.vue, Initiatives.vue
+│   ├── IntakeForm.vue, Roadmap.vue, Initiatives.vue
 │   ├── Dashboard.vue, PluginManager.vue
+│   ├── ApprovalList.vue, MetricsView.vue
+│   ├── agent/            — Agent console (hidden by default in Stage B)
+│   └── agents/           — Agent templates/sessions/runtimes/memory (same)
 │
-├── components/ (92 components)
-│   ├── Agent: AgentAuditLog.vue, AgentSelector.vue, AgentList.vue, AgentActivityLog.vue
-│   ├── AI: AIChatSidebar.vue, AICreateDialog.vue, AISettingsPanel.vue,
-│   │        AICopilot.vue, AIChartRenderer.vue, AIResultActions.vue
-│   ├── Dashboard: DashboardGrid.vue, DashboardSidebar.vue,
-│   │              WidgetCard.vue (incl. ai_summary), WidgetConfigPanel.vue
-│   ├── Palette: CommandPalette.vue
-│   ├── Issue: IssueCard.vue, IssueList.vue, IssueKanban.vue,
-│   │          IssueDetailPanel.vue, SubIssuePanel.vue,
-│   │          IssueTreeView.vue, IssueGantt.vue, IssueCalendar.vue
-│   ├── Cycle: CycleCard.vue, CycleList.vue, CycleDetailPanel.vue,
-│   │          CycleBurndownChart.vue, CycleProgressCard.vue
-│   ├── Module: ModuleCard.vue, ModuleList.vue, ModuleTree.vue,
-│   │           ModuleDetailPanel.vue, ModuleFormModal.vue
-│   ├── Config: CustomFieldForm.vue, CustomFieldList.vue,
-│   │           CustomFieldManager.vue, CustomFieldValueInput.vue
-│   ├── Workflow: WorkflowManager.vue, WorkflowRuleCard.vue,
-│   │             WorkflowRuleForm.vue, WorkflowRuleList.vue,
-│   │             StateTransition.vue, WorkflowVisualization.vue
-│   ├── Automation: AutomationForm.vue, AutomationList.vue,
-│   │                AutomationManager.vue, AutomationTemplateList.vue
-│   ├── Template: ProjectTemplateManager.vue,
-│   │              WorkItemTemplateManager.vue,
-│   │              WorkspaceIssueTypeManager.vue
-│   ├── Release: ReleaseList.vue, ReleaseRoadmap.vue
-│   ├── Estimate: EstimatePointManager.vue
-│   ├── Page: PageTree.vue, PageVersionDiff.vue, PageVersionPanel.vue,
-│   │          PageTemplateSelector.vue, PageTabConfig.vue
-│   ├── Filter: FilterBar.vue — Unified filter bar (replaces old filter components)
-│   ├── View: SavedViewSelector.vue, QuickFilterChips.vue
-│   ├── Import: ImportIssuesModal.vue, QuickCreateInput.vue
-│   ├── Integration: WorkspaceIntegrations.vue, WebhookManager.vue,
-│   │                 ReportBuilder.vue
-│   ├── Triage: TriagePanel.vue
-│   ├── Search: SearchTemplateSelector.vue
-│   ├── Common: CommentList.vue, AttachmentManager.vue, AttachmentPreview.vue,
-│   │           NotificationCenter.vue, RichTextEditor.vue, TipTapEditor.vue,
-│   │           UserSelect.vue, LabelSelector.vue, MultiSelectDropdown.vue,
-│   │           ConfirmDialog.vue, ProjectDetail.vue,
-│   │           ProjectMemberList.vue, ProjectIssueTypeManager.vue,
-│   │           RelationTypeManager.vue, WorkspaceMemberList.vue,
-│   │           ToastContainer.vue, ShortcutsPanel.vue,
-│   │           LanguageSwitcher.vue, TopBar.vue, AppSidebar.vue,
-│   │           RoleManagement.vue, TimeTrackPanel.vue,
-│   │           RecurrenceConfig.vue, TreeNodeItem.vue
-│   └── RQL: RQLHistory.vue, RQLInput.vue
+├── components/           — reusable components, grouped by domain
+│   ├── Agent / AI        — AgentAuditLog, AgentSelector, AIChatSidebar, AICopilot,
+│   │                       AIChartRenderer, AIResultActions …
+│   ├── Dashboard         — DashboardGrid, WidgetCard (incl. ai_summary), WidgetConfigPanel
+│   ├── Issue             — IssueCard, IssueList, IssueKanban, IssueDetailPanel,
+│   │                       SubIssuePanel, IssueTreeView, IssueGantt, IssueCalendar
+│   ├── Cycle / Module    — CycleCard, CycleBurndownChart, ModuleTree, ModuleDetailPanel …
+│   ├── Config            — CustomField*, ConditionalField*
+│   ├── Workflow          — WorkflowManager, WorkflowRule*, StateTransition,
+│   │                       WorkflowVisualization
+│   ├── Automation        — AutomationManager, AutomationRuleBuilder (incl. dispatch_agent,
+│   │                       NL draft prefill), AutomationTemplateList
+│   ├── Template          — ProjectTemplateManager, WorkItemTemplateManager,
+│   │                       WorkspaceIssueTypeManager
+│   ├── Page              — PageTree, PageVersionPanel, PageVersionDiff, PageTabConfig
+│   ├── Filter / View     — FilterBar (unified filter bar), SavedViewSelector, QuickFilterChips
+│   ├── Import / Triage   — ImportIssuesModal, QuickCreateInput, TriagePanel
+│   ├── Common            — CommentList, AttachmentManager, NotificationCenter,
+│   │                       RichTextEditor, UserSelect, LabelSelector, ConfirmDialog …
+│   └── RQL               — RQLInput, RQLHistory
 │
-└── composables/ (12 composables)
-    ├── useConfirm.ts     — Confirm dialog
-    ├── useRQL.ts         — RQL query history
-    ├── useAI.ts          — AI SSE consumption
-    ├── useFilters.ts     — Filter state management (Provide/Inject architecture, RQL bidirectional sync)
-    ├── usePermission.ts  — RBAC permission checks
-    ├── useToast.ts       — Toast notifications
-    ├── useDashboard.ts   — Dashboard state
-    ├── useReportChart.ts — Report charts
-    ├── useIssueFilters.ts — Issue filtering
-    ├── useI18n.ts        — Internationalization
-    ├── useMarkdown.ts    — Markdown processing
-    └── useDarkMode.ts    — Dark mode
+└── composables/          — composables
+    ├── useAPI / useSSE / useChatSSE  — requests and streaming
+    ├── useAI               — AI SSE consumption
+    ├── useFilters          — filter state (Provide/Inject, two-way sync with RQL)
+    ├── useIssueFilters     — issue filtering
+    ├── useRQL              — RQL query history
+    ├── usePermission       — RBAC permission checks
+    ├── useAutoTriageWatch  — triage state watcher
+    ├── useProductFlags     — feature flags (incl. Agent console unlock)
+    ├── useWorkspaceId      — current workspace context
+    ├── useRelationHelpers  — relation type helpers
+    ├── useDashboard / useReportChart / useMarkdown
+    ├── useI18n / useDarkMode / useToast / useConfirm
+    └── …
 ```
 
-## Route Table
+## Routes
 
-| Path | View | Description |
-|------|------|-------------|
+Routes are defined in `frontend/src/router/index.ts`. The table lists main paths only
+(detail sub-routes omitted):
+
+| Path | View | Notes |
+|------|------|-------|
 | `/` | Home | Workspace list |
-| `/login` | Login | Login |
-| `/register` | Register | Register |
+| `/login` | Login | Sign in |
+| `/register` | Register | Sign up |
 | `/workspace/:slug` | Workspace | Workspace detail + project list |
-| `/workspace/:slug/settings` | WorkspaceSettings | Workspace configuration |
+| `/workspace/:slug/settings` | WorkspaceSettings | Workspace settings |
 | `/workspace/:slug/overview` | WorkspaceOverview | Workspace overview |
 | `/workspace/:slug/roadmap` | Roadmap | Roadmap |
 | `/workspace/:slug/initiatives` | Initiatives | Strategic goals |
 | `/workspace/:slug/analytics` | WorkspaceAnalytics | Workspace analytics |
-| `/workspace/:slug/project/:id` | Project | Project homepage |
-| `/workspace/:slug/project/:id/pages` | ProjectPages | Pages/documents |
-| `/workspace/:slug/project/:id/settings` | ProjectSettings | Project configuration |
+| `/workspace/:slug/project/:id` | Project | Project home |
+| `/workspace/:slug/project/:id/pages` | ProjectPages | Page docs |
+| `/workspace/:slug/project/:id/settings` | ProjectSettings | Project settings |
 | `.../settings/workflows/:workflowId` | WorkflowDetail | Workflow detail |
 | `/workspace/:slug/project/:id/analytics` | Analytics | Project analytics |
-| `/workspace/:slug/project/:id/dashboards` | Dashboard | Dashboard (`ai_summary` widget + refresh) |
+| `/workspace/:slug/project/:id/dashboards` | Dashboard | Dashboards (supports an `ai_summary` widget) |
 | `/workspaces/:wid/projects/:pid/issues/:iid` | IssueDetail | Issue detail |
 | `/workspaces/:wid/projects/:pid/issues/new` | IssueCreate | Create issue |
 | `/workspaces/:wid/projects/:pid/custom-fields` | CustomFields | Custom fields |
 | `/workspaces/:wid/projects/:pid/issue-types` | IssueTypeList | Issue types |
 | `/workspaces/:wid/projects/:pid/cycles/new` | CycleCreate | Create cycle |
 | `/workspaces/:wid/projects/:pid/cycles/:cid` | CycleDetail | Cycle detail |
-| `/intake/:projectId` | IntakeForm | Public intake |
-| `/workspace/:slug/project/:id/issues/:iid` | IssueDetail | Issue detail (slug-style) |
-| `/workspace/:slug/project/:id/issues/new` | IssueCreate | Create issue (slug-style) |
-| `/workspace/:slug/project/:id/cycles/new` | CycleCreate | Create cycle (slug-style) |
-| `/workspace/:slug/project/:id/cycles/:cid` | CycleDetail | Cycle detail (slug-style) |
+| `/workspace/:slug/project/:id/issues/:iid` | IssueDetail | Issue detail (slug style) |
+| `/workspace/:slug/project/:id/issues/new` | IssueCreate | Create issue (slug style) |
+| `/workspace/:slug/project/:id/cycles/new` | CycleCreate | Create cycle (slug style) |
+| `/workspace/:slug/project/:id/cycles/:cid` | CycleDetail | Cycle detail (slug style) |
+| `/intake/:projectId` | IntakeForm | Public submission |
 
-## Architecture Patterns
+Two path styles (`/workspace/:slug/...` and `/workspaces/:wid/...`) coexist for historical
+reasons. New pages should follow the slug style so the split does not spread.
 
-### API Layer
+## Architecture patterns
+
+### API layer
 
 ```typescript
 // api/index.ts — Axios instance
 const api = axios.create({ baseURL: '/api/v1' })
-// Request interceptor: auto-attach JWT Bearer token
+// Request interceptor: attaches the JWT bearer token
 // Response interceptor: 401 → redirect to login
 ```
 
-### AI SSE Consumption
+### AI SSE consumption
 
 ```typescript
-// composables/useAI.ts
-// fetch + ReadableStream to consume SSE
+// composables/useAI.ts / useChatSSE.ts
+// fetch + ReadableStream consuming SSE
 // Event types: text | tool_call | tool_result | done | error
 ```
 
-### Component Patterns
+### Component conventions
 
-- All components use `<script setup lang="ts">`
+- Every component uses `<script setup lang="ts">`
 - Props: `defineProps<T>()`
 - Emits: `defineEmits<T>()`
-- State management: page-level uses local ref, cross-component uses Pinia store
+- State: local `ref` at page level, Pinia store across components
+
+---
+
+## Internationalization (i18n)
+
+The frontend ships two locales:
+
+- `locales/zh-CN.json` — Chinese
+- `locales/en-US.json` — English
+- `composables/useI18n.ts` — i18n composable
+- `components/LanguageSwitcher.vue` — language switcher
+
+New copy must be added to both files; `npm run i18n:check` compares the key sets.
 
 ---
 
