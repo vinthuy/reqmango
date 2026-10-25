@@ -1,7 +1,7 @@
 # Build stage
 # The output is static files, so the build always runs on the build platform:
 # a multi-arch image only re-wraps the same dist/ in an nginx layer per arch.
-FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:26-alpine AS builder
 
 WORKDIR /app
 COPY package.json package-lock.json ./
