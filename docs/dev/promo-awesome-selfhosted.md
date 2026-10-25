@@ -1,68 +1,39 @@
-# awesome-selfhosted PR draft
+# awesome-selfhosted
 
-> Status: **not submitted**. The list is a third-party repo, so the PR has to come from your GitHub account. This file is the exact diff and the PR text.
->
-> Checked against `awesome-selfhosted/awesome-selfhosted` `master` on 2026-10-25. Re-read the section before opening the PR; the list moves.
+> Status: **do not submit yet.** Checked 2026-10-25. Two of their rules block a pull request today, and an agent must not send it.
 
-## Where it goes
+## Why it is not submitted
 
-File: `README.md`  
-Section: `### Software Development - Project Management`  
-Order is alphabetical. Insert **after Redmine, before Review Board**.
+Submissions no longer go in the README of `awesome-selfhosted/awesome-selfhosted`. Their pull-request template says to use [awesome-selfhosted-data](https://github.com/awesome-selfhosted/awesome-selfhosted-data) and add `software/reqmango.yml`.
 
-There is no public demo instance, so do not add a `Demo` link. The project URL is the docs site.
+Two checks in that repository's template fail right now:
 
-## The line
+1. **First release age.** "Any software project you are adding was first released more than 4 months ago." The first tag is `v0.1.0` on 2026-10-24. Their usual reply is to close the pull request and ask for a resubmit once that release is four months old, which is **2027-02-24**.
+2. **Human author.** The checklist requires "The submission was done by a human, not a machine/LLM." Machine-written contributions are not allowed and can get the account banned. Open the pull request yourself, from the `vinthuy` GitHub account, and write the description in your own words. Do not paste this file in as the pull request.
 
-```markdown
-- [Reqmango](https://vinthuy.github.io/reqmango/) - Self-hosted project management that triages new requests before they reach the backlog, with custom issue types, workflows and automation. ([Source Code](https://github.com/vinthuy/reqmango)) `MIT` `Docker/Go/Nodejs`
+There is still no public demo, so leave `demo_url` out.
+
+## File to add after 2027-02-24
+
+Path: `software/reqmango.yml`  
+Commit message: `add Reqmango`  
+Tag name below is the `name` field of `tags/software-development---project-management.yml`. Platform names match `platforms/docker.yml`, `platforms/go.yml` and `platforms/nodejs.yml`. Put Project Management first: the single-page list shows a project only under its first tag.
+
+```yaml
+name: Reqmango
+website_url: https://vinthuy.github.io/reqmango/
+source_code_url: https://github.com/vinthuy/reqmango
+description: Project management that triages new requests before they reach the backlog, with custom issue types, workflows and automation.
+licenses:
+  - MIT
+platforms:
+  - Docker
+  - Go
+  - Nodejs
+tags:
+  - Software Development - Project Management
 ```
 
-Neighbours, so the insertion point is obvious:
+Rewrite `description` before sending. Keep it one sentence, under 250 characters, and do not say "open-source", "free" or "self-hosted".
 
-```markdown
-- [Redmine](https://www.redmine.org/) - Flexible project management web application. ([Source Code](https://svn.redmine.org/redmine/)) `GPL-2.0` `Ruby`
-- [Reqmango](https://vinthuy.github.io/reqmango/) - Self-hosted project management that triages new requests before they reach the backlog, with custom issue types, workflows and automation. ([Source Code](https://github.com/vinthuy/reqmango)) `MIT` `Docker/Go/Nodejs`
-- [Review Board](https://www.reviewboard.org/) - Extensible and friendly code review tool for projects and companies of all sizes. ([Demo](https://demo.reviewboard.org/), [Source Code](https://github.com/reviewboard/reviewboard)) `MIT` `Python/Docker`
-```
-
-## PR
-
-**Title:** Add Reqmango to Software Development - Project Management
-
-**Body:**
-
-```markdown
-## Description
-
-Adds [Reqmango](https://github.com/vinthuy/reqmango), a MIT-licensed self-hosted project manager. Intake triages new requests (type, priority, likely duplicates) before they enter the backlog. Issue types, workflows and automation are configurable. Optional AI stays inside Issue / Intake / Cycle; it needs the operator's own API key and is off by default.
-
-- Docs: https://vinthuy.github.io/reqmango/
-- Source: https://github.com/vinthuy/reqmango
-- License: MIT
-- Install: Docker Compose, published images for linux/amd64 and linux/arm64 (`v0.1.0`)
-
-No public demo is linked because there isn't a hosted instance.
-
-## Checklist
-
-- [x] Entry is in the existing "Software Development - Project Management" section
-- [x] Alphabetical (between Redmine and Review Board)
-- [x] License tag matches the repository (`MIT`)
-- [x] Source code link is the canonical GitHub repository
-```
-
-## How to send it
-
-```bash
-gh repo fork awesome-selfhosted/awesome-selfhosted --clone
-cd awesome-selfhosted
-git checkout -b add-reqmango
-# edit README.md as above
-git add README.md
-git commit -m "Add Reqmango under Software Development - Project Management"
-git push -u origin add-reqmango
-gh pr create --repo awesome-selfhosted/awesome-selfhosted --title "Add Reqmango to Software Development - Project Management" --body-file pr-body.md
-```
-
-Reviews there are slow and picky about wording. If they ask for a shorter description, cut it to the first sentence and keep the links.
+Their pull-request checklist also asks you to confirm the project is not already on awesome-sysadmin, that installation instructions work, and that you searched existing issues and pull requests.
