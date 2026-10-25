@@ -167,10 +167,10 @@ type AppError struct {
 ### Pagination
 
 ```go
-func ParsePagination(c *gin.Context) (limit int, offset int)
+func ParsePagination(limitStr, offsetStr string, defaultLimit, maxLimit int) Pagination
 ```
 
-默认 limit=20, max=100，从 query params `page` 和 `page_size` 解析。
+调用方传入查询参数 `limit` 和 `offset`。工作项列表默认 50、上限 100；其它接口的默认值不同。总数在响应头 `X-Total-Count`。
 
 ### 认证流程
 

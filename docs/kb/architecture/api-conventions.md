@@ -1,6 +1,8 @@
 # API Conventions（API 设计约定）
 
-**最后更新**: 2026-07-04
+**最后更新**: 2026-10-25
+
+约定以 `backend/internal/router/router.go` 和中间件为准。各资源的路径清单不写在这里。
 
 ---
 
@@ -8,219 +10,140 @@
 
 | 项目 | 约定 |
 |------|------|
-| 协议 | HTTPS（生产）/ HTTP（开发） |
-| 前缀 | `/api/v1` |
-| 内容类型 | `application/json` |
-| 字符编码 | UTF-8 |
-| 认证 | `Authorization: Bearer <jwt_token>` |
+| 前缀 | 业务接口 `/api/v1`。`/health`、`/readyz`、`/version` 在根上，不带此前缀 |
+| 内容类型 | `application/json`（上传附件除外） |
+| 认证 | `Authorization: Bearer <jwt>`，或 `Bearer reqmango_pat_...`（个人访问令牌，只存 SHA-256） |
 
 ---
 
-## URL 设计
+## URL
 
-### 资源命名
-
-- 使用复数形式：`/workspaces`, `/projects`, `/issues`
-- 使用 kebab-case：`/custom-fields`
-- 嵌套资源表示从属关系：`/workspaces/:wid/projects`
-
-### 路由模式
-
-```
-# 嵌套（推荐 — 表达从属关系）
-GET  /api/v1/workspaces/:wid/projects
-
-# 顶级 + query param（备选 — 当从属关系可选时）
-GET  /api/v1/projects?workspace_id=N
-
-# 全局唯一资源
-GET  /api/v1/auth/me
-PUT  /api/v1/issues/:id
-```
+- 资源名用复数、kebab-case：`/custom-fields`、`/issue-types`
+- 从属关系用路径嵌套：`/workspaces/:wsParam/...`、`/projects/:projectId/...`
+- 工作空间参数名是 `wsParam`，值可以是数字 ID 或 slug
+- 更新动词不统一：工作项是 `PUT /issues/:issueId`，工作空间是 `PATCH /workspaces/:wsParam`。以路由注册为准，不要假设全站只用一种
 
 ---
 
-## 认证与授权
+## 谁可以调用
 
-### Public Endpoints
+### 不需要登录
 
-```
-POST /api/v1/auth/register
-POST /api/v1/auth/login
-```
+注册在认证中间件之前：
 
-### Protected Endpoints（🔒）
+| 方法 | 路径 |
+|------|------|
+| GET | `/health`、`/readyz`、`/version` |
+| POST | `/api/v1/auth/register`、`/api/v1/auth/login` |
+| POST | `/api/v1/intake/:projectId` |
+| GET | `/api/v1/intake/:projectId/info` |
+| POST | `/api/v1/intake-channels/:token/webhook`、`/api/v1/intake-channels/:token/email` |
+| POST | `/api/v1/webhook/github/:id`、`/api/v1/webhook/git/:projectId` |
+| POST | `/api/v1/autopilot/webhook/:token` |
 
-所有其他接口需要 JWT Bearer Token。中间件自动验证并注入当前用户。
+### 需要登录
 
-### 错误响应
+其余 `/api/v1` 路由使用 `ScopedAuthMiddleware`（`middleware/auth.go`）：先校验 Bearer，再跑 `scope.go` 的租户检查。
 
-| HTTP 状态码 | AppError | 使用场景 |
-|-------------|----------|----------|
-| 400 | `BadRequest` | 请求参数不合法 |
-| 401 | `Unauthorized` | 未登录或 token 过期 |
-| 403 | `Forbidden` | 权限不足 |
-| 404 | `NotFound` | 资源不存在 |
-| 409 | `Conflict` | 资源冲突（如重复 slug） |
-| 422 | `Validation` | 数据验证失败 |
-| 500 | `Internal` | 服务器内部错误 |
+两个 SSE 接口不走这层中间件，因为浏览器 `EventSource` 不能设置 `Authorization`。它们在 handler 里自己验 token：`GET /api/v1/sse`、`GET /api/v1/chats/:chatId/stream`。
 
----
+`access.go` 在部分路由组上再加一道门：
 
-## 响应格式
+| 中间件 | 作用 |
+|--------|------|
+| `RequireWorkspaceMember` | `:wsParam` 的活跃成员。超级用户通过 |
+| `RequireWorkspaceAdmin` | 该工作空间的管理员 |
+| `RequireProjectAccess` | 项目成员，或该项目所属工作空间的成员 |
+| `RequireIssueAccess` | 能访问该工作项所在项目的人 |
+| `RequirePermission` | RBAC 权限码，如 `issue:edit` |
 
-### 成功 — 单条
+### 租户检查（`scope.go`）
 
-```json
-{
-  "data": { "id": 1, "name": "..." },
-  "message": "ok"
-}
-```
+每条已认证路由在 handler 之前做这些事。超级用户跳过。
 
-### 成功 — 列表
+- 查询参数 `workspace_id`、`project_id`、`issue_id` 必须是调用者能触及的
+- 路径上的 `:wsParam` 必须是调用者所在的工作空间；`:projectId`、`:issueId` 同理
+- 其它 `:param` 按路径段查表（`segmentTables` / `paramTables`），行上的 `project_id` / `workspace_id` / `issue_id` / `page_id` 必须属于调用者，并且与路径里的父级一致
+- `adminRoutes` 里列出的删除、归档、改成员路由还要求工作空间或项目管理员
+- 子资源行查不到时放行，由 handler 返回 404。路径上的项目不存在，或工作空间 slug 对不上，中间件自己返回 404
 
-```json
-{
-  "data": [ { "id": 1 }, { "id": 2 } ],
-  "total": 100,
-  "message": "ok"
-}
-```
-
-### 成功 — 无返回体
-
-```json
-{
-  "message": "deleted"
-}
-```
-
-### 错误
-
-```json
-{
-  "message": "描述错误原因"
-}
-```
+找不到对应表的参数不会被这层拦截。新增带 ID 的路由时，要在 `scope.go` 登记表名，否则租户检查会漏掉它。
 
 ---
 
-## 分页
+## 响应
 
-使用 `page` 和 `page_size` 查询参数：
+没有统一的 `{data, message}` 信封，调用方不能按一种形状解析所有接口。
 
-```
-GET /api/v1/issues?page=1&page_size=20
-```
+| 情况 | 实际形状 |
+|------|----------|
+| 工作项列表 `GET /issues` | JSON 数组。总数在响应头 `X-Total-Count`，不在 body |
+| 单条资源 | 通常直接返回对象 |
+| 部分搜索（如发布搜索） | `{"data":[...]}` |
+| 多数错误 | `{"message":"..."}` |
+| `common.RespondError` | `{"error_code","message","detail"}`。`detail` 可省略 |
+| 个别校验（发布搜索缺 `q`） | `{"error":"..."}` |
 
-| 参数 | 类型 | 默认值 | 最大值 |
-|------|------|--------|--------|
-| `page` | int | 1 | — |
-| `page_size` | int | 20 | 100 |
-
-响应中包含 `total` 字段表示总数。
-
----
-
-## 过滤与搜索
-
-| 接口 | 支持的过滤参数 |
-|------|---------------|
-| `GET /projects/:pid/issues` | `state_id`, `priority`, `search`, `label_id`, `assignee_id`, `cycle_id`, `rql`, `sort_by`, `sort_order`, `group_by` |
-| `GET /projects/:pid/cycles` | `status` |
-| `GET /projects/:pid/modules` | `include_archived` |
-
-搜索参数 `search` 通常对 `name` 和 `description` 进行模糊匹配。
-
-### 搜索端点
-
-所有实体支持独立的搜索端点，使用 `q` 查询参数进行模糊搜索：
-
-| 实体 | 搜索端点 | 搜索字段 |
-|------|---------|---------|
-| Initiative | `GET /workspaces/:wid/initiatives/search?q=` | name |
-| Release | `GET /projects/:pid/releases/search?q=` | name, version |
-| Cycle | `GET /projects/:pid/cycles/search?q=` | name |
-| Module | `GET /modules/search?project_id=&workspace_id=&q=` | name |
-| Label | `GET /projects/:pid/settings/labels/search?q=` | name |
-| Page | `GET /projects/:pid/pages/search?q=` | title, content |
-
-**响应格式**：
-```json
-{
-  "data": [ { "id": 1, "name": "..." }, ... ]
-}
-```
-
-### RQL 筛选
-
-支持通过 `rql` 查询参数传递 RQL 表达式进行高级筛选：
-
-```
-GET /api/v1/projects/1/issues?rql=priority="urgent" AND state_id IN (1,2)
-```
-
-RQL 支持 18 个字段（含 `state_group`、`assignee_id`、`label`、`cycle_id`、`module_id` 等），支持全文搜索（`LIKE`）、日期范围（`BETWEEN`）、空值检查（`IS NULL`/`IS NOT NULL`）、自定义字段（`cf_` 前缀）。
-
-### SavedView 筛选恢复
-
-视图保存时存储完整状态（`filters` JSONB + `rql` 字符串 + `sort_config` + `columns` + `group_by`），选择视图时全部恢复。
+`AppError` 的 HTTP 状态由错误码决定（`internal/common/error_codes.go`）：校验类是 422，未登录 401，无权限 403，不存在 404，冲突 409。
 
 ---
 
-## 排序
+## 分页与排序
 
-默认按 `created_at DESC`。支持 `sort_by` + `sort_order`：
+分页参数是 `limit` 和 `offset`，不是 `page` / `page_size`。
 
 ```
-GET /api/v1/issues?sort_by=priority&sort_order=asc
+GET /api/v1/issues?project_id=1&limit=50&offset=0
 ```
 
-可选排序字段：`created_at`, `updated_at`, `priority`, `start_date`, `target_date`。
+`ParsePagination(limit, offset, defaultLimit, maxLimit)` 的默认值和上限由各 handler 传入。工作项列表是默认 50、上限 100。`limit` 非正数或无法解析时用默认值，超过上限时截断。
+
+工作项列表的排序参数是 `sort_by` 和 `sort_dir`（`asc` / `desc`），也可以传 `sort_config`（JSON 数组）。未指定时按 `sort_order`、`sequence_id` 排。
 
 ---
 
-## 请求方法约定
+## 工作项列表过滤
 
-| 方法 | 用途 | 幂等 |
-|------|------|------|
-| `GET` | 读取 | ✅ |
-| `POST` | 创建 | ❌ |
-| `PUT` | 全量更新 | ✅ |
-| `DELETE` | 删除（软删除） | ✅ |
+`GET /issues` 读取这些查询参数：`project_id` 或 `workspace_id`、`state_id`、`priority`、`assignee_id`、`parent_id`、`cycle_id`、`issue_type_id`、`module_id`、`search`、`is_draft`、`cf_field_id`、`cf_value`、`cf_and`、`rql`、`sort_by`、`sort_dir`、`sort_config`、`limit`、`offset`。
 
 ---
 
-## 前端 Axios 封装
+## 搜索
 
-```typescript
-// api/index.ts
-const api = axios.create({
-  baseURL: '/api/v1',
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' }
-})
+查询参数名不统一：
 
-// 自动注入 JWT
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
-})
+| 路径 | 参数 |
+|------|------|
+| `GET /workspaces/:wsParam/initiatives/search` | `q` |
+| `GET /projects/:projectId/cycles/search` | `q` |
+| `GET /projects/:projectId/pages/search` | `q` |
+| `GET /projects/:projectId/releases/search` | `q`（缺少则 400） |
+| `GET /projects/:projectId/settings/labels/search` | `q` |
+| `GET /modules/search` | `q`，以及 `project_id` / `workspace_id` |
+| `GET /issues/search` | `query`，以及 `workspace_id` |
 
-// 401 自动跳转登录
-api.interceptors.response.use(
-  res => res,
-  err => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('token')
-      router.push('/login')
-    }
-    return Promise.reject(err)
-  }
-)
-```
+---
+
+## RQL
+
+工作项列表接受 `rql`。独立执行入口是 `POST /api/v1/rql/search`。
+
+`NewIssueQueryContext`（`internal/rql/executor.go`）登记的字段：
+
+`id`、`sequence_id`、`name`、`description`、`state`、`state_id`、`state_group`、`priority`、`type`、`assignee`、`assignee_id`、`reporter`、`label`、`label_id`、`cycle`、`cycle_id`、`module`、`module_id`、`issue_type_id`、`created_by`、`milestone`、`project_id`、`workspace_id`、`created_at`、`updated_at`、`start_date`、`target_date`。
+
+自定义字段用 `cf_<字段 id>`，`custom_field:<id>` 会先被规范成 `cf_` 前缀。
+
+---
+
+## 前端 Axios
+
+`frontend/src/api/index.ts`：
+
+- `baseURL` 为 `/api/v1`，超时 30 秒
+- 请求头带 `localStorage` 里的 `token`
+- 401 时清掉 `token` 和 `user`，然后 `window.location.href = '/login'`
+- 307 时按 `Location` 重试一次
 
 ---
 

@@ -1,303 +1,256 @@
-# Data Model（数据模型总览）
+# Data Model（数据模型）
 
-**最后更新**: 2026-07-13
+**最后更新**: 2026-10-25
 
-> ⚠️ 本文覆盖**核心表**。2026-08 之后新增的模块（Squad / Skill / Runtime / Memory / Tool /
-> Autopilot / CI·CD / SDLC / 工作流节点与运行 / 审批 / Chat / PAT / Intake 等）尚未收录，
-> 完整清单以 `backend/internal/model/` 为准。
+生产库的表由 `backend/cmd/server/main.go` 的 `AutoMigrate` 创建。下面 131 张表就是这份清单，表名用 GORM 的命名策略（含各模型的 `TableName()`）解析得出。`internal/model` 里还有只当 JSON 用的结构体，不会建表，列在文末。
+
+列级细节以对应的 `model` 文件为准。这里不抄字段清单，避免再写出一份过期的列目录。
 
 ---
 
 ## 通用字段
 
-所有 Go 后端模型嵌入 `BaseModel`：
+嵌入 `BaseModel`（`internal/model/base.go`）的模型都有：
 
-```go
-type BaseModel struct {
-    ID          uint64         `gorm:"primaryKey;autoIncrement"`
-    CreatedAt   time.Time
-    UpdatedAt   time.Time
-    DeletedAt   gorm.DeletedAt `gorm:"index"`
-    CreatedByID *uint64
-    UpdatedByID *uint64
-}
-```
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | `uint64` | 自增主键 |
+| `created_at` / `updated_at` | `time.Time` | GORM 自动维护 |
+| `deleted_at` | `gorm.DeletedAt` | 软删除；带索引 |
+| `created_by_id` / `updated_by_id` | `*uint64` | 可空 |
 
-统一 `uint64` 主键、自动时间戳、GORM 软删除。
+主键是 `uint64`，不是 UUID。Issue 和 Page 的 `depth` 注释上限是 5。
 
 ---
 
-## 核心实体关系图
+## 用户与租户
 
-```
-Workspace 1──N WorkspaceMember N──1 User
-Workspace 1──N Project
-Project  1──N ProjectMember N──1 User
-Workspace 1──N Role
-Role     N──M Permission (role_permissions)
-Project  1──N State
-Project  1──N Label
-Project  1──N Issue
-Project  1──N Cycle
-Project  1──N Module
-Project  1──N Page
-Project  1──N Release
-Project  1──N SavedView
-Project  1──N WorkItemTemplate
-Project  1──1 ProjectEstimateSettings
-
-Issue    N──M Label      (issue_labels)
-Issue    N──M User       (issue_assignees)
-Issue    N──1 Cycle      (issue_cycles)
-Issue    N──M Module     (module_issues)
-Issue    1──1 Issue      (parent_id, 子任务)
-Issue    N──M Page       (issue_pages)
-Issue    N──M Release    (release_issues)
-Issue    1──N Attachment
-Issue    1──N Comment    (支持嵌套 reply)
-
-State    1──N StateTransition (source_state_id, target_state_id)
-Module   1──1 Module     (parent_id, 树形)
-Page     1──1 Page       (parent_id, 树形, depth≤5)
-
-Workspace 1──1 AIConfig
-Workspace 1──N Agent
-Agent    1──N AgentActivity
-Issue    1──N AgentActivity
-Workspace 1──N Initiative
-Initiative N──M Project   (initiative_projects)
-Workspace 1──N Plugin
-Plugin    1──N PluginEventLog
-Workspace 1──N PageTemplate
-Page      1──N PageVersion
-Workspace 1──N MCPConfig
-Workspace 1──N FieldPermission
-Role      N──M FieldPermission
-Project  1──N ProjectUpdate
-Project  1──N ProjectPageTab
-Project  1──N Webhook
-Project  1──N SlackConnection
-Project  1──N GitHubConnection
-Project  1──N SavedDashboard
-SavedDashboard 1──N DashboardWidget
-Project  1──N SavedReport
-Project  1──N SearchTemplate
-AutomationRule 1──N AutomationExecution
-User     1──N AIThread
-AIThread 1──N AIMessage
-User     1──N Notification
-```
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `users` | User | 账号 |
+| `workspaces` | Workspace | 工作空间 |
+| `workspace_members` | WorkspaceMember | 空间成员与角色级别 |
+| `projects` | Project | 项目 |
+| `project_members` | ProjectMember | 项目成员 |
+| `project_subscribers` | ProjectSubscriber | 项目订阅者 |
+| `personal_access_tokens` | PersonalAccessToken | 用户的长期令牌。只存 SHA-256，明文只在创建时返回 |
 
 ---
 
-## 表清单
+## 工作项
 
-### 用户与组织 (6 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `users` | email, username, display_name, password_hash, is_active | 用户 |
-| `workspaces` | name, slug, owner_id | 工作空间 |
-| `workspace_members` | workspace_id, user_id, role | 空间成员 |
-| `projects` | name, identifier, workspace_id, color, archived_at, template_id, project_lead_id | 项目 |
-| `project_members` | project_id, user_id, role | 项目成员 |
-| `project_subscribers` | project_id, user_id | 项目订阅者 |
-
-### 项目配置 (5 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `states` | name, color, group, sequence, is_default, project_id | 工作项状态 (5 固定分组) |
-| `state_transitions` | source_state_id, target_state_id, workflow_id, rule_type, approver_ids, name, description, issue_type_id, is_auto, role_allowed, project_id, workspace_id | 状态流转规则 |
-| `labels` | name, color, project_id | 标签 |
-| `workflows` | name, description, project_id (nullable), issue_type_id, workspace_id | 工作流（支持工作空间级） |
-| `automation_rules` | name, trigger_type, conditions (text), actions (text), description, is_enabled, sequence, execution_count, project_id | 自动化规则 |
-
-### 工作项 (7 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `issues` | name, description_html, description_json (JSONB), priority, sequence_id, sort_order, start/target_date, state_id, project_id, parent_id(depth≤5), issue_type_id, is_draft, archived_at | 核心工作项 |
-| `issue_assignees` | issue_id, user_id | 工作项分配 |
-| `issue_labels` | issue_id, label_id | 工作项标签 |
-| `issue_cycles` | issue_id, cycle_id | 工作项-周期关联 |
-| `issue_activities` | issue_id, actor_id, verb, field, old_value, new_value | 操作历史 |
-| `issue_pages` | issue_id, page_id | 工作项-文档关联 |
-| `release_issues` | release_id, issue_id | 发布-工作项关联 |
-
-### 工作项配置 (4 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `issue_types` | name, color, icon, level, parent_type_id, project_id (nullable), workspace_id | 工作项类型 |
-| `issue_type_fields` | type_id, field_id, is_required, sequence | 类型-字段绑定 |
-| `issue_type_templates` | name, color, icon, level, parent_type_id, workspace_id | 类型蓝图 (工作空间级) |
-| `issue_type_template_fields` | template_type_id, field_id, is_required | 蓝图-字段绑定 |
-
-### 自定义字段 (4 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `custom_fields` | name, field_type (text/number/dropdown/boolean/date/member/url), is_required, project_id, workspace_id | 自定义字段定义 |
-| `custom_field_options` | field_id, value, color, sequence | 下拉选项 |
-| `issue_custom_field_values` | issue_id, field_id, value | 工作项字段值 |
-| `project_custom_field_enrollments` | project_id, field_id, is_enabled | 项目级自定义字段启用状态 |
-
-### 模板 (3 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `project_templates` | name, description, workspace_id, is_default | 项目模板 |
-| `project_template_types` | template_id, type_template_id, is_required, sequence | 模板-类型关联 |
-| `work_item_templates` | name, issue_type_id, defaults (JSONB), project_id, workspace_id | 工作项创建模板 |
-
-### 周期与模块 (3 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `cycles` | name, description, start_date, end_date, completed_at, cancelled_at, project_id | 迭代周期 |
-| `modules` | name, description, parent_id, order, project_id | 功能模块 (树形) |
-| `module_issues` | module_id, issue_id | 模块-工作项关联 |
-
-### 评论与附件 (2 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `comments` | issue_id, author_id, body, parent_id (嵌套), is_resolved | 评论 |
-| `attachments` | name, file_path, file_size, mime_type, issue_id, uploader_id | 附件 |
-
-### 关联类型 (2 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `relation_types` | name, inward_name, outward_name, workspace_id | 自定义关联类型 |
-| `issue_relations` | issue_id, related_issue_id, relation_type_id | 工作项关联 |
-
-### 估算 (4 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `estimate_points` | name, value, mode, project_id | Points 估算 (Fibonacci 等) |
-| `estimate_categories` | name, mode, project_id | Categories 估算 (T-shirt size 等) |
-| `estimate_times` | name, minutes, mode, project_id | Time 估算 |
-| `project_estimate_settings` | project_id, mode, points/categories/time_enabled | 项目估算配置 |
-
-### 发布与保存视图 (2 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `releases` | name, version, status, release_date, project_id | 发布版本 |
-| `saved_views` | name, view_type, filters/rql/sort_config/columns (JSONB), group_by, is_default, is_shared, owner_id, project_id | 保存的筛选视图（含完整恢复链路） |
-
-### 通知 (1 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `notifications` | title, message, type, priority, is_read, recipient_id, sender_id, project_id, issue_id, action_url | 用户通知 |
-
-### 文档 (1 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `pages` | title, content, content_json (JSONB), parent_id (depth≤5), sequence, published, archived_at, project_id | Wiki/文档页面 |
-
-### 工时 (1 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `time_tracks` | issue_id, user_id, description, started_at, ended_at, duration (seconds) | 工时记录 |
-
-### 重复工作项 (1 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `recurrence_rules` | issue_id (unique), frequency (daily/weekly/monthly/cron), interval, cron_expr, next_run, end_date | 周期自动创建规则 |
-
-### 条件字段 (1 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `conditional_fields` | field_id, condition_type, operator, condition_values (text), workspace_id | 字段显隐规则 |
-
-### AI (3 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `ai_configs` | provider, model, api_key, max_tokens, workspace_id | 工作空间 AI 配置 |
-| `ai_threads` | title, workspace_id, project_id, user_id | AI 对话线程 |
-| `ai_messages` | thread_id, role, content, tool_calls (JSONB), tool_name | AI 对话消息 |
-
-### RBAC 权限系统 (3 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `roles` | name, description, scope, workspace_id, project_id, level(5/15/20), is_system, sort_order | 角色（系统默认 + 自定义） |
-| `permissions` | code (unique, 如 issue:create), name, description, resource, action, scope | 权限枚举（55 个） |
-| `role_permissions` | role_id + permission_id (复合主键) | 角色-权限多对多关联 |
-
-### Agent 系统 (2 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `agents` | name, description, agent_type, config (JSONB), is_active, workspace_id | AI Agent 配置 |
-| `agent_activities` | agent_id, issue_id, action, status, result, started_at, completed_at | Agent 执行记录 |
-
-### Initiative 战略目标 (2 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `initiatives` | name, description, color, status, start_date, target_date, workspace_id | 跨项目战略目标 |
-| `initiative_projects` | initiative_id, project_id | 目标-项目关联 |
-
-### 插件系统 (2 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `plugins` | name, plugin_type, config (JSONB), is_enabled, workspace_id | 插件管理 |
-| `plugin_event_logs` | plugin_id, event_type, status, payload, created_at | 插件执行日志 |
-
-### Dashboard & Report (3 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `saved_dashboards` | name, config (JSONB), is_default, project_id | 保存的仪表盘 |
-| `dashboard_widgets` | dashboard_id, widget_type, config (JSONB), position | 仪表盘组件；`widget_type` 含 number_card / 各类 chart / burndown / table / recent_list / saved_report / **ai_summary** |
-| `saved_reports` | name, report_type, filters (JSONB), schedule, project_id | 保存的报表 |
-
-### 页面扩展 (2 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `page_templates` | name, content, content_json, workspace_id | 页面模板 |
-| `page_versions` | page_id, content, content_json, version, created_by_id | 页面版本历史 |
-
-### 集成 (4 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `webhooks` | url, events, secret, is_active, project_id | Webhook 配置 |
-| `slack_connections` | channel, config, project_id | Slack 集成 |
-| `github_connections` | repo, config, project_id | GitHub 集成 |
-| `mcp_configs` | name, server_url, config (JSONB), workspace_id | MCP Server 配置 |
-
-### 其他 (5 表)
-
-| 表 | 关键字段 | 说明 |
-|----|----------|------|
-| `project_updates` | project_id, author_id, content, status | 项目状态更新 |
-| `project_page_tabs` | project_id, page_id, tab_type, sequence | 项目页面 Tab |
-| `field_permissions` | field_id, role_id, read, write, workspace_id | 字段权限配置 |
-| `search_templates` | name, filters (JSONB), project_id | 搜索模板 |
-| `automation_executions` | automation_rule_id, trigger_id, status, result | 自动化执行记录 |
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `issues` | Issue | 工作项 |
+| `issue_assignees` | IssueAssignee | 负责人 |
+| `issue_labels` | IssueLabel | 标签关联 |
+| `issue_cycles` | IssueCycle | 周期关联 |
+| `issue_pages` | IssuePage | 页面关联 |
+| `issue_activities` | IssueActivity | 操作历史 |
+| `issue_watchers` | IssueWatcher | 关注者 |
+| `states` | State | 状态（项目或工作空间） |
+| `labels` | Label | 标签 |
+| `comments` | Comment | 评论。Agent 建议以 JSON 存在评论上，不是独立表 |
+| `attachments` | Attachment | 附件元数据 |
+| `time_tracks` | TimeTrack | 工时 |
+| `recurrence_rules` | RecurrenceRule | 重复创建规则 |
+| `relation_types` | RelationType | 关联类型（in/out 名称） |
+| `issue_relations` | IssueRelation | 工作项之间的关联 |
+| `project_intake_settings` | ProjectIntakeSetting | 项目的 Intake 表单 / Webhook / 邮件开关与 token |
 
 ---
 
-## 关键设计决策
+## 类型、字段、模板
 
-1. **软删除**: 所有表通过 GORM `DeletedAt` 实现软删除
-2. **uint64 主键**: 统一使用 `uint64`，`sequence_id` 在项目内自增用于外部标识
-3. **JSONB 存储**: 筛选条件、自动化条件/动作、AI Tool Calls、模板默认值等灵活结构使用 JSONB
-4. **树形结构**: Module 和 Page 通过 `parent_id` 自引用，depth 字段冗余存储避免递归查询
-5. **多对多关联**: 使用显式关联表而非 GORM many2many，便于查询和扩展
-6. **RBAC 权限**: 55 个细粒度权限以 `resource:action` 格式编码，通过 `role_permissions` 关联表实现角色-权限绑定
-7. **AI 协议双支持**: Anthropic + OpenAI-compatible (DeepSeek) 双协议，按 provider 自动切换
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `issue_types` | IssueType | 工作项类型 |
+| `issue_type_fields` | IssueTypeField | 类型与字段的绑定 |
+| `issue_type_imports` | IssueTypeImport | 类型导入记录 |
+| `issue_type_templates` | IssueTypeTemplate | 工作空间级类型蓝图 |
+| `issue_type_template_fields` | IssueTypeTemplateField | 蓝图字段 |
+| `custom_fields` | CustomField | 自定义字段定义 |
+| `custom_field_options` | CustomFieldOption | 下拉选项 |
+| `issue_custom_field_values` | IssueCustomFieldValue | 工作项上的字段值 |
+| `project_custom_field_enrollments` | ProjectCustomFieldEnrollment | 项目是否启用某字段 |
+| `conditional_fields` | ConditionalField | 字段显隐规则 |
+| `project_templates` | ProjectTemplate | 项目模板 |
+| `project_template_types` | ProjectTemplateType | 模板包含的类型 |
+| `work_item_templates` | WorkItemTemplate | 创建工作项用的模板 |
+
+---
+
+## 规划
+
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `cycles` | Cycle | 周期 |
+| `modules` | Module | 模块树 |
+| `module_issues` | ModuleIssue | 模块与工作项 |
+| `module_inheritance_overrides` | ModuleInheritanceOverride | 模块继承覆盖 |
+| `releases` | Release | 发布 |
+| `release_issues` | ReleaseIssue | 发布与工作项 |
+| `initiatives` | Initiative | 工作空间级目标 |
+| `initiative_projects` | InitiativeProject | 目标与项目 |
+| `estimate_points` | EstimatePoint | 点数估算 |
+| `estimate_categories` | EstimateCategory | 分类估算 |
+| `estimate_times` | EstimateTime | 时间估算 |
+| `project_estimate_settings` | ProjectEstimateSettings | 项目启用哪种估算 |
+
+---
+
+## 状态机与自动化
+
+`workflows` 是工作项状态机。`state_transitions` 只属于它。编排用的 DAG 在 `agent_workflows` 及其节点 / 边 / 运行表，两边不再共用 `workflow_kind`。
+
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `workflows` | Workflow | 状态机 |
+| `state_transitions` | StateTransition | 状态转换 |
+| `automation_rules` | AutomationRule | 自动化规则 |
+| `automation_executions` | AutomationExecution | 规则执行记录 |
+| `automation_rule_overrides` | AutomationRuleOverride | 规则覆盖 |
+| `approvals` | Approval | 审批单 |
+| `approval_records` | ApprovalRecord | 审批动作 |
+| `agent_workflows` | AgentWorkflow | 多 Agent 编排定义 |
+| `workflow_nodes` | WorkflowNode | 编排节点 |
+| `workflow_edges` | WorkflowEdge | 编排边 |
+| `workflow_runs` | WorkflowRun | 一次编排运行 |
+| `workflow_node_runs` | WorkflowNodeRun | 节点运行 |
+
+---
+
+## 页面、视图、报表
+
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `pages` | Page | 项目文档 |
+| `page_templates` | PageTemplate | 页面模板 |
+| `page_versions` | PageVersion | 页面版本 |
+| `project_page_tabs` | ProjectPageTab | 项目页 Tab |
+| `project_updates` | ProjectUpdate | 项目状态更新 |
+| `saved_views` | SavedView | 保存的筛选视图 |
+| `saved_dashboards` | SavedDashboard | 仪表盘 |
+| `dashboard_widgets` | DashboardWidget | 仪表盘卡片 |
+| `saved_reports` | SavedReport | 保存的报表 |
+| `search_templates` | SearchTemplate | 搜索模板 |
+| `metric_charts` | MetricChart | 指标图 |
+
+---
+
+## 权限
+
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `roles` | Role | 角色。级别 Admin=20、Member=15、Guest=5 |
+| `permissions` | Permission | 权限码，`resource:action` |
+| `role_permissions` | RolePermission | 角色与权限 |
+| `field_permissions` | FieldPermission | 字段级读写 |
+
+种子数据在 `internal/seed/seed_rbac.go`，当前写入 55 条权限和 3 个默认角色。
+
+---
+
+## 集成与插件
+
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `webhooks` | Webhook | 出站 Webhook |
+| `github_connections` | GitHubConnection | GitHub 连接 |
+| `slack_connections` | SlackConnection | Slack 连接 |
+| `git_integrations` | GitIntegration | Git 集成配置 |
+| `git_issue_links` | GitIssueLink | 工作项与 PR 的链接 |
+| `mcp_configs` | MCPConfig | MCP server 配置 |
+| `plugins` | Plugin | 插件 |
+| `plugin_event_logs` | PluginEventLog | 插件事件 |
+
+---
+
+## 通知与聊天
+
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `notifications` | Notification | 站内通知 |
+| `chats` | Chat | 会话 |
+| `messages` | Message | 消息 |
+| `message_reactions` | MessageReaction | 消息反应 |
+
+---
+
+## AI 与 Agent
+
+这些表会随进程迁移创建。产品上 `/agents*` 默认隐藏，Harness / Loop 不作为产品方向，但表还在。
+
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `ai_configs` | AIConfig | 工作空间 AI 配置 |
+| `ai_threads` | AIThread | AI 对话线程 |
+| `ai_messages` | AIMessage | 对话消息 |
+| `agents` | Agent | 可指派、可 @ 的 Agent |
+| `agent_activities` | AgentActivity | Agent 动作审计 |
+| `agent_registry` | AgentEntry | 内置 Agent 注册表（`internal/ai/registry`） |
+| `project_agent_members` | ProjectAgentMember | 项目里的 Agent 成员 |
+| `agent_templates` | AgentTemplate | Agent 模板 |
+| `agent_configs` | AgentConfig | Agent 配置 |
+| `agent_sessions` | AgentSession | 会话 |
+| `agent_tasks` | AgentTask | 任务 |
+| `agent_task_snapshots` | AgentTaskSnapshot | 任务快照 |
+| `task_logs` | TaskLog | 任务日志 |
+| `agent_decisions` | AgentDecision | 决策记录 |
+| `agent_cost_budgets` | AgentCostBudget | 成本预算 |
+| `agent_slas` | AgentSLA | SLA |
+| `runtimes` | Runtime | 运行时 |
+| `skills` | Skill | 技能 |
+| `skill_execution_logs` | SkillExecutionLog | 技能执行 |
+| `tools` | Tool | 工具 |
+| `tool_permissions` | ToolPermission | 工具权限 |
+| `tool_call_logs` | ToolCallLog | 工具调用 |
+| `memory_entries` | MemoryEntry | 记忆条目 |
+| `memory_sessions` | MemorySession | 记忆会话 |
+| `memory_vector_indexes` | MemoryVectorIndex | 记忆向量索引 |
+| `squads` | Squad | 协作组 |
+| `squad_members` | SquadMember | 组成员 |
+| `squad_tasks` | SquadTask | 组任务 |
+| `squad_executions` | SquadExecution | 组执行 |
+| `autopilot_tasks` | AutopilotTask | Autopilot 任务 |
+| `autopilot_executions` | AutopilotExecution | Autopilot 执行 |
+| `autopilot_webhooks` | AutopilotWebhook | Autopilot Webhook |
+| `agent_loops` | Loop | Loop 定义 |
+| `agent_loop_runs` | LoopRun | Loop 运行 |
+| `agent_loop_iterations` | LoopIteration | Loop 迭代 |
+| `agent_pipelines` | Pipeline | Pipeline |
+| `agent_pipeline_runs` | PipelineRun | Pipeline 运行 |
+| `developer_jobs` | DeveloperJob | Developer Agent 作业 |
+| `tester_jobs` | TesterJob | Tester Agent 作业 |
+| `cicd_configs` | CICDConfig | CI/CD 配置 |
+| `build_records` | BuildRecord | 构建记录 |
+| `sdlc_workflows` | SDLCWorkflow | SDLC 流程 |
+| `sdlc_stages` | SDLCStage | SDLC 阶段 |
+
+---
+
+## 其它
+
+| 表 | 模型 | 存什么 |
+|----|------|--------|
+| `data_migrations` | DataMigration | 数据迁移标记，避免同一回填跑两次 |
+
+---
+
+## 不建表的结构体
+
+这些类型嵌在 JSON 列里，`AutoMigrate` 不包含它们：
+
+| 类型 | 位置 | 用途 |
+|------|------|------|
+| `IssueSuggestion` / `SuggestionOutcome` | `comment.go` | 评论上的 Agent 建议与用户处置 |
+| `FieldCondition` | `conditional_field.go` | 条件值的 JSON 形状 |
+| `AgentInvocationTarget` | `agent.go` | Agent 的调用授权 |
+| `AgentToolCall` | `agent.go` | 一次运行里的工具调用，存在 `agent_activities.tool_calls` |
+
+---
+
+## 🌐 语言
+
+- **中文** (本文档)
+- [English](https://vinthuy.github.io/reqmango/en/kb/architecture/data-model/)

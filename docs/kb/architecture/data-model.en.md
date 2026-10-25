@@ -1,255 +1,252 @@
-# Data Model Overview
+# Data Model
 
-**Last Updated**: 2026-07-13
+**Last updated**: 2026-10-25
 
-> ⚠️ This page covers the **core tables**. Modules added after 2026-08 (Squad / Skill / Runtime /
-> Memory / Tool / Autopilot / CI-CD / SDLC / workflow nodes and runs / approvals / chat / PAT /
-> intake, …) are not listed yet. `backend/internal/model/` is the source of truth.
+The production schema is whatever `AutoMigrate` in `backend/cmd/server/main.go` creates. The 131 tables below are that list. Names come from GORM's naming strategy, including each model's `TableName()`. Structs in `internal/model` that exist only as JSON are not tables; they are listed at the end.
 
----
-
-## Common Fields
-
-All Go backend models embed `BaseModel`:
-
-```go
-type BaseModel struct {
-    ID          uint64         `gorm:"primaryKey;autoIncrement"`
-    CreatedAt   time.Time
-    UpdatedAt   time.Time
-    DeletedAt   gorm.DeletedAt `gorm:"index"`
-    CreatedByID *uint64
-    UpdatedByID *uint64
-}
-```
-
-Unified `uint64` primary keys, automatic timestamps, GORM soft delete.
+Column-level detail lives in the model file. This page does not copy column lists.
 
 ---
 
-## Core Entity Relationships
+## Common fields
 
-```
-Workspace 1──N WorkspaceMember N──1 User
-Workspace 1──N Project
-Project  1──N ProjectMember N──1 User
-Workspace 1──N Role
-Role     N──M Permission (role_permissions)
-Project  1──N State
-Project  1──N Label
-Project  1──N Issue
-Project  1──N Cycle
-Project  1──N Module
-Project  1──N Page
-Project  1──N Release
-Project  1──N SavedView
-Project  1──N WorkItemTemplate
-Project  1──1 ProjectEstimateSettings
+Models that embed `BaseModel` (`internal/model/base.go`) have:
 
-Issue    N──M Label      (issue_labels)
-Issue    N──M User       (issue_assignees)
-Issue    N──1 Cycle      (issue_cycles)
-Issue    N──M Module     (module_issues)
-Issue    1──1 Issue      (parent_id, subtasks)
-Issue    N──M Page       (issue_pages)
-Issue    N──M Release    (release_issues)
-Issue    1──N Attachment
-Issue    1──N Comment    (nested replies)
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | `uint64` | Autoincrement primary key |
+| `created_at` / `updated_at` | `time.Time` | Maintained by GORM |
+| `deleted_at` | `gorm.DeletedAt` | Soft delete, indexed |
+| `created_by_id` / `updated_by_id` | `*uint64` | Nullable |
 
-State    1──N StateTransition (source_state_id, target_state_id)
-Module   1──1 Module     (parent_id, tree)
-Page     1──1 Page       (parent_id, tree, depth≤5)
-
-Workspace 1──1 AIConfig
-Workspace 1──N Agent
-Agent    1──N AgentActivity
-Issue    1──N AgentActivity
-Workspace 1──N Initiative
-Initiative N──M Project   (initiative_projects)
-Workspace 1──N Plugin
-Plugin    1──N PluginEventLog
-Workspace 1──N PageTemplate
-Page      1──N PageVersion
-Workspace 1──N MCPConfig
-Workspace 1──N FieldPermission
-Role      N──M FieldPermission
-Project  1──N ProjectUpdate
-Project  1──N ProjectPageTab
-Project  1──N Webhook
-Project  1──N SlackConnection
-Project  1──N GitHubConnection
-Project  1──N SavedDashboard
-SavedDashboard 1──N DashboardWidget
-Project  1──N SavedReport
-Project  1──N SearchTemplate
-AutomationRule 1──N AutomationExecution
-User     1──N AIThread
-AIThread 1──N AIMessage
-User     1──N Notification
-```
+Primary keys are `uint64`, not UUIDs. The `depth` comments on Issue and Page cap the hierarchy at 5.
 
 ---
 
-## Table List
+## Users and tenancy
 
-### Users & Organization (6 tables)
+| Table | Model | Stores |
+|-------|-------|--------|
+| `users` | User | Accounts |
+| `workspaces` | Workspace | Workspaces |
+| `workspace_members` | WorkspaceMember | Membership and role level |
+| `projects` | Project | Projects |
+| `project_members` | ProjectMember | Project membership |
+| `project_subscribers` | ProjectSubscriber | Project subscribers |
+| `personal_access_tokens` | PersonalAccessToken | Long-lived user tokens. Only the SHA-256 hash is stored; the plaintext is returned once at creation |
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `users` | email, username, display_name, password_hash, is_active | Users |
-| `workspaces` | name, slug, owner_id | Workspaces |
-| `workspace_members` | workspace_id, user_id, role | Workspace members |
-| `projects` | name, identifier, workspace_id, color, archived_at, template_id, project_lead_id | Projects |
-| `project_members` | project_id, user_id, role | Project members |
-| `project_subscribers` | project_id, user_id | Project subscribers |
+---
 
-### Project Configuration (5 tables)
+## Work items
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `states` | name, color, group, sequence, is_default, project_id | Work item states (5 fixed groups) |
-| `state_transitions` | source_state_id, target_state_id, workflow_id, rule_type, approver_ids, name, description, issue_type_id, is_auto, role_allowed, project_id, workspace_id | State transition rules |
-| `labels` | name, color, project_id | Labels |
-| `workflows` | name, description, project_id (nullable), issue_type_id, workspace_id | Workflows (workspace-level support) |
-| `automation_rules` | name, trigger_type, conditions (text), actions (text), description, is_enabled, sequence, execution_count, project_id | Automation rules |
+| Table | Model | Stores |
+|-------|-------|--------|
+| `issues` | Issue | Work items |
+| `issue_assignees` | IssueAssignee | Assignees |
+| `issue_labels` | IssueLabel | Label links |
+| `issue_cycles` | IssueCycle | Cycle links |
+| `issue_pages` | IssuePage | Page links |
+| `issue_activities` | IssueActivity | Activity log |
+| `issue_watchers` | IssueWatcher | Watchers |
+| `states` | State | States (project or workspace) |
+| `labels` | Label | Labels |
+| `comments` | Comment | Comments. Agent suggestions are JSON on the comment, not their own table |
+| `attachments` | Attachment | Attachment metadata |
+| `time_tracks` | TimeTrack | Time entries |
+| `recurrence_rules` | RecurrenceRule | Recurrence rules |
+| `relation_types` | RelationType | Relation types (inward/outward names) |
+| `issue_relations` | IssueRelation | Links between work items |
+| `project_intake_settings` | ProjectIntakeSetting | Per-project intake form / webhook / email switches and token |
 
-### Work Items (7 tables)
+---
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `issues` | name, description_html, description_json (JSONB), priority, sequence_id, sort_order, start/target_date, state_id, project_id, parent_id(depth≤5), issue_type_id, is_draft, archived_at | Core work items |
-| `issue_assignees` | issue_id, user_id | Issue assignments |
-| `issue_labels` | issue_id, label_id | Issue labels |
-| `issue_cycles` | issue_id, cycle_id | Issue-cycle associations |
-| `issue_activities` | issue_id, actor_id, verb, field, old_value, new_value | Operation history |
-| `issue_pages` | issue_id, page_id | Issue-document associations |
-| `release_issues` | release_id, issue_id | Release-issue associations |
+## Types, fields, templates
 
-### Work Item Configuration (4 tables)
+| Table | Model | Stores |
+|-------|-------|--------|
+| `issue_types` | IssueType | Work item types |
+| `issue_type_fields` | IssueTypeField | Type-to-field bindings |
+| `issue_type_imports` | IssueTypeImport | Type import records |
+| `issue_type_templates` | IssueTypeTemplate | Workspace type blueprints |
+| `issue_type_template_fields` | IssueTypeTemplateField | Blueprint fields |
+| `custom_fields` | CustomField | Custom field definitions |
+| `custom_field_options` | CustomFieldOption | Dropdown options |
+| `issue_custom_field_values` | IssueCustomFieldValue | Values on a work item |
+| `project_custom_field_enrollments` | ProjectCustomFieldEnrollment | Whether a project enables a field |
+| `conditional_fields` | ConditionalField | Field visibility rules |
+| `project_templates` | ProjectTemplate | Project templates |
+| `project_template_types` | ProjectTemplateType | Types included in a template |
+| `work_item_templates` | WorkItemTemplate | Templates for creating work items |
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `issue_types` | name, color, icon, level, parent_type_id, project_id (nullable), workspace_id | Work item types |
-| `issue_type_fields` | type_id, field_id, is_required, sequence | Type-field bindings |
-| `issue_type_templates` | name, color, icon, level, parent_type_id, workspace_id | Type templates (workspace-level) |
-| `issue_type_template_fields` | template_type_id, field_id, is_required | Template-field bindings |
+---
 
-### Custom Fields (4 tables)
+## Planning
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `custom_fields` | name, field_type (text/number/dropdown/boolean/date/member/url), is_required, project_id, workspace_id | Custom field definitions |
-| `custom_field_options` | field_id, value, color, sequence | Dropdown options |
-| `issue_custom_field_values` | issue_id, field_id, value | Issue field values |
-| `project_custom_field_enrollments` | project_id, field_id, is_enabled | Project-level field enablement |
+| Table | Model | Stores |
+|-------|-------|--------|
+| `cycles` | Cycle | Cycles |
+| `modules` | Module | Module tree |
+| `module_issues` | ModuleIssue | Module-to-issue links |
+| `module_inheritance_overrides` | ModuleInheritanceOverride | Module inheritance overrides |
+| `releases` | Release | Releases |
+| `release_issues` | ReleaseIssue | Release-to-issue links |
+| `initiatives` | Initiative | Workspace-level goals |
+| `initiative_projects` | InitiativeProject | Goal-to-project links |
+| `estimate_points` | EstimatePoint | Point estimates |
+| `estimate_categories` | EstimateCategory | Category estimates |
+| `estimate_times` | EstimateTime | Time estimates |
+| `project_estimate_settings` | ProjectEstimateSettings | Which estimate mode a project uses |
 
-### Templates (3 tables)
+---
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `project_templates` | name, description, workspace_id, is_default | Project templates |
-| `project_template_types` | template_id, type_template_id, is_required, sequence | Template-type associations |
-| `work_item_templates` | name, issue_type_id, defaults (JSONB), project_id, workspace_id | Work item creation templates |
+## State machines and automation
 
-### Cycles & Modules (3 tables)
+`workflows` is the work-item state machine. `state_transitions` belong only to it. Orchestration DAGs live on `agent_workflows` and the node / edge / run tables. The two no longer share a `workflow_kind` column.
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `cycles` | name, description, start_date, end_date, completed_at, cancelled_at, project_id | Iteration cycles |
-| `modules` | name, description, parent_id, order, project_id | Functional modules (tree) |
-| `module_issues` | module_id, issue_id | Module-issue associations |
+| Table | Model | Stores |
+|-------|-------|--------|
+| `workflows` | Workflow | State machines |
+| `state_transitions` | StateTransition | State transitions |
+| `automation_rules` | AutomationRule | Automation rules |
+| `automation_executions` | AutomationExecution | Rule executions |
+| `automation_rule_overrides` | AutomationRuleOverride | Rule overrides |
+| `approvals` | Approval | Approval requests |
+| `approval_records` | ApprovalRecord | Approval actions |
+| `agent_workflows` | AgentWorkflow | Multi-agent orchestration definitions |
+| `workflow_nodes` | WorkflowNode | Orchestration nodes |
+| `workflow_edges` | WorkflowEdge | Orchestration edges |
+| `workflow_runs` | WorkflowRun | One orchestration run |
+| `workflow_node_runs` | WorkflowNodeRun | A node execution inside a run |
 
-### Comments & Attachments (2 tables)
+---
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `comments` | issue_id, author_id, body, parent_id (nested), is_resolved | Comments |
-| `attachments` | name, file_path, file_size, mime_type, issue_id, uploader_id | Attachments |
+## Pages, views, reports
 
-### Relation Types (2 tables)
+| Table | Model | Stores |
+|-------|-------|--------|
+| `pages` | Page | Project documents |
+| `page_templates` | PageTemplate | Page templates |
+| `page_versions` | PageVersion | Page versions |
+| `project_page_tabs` | ProjectPageTab | Project page tabs |
+| `project_updates` | ProjectUpdate | Project status updates |
+| `saved_views` | SavedView | Saved filter views |
+| `saved_dashboards` | SavedDashboard | Dashboards |
+| `dashboard_widgets` | DashboardWidget | Dashboard widgets |
+| `saved_reports` | SavedReport | Saved reports |
+| `search_templates` | SearchTemplate | Search templates |
+| `metric_charts` | MetricChart | Metric charts |
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `relation_types` | name, inward_name, outward_name, workspace_id | Custom relation types |
-| `issue_relations` | issue_id, related_issue_id, relation_type_id | Issue relations |
+---
 
-### Estimation (4 tables)
+## Permissions
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `estimate_points` | name, value, mode, project_id | Points estimation (Fibonacci, etc.) |
-| `estimate_categories` | name, mode, project_id | Categories estimation (T-shirt size, etc.) |
-| `estimate_times` | name, minutes, mode, project_id | Time estimation |
-| `project_estimate_settings` | project_id, mode, points/categories/time_enabled | Project estimation config |
+| Table | Model | Stores |
+|-------|-------|--------|
+| `roles` | Role | Roles. Levels: Admin=20, Member=15, Guest=5 |
+| `permissions` | Permission | Permission codes, `resource:action` |
+| `role_permissions` | RolePermission | Role-to-permission links |
+| `field_permissions` | FieldPermission | Field-level read/write |
 
-### Releases & Saved Views (2 tables)
+Seed data is `internal/seed/seed_rbac.go`: 55 permissions and 3 default roles.
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `releases` | name, version, status, release_date, project_id | Releases |
-| `saved_views` | name, view_type, filters/rql/sort_config/columns (JSONB), group_by, is_default, is_shared, owner_id, project_id | Saved filtered views |
+---
 
-### Notifications (1 table)
+## Integrations and plugins
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `notifications` | title, message, type, priority, is_read, recipient_id, sender_id, project_id, issue_id, action_url | User notifications |
+| Table | Model | Stores |
+|-------|-------|--------|
+| `webhooks` | Webhook | Outbound webhooks |
+| `github_connections` | GitHubConnection | GitHub connections |
+| `slack_connections` | SlackConnection | Slack connections |
+| `git_integrations` | GitIntegration | Git integration config |
+| `git_issue_links` | GitIssueLink | Work-item to pull-request links |
+| `mcp_configs` | MCPConfig | MCP server config |
+| `plugins` | Plugin | Plugins |
+| `plugin_event_logs` | PluginEventLog | Plugin events |
 
-### Documents (1 table)
+---
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `pages` | title, content, content_json (JSONB), parent_id (depth≤5), sequence, published, archived_at, project_id | Wiki/document pages |
+## Notifications and chat
 
-### Time Tracking (1 table)
+| Table | Model | Stores |
+|-------|-------|--------|
+| `notifications` | Notification | In-app notifications |
+| `chats` | Chat | Conversations |
+| `messages` | Message | Messages |
+| `message_reactions` | MessageReaction | Message reactions |
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `time_tracks` | issue_id, user_id, description, started_at, ended_at, duration (seconds) | Time records |
+---
 
-### Recurring Work Items (1 table)
+## AI and agents
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `recurrence_rules` | issue_id (unique), frequency (daily/weekly/monthly/cron), interval, cron_expr, next_run, end_date | Recurring rules |
+These tables are created by process startup. The `/agents*` console is hidden by default and Harness / Loop is not a product direction, but the tables are still migrated.
 
-### Conditional Fields (1 table)
+| Table | Model | Stores |
+|-------|-------|--------|
+| `ai_configs` | AIConfig | Workspace AI config |
+| `ai_threads` | AIThread | AI conversation threads |
+| `ai_messages` | AIMessage | Conversation messages |
+| `agents` | Agent | Agents that can be assigned and @-mentioned |
+| `agent_activities` | AgentActivity | Agent action audit |
+| `agent_registry` | AgentEntry | Built-in agent registry (`internal/ai/registry`) |
+| `project_agent_members` | ProjectAgentMember | Agent members of a project |
+| `agent_templates` | AgentTemplate | Agent templates |
+| `agent_configs` | AgentConfig | Agent configs |
+| `agent_sessions` | AgentSession | Sessions |
+| `agent_tasks` | AgentTask | Tasks |
+| `agent_task_snapshots` | AgentTaskSnapshot | Task snapshots |
+| `task_logs` | TaskLog | Task logs |
+| `agent_decisions` | AgentDecision | Decision records |
+| `agent_cost_budgets` | AgentCostBudget | Cost budgets |
+| `agent_slas` | AgentSLA | SLAs |
+| `runtimes` | Runtime | Runtimes |
+| `skills` | Skill | Skills |
+| `skill_execution_logs` | SkillExecutionLog | Skill executions |
+| `tools` | Tool | Tools |
+| `tool_permissions` | ToolPermission | Tool permissions |
+| `tool_call_logs` | ToolCallLog | Tool calls |
+| `memory_entries` | MemoryEntry | Memory entries |
+| `memory_sessions` | MemorySession | Memory sessions |
+| `memory_vector_indexes` | MemoryVectorIndex | Memory vector indexes |
+| `squads` | Squad | Squads |
+| `squad_members` | SquadMember | Squad members |
+| `squad_tasks` | SquadTask | Squad tasks |
+| `squad_executions` | SquadExecution | Squad executions |
+| `autopilot_tasks` | AutopilotTask | Autopilot tasks |
+| `autopilot_executions` | AutopilotExecution | Autopilot executions |
+| `autopilot_webhooks` | AutopilotWebhook | Autopilot webhooks |
+| `agent_loops` | Loop | Loop definitions |
+| `agent_loop_runs` | LoopRun | Loop runs |
+| `agent_loop_iterations` | LoopIteration | Loop iterations |
+| `agent_pipelines` | Pipeline | Pipelines |
+| `agent_pipeline_runs` | PipelineRun | Pipeline runs |
+| `developer_jobs` | DeveloperJob | Developer-agent jobs |
+| `tester_jobs` | TesterJob | Tester-agent jobs |
+| `cicd_configs` | CICDConfig | CI/CD config |
+| `build_records` | BuildRecord | Build records |
+| `sdlc_workflows` | SDLCWorkflow | SDLC workflows |
+| `sdlc_stages` | SDLCStage | SDLC stages |
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `conditional_fields` | field_id, condition_type, operator, condition_values (text), workspace_id | Field visibility rules |
+---
 
-### AI (3 tables)
+## Other
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `ai_configs` | provider, model, api_key, max_tokens, workspace_id | Workspace AI config |
-| `ai_threads` | title, workspace_id, project_id, user_id | AI conversation threads |
-| `ai_messages` | thread_id, role, content, tool_calls (JSONB), tool_name | AI conversation messages |
+| Table | Model | Stores |
+|-------|-------|--------|
+| `data_migrations` | DataMigration | Markers so a data backfill runs once |
 
-### RBAC System (3 tables)
+---
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `roles` | name, description, scope, workspace_id, project_id, level(5/15/20), is_system, sort_order | Roles (system default + custom) |
-| `permissions` | code (unique, e.g. issue:create), name, description, resource, action, scope | Permission enumeration (55 items) |
-| `role_permissions` | role_id + permission_id (composite PK) | Role-permission associations |
+## Structs that are not tables
 
-### Agent System (2 tables)
+These types are JSON shapes. `AutoMigrate` does not include them:
 
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `agents` | name, description, agent_type, config (JSONB), is_active, workspace_id | AI Agent config |
-| `agent_activities` | agent_id, issue_id, action, status, result, started_at, completed_at | Agent execution records |
-
-### Integration (4 tables)
-
-| Table | Key Fields | Description |
-|-------|------------|-------------|
-| `webhooks` | url, events, secret, is_active, project_id | Webhook config |
-| `slack_connections` | channel, config, project_id | Slack integration |
-| `github_connections` | repo, config, project_id | GitHub integration |
-| `mcp_configs` | name, server_url, config (JSONB), workspace_id | MCP Server config |
+| Type | File | Use |
+|------|------|-----|
+| `IssueSuggestion` / `SuggestionOutcome` | `comment.go` | Agent suggestions on a comment, and what the user did with them |
+| `FieldCondition` | `conditional_field.go` | JSON shape of a condition value |
+| `AgentInvocationTarget` | `agent.go` | Who may invoke an agent |
+| `AgentToolCall` | `agent.go` | One tool call inside a run, stored on `agent_activities.tool_calls` |
 
 ---
 

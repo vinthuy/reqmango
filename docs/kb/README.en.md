@@ -29,7 +29,7 @@ The KB is the **single source of truth** for the reqmango system, always describ
 - [architecture/project-layout.md](architecture/project-layout.md) — Project directory structure (Chinese only)
 - [architecture/backend-go.md](architecture/backend-go.md) — Go backend architecture
 - [architecture/frontend.md](architecture/frontend.md) — Frontend architecture (views / components / API modules)
-- [architecture/data-model.md](architecture/data-model.md) — Data model (core tables; newer module tables pending — `internal/model/` is authoritative)
+- [architecture/data-model.md](architecture/data-model.md) — Data model (the 131 tables created by AutoMigrate)
 - [architecture/api-conventions.md](architecture/api-conventions.md) — API design conventions
 - [architecture/tech-stack.md](architecture/tech-stack.md) — Tech stack details
 - E2E tests — Playwright suites under `frontend/e2e/`, covering the main path and core customization

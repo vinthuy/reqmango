@@ -168,10 +168,10 @@ Error factories: `NotFound()`, `Conflict()`, `Unauthorized()`, `Forbidden()`, `V
 ### Pagination
 
 ```go
-func ParsePagination(c *gin.Context) (limit int, offset int)
+func ParsePagination(limitStr, offsetStr string, defaultLimit, maxLimit int) Pagination
 ```
 
-Default limit=20, max=100, parsed from the `page` and `page_size` query parameters.
+Callers pass the `limit` and `offset` query parameters. The work-item list defaults to 50 and caps at 100; other handlers pick their own defaults. The total is the `X-Total-Count` response header.
 
 ### Authentication flow
 

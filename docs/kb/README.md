@@ -40,7 +40,7 @@ KB 是 reqmango 系统的**唯一真相来源**，始终描述系统当前的实
 - [architecture/project-layout.md](architecture/project-layout.md) — 项目目录结构
 - [architecture/backend-go.md](architecture/backend-go.md) — Go 后端架构
 - [architecture/frontend.md](architecture/frontend.md) — 前端架构（视图 / 组件 / API 模块的组织方式）
-- [architecture/data-model.md](architecture/data-model.md) — 数据模型（核心表；新增模块表待补，以 `internal/model/` 为准）
+- [architecture/data-model.md](architecture/data-model.md) — 数据模型（AutoMigrate 的 131 张表）
 - [architecture/api-conventions.md](architecture/api-conventions.md) — API 设计约定
 - [architecture/tech-stack.md](architecture/tech-stack.md) — 技术栈详情
 - E2E 测试 — Playwright 场景套件，位于 `frontend/e2e/`，覆盖主路径与核心定制

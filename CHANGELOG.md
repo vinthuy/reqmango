@@ -54,6 +54,12 @@ under **Changed** / **Upgrade notes**.
 - `PRD.en.md` was an abridged copy (266 lines against 601); it is now a
   complete translation of the v5.0 Chinese PRD, including the sections the
   abridgement had dropped.
+- `data-model.md` listed the July 2026 core tables and left later modules out.
+  It now names every table `AutoMigrate` creates (131 on 2026-10-25) and points
+  at the model files for columns. `api-conventions.md` described `page` /
+  `page_size`, a `{data, message}` envelope and a 10-second Axios timeout;
+  the code uses `limit` / `offset`, several response shapes, and a 30-second
+  timeout. The same pagination claim in `backend-go.md` is corrected.
 
 ## [0.1.0] - 2026-10-24
 
