@@ -14,7 +14,7 @@ Self-hosted project management: triage new requests before they hit the backlog.
 
 ## Website
 
-Point to GitCode primary if you want CN visitors redirected, or leave empty until a docs site exists.
+`https://vinthuy.github.io/reqmango/` — the published docs site. Set on the GitHub mirror on 2026-10-25. GitCode stays the collaboration home; the website field is where a visitor lands, so it points at the docs rather than at another git host.
 
 ## Topics
 

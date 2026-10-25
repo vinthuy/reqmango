@@ -2,7 +2,7 @@
 
 > 路径：登录后打开 `https://my.oschina.net/<uid>/admin/publish` → **投递软件**（审核通过后再投递资讯）。  
 > 主场仍写 GitCode；GitHub 作镜像一句带过。  
-> **状态（2026-09-26）**：Reqmango 已提交「投递软件」，表单提交后已清空，等待编辑审核（通常约 1 个工作日）。
+> **状态（2026-10-25 刷新）**：2026-09-26 已提交「投递软件」。下面的试用命令已改成已发布镜像（`pull` + `up -d`），并补上文档站与 v0.1.0。若软件审核已通过，用 B 节投一条资讯；若被退回，用 A 节重投。
 
 ---
 
@@ -15,8 +15,10 @@
 | **授权协议** | MIT |
 | **开发语言** | Go / TypeScript / Vue |
 | **操作系统** | 跨平台（Docker / Linux / Windows / macOS） |
-| **软件官网 / 源码** | https://gitcode.com/yongfeng9m-/reqmanpy |
+| **软件官网** | https://vinthuy.github.io/reqmango/ |
+| **源码（国内主场）** | https://gitcode.com/yongfeng9m-/reqmanpy |
 | **国际镜像** | https://github.com/vinthuy/reqmango |
+| **当前版本** | v0.1.0（2026-10-24，多架构镜像 `linux/amd64`、`linux/arm64`） |
 | **一句话简介** | 自建项目管理：新需求先分诊再进待办；可自定义工作项类型、工作流与自动化；AI 嵌在 Issue / Intake / Cycle。 |
 
 ### 软件详细介绍（可粘贴）
@@ -35,18 +37,21 @@ Reqmango 是面向团队的**自建开源项目管理**工具。
 4. **自动化规则**：触发器 → 条件 → 动作。  
 5. **嵌在工作路径里的 AI**：Issue / Intake / Cycle；自备模型 API Key。
 
-**快速试用**
+**快速试用**（已发布镜像，不必本地编译）
 
 ```bash
 git clone https://gitcode.com/yongfeng9m-/reqmanpy.git reqmango
 cd reqmango
 cp .env.example .env
-docker compose up --build
+docker compose pull
+docker compose up -d
 ```
 
 浏览器打开 http://localhost  
 演示账号：`demo@example.com` / `demo1234`  
-（可选）配置 `AI_API_KEY` 后重启以启用 AI 分诊建议。
+（可选）在 `.env` 里填 `AI_API_KEY` 后重启后端，才会出现 AI 分诊建议。  
+文档：https://vinthuy.github.io/reqmango/  
+能被外网访问的实例必须关掉 `SEED_DEMO`，并按文档站「生产部署」设置密钥。
 
 演示动图：https://raw.githubusercontent.com/vinthuy/reqmango/master/docs/assets/demo.gif
 

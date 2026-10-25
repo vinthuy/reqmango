@@ -8,7 +8,8 @@
 | 平台 | 状态 | 入口 |
 |------|------|------|
 | GitCode 主场 | **持续** | https://gitcode.com/yongfeng9m-/reqmanpy · 操作清单：`docs/dev/promo-gitcode.md` |
-| 开源中国 | **已投递软件，待审核** | 入口：`my.oschina.net/.../admin/publish` → 投递软件；成稿：`docs/dev/promo-oschina.md` |
+| 开源中国 | **已投递软件（2026-09-26）**；成稿 2026-10-25 已改成发布镜像 + 文档站，审核过后用它投资讯 | 成稿：`docs/dev/promo-oschina.md` |
+| awesome-selfhosted | **草稿已写，未提交**（需你的 GitHub 账号提 PR） | `docs/dev/promo-awesome-selfhosted.md` |
 | V2EX | 已发（存量）· 回帖已发 ✅ | https://www.v2ex.com/t/1244811 · 回帖草稿：`docs/dev/promo-reply-drafts.md` |
 | 掘金 | 已发审核中（存量） | https://juejin.cn/spost/7689019584239009811 |
 | 思否等 | 暂缓 | — |
