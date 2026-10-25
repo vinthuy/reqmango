@@ -49,7 +49,7 @@ Optional AI: set `AI_API_KEY` in `.env`, restart.
 
 ### Local (without Docker)
 
-- Go **1.25+**, PostgreSQL **16+**, Node.js **20+**
+- Go **1.25+**, PostgreSQL **16+**, Node.js **24+**
 - Backend: `cd backend && go run ./cmd/server/` (API on `:8000`)
 - Frontend: `cd frontend && npm install && npm run dev` (http://localhost:5173)
 

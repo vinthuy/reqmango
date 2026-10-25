@@ -17,6 +17,10 @@ under **Changed** / **Upgrade notes**.
   Node 20 action runtime and printed a warning on every job; nothing changes for
   contributors. The Go jobs also pin `cache-dependency-path` to `backend/go.sum`,
   so the module cache is restored instead of re-downloaded on every run.
+- The frontend now builds and tests on **Node.js 24** (LTS) instead of Node 20,
+  which reached end-of-life in April 2026. CI runs 24, the image builder is
+  `node:24-alpine`, `frontend/package.json` declares `engines.node >= 24`, and
+  `.nvmrc` pins the same major. `@types/node` moved to 24 to match.
 
 ## [0.1.0] - 2026-10-24
 

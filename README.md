@@ -93,9 +93,10 @@ AI is a layer on top of project management — not a separate “agent IDE” as
 | Mode | Need |
 |------|------|
 | **Docker (recommended)** | Docker + Docker Compose |
-| Local dev | Go **1.25+**, PostgreSQL **16+**, Node.js **20+** |
+| Local dev | Go **1.25+**, PostgreSQL **16+**, Node.js **24+** |
 
-Stack matches CI and `docker-compose.yml` (`postgres:16`, Go 1.25 image).
+Stack matches CI and `docker-compose.yml` (`postgres:16`, Go 1.25 and Node 24
+build images).
 
 ---
 

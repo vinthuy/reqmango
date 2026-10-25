@@ -48,7 +48,7 @@ docker compose up --build
 
 ### 本地开发
 
-- Go **1.25+**、PostgreSQL **16+**、Node.js **20+**
+- Go **1.25+**、PostgreSQL **16+**、Node.js **24+**
 - 后端：`cd backend && go run ./cmd/server/`（`:8000`）
 - 前端：`cd frontend && npm install && npm run dev`（http://localhost:5173）
 

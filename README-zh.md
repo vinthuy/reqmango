@@ -93,9 +93,9 @@ AI 是项目管理上的一层能力，默认叙事不是独立的 Agent 控制�
 | 方式 | 需要 |
 |------|------|
 | **Docker（推荐）** | Docker + Docker Compose |
-| 本地开发 | Go **1.25+**、PostgreSQL **16+**、Node.js **20+** |
+| 本地开发 | Go **1.25+**、PostgreSQL **16+**、Node.js **24+** |
 
-版本与 CI、`docker-compose.yml` 一致（`postgres:16`，Go 1.25 构建镜像）。
+版本与 CI、`docker-compose.yml` 一致（`postgres:16`，Go 1.25 / Node 24 构建镜像）。
 
 ---
 
