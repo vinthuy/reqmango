@@ -62,20 +62,6 @@
 
 ---
 
-## Python 后端（⚠️ 已完全弃用）
-
-> ⚠️ 该后端已完全弃用，代码保留在 `superseded/` 目录中作为参考
-
-| 组件 | 选型 | 用途 |
-|------|------|------|
-| 框架 | FastAPI | 异步 Web 框架 |
-| ORM | SQLAlchemy 2.0 | 异步数据库操作 |
-| 验证 | Pydantic V2 | 数据验证和序列化 |
-| 数据库 | SQLite / PostgreSQL | 开发/生产数据库 |
-| 认证 | python-jose | JWT |
-
----
-
 ## 选型理由
 
 ### 为什么从 Python 迁移到 Go？

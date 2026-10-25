@@ -2,11 +2,13 @@
 
 > 参考企业级平台设计，适配当前项目
 
-**最后更新**: 2026-07-04
+**最后更新**: 2026-10-25
 
 ---
 
 ## 1. 企业级平台参考模型
+
+这一节是当初对照企业级工具写的参照，不是当前校验规则。当前规则在 2.3。
 
 ### 1.1 类型层级 (Hierarchy)
 
@@ -126,19 +128,20 @@
      d. 设置项目 template_id
 ```
 
-### 2.3 层级校验规则
+### 2.3 创建子工作项时的校验
 
-```
-创建子工作项时:
-  1. 父工作项存在 (parent_id 有效)
-  2. 子类型.level == 父类型.level + 1 (只能下一层)
-  3. 如果子类型有 parent_type_id 约束，父类型必须匹配
-  4. depth < 5 (最多6层)
+代码在 `IssueService` 创建和更新路径里做这些检查，不是「子类型 level 必须正好等于父类型 level + 1」：
 
-类型变更时:
-  1. 如果工作项有子项，新类型的 level 必须当前所有子项的 level - 1
-  2. 如果工作项有父项，新类型必须满足父项 level + 1
-```
+1. 父工作项必须存在，不能把自己或子孙设成父级。
+2. 父级 `depth >= 5` 时拒绝。子项 `depth = 父级 + 1`，因此 depth 取值 0–5。错误文案是 “Maximum hierarchy depth (6 levels) exceeded”。
+3. 子类型 `level == 0` 且 `parent_type_id` 为空时，不能作为子工作项。
+4. 父类型 `level > 0` 时，子类型的 level 不能比父类型更浅。更深或相同都允许。
+5. 子类型写了 `parent_type_id` 时，父工作项的类型必须就是这个 id。
+6. 父类型的 `allowed_child_type_ids` 非空时，子类型必须在这个名单里。
+
+`IssueType.level` 的模型注释是 L0–L5，0 表示顶层。这和第一节里「Epic 在 level 2」的企业参考不是同一套编号。
+
+工作项树的接口是 `GET /issues/tree?project_id=`，子项懒加载是 `GET /issues/:issueId/children`。没有 `/issues/hierarchy`。
 
 ---
 
@@ -169,14 +172,22 @@ DELETE /api/v1/templates/:id/types/:typeId        移除
 POST   /api/v1/templates/:id/apply                应用到项目(实例化)
 ```
 
-### 3.3 项目内类型管理
+### 3.3 项目里的类型
+
+项目不复制工作空间类型，而是用 `issue_type_imports` 引用。没有 `copy-from-workspace` 这条路由。
 
 ```
-GET    /api/v1/projects/:id/issue-types            项目内已有类型
-POST   /api/v1/projects/:id/issue-types            项目内创建类型
-POST   /api/v1/projects/:id/issue-types/copy-from-workspace  从工作空间复制
-PATCH  /api/v1/projects/:id/issue-types/reorder    项目内排序
+GET    /projects/:projectId/issue-types
+POST   /projects/:projectId/issue-types
+PATCH  /projects/:projectId/issue-types/reorder
+GET    /projects/:projectId/issue-types/importable
+POST   /projects/:projectId/issue-types/:typeId/import
+DELETE /projects/:projectId/issue-types/:typeId/import
 ```
+
+创建、排序、导入、取消导入要 `settings:manage`。
+
+创建工作项时套用的标题和描述模板是另一张表 `work_item_templates`，路由是 `/projects/:projectId/work-item-templates`。它不是项目模板 `project_templates`。
 
 ### 3.4 工作空间级别类型管理
 
@@ -202,56 +213,22 @@ DELETE /api/v1/issue-types/:typeId/fields/:fieldId 移除字段绑定
 ### 3.6 层级查询
 
 ```
-GET    /api/v1/issues/hierarchy?project_id=N       项目工作项层级树
-GET    /api/v1/issues/:id/children                  子工作项列表(按层级)
+GET    /issues/tree?project_id=N
+GET    /issues/:issueId/children
 ```
 
 ---
 
-## 4. 当前完成度
+## 4. 和代码的对应
 
-| 功能 | 后端 | 前端 |
-|------|------|------|
-| 自定义字段 CRUD | ✅ | ✅ |
-| 类型模板 CRUD | ✅ | ✅ TypeTemplateManager |
-| 字段绑定 | ✅ | ✅ IssueTypeList页面 |
-| 层级定义 (Level/ParentTypeID) | ✅ | ✅ |
-| 项目模板 CRUD | ✅ | ✅ |
-| 模板添加类型 | ✅ | ✅ |
-| 应用到项目(实例化) | ✅ | ✅ |
-| 层级校验 (创建/编辑) | ✅ | ✅ |
-| 层级树查询 | ✅ | ✅ |
-| 项目模板 UI | ✅ | ✅ |
-| 工作空间级别排序 | ✅ | ✅ |
-| 启用/禁用类型 | ✅ | ✅ |
-| 从工作空间复制到项目 | ✅ | ✅ |
-
----
-
-## 5. 最新改进 (2026-07-04)
-
-### IssueTypeList页面增强
-- 新增自定义字段绑定UI
-- 支持显示已绑定字段列表
-- 支持添加新字段绑定
-- 支持移除字段绑定
-- 支持切换字段必填状态
-
-### 模板应用修复
-- `CopyFromWorkspace` 方法现在会正确复制字段关联
-- 从工作空间复制类型时，会同时复制 `IssueTypeField` 关联
-
-### 工作空间级别排序
-- 新增 `ReorderWorkspace` API：`PATCH /issue-types/reorder-workspace?workspace_id=`
-- 支持工作空间级别类型的排序操作
-
----
-
-## 6. 待实现优先级
-
-1. ~~**模板实例化** (apply to project) — 核心闭环~~ ✅ 已完成
-2. ~~**项目模板管理 UI** — 可用性~~ ✅ 已完成
-3. ~~**层级树查询** — 展示~~ ✅ 已完成
-4. **关系系统** (依赖/关联) — 后续增强
-5. **批量创建/导入类型** — 提升效率
-6. **类型使用统计** — 显示每个类型关联的Issue数量
+| 能力 | 代码 |
+|------|------|
+| 工作空间自定义字段 | `/custom-fields`，另有 `/conditional-fields` |
+| 类型蓝图 | `/type-templates`，字段绑定是 `POST/DELETE /:id/fields` |
+| 项目模板 | `/templates`，含 `/:templateId/types` 和 `/:templateId/apply` |
+| 工作空间类型 | `/issue-types`，含 `PATCH /:typeId/disable` 和 `PATCH /reorder-workspace` |
+| 类型上的字段 | `/issue-types/:typeId/fields` |
+| 项目引用工作空间类型 | `/projects/:projectId/issue-types/:typeId/import` |
+| 工作项模板 | `/projects/:projectId/work-item-templates` |
+| 层级校验 | `IssueService` 创建和更新，规则见 2.3 |
+| 关联类型 | 见 [relation-system-design.md](relation-system-design.md)，已经实现 |

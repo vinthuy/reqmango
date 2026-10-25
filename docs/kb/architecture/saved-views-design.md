@@ -1,6 +1,6 @@
 # Saved Views（保存视图）设计
 
-**最后更新**: 2026-07-03
+**最后更新**: 2026-10-25
 
 ## 概述
 
@@ -13,12 +13,13 @@ type SavedView struct {
     BaseModel
     Name        string          // 视图名称（必填）
     Description *string         // 描述（可选）
-    ViewType    string          // "list" | "kanban" | "tree" | "gantt" | "calendar"
-    Filters     json.RawMessage // JSONB: 筛选条件，如 {"priority":"urgent","state_id":[1,2]}
+    ViewType    string          // 前端使用 list | kanban | tree | gantt | calendar。列是普通字符串，模型注释只写了 list | kanban
+    Filters     json.RawMessage // JSONB
     RQL         string          // RQL 查询字符串（与 Filters 互补）
-    SortConfig  json.RawMessage // JSONB: 排序配置，如 [{"field":"priority","dir":"desc"}]
-    Columns     json.RawMessage // JSONB: 列可见性/顺序，如 ["name","priority","state"]
-    GroupBy     *string         // 分组字段: "state_id" | "priority" | "assignee_id" | "label" | "cycle_id" | "module_id" | "type_id"
+    SortConfig  json.RawMessage // JSONB，前端写入 [{"field":"priority","dir":"desc"}]
+    Columns     json.RawMessage // JSONB: 列可见性/顺序
+    GroupBy     *string         // 主分组
+    SubGroupBy  *string         // 二级分组，可空
     IsDefault   bool            // 是否为用户在此项目的默认视图
     IsShared    bool            // 是否共享给项目成员
     OwnerID     uint64          // 创建者
@@ -44,7 +45,7 @@ type SavedView struct {
 
 嵌入 `Project.vue` 的工具栏区域：
 - 下拉菜单显示所有可用视图
-- 选中视图后 **完整恢复** filters + viewType + columns + groupBy + sortConfig（不只是切换 view_type）
+- 选中视图后恢复 filters、viewType、columns、groupBy、subGroupBy、sortConfig
 - "Save current view" 按钮将当前筛选状态持久化
 - 支持设为默认、复制、删除操作
 
@@ -76,11 +77,13 @@ interface FiltersState {
 - `parseRQL(rqlStr)` → 解析 RQL → FilterCondition[] + SortOption
 - 视图保存时同时存储 `filters`（JSONB）和 `rql`（字符串）
 
-## 筛选字段（12 个）
+## 筛选字段
+
+定义在 `frontend/src/types/filters.ts` 的 `FILTER_FIELDS`。除下表外还有内置函数：`isOverdue`、`hasNoAssignee`、`hasNoLabel`、`isTopLevel`、`isSubWorkItem`、`hasChildren`、`hasStartAndDueDates`。
 
 | 字段 Key | DB 映射 | 类型 | 支持的操作符 |
 |----------|---------|------|-------------|
-| `sequence_id` | `sequence_id` | number | is, is not |
+| `sequence_id` | `sequence_id` | number | is, is not, is any of, is not any of |
 | `title` | `name` | text | is, is not, contains, does not contain |
 | `state_id` | `state_id` | select | is, is any of, is not, is not any of |
 | `state_group` | `state_group` | select | is, is any of, is not, is not any of |
@@ -93,18 +96,17 @@ interface FiltersState {
 | `start_date` | `start_date` | date | is, is not, before, after, before or on, after or on, between, not between, is empty, is not empty |
 | `target_date` | `target_date` | date | is, is not, before, after, before or on, after or on, between, not between, is empty, is not empty |
 | `created_at` | `created_at` | date | is, is not, before, after, before or on, after or on, between, not between, is empty, is not empty |
+| `updated_at` | `updated_at` | date | 同上 |
+| `created_by` | `created_by` | select | is, is any of, is not, is not any of, is empty, is not empty |
+| `milestone` | `milestone` | select | is, is any of, is not, is not any of, is empty, is not empty |
 
-## 排序选项（5 种）
+## 排序选项
 
-| Key | 方向 |
-|-----|------|
-| `created_at` | desc |
-| `updated_at` | desc |
-| `priority` | desc |
-| `start_date` | asc |
-| `target_date` | asc |
+`SORT_OPTIONS`：`created_at` desc、`updated_at` desc、`priority` desc、`start_date` asc、`target_date` asc、`sequence_id` desc、`name` asc、`state` asc、`issue_type` asc。
 
-## 分组选项（8 种）
+二级分组用 `SUB_GROUP_OPTIONS`，键与下面的分组选项相同。
+
+## 分组选项
 
 | Key | 说明 |
 |-----|------|
@@ -142,4 +144,4 @@ interface FiltersState {
 2. **按用户+项目隔离**：视图是用户级别的配置，共享功能通过 `is_shared` 标志实现
 3. **默认视图排序优先**：List 查询以 `is_default DESC` 排序，确保默认视图最先展示
 4. **RQL + Filters 双存储**：Filters 提供结构化数据便于 UI 恢复，RQL 提供可读字符串便于复制/分享
-5. **Views 完整恢复**：选择视图时恢复 viewType + filters + columns + groupBy + sortConfig 全部状态
+5. **Views 完整恢复**：选择视图时恢复 viewType、filters、columns、groupBy、subGroupBy、sortConfig

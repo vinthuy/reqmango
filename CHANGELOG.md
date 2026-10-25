@@ -60,6 +60,11 @@ under **Changed** / **Upgrade notes**.
   `page_size`, a `{data, message}` envelope and a 10-second Axios timeout;
   the code uses `limit` / `offset`, several response shapes, and a 30-second
   timeout. The same pagination claim in `backend-go.md` is corrected.
+- The design notes for saved views, pages, notifications, type hierarchy and
+  relations still described the July drafts: nine notification types, English
+  relation names, `copy-from-workspace`, and a child type that must be exactly
+  one level deeper. They now follow the models, routes and the checks in
+  `IssueService`.
 
 ## [0.1.0] - 2026-10-24
 

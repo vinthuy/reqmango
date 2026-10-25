@@ -52,8 +52,5 @@ KB 是 reqmango 系统的**唯一真相来源**，始终描述系统当前的实
 - [architecture/type-hierarchy-template-design.md](architecture/type-hierarchy-template-design.md) — 类型层级与模板
 - [architecture/relation-system-design.md](architecture/relation-system-design.md) — 关联类型系统
 
-### 遗留
-- [architecture/backend-python.md](architecture/backend-python.md) — Python 后端（已淘汰）
-
 ### 变更日志
 - [changelog/README.md](changelog/README.md) — KB 更新历史

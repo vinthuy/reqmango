@@ -43,9 +43,6 @@ These are Chinese only; there are no English siblings yet.
 - [architecture/type-hierarchy-template-design.md](architecture/type-hierarchy-template-design.md) — Type hierarchy and templates
 - [architecture/relation-system-design.md](architecture/relation-system-design.md) — Relation types
 
-### Legacy
-- [architecture/backend-python.md](architecture/backend-python.md) — Python backend (retired)
-
 ### Changelog
 - [changelog/README.md](changelog/README.md) — KB update history
 

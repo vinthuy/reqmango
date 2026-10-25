@@ -144,7 +144,6 @@ exclude_docs: |
   /kb/README.md
   /kb/README.en.md
   /kb/changelog/**
-  /kb/architecture/backend-python.md
   /superpowers/**
   /superseded/**
   /prs/**

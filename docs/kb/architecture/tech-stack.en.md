@@ -63,20 +63,6 @@
 
 ---
 
-## Python backend (⚠️ fully retired)
-
-> ⚠️ Retired. The code is kept under `superseded/` for reference only.
-
-| Component | Choice | Purpose |
-|-----------|--------|---------|
-| Framework | FastAPI | Async web framework |
-| ORM | SQLAlchemy 2.0 | Async DB access |
-| Validation | Pydantic V2 | Validation and serialization |
-| Database | SQLite / PostgreSQL | Dev / production |
-| Authentication | python-jose | JWT |
-
----
-
 ## Why these choices
 
 ### Why migrate from Python to Go?

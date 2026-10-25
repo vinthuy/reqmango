@@ -1,90 +1,46 @@
-# 自定义关联关系架构设计
+# 自定义关联关系
 
-> 参考企业级平台 Relations 设计
+**最后更新**: 2026-10-25
 
----
+关联类型在工作空间上定义。一条 `issue_relations` 把两个工作项连起来。父子层级另外存在 `issues.parent_id` 上，和关联类型是两套数据。
 
-## 1. 企业级平台参考模型
+## 数据
 
-企业级平台支持三种关联关系：
+`relation_types`：`name`、`inward_name`、`outward_name`、`workspace_id`。
 
-### 1.1 内置关系
-| 类型 | 触发 | 说明 |
-|------|------|------|
-| Parent-Child | 层级结构 | 父子工作项，深度最多6层 |
-| Dependency | 排程约束 | Blocked by/Blocking, Starts Before/After, Finishes Before/After |
-| Logical | 逻辑关联 | Relates To, Duplicate, Implements |
+`issue_relations`：`issue_id`、`related_issue_id`、`relation_type_id`、`comment`（可空）。
 
-### 1.2 自定义关系 (Enterprise Grid)
-Workspace Admin 可创建自定义关系类型，指定：
-- **Title**: 关系名称 (e.g., "Tests")
-- **Inward name**: 从源工作项读取的名称 (e.g., "tested by")  
-- **Outward name**: 从目标工作项读取的名称 (e.g., "tests")
+## API
 
-所有项目自动可用。
-
----
-
-## 2. 当前项目实现
-
-### 2.1 数据模型
+路径都在 `/api/v1` 下，并且要登录。创建、修改、删除关系类型还要 `settings:manage`。
 
 ```
-┌──────────────────────────────────────────┐
-│           WORKSPACE LEVEL                │
-│                                          │
-│  ┌──────────────────────┐               │
-│  │ RelationType         │               │
-│  │ - name               │  e.g., "Blocks"
-│  │ - inward_name        │  "blocked by" │
-│  │ - outward_name       │  "blocks"     │
-│  │ - workspace_id       │               │
-│  └──────────────────────┘               │
-└──────────────────────┬───────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────┐
-│           ISSUE LEVEL                    │
-│                                          │
-│  ┌──────────────────────┐               │
-│  │ IssueRelation         │               │
-│  │ - issue_id            │  源工作项     │
-│  │ - related_issue_id    │  目标工作项   │
-│  │ - relation_type_id    │  关系类型     │
-│  │ - comment             │  备注         │
-│  └──────────────────────┘               │
-└──────────────────────────────────────────┘
+POST   /relations/types?workspace_id=N
+GET    /relations/types?workspace_id=N
+PUT    /relations/types/:id
+DELETE /relations/types/:id
+
+POST   /issues/:issueId/relations
+GET    /issues/:issueId/relations
+DELETE /relations/:relationId
 ```
 
-### 2.2 API
+## 种子数据
 
-```
-# 关系类型 (Workspace 级别)
-POST   /relations/types?workspace_id=N   创建关系类型
-GET    /relations/types?workspace_id=N   列表
-PUT    /relations/types/:id              更新
-DELETE /relations/types/:id              删除
+`SeedRelationTypesForAllWorkspaces` 只在工作空间还没有任何关系类型时插入下面五种。已经有类型的工作空间整段跳过，不会按名称补缺。
 
-# 工作项关联
-POST   /issues/:id/relations             创建关联
-GET    /issues/:id/relations             查看关联
-DELETE /relations/:id                    删除关联
-```
+| 名称 | inward | outward |
+|------|--------|---------|
+| 阻塞 | 被阻塞于 | 阻塞 |
+| 关联 | 关联到 | 被关联于 |
+| 重复 | 重复于 | 被重复于 |
+| 父子 | 子任务 | 父任务 |
+| 依赖 | 依赖于 | 被依赖于 |
 
-### 2.3 默认关系类型
+## 和层级的关系
 
-| 名称 | Inward | Outward | 用途 |
-|------|--------|---------|------|
-| Blocks | blocked by | blocks | 阻塞关系 |
-| Relates To | related to | relates to | 一般关联 |
-| Duplicates | duplicated by | duplicates | 重复标记 |
+工作项树用 `parent_id` 和 `depth`。父级 `depth >= 5` 时不能再挂子项，子项 `depth = 父级 + 1`，所以 depth 是 0 到 5。错误文案写成 “Maximum hierarchy depth (6 levels) exceeded”。
 
-### 2.4 架构定位
+「父子」「依赖」也是上面的关系类型，可以单独连一条 `issue_relations`。它们不代替 `parent_id`，也没有排程约束（没有 Starts Before / Finishes After 这种时间关系）。
 
-```
-工作项关系体系
-├── 层级关系 (Parent-Child)     ✅ 已实现 (parent_id + depth)
-├── 自定义关联 (Relations)      ✅ 已实现 (本系统)
-├── 依赖关系 (Dependencies)     ⏳ 后续 (排程约束)
-└── 子工作项 (Sub-issues)       ✅ 已有 (parent_id)
-```
+疑似重复的检测是另一条路径：`GET` 或 `POST /projects/:projectId/issues/duplicate-check`，以及 `POST /issues/merge`。那不是 `relation_types` 里的「重复」。
