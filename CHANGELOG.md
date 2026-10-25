@@ -17,6 +17,12 @@ under **Changed** / **Upgrade notes**.
   Node 20 action runtime and printed a warning on every job; nothing changes for
   contributors. The Go jobs also pin `cache-dependency-path` to `backend/go.sum`,
   so the module cache is restored instead of re-downloaded on every run.
+- CI now pins `ubuntu-24.04` instead of `ubuntu-latest`. GitHub is migrating the
+  `ubuntu-latest` label to Ubuntu 26 and annotates every job in the meantime; a
+  silent base-image swap is also the kind of change that breaks Playwright's
+  browser dependencies. Move the label once CI is green on 26.
+- The backend runtime image moved from `alpine:3.20` to `alpine:3.24`; 3.20 had
+  stopped receiving packages in 2026, and the builder stage was already on 3.24.
 - The frontend now builds and tests on **Node.js 24** (LTS) instead of Node 20,
   which reached end-of-life in April 2026. CI runs 24, the image builder is
   `node:24-alpine`, `frontend/package.json` declares `engines.node >= 24`, and

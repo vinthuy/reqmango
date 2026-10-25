@@ -76,7 +76,7 @@ updates:
         patterns: ['*']
         update-types: [minor, patch]
 
-  # Actions are pinned by tag (actions/checkout@v4); this keeps them current
+  # Actions are pinned by tag (actions/checkout@v7); this keeps them current
   # with the Node.js runtime GitHub deprecates.
   - package-ecosystem: github-actions
     directory: /

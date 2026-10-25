@@ -15,7 +15,11 @@ env:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    # Pinned to the LTS image rather than ubuntu-latest: GitHub is migrating
+    # ubuntu-latest to Ubuntu 26 and warns on every job in the meantime, and a
+    # silent base-image swap is exactly the kind of change that breaks the E2E
+    # browser deps. Move this (all 12 jobs) after CI passes on 26.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -54,7 +58,7 @@ jobs:
 
   security:
     name: Security
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -86,7 +90,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -129,7 +133,7 @@ jobs:
 
   e2e:
     name: E2E
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -246,7 +250,7 @@ jobs:
 
   audit:
     name: Tenancy audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -347,7 +351,7 @@ jobs:
 
   migrate:
     name: Migration path
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -415,7 +419,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [lint, security, test, e2e, audit, migrate]
     steps:
       - uses: actions/checkout@v7
@@ -439,7 +443,7 @@ jobs:
 
   docker:
     name: Docker Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build]
     # Release tags are covered by release.yml, which builds and pushes both
     # images for real.

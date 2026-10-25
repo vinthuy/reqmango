@@ -1,5 +1,9 @@
 # Build stage
-# Must be >= the `go` directive in go.mod (1.25.0).
+# Must be >= the `go` directive in go.mod (1.25.0) and the same minor as
+# GO_VERSION in .github/workflows/ci.yml, so the compiler that builds the image
+# is the one CI tested with. The tag floats on the patch release on purpose:
+# `golang:1.25-alpine` currently resolves to 1.25.14-alpine, exactly like the
+# `1.25` setup-go pin, so a patch CVE is picked up without a commit.
 #
 # Cross-compilation: buildx runs this stage on the build platform and Go
 # produces the target binary, so a multi-arch release does not pay for QEMU.
@@ -26,7 +30,11 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
       -o /app/server ./cmd/server
 
 # Runtime stage
-FROM alpine:3.20
+# The binary is CGO_ENABLED=0, so the only things this layer adds are
+# ca-certificates and tzdata. Kept on the same Alpine release as the builder
+# (3.24): 3.20 stopped receiving packages in 2026 and the image was six months
+# behind on base-layer CVE fixes.
+FROM alpine:3.24
 
 ARG VERSION=dev
 ARG COMMIT=unknown
