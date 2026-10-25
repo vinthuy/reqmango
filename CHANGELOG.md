@@ -8,6 +8,16 @@ under **Changed** / **Upgrade notes**.
 
 ## [Unreleased]
 
+### Changed
+
+- CI moved every GitHub Action to the major that runs on Node 24 natively
+  (`checkout@v7`, `setup-go@v7`, `setup-node@v7`, `setup-python@v7`,
+  `upload-artifact@v7`, `configure-pages@v6`, `upload-pages-artifact@v5`,
+  `deploy-pages@v5`, `docker/*-action@v4`/`v6`/`v7`). GitHub had deprecated the
+  Node 20 action runtime and printed a warning on every job; nothing changes for
+  contributors. The Go jobs also pin `cache-dependency-path` to `backend/go.sum`,
+  so the module cache is restored instead of re-downloaded on every run.
+
 ## [0.1.0] - 2026-10-24
 
 First tagged release. Reqmango is a self-hosted project manager whose intake
