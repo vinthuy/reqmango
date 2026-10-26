@@ -7,7 +7,7 @@
 #
 # Cross-compilation: buildx runs this stage on the build platform and Go
 # produces the target binary, so a multi-arch release does not pay for QEMU.
-FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
