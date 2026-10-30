@@ -21,7 +21,17 @@
 感谢 @xiapdo 的第一个共建 PR！README 首启说明正是新用户最容易卡住的地方，写得很清楚，已合并。欢迎继续认领其它 good first issue。
 ```
 
-## 3. V2EX 回帖（已发 ✅）
+## 3. V2EX 任务链接更新（未发）
+
+地址：https://www.v2ex.com/t/1244811
+
+原帖仍指向已关闭的 #3、#9。嵌入浏览器过不了 Cloudflare，需登录后粘贴：
+
+```
+入门任务更新：筛选芯片（#3）和 Compose 首启说明（#9）已经完成。还开放的是页签中文名 #2、项目设置报错 #5、路由标题 #6、.env.example #8。总览 https://github.com/vinthuy/reqmango/issues/13 。已发布镜像可以直接 docker compose pull && docker compose up -d。
+```
+
+## 4. V2EX 回帖（已发 ✅）
 
 地址：https://www.v2ex.com/t/1244811
 

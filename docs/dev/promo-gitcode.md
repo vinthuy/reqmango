@@ -24,6 +24,8 @@ Topics（若支持）：`self-hosted` `project-management` `vue` `golang` `ai` `
 
 ## 动态（粘贴到 GitCode 动态 / 讨论）
 
+欢迎 Issue #10 已改成已发布镜像试用（2026-10-31）。下面这段仍要在网页「动态」里手贴，接口发不了。
+
 **标题：** 自建 PM 开源共建：先分诊再进 backlog，类型 / 工作流 / 自动化可配
 
 **正文：**
@@ -36,15 +38,16 @@ Reqmango 开源自建：
 · 自定义工作项类型 · 工作流 · 自动化
 · AI 嵌在 Issue / Intake / Cycle；自备 Key，数据在自己机器上
 
-一键试用：
+一键试用（已发布镜像）：
 git clone https://gitcode.com/yongfeng9m-/reqmanpy.git reqmango
-cd reqmango && cp .env.example .env && docker compose up --build
+cd reqmango && cp .env.example .env && docker compose pull && docker compose up -d
 → http://localhost  · demo@example.com / demo1234
 
 欢迎提：
 「Jira 里这样配，这里还缺什么」——直接开 Issue。
-新手任务：docs/dev/good-first-issues.md
+还开放的上手任务：GFI-04 / 07 / 08 / 10（docs/dev/good-first-issues.md）
 贡献指南：CONTRIBUTING-zh.md
+开源中国：https://www.oschina.net/news/503197
 国际镜像：https://github.com/vinthuy/reqmango
 ```
 
