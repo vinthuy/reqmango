@@ -64,7 +64,7 @@ node scripts/create-gitcode-gfi-issues.mjs
 | 平台 | 状态 |
 |------|------|
 | GitCode | **主场，持续** |
-| 开源中国「投递软件」 | **已提交待审核**（成稿 `promo-oschina.md`） |
+| 开源中国 | **资讯已发** https://www.oschina.net/news/503197 （2026-10-25），不要再投 |
 | V2EX / 掘金 | 已发，不追加 |
 | 思否 / Linux.do | 暂缓 |
 
