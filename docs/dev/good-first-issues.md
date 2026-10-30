@@ -6,6 +6,8 @@ Starter tasks for new contributors. Each item is sized for roughly **0.5–3 hou
 
 **Product north star:** self-hosted PM — triage before backlog; AI inside Issue / Intake / Cycle. Prefer these paths over Agent-console sprawl.
 
+**Still open:** GFI-04, GFI-07, GFI-08, GFI-10. The rest of this list is done on `master`.
+
 ---
 
 ## GFI-01 — Record and add Intake demo GIF
@@ -13,6 +15,7 @@ Starter tasks for new contributors. Each item is sized for roughly **0.5–3 hou
 | | |
 |---|---|
 | **Area** | docs |
+| **Status** | **Done** — GitHub issue #1 closed |
 | **Files** | `docs/assets/demo.gif` (new), `docs/assets/README.md`, root `README.md` / `README-zh.md` |
 | **Task** | Record a 15–30s clip: submit Intake → triage queue (type / priority / duplicate hints if AI key set). Keep under ~5 MB. Link it in both READMEs above the fold. |
 | **Done when** | GIF renders on GitHub README; walkthrough text still works without AI key. |
@@ -22,6 +25,7 @@ Starter tasks for new contributors. Each item is sized for roughly **0.5–3 hou
 | | |
 |---|---|
 | **Area** | docs |
+| **Status** | **Done** — GitHub issue #11 closed |
 | **Files** | `docs/dev/github-public-profile.md` (new) |
 | **Task** | Document recommended repository About blurb (EN + ZH) and Topics: `self-hosted`, `project-management`, `issue-tracker`, `vue`, `golang`, `ai`. Maintainers apply in the GitHub UI. |
 | **Done when** | Doc exists and is linked from `CONTRIBUTING.md`. |
@@ -48,6 +52,7 @@ Starter tasks for new contributors. Each item is sized for roughly **0.5–3 hou
 | | |
 |---|---|
 | **Area** | frontend / i18n |
+| **Status** | **Done** on `master` — GitHub #3 and GitCode #3 closed |
 | **Files** | `frontend/src/composables/useIssueFilters.ts`, locales |
 | **Task** | Replace hardcoded `状态` / `优先级` / `紧急`… with `t()` (e.g. `common.*` / priority keys). |
 | **Done when** | Filter chips follow locale; vitest for the composable still pass or are updated. |
@@ -57,6 +62,7 @@ Starter tasks for new contributors. Each item is sized for roughly **0.5–3 hou
 | | |
 |---|---|
 | **Area** | frontend / i18n |
+| **Status** | **Done** on `master` — GitHub #4 and GitCode #4 closed |
 | **Files** | `frontend/src/types/issue.ts` (`getPriorityName`, `getStateGroupName`), call sites as needed |
 | **Task** | Make labels locale-aware (pass `t` or read `useI18n` from a thin helper). Do not leave Chinese-only maps for UI. |
 | **Done when** | Priority/state group names switch with locale in list/kanban/settings samples you touch. |
@@ -84,6 +90,7 @@ Starter tasks for new contributors. Each item is sized for roughly **0.5–3 hou
 | | |
 |---|---|
 | **Area** | DX |
+| **Status** | **Done** on `master` — GitHub #7 and GitCode #7 closed |
 | **Files** | `frontend/package.json`, `frontend/scripts/scan-missing-i18n-keys.mjs` |
 | **Task** | Add npm script e.g. `i18n:check` that runs the missing-key scanner and exits non-zero if real gaps remain (ignore dynamic `pageTab.builtInTabs.` / `plugin.` prefixes). |
 | **Done when** | `npm run i18n:check` documented in CONTRIBUTING. |
@@ -102,6 +109,7 @@ Starter tasks for new contributors. Each item is sized for roughly **0.5–3 hou
 | | |
 |---|---|
 | **Area** | docker |
+| **Status** | **Done** — GitHub #9 closed; GitCode #9 closed |
 | **Files** | `docker-compose.yml`, maybe README |
 | **Task** | Confirm frontend does not serve before backend is ready (or document retry). Optional: backend health endpoint already used by deps — improve README “first boot takes a few minutes” note. |
 | **Done when** | README states expected first-build time; no silent blank page without guidance. |
@@ -111,6 +119,7 @@ Starter tasks for new contributors. Each item is sized for roughly **0.5–3 hou
 | | |
 |---|---|
 | **Area** | docs |
+| **Status** | **Done** — GitHub issue #12 closed |
 | **Files** | `README.md`, `README-zh.md` |
 | **Task** | Contributing section should link `CONTRIBUTING.md` / `CONTRIBUTING-zh.md` and `docs/dev/good-first-issues.md`. |
 | **Done when** | Links work on GitHub. |
