@@ -24,7 +24,7 @@ Topics（若支持）：`self-hosted` `project-management` `vue` `golang` `ai` `
 
 ## 动态（粘贴到 GitCode 动态 / 讨论）
 
-欢迎 Issue #10 已改成已发布镜像试用（2026-10-31）。下面这段仍要在网页「动态」里手贴，接口发不了。
+已发布到公告讨论 #1（2026-10-31 更新试用命令）：https://gitcode.com/yongfeng9m-/reqmanpy/discussions/1
 
 **标题：** 自建 PM 开源共建：先分诊再进 backlog，类型 / 工作流 / 自动化可配
 
