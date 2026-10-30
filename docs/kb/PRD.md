@@ -1,6 +1,6 @@
 # reqmango 产品需求文档
 
-> **最后更新**: 2026-09-26  
+> **最后更新**: 2026-10-30  
 > **状态**: 现行（KB 真相来源）  
 > **产品方向**: 原生项目管理 + 原生 AI 项目管理路径 AI（Intake / Analyze / 自动化 / 仪表盘摘要）。  
 > **非方向**: Harness / Loop / 独立 Agent 控制台式 Agent 控制台产品化（已归档，见 [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md)）。
@@ -499,28 +499,22 @@ reqmango 提供了丰富的原生集成，可以与团队日常使用的工具�
 
 | 集成 | 功能 |
 |------|------|
-| GitHub | 同步 Issue 和 Pull Request |
-| GitHub Enterprise | 企业版 GitHub 集成 |
-| GitLab | 自动化 MR 跟踪 |
-| Slack | 创建工作项、同步讨论 |
-| Sentry | 自动创建工作项、同步错误 |
-| Draw.io | 在页面中嵌入图表 |
-| Jira | 数据导入和迁移 |
-| API/Webhooks | 自定义集成 |
+| GitHub | 工作空间连接、Issue 同步、入站 webhook |
+| Git | 工作空间级 Git 集成配置，以及 `POST /webhook/git/:projectId` |
+| Slack | 工作空间连接，向外发送通知 |
+| Webhook | 项目上配置的出站 webhook |
+| 批量导入 | CSV/JSON 导入工作项，字段可以映射 Jira、Linear、Plane 一类导出 |
+
+没有 GitHub Enterprise、GitLab MR 跟踪、Sentry、Draw.io 或 Jira 专用连接器。
 
 ### 18.3 集成架构
 
 ```mermaid
 flowchart LR
-    Reqmango[reqmango 平台] <-->|Webhook| GitHub[GitHub]
-    Reqmango <-->|Webhook| GitLab[GitLab]
-    Reqmango <-->|API| Slack[Slack]
-    Reqmango <-->|Webhook| Sentry[Sentry]
-    
-    GitHub -->|同步| Issues[工作项]
-    GitLab -->|同步| Issues
-    Slack -->|创建| Issues
-    Sentry -->|创建| Issues
+    GitHub[GitHub] -->|webhook / 同步| Reqmango[reqmango]
+    Git[Git webhook] -->|入站| Reqmango
+    Reqmango -->|通知| Slack[Slack]
+    Reqmango -->|出站| Webhook[项目 webhook]
 ```
 
 ---
@@ -529,16 +523,14 @@ flowchart LR
 
 ### 19.1 功能概述
 
-reqmango 提供完整的审计日志和合规记录功能，满足企业合规性要求。
+工作项上的变更记在 `issue_activities`。没有单独的合规检查、合规档案或审计导出。
 
-### 19.2 核心功能点
+### 19.2 已有记录
 
-| 功能 | 描述 |
+| 记录 | 描述 |
 |------|------|
-| **审计日志** | 记录所有操作历史 |
-| **合规记录** | 合规性检查记录 |
-| **数据导出** | 导出审计数据 |
-| **访问控制** | 基于角色的审计数据访问 |
+| **工作项活动** | `issue_activities` 记下工作项上的变更 |
+| **访问范围** | 能看该工作项的人才能看这些活动 |
 
 ---
 
@@ -546,16 +538,17 @@ reqmango 提供完整的审计日志和合规记录功能，满足企业合规�
 
 ### 20.1 功能概述
 
-reqmango 支持多种企业级认证方式，满足组织的安全和合规要求。
+登录是邮箱和密码。服务签发 JWT。长期调用使用个人访问令牌，前缀 `reqmango_pat_`，库里只存 SHA-256。
 
-### 20.2 支持的认证方式
+没有 SSO、SAML、OIDC 或 LDAP。
 
-| 认证方式 | 描述 |
-|---------|------|
-| **SSO** | 单点登录支持 |
-| **SAML** | SAML 2.0 认证 |
-| **OIDC** | OpenID Connect 认证 |
-| **LDAP** | LDAP/Active Directory 集成 |
+### 20.2 认证方式
+
+| 方式 | 说明 |
+|------|------|
+| **密码** | bcrypt 保存密码哈希 |
+| **JWT** | `Authorization: Bearer`，登录响应是 `access_token`、`token_type`、`expires_at` |
+| **个人访问令牌** | 同一 Bearer 头，在 JWT 之前识别 |
 
 ---
 
@@ -595,47 +588,18 @@ reqmango 支持多种企业级认证方式，满足组织的安全和合规要�
 
 ### 22.1 系统架构
 
+运行时是一个 Go 进程加一个 Vue 前端。没有独立网关、认证服务、Redis 或对象存储。附件写在本地目录。
+
 ```mermaid
 flowchart TB
-    subgraph Client["客户端层"]
-        Web[Web 应用]
-        Mobile[移动端]
-        Desktop[桌面端]
-    end
-    
-    subgraph Gateway["网关层"]
-        API[API Gateway]
-        Auth[认证服务]
-    end
-    
-    subgraph Service["服务层"]
-        Workspace[工作空间服务]
-        Project[项目管理服务]
-        WorkItem[工作项服务]
-        Cycle[周期服务]
-        Module[模块服务]
-        Page[页面服务]
-        AI[AI 服务]
-        Webhook[Webhook 服务]
-    end
-    
-    subgraph Data["数据层"]
-        DB[(PostgreSQL)]
-        Cache[(Redis)]
-        Storage[(对象存储)]
-    end
-    
-    subgraph External["外部服务"]
-        LLM[LLM API]
-        GitHub[GitHub API]
-        Slack[Slack API]
-    end
-    
-    Client --> Gateway
-    Gateway --> Service
-    Service --> Data
-    Service --> External
-    Service --> LLM
+    Web[Vue Web 应用] --> API[Gin HTTP API]
+    API --> Auth[JWT 或 PAT 中间件]
+    Auth --> Handlers[工作空间、项目、工作项、周期、模块、页面、AI、Webhook]
+    Handlers --> DB[(PostgreSQL)]
+    Handlers --> Files[本地附件目录]
+    Handlers --> LLM[LLM API]
+    Handlers --> GitHub[GitHub]
+    Handlers --> Slack[Slack]
 ```
 
 ### 22.2 技术栈选型
@@ -653,12 +617,14 @@ flowchart TB
 | 数据验证 | Gin ShouldBindJSON | 请求绑定与验证 |
 | 数据库 ORM | GORM 2.x | Go ORM 框架 |
 | 数据库 | PostgreSQL 16+ | 关系型数据 |
-| 认证 | JWT (golang-jwt/v5) | Bearer token 认证 |
+| 认证 | JWT（golang-jwt/v5）或个人访问令牌 | 同一个 Bearer 头 |
 | 文件存储 | 本地文件系统 | 附件上传 |
 | AI 集成 | DeepSeek / Anthropic / OpenAI | LLM 支持 (SSE 流式) |
 | 查询语言 | RQL (自定义) | 工作项高级搜索 |
 
 ### 22.3 数据库模型 (核心实体)
+
+主键是自增 `uint64`，不是 UUID。下面只画主路径上的几张表。全部 131 张表见 [data-model.md](architecture/data-model.md)。
 
 ```mermaid
 erDiagram
@@ -672,48 +638,50 @@ erDiagram
     WORKITEM }o--o{ MODULE : grouped
     WORKITEM ||--o{ COMMENT : has
     WORKITEM ||--o{ ATTACHMENT : has
-    
+
     WORKSPACE {
-        uuid id PK
+        bigint id PK
         string name
         string slug
         timestamp created_at
     }
-    
+
     PROJECT {
-        uuid id PK
-        uuid workspace_id FK
+        bigint id PK
+        bigint workspace_id FK
         string name
         string identifier
         boolean is_public
     }
-    
+
     WORKITEM {
-        uuid id PK
-        uuid project_id FK
-        string type
-        string title
-        string status
-        int priority
+        bigint id PK
+        bigint project_id FK
+        bigint state_id FK
+        bigint issue_type_id
+        string name
+        string priority
+        int sequence_id
+        int depth
     }
-    
+
     CYCLE {
-        uuid id PK
-        uuid project_id FK
+        bigint id PK
+        bigint project_id FK
         string name
         date start_date
         date end_date
     }
-    
+
     MODULE {
-        uuid id PK
-        uuid project_id FK
+        bigint id PK
+        bigint project_id FK
         string name
     }
-    
+
     PAGE {
-        uuid id PK
-        uuid project_id FK
+        bigint id PK
+        bigint project_id FK
         string title
         text content
     }
@@ -734,11 +702,11 @@ erDiagram
 
 ### 23.2 安全需求
 
-- 所有数据传输使用 HTTPS 加密
-- 敏感数据静态加密存储
-- 基于角色的访问控制（RBAC）
-- 操作审计日志
-- 支持 SSO/SAML 企业认证
+- 对外部署应使用 HTTPS。应用本身不终止 TLS
+- 密码用 bcrypt 保存，个人访问令牌只存 SHA-256。数据库文件本身没有应用层加密
+- 基于角色的访问控制（RBAC），另有 `scope.go` 的租户检查
+- 工作项变更记在 `issue_activities`
+- 不提供 SSO / SAML / OIDC / LDAP
 
 ### 23.3 可用性需求
 
@@ -764,6 +732,6 @@ erDiagram
 ---
 
 **文档版本**：v5.0（产品方向刷新 + 核心定制门禁）  
-**创建日期**：2026-06-13 · **刷新**：2026-09-26  
+**创建日期**：2026-06-13 · **刷新**：2026-10-30  
 **所属项目**：reqmango
 

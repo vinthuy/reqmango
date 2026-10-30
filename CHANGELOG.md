@@ -65,6 +65,10 @@ under **Changed** / **Upgrade notes**.
   relation names, `copy-from-workspace`, and a child type that must be exactly
   one level deeper. They now follow the models, routes and the checks in
   `IssueService`.
+- `PRD.md` still described a UUID schema, Redis, object storage, and SSO/SAML
+  connectors that the process does not have. The core diagram now uses
+  `uint64` keys, and the integration and auth sections list only GitHub, Git,
+  Slack, outbound webhooks, JWT, and personal access tokens.
 
 ## [0.1.0] - 2026-10-24
 

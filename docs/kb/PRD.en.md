@@ -1,6 +1,6 @@
 # reqmango Product Requirements Document
 
-> **Last updated**: 2026-09-26
+> **Last updated**: 2026-10-30
 > **Status**: Current (source of truth for the knowledge base)
 > **Product direction**: native project management plus a native AI project-management path (Intake / Analyze / automation / dashboard summaries).
 > **Not the direction**: productizing Harness / Loop / a standalone Agent console (archived — see [superseded/agent-platform](https://github.com/vinthuy/reqmango/blob/master/docs/superseded/agent-platform/README.md)).
@@ -501,28 +501,22 @@ reqmango offers native integrations that connect to the tools teams already use,
 
 | Integration | Capability |
 |-------------|------------|
-| GitHub | Sync issues and pull requests |
-| GitHub Enterprise | Enterprise GitHub integration |
-| GitLab | Automated MR tracking |
-| Slack | Create work items, sync discussions |
-| Sentry | Auto-create work items, sync errors |
-| Draw.io | Embed diagrams in pages |
-| Jira | Data import and migration |
-| API/Webhooks | Custom integrations |
+| GitHub | Workspace connection, issue sync, inbound webhook |
+| Git | Workspace Git integration, plus `POST /webhook/git/:projectId` |
+| Slack | Workspace connection that sends notifications outward |
+| Webhooks | Outbound webhooks configured on a project |
+| Bulk import | CSV/JSON work-item import. Columns can be mapped from Jira, Linear, or Plane exports |
+
+There is no GitHub Enterprise connector, GitLab merge-request tracking, Sentry, Draw.io, or a dedicated Jira connector.
 
 ### 18.3 Integration architecture
 
 ```mermaid
 flowchart LR
-    Reqmango[reqmango] <-->|Webhook| GitHub[GitHub]
-    Reqmango <-->|Webhook| GitLab[GitLab]
-    Reqmango <-->|API| Slack[Slack]
-    Reqmango <-->|Webhook| Sentry[Sentry]
-
-    GitHub -->|sync| Issues[Work items]
-    GitLab -->|sync| Issues
-    Slack -->|create| Issues
-    Sentry -->|create| Issues
+    GitHub[GitHub] -->|webhook / sync| Reqmango[reqmango]
+    Git[Git webhook] -->|inbound| Reqmango
+    Reqmango -->|notify| Slack[Slack]
+    Reqmango -->|outbound| Webhook[Project webhooks]
 ```
 
 ---
@@ -531,16 +525,14 @@ flowchart LR
 
 ### 19.1 Overview
 
-reqmango provides audit logs and compliance records for enterprise requirements.
+Work-item changes are stored on `issue_activities`. There is no separate compliance checklist, compliance archive, or audit export.
 
-### 19.2 Core features
+### 19.2 What is recorded
 
-| Feature | Description |
-|---------|-------------|
-| **Audit log** | Record every operation |
-| **Compliance records** | Compliance check records |
-| **Data export** | Export audit data |
-| **Access control** | Role-based access to audit data |
+| Record | Description |
+|--------|-------------|
+| **Work-item activity** | `issue_activities` stores changes on a work item |
+| **Access** | People who can see the work item can see that activity |
 
 ---
 
@@ -548,16 +540,17 @@ reqmango provides audit logs and compliance records for enterprise requirements.
 
 ### 20.1 Overview
 
-reqmango supports enterprise authentication methods that satisfy organisational security and compliance requirements.
+Sign-in is email and password. The server issues a JWT. Long-lived calls use a personal access token with the prefix `reqmango_pat_`; only the SHA-256 hash is stored.
 
-### 20.2 Supported methods
+There is no SSO, SAML, OIDC, or LDAP.
 
-| Method | Description |
-|--------|-------------|
-| **SSO** | Single sign-on |
-| **SAML** | SAML 2.0 |
-| **OIDC** | OpenID Connect |
-| **LDAP** | LDAP / Active Directory integration |
+### 20.2 Methods
+
+| Method | Notes |
+|--------|-------|
+| **Password** | Stored as a bcrypt hash |
+| **JWT** | `Authorization: Bearer`. Login returns `access_token`, `token_type`, and `expires_at` |
+| **Personal access token** | Same Bearer header, recognized before JWT |
 
 ---
 
@@ -597,47 +590,18 @@ reqmango supports enterprise authentication methods that satisfy organisational 
 
 ### 22.1 System architecture
 
+The runtime is one Go process and a Vue frontend. There is no separate gateway, auth service, Redis, or object store. Attachments are written to a local directory.
+
 ```mermaid
 flowchart TB
-    subgraph Client["Client layer"]
-        Web[Web app]
-        Mobile[Mobile]
-        Desktop[Desktop]
-    end
-
-    subgraph Gateway["Gateway layer"]
-        API[API gateway]
-        Auth[Auth service]
-    end
-
-    subgraph Service["Service layer"]
-        Workspace[Workspace service]
-        Project[Project service]
-        WorkItem[Work item service]
-        Cycle[Cycle service]
-        Module[Module service]
-        Page[Page service]
-        AI[AI service]
-        Webhook[Webhook service]
-    end
-
-    subgraph Data["Data layer"]
-        DB[(PostgreSQL)]
-        Cache[(Redis)]
-        Storage[(Object storage)]
-    end
-
-    subgraph External["External services"]
-        LLM[LLM API]
-        GitHub[GitHub API]
-        Slack[Slack API]
-    end
-
-    Client --> Gateway
-    Gateway --> Service
-    Service --> Data
-    Service --> External
-    Service --> LLM
+    Web[Vue web app] --> API[Gin HTTP API]
+    API --> Auth[JWT or PAT middleware]
+    Auth --> Handlers[Workspace, project, work item, cycle, module, page, AI, webhook]
+    Handlers --> DB[(PostgreSQL)]
+    Handlers --> Files[Local attachment directory]
+    Handlers --> LLM[LLM API]
+    Handlers --> GitHub[GitHub]
+    Handlers --> Slack[Slack]
 ```
 
 ### 22.2 Technology choices
@@ -655,12 +619,14 @@ The project uses **Vue 3 + Go + Gin + GORM**.
 | Validation | Gin ShouldBindJSON | Request binding and validation |
 | ORM | GORM 2.x | Go ORM |
 | Database | PostgreSQL 16+ | Relational store |
-| Authentication | JWT (golang-jwt/v5) | Bearer token auth |
+| Authentication | JWT (golang-jwt/v5) or a personal access token | The same Bearer header |
 | File storage | Local filesystem | Attachment uploads |
 | AI integration | DeepSeek / Anthropic / OpenAI | LLM support (SSE streaming) |
 | Query language | RQL (custom) | Advanced work item search |
 
 ### 22.3 Database model (core entities)
+
+Primary keys are autoincrement `uint64`, not UUIDs. The diagram below is only the main path. All 131 tables are in [data-model.md](architecture/data-model.md).
 
 ```mermaid
 erDiagram
@@ -676,46 +642,48 @@ erDiagram
     WORKITEM ||--o{ ATTACHMENT : has
 
     WORKSPACE {
-        uuid id PK
+        bigint id PK
         string name
         string slug
         timestamp created_at
     }
 
     PROJECT {
-        uuid id PK
-        uuid workspace_id FK
+        bigint id PK
+        bigint workspace_id FK
         string name
         string identifier
         boolean is_public
     }
 
     WORKITEM {
-        uuid id PK
-        uuid project_id FK
-        string type
-        string title
-        string status
-        int priority
+        bigint id PK
+        bigint project_id FK
+        bigint state_id FK
+        bigint issue_type_id
+        string name
+        string priority
+        int sequence_id
+        int depth
     }
 
     CYCLE {
-        uuid id PK
-        uuid project_id FK
+        bigint id PK
+        bigint project_id FK
         string name
         date start_date
         date end_date
     }
 
     MODULE {
-        uuid id PK
-        uuid project_id FK
+        bigint id PK
+        bigint project_id FK
         string name
     }
 
     PAGE {
-        uuid id PK
-        uuid project_id FK
+        bigint id PK
+        bigint project_id FK
         string title
         text content
     }
@@ -736,11 +704,11 @@ erDiagram
 
 ### 23.2 Security
 
-- All data in transit uses HTTPS
-- Sensitive data encrypted at rest
-- Role-based access control (RBAC)
-- Operation audit logs
-- SSO / SAML enterprise authentication
+- Deployments that face the network should use HTTPS. The application does not terminate TLS
+- Passwords are stored with bcrypt. Personal access tokens store only SHA-256. The database file is not encrypted by the application
+- Role-based access control (RBAC), plus the tenancy checks in `scope.go`
+- Work-item changes are stored on `issue_activities`
+- No SSO, SAML, OIDC, or LDAP
 
 ### 23.3 Availability
 
@@ -766,7 +734,7 @@ The detailed phase tables and schema lists are historical planning and no longer
 ---
 
 **Document version**: v5.0 (product direction refresh + core-customization gate)
-**Created**: 2026-06-13 · **Refreshed**: 2026-09-26
+**Created**: 2026-06-13 · **Refreshed**: 2026-10-30
 **Project**: reqmango
 
 ---
