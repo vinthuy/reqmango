@@ -116,12 +116,28 @@
             data-testid="picker-release"
             :model-value="issue.release_id ?? null"
             :options="releaseOptions"
+            :placeholder="t('issue.releasePlaceholder')"
             :disabled="isLocked"
             clearable
             @update:model-value="(v) => emit('update:release', toId(v))"
           />
         </div>
       </div>
+      <p
+        v-if="!releases.length"
+        class="px-1 -mt-1 mb-1 text-[10px] text-gray-400"
+        data-testid="release-empty-hint"
+      >
+        {{ t('issue.releaseEmptyHint') }}
+        <RouterLink
+          v-if="releaseSettingsTo"
+          :to="releaseSettingsTo"
+          class="text-indigo-600 hover:underline"
+          data-testid="release-settings-link"
+        >
+          {{ t('issue.releaseGoToSettings') }}
+        </RouterLink>
+      </p>
 
       <div class="prop-row">
         <label class="prop-label">{{ t('issue.estimate') }}</label>
@@ -302,6 +318,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, nextTick, onMounted } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
 import { useToast } from '@/composables/useToast'
 import { isEmptyIssueCustomFieldValue } from '@/utils/issue-custom-field-empty'
@@ -396,6 +413,17 @@ const emit = defineEmits<{
 
 const { t, locale } = useI18n()
 const toast = useToast()
+const route = useRoute()
+
+const releaseSettingsTo = computed(() => {
+  const slug = String(route.params.slug || '')
+  const pid = Number(props.issue?.project_id || route.params.id || 0)
+  if (!slug || !pid) return null
+  return {
+    path: `/workspace/${slug}/project/${pid}/settings`,
+    query: { section: 'releases' },
+  }
+})
 
 const estimatePoints = ref<EstimatePoint[]>([])
 const spentSeconds = ref(0)

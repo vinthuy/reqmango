@@ -162,6 +162,8 @@
     "modulePlaceholder": "Select module",
     "release": "Release",
     "releasePlaceholder": "Select release",
+    "releaseEmptyHint": "This project has no releases yet.",
+    "releaseGoToSettings": "Create one in project settings",
     "estimate": "Estimate",
     "startDate": "Start Date",
     "endDate": "End Date",

@@ -34,7 +34,6 @@
                 <option value="daily">{{ t('recurrence.frequency.daily') }}</option>
                 <option value="weekly">{{ t('recurrence.frequency.weekly') }}</option>
                 <option value="monthly">{{ t('recurrence.frequency.monthly') }}</option>
-                <option value="cron">{{ t('recurrence.frequency.cron') }}</option>
               </select>
             </div>
             <div>
@@ -45,10 +44,6 @@
           <div>
             <label class="block text-xs font-medium mb-1">{{ t('recurrence.nextRun') }}</label>
             <input v-model="form.next_run" type="datetime-local" class="w-full px-2 py-1.5 border rounded text-sm" />
-          </div>
-          <div v-if="form.frequency === 'cron'">
-            <label class="block text-xs font-medium mb-1">{{ t('recurrence.cronExpr') }}</label>
-            <input v-model="form.cron_expr" :placeholder="t('recurrence.cronPlaceholder')" class="w-full px-2 py-1.5 border rounded text-sm" />
           </div>
         </div>
         <div class="flex justify-end gap-3 mt-6">
@@ -104,7 +99,7 @@ async function save() {
       await recApi.createRecurrence(props.issueId, payload)
     }
     showForm.value = false; load()
-  } catch (e: any) { toast.error(e.response?.data?.message || 'Failed') }
+  } catch (e: any) { toast.error(e.response?.data?.message || t('common.error')) }
   finally { saving.value = false }
 }
 
@@ -113,7 +108,7 @@ async function toggle() {
   try {
     await recApi.updateRecurrence(props.issueId, { is_active: !rule.value.is_active })
     await load()
-  } catch (e: any) { toast.error(e.response?.data?.message || 'Failed to toggle recurrence') }
+  } catch (e: any) { toast.error(e.response?.data?.message || t('common.error')) }
 }
 
 async function remove() {
@@ -121,7 +116,7 @@ async function remove() {
   try {
     await recApi.deleteRecurrence(props.issueId)
     rule.value = null
-  } catch (e: any) { toast.error(e.response?.data?.message || 'Failed to remove recurrence') }
+  } catch (e: any) { toast.error(e.response?.data?.message || t('common.error')) }
 }
 
 function formatDate(d: string) { return new Date(d).toLocaleDateString() }

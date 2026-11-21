@@ -12,6 +12,12 @@ vi.mock('@/components/TimeTrackPanel.vue', () => ({
     props: ['issueId'],
   },
 }))
+vi.mock('@/components/RecurrenceConfig.vue', () => ({
+  default: {
+    template: '<div class="mock-recurrence">Recurrence</div>',
+    props: ['issueId'],
+  },
+}))
 
 const defaultProps = {
   issueId: 1,
@@ -24,9 +30,10 @@ function mountComponent(overrides: Record<string, any> = {}) {
 }
 
 describe('IssueTabTimeTracking', () => {
-  it('renders TimeTrackPanel', () => {
+  it('renders TimeTrackPanel and RecurrenceConfig', () => {
     const wrapper = mountComponent()
     expect(wrapper.text()).toContain('TimeTracking')
+    expect(wrapper.text()).toContain('Recurrence')
   })
 
   it('passes issueId prop', () => {

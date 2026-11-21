@@ -162,6 +162,8 @@
     "modulePlaceholder": "选择模块",
     "release": "发布版本",
     "releasePlaceholder": "选择发布版本",
+    "releaseEmptyHint": "本项目还没有发布版本。",
+    "releaseGoToSettings": "去项目设置创建",
     "estimate": "估点",
     "startDate": "开始日期",
     "endDate": "结束日期",

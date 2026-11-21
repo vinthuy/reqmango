@@ -24,28 +24,27 @@ status (Chinese) lives in [docs/dev/pipeline-status.md](docs/dev/pipeline-status
 
 ## Next — close the remaining work-item gaps
 
-**Shipped in code** on branch `feat/mandatory-fields` /
-[PR #32](https://github.com/vinthuy/reqmango/pull/32) (CI green). SRS + acceptance
-tables: [docs/specs/](docs/specs/README.md), [docs/dev/acceptance/](docs/dev/acceptance/).
-Process: [docs/dev/sdd.md](docs/dev/sdd.md). Historical notes:
-[Plane gap analysis](docs/dev/plane-gap-implementation-plan.md).
+**Shipped in [v0.2.0](https://github.com/vinthuy/reqmango/releases/tag/v0.2.0)** ([PR #32](https://github.com/vinthuy/reqmango/pull/32)).
+SRS + acceptance: [docs/specs/](docs/specs/README.md), [docs/dev/acceptance/](docs/dev/acceptance/).
+Process: [docs/dev/sdd.md](docs/dev/sdd.md).
 
 | Candidate | Status |
 |-----------|--------|
-| Quick create from the work-item list | Done (P0; spot-check list/board in UI) |
-| Mandatory field validation + conditional fields | Done (P0; import CF column mapping still a follow-up) |
-| Type hierarchy rules | Done (P0; admin UI spot-check) |
-| Sub-items panel | Done (P0) |
-| Page linking | Done (P0) |
-| Notification auto-trigger | Done (P0; due-soon remains P1) |
-| Attachment backend | Done (P0) |
+| Quick create from the work-item list | Done |
+| Mandatory field validation + conditional fields | Done (import CF column mapping still a follow-up) |
+| Type hierarchy rules | Done |
+| Sub-items panel | Done |
+| Page linking | Done |
+| Notification auto-trigger | Done (due-soon remains P1) |
+| Attachment backend | Done |
 
 ## Later — deeper workflows
 
 - [x] [Merge duplicate work items](docs/specs/2026-11-07-merge-duplicates.md) ([PR #33](https://github.com/vinthuy/reqmango/pull/33))
-- [x] Time tracking and estimate categories (P0: issue estimate points + manual time log + settings mount — `docs/specs/2026-11-07-time-tracking-estimates.md`; categories/time-mode on issues still Later)
-- Recurring work items
-- Release management polish and a release picker in the item view
+- [x] Time tracking and estimate categories (P0 — `docs/specs/2026-11-07-time-tracking-estimates.md`; categories/time-mode on issues still Later)
+- [ ] [Recurring work items](docs/specs/2026-11-21-recurring-issues.md) (P0: mount UI + RBAC; executor P1)
+- [ ] Release picker polish ([#36](https://github.com/vinthuy/reqmango/issues/36))
+- [ ] [Public demo playground](docs/deploy/demo.md) ([#38](https://github.com/vinthuy/reqmango/issues/38))
 
 ## Not planned
 

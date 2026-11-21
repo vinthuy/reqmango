@@ -986,12 +986,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, cfg *config.Config) {
 			issues.DELETE("/:issueId/time-tracks/:id", middleware.RequirePermission(db, "time_track:delete", "project"), timeTrackH.Delete)
 
 			// Recurrence
-			issues.POST("/:issueId/recurrence", recurrenceH.Create)
+			issues.POST("/:issueId/recurrence", middleware.RequirePermission(db, "issue:edit", "project"), recurrenceH.Create)
 			issues.GET("/:issueId/recurrence", recurrenceH.Get)
 			issues.POST("/:issueId/ai/comment", issueAccess, aiH.AssistComment)
 			issues.POST("/:issueId/agents/:agentId/mention", issueAccess, agentH.HandleMention)
-			issues.PUT("/:issueId/recurrence", recurrenceH.Update)
-			issues.DELETE("/:issueId/recurrence", recurrenceH.Delete)
+			issues.PUT("/:issueId/recurrence", middleware.RequirePermission(db, "issue:edit", "project"), recurrenceH.Update)
+			issues.DELETE("/:issueId/recurrence", middleware.RequirePermission(db, "issue:edit", "project"), recurrenceH.Delete)
 
 			// Pages
 			issues.GET("/:issueId/pages", issueH.ListPages)

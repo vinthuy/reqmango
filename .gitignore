@@ -104,3 +104,5 @@ frontend/coverage/
 # Docs site (mkdocs) build output and local virtualenv
 /site/
 .venv-docs/
+
+.worktrees/

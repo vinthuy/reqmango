@@ -16,6 +16,15 @@ vi.mock('@/api/time-track', () => ({
 vi.mock('@/composables/useI18n', () => ({
   useI18n: () => ({ t: (k: string) => k }),
 }))
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ params: { slug: 'acme', id: '7' }, query: {} }),
+  useRouter: () => ({ push: vi.fn() }),
+  RouterLink: {
+    name: 'RouterLink',
+    props: ['to'],
+    template: '<a :href="typeof to === \'string\' ? to : (to?.path || \'#\')"><slot /></a>',
+  },
+}))
 const mockToastWarning = vi.fn()
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: (...a: unknown[]) => mockToastWarning(...a) }),
@@ -82,6 +91,21 @@ describe('IssuePropertySidebar', () => {
     expect(wrapper.find('[data-testid="picker-assignee"]').text()).toContain('Alice')
     expect(wrapper.find('[data-testid="picker-cycle"]').text()).toContain('Sprint 5')
     expect(wrapper.find('[data-testid="picker-estimate"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="picker-release"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="release-empty-hint"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="release-settings-link"]').exists()).toBe(true)
+  })
+
+  it('hides release empty hint when releases exist', async () => {
+    const wrapper = mount(IssuePropertySidebar, {
+      ...mountOptions,
+      props: {
+        ...mountOptions.props,
+        releases: [{ id: 1, name: '1.0', version: '1.0.0' }],
+      },
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="release-empty-hint"]').exists()).toBe(false)
   })
 
   async function pickOption(wrapper: ReturnType<typeof mount>, testId: string, label: string) {
